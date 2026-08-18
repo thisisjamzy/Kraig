@@ -1,0 +1,2 @@
+# Kraig
+notion companion
