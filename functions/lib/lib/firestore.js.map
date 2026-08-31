@@ -1,1 +1,0 @@
-{"version":3,"file":"firestore.js","sourceRoot":"","sources":["../../src/lib/firestore.ts"],"names":[],"mappings":";;;AAAA,4CAA4D;AAC5D,wDAAwD;AAExD,mEAAmE;AACnE,yEAAyE;AACzE,qEAAqE;AACrE,8BAA8B;AACjB,QAAA,QAAQ,GAAG,IAAA,aAAO,GAAE,CAAC,MAAM,CAAC,CAAC,CAAC,IAAA,aAAO,GAAE,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,IAAA,mBAAa,GAAE,CAAC;AAC7D,QAAA,EAAE,GAAG,IAAA,wBAAY,EAAC,gBAAQ,CAAC,CAAC"}
