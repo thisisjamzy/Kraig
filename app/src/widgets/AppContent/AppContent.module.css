@@ -1,0 +1,14 @@
+.content {
+  width: 100%;
+  max-width: var(--app-max-width);
+  flex: 1;
+  overflow-x: hidden;
+}
+
+.withHeader {
+  padding-top: calc(84px + env(safe-area-inset-top));
+}
+
+.withBottomNav {
+  padding-bottom: calc(96px + env(safe-area-inset-bottom));
+}

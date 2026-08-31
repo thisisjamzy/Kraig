@@ -1,0 +1,445 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  padding: var(--space-lg);
+  gap: var(--space-lg);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.backButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  background: none;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-family-heading);
+  font-size: var(--font-size-xl);
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.subheading {
+  margin: calc(-1 * var(--space-sm)) 0 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.subheadingHighlight {
+  color: var(--color-brand);
+  font-weight: 700;
+}
+
+/* Step 1: type */
+
+.typeGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-md);
+}
+
+.typeCard {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  border: none;
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  text-align: left;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.typeCardActive {
+  background: var(--ink-bg);
+  color: var(--ink-text);
+}
+
+.typeIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid currentColor;
+  opacity: 0.8;
+}
+
+.typeLabel {
+  font-size: var(--font-size-md);
+  font-weight: 700;
+}
+
+.typeDescription {
+  font-size: 0.75rem;
+  opacity: 0.7;
+  line-height: 1.4;
+}
+
+/* Step 2: category */
+
+.categorySection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.categoryList {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.categoryRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-md) var(--space-lg);
+  border: none;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-background);
+  font-family: inherit;
+  font-size: var(--font-size-md);
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.categoryRow:last-child {
+  border-bottom: none;
+}
+
+.radio {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1.5px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+.radioActive {
+  border-color: var(--color-brand);
+  background: var(--color-brand);
+}
+
+.helperText {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  line-height: 1.4;
+}
+
+.descriptionCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-lg);
+  border-radius: var(--radius-lg);
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+}
+
+.descriptionLabel {
+  font-size: var(--font-size-md);
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.descriptionInput {
+  padding: var(--space-md);
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  outline: none;
+}
+
+/* Step 3: details */
+
+.detailsSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.infoRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-md) var(--space-lg);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.infoRowText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.infoRowLabel {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.infoRowValue {
+  font-size: 0.75rem;
+  color: var(--color-brand);
+  font-weight: 600;
+}
+
+.infoRowValueAccent {
+  font-size: 0.75rem;
+  color: var(--color-brand);
+  font-weight: 600;
+}
+
+.pillButton,
+.pillButtonInteractive {
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  background: var(--color-background);
+  color: var(--color-text-primary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: none;
+  font-family: inherit;
+}
+
+.pillButtonInteractive {
+  cursor: pointer;
+}
+
+.amountDisplay {
+  margin: 0;
+  text-align: center;
+  font-family: var(--font-family-heading);
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+}
+
+.keypad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-md);
+}
+
+.key {
+  height: 48px;
+  border: none;
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: var(--font-size-md);
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.key:hover {
+  filter: brightness(0.96);
+}
+
+/* Step 4: review */
+
+.reviewCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.reviewTitle {
+  margin: 0 0 var(--space-xs);
+  font-size: var(--font-size-md);
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.reviewRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-lg);
+}
+
+.reviewLabel {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  flex-shrink: 0;
+}
+
+.reviewValue {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  text-align: right;
+}
+
+.reviewValueWithAction {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-shrink: 0;
+}
+
+.reviewChangeButton {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border: none;
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.submitError {
+  margin: 0 0 var(--space-md);
+  font-size: var(--font-size-sm);
+  color: var(--color-danger);
+}
+
+/* Continue / Confirm */
+
+.continueButton {
+  margin-top: auto;
+  align-self: flex-start;
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-md) var(--space-xl);
+  border: none;
+  border-radius: var(--radius-lg);
+  background: #6b7380;
+  color: rgba(255, 255, 255, 0.85);
+  font-family: inherit;
+  font-size: var(--font-size-md);
+  font-weight: 700;
+  cursor: not-allowed;
+}
+
+.continueButton:not(:disabled) {
+  background: var(--ink-bg);
+  color: var(--color-brand);
+  cursor: pointer;
+}
+
+.typeIndicator {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.typeIndicator strong {
+  color: var(--color-text-primary);
+  font-weight: 700;
+}
+
+/* Date picker modal */
+
+.monthStepper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-lg);
+}
+
+.monthStepButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  background: none;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.monthStepValue {
+  font-family: var(--font-family-heading);
+  font-size: var(--font-size-md);
+  font-weight: 800;
+  color: var(--color-text-primary);
+  min-width: 12ch;
+  text-align: center;
+}
+
+.dayGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+
+.dayButton {
+  height: 36px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.dayButtonActive {
+  background: var(--ink-bg);
+  color: #ffffff;
+}
+
+/* Account picker modal */
+
+.accountList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.accountRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-md);
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}

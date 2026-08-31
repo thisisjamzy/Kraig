@@ -1,0 +1,15 @@
+{
+  "name": "@dreda/shared-recurrence",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Budget rule recurrence math (PRD-FIREBASE.md section 5), ported from sheets/Code.gs's ruleForMonth_/nextRuleOccurrence_. Imported by both the Next.js app (client-side \"does this apply this month\" UI, instant, no round trip) and functions/ (the onBudgetRuleWrite trigger that maintains stats/budgetProgress).",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "node --test dist/*.test.js"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0"
+  }
+}

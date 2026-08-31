@@ -1,0 +1,504 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  padding: var(--space-lg);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-family-heading);
+  font-weight: 800;
+  font-size: var(--font-size-2xl);
+  color: var(--color-text-primary);
+}
+
+.yearPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: none;
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.configButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  margin-left: auto;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  background: none;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.totalCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.totalLabel {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
+.totalBudgetRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.totalInput {
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-md);
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font-family: var(--font-family-heading);
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  color: var(--color-text-primary);
+  outline: none;
+}
+
+.saveButton {
+  flex-shrink: 0;
+  padding: var(--space-md) var(--space-lg);
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--color-brand);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: var(--font-size-md);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* Flat — no card chrome (border/background/padding). One shared grid for
+   the header row AND both data rows, so "Projected"/"Actual" line up with
+   the values under them exactly: separate grids per row don't guarantee
+   that (each auto-sizes its own "auto" percent column independently). */
+.trackingTable {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr auto;
+  align-items: center;
+  gap: var(--space-sm) var(--space-md);
+}
+
+.trackingCorner {
+  width: 100%;
+}
+
+.trackingTableHeaderLabel {
+  width: 100%;
+  text-align: left;
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
+/* Same visual language as .totalLabel above it ("TOTAL BUDGET FOR ...") —
+   these rows have no separate card title, the row label is the heading. */
+.trackingRowLabel {
+  width: 100%;
+  text-align: left;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
+.trackingTableValue {
+  width: 100%;
+  text-align: left;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trackingTableDivider {
+  grid-column: 1 / -1;
+  height: 1px;
+  margin: var(--space-xs) 0;
+  background: var(--color-border);
+}
+
+.trackingPercentBadge {
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.percentPositive {
+  background: color-mix(in srgb, var(--color-brand) 15%, transparent);
+  color: var(--color-brand);
+}
+
+.percentNegative {
+  background: color-mix(in srgb, var(--color-danger) 15%, transparent);
+  color: var(--color-danger);
+}
+
+.percentNeutral {
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+}
+
+.overspendWarning {
+  margin: 0;
+  padding: var(--space-sm);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-danger) 12%, transparent);
+  color: var(--color-danger);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.summaryRow {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-sm);
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--color-border);
+}
+
+.summaryItem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.summaryItemLabel {
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
+.summaryItemValue {
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: var(--font-size-md);
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.categoryList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.categoryRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.categoryText {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.categoryName {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.categoryDescription {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--color-text-secondary);
+}
+
+.categoryAmount {
+  margin: 2px 0 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.categoryRecurrence {
+  margin: 2px 0 0;
+  font-size: 0.6875rem;
+  color: var(--color-text-secondary);
+}
+
+.categoryActions {
+  display: flex;
+  flex-shrink: 0;
+  gap: var(--space-sm);
+}
+
+.iconButton,
+.iconButtonDanger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  background: none;
+  cursor: pointer;
+}
+
+.iconButton {
+  color: var(--color-text-primary);
+}
+
+.iconButtonDanger {
+  color: var(--color-danger);
+  border-color: color-mix(in srgb, var(--color-danger) 40%, transparent);
+}
+
+.addCategoryButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+  padding: var(--space-md);
+  border: 1.5px dashed var(--color-border);
+  border-radius: var(--radius-lg);
+  background: none;
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.footerNote {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+}
+
+
+/* Month/year picker modal */
+
+.yearStepper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-lg);
+}
+
+.yearStepButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  background: none;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.yearStepValue {
+  font-family: var(--font-family-heading);
+  font-size: var(--font-size-lg);
+  font-weight: 800;
+  color: var(--color-text-primary);
+  min-width: 4ch;
+  text-align: center;
+}
+
+.monthGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-sm);
+}
+
+.monthButton {
+  padding: var(--space-sm);
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.monthButtonActive {
+  background: var(--ink-bg);
+  color: #ffffff;
+}
+
+/* Add category / edit amount modal forms */
+
+.emptyText {
+  margin: 0 0 var(--space-md);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.errorText {
+  margin: var(--space-sm) 0 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-danger);
+}
+
+.formField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+
+.formLabel {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.checkboxRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.sectionCaption {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.formInput,
+.formTextarea {
+  width: 100%;
+  min-width: 0;
+  padding: var(--space-md);
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  outline: none;
+  resize: none;
+}
+
+.modalSaveButton {
+  padding: var(--space-md) var(--space-lg);
+  border: none;
+  border-radius: var(--radius-lg);
+  background: var(--ink-bg);
+  color: var(--color-brand);
+  font-family: inherit;
+  font-size: var(--font-size-md);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.modalSaveButton:disabled {
+  background: #6b7380;
+  color: rgba(255, 255, 255, 0.85);
+  cursor: not-allowed;
+}
+
+.recurrenceGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.recurrenceOption {
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: none;
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  text-align: left;
+  cursor: pointer;
+}
+
+.recurrenceOptionActive {
+  border-color: var(--ink-bg);
+  background: var(--ink-bg);
+  color: #ffffff;
+}
+
+.recurrenceMonthsRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-top: var(--space-xs);
+}
+
+.recurrenceMonthsInput {
+  width: 64px;
+  padding: var(--space-sm);
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  text-align: center;
+  outline: none;
+}
+
+.recurrenceMonthsLabel {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}

@@ -1,0 +1,8 @@
+{
+  "name": "dreda-ledger-backend",
+  "private": true,
+  "description": "Tests for Code.gs, the Apps Script backend bound to Dreda-Ledger. See ../PRD-BACKEND.md and SETUP.md.",
+  "scripts": {
+    "test": "node --test"
+  }
+}

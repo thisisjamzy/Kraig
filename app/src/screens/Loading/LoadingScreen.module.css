@@ -1,0 +1,26 @@
+.page {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-lg);
+  padding: var(--space-lg);
+  padding-bottom: max(var(--space-lg), env(safe-area-inset-bottom));
+  background: var(--color-background);
+}
+
+.logo {
+  border-radius: var(--radius-lg);
+}
+
+.spinner {
+  color: var(--color-brand);
+}
+
+.label {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  text-align: center;
+}
