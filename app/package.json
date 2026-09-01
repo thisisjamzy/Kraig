@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@dreda/shared-recurrence": "*",
     "@ducanh2912/next-pwa": "^10.2.9",
     "bcryptjs": "^3.0.3",
     "firebase": "^12.18.0",
