@@ -144,3 +144,12 @@ vite.config.ts.timestamp-*
 
 # macOS
 .DS_Store
+
+# packages/shared-recurrence's compiled output is deliberately committed
+# (overriding the generic `dist` rule above) — it's a tiny, low-churn,
+# hand-reviewed single-file build, and Vercel's build has proven unreliable
+# at running the `prepare` script that would otherwise regenerate it (see
+# that package's package.json). Run `npm run build --prefix
+# packages/shared-recurrence` and commit the result after editing its src/.
+!packages/shared-recurrence/dist
+!packages/shared-recurrence/dist/**
