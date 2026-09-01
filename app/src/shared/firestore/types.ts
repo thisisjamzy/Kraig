@@ -21,6 +21,17 @@ export interface FirestoreAccount {
   // frozen checks, the actual enforcement point).
   notSpendable?: boolean;
   frozen?: boolean;
+  // A portion of currentBalance set aside and blocked from spending —
+  // e.g. money pushed into this wallet as savings, without freezing the
+  // whole wallet the way `frozen` does. Native to this account's own
+  // currency, same as currentBalance. Never negative, never (enforced at
+  // the UI layer, src/logic/walletDetail/useLogic.ts) more than
+  // currentBalance. aggregation.ts's frozen checks are joined by an
+  // equivalent "would this dip below what's locked" check wherever an
+  // outflow debits this account (a transaction, a transfer's fromAccountId,
+  // or an edit that increases either). Optional/0 for a wallet with nothing
+  // locked, and absent on accounts written before this field existed.
+  lockedAmount?: number;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 }
@@ -61,6 +72,12 @@ export interface FirestoreTransfer {
   fromAccountId: string;
   toAccountId: string;
   amount: number;
+  // What the transfer itself cost — a wire fee, a mobile-money charge, etc.
+  // Deducted from fromAccountId on top of `amount` (toAccountId only ever
+  // receives `amount`); optional/0 for a free transfer, and absent on
+  // transfers written before this field existed. See
+  // aggregation.ts's createTransferWithAggregation.
+  charges?: number;
   kind: string;
   notes: string;
   createdBy: string;
@@ -70,9 +87,22 @@ export interface FirestoreTransfer {
 export type Frequency = 'Once' | 'Daily' | 'Weekly' | 'Monthly' | 'Quarterly' | 'Yearly';
 export type EndCondition = 'Never' | 'After Occurrences' | 'On Date';
 
+// What kind of budget line this is. 'Expense' | 'Income' | 'Savings' mirror
+// FirestoreCategory.transactionType (categoryId then points at a real
+// categories/{id} doc of that same type); 'Transfer' has no such doc —
+// categoryId there is one of viewmodels/categories.ts's TRANSFER_CATEGORIES
+// strings instead (e.g. "Wallet to savings"), the same "category" shape
+// Add Transaction's transfer step already uses (src/logic/addTransaction).
+// Optional for back-compat with rules written before this field existed —
+// those are always Expense/Income/Savings, never Transfer, so callers fall
+// back to the linked category's own transactionType (see
+// src/logic/budget/useLogic.ts's toAppBudgetType).
+export type BudgetLineType = 'Expense' | 'Income' | 'Savings' | 'Transfer';
+
 export interface FirestoreBudgetRule {
   id: string;
   categoryId: string;
+  type?: BudgetLineType;
   description: string;
   budgetedAmount: number;
   frequency: Frequency;
@@ -127,6 +157,14 @@ export interface FirestoreSettings {
   displayCurrency: string;
   timezone: string;
   householdName: string;
+  // Opt out of the PIN gate entirely — the app opens straight to /home.
+  // Account-wide (this doc, not a local flag) so it's the source of truth
+  // across devices; src/shared/config/pinGate.ts's PIN_DISABLED_KEY mirrors
+  // it into a local cookie/localStorage flag per device for proxy.ts's
+  // Edge middleware, which can't read Firestore (see that file's header).
+  // Undefined/false means the PIN is required, same as every account before
+  // this field existed.
+  pinDisabled?: boolean;
 }
 
 /**

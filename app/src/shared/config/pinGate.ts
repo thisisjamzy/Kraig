@@ -26,3 +26,15 @@ export const PIN_CREATE_HINT_KEY = 'dreda-pin-create-hint';
 // itself. Cleared on sign-out (src/logic/settings/useLogic.ts) so it
 // doesn't outlive the session it belongs to on a shared device.
 export const PIN_HASH_CACHE_KEY = 'dreda-pin-hash-cache';
+
+// Settings' "Require PIN" toggle (src/logic/settings/useLogic.ts) — this
+// local mirror (both localStorage, for src/logic/appEntry/useLogic.ts, and
+// a plain cookie, for proxy.ts's Edge middleware, which can't read
+// Firestore) is what actually lets a device skip the PIN screen instantly;
+// the account-wide source of truth is settings.pinDisabled in Firestore
+// (see FirestoreSettings), which src/logic/pin/useLogic.ts syncs this flag
+// from on a device that hasn't toggled it locally yet (e.g. a second
+// device, after disabling it on the first). Persists like SIGNED_IN_KEY
+// (no maxAge scoping the way PIN_VERIFIED_KEY has) — it's a standing
+// per-device preference, not a per-session unlock.
+export const PIN_DISABLED_KEY = 'dreda-pin-disabled';

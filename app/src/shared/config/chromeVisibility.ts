@@ -7,6 +7,10 @@ const HEADER_ROUTES = ['/home', '/statistics', '/budget'];
 
 const NO_BOTTOM_NAV_PREFIXES = [
   '/add-transaction',
+  '/edit-transaction',
+  '/add-budget-category',
+  '/create-category',
+  '/categories',
   '/transactions',
   '/wallets',
   '/settings',

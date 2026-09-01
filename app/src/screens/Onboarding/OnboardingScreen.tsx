@@ -71,6 +71,12 @@ export function OnboardingScreen() {
         ))}
       </div>
 
+      <div className={styles.skipRow}>
+        <button type="button" className={styles.skipButton} onClick={finish}>
+          {strings.skipOnboarding}
+        </button>
+      </div>
+
       {step === 'wallets' && (
         <section className={styles.section}>
           <h1 className={styles.title}>{strings.walletsTitle}</h1>

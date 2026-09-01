@@ -16,6 +16,34 @@ export function walletColor(index: number) {
   return WALLET_COLORS[index % WALLET_COLORS.length];
 }
 
+/**
+ * Reorders items (already sorted by whatever should peak in the middle,
+ * largest first) into a center-outward "normal distribution" layout for a
+ * bar chart — the largest bar in the middle column, the next two flanking
+ * it on either side, and so on out to the smallest bars at the two edges.
+ * Used for Home's wallet balances chart so the tallest bar reads as the
+ * peak of a bell curve rather than sitting wherever its account happened to
+ * be created.
+ */
+export function arrangeCentered<T>(sortedDescending: T[]): T[] {
+  const n = sortedDescending.length;
+  const result = new Array<T>(n);
+  let left = Math.floor((n - 1) / 2);
+  let right = left + 1;
+  let placeLeft = true;
+  for (const item of sortedDescending) {
+    if (placeLeft) {
+      result[left] = item;
+      left -= 1;
+    } else {
+      result[right] = item;
+      right += 1;
+    }
+    placeLeft = !placeLeft;
+  }
+  return result;
+}
+
 // sheets/SCHEMA.md's Accounts.Type dropdown, carried over as the fixed enum
 // the "Add wallet" form offers — a free-text field elsewhere in the schema,
 // but a dropdown here keeps new accounts consistent with existing ones.

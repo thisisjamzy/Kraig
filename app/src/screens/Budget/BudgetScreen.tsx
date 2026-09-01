@@ -1,8 +1,9 @@
 'use client';
 
-import { ChevronDown, ChevronLeft, ChevronRight, Pencil, Trash2, Plus, Settings } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, Pencil, Trash2, Plus, Settings, History } from 'lucide-react';
+import Link from 'next/link';
 import { Modal } from '@/src/widgets/Modal/Modal';
-import { useLogic, formatAmount } from '@/src/logic/budget/useLogic';
+import { useLogic, formatAmount, BUDGET_LINE_TYPES } from '@/src/logic/budget/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import styles from './BudgetScreen.module.css';
@@ -12,6 +13,8 @@ export function BudgetScreen() {
   const {
     monthIndex,
     year,
+    retroTransactionHref,
+    showRetroTransactionButton,
     monthPickerOpen,
     setMonthPickerOpen,
     pickerYear,
@@ -32,23 +35,11 @@ export function BudgetScreen() {
     savingPlan,
     categories,
     currency,
-    availableCategories,
-    addOpen,
-    setAddOpen,
-    newCategoryId,
-    setNewCategoryId,
-    newDescription,
-    setNewDescription,
-    newAmount,
-    setNewAmount,
-    newRecurrence,
-    setNewRecurrence,
-    newRecurrenceMonths,
-    setNewRecurrenceMonths,
-    creating,
-    createError,
+    addBudgetCategoryHref,
     editingCategory,
     editAvailableCategories,
+    editType,
+    setEditType,
     editCategoryId,
     setEditCategoryId,
     editDescriptionDraft,
@@ -77,8 +68,6 @@ export function BudgetScreen() {
     handleSavePlan,
     openMonthPicker,
     chooseMonth,
-    openAddCategory,
-    handleCreateCategory,
     openEdit,
     handleSaveEdit,
     handleDelete,
@@ -233,10 +222,20 @@ export function BudgetScreen() {
         ))}
       </div>
 
-      <button type="button" className={styles.addCategoryButton} onClick={openAddCategory}>
+      <Link href={addBudgetCategoryHref} className={styles.addCategoryButton}>
         <Plus size={18} strokeWidth={2.25} />
         {strings.budget.addCategory}
-      </button>
+      </Link>
+
+      {showRetroTransactionButton && (
+        <Link href={retroTransactionHref} className={styles.retroButton}>
+          <History size={18} strokeWidth={2.25} />
+          <span>
+            <span className={styles.retroButtonLabel}>{strings.budget.addRetroTransaction}</span>
+            <span className={styles.retroButtonHint}>{strings.budget.addRetroTransactionHint}</span>
+          </span>
+        </Link>
+      )}
 
       <p className={styles.footerNote}>{strings.budget.footerNote}</p>
 
@@ -334,127 +333,51 @@ export function BudgetScreen() {
         </Modal>
       )}
 
-      {addOpen && (
-        <Modal title={strings.budget.addCategoryTitle} onClose={() => setAddOpen(false)}>
-          {availableCategories.length === 0 ? (
-            <p className={styles.emptyText}>{strings.budget.noCategoriesLeft}</p>
-          ) : (
-            <div className={styles.formField}>
-              <label className={styles.formLabel} htmlFor="new-category-id">
-                {strings.budget.categoryLabel}
-              </label>
-              <select
-                id="new-category-id"
-                className={styles.formInput}
-                value={newCategoryId}
-                onChange={(event) => setNewCategoryId(event.target.value)}
-              >
-                <option value="" disabled>
-                  {strings.budget.categoryPlaceholder}
-                </option>
-                {availableCategories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-          <div className={styles.formField}>
-            <label className={styles.formLabel} htmlFor="new-category-description">
-              {strings.budget.descriptionLabel}
-            </label>
-            <textarea
-              id="new-category-description"
-              className={styles.formTextarea}
-              value={newDescription}
-              onChange={(event) => setNewDescription(event.target.value)}
-              placeholder={strings.budget.descriptionPlaceholder}
-              rows={3}
-            />
-          </div>
-          <div className={styles.formField}>
-            <label className={styles.formLabel} htmlFor="new-category-amount">
-              {strings.budget.amountLabel}
-            </label>
-            <input
-              id="new-category-amount"
-              className={styles.formInput}
-              inputMode="numeric"
-              value={newAmount}
-              onChange={(event) => setNewAmount(event.target.value.replace(/[^0-9]/g, ''))}
-              placeholder="0"
-            />
-          </div>
-
-          <div className={styles.formField}>
-            <span className={styles.formLabel}>{strings.budget.repeatsLabel}</span>
-            <div className={styles.recurrenceGroup}>
-              {strings.budget.recurrenceOptions.map((option) => (
-                <button
-                  key={option.key}
-                  type="button"
-                  className={`${styles.recurrenceOption} ${
-                    newRecurrence === option.key ? styles.recurrenceOptionActive : ''
-                  }`}
-                  onClick={() => setNewRecurrence(option.key)}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-            {newRecurrence === 'limited' && (
-              <div className={styles.recurrenceMonthsRow}>
-                <input
-                  className={styles.recurrenceMonthsInput}
-                  inputMode="numeric"
-                  value={newRecurrenceMonths}
-                  onChange={(event) =>
-                    setNewRecurrenceMonths(event.target.value.replace(/[^0-9]/g, ''))
-                  }
-                />
-                <span className={styles.recurrenceMonthsLabel}>{strings.budget.monthsSuffix}</span>
-              </div>
-            )}
-          </div>
-
-          {createError && (
-            <p className={styles.errorText} role="alert">
-              {createError}
-            </p>
-          )}
-          <button
-            type="button"
-            className={styles.modalSaveButton}
-            disabled={!newCategoryId || creating}
-            onClick={handleCreateCategory}
-          >
-            {strings.common.save}
-          </button>
-        </Modal>
-      )}
-
       {editingCategory && (
         <Modal
           title={`${editingCategory.category} ${strings.budget.editCategoryTitleSuffix}`}
           onClose={() => setEditingId(null)}
         >
           <div className={styles.formField}>
+            <span className={styles.formLabel}>{strings.budget.typeLabel}</span>
+            <div className={styles.recurrenceGroup}>
+              {BUDGET_LINE_TYPES.map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  className={`${styles.recurrenceOption} ${editType === option ? styles.recurrenceOptionActive : ''}`}
+                  onClick={() => setEditType(option)}
+                >
+                  {strings.budget.typeLabels[option]}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className={styles.formField}>
             <label className={styles.formLabel} htmlFor="edit-category-id">
               {strings.budget.categoryLabel}
             </label>
-            <select
-              id="edit-category-id"
-              className={styles.formInput}
-              value={editCategoryId}
-              onChange={(event) => setEditCategoryId(event.target.value)}
-            >
-              {editAvailableCategories.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
-            </select>
+            {editAvailableCategories.length === 0 ? (
+              <p className={styles.emptyText}>{strings.budget.noCategoriesLeft}</p>
+            ) : (
+              <select
+                id="edit-category-id"
+                className={styles.formInput}
+                value={editCategoryId}
+                onChange={(event) => setEditCategoryId(event.target.value)}
+              >
+                {editCategoryId === '' && (
+                  <option value="" disabled>
+                    {strings.budget.categoryPlaceholder}
+                  </option>
+                )}
+                {editAvailableCategories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
           <div className={styles.formField}>
             <label className={styles.formLabel} htmlFor="edit-category-description">

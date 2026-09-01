@@ -3,6 +3,7 @@
   flex-direction: column;
   min-height: 100%;
   padding: var(--space-lg);
+  padding-top: calc(var(--space-lg) + env(safe-area-inset-top));
   gap: var(--space-lg);
 }
 
@@ -149,6 +150,42 @@
   line-height: 1.4;
 }
 
+.noBudgetCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.noBudgetTitle {
+  margin: 0;
+  font-size: var(--font-size-md);
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.noBudgetActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-top: var(--space-xs);
+}
+
+.unplannedLink {
+  align-self: flex-start;
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-brand);
+  cursor: pointer;
+}
+
 .descriptionCard {
   display: flex;
   flex-direction: column;
@@ -217,8 +254,62 @@
   font-weight: 600;
 }
 
+.transferRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-lg);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.transferSide {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+  border: none;
+  background: none;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.transferAccountValue {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-brand);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.transferArrow {
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+}
+
+.chargesInput {
+  width: 96px;
+  padding: var(--space-sm) var(--space-md);
+  border: none;
+  border-radius: var(--radius-full);
+  background: var(--color-background);
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  text-align: right;
+  outline: none;
+}
+
 .pillButton,
 .pillButtonInteractive {
+  display: inline-flex;
+  align-items: center;
   padding: 6px 14px;
   border-radius: var(--radius-full);
   background: var(--color-background);
@@ -227,6 +318,7 @@
   font-weight: 600;
   border: none;
   font-family: inherit;
+  text-decoration: none;
 }
 
 .pillButtonInteractive {

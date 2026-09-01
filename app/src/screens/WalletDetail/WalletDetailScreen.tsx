@@ -12,6 +12,8 @@ export function WalletDetailScreen({ walletId }: { walletId: string }) {
   const {
     wallet,
     balance,
+    lockedAmount,
+    availableAmount,
     currency,
     transactions,
     period,
@@ -27,6 +29,8 @@ export function WalletDetailScreen({ walletId }: { walletId: string }) {
     setNotSpendableDraft,
     frozenDraft,
     setFrozenDraft,
+    lockedAmountDraft,
+    setLockedAmountDraft,
     savingEdit,
     editError,
     saveEdit,
@@ -53,11 +57,22 @@ export function WalletDetailScreen({ walletId }: { walletId: string }) {
         {formatAmount(balance)} <span className={styles.balanceCurrency}>{currency}</span>
       </p>
 
-      {(wallet?.frozen || wallet?.notSpendable) && (
+      {lockedAmount > 0 && (
+        <p className={styles.availableCaption}>
+          {strings.walletDetail.availablePrefix} {formatAmount(availableAmount)} {currency}
+        </p>
+      )}
+
+      {(wallet?.frozen || wallet?.notSpendable || lockedAmount > 0) && (
         <div className={styles.badgeRow}>
           {wallet?.frozen && <span className={styles.badgeFrozen}>{strings.walletDetail.frozenBadge}</span>}
           {wallet?.notSpendable && (
             <span className={styles.badgeNotSpendable}>{strings.walletDetail.notSpendableBadge}</span>
+          )}
+          {lockedAmount > 0 && (
+            <span className={styles.badgeLocked}>
+              {formatAmount(lockedAmount)} {currency} {strings.walletDetail.lockedBadgeSuffix}
+            </span>
           )}
         </div>
       )}
@@ -116,6 +131,20 @@ export function WalletDetailScreen({ walletId }: { walletId: string }) {
               {strings.walletDetail.frozenLabel}
             </label>
             <p className={styles.sectionCaption}>{strings.walletDetail.frozenHint}</p>
+          </div>
+          <div className={styles.formField}>
+            <label className={styles.formLabel} htmlFor="wallet-locked-amount">
+              {strings.walletDetail.lockedAmountLabel}
+            </label>
+            <input
+              id="wallet-locked-amount"
+              className={styles.formInput}
+              inputMode="numeric"
+              value={lockedAmountDraft}
+              onChange={(event) => setLockedAmountDraft(event.target.value.replace(/[^0-9.]/g, ''))}
+              placeholder="0"
+            />
+            <p className={styles.sectionCaption}>{strings.walletDetail.lockedAmountHint}</p>
           </div>
           {editError && (
             <p className={styles.errorText} role="alert">

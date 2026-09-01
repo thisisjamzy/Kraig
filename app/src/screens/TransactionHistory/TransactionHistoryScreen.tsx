@@ -1,6 +1,7 @@
 'use client';
 
 import { ChevronLeft, Search, SlidersHorizontal, Pencil } from 'lucide-react';
+import Link from 'next/link';
 import { useLogic, formatAmount } from '@/src/logic/transactionHistory/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
@@ -8,7 +9,7 @@ import styles from './TransactionHistoryScreen.module.css';
 
 export function TransactionHistoryScreen() {
   const strings = useStrings();
-  const { transactions, loading, error, iconFor, goBack } = useLogic();
+  const { transactions, loading, error, editHref, goBack } = useLogic();
 
   return (
     <div className={styles.page}>
@@ -30,8 +31,8 @@ export function TransactionHistoryScreen() {
       <ScreenState loading={loading} error={error} />
 
       <div className={styles.list}>
-        {transactions.map((transaction, index) => {
-          const Icon = iconFor(index);
+        {transactions.map((transaction) => {
+          const Icon = transaction.icon;
           return (
             <div key={transaction.id} className={styles.card}>
               <span className={styles.icon} style={{ background: transaction.iconColor }}>
@@ -48,9 +49,9 @@ export function TransactionHistoryScreen() {
                   <span className={styles.date}>{transaction.date}</span>
                 </div>
               </div>
-              <button type="button" className={styles.editButton} aria-label="Edit transaction">
+              <Link href={editHref(transaction.id)} className={styles.editButton} aria-label="Edit transaction">
                 <Pencil size={14} strokeWidth={1.75} />
-              </button>
+              </Link>
             </div>
           );
         })}

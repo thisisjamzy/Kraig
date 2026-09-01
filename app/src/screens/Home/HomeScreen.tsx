@@ -1,10 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { Plus, SlidersHorizontal, History, RefreshCw, ArrowUpRight } from 'lucide-react';
+import { Plus, SlidersHorizontal, History, ArrowUpRight, Check, ChevronDown, Search } from 'lucide-react';
 import { useLogic, formatAmount, formatCompact, type SpendingPeriod } from '@/src/logic/home/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
+import { Modal } from '@/src/widgets/Modal/Modal';
 import styles from './HomeScreen.module.css';
 
 // Colorless placeholder shapes shown while a chart has no real data yet (or
@@ -29,19 +30,24 @@ export function HomeScreen() {
     breakdownMax,
     loading,
     error,
-    refetch,
+    currencyPickerOpen,
+    setCurrencyPickerOpen,
+    currencySearch,
+    setCurrencySearch,
+    currencyOptions,
+    currencySaving,
+    currencyError,
+    switchCurrency,
   } = useLogic();
 
   const quickActions: {
     label: string;
     icon: typeof Plus;
-    href: string | null;
-    onClick?: () => void;
+    href: string;
   }[] = [
     { label: strings.home.quickActionAddNew, icon: Plus, href: '/add-transaction' },
     { label: strings.home.quickActionSeeBudget, icon: SlidersHorizontal, href: '/budget' },
     { label: strings.home.quickActionHistory, icon: History, href: '/transactions' },
-    { label: strings.home.quickActionSync, icon: RefreshCw, href: null, onClick: refetch },
   ];
 
   const periods: { key: SpendingPeriod; label: string }[] = [
@@ -57,7 +63,14 @@ export function HomeScreen() {
       <section className={styles.balanceCard}>
         <div className={styles.balanceTopRow}>
           <span className={styles.balanceLabel}>{strings.home.balanceLabel}</span>
-          <span className={styles.currencyChip}>{balance.currency}</span>
+          <button
+            type="button"
+            className={styles.currencyChip}
+            onClick={() => setCurrencyPickerOpen(true)}
+          >
+            {balance.currency}
+            <ChevronDown size={12} strokeWidth={2.5} />
+          </button>
         </div>
         <p className={styles.balanceAmount}>{formatAmount(balance.total)}</p>
         <div className={styles.spendableRow}>
@@ -68,25 +81,52 @@ export function HomeScreen() {
         </div>
 
         <div className={styles.quickActions}>
-          {quickActions.map(({ label, icon: Icon, href, onClick }) =>
-            href ? (
-              <Link key={label} href={href} className={styles.quickAction}>
-                <span className={styles.quickActionIcon}>
-                  <Icon size={18} strokeWidth={1.75} />
-                </span>
-                {label}
-              </Link>
-            ) : (
-              <button key={label} type="button" className={styles.quickAction} onClick={onClick}>
-                <span className={styles.quickActionIcon}>
-                  <Icon size={18} strokeWidth={1.75} />
-                </span>
-                {label}
-              </button>
-            )
-          )}
+          {quickActions.map(({ label, icon: Icon, href }) => (
+            <Link key={label} href={href} className={styles.quickAction}>
+              <span className={styles.quickActionIcon}>
+                <Icon size={18} strokeWidth={1.75} />
+              </span>
+              {label}
+            </Link>
+          ))}
         </div>
       </section>
+
+      {currencyPickerOpen && (
+        <Modal title={strings.home.chooseCurrency} onClose={() => setCurrencyPickerOpen(false)}>
+          <div className={styles.searchRow}>
+            <Search size={16} strokeWidth={2} className={styles.searchIcon} />
+            <input
+              className={styles.searchInput}
+              placeholder={strings.home.searchCurrenciesPlaceholder}
+              value={currencySearch}
+              onChange={(event) => setCurrencySearch(event.target.value)}
+            />
+          </div>
+          {currencyError && (
+            <p className={styles.currencyErrorText} role="alert">
+              {currencyError}
+            </p>
+          )}
+          <div className={styles.currencyList}>
+            {currencyOptions.map((entry) => (
+              <button
+                key={entry.code}
+                type="button"
+                className={styles.currencyRow}
+                disabled={currencySaving}
+                onClick={() => switchCurrency(entry.code)}
+              >
+                <span className={styles.currencyLabelGroup}>
+                  <span className={styles.currencyCode}>{entry.code}</span>
+                  <span className={styles.currencyName}>{entry.name}</span>
+                </span>
+                {balance.currency === entry.code && <Check size={16} strokeWidth={2.25} />}
+              </button>
+            ))}
+          </div>
+        </Modal>
+      )}
 
       <section className={styles.section}>
         <div className={styles.sectionHeader}>
@@ -178,14 +218,20 @@ export function HomeScreen() {
             ? breakdown.map((entry) => (
                 <div key={entry.day} className={styles.breakdownColumn}>
                   <div className={styles.breakdownBars}>
-                    <div
-                      className={styles.breakdownBarIncome}
-                      style={{ height: `${Math.max((entry.income / breakdownMax) * 100, 4)}%` }}
-                    />
-                    <div
-                      className={styles.breakdownBarExpense}
-                      style={{ height: `${Math.max((entry.expense / breakdownMax) * 100, 4)}%` }}
-                    />
+                    {entry.hasData ? (
+                      <>
+                        <div
+                          className={styles.breakdownBarIncome}
+                          style={{ height: `${Math.max((entry.income / breakdownMax) * 100, 4)}%` }}
+                        />
+                        <div
+                          className={styles.breakdownBarExpense}
+                          style={{ height: `${Math.max((entry.expense / breakdownMax) * 100, 4)}%` }}
+                        />
+                      </>
+                    ) : (
+                      <div className={styles.breakdownBarEmpty} aria-hidden="true" />
+                    )}
                   </div>
                   <span className={styles.breakdownLabel}>{entry.day}</span>
                 </div>
