@@ -3,6 +3,7 @@
   flex-direction: column;
   gap: var(--space-lg);
   padding: var(--space-lg);
+  padding-top: calc(var(--space-lg) + env(safe-area-inset-top));
 }
 
 .header {
@@ -72,6 +73,15 @@
   color: var(--color-text-secondary);
 }
 
+.badgeLocked {
+  padding: 4px var(--space-sm);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  background: color-mix(in srgb, var(--color-brand) 15%, transparent);
+  color: var(--color-brand);
+}
+
 .formField {
   display: flex;
   flex-direction: column;
@@ -86,6 +96,25 @@
   font-size: var(--font-size-sm);
   font-weight: 600;
   color: var(--color-text-primary);
+}
+
+.formLabel {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.formInput {
+  width: 100%;
+  min-width: 0;
+  padding: var(--space-md);
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  outline: none;
 }
 
 .sectionCaption {
@@ -131,6 +160,12 @@
   font-family: var(--font-family-body);
   font-size: var(--font-size-md);
   font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.availableCaption {
+  margin: 0;
+  font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
 }
 

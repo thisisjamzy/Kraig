@@ -11,9 +11,9 @@ import { settingsRef, exchangeRatesRef } from '@/src/shared/firestore/refs';
 import type { FirestoreSettings, FirestoreExchangeRate } from '@/src/shared/firestore/types';
 import { currencyName } from '@/src/viewmodels/currencies';
 import { clearSignedIn } from '@/src/shared/config/authSession';
-import { PIN_HASH_CACHE_KEY, PIN_VERIFIED_KEY } from '@/src/shared/config/pinGate';
+import { PIN_DISABLED_KEY, PIN_HASH_CACHE_KEY, PIN_VERIFIED_KEY } from '@/src/shared/config/pinGate';
 import { clearClientCookie, setClientCookie } from '@/src/shared/config/clientCookies';
-import { callSetPin } from '@/src/shared/config/pinCallable';
+import { callSetPin, callVerifyPin } from '@/src/shared/config/pinCallable';
 import { INITIAL_REMINDER_TIMES } from '@/src/viewmodels/settings';
 
 export function useLogic() {
@@ -39,8 +39,15 @@ export function useLogic() {
   const [currencySearch, setCurrencySearch] = useState('');
 
   const [pinModalOpen, setPinModalOpen] = useState(false);
+  // Changing the PIN is two steps: prove you know the current one, then
+  // pick the new one — otherwise anyone holding an already-unlocked phone
+  // could silently take over the PIN gate.
+  const [pinStep, setPinStep] = useState<'confirm' | 'new'>('confirm');
+  const [currentPinDraft, setCurrentPinDraft] = useState('');
+  const [confirmingPin, setConfirmingPin] = useState(false);
   const [pinDraft, setPinDraft] = useState('');
   const [pinError, setPinError] = useState<string | null>(null);
+  const [pinTogglePending, setPinTogglePending] = useState(false);
 
   const [reminders, setReminders] = useState<string[]>(INITIAL_REMINDER_TIMES);
 
@@ -104,7 +111,46 @@ export function useLogic() {
     // The cached PIN hash is scoped to whoever's signed in — don't leave it
     // behind for the next person on a shared device.
     window.localStorage.removeItem(PIN_HASH_CACHE_KEY);
+    // "Require PIN" is this account's preference, not this device's — leaving
+    // it set would skip the PIN gate for whoever signs in next on a shared
+    // device, even if they never turned it off themselves.
+    window.localStorage.removeItem(PIN_DISABLED_KEY);
+    clearClientCookie(PIN_DISABLED_KEY);
     router.push('/');
+  }
+
+  function openPinModal() {
+    setPinStep('confirm');
+    setCurrentPinDraft('');
+    setPinDraft('');
+    setPinError(null);
+    setPinModalOpen(true);
+  }
+
+  function closePinModal() {
+    setPinModalOpen(false);
+    setPinStep('confirm');
+    setCurrentPinDraft('');
+    setPinDraft('');
+    setPinError(null);
+  }
+
+  async function handleConfirmCurrentPin() {
+    if (currentPinDraft.length !== 5 || confirmingPin) return;
+    setConfirmingPin(true);
+    setPinError(null);
+    try {
+      const data = await callVerifyPin(currentPinDraft);
+      if (!data.ok) {
+        setCurrentPinDraft('');
+        setPinError(data.error || 'Incorrect PIN.');
+        return;
+      }
+      setPinStep('new');
+      setCurrentPinDraft('');
+    } finally {
+      setConfirmingPin(false);
+    }
   }
 
   async function handleSavePin() {
@@ -117,9 +163,31 @@ export function useLogic() {
     if (data.pinHash) window.localStorage.setItem(PIN_HASH_CACHE_KEY, data.pinHash);
     window.sessionStorage.setItem(PIN_VERIFIED_KEY, '1');
     setClientCookie(PIN_VERIFIED_KEY, '1');
-    setPinModalOpen(false);
-    setPinDraft('');
-    setPinError(null);
+    closePinModal();
+  }
+
+  // "Require PIN" toggle — off means the app opens straight to /home,
+  // skipping the PIN gate entirely (src/logic/appEntry/useLogic.ts,
+  // proxy.ts). settings.pinDisabled in Firestore is the account-wide source
+  // of truth; the local cookie/localStorage flag is what actually lets this
+  // device act on it instantly (see pinGate.ts's PIN_DISABLED_KEY header).
+  const pinEnabled = !settings?.pinDisabled;
+  async function togglePinEnabled() {
+    if (pinTogglePending || !uid || settingsLoading) return;
+    const nextEnabled = !pinEnabled;
+    setPinTogglePending(true);
+    try {
+      await updateDoc(settingsRef(uid), { pinDisabled: !nextEnabled });
+      if (nextEnabled) {
+        window.localStorage.removeItem(PIN_DISABLED_KEY);
+        clearClientCookie(PIN_DISABLED_KEY);
+      } else {
+        window.localStorage.setItem(PIN_DISABLED_KEY, '1');
+        setClientCookie(PIN_DISABLED_KEY, '1');
+      }
+    } finally {
+      setPinTogglePending(false);
+    }
   }
 
   function goBack() {
@@ -139,10 +207,19 @@ export function useLogic() {
     settingsLoading,
     settingsError,
     pinModalOpen,
-    setPinModalOpen,
+    openPinModal,
+    closePinModal,
+    pinStep,
+    currentPinDraft,
+    setCurrentPinDraft,
+    confirmingPin,
+    handleConfirmCurrentPin,
     pinDraft,
     setPinDraft,
     pinError,
+    pinEnabled,
+    pinTogglePending,
+    togglePinEnabled,
     reminders,
     shareCopied,
     handleShare,

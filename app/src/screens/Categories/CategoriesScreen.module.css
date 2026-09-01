@@ -1,0 +1,113 @@
+.page {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  padding: var(--space-lg);
+  padding-top: calc(var(--space-lg) + env(safe-area-inset-top));
+  gap: var(--space-lg);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.backButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  background: none;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-family-heading);
+  font-size: var(--font-size-xl);
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.groupList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  padding-bottom: 72px;
+}
+
+.groupTitle {
+  margin: 0 0 var(--space-sm);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
+.categoryList {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.categoryRow {
+  padding: var(--space-md) var(--space-lg);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-background);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+}
+
+.categoryRow:last-child {
+  border-bottom: none;
+}
+
+.emptyText {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+/* Viewport-spanning but frame-capped, same as BottomNav's own .bar — a
+   bare `position: fixed; right: Npx` anchors to the real browser viewport,
+   not the centered mobile-width column .shell/.content constrain everything
+   else to, so on a wide screen the button would drift off to the actual
+   window's edge instead of staying at the mobile frame's edge. */
+.fabRow {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--space-lg) + env(safe-area-inset-bottom));
+  display: flex;
+  justify-content: flex-end;
+  max-width: var(--app-max-width);
+  margin-inline: auto;
+  padding-right: var(--space-lg);
+  pointer-events: none;
+}
+
+.fab {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: none;
+  background: var(--ink-bg);
+  color: var(--color-brand);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+  text-decoration: none;
+}

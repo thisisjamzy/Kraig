@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import bcrypt from 'bcryptjs';
 import {
   PIN_CREATE_HINT_KEY,
+  PIN_DISABLED_KEY,
   PIN_HASH_CACHE_KEY,
   PIN_LENGTH,
   PIN_VERIFIED_KEY,
@@ -11,6 +12,7 @@ import {
 import { setClientCookie } from '@/src/shared/config/clientCookies';
 import { callSetPin, callVerifyPin } from '@/src/shared/config/pinCallable';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
+import { useSettings } from '@/src/shared/firestore/queries';
 
 const DIGITS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
 
@@ -23,23 +25,29 @@ function shuffledDigits() {
   return digits;
 }
 
-function unlockAndGoHome() {
+function unlockAndGoHome(isNewAccountFlow: boolean) {
   window.sessionStorage.setItem(PIN_VERIFIED_KEY, '1');
   // Plain cookie, not httpOnly — there's no Next.js route left to set one
   // server-side (PRD-FIREBASE.md section 1), proxy.ts's gate is a UX
   // convenience now, not the real security boundary (Firestore Security
   // Rules are, see firestore.rules).
   setClientCookie(PIN_VERIFIED_KEY, '1');
-  // /loading decides between /home and /onboarding once its data is
-  // actually ready (src/logic/loading/useLogic.ts) — never straight to
-  // /home, so nobody is ever looking at a "Loading…" home page. A full
-  // navigation (not router.push) so it loads fresh with its own stylesheet,
-  // rather than inheriting this client-only (ssr: false) page's client-side
-  // transition. When this came from the offline fallback below, the real
-  // request never happens either — the service worker serves the fallback
-  // page from cache before it would ever reach proxy.ts.
-  // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-  window.location.assign('/loading');
+  // Onboarding is reached exactly one way: sign-up -> "create your PIN"
+  // (isNewAccountFlow, from PIN_CREATE_HINT_KEY below) -> here. There's
+  // nothing to warm Firestore's local cache with for a brand new account,
+  // so this skips /loading and goes straight there. Every other PIN success
+  // — a normal verify, or the NO_PIN fallback below for a pre-PIN-era
+  // account that already has data — always lands on /home, never
+  // onboarding again, even if that account happens to have zero wallets;
+  // /loading decides once its data is actually ready
+  // (src/logic/loading/useLogic.ts), so nobody is ever looking at a
+  // "Loading…" home page. A full navigation (not router.push) either way so
+  // it loads fresh with its own stylesheet, rather than inheriting this
+  // client-only (ssr: false) page's client-side transition. When this came
+  // from the offline fallback below, the real request never happens either
+  // — the service worker serves the fallback page from cache before it
+  // would ever reach proxy.ts.
+  window.location.assign(isNewAccountFlow ? '/onboarding' : '/loading');
 }
 
 export type PinMode = 'verify' | 'set';
@@ -58,11 +66,16 @@ export function useLogic() {
   // existing PIN, and still flips to 'set' if the verifyPin Callable
   // Function ever reports this account has none yet ({code: 'NO_PIN'}), see
   // handleContinue below — the fallback that covers a fresh OAuth account.
-  const [mode, setMode] = useState<PinMode>(() =>
-    typeof window !== 'undefined' && window.sessionStorage.getItem(PIN_CREATE_HINT_KEY) === '1'
-      ? 'set'
-      : 'verify'
+  // Captured once at mount, unlike `mode` below — `mode` can also flip to
+  // 'set' later via the NO_PIN fallback (an existing, pre-PIN-era account
+  // that already has data, just never set a PIN), and that account must
+  // still land on /home, not /onboarding. This stays true only when
+  // PIN_CREATE_HINT_KEY was actually the reason this screen opened straight
+  // into "create" mode — i.e. sign-up just created this account.
+  const [isNewAccountFlow] = useState(
+    () => typeof window !== 'undefined' && window.sessionStorage.getItem(PIN_CREATE_HINT_KEY) === '1'
   );
+  const [mode, setMode] = useState<PinMode>(() => (isNewAccountFlow ? 'set' : 'verify'));
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   // Firebase Auth rehydrates the signed-in session asynchronously on a
@@ -75,6 +88,22 @@ export function useLogic() {
   useEffect(() => {
     window.sessionStorage.removeItem(PIN_CREATE_HINT_KEY);
   }, []);
+
+  // Settings' "Require PIN" toggle (src/logic/settings/useLogic.ts) is
+  // account-wide in Firestore, but this device's own PIN_DISABLED_KEY
+  // cookie/localStorage flag — the thing appEntry and proxy.ts actually act
+  // on — only gets set the moment the toggle is flipped ON THAT device.
+  // Landing here on a device that hasn't seen the toggle yet (PIN was
+  // disabled elsewhere) means the account really doesn't want a PIN gate at
+  // all: sync the local flag and skip straight past, same as a real PIN
+  // success would.
+  const { data: settings, loading: settingsLoading } = useSettings();
+  useEffect(() => {
+    if (settingsLoading || !settings?.pinDisabled) return;
+    window.localStorage.setItem(PIN_DISABLED_KEY, '1');
+    setClientCookie(PIN_DISABLED_KEY, '1');
+    window.location.assign('/loading');
+  }, [settingsLoading, settings?.pinDisabled]);
 
   const appendDigit = useCallback((digit: string) => {
     setError(null);
@@ -130,7 +159,7 @@ export function useLogic() {
 
       if (data.ok) {
         if (data.pinHash) window.localStorage.setItem(PIN_HASH_CACHE_KEY, data.pinHash);
-        unlockAndGoHome();
+        unlockAndGoHome(isNewAccountFlow);
         return;
       }
 
@@ -144,7 +173,7 @@ export function useLogic() {
       setError(data.error || 'Something went wrong.');
     } catch (err) {
       if (mode === 'verify' && (await tryOfflineVerify(attemptedPin))) {
-        unlockAndGoHome();
+        unlockAndGoHome(isNewAccountFlow);
         return;
       }
       setPin('');

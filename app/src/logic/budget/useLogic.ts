@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { query, where, setDoc, updateDoc, arrayUnion, Timestamp } from 'firebase/firestore';
+import { query, where, setDoc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { ruleAppliesToMonth } from '@dreda/shared-recurrence';
 import { useFirestoreCollection, useFirestoreDoc } from '@/src/shared/firestore/hooks';
 import { budgetRulesRef, budgetRuleRef, statsMonthlyRef, budgetPlanRef } from '@/src/shared/firestore/refs';
@@ -11,7 +11,10 @@ import { toRecurrenceRule } from '@/src/shared/firestore/recurrence';
 import { recomputeBudgetProgressForRuleCurrentMonth } from '@/src/shared/firestore/aggregation';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { currentMonthIndex, currentYear, toFrequencyFields, type Recurrence } from '@/src/viewmodels/budget';
-import type { FirestoreBudgetRule, StatsMonthly, FirestoreBudgetPlan } from '@/src/shared/firestore/types';
+import { TRANSFER_CATEGORIES } from '@/src/viewmodels/categories';
+import type { FirestoreBudgetRule, StatsMonthly, FirestoreBudgetPlan, BudgetLineType } from '@/src/shared/firestore/types';
+
+export const BUDGET_LINE_TYPES: BudgetLineType[] = ['Expense', 'Income', 'Savings', 'Transfer'];
 
 export function formatAmount(value: number) {
   return new Intl.NumberFormat('en-US').format(value);
@@ -19,6 +22,25 @@ export function formatAmount(value: number) {
 
 function pad2(n: number) {
   return String(n).padStart(2, '0');
+}
+
+// Add Transaction's "no budget for this category this month" prompt
+// (src/logic/addTransaction/useLogic.ts) deep-links here with the month it
+// was looking at (?month=0-11&year=YYYY), so tapping "Add a budget" opens
+// straight on that month instead of the real current one. Read directly off
+// window.location.search rather than useSearchParams() so this screen
+// doesn't need a Suspense boundary — it's 'use client'-only, nothing here
+// is ever server-rendered.
+function monthTargetFromSearch(): { year: number; month: number } | null {
+  if (typeof window === 'undefined') return null;
+  const params = new URLSearchParams(window.location.search);
+  const monthParam = params.get('month');
+  const yearParam = params.get('year');
+  if (monthParam === null || yearParam === null) return null;
+  const month = Number(monthParam);
+  const year = Number(yearParam);
+  if (!Number.isInteger(month) || month < 0 || month > 11 || !Number.isInteger(year)) return null;
+  return { year, month };
 }
 
 function toAppRecurrence(rule: FirestoreBudgetRule): { recurrence: Recurrence; recurrenceMonths?: number } {
@@ -32,8 +54,11 @@ function toAppRecurrence(rule: FirestoreBudgetRule): { recurrence: Recurrence; r
 export function useLogic() {
   // The month/year shown here is just which month's plan you're viewing —
   // it never touches the app's real current date after the initial load.
-  const [monthIndex, setMonthIndex] = useState(currentMonthIndex);
-  const [year, setYear] = useState(currentYear);
+  // Defaults to today's month, unless a ?month=&year= deep link (from Add
+  // Transaction's "Add a budget" prompt) says otherwise.
+  const [monthTarget] = useState(monthTargetFromSearch);
+  const [monthIndex, setMonthIndex] = useState(() => monthTarget?.month ?? currentMonthIndex());
+  const [year, setYear] = useState(() => monthTarget?.year ?? currentYear());
   const [monthPickerOpen, setMonthPickerOpen] = useState(false);
   const [pickerYear, setPickerYear] = useState(year);
 
@@ -51,16 +76,8 @@ export function useLogic() {
   const [savingsValueDraft, setSavingsValueDraft] = useState('');
   const [savingPlan, setSavingPlan] = useState(false);
 
-  const [addOpen, setAddOpen] = useState(false);
-  const [newCategoryId, setNewCategoryId] = useState('');
-  const [newDescription, setNewDescription] = useState('');
-  const [newAmount, setNewAmount] = useState('');
-  const [newRecurrence, setNewRecurrence] = useState<Recurrence>('monthly');
-  const [newRecurrenceMonths, setNewRecurrenceMonths] = useState('3');
-  const [createError, setCreateError] = useState<string | null>(null);
-  const [creating, setCreating] = useState(false);
-
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editType, setEditTypeState] = useState<BudgetLineType>('Expense');
   const [editCategoryId, setEditCategoryId] = useState('');
   const [editDescriptionDraft, setEditDescriptionDraft] = useState('');
   const [editAmountDraft, setEditAmountDraft] = useState('');
@@ -68,6 +85,13 @@ export function useLogic() {
   const [editRecurrenceMonths, setEditRecurrenceMonths] = useState('3');
   const [editError, setEditError] = useState<string | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
+
+  // Switching type clears whatever category was picked for the old type —
+  // it almost certainly doesn't belong to the new one's option list.
+  function setEditType(type: BudgetLineType) {
+    setEditTypeState(type);
+    setEditCategoryId('');
+  }
 
   const monthStr = `${year}-${pad2(monthIndex + 1)}`;
   const { user, loading: authLoading } = useFirebaseUser();
@@ -84,7 +108,6 @@ export function useLogic() {
   );
   const { data: accounts, loading: accountsLoading } = useAccounts();
   const { data: allCategories, loading: categoriesLoading } = useCategories();
-  const { data: expenseCategories } = useCategories('Expense');
   const { data: plan, loading: planLoading } = useFirestoreDoc<FirestoreBudgetPlan>(
     useMemo(() => (uid ? budgetPlanRef(uid, monthStr) : null), [uid, monthStr])
   );
@@ -92,6 +115,16 @@ export function useLogic() {
 
   const accountCurrency = useMemo(() => new Map(accounts.map((a) => [a.id, a.currency])), [accounts]);
   const categoryName = useMemo(() => new Map(allCategories.map((c) => [c.id, c.name])), [allCategories]);
+  const categoryTransactionType = useMemo(
+    () => new Map(allCategories.map((c) => [c.id, c.transactionType])),
+    [allCategories]
+  );
+  // A rule written before FirestoreBudgetRule.type existed has no explicit
+  // type — it's always Expense/Income/Savings (Transfer rules are new, they
+  // always set it), so fall back to whatever type its linked category is.
+  function budgetLineType(rule: FirestoreBudgetRule): BudgetLineType {
+    return rule.type ?? categoryTransactionType.get(rule.categoryId) ?? 'Expense';
+  }
 
   const categories = useMemo(() => {
     const [y, m] = monthStr.split('-').map(Number);
@@ -107,6 +140,7 @@ export function useLogic() {
         return {
           id: rule.id,
           categoryId: rule.categoryId,
+          type: budgetLineType(rule),
           category: categoryName.get(rule.categoryId) ?? rule.categoryId,
           description: rule.description,
           budgeted,
@@ -116,7 +150,8 @@ export function useLogic() {
         };
       })
       .filter((entry): entry is NonNullable<typeof entry> => entry !== null);
-  }, [rules, monthStr, accountCurrency, categoryName, ctx, statsMonthly]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rules, monthStr, accountCurrency, categoryName, categoryTransactionType, ctx, statsMonthly]);
 
   const currency = ctx.display;
   const totalBudgeted = round2(categories.reduce((sum, entry) => sum + entry.budgeted, 0));
@@ -166,12 +201,25 @@ export function useLogic() {
   const savingsProgressPercent = plannedSavings > 0 ? Math.round((actualSavings / plannedSavings) * 100) : 0;
 
   const budgetedCategoryIds = new Set(categories.map((entry) => entry.categoryId));
-  const availableCategories = expenseCategories.filter((category) => !budgetedCategoryIds.has(category.id));
+  // Any category — Expense, Income, or Savings — can carry a monthly
+  // budget line: an expense envelope, a projected-income figure, or a
+  // savings target, all read back through the same statsBudgetProgress
+  // mechanism (see aggregation.ts, which never assumes Expense-only).
+  // Transfer has no categories/{id} docs at all — TRANSFER_CATEGORIES (the
+  // same fixed 3-kind list Add Transaction's transfer step uses) stands in
+  // for them, so you can plan out "Wallet to savings" etc. the same way.
+  function categoryOptionsForType(type: BudgetLineType, keepId?: string) {
+    const options: { id: string; name: string }[] =
+      type === 'Transfer'
+        ? TRANSFER_CATEGORIES.map((kind) => ({ id: kind, name: kind }))
+        : allCategories
+            .filter((category) => category.transactionType === type)
+            .map((category) => ({ id: category.id, name: category.name }));
+    return options.filter((option) => !budgetedCategoryIds.has(option.id) || option.id === keepId);
+  }
   // Editing: same list, but also keeps whichever category this rule is
   // already assigned to (that one's "taken" by this very rule, not another).
-  const editAvailableCategories = expenseCategories.filter(
-    (category) => !budgetedCategoryIds.has(category.id) || category.id === editCategoryId
-  );
+  const editAvailableCategories = categoryOptionsForType(editType, editCategoryId);
 
   // Seeds the inline total-budget field once real data arrives for the
   // month being viewed, without clobbering what the user is actively
@@ -237,52 +285,17 @@ export function useLogic() {
     setMonthPickerOpen(false);
   }
 
-  function openAddCategory() {
-    setNewCategoryId('');
-    setNewDescription('');
-    setNewAmount('');
-    setNewRecurrence('monthly');
-    setNewRecurrenceMonths('3');
-    setCreateError(null);
-    setAddOpen(true);
-  }
-
-  async function handleCreateCategory() {
-    if (!newCategoryId || creating || !uid) return;
-    setCreating(true);
-    setCreateError(null);
-    try {
-      const id = `rule_${crypto.randomUUID().slice(0, 8)}`;
-      await setDoc(budgetRuleRef(uid, id), {
-        categoryId: newCategoryId,
-        description: newDescription.trim(),
-        budgetedAmount: Number(newAmount.replace(/[^0-9]/g, '')) || 0,
-        ...toFrequencyFields(newRecurrence, newRecurrenceMonths),
-        interval: 1,
-        anchorDate: Timestamp.fromDate(new Date(year, monthIndex, 1)),
-        endDate: null,
-        accountId: null,
-        tag: '',
-        archived: false,
-      });
-      await recomputeBudgetProgressForRuleCurrentMonth(uid, id);
-      setAddOpen(false);
-    } catch (error) {
-      setCreateError(error instanceof Error ? error.message : 'Could not add this category.');
-    } finally {
-      setCreating(false);
-    }
-  }
-
   function openEdit(entry: {
     id: string;
     categoryId: string;
+    type: BudgetLineType;
     description: string;
     budgeted: number;
     recurrence: Recurrence;
     recurrenceMonths?: number;
   }) {
     setEditingId(entry.id);
+    setEditTypeState(entry.type);
     setEditCategoryId(entry.categoryId);
     setEditDescriptionDraft(entry.description);
     setEditAmountDraft(String(entry.budgeted || ''));
@@ -299,6 +312,7 @@ export function useLogic() {
     try {
       await updateDoc(budgetRuleRef(uid, editingId), {
         categoryId: editCategoryId,
+        type: editType,
         description: editDescriptionDraft.trim(),
         budgetedAmount: amount,
         ...toFrequencyFields(editRecurrence, editRecurrenceMonths),
@@ -329,10 +343,26 @@ export function useLogic() {
   }
 
   const editingCategory = categories.find((entry) => entry.id === editingId) ?? null;
+  // Where the "record a past transaction" button sends them — Add
+  // Transaction, pre-dated into whichever month this screen is showing
+  // (src/logic/addTransaction/useLogic.ts reads these same two params).
+  const retroTransactionHref = `/add-transaction?month=${monthIndex}&year=${year}`;
+  // Only makes sense off the real current month — e.g. viewing August 2025
+  // while it's actually September 2026. On the current month, Add
+  // Transaction's own "+" quick action already covers it; showing this too
+  // would just be a second button doing the same thing.
+  const showRetroTransactionButton = monthIndex !== currentMonthIndex() || year !== currentYear();
 
   return {
     monthIndex,
     year,
+    retroTransactionHref,
+    showRetroTransactionButton,
+    // Where "Add category" sends them — its own page now, not a modal (see
+    // src/logic/addBudgetCategory/useLogic.ts), so there's room there for
+    // "can't find your category? create one" without stacking a modal on a
+    // modal.
+    addBudgetCategoryHref: `/add-budget-category?month=${monthIndex}&year=${year}`,
     monthPickerOpen,
     setMonthPickerOpen,
     pickerYear,
@@ -353,23 +383,10 @@ export function useLogic() {
     savingPlan,
     categories,
     currency,
-    availableCategories,
-    addOpen,
-    setAddOpen,
-    newCategoryId,
-    setNewCategoryId,
-    newDescription,
-    setNewDescription,
-    newAmount,
-    setNewAmount,
-    newRecurrence,
-    setNewRecurrence,
-    newRecurrenceMonths,
-    setNewRecurrenceMonths,
-    creating,
-    createError,
     editingCategory,
     editAvailableCategories,
+    editType,
+    setEditType,
     editCategoryId,
     setEditCategoryId,
     editDescriptionDraft,
@@ -401,8 +418,6 @@ export function useLogic() {
     handleSavePlan,
     openMonthPicker,
     chooseMonth,
-    openAddCategory,
-    handleCreateCategory,
     openEdit,
     handleSaveEdit,
     handleDelete,

@@ -1,9 +1,13 @@
 'use client';
 
-import { useLogic, formatAmount } from '@/src/logic/statistics/useLogic';
+import { useLogic, formatAmount, type StatsPeriod, type HabitPeriod } from '@/src/logic/statistics/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import styles from './StatisticsScreen.module.css';
+
+const PERIOD_ORDER: StatsPeriod[] = ['Week', 'Month', 'Quarter', 'Year'];
+const HABIT_PERIOD_ORDER: HabitPeriod[] = ['Daily', 'Monthly', 'Yearly'];
+const CONSISTENCY_SCALE = [1, 0.5, 0];
 
 // Colorless placeholder rows — same row structure as the real lists, just
 // gray filler bars, so an empty/loading state reserves the same vertical
@@ -13,8 +17,49 @@ const PLACEHOLDER_COMPARISON_LABELS = ['Spending', 'Income', 'Net savings'];
 
 export function StatisticsScreen() {
   const strings = useStrings();
-  const { summary, topCategories, donutSlices, donutCircumference, monthComparison, loading, error } =
-    useLogic();
+  const {
+    summary,
+    topCategories,
+    donutSlices,
+    donutCircumference,
+    monthComparison,
+    insightsPeriod,
+    setInsightsPeriod,
+    habitPeriod,
+    setHabitPeriod,
+    habitBreakdown,
+    habitMax,
+    incomePeriod,
+    setIncomePeriod,
+    totalIncomeForPeriod,
+    incomeCurrency,
+    incomeSources,
+    incomeConsistency,
+    consistencyMax,
+    trendsPeriod,
+    setTrendsPeriod,
+    financialTrends,
+    trendsMax,
+    loading,
+    error,
+  } = useLogic();
+
+  function periodTabs(current: StatsPeriod, onChange: (period: StatsPeriod) => void) {
+    return (
+      <div className={styles.periodTabs}>
+        {PERIOD_ORDER.map((period) => (
+          <button
+            key={period}
+            type="button"
+            className={`${styles.periodTab} ${current === period ? styles.periodTabActive : ''}`}
+            onClick={() => onChange(period)}
+          >
+            {strings.statistics.periods[period]}
+          </button>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className={styles.page}>
@@ -53,9 +98,11 @@ export function StatisticsScreen() {
         </p>
       </section>
 
+      {/* Spending Insights */}
       <section className={styles.section}>
         <div className={styles.sectionHeader}>
           <h2 className={styles.sectionTitle}>{strings.statistics.spendingInsights}</h2>
+          {periodTabs(insightsPeriod, setInsightsPeriod)}
         </div>
 
         <div className={styles.donutRow}>
@@ -117,6 +164,210 @@ export function StatisticsScreen() {
             ))}
           </div>
         )}
+      </section>
+
+      {/* Habit Breakdown */}
+      <section className={styles.section}>
+        <div className={styles.sectionHeader}>
+          <h2 className={styles.sectionTitle}>{strings.statistics.habitBreakdown}</h2>
+          <div className={styles.periodTabs}>
+            {HABIT_PERIOD_ORDER.map((period) => (
+              <button
+                key={period}
+                type="button"
+                className={`${styles.periodTab} ${habitPeriod === period ? styles.periodTabActive : ''}`}
+                onClick={() => setHabitPeriod(period)}
+              >
+                {strings.statistics.habitPeriods[period]}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {habitBreakdown.some((day) => day.income || day.expense || day.savings) ? (
+          <>
+            <div className={styles.habitChart}>
+              {habitBreakdown.map((day) => (
+                <div key={day.label} className={styles.habitColumn}>
+                  <div className={styles.habitBars}>
+                    <div
+                      className={styles.habitBarIncome}
+                      style={{ height: `${Math.max((day.income / habitMax) * 100, 2)}%` }}
+                    />
+                    <div
+                      className={styles.habitBarExpense}
+                      style={{ height: `${Math.max((day.expense / habitMax) * 100, 2)}%` }}
+                    />
+                    <div
+                      className={styles.habitBarSavings}
+                      style={{ height: `${Math.max((day.savings / habitMax) * 100, 2)}%` }}
+                    />
+                  </div>
+                  <span className={styles.habitLabel}>{day.label}</span>
+                </div>
+              ))}
+            </div>
+            <div className={styles.legend}>
+              <span className={styles.legendItem}>
+                <span className={styles.legendDot} style={{ background: '#ff9800' }} />
+                {strings.statistics.habitIncome}
+              </span>
+              <span className={styles.legendItem}>
+                <span className={styles.legendDot} style={{ background: '#7b7ef3' }} />
+                {strings.statistics.habitExpense}
+              </span>
+              <span className={styles.legendItem}>
+                <span className={styles.legendDot} style={{ background: 'var(--ink-bg)' }} />
+                {strings.statistics.habitSavings}
+              </span>
+            </div>
+          </>
+        ) : (
+          <p className={styles.emptyText}>{strings.statistics.noHabitData}</p>
+        )}
+      </section>
+
+      {/* Income Analysis */}
+      <section className={styles.section}>
+        <div className={styles.sectionHeader}>
+          <h2 className={styles.sectionTitle}>{strings.statistics.incomeAnalysis}</h2>
+          {periodTabs(incomePeriod, setIncomePeriod)}
+        </div>
+
+        <p className={styles.totalIncome}>
+          {formatAmount(totalIncomeForPeriod)} <span className={styles.summaryCurrency}>{incomeCurrency}</span>
+        </p>
+        <p className={styles.totalIncomeCaption}>{strings.statistics.totalIncome}</p>
+
+        {incomeSources.length > 0 ? (
+          <div className={styles.incomeList}>
+            {incomeSources.map((source) => (
+              <div key={source.label} className={styles.incomeRow}>
+                <div className={styles.incomeRowHeader}>
+                  <span className={styles.incomeLabel}>{source.label}</span>
+                  <span className={styles.incomeValue}>
+                    {formatAmount(source.amount)} &bull; {source.percent}%
+                  </span>
+                </div>
+                <div className={styles.incomeTrack}>
+                  <div className={styles.incomeFill} style={{ width: `${source.percent}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className={styles.emptyText}>{strings.statistics.noIncomeThisPeriod}</p>
+        )}
+      </section>
+
+      {/* Income Consistency */}
+      <section className={styles.section}>
+        <h2 className={styles.sectionTitle}>{strings.statistics.incomeConsistency}</h2>
+
+        {incomeConsistency.some((m) => m.amount > 0) ? (
+          <div className={styles.consistencyRow}>
+            <div className={styles.consistencyAxis} aria-hidden="true">
+              {CONSISTENCY_SCALE.map((fraction) => (
+                <span key={fraction}>{Math.round(consistencyMax * fraction)}%</span>
+              ))}
+            </div>
+            <div className={styles.consistencyChart}>
+              <div className={styles.consistencyGridlines} aria-hidden="true">
+                {CONSISTENCY_SCALE.map((fraction) => (
+                  <span key={fraction} className={styles.consistencyGridline} />
+                ))}
+              </div>
+              {incomeConsistency.map((month) => {
+                const ratio = consistencyMax > 0 ? month.percentOfAverage / consistencyMax : 0;
+                return (
+                  <div key={month.label} className={styles.consistencyColumn}>
+                    <div className={styles.consistencyBarTrack}>
+                      <div
+                        className={styles.consistencyBar}
+                        style={{
+                          height: `${Math.max(ratio * 100, month.amount > 0 ? 4 : 0)}%`,
+                          background: `color-mix(in srgb, var(--color-brand) ${Math.max(
+                            30,
+                            Math.round(ratio * 100)
+                          )}%, var(--color-surface))`,
+                        }}
+                        title={`${month.percentOfAverage}% of average`}
+                      />
+                    </div>
+                    <span className={styles.consistencyLabel}>{month.label}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          <p className={styles.emptyText}>{strings.statistics.noIncomeConsistencyData}</p>
+        )}
+      </section>
+
+      {/* Financial Trends */}
+      <section className={styles.section}>
+        <div className={styles.sectionHeader}>
+          <h2 className={styles.sectionTitle}>{strings.statistics.financialTrends}</h2>
+          {periodTabs(trendsPeriod, setTrendsPeriod)}
+        </div>
+
+        <div className={styles.trendCard}>
+          <svg className={styles.trendChart} viewBox="0 0 300 90" preserveAspectRatio="none">
+            {financialTrends.length > 1 && (
+              <>
+                {(
+                  [
+                    ['income', 'var(--color-text-secondary)'],
+                    ['savings', 'var(--color-brand)'],
+                    ['spending', 'var(--color-danger)'],
+                  ] as const
+                ).map(([key, stroke]) => (
+                  <polyline
+                    key={key}
+                    fill="none"
+                    stroke={stroke}
+                    strokeWidth="2"
+                    points={financialTrends
+                      .map((point, index) => {
+                        const x = (index / (financialTrends.length - 1)) * 300;
+                        const y = 86 - (point[key] / trendsMax) * 80;
+                        return `${x},${y}`;
+                      })
+                      .join(' ')}
+                  />
+                ))}
+                {financialTrends.map((point, index) => {
+                  const x = (index / (financialTrends.length - 1)) * 300;
+                  const y = 86 - (point.spending / trendsMax) * 80;
+                  return <circle key={point.label} cx={x} cy={y} r={2.5} fill="var(--color-danger)" />;
+                })}
+              </>
+            )}
+          </svg>
+          <div className={styles.trendLabels}>
+            {financialTrends.map((point) => (
+              <span key={point.label} className={styles.trendLabel}>
+                {point.label}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        <div className={styles.legend}>
+          <span className={styles.legendItem}>
+            <span className={styles.legendLine} style={{ background: 'var(--color-danger)' }} />
+            {strings.statistics.trendsSpending}
+          </span>
+          <span className={styles.legendItem}>
+            <span className={styles.legendLine} style={{ background: 'var(--color-text-secondary)' }} />
+            {strings.statistics.trendsIncome}
+          </span>
+          <span className={styles.legendItem}>
+            <span className={styles.legendLine} style={{ background: 'var(--color-brand)' }} />
+            {strings.statistics.trendsSavings}
+          </span>
+        </div>
       </section>
 
       <section className={styles.section}>

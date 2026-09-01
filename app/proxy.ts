@@ -13,7 +13,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { SIGNED_IN_KEY } from '@/src/shared/config/appEntry';
-import { PIN_VERIFIED_KEY } from '@/src/shared/config/pinGate';
+import { PIN_VERIFIED_KEY, PIN_DISABLED_KEY } from '@/src/shared/config/pinGate';
 
 const PUBLIC_PATHS = new Set(['/', '/sign-in', '/sign-up', '/pin', '/~offline']);
 
@@ -26,7 +26,10 @@ export default function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL('/sign-in', request.url));
   }
 
-  if (!request.cookies.get(PIN_VERIFIED_KEY)) {
+  // Settings' "Require PIN" toggle (src/logic/settings/useLogic.ts) — once
+  // disabled on this device, skip the PIN gate entirely rather than
+  // requiring PIN_VERIFIED_KEY too.
+  if (!request.cookies.get(PIN_VERIFIED_KEY) && !request.cookies.get(PIN_DISABLED_KEY)) {
     return NextResponse.redirect(new URL('/pin', request.url));
   }
 

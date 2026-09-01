@@ -46,24 +46,35 @@ export function useLogic(walletId: string, periods: readonly string[]) {
   const [editOpen, setEditOpen] = useState(false);
   const [notSpendableDraft, setNotSpendableDraft] = useState(false);
   const [frozenDraft, setFrozenDraft] = useState(false);
+  // A string draft (not a number) for the same reason every other amount
+  // field in this app is one — free typing without fighting a controlled
+  // numeric input; parsed back to a number only on save.
+  const [lockedAmountDraft, setLockedAmountDraft] = useState('');
   const [savingEdit, setSavingEdit] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
 
   function openEdit() {
     setNotSpendableDraft(Boolean(wallet?.notSpendable));
     setFrozenDraft(Boolean(wallet?.frozen));
+    setLockedAmountDraft(wallet?.lockedAmount ? String(wallet.lockedAmount) : '');
     setEditError(null);
     setEditOpen(true);
   }
 
   async function saveEdit() {
-    if (!uid || savingEdit) return;
+    if (!uid || savingEdit || !wallet) return;
+    const lockedAmount = Number(lockedAmountDraft.replace(/[^0-9.]/g, '')) || 0;
+    if (lockedAmount > wallet.currentBalance) {
+      setEditError('Locked amount can\'t be more than this wallet\'s current balance.');
+      return;
+    }
     setSavingEdit(true);
     setEditError(null);
     try {
       await updateDoc(accountRef(uid, walletId), {
         notSpendable: notSpendableDraft,
         frozen: frozenDraft,
+        lockedAmount,
       });
       setEditOpen(false);
     } catch (error) {
@@ -113,9 +124,13 @@ export function useLogic(walletId: string, periods: readonly string[]) {
     return ICONS[index % ICONS.length];
   }
 
+  const lockedAmount = wallet ? toDisplay(ctx, wallet.lockedAmount ?? 0, wallet.currency) : 0;
+
   return {
     wallet,
     balance: wallet ? toDisplay(ctx, wallet.currentBalance, wallet.currency) : 0,
+    lockedAmount,
+    availableAmount: wallet ? toDisplay(ctx, wallet.currentBalance - (wallet.lockedAmount ?? 0), wallet.currency) : 0,
     currency: ctx.display,
     transactions,
     period,
@@ -131,6 +146,8 @@ export function useLogic(walletId: string, periods: readonly string[]) {
     setNotSpendableDraft,
     frozenDraft,
     setFrozenDraft,
+    lockedAmountDraft,
+    setLockedAmountDraft,
     savingEdit,
     editError,
     saveEdit,

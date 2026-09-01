@@ -6,10 +6,12 @@ import {
   ArrowUpRight,
   ArrowDownLeft,
   ArrowLeftRight,
+  ArrowRight,
   PiggyBank,
   Delete,
   Check,
 } from 'lucide-react';
+import Link from 'next/link';
 import { Modal } from '@/src/widgets/Modal/Modal';
 import { useLogic, KEYPAD_KEYS, formatMoney, type TransactionType } from '@/src/logic/addTransaction/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
@@ -33,11 +35,17 @@ export function AddTransactionScreen() {
     description,
     setDescription,
     amountString,
+    chargesString,
+    setChargesString,
     fromAccount,
     toAccount,
     date,
     dateValue,
     categoriesForType,
+    hasBudgetedCategories,
+    showUnplanned,
+    setShowUnplanned,
+    budgetHref,
     accounts,
     datePickerOpen,
     setDatePickerOpen,
@@ -123,21 +131,58 @@ export function AddTransactionScreen() {
         <div className={styles.categorySection}>
           <ScreenState loading={loading} error={error} />
 
-          <div className={styles.categoryList}>
-            {categoriesForType.map((option) => (
-              <button
-                key={option.id}
-                type="button"
-                className={styles.categoryRow}
-                onClick={() => setCategory(option.id)}
-              >
-                {option.name}
-                <span
-                  className={`${styles.radio} ${category === option.id ? styles.radioActive : ''}`}
-                />
-              </button>
-            ))}
-          </div>
+          {!loading && !error && !hasBudgetedCategories && (
+            <div className={styles.noBudgetCard}>
+              <p className={styles.noBudgetTitle}>{strings.addTransaction.noBudgetTitle}</p>
+              <p className={styles.helperText}>{strings.addTransaction.noBudgetBody}</p>
+              <div className={styles.noBudgetActions}>
+                <Link href={budgetHref} className={styles.pillButtonInteractive}>
+                  {strings.addTransaction.addBudgetCta}
+                </Link>
+                {!showUnplanned && (
+                  <button
+                    type="button"
+                    className={styles.pillButtonInteractive}
+                    onClick={() => setShowUnplanned(true)}
+                  >
+                    {strings.addTransaction.recordUnplannedCta}
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {showUnplanned && (
+            <p className={styles.helperText}>{strings.addTransaction.unplannedNotice}</p>
+          )}
+
+          {categoriesForType.length > 0 && (
+            <div className={styles.categoryList}>
+              {categoriesForType.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  className={styles.categoryRow}
+                  onClick={() => setCategory(option.id)}
+                >
+                  {option.name}
+                  <span
+                    className={`${styles.radio} ${category === option.id ? styles.radioActive : ''}`}
+                  />
+                </button>
+              ))}
+            </div>
+          )}
+
+          {!loading && !error && (hasBudgetedCategories || showUnplanned) && (
+            <button
+              type="button"
+              className={styles.unplannedLink}
+              onClick={() => setShowUnplanned((current) => !current)}
+            >
+              {showUnplanned ? strings.addTransaction.showBudgetedOnlyCta : strings.addTransaction.recordUnplannedCta}
+            </button>
+          )}
 
           <div className={styles.descriptionCard}>
             <span className={styles.descriptionLabel}>{strings.addTransaction.descriptionLabel}</span>
@@ -168,31 +213,39 @@ export function AddTransactionScreen() {
 
           {type === 'transfer' ? (
             <>
-              <div className={styles.infoRow}>
-                <div className={styles.infoRowText}>
-                  <span className={styles.infoRowLabel}>{strings.addTransaction.fromAccount}</span>
-                  <span className={styles.infoRowValueAccent}>{fromAccount}</span>
-                </div>
+              <div className={styles.transferRow}>
                 <button
                   type="button"
-                  className={styles.pillButtonInteractive}
+                  className={styles.transferSide}
                   onClick={() => setAccountPickerFor('from')}
                 >
-                  {strings.common.change}
+                  <span className={styles.infoRowLabel}>{strings.addTransaction.fromAccount}</span>
+                  <span className={styles.transferAccountValue}>{fromAccount}</span>
                 </button>
-              </div>
-              <div className={styles.infoRow}>
-                <div className={styles.infoRowText}>
-                  <span className={styles.infoRowLabel}>{strings.addTransaction.toAccount}</span>
-                  <span className={styles.infoRowValueAccent}>{toAccount}</span>
-                </div>
+                <ArrowRight size={16} strokeWidth={2} className={styles.transferArrow} />
                 <button
                   type="button"
-                  className={styles.pillButtonInteractive}
+                  className={styles.transferSide}
                   onClick={() => setAccountPickerFor('to')}
                 >
-                  {strings.common.change}
+                  <span className={styles.infoRowLabel}>{strings.addTransaction.toAccount}</span>
+                  <span className={styles.transferAccountValue}>{toAccount}</span>
                 </button>
+              </div>
+
+              <div className={styles.infoRow}>
+                <div className={styles.infoRowText}>
+                  <span className={styles.infoRowLabel}>{strings.addTransaction.chargesLabel}</span>
+                  <span className={styles.helperText}>{strings.addTransaction.chargesHint}</span>
+                </div>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  className={styles.chargesInput}
+                  placeholder="0"
+                  value={chargesString}
+                  onChange={(event) => setChargesString(event.target.value.replace(/[^0-9.]/g, ''))}
+                />
               </div>
             </>
           ) : (
@@ -246,6 +299,12 @@ export function AddTransactionScreen() {
             <span className={styles.reviewLabel}>{strings.addTransaction.reviewAmount}</span>
             <span className={styles.reviewValue}>{formatMoney(amountString)} XAF</span>
           </div>
+          {type === 'transfer' && Number(chargesString) > 0 && (
+            <div className={styles.reviewRow}>
+              <span className={styles.reviewLabel}>{strings.addTransaction.reviewCharges}</span>
+              <span className={styles.reviewValue}>{formatMoney(chargesString)} XAF</span>
+            </div>
+          )}
           <div className={styles.reviewRow}>
             <span className={styles.reviewLabel}>{strings.addTransaction.reviewType}</span>
             <span className={styles.reviewValue}>

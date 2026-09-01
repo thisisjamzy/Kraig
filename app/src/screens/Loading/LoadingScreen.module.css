@@ -4,8 +4,12 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  width: 100%;
+  max-width: var(--app-max-width);
+  margin-inline: auto;
   gap: var(--space-lg);
   padding: var(--space-lg);
+  padding-top: calc(var(--space-lg) + env(safe-area-inset-top));
   padding-bottom: max(var(--space-lg), env(safe-area-inset-bottom));
   background: var(--color-background);
 }

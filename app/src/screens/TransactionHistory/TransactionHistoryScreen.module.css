@@ -3,6 +3,7 @@
   flex-direction: column;
   gap: var(--space-lg);
   padding: var(--space-lg);
+  padding-top: calc(var(--space-lg) + env(safe-area-inset-top));
 }
 
 .header {
@@ -83,7 +84,11 @@
 }
 
 .transactionTitle {
+  /* Only the title reserves room for .editButton (absolutely positioned
+     top-right) — .amountRow below is left full width so .date lines up
+     flush with the edit icon on the same right edge. */
   margin: 0;
+  padding-right: 32px;
   font-size: var(--font-size-sm);
   font-weight: 600;
   color: var(--color-text-primary);
@@ -124,7 +129,7 @@
 .editButton {
   position: absolute;
   right: var(--space-lg);
-  bottom: var(--space-lg);
+  top: var(--space-lg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -132,7 +137,8 @@
   height: 28px;
   border-radius: 50%;
   border: 1px solid var(--color-border);
-  background: none;
+  background: var(--color-background);
   color: var(--color-text-primary);
+  text-decoration: none;
   cursor: pointer;
 }
