@@ -1,2 +1,2 @@
-# Kraig
+# Dreda
 notion companion

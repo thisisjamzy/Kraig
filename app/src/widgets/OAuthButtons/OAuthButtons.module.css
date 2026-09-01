@@ -1,0 +1,47 @@
+.divider {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  margin: var(--space-xl) 0;
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--color-border);
+}
+
+.group {
+  display: flex;
+  flex-direction: row;
+  gap: var(--space-sm);
+}
+
+.button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-lg);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  background: var(--color-background);
+  color: var(--color-text-primary);
+  font-weight: 600;
+  font-size: var(--font-size-md);
+  cursor: pointer;
+}
+
+.button:hover {
+  background: var(--color-surface);
+}
+
+.button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

@@ -1,0 +1,95 @@
+@import "tailwindcss";
+
+:root {
+  --font-family-body: 'Inter', system-ui, sans-serif;
+  --font-family-heading: 'Inter', system-ui, sans-serif;
+
+  --font-size-sm: 0.875rem;
+  --font-size-md: 1rem;
+  --font-size-lg: 1.25rem;
+  --font-size-xl: 1.5rem;
+  --font-size-2xl: 2rem;
+  --font-size-display: 3.5rem;
+
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-2xl: 48px;
+  --space-3xl: 64px;
+  --space-4xl: 96px;
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 16px;
+  --radius-full: 9999px;
+
+  /* Width of the mobile app frame — the (mobile) route group and its
+     chrome (BottomNav) stay locked to this on wider viewports. */
+  --app-max-width: 480px;
+
+  /* Fixed dark palette for elements that stay dark regardless of theme
+     (mockup panels, the "how to use it" band, the install pill). */
+  --ink-bg: #111114;
+  --ink-surface: #1b1b20;
+  --ink-border: #2c2c33;
+  --ink-text: #f5f5f7;
+  --ink-text-secondary: #a3a3ad;
+
+  /* Dreda's brand green, sampled from the splash/PIN mockups (logo mark,
+     splash background, active nav/CTA states). Fixed — does not change
+     with the light/dark theme. */
+  --color-brand: #11d993;
+}
+
+/* Mirrors styles/tokens/colors.ts. If you change one, change the other. */
+[data-theme='light'] {
+  --color-background: #ffffff;
+  --color-surface: #f5f5f7;
+  --color-text-primary: #111114;
+  --color-text-secondary: #5c5c66;
+  --color-primary: #13AB7A;
+  --color-link: #1c64ff;
+  --color-primary-hover: #0DBD80;
+  --color-accent: #11D993;
+  --color-border: #e2e2e7;
+  --color-success: #16a34a;
+  --color-danger: #dc2626;
+}
+
+[data-theme='dark'] {
+  --color-background: #111114;
+  --color-surface: #1b1b20;
+  --color-text-primary: #f5f5f7;
+  --color-text-secondary: #a3a3ad;
+  --color-primary: #3b82f6;
+  --color-primary-hover: #60a5fa;
+  --color-accent: #3b82f6;
+  --color-border: #2c2c33;
+  --color-success: #22c55e;
+  --color-danger: #ef4444;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-family-body);
+  background: var(--color-background);
+  color: var(--color-text-primary);
+}
+
+/* Scrolling stays enabled everywhere; the scrollbar itself never renders. */
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+*::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}

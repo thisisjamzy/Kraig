@@ -1,0 +1,99 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  padding: var(--space-lg);
+  padding-top: calc(var(--space-lg) + env(safe-area-inset-top));
+  padding-bottom: calc(var(--space-lg) + env(safe-area-inset-bottom));
+  background: var(--color-brand);
+}
+
+.logoRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex: 0 0 auto;
+}
+
+.logoBadge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #ffffff;
+}
+
+.wordmark {
+  font-family: var(--font-family-heading);
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--ink-bg);
+}
+
+.spacerLarge {
+  flex: 1.6 0 0;
+}
+
+.spacerSmall {
+  flex: 1 0 0;
+}
+
+.body {
+  flex: 0 0 auto;
+}
+
+.headline {
+  font-family: var(--font-family-heading);
+  font-size: clamp(2.25rem, 9vw, 2.75rem);
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  color: var(--ink-bg);
+  margin: 0 0 var(--space-md);
+}
+
+.tagline {
+  max-width: 32ch;
+  font-size: var(--font-size-md);
+  line-height: 1.5;
+  color: rgba(17, 24, 38, 0.68);
+  margin: 0;
+}
+
+.footer {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-md);
+}
+
+.ctaButton {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-md) var(--space-lg);
+  border-radius: var(--radius-full);
+  background: var(--ink-bg);
+  color: var(--color-brand);
+  font-weight: 700;
+  font-size: var(--font-size-md);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.inviteNote {
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: rgba(17, 24, 38, 0.72);
+  margin: 0;
+  padding-top: 2px;
+}
+
+.inviteLink {
+  color: var(--ink-bg);
+  font-weight: 700;
+  text-decoration: underline;
+}

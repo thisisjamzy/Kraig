@@ -1,0 +1,31 @@
+/* logo_primary.png/logo_alt.png are ~2.7:1 wide, never square — width must
+   always stay auto so the wordmark never stretches. !important because a
+   consuming screen's own .logo class (set via the className prop) has the
+   same selector specificity as the plain rules below and could otherwise
+   win by source order alone and force a width, e.g. from a fixed
+   width/height pair or a 100%-width layout rule. Preserving the aspect
+   ratio isn't a style preference here, it's a correctness requirement. */
+.light,
+.dark {
+  width: auto !important;
+  max-width: none;
+  object-fit: contain;
+}
+
+.light {
+  display: block;
+}
+
+.dark {
+  display: none;
+}
+
+/* ThemeProvider sets data-theme on a wrapping div (not :root), so this has
+   to be a descendant selector, not a :root-scoped one. */
+[data-theme='dark'] .light {
+  display: none;
+}
+
+[data-theme='dark'] .dark {
+  display: block;
+}

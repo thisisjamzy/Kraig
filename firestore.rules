@@ -1,0 +1,168 @@
+rules_version = '2';
+
+// The real access boundary (PRD-FIREBASE.md section 9). Every collection
+// requires a signed-in, non-archived user, reading and writing only their
+// OWN data — every ledger collection below is a subcollection of
+// users/{uid}, never shared with any other account (no household-wide
+// sharing yet; each sign-up gets its own private wallets, categories,
+// transactions, etc. — see src/shared/firestore/refs.ts's header for why
+// every ref function takes uid explicitly).
+//
+// Spark-plan mode: this project intentionally runs with NO Cloud Functions
+// deployed (Cloud Functions requires the Blaze plan; the household chose to
+// stay on Spark). functions/ still exists in this repo and still passes its
+// own emulator tests, but nothing in it is deployed — the client now does
+// everything those triggers used to: maintaining account currentBalance,
+// stats/statsMonthly/statsBudgetProgress, creating users/{uid} (and seeding
+// its default settings/exchangeRates) on sign-up, and hashing/verifying the
+// PIN (see src/shared/firestore/aggregation.ts,
+// src/shared/firestore/ensureUserDoc.ts, src/logic/pin/useLogic.ts). That is
+// a real trade-off worth naming: without a server, these rules are the ONLY
+// thing stopping a buggy or malicious client from writing a wrong balance or
+// stats number — there is no second, independent check the way a Cloud
+// Function provided. Acceptable for a single-user-per-account app; revisit
+// if this project ever upgrades to Blaze and redeploys functions/.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function activeUser() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.archived != true;
+    }
+
+    // A user may read their own doc, create it once right after sign-up
+    // (src/shared/firestore/ensureUserDoc.ts — there is no more onCreate
+    // Auth trigger to do this instead, see the file header above), and
+    // update only the harmless mirrored fields afterward — never `archived`
+    // (that would let someone un-revoke their own access), and create only
+    // ever starts a doc out non-archived.
+    match /users/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow create: if signedIn() && request.auth.uid == uid
+        && request.resource.data.archived == false;
+      allow update: if signedIn() && request.auth.uid == uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastLoginAt', 'name']);
+      allow delete: if false;
+
+      // The PIN hash. Readable/writable only by its own (active) owner —
+      // set/verify happens client-side (bcryptjs), there is no Callable
+      // Function left to reach this via an Admin SDK bypass instead. Real
+      // trade-off named in the file header: the owner's own client can now
+      // read their own PIN hash directly, rather than only a server ever
+      // seeing it — an attacker would need that owner's Firebase Auth
+      // session to read it at all, at which point they already have full
+      // account access regardless of the PIN (it is a quick-unlock
+      // convenience, not the account's real security boundary — this rule
+      // file is).
+      match /private/{doc} {
+        allow read, write: if activeUser() && request.auth.uid == uid;
+      }
+
+      // currentBalance is client-maintained (see
+      // src/shared/firestore/aggregation.ts) — no server-side trigger to
+      // defer to on the Spark plan, so this can no longer be locked down to
+      // "unchanged by client updates" the way it was when Cloud Functions
+      // owned it.
+      match /accounts/{accountId} {
+        allow read, create, update: if activeUser() && request.auth.uid == uid;
+        allow delete: if false; // archive in place (archived: true), never hard-delete
+      }
+
+      match /categories/{categoryId} {
+        allow read, create, update: if activeUser() && request.auth.uid == uid;
+        allow delete: if false;
+      }
+
+      // signedAmount/month are computed and written by the client itself
+      // (src/shared/firestore/aggregation.ts) — no Cloud Function left to
+      // self-correct them, so unlike the Blaze-plan design this trusts what
+      // the client sends, same as every other field here.
+      match /transactions/{transactionId} {
+        allow read: if activeUser() && request.auth.uid == uid;
+        allow create: if activeUser() && request.auth.uid == uid
+          && request.resource.data.amount is number && request.resource.data.amount > 0
+          && request.resource.data.direction in ['Inflow', 'Outflow']
+          && request.resource.data.accountId is string
+          && request.resource.data.createdBy == request.auth.uid;
+        allow update: if activeUser() && request.auth.uid == uid
+          && request.resource.data.amount is number && request.resource.data.amount > 0
+          && request.resource.data.direction in ['Inflow', 'Outflow'];
+        allow delete: if activeUser() && request.auth.uid == uid;
+      }
+
+      match /transfers/{transferId} {
+        allow read: if activeUser() && request.auth.uid == uid;
+        allow create: if activeUser() && request.auth.uid == uid
+          && request.resource.data.amount is number && request.resource.data.amount > 0
+          && request.resource.data.fromAccountId is string
+          && request.resource.data.toAccountId is string
+          && request.resource.data.createdBy == request.auth.uid;
+        allow update: if activeUser() && request.auth.uid == uid
+          && request.resource.data.amount is number && request.resource.data.amount > 0;
+        allow delete: if activeUser() && request.auth.uid == uid;
+      }
+
+      match /budgetRules/{ruleId} {
+        allow read: if activeUser() && request.auth.uid == uid;
+        allow create, update: if activeUser() && request.auth.uid == uid
+          && request.resource.data.budgetedAmount is number
+          && request.resource.data.frequency in ['Once', 'Daily', 'Weekly', 'Monthly', 'Quarterly', 'Yearly'];
+        allow delete: if false; // archive in place, keep history
+      }
+
+      // A real bill with a due date (Netflix, rent, ...) — several can
+      // share one budgetRules categoryId. See FirestorePlannedPayment's
+      // header: deliberately not a field on budgetRules.
+      match /plannedPayments/{paymentId} {
+        allow read: if activeUser() && request.auth.uid == uid;
+        allow create, update: if activeUser() && request.auth.uid == uid
+          && request.resource.data.amount is number
+          && request.resource.data.frequency in ['Once', 'Daily', 'Weekly', 'Monthly', 'Quarterly', 'Yearly']
+          && request.resource.data.categoryId is string;
+        allow delete: if false; // archive in place, keep history
+      }
+
+      match /settings/{docId} {
+        allow read, write: if activeUser() && request.auth.uid == uid;
+      }
+
+      // One doc per month (yyyy-mm) — the Budget screen's total-budget /
+      // projected-income / planned-savings figures for that month, replacing
+      // the old single global settings.totalBudget.
+      match /budgetPlans/{monthId} {
+        allow read, write: if activeUser() && request.auth.uid == uid;
+      }
+
+      match /exchangeRates/{code} {
+        allow read, write: if activeUser() && request.auth.uid == uid;
+      }
+
+      // Materialized/precomputed (PRD-FIREBASE.md section 6), maintained
+      // directly by the client at the same time it writes the
+      // transaction/transfer/budgetRule that changed them
+      // (src/shared/firestore/aggregation.ts), inside one runTransaction()
+      // per write so a page reload mid-write can't leave a transaction
+      // charged but the stats not updated (or vice versa). Naming note:
+      // PRD-FIREBASE.md's shorthand `stats/monthly/{yyyy-mm}` and
+      // `stats/budgetProgress/{yyyy-mm}` isn't a valid Firestore path as
+      // written (three segments without a named subcollection) —
+      // implemented here as their own subcollections, statsMonthly and
+      // statsBudgetProgress, doc id = yyyy-mm, same data, valid path.
+      match /stats/{docId} {
+        allow read, write: if activeUser() && request.auth.uid == uid;
+      }
+      match /statsMonthly/{monthId} {
+        allow read, write: if activeUser() && request.auth.uid == uid;
+      }
+      match /statsBudgetProgress/{monthId} {
+        allow read, write: if activeUser() && request.auth.uid == uid;
+      }
+    }
+  }
+}

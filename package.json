@@ -1,0 +1,23 @@
+{
+  "name": "dreda",
+  "private": true,
+  "description": "Repo root — npm workspaces linking the Next.js app, Cloud Functions, and the shared budget-recurrence module they both need. See PRD-FIREBASE.md.",
+  "workspaces": [
+    "app",
+    "functions",
+    "packages/*"
+  ],
+  "scripts": {
+    "emulators": "firebase emulators:start",
+    "migrate": "tsx scripts/migrate-notion-to-firestore.ts",
+    "seed": "tsx scripts/seed-dummy-data.ts",
+    "unseed": "tsx scripts/unseed-dummy-data.ts",
+    "test:rules": "firebase emulators:exec --only firestore --project dreda-rules-test \"tsx --test test/firestore-rules.test.ts\"",
+    "test:functions": "npm run build --prefix functions && firebase emulators:exec --only functions,firestore,auth --project dreda-emu-test \"node --test functions/lib/integration/*.test.js\""
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.2",
+    "firebase-tools": "^15.28.2",
+    "tsx": "^4.7.0"
+  }
+}
