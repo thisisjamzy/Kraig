@@ -13,7 +13,9 @@ export function WalletsScreen() {
   const {
     wallets,
     total,
+    archivedWallets,
     loading,
+    archivedLoading,
     error,
     goBack,
     addOpen,
@@ -21,6 +23,8 @@ export function WalletsScreen() {
     openAddWallet,
     newName,
     setNewName,
+    newShortName,
+    setNewShortName,
     newType,
     setNewType,
     newCurrency,
@@ -67,6 +71,20 @@ export function WalletsScreen() {
         {strings.wallets.addWallet}
       </button>
 
+      {!archivedLoading && archivedWallets.length > 0 && (
+        <div className={styles.archivedSection}>
+          <p className={styles.archivedTitle}>{strings.wallets.archivedTitle}</p>
+          <div className={styles.list}>
+            {archivedWallets.map((wallet) => (
+              <Link key={wallet.id} href={`/wallets/${wallet.id}/edit`} className={styles.row}>
+                <span className={styles.name}>{wallet.name}</span>
+                <ChevronRight size={16} strokeWidth={2} className={styles.chevron} />
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
       {addOpen && (
         <Modal title={strings.wallets.addWalletTitle} onClose={() => setAddOpen(false)}>
           <div className={styles.formField}>
@@ -80,6 +98,21 @@ export function WalletsScreen() {
               onChange={(event) => setNewName(event.target.value)}
               placeholder={strings.wallets.namePlaceholder}
             />
+          </div>
+
+          <div className={styles.formField}>
+            <label className={styles.formLabel} htmlFor="new-wallet-short-name">
+              {strings.wallets.shortNameLabel}
+            </label>
+            <input
+              id="new-wallet-short-name"
+              className={styles.formInput}
+              value={newShortName}
+              maxLength={5}
+              onChange={(event) => setNewShortName(event.target.value.slice(0, 5))}
+              placeholder={newName.trim().slice(0, 5) || strings.wallets.shortNamePlaceholder}
+            />
+            <p className={styles.formHint}>{strings.wallets.shortNameHint}</p>
           </div>
 
           <div className={styles.formField}>

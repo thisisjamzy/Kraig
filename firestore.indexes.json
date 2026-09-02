@@ -31,6 +31,30 @@
         { "fieldPath": "categoryId", "order": "ASCENDING" },
         { "fieldPath": "archived", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "transfers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "fromAccountId", "order": "ASCENDING" },
+        { "fieldPath": "date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "transfers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "toAccountId", "order": "ASCENDING" },
+        { "fieldPath": "date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "plannedPayments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "archived", "order": "ASCENDING" },
+        { "fieldPath": "accountId", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

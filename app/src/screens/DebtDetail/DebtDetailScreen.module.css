@@ -1,0 +1,249 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  padding: var(--space-lg);
+  padding-top: calc(var(--space-lg) + env(safe-area-inset-top));
+  gap: var(--space-lg);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.backButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  background: none;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.title {
+  margin: 0;
+  min-width: 0;
+  flex: 1;
+  font-family: var(--font-family-heading);
+  font-size: var(--font-size-xl);
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.editButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  background: none;
+  color: var(--color-text-primary);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.debtName {
+  margin: calc(-1 * var(--space-sm)) 0 0;
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  color: var(--color-text-primary);
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+
+.archiveButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--color-danger) 40%, transparent);
+  background: none;
+  color: var(--color-danger);
+  cursor: pointer;
+}
+
+.badgeRow {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.typeBadge {
+  padding: 2px var(--space-sm);
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.priorityBadge {
+  padding: 2px var(--space-sm);
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.priorityBadge_high {
+  background: color-mix(in srgb, var(--color-danger) 18%, transparent);
+  color: var(--color-danger);
+}
+
+.priorityBadge_medium {
+  background: color-mix(in srgb, #e8a33d 22%, transparent);
+  color: #a3671c;
+}
+
+.priorityBadge_low {
+  background: color-mix(in srgb, var(--color-brand) 18%, transparent);
+  color: var(--color-brand);
+}
+
+.balanceCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.balanceHeadline {
+  margin: 0;
+  font-size: var(--font-size-lg);
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.track {
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  overflow: hidden;
+}
+
+.fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-brand);
+}
+
+.amountRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.amountValue {
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.planCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.planRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.trendCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.sectionTitleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: var(--font-size-md);
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.addLink {
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: var(--color-brand);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.emptyText {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.repaymentRow {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.repaymentTopRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.repaymentDate {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.repaymentAmount {
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.repaymentMeta {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}

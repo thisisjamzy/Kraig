@@ -1,0 +1,294 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  padding: var(--space-lg);
+  padding-top: calc(var(--space-lg) + env(safe-area-inset-top));
+  gap: var(--space-lg);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.backButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  background: none;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.title {
+  margin: 0;
+  min-width: 0;
+  flex: 1;
+  font-family: var(--font-family-heading);
+  font-size: var(--font-size-xl);
+  font-weight: 800;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.goalName {
+  margin: calc(-1 * var(--space-sm)) 0 0;
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  color: var(--color-text-primary);
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+
+.archiveButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--color-danger) 40%, transparent);
+  background: none;
+  color: var(--color-danger);
+  cursor: pointer;
+}
+
+.progressCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.progressHeadline {
+  margin: 0;
+  font-size: var(--font-size-md);
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.track {
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  overflow: hidden;
+}
+
+.fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-brand);
+}
+
+.amountRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.amountValue {
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.deadlineRow {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.sectionTitleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: var(--font-size-md);
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.addLink {
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: var(--color-brand);
+  cursor: pointer;
+}
+
+.emptyText {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.lineItem {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-md) var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.lineItemHeaderRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.lineItemName {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.lineItemAmount {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.doneTag {
+  flex-shrink: 0;
+  padding: 2px var(--space-sm);
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--color-brand) 18%, transparent);
+  color: var(--color-brand);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.statusRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+}
+
+.statusOk {
+  color: var(--color-brand);
+}
+
+.statusShort {
+  color: var(--color-danger);
+}
+
+.lineItemActionsRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-top: var(--space-xs);
+}
+
+.payButton {
+  padding: var(--space-xs) var(--space-md);
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--ink-bg);
+  color: var(--color-brand);
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.payButton:disabled {
+  background: #6b7380;
+  color: rgba(255, 255, 255, 0.85);
+  cursor: not-allowed;
+}
+
+.deleteLink {
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-danger);
+  cursor: pointer;
+}
+
+/* Modal form fields (add line item / mark as paid) */
+
+.formField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  min-width: 0;
+  margin-bottom: var(--space-md);
+}
+
+.formLabel {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.formInput,
+.formTextarea {
+  width: 100%;
+  min-width: 0;
+  padding: var(--space-md);
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  outline: none;
+  resize: none;
+}
+
+.errorText {
+  margin: 0 0 var(--space-sm);
+  font-size: var(--font-size-sm);
+  color: var(--color-danger);
+}
+
+.modalSaveButton {
+  width: 100%;
+  padding: var(--space-md) var(--space-lg);
+  border: none;
+  border-radius: var(--radius-lg);
+  background: var(--ink-bg);
+  color: var(--color-brand);
+  font-family: inherit;
+  font-size: var(--font-size-md);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.modalSaveButton:disabled {
+  background: #6b7380;
+  color: rgba(255, 255, 255, 0.85);
+  cursor: not-allowed;
+}

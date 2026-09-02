@@ -1,0 +1,803 @@
+# Dreda: Goals and Debt Features
+
+**Status**: Feature specification for Goals and Debt tabs in the ledger UI.  
+**Arch**: Follows established Dreda patterns--Firestore subcollections under `users/{uid}`, client-side aggregation via `runTransaction()`, mobile-first single column, no Cloud Functions.
+
+---
+
+## 1. Goals Feature
+
+### 1.1 Overview
+
+Goals are forward-focused savings projects with line-item breakdowns. A user creates a goal (e.g., "Buy a New Car") with sub-costs (e.g., "Down Payment: 2M XAF", "Insurance: 500K XAF"). Each sub-cost can be marked complete to track progress; marking complete records an expense. The UI always shows whether frozen funds exist to pay for each line item.
+
+### 1.2 Data Schema
+
+#### `users/{uid}/goals/{goalId}`
+
+```
+{
+  id: string                    // Auto-generated or user-provided ID
+  uid: string                   // Owner's UID
+  name: string                  // e.g., "Buy a New Car"
+  description: string           // Optional context/notes
+  totalAmount: number           // Sum of all lineItems.amount (computed)
+  currency: string              // e.g., "XAF" (inherited from user default or selectable)
+  deadline: timestamp | null    // Soft deadline (null means no deadline)
+  createdAt: timestamp
+  updatedAt: timestamp
+  archived: boolean             // Soft delete pattern
+}
+```
+
+#### `users/{uid}/goals/{goalId}/lineItems/{lineItemId}`
+
+```
+{
+  id: string
+  goalId: string                // Parent goal
+  name: string                  // e.g., "Down Payment"
+  description: string           // Optional notes
+  amount: number                // e.g., 2000000
+  completed: boolean            // Has this been paid/achieved?
+  completedAt: timestamp | null // When marked complete
+  expenseId: string | null      // Links to transaction that paid for this
+  createdAt: timestamp
+  updatedAt: timestamp
+}
+```
+
+**Key Points:**
+- `totalAmount` on the goal is a denormalized sum (recalculated on each lineItem write via `runTransaction()`).
+- `completed` is the flag the UI uses to show progress; `expenseId` links to the actual expense transaction.
+- No frozen balance stored on the schema; that's computed real-time from wallet freezes.
+
+### 1.3 Backend Logic
+
+#### Compute: Frozen Balance Check per Line Item
+
+For each `lineItem` in a goal, the backend/UI needs to check: "Do I have enough frozen money across all my accounts to pay for this?"
+
+**Function**: `checkFrozenFundsAvailable(uid, lineItemAmount) -> {hasFunds: boolean, availableFrozen: number, shortfall: number}`
+
+Logic:
+1. Fetch all `wallets` for the user.
+2. Sum all `wallet.frozenAmount` across all wallets.
+3. Compare `availableFrozen >= lineItemAmount`.
+4. Return `{hasFunds: true/false, availableFrozen, shortfall: max(0, lineItemAmount - availableFrozen)}`.
+
+This is called when rendering the Goals list and goal detail screens to show status per line item.
+
+#### Write: Mark Line Item Complete
+
+When a user marks a lineItem as complete (by, e.g., recording the expense):
+
+1. **Create a Transaction** (via existing ledger flow):
+   - Account to debit (the one paying)
+   - Category or tag to mark as goal-related expense
+   - Amount = `lineItem.amount`
+   - Description includes goal and lineItem name
+   - Type = "expense"
+
+2. **Update the Line Item** (in a single `runTransaction()`):
+   ```
+   runTransaction(async (txn) => {
+     txn.update(lineItemRef, {
+       completed: true,
+       completedAt: serverTimestamp(),
+       expenseId: newTransactionId,
+       updatedAt: serverTimestamp()
+     });
+     // Recalculate parent goal's totalAmount
+     const lineItems = await txn.get(goalRef.collection('lineItems'));
+     const newTotal = lineItems.docs.reduce((sum, doc) => sum + doc.data().amount, 0);
+     txn.update(goalRef, {
+       totalAmount: newTotal,
+       updatedAt: serverTimestamp()
+     });
+   });
+   ```
+
+3. **Automatically deduct from frozen balance**:
+   - When the expense is recorded, if it's linked to a goal line item, the UI/wallet logic ensures the debit comes from a frozen amount.
+   - (Assumes existing freeze/unfreeze logic exists in the accounts feature.)
+
+#### Compute: Goal Progress
+
+- `completedLineItems` = count where `lineItem.completed === true`
+- `totalLineItems` = count of all lineItems
+- `progressPercent` = `completedLineItems / totalLineItems * 100`
+- `amountCompleted` = sum of `lineItem.amount` where `lineItem.completed === true`
+- `amountRemaining` = `goal.totalAmount - amountCompleted`
+
+---
+
+## 2. Debt Feature
+
+### 2.1 Overview
+
+Debt tracks borrowed money and existing obligations with repayment plans and priority levels. There are two debt types:
+
+1. **Cash Debt**: Money received into an account (borrowed cash, credit line draw, overdraft). When you repay this debt, the repayment transaction affects your account balance (money leaves).
+
+2. **Existing/Intangible Debt**: Debt that already existed or is for property/services already acquired (mortgage, car loan, payment plan for past purchase). Recording this debt does not affect account balance. Repayments are tracked but do not automatically create account transactions (user may create them manually if desired).
+
+Users can create debts with priority levels (high/medium/low), optional recurring payment plans, and track repayments. The UI shows current balance, payment history, and month-to-month trends.
+
+### 2.2 Data Schema
+
+#### `users/{uid}/debts/{debtId}`
+
+```
+{
+  id: string
+  uid: string                   // Owner's UID
+  name: string                  // e.g., "Personal Loan from Brother"
+  description: string           // Optional notes
+  debtType: "cash" | "existing" // NEW: Distinguishes cash debt from existing/property debt
+  principalAmount: number       // Original borrowed amount or total obligation
+  currentBalance: number        // Denormalized: principalAmount - totalRepaid
+  totalRepaid: number           // Sum of all repayments (denormalized)
+  currency: string              // e.g., "XAF"
+  priority: "low" | "medium" | "high"
+  createdAt: timestamp          // When debt was recorded
+  startDate: timestamp          // When the borrowing occurred (may differ from createdAt)
+  paymentPlan: {
+    type: "none" | "recurring"
+    recurring?: {
+      amount: number            // Recurring payment amount
+      interval: "weekly" | "biweekly" | "monthly" | "yearly"
+      nextPaymentDate: timestamp
+      isActive: boolean
+    }
+  }
+  notes: string                 // General notes about the debt
+  archivedAt: timestamp | null  // Soft delete (when marked as paid off)
+  createdAt: timestamp
+  updatedAt: timestamp
+}
+```
+
+**Key Addition:**
+- `debtType: "cash" | "existing"` determines how repayments interact with account balance.
+  - `"cash"`: Repayment creates a ledger transaction that debits the account (money leaves).
+  - `"existing"`: Repayment is logged as debt progress but does NOT create an account transaction by default. (User can optionally link a transaction if they later pay from an account.)
+
+#### `users/{uid}/debts/{debtId}/repayments/{repaymentId}`
+
+```
+{
+  id: string
+  debtId: string                // Parent debt
+  amount: number                // Amount repaid in this transaction
+  date: timestamp               // When the repayment occurred
+  method: "manual" | "planned"  // Manual entry or auto-from-plan
+  notes: string                 // Optional: e.g., "Feb 2026 planned payment"
+  transactionId: string | null  // Links to a ledger transaction if one exists
+  createdAt: timestamp
+}
+```
+
+**Key Points:**
+- `currentBalance` and `totalRepaid` are denormalized; recalculated on each repayment write.
+- `paymentPlan` holds recurring payment config; the UI/client decides when to suggest or auto-record the next payment.
+- `repayments` is a subcollection to keep the history clean and allow easy querying of "how much repaid this month?"
+- `transactionId` is always optional; for "cash" debt it is typically set, for "existing" debt it is null unless user manually creates a transaction.
+
+### 2.3 Backend Logic
+
+#### Write: Create a Debt
+
+```
+runTransaction(async (txn) => {
+  const newDebtRef = debtsCollection.doc();
+  txn.set(newDebtRef, {
+    id: newDebtRef.id,
+    uid: user.uid,
+    name,
+    description,
+    debtType,                    // "cash" or "existing"
+    principalAmount,
+    currentBalance: principalAmount,
+    totalRepaid: 0,
+    currency,
+    priority,
+    startDate,
+    paymentPlan: { type: "none" },
+    notes: "",
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
+  });
+});
+```
+
+#### Write: Record a Repayment
+
+When a user makes a repayment (manually or from a recurring plan):
+
+**For "cash" debt:**
+```
+runTransaction(async (txn) => {
+  // 1. Create the repayment record
+  const repaymentRef = debtRef.collection('repayments').doc();
+  
+  // 2. Create a ledger transaction (money leaves the account)
+  const txnRef = accountRef.collection('transactions').doc();
+  txn.set(txnRef, {
+    id: txnRef.id,
+    accountId: accountToDebitId,
+    type: "expense",
+    category: "Debt Repayment",
+    amount: repaymentAmount,
+    description: `Repayment: ${debtName}`,
+    isDebtRepayment: true,
+    linkedDebtId: debtId,
+    date: repaymentDate,
+    createdAt: serverTimestamp()
+  });
+
+  // 3. Create repayment record with transaction link
+  txn.set(repaymentRef, {
+    id: repaymentRef.id,
+    debtId,
+    amount: repaymentAmount,
+    date: repaymentDate,
+    method,
+    notes,
+    transactionId: txnRef.id,     // Always linked for cash debt
+    createdAt: serverTimestamp()
+  });
+
+  // 4. Update debt balance
+  const repaymentSnap = await txn.get(debtRef.collection('repayments'));
+  const totalRepaidNow = repaymentSnap.docs.reduce((sum, doc) => sum + doc.data().amount, 0);
+  const newBalance = Math.max(0, principalAmount - totalRepaidNow);
+
+  txn.update(debtRef, {
+    currentBalance: newBalance,
+    totalRepaid: totalRepaidNow,
+    updatedAt: serverTimestamp()
+  });
+
+  // 5. If recurring plan is active, update nextPaymentDate
+  if (paymentPlan.type === "recurring" && paymentPlan.recurring.isActive) {
+    const nextDate = addInterval(repaymentDate, paymentPlan.recurring.interval);
+    txn.update(debtRef, {
+      "paymentPlan.recurring.nextPaymentDate": nextDate
+    });
+  }
+});
+```
+
+**For "existing" debt (no automatic account transaction):**
+```
+runTransaction(async (txn) => {
+  // 1. Create the repayment record only (no account transaction)
+  const repaymentRef = debtRef.collection('repayments').doc();
+  txn.set(repaymentRef, {
+    id: repaymentRef.id,
+    debtId,
+    amount: repaymentAmount,
+    date: repaymentDate,
+    method,
+    notes,
+    transactionId: null,          // Not linked by default
+    createdAt: serverTimestamp()
+  });
+
+  // 2. Update debt balance
+  const repaymentSnap = await txn.get(debtRef.collection('repayments'));
+  const totalRepaidNow = repaymentSnap.docs.reduce((sum, doc) => sum + doc.data().amount, 0);
+  const newBalance = Math.max(0, principalAmount - totalRepaidNow);
+
+  txn.update(debtRef, {
+    currentBalance: newBalance,
+    totalRepaid: totalRepaidNow,
+    updatedAt: serverTimestamp()
+  });
+
+  // 3. If recurring plan is active, update nextPaymentDate
+  if (paymentPlan.type === "recurring" && paymentPlan.recurring.isActive) {
+    const nextDate = addInterval(repaymentDate, paymentPlan.recurring.interval);
+    txn.update(debtRef, {
+      "paymentPlan.recurring.nextPaymentDate": nextDate
+    });
+  }
+
+  // Optional: If user chooses to link an account transaction later,
+  // they can manually create the transaction and update repayment.transactionId
+});
+```
+
+**UI Logic for Repayment Recording:**
+
+When recording a repayment:
+- **For "cash" debt**: Show "From Account" dropdown to debit (required field).
+- **For "existing" debt**: Optional "Link to Account Transaction" toggle. If enabled, show account dropdown; if disabled, just log the repayment amount without touching account balance.
+
+#### Compute: Month-on-Month Debt Trend
+
+For visualization (chart showing debt balance over time):
+
+**Function**: `getDebtTrend(uid, debtId, monthsBack = 12) -> [{month, balance, repaid, interest?}]`
+
+1. Fetch all repayments for the debt.
+2. For each month in the lookback period:
+   - Calculate cumulative repayments up to end-of-month.
+   - Compute balance = `principalAmount - cumulativeRepaid`.
+   - Count repayments in that month.
+3. Return array of data points for charting.
+
+#### Compute: Total Debt Across All Debts
+
+**Function**: `getTotalDebtSnapshot(uid) -> {totalDebt, byPriority, byType, debtCount}`
+
+```
+{
+  totalDebt: number,            // Sum of all currentBalance
+  byPriority: {
+    high: number,
+    medium: number,
+    low: number
+  },
+  byType: {
+    cash: number,               // NEW: Sum of cash debts
+    existing: number            // NEW: Sum of existing debts
+  },
+  debtCount: number,
+  currency: string
+}
+```
+
+Used in the Debt tab header or dashboard widget. Optionally show separate totals for cash vs. existing debt.
+
+#### Flag: Transactions as Debt Repayment
+
+When recording a transaction, the user can mark it as either:
+- A "vanilla" expense (normal categorized spending)
+- A "debt repayment" (linked to a specific debt, auto-updates debt balance)
+
+The transaction schema gets optional fields:
+```
+isDebtRepayment: boolean        // true if this is a debt repayment
+linkedDebtId: string | null     // Which debt, if isDebtRepayment is true
+```
+
+---
+
+## 3. UI/UX Specification
+
+### 3.1 Navigation
+
+#### Bottom Nav Update
+
+Add two new tabs to the bottom nav:
+- **Money** (existing)
+  - Accounts
+  - Categories
+  - Transactions
+  - Budget
+  - **Goals** (new sub-section or separate tab)
+  - **Debt** (new sub-section or separate tab)
+
+**OR** (cleaner):
+- **Money**
+- **Goals** (new tab)
+- **Debt** (new tab)
+- **Projects** (existing)
+- **Settings** (existing)
+
+Choose based on current bottom nav design. If 5+ items, consider a secondary menu or mode switch (e.g., floating FAB).
+
+### 3.2 Goals Tab
+
+#### Screen 1: Goals List
+
+**Layout:**
+```
+[Header: "Goals"]
+[New Goal Button]
+
+[Goal Card 1]
+  Name: "Buy a New Car"
+  Progress: 2/5 sub-costs completed (40%)
+  Total: 2.5M XAF
+  Completed: 1M XAF
+  Remaining: 1.5M XAF
+  [Deadline if set: "Target: Dec 2026"]
+  [Tap to open detail]
+
+[Goal Card 2]
+  ...
+
+[Archived section (collapsed/expandable)]
+```
+
+**Card Design:**
+- Show goal name, total amount, progress bar, completion percentage.
+- Optionally show deadline with a badge (on-track / at-risk if past deadline).
+- Tap to open goal detail.
+
+#### Screen 2: Goal Detail
+
+**Layout:**
+```
+[Back] [Goal Name: "Buy a New Car"] [Edit/Menu]
+
+[Total Progress]
+  2 / 5 items done (40%)
+  [Progress bar]
+  Completed: 1M XAF | Remaining: 1.5M XAF
+
+[Deadline if set]
+  Target: Dec 2026 (e.g., 4 months away)
+
+[Line Items]
+  [Line Item 1]
+    [x] Down Payment (2M XAF)
+       Frozen available: 2M XAF ✓ (green checkmark, funds available)
+       [Mark as paid / Record Expense]
+
+  [Line Item 2]
+    [ ] Insurance (500K XAF)
+       Frozen available: 0 (200K short) ✗ (red X, needs 200K more)
+       [Needs funding / Record Expense disabled until funds available]
+
+  [Line Item 3]
+    [x] Registration (100K XAF)
+       Paid on Sep 1, 2026 | Expense linked
+       [Tap to see expense]
+
+[Add sub-cost button]
+```
+
+**Interactions:**
+- Tap line item to edit/view details.
+- Tap "Record Expense" to create a transaction (flows to existing transaction creation UI, auto-fills amount/description).
+- After expense is recorded, mark line item complete.
+- Show frozen balance status (green if sufficient, red if short).
+- Long-press to delete a line item (with undo).
+
+#### Screen 3: Create/Edit Goal
+
+**Layout:**
+```
+[Back] [New Goal / Edit Goal] [Save]
+
+Goal Name*
+  [Text input: "Buy a New Car"]
+
+Description
+  [Text area: "Multi-purpose vehicle for family trips"]
+
+Total Amount (auto-calculated)
+  2.5M XAF
+
+Currency
+  [Dropdown: "XAF"]
+
+Deadline (optional)
+  [Date picker]
+
+[Add Line Item]
+  Name: [text input]
+  Amount: [number input]
+  Description: [text area]
+  [Add] [Cancel]
+
+[Existing line items list]
+  Swipe to delete or edit
+```
+
+---
+
+### 3.3 Debt Tab
+
+#### Screen 1: Debt Dashboard / List
+
+**Layout:**
+```
+[Header: "Debt"]
+[New Debt Button]
+
+[Summary Card]
+  Total Debt: 5.5M XAF
+  By Priority:
+    High: 3M XAF (2 debts)
+    Medium: 1.5M XAF (1 debt)
+    Low: 1M XAF (2 debts)
+  [Optional breakdown by type]
+  By Type:
+    Cash Debt: 3.5M XAF
+    Existing Debt: 2M XAF
+
+[Debt List]
+  [Debt Card 1]
+    Name: "Personal Loan from Brother"
+    Type: Cash Debt
+    Amount: 3M XAF | Balance: 2M XAF
+    Repaid: 1M XAF (33%)
+    Priority: High (red badge)
+    Next payment: Sep 15, 2026
+    [Tap to open detail]
+
+  [Debt Card 2]
+    Name: "Car Loan"
+    Type: Existing Debt
+    Amount: 1.5M XAF | Balance: 1.3M XAF
+    Repaid: 0.2M XAF (13%)
+    Priority: Medium (yellow badge)
+    No payment plan set
+    [Tap to open detail]
+
+  [Debt Card 3]
+    ...
+
+[Archived section (collapsed)]
+  "Personal Loan: PAID OFF (Sep 2025)"
+```
+
+**Card Design:**
+- Show debt type badge (Cash / Existing) to distinguish at a glance.
+- Show debt name, total/current balance, amount repaid + percentage.
+- Color-code priority (high = red, medium = yellow, low = green).
+- Show next planned payment date (if recurring plan exists).
+- Optional small chart sparkline showing month-to-month trend.
+
+#### Screen 2: Debt Detail
+
+**Layout:**
+```
+[Back] [Debt Name] [Edit/Menu]
+
+[Debt Type Badge]
+  "Cash Debt" or "Existing Debt"
+
+[Balance Card]
+  Principal: 3M XAF
+  Total Repaid: 1M XAF (33%)
+  Current Balance: 2M XAF
+  [Progress bar from 0 to principal]
+
+[Payment Plan]
+  Status: Active recurring plan
+  Amount: 200K XAF
+  Frequency: Monthly
+  Next payment: Sep 15, 2026
+  [Record payment / Skip / Edit plan]
+
+[Month-to-Month Chart]
+  [Line chart showing balance over last 12 months]
+  X-axis: Months
+  Y-axis: Balance (XAF)
+  Line: balance trend (declining as repayments are made)
+
+[Repayment History]
+  [Repayment 1]
+    Aug 15, 2026 | 200K XAF
+    Type: Cash Debt
+    Linked to: Account "Chequing" -> Expense transaction
+    [Tap to see transaction]
+
+  [Repayment 2]
+    Jul 15, 2026 | 200K XAF
+    Type: Existing Debt
+    No linked account transaction
+    [Tap to link transaction (optional)]
+
+  [Show more / Load older]
+
+[Add Manual Repayment]
+  Amount: [input]
+  Date: [date picker]
+  Notes: [text area]
+  [For Cash Debt]
+    From Account*: [dropdown]
+  [For Existing Debt]
+    Link to Account Transaction: [toggle]
+    [If enabled] From Account: [dropdown]
+  [Record Repayment]
+```
+
+**Interactions:**
+- Tap "Record payment" to log a repayment.
+  - For cash debt: requires account selection (money leaves that account).
+  - For existing debt: optional account selection.
+- Tap chart to zoom/interact (if using interactive chart library).
+- Tap repayment to see linked transaction (or offer to create/link one).
+- "Edit plan" takes you to edit recurring plan settings.
+- Long-press card or menu to archive debt (mark as paid off).
+
+#### Screen 3: Create/Edit Debt
+
+**Layout:**
+```
+[Back] [New Debt / Edit Debt] [Save]
+
+Debt Type*
+  (•) Cash Debt (borrowed money that increased account balance)
+  ( ) Existing Debt (property/obligation already acquired, no account impact)
+
+Debt Name*
+  [Text input: "Personal Loan from Brother"]
+
+Description
+  [Text area: "Borrowed for car down payment"]
+
+Principal Amount*
+  [Number input: 3000000]
+
+Currency
+  [Dropdown: "XAF"]
+
+Priority*
+  [Radio buttons: Low / Medium / High]
+
+Start Date
+  [Date picker]
+
+Payment Plan
+  [Radio buttons]
+    ( ) No plan - record payments manually
+    (•) Recurring plan
+  
+  [If recurring selected]
+    Amount per payment:
+      [Number input: 200000]
+    Frequency:
+      [Dropdown: Weekly / Bi-weekly / Monthly / Yearly]
+    First payment date:
+      [Date picker: Sep 15, 2026]
+
+[For Cash Debt Only (shown conditionally)]
+  Account that received the money:
+    [Dropdown - optional, for reference]
+
+Notes
+  [Text area]
+
+[Save Debt]
+```
+
+---
+
+## 4. Visual Representations (Debt Charting)
+
+### 4.1 Debt Balance Trend Chart
+
+**Type**: Line chart (XAF balance over time)
+
+**Data**: Month-to-month debt balance.
+
+**Use case**: User opens a debt's detail screen to see "How is this debt declining?"
+
+```
+Y-axis: Balance (0 to principal)
+X-axis: Months (last 12 or selected range)
+Line: red/orange (high priority), yellow (medium), green (low)
+Markers: Show data point on each month-end
+Interactions: Tap a point to see repayments that month
+```
+
+### 4.2 Total Debt Breakdown (Debt Tab Dashboard)
+
+**Type**: Stacked bar or donut chart (debt by priority)
+
+**Data**: Total debt segmented by high/medium/low priority.
+
+**Use case**: "How much debt do I have, and where is it concentrated?"
+
+```
+[Donut chart with three segments]
+  High (red): 3M XAF - 54%
+  Medium (yellow): 1.5M XAF - 27%
+  Low (green): 1M XAF - 18%
+Total: 5.5M XAF
+```
+
+### 4.3 Optional: Debt by Type Breakdown
+
+**Type**: Stacked bar (cash vs. existing debt)
+
+**Data**: Total debt segmented by cash and existing.
+
+**Use case**: "How much of my debt is from borrowed cash vs. existing obligations?"
+
+```
+[Stacked bar chart]
+  Cash Debt: 3.5M XAF (64%)
+  Existing Debt: 2M XAF (36%)
+Total: 5.5M XAF
+```
+
+---
+
+## 5. Data Consistency & Validation
+
+### 5.1 Firestore Rules Update
+
+Add rules for goals and debts:
+
+```
+match /users/{uid}/goals/{goalId=**} {
+  allow read: if request.auth.uid == uid;
+  allow create: if request.auth.uid == uid && request.resource.data.uid == uid;
+  allow update: if request.auth.uid == uid && resource.data.uid == uid;
+  allow delete: if request.auth.uid == uid;
+}
+
+match /users/{uid}/debts/{debtId=**} {
+  allow read: if request.auth.uid == uid;
+  allow create: if request.auth.uid == uid && request.resource.data.uid == uid;
+  allow update: if request.auth.uid == uid && resource.data.uid == uid;
+  allow delete: if request.auth.uid == uid;
+}
+```
+
+### 5.2 Frontend Validation
+
+- Goal name and line items must have non-zero amounts.
+- Debt must have a principal amount > 0.
+- Debt type must be selected ("cash" or "existing").
+- Repayment amount cannot exceed remaining balance (warning, but allow override).
+- Recurring payment interval validation (next date must be in future).
+- For cash debts, account selection on repayment is required.
+- For existing debts, account selection on repayment is optional.
+
+### 5.3 Computed Fields
+
+Both `goals` and `debts` use denormalized fields (`totalAmount`, `currentBalance`, `totalRepaid`) for read performance. These are always recalculated during writes via `runTransaction()` to ensure consistency.
+
+---
+
+## 6. Integration Points
+
+### 6.1 Linking to Transactions
+
+- When a goal line item is marked complete, a transaction is created (existing flow).
+- When a cash debt repayment is recorded, a transaction is created (and auto-linked).
+- When an existing debt repayment is recorded, no transaction is created by default (user can optionally link later).
+- Transactions gain optional `isDebtRepayment` and `linkedDebtId` flags to track origin.
+
+### 6.2 Frozen Money
+
+- Goals check `wallet.frozenAmount` to determine if a line item can be paid.
+- Assumes existing freeze/unfreeze logic exists; Goals does not create or modify freezes.
+- (If freeze logic does not exist, that's a dependency to address first.)
+
+### 6.3 Categories
+
+- Debt repayments could auto-tag with "Debt Repayment" or a custom category.
+- This allows filtering/budgeting on debt-related vs. goal-related spending.
+- Goal expenses would similarly be tagged for tracking.
+
+### 6.4 Debt Type Implications
+
+- **Cash Debt**: Recording repayment immediately decreases account balance (money leaves). Repayment is always linked to an account transaction.
+- **Existing Debt**: Recording repayment tracks progress but does not decrease account balance unless user explicitly links a transaction. Useful for tracking obligations that exist outside the ledger (mortgage, car loan, payment plans).
+
+---
+
+## 7. Not in Scope (Deferred)
+
+- Interest calculation or accrual (debts assumed interest-free unless manually tracked in notes).
+- Shared debts (e.g., joint loan tracking; this is single-user-per-account).
+- Goal auto-completion (e.g., weekly auto-deduction from an account; user manually records expenses).
+- SMS/push notifications for upcoming payments (deferred; can add later).
+- Debt consolidation or refinancing UI (out of scope).
+- Automatic account transaction creation for existing debts (always manual/optional).
+
+---
+
+## 8. Summary
+
+| Feature | Goals | Debt (Cash) | Debt (Existing) |
+|---------|-------|------------|-----------------|
+| **Core Concept** | Forward savings projects with line-item costs | Cash borrowed (affects account balance) | Existing obligations or property (no account impact) |
+| **Main Collections** | `goals/{goalId}`, `goals/{goalId}/lineItems/{id}` | `debts/{debtId}`, `debts/{debtId}/repayments/{id}` (with debtType="cash") | Same collection, debtType="existing" |
+| **Account Impact** | Creates expense when line item marked complete | Repayment creates transaction, debits account | Repayment logs progress, no account debit (unless manually linked) |
+| **Key Checks** | Frozen funds available per line item | Balance remaining, priority, next payment date | Balance remaining, priority, next payment date |
+| **Primary UI** | Goals tab (list + detail + create) | Debt tab (dashboard + detail + create) with type badges |
+| **Charts** | Goal progress bar (linear) | Debt trend line (monthly balance), priority breakdown, optional type breakdown |
+| **Transactions** | Creates expense when line item marked complete | Always creates transaction for cash debt; optional for existing debt |
+| **Soft Delete** | `goal.archived: boolean` | `debt.archivedAt: timestamp` (null if active) |

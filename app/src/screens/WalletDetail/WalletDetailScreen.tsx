@@ -1,7 +1,9 @@
 'use client';
 
+import Link from 'next/link';
 import { ChevronLeft, Settings } from 'lucide-react';
-import { Modal } from '@/src/widgets/Modal/Modal';
+import { TrendChart } from '@/src/widgets/TrendChart/TrendChart';
+import { DonutChart } from '@/src/widgets/DonutChart/DonutChart';
 import { useLogic, formatAmount } from '@/src/logic/walletDetail/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
@@ -18,22 +20,17 @@ export function WalletDetailScreen({ walletId }: { walletId: string }) {
     transactions,
     period,
     setPeriod,
+    cashflow,
+    cashflowMax,
+    spendingTrend,
+    transferDestinations,
+    upcomingTotal,
+    upcomingShortfall,
+    upcomingHorizonDays,
     loading,
     error,
     goBack,
     iconFor,
-    editOpen,
-    setEditOpen,
-    openEdit,
-    notSpendableDraft,
-    setNotSpendableDraft,
-    frozenDraft,
-    setFrozenDraft,
-    lockedAmountDraft,
-    setLockedAmountDraft,
-    savingEdit,
-    editError,
-    saveEdit,
   } = useLogic(walletId, strings.walletDetail.periods);
 
   return (
@@ -43,14 +40,9 @@ export function WalletDetailScreen({ walletId }: { walletId: string }) {
           <ChevronLeft size={18} strokeWidth={2} />
         </button>
         <h1 className={styles.title}>{wallet?.name ?? '…'}</h1>
-        <button
-          type="button"
-          className={styles.editButton}
-          onClick={openEdit}
-          aria-label={strings.walletDetail.editWallet}
-        >
+        <Link href={`/wallets/${walletId}/edit`} className={styles.editButton} aria-label={strings.walletDetail.editWallet}>
           <Settings size={18} strokeWidth={1.75} />
-        </button>
+        </Link>
       </header>
 
       <p className={styles.balance}>
@@ -78,6 +70,75 @@ export function WalletDetailScreen({ walletId }: { walletId: string }) {
       )}
 
       <ScreenState loading={loading} error={error} />
+
+      {!loading && !error && wallet && (
+        <>
+          <div className={styles.chartCard}>
+            <p className={styles.chartTitle}>{strings.walletDetail.cashflowTitle}</p>
+            <div className={styles.cashflowChart}>
+              {cashflow.map((entry, index) => (
+                <div key={index} className={styles.cashflowColumn}>
+                  <div className={styles.cashflowBars}>
+                    <div
+                      className={styles.cashflowBarIn}
+                      style={{ height: `${Math.max((entry.inflow / cashflowMax) * 100, entry.inflow > 0 ? 4 : 0)}%` }}
+                    />
+                    <div
+                      className={styles.cashflowBarOut}
+                      style={{ height: `${Math.max((entry.outflow / cashflowMax) * 100, entry.outflow > 0 ? 4 : 0)}%` }}
+                    />
+                  </div>
+                  <span className={styles.cashflowLabel}>{entry.label}</span>
+                </div>
+              ))}
+            </div>
+            <div className={styles.legend}>
+              <span className={styles.legendItem}>
+                <span className={`${styles.legendDot} ${styles.legendDotIn}`} />
+                {strings.walletDetail.cashflowLegendIn}
+              </span>
+              <span className={styles.legendItem}>
+                <span className={`${styles.legendDot} ${styles.legendDotOut}`} />
+                {strings.walletDetail.cashflowLegendOut}
+              </span>
+            </div>
+          </div>
+
+          <div className={styles.chartCard}>
+            <p className={styles.chartTitle}>{strings.walletDetail.spendingTrendTitle}</p>
+            <TrendChart points={spendingTrend} color="var(--color-danger)" />
+          </div>
+
+          <div className={styles.chartCard}>
+            <p className={styles.chartTitle}>{strings.walletDetail.transferDestinationsTitle}</p>
+            {transferDestinations.length > 0 ? (
+              <DonutChart segments={transferDestinations} />
+            ) : (
+              <p className={styles.emptyText}>{strings.walletDetail.emptyTransferDestinations}</p>
+            )}
+          </div>
+
+          <div className={styles.chartCard}>
+            <p className={styles.chartTitle}>
+              {strings.walletDetail.upcomingPaymentsTitle} ({upcomingHorizonDays}d)
+            </p>
+            {upcomingTotal > 0 ? (
+              <>
+                <p className={styles.upcomingAmount}>
+                  {formatAmount(upcomingTotal)} {currency}
+                </p>
+                <p className={upcomingShortfall > 0 ? styles.upcomingShort : styles.upcomingOk}>
+                  {upcomingShortfall > 0
+                    ? `${strings.walletDetail.upcomingPaymentsShortPrefix} ${formatAmount(upcomingShortfall)} ${currency}`
+                    : strings.walletDetail.upcomingPaymentsCovered}
+                </p>
+              </>
+            ) : (
+              <p className={styles.emptyText}>{strings.walletDetail.upcomingPaymentsNone}</p>
+            )}
+          </div>
+        </>
+      )}
 
       <div className={styles.periodTabs}>
         {strings.walletDetail.periods.map((option) => (
@@ -111,51 +172,6 @@ export function WalletDetailScreen({ walletId }: { walletId: string }) {
           );
         })}
       </div>
-
-      {editOpen && (
-        <Modal title={strings.walletDetail.editWalletTitle} onClose={() => setEditOpen(false)}>
-          <div className={styles.formField}>
-            <label className={styles.checkboxRow}>
-              <input
-                type="checkbox"
-                checked={notSpendableDraft}
-                onChange={(event) => setNotSpendableDraft(event.target.checked)}
-              />
-              {strings.walletDetail.notSpendableLabel}
-            </label>
-            <p className={styles.sectionCaption}>{strings.walletDetail.notSpendableHint}</p>
-          </div>
-          <div className={styles.formField}>
-            <label className={styles.checkboxRow}>
-              <input type="checkbox" checked={frozenDraft} onChange={(event) => setFrozenDraft(event.target.checked)} />
-              {strings.walletDetail.frozenLabel}
-            </label>
-            <p className={styles.sectionCaption}>{strings.walletDetail.frozenHint}</p>
-          </div>
-          <div className={styles.formField}>
-            <label className={styles.formLabel} htmlFor="wallet-locked-amount">
-              {strings.walletDetail.lockedAmountLabel}
-            </label>
-            <input
-              id="wallet-locked-amount"
-              className={styles.formInput}
-              inputMode="numeric"
-              value={lockedAmountDraft}
-              onChange={(event) => setLockedAmountDraft(event.target.value.replace(/[^0-9.]/g, ''))}
-              placeholder="0"
-            />
-            <p className={styles.sectionCaption}>{strings.walletDetail.lockedAmountHint}</p>
-          </div>
-          {editError && (
-            <p className={styles.errorText} role="alert">
-              {editError}
-            </p>
-          )}
-          <button type="button" className={styles.modalSaveButton} disabled={savingEdit} onClick={saveEdit}>
-            {strings.common.save}
-          </button>
-        </Modal>
-      )}
     </div>
   );
 }

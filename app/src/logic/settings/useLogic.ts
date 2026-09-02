@@ -7,8 +7,10 @@ import { query, updateDoc } from 'firebase/firestore';
 import { getFirebaseAuth } from '@/src/shared/config/firebaseClient';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { useFirestoreDoc, useFirestoreCollection } from '@/src/shared/firestore/hooks';
-import { settingsRef, exchangeRatesRef } from '@/src/shared/firestore/refs';
-import type { FirestoreSettings, FirestoreExchangeRate } from '@/src/shared/firestore/types';
+import { settingsRef, exchangeRatesRef, transactionsRef } from '@/src/shared/firestore/refs';
+import { useAccounts, useCategories } from '@/src/shared/firestore/queries';
+import { buildTransactionCsvTemplate, buildTransactionsCsv, downloadTextFile } from '@/src/shared/firestore/csv';
+import type { FirestoreSettings, FirestoreExchangeRate, FirestoreTransaction } from '@/src/shared/firestore/types';
 import { currencyName } from '@/src/viewmodels/currencies';
 import { clearSignedIn } from '@/src/shared/config/authSession';
 import { PIN_DISABLED_KEY, PIN_HASH_CACHE_KEY, PIN_VERIFIED_KEY } from '@/src/shared/config/pinGate';
@@ -52,6 +54,37 @@ export function useLogic() {
   const [reminders, setReminders] = useState<string[]>(INITIAL_REMINDER_TIMES);
 
   const [shareCopied, setShareCopied] = useState(false);
+
+  // CSV export — every transaction the account has, named columns instead
+  // of raw account/category ids so the file is directly re-importable and
+  // human-readable on its own.
+  const { data: accounts } = useAccounts();
+  const { data: categories } = useCategories();
+  const allTransactionsQuery = useMemo(() => (uid ? query(transactionsRef(uid)) : null), [uid]);
+  const { data: allTransactions } = useFirestoreCollection<FirestoreTransaction>(allTransactionsQuery);
+
+  function downloadCsvTemplate() {
+    downloadTextFile('dreda-transactions-template.csv', buildTransactionCsvTemplate());
+  }
+
+  function exportTransactionsCsv() {
+    const accountName = new Map(accounts.map((a) => [a.id, a.name]));
+    const categoryName = new Map(categories.map((c) => [c.id, c.name]));
+    const csv = buildTransactionsCsv(
+      allTransactions.map((t) => ({
+        date: t.date.toDate(),
+        type: t.type,
+        accountId: t.accountId,
+        categoryId: t.categoryId,
+        amount: t.amount,
+        description: t.description,
+      })),
+      accountName,
+      categoryName
+    );
+    const today = new Date().toISOString().slice(0, 10);
+    downloadTextFile(`dreda-transactions-${today}.csv`, csv);
+  }
 
   const currency = settings?.displayCurrency ?? '';
   const filteredCurrencies = (currencies ?? [])
@@ -230,5 +263,7 @@ export function useLogic() {
     handleSavePin,
     setCurrency,
     goBack,
+    downloadCsvTemplate,
+    exportTransactionsCsv,
   };
 }

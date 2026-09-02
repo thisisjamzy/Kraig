@@ -12,6 +12,8 @@
     "migrate": "tsx scripts/migrate-notion-to-firestore.ts",
     "seed": "tsx scripts/seed-dummy-data.ts",
     "unseed": "tsx scripts/unseed-dummy-data.ts",
+    "seed:goals-debt": "tsx scripts/seed-goals-debt-dummy-data.ts",
+    "unseed:goals-debt": "tsx scripts/unseed-goals-debt-dummy-data.ts",
     "test:rules": "firebase emulators:exec --only firestore --project dreda-rules-test \"tsx --test test/firestore-rules.test.ts\"",
     "test:functions": "npm run build --prefix functions && firebase emulators:exec --only functions,firestore,auth --project dreda-emu-test \"node --test functions/lib/integration/*.test.js\""
   },

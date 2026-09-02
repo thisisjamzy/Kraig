@@ -1,0 +1,46 @@
+.wrap {
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+}
+
+.svg {
+  flex-shrink: 0;
+}
+
+.legend {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  min-width: 0;
+  flex: 1;
+}
+
+.legendRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: var(--font-size-sm);
+}
+
+.legendDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.legendLabel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-text-primary);
+}
+
+.legendValue {
+  flex-shrink: 0;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+}

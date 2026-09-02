@@ -1,14 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { setDoc } from 'firebase/firestore';
+import { query, setDoc, where } from 'firebase/firestore';
 import { useAccounts, useCurrencyContext, useExchangeRates } from '@/src/shared/firestore/queries';
+import { useFirestoreCollection } from '@/src/shared/firestore/hooks';
 import { toDisplay } from '@/src/shared/firestore/currency';
-import { accountRef } from '@/src/shared/firestore/refs';
+import { accountRef, accountsRef } from '@/src/shared/firestore/refs';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { walletColor, ACCOUNT_TYPES } from '@/src/viewmodels/wallets';
 import { currencyName } from '@/src/viewmodels/currencies';
+import type { FirestoreAccount } from '@/src/shared/firestore/types';
 
 export function formatAmount(value: number) {
   return new Intl.NumberFormat('en-US').format(value);
@@ -21,8 +23,23 @@ export function useLogic() {
   const { data: exchangeRates } = useExchangeRates();
   const { ctx, loading: ctxLoading } = useCurrencyContext();
 
+  // Archived wallets don't show in useAccounts() (every balance total in
+  // the app deliberately excludes them) — this is the one screen that
+  // still needs to list them, collapsed below the active ones, so there's
+  // a way back to a wallet's edit page to unarchive it.
+  const archivedQuery = useMemo(
+    () => (user ? query(accountsRef(user.uid), where('archived', '==', true)) : null),
+    [user]
+  );
+  const { data: archivedAccounts, loading: archivedLoading } = useFirestoreCollection<FirestoreAccount>(archivedQuery);
+  const archivedWallets = archivedAccounts.map((account) => ({
+    id: account.id,
+    name: account.name,
+  }));
+
   const [addOpen, setAddOpen] = useState(false);
   const [newName, setNewName] = useState('');
+  const [newShortName, setNewShortName] = useState('');
   const [newType, setNewType] = useState<(typeof ACCOUNT_TYPES)[number]>(ACCOUNT_TYPES[0]);
   const [newCurrency, setNewCurrency] = useState('');
   const [newStartingBalance, setNewStartingBalance] = useState('');
@@ -48,6 +65,7 @@ export function useLogic() {
 
   function openAddWallet() {
     setNewName('');
+    setNewShortName('');
     setNewType(ACCOUNT_TYPES[0]);
     setNewCurrency(ctx.base || currencyOptions[0]?.code || '');
     setNewStartingBalance('');
@@ -63,6 +81,7 @@ export function useLogic() {
       const startingBalance = Number(newStartingBalance.replace(/[^0-9.]/g, '')) || 0;
       await setDoc(accountRef(user.uid, crypto.randomUUID()), {
         name: newName.trim(),
+        shortName: newShortName.trim().slice(0, 5) || newName.trim().slice(0, 5),
         type: newType,
         currency: newCurrency || ctx.base,
         startingBalance,
@@ -83,7 +102,9 @@ export function useLogic() {
   return {
     wallets,
     total,
+    archivedWallets,
     loading: accountsLoading || ctxLoading,
+    archivedLoading,
     error,
     goBack,
     addOpen,
@@ -91,6 +112,8 @@ export function useLogic() {
     openAddWallet,
     newName,
     setNewName,
+    newShortName,
+    setNewShortName,
     newType,
     setNewType,
     newCurrency,

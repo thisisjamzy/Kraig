@@ -2,14 +2,15 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, History, SlidersHorizontal, Plus } from 'lucide-react';
+import { Home, PieChart, SlidersHorizontal, Target, Plus } from 'lucide-react';
 import { hasBottomNav } from '@/src/shared/config/chromeVisibility';
 import styles from './BottomNav.module.css';
 
 const NAV_ITEMS = [
   { href: '/home', label: 'Home', icon: Home },
-  { href: '/statistics', label: 'Statistics', icon: History },
+  { href: '/statistics', label: 'Statistics', icon: PieChart },
   { href: '/budget', label: 'Budget', icon: SlidersHorizontal },
+  { href: '/goals', label: 'Goals & Debt', icon: Target },
 ];
 
 export function BottomNav() {
