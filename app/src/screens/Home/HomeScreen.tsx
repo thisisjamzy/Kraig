@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Plus, SlidersHorizontal, History, ArrowUpRight, Check, ChevronDown, Search } from 'lucide-react';
+import { Plus, SlidersHorizontal, History, ArrowUpRight, ChevronRight, Target, Check, ChevronDown, Search } from 'lucide-react';
 import { useLogic, formatAmount, formatCompact, type SpendingPeriod } from '@/src/logic/home/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
@@ -139,7 +139,7 @@ export function HomeScreen() {
         <div className={styles.walletsChart}>
           {wallets.length > 0
             ? wallets.map((wallet) => (
-                <div key={wallet.name} className={styles.walletColumn}>
+                <div key={wallet.id} className={styles.walletColumn}>
                   <div className={styles.walletBarTrack}>
                     <div
                       className={styles.walletBar}
@@ -303,6 +303,17 @@ export function HomeScreen() {
         )}
         {budgets.length === 0 && !loading && <p className={styles.emptyText}>{strings.home.noBudgets}</p>}
       </section>
+
+      <Link href="/goals" className={styles.goalsDebtCard}>
+        <span className={styles.goalsDebtIcon}>
+          <Target size={18} strokeWidth={1.75} />
+        </span>
+        <span className={styles.goalsDebtText}>
+          <span className={styles.goalsDebtLabel}>{strings.home.goalsAndDebt}</span>
+          <span className={styles.goalsDebtMeta}>{strings.home.goalsAndDebtMeta}</span>
+        </span>
+        <ChevronRight size={16} strokeWidth={2} className={styles.goalsDebtChevron} />
+      </Link>
     </div>
   );
 }

@@ -1,0 +1,20 @@
+.scroll {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.svg {
+  display: block;
+}
+
+.labelsRow {
+  display: flex;
+}
+
+.label {
+  flex: 0 0 auto;
+  min-width: 0;
+  text-align: center;
+  font-size: 0.625rem;
+  color: var(--color-text-secondary);
+}

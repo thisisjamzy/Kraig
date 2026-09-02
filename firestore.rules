@@ -128,6 +128,61 @@ service cloud.firestore {
         allow delete: if false; // archive in place, keep history
       }
 
+      // A forward-looking savings project (PRD Files/prd debt n goals
+      // section 1). totalAmount/lineItemCount/completedLineItemCount/
+      // amountCompleted are denormalized from the real lineItems
+      // subcollection (src/shared/firestore/aggregation.ts's
+      // recalcGoalTotals) — trusted from the client the same way every
+      // other denormalized stat in this app already is (see this file's
+      // own header on the Spark-plan trade-off), not independently
+      // verified here.
+      // request.resource is only defined for create/update (and is absent
+      // for both read and delete — a rule that combines either of those
+      // with a request.resource.data check evaluates to a hard deny, not a
+      // skipped check, which is exactly the "missing or insufficient
+      // permissions" bug this block used to have: read was folded into the
+      // same allow line as create/update's request.resource.data.name
+      // check, so every read of a goal was denied). Every collection below
+      // keeps read (and delete) on its own line, same as
+      // transactions/transfers/budgetRules above.
+      match /goals/{goalId} {
+        allow read: if activeUser() && request.auth.uid == uid;
+        allow create, update: if activeUser() && request.auth.uid == uid
+          && request.resource.data.name is string;
+        allow delete: if false; // archive in place (archived: true)
+
+        // A goal's own sub-costs. Deletable (unlike most collections in
+        // this app) — a not-yet-paid line item is a planning detail, not
+        // financial history; aggregation.ts's deleteGoalLineItem only ever
+        // calls this for one that hasn't been marked complete yet.
+        match /lineItems/{lineItemId} {
+          allow read: if activeUser() && request.auth.uid == uid;
+          allow create, update: if activeUser() && request.auth.uid == uid
+            && request.resource.data.amount is number;
+          allow delete: if activeUser() && request.auth.uid == uid;
+        }
+      }
+
+      // A liability being paid down (PRD Files/prd debt n goals section
+      // 2). currentBalance/totalRepaid are denormalized from the real
+      // repayments subcollection (aggregation.ts's recalcDebtBalance).
+      match /debts/{debtId} {
+        allow read: if activeUser() && request.auth.uid == uid;
+        allow create, update: if activeUser() && request.auth.uid == uid
+          && request.resource.data.principalAmount is number
+          && request.resource.data.debtType in ['cash', 'existing'];
+        allow delete: if false; // archive in place (archivedAt: a timestamp)
+
+        // Repayment history — never deleted, same "archive/append, don't
+        // erase" convention as the ledger's own transactions/transfers.
+        match /repayments/{repaymentId} {
+          allow read: if activeUser() && request.auth.uid == uid;
+          allow create: if activeUser() && request.auth.uid == uid
+            && request.resource.data.amount is number;
+          allow update, delete: if false;
+        }
+      }
+
       match /settings/{docId} {
         allow read, write: if activeUser() && request.auth.uid == uid;
       }

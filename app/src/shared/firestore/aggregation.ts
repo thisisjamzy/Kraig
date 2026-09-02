@@ -21,7 +21,20 @@
 // either the same way, mirroring functions/src/transfers.ts /
 // functions/src/transactions.ts, is what's still missing.
 
-import { runTransaction, getDoc, getDocs, query, where, setDoc, increment, serverTimestamp, deleteField, Timestamp } from 'firebase/firestore';
+import {
+  runTransaction,
+  getDoc,
+  getDocs,
+  query,
+  where,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  increment,
+  serverTimestamp,
+  deleteField,
+  Timestamp,
+} from 'firebase/firestore';
 import { getFirebaseFirestore } from '@/src/shared/config/firebaseClient';
 import {
   accountRef,
@@ -32,10 +45,17 @@ import {
   statsBudgetProgressRef,
   budgetRulesRef,
   budgetRuleRef,
+  goalRef,
+  goalLineItemsRef,
+  goalLineItemRef,
+  debtRef,
+  repaymentsRef,
+  repaymentRef,
 } from './refs';
 import { convert, type CurrencyContext } from './currency';
 import { toRecurrenceRule } from './recurrence';
 import { ruleAppliesToMonth } from '@dreda/shared-recurrence';
+import type { FirestoreDebtPaymentPlan, DebtType, DebtPriority, BudgetLineType } from './types';
 
 function monthKey(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
@@ -68,78 +88,109 @@ export interface CreateTransactionInput {
   amount: number;
   direction: 'Inflow' | 'Outflow';
   createdBy: string;
+  // Set only when this transaction IS a 'cash' debt's repayment — see
+  // FirestoreDebt.debtType and recordRepaymentWithAggregation below, which
+  // is the only other caller that ever passes these.
+  isDebtRepayment?: boolean;
+  linkedDebtId?: string | null;
+}
+
+/**
+ * The write half of "record a transaction" — account currentBalance,
+ * statsMonthly, stats-home, the same fields onTransactionWrite's
+ * applyDelta() used to maintain via a trigger — factored out so
+ * markGoalLineItemComplete and recordRepaymentWithAggregation (both of
+ * which also need to write a real transaction, inside their OWN
+ * runTransaction() alongside a goal/debt write) can reuse the exact same
+ * math instead of re-deriving it. Every read this needs (the account snap,
+ * for its currency and frozen/lockedAmount checks) must already have
+ * happened before this runs — Firestore transactions require all reads
+ * before any writes, and this function only ever writes.
+ */
+function writeTransactionContribution(
+  tx: import('firebase/firestore').Transaction,
+  uid: string,
+  input: CreateTransactionInput,
+  accountData: { currency?: string; frozen?: boolean; lockedAmount?: number; currentBalance?: number } | undefined,
+  ctx: CurrencyContext
+): number {
+  const signedAmount = input.direction === 'Inflow' ? input.amount : -input.amount;
+  if (accountData?.frozen) {
+    throw new Error('This wallet is frozen — unfreeze it before recording a transaction against it.');
+  }
+  assertNotBelowLocked(accountData, signedAmount);
+  const month = monthKey(input.date);
+  const currentMonth = monthKey(new Date());
+  const dateTimestamp = Timestamp.fromDate(input.date);
+  const nativeCurrency = accountData?.currency ?? ctx.base;
+  const convertedDelta = convert(signedAmount, nativeCurrency, ctx.base, ctx.rates);
+  const income = convertedDelta > 0 ? convertedDelta : 0;
+  const expense = convertedDelta < 0 ? -convertedDelta : 0;
+
+  tx.set(transactionRef(uid, input.id), {
+    date: dateTimestamp,
+    type: input.type,
+    description: input.description,
+    accountId: input.accountId,
+    categoryId: input.categoryId,
+    amount: input.amount,
+    direction: input.direction,
+    signedAmount,
+    month,
+    ...(input.isDebtRepayment ? { isDebtRepayment: true, linkedDebtId: input.linkedDebtId ?? null } : {}),
+    createdBy: input.createdBy,
+    createdAt: dateTimestamp,
+  });
+
+  tx.update(accountRef(uid, input.accountId), { currentBalance: increment(signedAmount) });
+
+  const monthUpdate: Record<string, unknown> = {
+    totalIncome: increment(income),
+    totalExpense: increment(expense),
+    transactionCount: increment(1),
+    lastUpdated: serverTimestamp(),
+  };
+  if (input.categoryId) {
+    monthUpdate.perCategorySpend = { [input.categoryId]: increment(expense - income) };
+    monthUpdate.perCategoryCount = { [input.categoryId]: increment(1) };
+  }
+  tx.set(statsMonthlyRef(uid, month), monthUpdate, { merge: true });
+
+  const homeUpdate: Record<string, unknown> = {
+    totalBalanceBase: increment(convertedDelta),
+    lastUpdated: serverTimestamp(),
+  };
+  if (month === currentMonth) {
+    homeUpdate.thisMonthIncome = increment(income);
+    homeUpdate.thisMonthExpense = increment(expense);
+  }
+  tx.set(statsHomeRef(uid), homeUpdate, { merge: true });
+
+  return signedAmount;
 }
 
 /**
  * Writes a new transaction and, in the same runTransaction(), updates its
- * account's currentBalance and statsMonthly/stats-home — the same fields
- * onTransactionWrite's applyDelta() maintains, computed directly here
- * instead of via a trigger. statsBudgetProgress is recomputed afterward
- * (needs a query, which Firestore transactions can't run — same ordering
- * onTransactionWrite itself used, see its own comment on why that recompute
- * runs after the batch commits, not inside it). `input.createdBy` doubles
- * as the uid whose subcollections this writes to — the caller is always the
- * account owner writing their own data (see refs.ts's header).
+ * account's currentBalance and statsMonthly/stats-home via
+ * writeTransactionContribution above. statsBudgetProgress is recomputed
+ * afterward (needs a query, which Firestore transactions can't run — same
+ * ordering onTransactionWrite itself used, see its own comment on why that
+ * recompute runs after the batch commits, not inside it). `input.createdBy`
+ * doubles as the uid whose subcollections this writes to — the caller is
+ * always the account owner writing their own data (see refs.ts's header).
  */
 export async function createTransactionWithAggregation(input: CreateTransactionInput, ctx: CurrencyContext) {
   const uid = input.createdBy;
   const db = getFirebaseFirestore();
-  const signedAmount = input.direction === 'Inflow' ? input.amount : -input.amount;
-  const month = monthKey(input.date);
-  const currentMonth = monthKey(new Date());
-  const dateTimestamp = Timestamp.fromDate(input.date);
 
   await runTransaction(db, async (tx) => {
     const accountSnap = await tx.get(accountRef(uid, input.accountId));
-    if (accountSnap.data()?.frozen) {
-      throw new Error('This wallet is frozen — unfreeze it before recording a transaction against it.');
-    }
-    assertNotBelowLocked(accountSnap.data(), signedAmount);
-    const nativeCurrency = (accountSnap.data()?.currency as string | undefined) ?? ctx.base;
-    const convertedDelta = convert(signedAmount, nativeCurrency, ctx.base, ctx.rates);
-    const income = convertedDelta > 0 ? convertedDelta : 0;
-    const expense = convertedDelta < 0 ? -convertedDelta : 0;
-
-    tx.set(transactionRef(uid, input.id), {
-      date: dateTimestamp,
-      type: input.type,
-      description: input.description,
-      accountId: input.accountId,
-      categoryId: input.categoryId,
-      amount: input.amount,
-      direction: input.direction,
-      signedAmount,
-      month,
-      createdBy: input.createdBy,
-      createdAt: dateTimestamp,
-    });
-
-    tx.update(accountRef(uid, input.accountId), { currentBalance: increment(signedAmount) });
-
-    const monthUpdate: Record<string, unknown> = {
-      totalIncome: increment(income),
-      totalExpense: increment(expense),
-      transactionCount: increment(1),
-      lastUpdated: serverTimestamp(),
-    };
-    if (input.categoryId) {
-      monthUpdate.perCategorySpend = { [input.categoryId]: increment(expense - income) };
-      monthUpdate.perCategoryCount = { [input.categoryId]: increment(1) };
-    }
-    tx.set(statsMonthlyRef(uid, month), monthUpdate, { merge: true });
-
-    const homeUpdate: Record<string, unknown> = {
-      totalBalanceBase: increment(convertedDelta),
-      lastUpdated: serverTimestamp(),
-    };
-    if (month === currentMonth) {
-      homeUpdate.thisMonthIncome = increment(income);
-      homeUpdate.thisMonthExpense = increment(expense);
-    }
-    tx.set(statsHomeRef(uid), homeUpdate, { merge: true });
+    writeTransactionContribution(tx, uid, input, accountSnap.data(), ctx);
   });
 
   if (input.categoryId) {
+    const month = monthKey(input.date);
+    await ensureBudgetCoverageForCategoryMonth(uid, input.categoryId, month, input.type as BudgetLineType);
     await recomputeBudgetProgressForCategoryMonth(uid, input.categoryId, month);
   }
 }
@@ -302,6 +353,10 @@ export async function updateTransactionWithAggregation(
     tx.set(statsHomeRef(uid), homeUpdate, { merge: true });
   });
 
+  if (input.categoryId) {
+    await ensureBudgetCoverageForCategoryMonth(uid, input.categoryId, newMonth, input.type as BudgetLineType);
+  }
+
   const pairs = new Map<string, { categoryId: string; month: string }>();
   if (oldCategoryId) pairs.set(`${oldCategoryId}::${oldMonth}`, { categoryId: oldCategoryId, month: oldMonth });
   if (input.categoryId) {
@@ -392,6 +447,53 @@ export async function createTransferWithAggregation(input: CreateTransferInput) 
 }
 
 /**
+ * Every transaction registers to its own month's budget, even when
+ * unbudgeted — if `categoryId` has no active rule covering `month`, this
+ * creates a one-month, zero-budgeted rule for it (frequency 'Once',
+ * anchored to that month) so the category still shows up as a line in that
+ * month's Budget view (0 budgeted, whatever it actually spent) instead of
+ * being invisible there. Called right before recomputeBudgetProgressForCategoryMonth
+ * so a rule created here is immediately picked up by that recompute, same
+ * "query outside a transaction, write after" shape every other budget
+ * recompute in this file already uses.
+ */
+async function ensureBudgetCoverageForCategoryMonth(
+  uid: string,
+  categoryId: string,
+  month: string,
+  type: BudgetLineType
+) {
+  const [year, monthNum] = month.split('-').map(Number);
+  const rulesSnap = await getDocs(
+    query(budgetRulesRef(uid), where('categoryId', '==', categoryId), where('archived', '==', false))
+  );
+  const covered = rulesSnap.docs.some((ruleDoc) => {
+    const rule = ruleDoc.data();
+    const occurrence = ruleAppliesToMonth(toRecurrenceRule(rule), year, monthNum);
+    return occurrence && !rule.excludedMonths?.includes(month);
+  });
+  if (covered) return;
+
+  await setDoc(budgetRuleRef(uid, crypto.randomUUID()), {
+    categoryId,
+    type,
+    description: '',
+    budgetedAmount: 0,
+    frequency: 'Once',
+    interval: 1,
+    anchorDate: Timestamp.fromDate(new Date(year, monthNum - 1, 1)),
+    endCondition: 'Never',
+    endOccurrences: null,
+    endDate: null,
+    accountId: null,
+    tag: null,
+    archived: false,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+}
+
+/**
  * Recomputes statsBudgetProgress/{month} for every active rule covering
  * `categoryId` — mirrors functions/src/lib/budgetProgress.ts's
  * recomputeRulesForCategory, called after a transaction changes that
@@ -460,4 +562,351 @@ export async function recomputeBudgetProgressForRuleCurrentMonth(uid: string, ru
     { [ruleId]: { budgeted, spent, remaining: budgeted - spent, count } },
     { merge: true }
   );
+}
+
+// ---------------------------------------------------------------------
+// Goals — `PRD Files/prd debt n goals` section 1.
+// ---------------------------------------------------------------------
+
+export interface CreateGoalInput {
+  name: string;
+  description: string;
+  deadline: Date | null;
+  currency: string;
+}
+
+export async function createGoal(uid: string, input: CreateGoalInput): Promise<string> {
+  const id = crypto.randomUUID();
+  await setDoc(goalRef(uid, id), {
+    name: input.name,
+    description: input.description,
+    totalAmount: 0,
+    lineItemCount: 0,
+    completedLineItemCount: 0,
+    amountCompleted: 0,
+    currency: input.currency,
+    deadline: input.deadline ? Timestamp.fromDate(input.deadline) : null,
+    archived: false,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+  return id;
+}
+
+export async function archiveGoal(uid: string, goalId: string): Promise<void> {
+  await updateDoc(goalRef(uid, goalId), { archived: true, updatedAt: serverTimestamp() });
+}
+
+/**
+ * Recomputes a goal's denormalized totalAmount/lineItemCount/
+ * completedLineItemCount/amountCompleted from its real lineItems
+ * subcollection — the same "needs a query, which a Firestore transaction
+ * can't run, so recompute right after instead" shape
+ * recomputeBudgetProgressForCategoryMonth above already uses (a
+ * Transaction.get() only ever accepts a single DocumentReference, never a
+ * Query — see that function's own header for the same constraint on
+ * statsBudgetProgress). Called after every lineItems write.
+ */
+async function recalcGoalTotals(uid: string, goalId: string) {
+  const snap = await getDocs(goalLineItemsRef(uid, goalId));
+  const lineItems = snap.docs.map((d) => d.data());
+  const totalAmount = lineItems.reduce((sum, li) => sum + (Number(li.amount) || 0), 0);
+  const completed = lineItems.filter((li) => li.completed);
+  await updateDoc(goalRef(uid, goalId), {
+    totalAmount,
+    lineItemCount: lineItems.length,
+    completedLineItemCount: completed.length,
+    amountCompleted: completed.reduce((sum, li) => sum + (Number(li.amount) || 0), 0),
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export interface CreateGoalLineItemInput {
+  name: string;
+  description: string;
+  amount: number;
+}
+
+export async function createGoalLineItem(uid: string, goalId: string, input: CreateGoalLineItemInput): Promise<string> {
+  const id = crypto.randomUUID();
+  await setDoc(goalLineItemRef(uid, goalId, id), {
+    goalId,
+    name: input.name,
+    description: input.description,
+    amount: input.amount,
+    completed: false,
+    completedAt: null,
+    expenseId: null,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+  await recalcGoalTotals(uid, goalId);
+  return id;
+}
+
+export async function updateGoalLineItem(
+  uid: string,
+  goalId: string,
+  lineItemId: string,
+  input: CreateGoalLineItemInput
+): Promise<void> {
+  await updateDoc(goalLineItemRef(uid, goalId, lineItemId), {
+    name: input.name,
+    description: input.description,
+    amount: input.amount,
+    updatedAt: serverTimestamp(),
+  });
+  await recalcGoalTotals(uid, goalId);
+}
+
+/** Only a not-yet-completed line item — deleting one that already paid for
+ * something real would silently orphan the reasoning behind that expense. */
+export async function deleteGoalLineItem(uid: string, goalId: string, lineItemId: string): Promise<void> {
+  await deleteDoc(goalLineItemRef(uid, goalId, lineItemId));
+  await recalcGoalTotals(uid, goalId);
+}
+
+export interface MarkGoalLineItemCompleteInput {
+  accountId: string;
+  categoryId: string | null;
+  date: Date;
+  description: string;
+}
+
+/**
+ * Marking a line item complete records a real Expense transaction (via
+ * writeTransactionContribution, the same write createTransactionWithAggregation
+ * uses) and links the two — both inside one runTransaction() so a line item
+ * can never end up "complete" without the expense actually existing, or
+ * vice versa. The line item's own `amount` is what gets spent; there's no
+ * separate amount to type in here.
+ */
+export async function markGoalLineItemComplete(
+  uid: string,
+  goalId: string,
+  lineItemId: string,
+  lineItemAmount: number,
+  input: MarkGoalLineItemCompleteInput,
+  ctx: CurrencyContext
+): Promise<void> {
+  const db = getFirebaseFirestore();
+  const clientId = crypto.randomUUID();
+
+  await runTransaction(db, async (tx) => {
+    const accountSnap = await tx.get(accountRef(uid, input.accountId));
+    writeTransactionContribution(
+      tx,
+      uid,
+      {
+        id: clientId,
+        date: input.date,
+        type: 'Expense',
+        description: input.description,
+        accountId: input.accountId,
+        categoryId: input.categoryId,
+        amount: lineItemAmount,
+        direction: 'Outflow',
+        createdBy: uid,
+      },
+      accountSnap.data(),
+      ctx
+    );
+    tx.update(goalLineItemRef(uid, goalId, lineItemId), {
+      completed: true,
+      completedAt: serverTimestamp(),
+      expenseId: clientId,
+      updatedAt: serverTimestamp(),
+    });
+  });
+
+  if (input.categoryId) {
+    const month = monthKey(input.date);
+    await ensureBudgetCoverageForCategoryMonth(uid, input.categoryId, month, 'Expense');
+    await recomputeBudgetProgressForCategoryMonth(uid, input.categoryId, month);
+  }
+  await recalcGoalTotals(uid, goalId);
+}
+
+// ---------------------------------------------------------------------
+// Debt — `PRD Files/prd debt n goals` section 2.
+// ---------------------------------------------------------------------
+
+export interface CreateDebtInput {
+  name: string;
+  description: string;
+  debtType: DebtType;
+  principalAmount: number;
+  currency: string;
+  priority: DebtPriority;
+  startDate: Date;
+  notes: string;
+  recurring?: {
+    amount: number;
+    interval: 'weekly' | 'biweekly' | 'monthly' | 'yearly';
+    nextPaymentDate: Date;
+  } | null;
+}
+
+export async function createDebt(uid: string, input: CreateDebtInput): Promise<string> {
+  const id = crypto.randomUUID();
+  const paymentPlan: FirestoreDebtPaymentPlan = input.recurring
+    ? {
+        type: 'recurring',
+        recurring: {
+          amount: input.recurring.amount,
+          interval: input.recurring.interval,
+          nextPaymentDate: Timestamp.fromDate(input.recurring.nextPaymentDate),
+          isActive: true,
+        },
+      }
+    : { type: 'none' };
+  await setDoc(debtRef(uid, id), {
+    name: input.name,
+    description: input.description,
+    debtType: input.debtType,
+    principalAmount: input.principalAmount,
+    currentBalance: input.principalAmount,
+    totalRepaid: 0,
+    currency: input.currency,
+    priority: input.priority,
+    startDate: Timestamp.fromDate(input.startDate),
+    paymentPlan,
+    notes: input.notes,
+    archivedAt: null,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+  return id;
+}
+
+export async function archiveDebt(uid: string, debtId: string): Promise<void> {
+  await updateDoc(debtRef(uid, debtId), { archivedAt: serverTimestamp(), updatedAt: serverTimestamp() });
+}
+
+function addInterval(date: Date, interval: 'weekly' | 'biweekly' | 'monthly' | 'yearly'): Date {
+  const d = new Date(date);
+  if (interval === 'weekly') d.setDate(d.getDate() + 7);
+  else if (interval === 'biweekly') d.setDate(d.getDate() + 14);
+  else if (interval === 'monthly') d.setMonth(d.getMonth() + 1);
+  else if (interval === 'yearly') d.setFullYear(d.getFullYear() + 1);
+  return d;
+}
+
+/** Same "recompute from the real subcollection, a transaction can't query"
+ * shape as recalcGoalTotals above. */
+async function recalcDebtBalance(uid: string, debtId: string, principalAmount: number) {
+  const snap = await getDocs(repaymentsRef(uid, debtId));
+  const totalRepaid = snap.docs.reduce((sum, d) => sum + (Number(d.data().amount) || 0), 0);
+  await updateDoc(debtRef(uid, debtId), {
+    totalRepaid,
+    currentBalance: Math.max(0, principalAmount - totalRepaid),
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export interface RecordRepaymentInput {
+  amount: number;
+  date: Date;
+  notes: string;
+  method: 'manual' | 'planned';
+  // Required for a 'cash' debt (money has to leave a real account); for an
+  // 'existing' debt this is the optional "link to account transaction"
+  // toggle from the PRD's UI spec — null skips creating a transaction
+  // entirely, just logs progress.
+  accountId: string | null;
+  categoryId: string | null;
+}
+
+export interface RepaymentDebt {
+  id: string;
+  name: string;
+  debtType: DebtType;
+  principalAmount: number;
+  paymentPlan: FirestoreDebtPaymentPlan;
+}
+
+/**
+ * Records a repayment against a debt. For a 'cash' debt (or an 'existing'
+ * debt where the household chose to link an account), this also writes a
+ * real Expense transaction — inside the same runTransaction() as the
+ * repayment doc, via writeTransactionContribution, so the two can never
+ * diverge. For an 'existing' debt with no account linked, only the
+ * repayment doc is written; the debt's balance still moves, nothing in the
+ * ledger does. Either way, currentBalance/totalRepaid are recomputed from
+ * the full repayments history afterward (recalcDebtBalance), and an active
+ * recurring plan's nextPaymentDate advances by one interval.
+ */
+export async function recordRepayment(
+  uid: string,
+  debt: RepaymentDebt,
+  input: RecordRepaymentInput,
+  ctx: CurrencyContext
+): Promise<string> {
+  const db = getFirebaseFirestore();
+  const repaymentId = crypto.randomUUID();
+  const shouldLinkTransaction = debt.debtType === 'cash' || Boolean(input.accountId);
+
+  if (shouldLinkTransaction) {
+    if (!input.accountId) {
+      throw new Error('Choose an account to debit for this repayment.');
+    }
+    const transactionId = crypto.randomUUID();
+    await runTransaction(db, async (tx) => {
+      const accountSnap = await tx.get(accountRef(uid, input.accountId!));
+      writeTransactionContribution(
+        tx,
+        uid,
+        {
+          id: transactionId,
+          date: input.date,
+          type: 'Expense',
+          description: `Repayment: ${debt.name}`,
+          accountId: input.accountId!,
+          categoryId: input.categoryId,
+          amount: input.amount,
+          direction: 'Outflow',
+          createdBy: uid,
+          isDebtRepayment: true,
+          linkedDebtId: debt.id,
+        },
+        accountSnap.data(),
+        ctx
+      );
+      tx.set(repaymentRef(uid, debt.id, repaymentId), {
+        debtId: debt.id,
+        amount: input.amount,
+        date: Timestamp.fromDate(input.date),
+        method: input.method,
+        notes: input.notes,
+        transactionId,
+        createdAt: serverTimestamp(),
+      });
+    });
+    if (input.categoryId) {
+      const month = monthKey(input.date);
+      await ensureBudgetCoverageForCategoryMonth(uid, input.categoryId, month, 'Expense');
+      await recomputeBudgetProgressForCategoryMonth(uid, input.categoryId, month);
+    }
+  } else {
+    await setDoc(repaymentRef(uid, debt.id, repaymentId), {
+      debtId: debt.id,
+      amount: input.amount,
+      date: Timestamp.fromDate(input.date),
+      method: input.method,
+      notes: input.notes,
+      transactionId: null,
+      createdAt: serverTimestamp(),
+    });
+  }
+
+  await recalcDebtBalance(uid, debt.id, debt.principalAmount);
+
+  if (debt.paymentPlan.type === 'recurring' && debt.paymentPlan.recurring?.isActive) {
+    const nextPaymentDate = addInterval(input.date, debt.paymentPlan.recurring.interval);
+    await updateDoc(debtRef(uid, debt.id), {
+      paymentPlan: { ...debt.paymentPlan, recurring: { ...debt.paymentPlan.recurring, nextPaymentDate: Timestamp.fromDate(nextPaymentDate) } },
+    });
+  }
+
+  return repaymentId;
 }

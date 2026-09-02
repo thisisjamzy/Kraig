@@ -26,6 +26,10 @@ import type {
   FirestoreSettings,
   FirestoreBudgetPlan,
   FirestoreExchangeRate,
+  FirestoreGoal,
+  FirestoreGoalLineItem,
+  FirestoreDebt,
+  FirestoreRepayment,
   StatsHome,
   StatsMonthly,
   StatsBudgetProgress,
@@ -82,6 +86,44 @@ export function plannedPaymentsRef(uid: string): CollectionReference<FirestorePl
 }
 export function plannedPaymentRef(uid: string, id: string): DocumentReference<Omit<FirestorePlannedPayment, 'id'>> {
   return subDoc(uid, 'plannedPayments', id) as DocumentReference<Omit<FirestorePlannedPayment, 'id'>>;
+}
+
+export function goalsRef(uid: string): CollectionReference<FirestoreGoal> {
+  return sub(uid, 'goals') as CollectionReference<FirestoreGoal>;
+}
+export function goalRef(uid: string, id: string): DocumentReference<Omit<FirestoreGoal, 'id'>> {
+  return subDoc(uid, 'goals', id) as DocumentReference<Omit<FirestoreGoal, 'id'>>;
+}
+export function goalLineItemsRef(uid: string, goalId: string): CollectionReference<FirestoreGoalLineItem> {
+  return collection(getFirebaseFirestore(), 'users', uid, 'goals', goalId, 'lineItems') as CollectionReference<FirestoreGoalLineItem>;
+}
+export function goalLineItemRef(
+  uid: string,
+  goalId: string,
+  lineItemId: string
+): DocumentReference<Omit<FirestoreGoalLineItem, 'id'>> {
+  return doc(getFirebaseFirestore(), 'users', uid, 'goals', goalId, 'lineItems', lineItemId) as DocumentReference<
+    Omit<FirestoreGoalLineItem, 'id'>
+  >;
+}
+
+export function debtsRef(uid: string): CollectionReference<FirestoreDebt> {
+  return sub(uid, 'debts') as CollectionReference<FirestoreDebt>;
+}
+export function debtRef(uid: string, id: string): DocumentReference<Omit<FirestoreDebt, 'id'>> {
+  return subDoc(uid, 'debts', id) as DocumentReference<Omit<FirestoreDebt, 'id'>>;
+}
+export function repaymentsRef(uid: string, debtId: string): CollectionReference<FirestoreRepayment> {
+  return collection(getFirebaseFirestore(), 'users', uid, 'debts', debtId, 'repayments') as CollectionReference<FirestoreRepayment>;
+}
+export function repaymentRef(
+  uid: string,
+  debtId: string,
+  repaymentId: string
+): DocumentReference<Omit<FirestoreRepayment, 'id'>> {
+  return doc(getFirebaseFirestore(), 'users', uid, 'debts', debtId, 'repayments', repaymentId) as DocumentReference<
+    Omit<FirestoreRepayment, 'id'>
+  >;
 }
 
 export function settingsRef(uid: string): DocumentReference<FirestoreSettings> {

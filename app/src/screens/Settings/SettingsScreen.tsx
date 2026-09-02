@@ -14,6 +14,9 @@ import {
   Check,
   Search,
   Tags,
+  FileDown,
+  Download,
+  Upload,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Modal } from '@/src/widgets/Modal/Modal';
@@ -60,6 +63,8 @@ export function SettingsScreen() {
     handleSavePin,
     setCurrency,
     goBack,
+    downloadCsvTemplate,
+    exportTransactionsCsv,
   } = useLogic();
 
   return (
@@ -146,6 +151,43 @@ export function SettingsScreen() {
         </span>
         <ChevronRight size={16} strokeWidth={2} className={styles.actionRowChevron} />
       </Link>
+
+      <section className={styles.section}>
+        <div className={styles.sectionHeaderRow}>
+          <h2 className={styles.sectionTitle}>{strings.settings.dataSectionTitle}</h2>
+        </div>
+
+        <button type="button" className={styles.actionRow} onClick={downloadCsvTemplate}>
+          <span className={styles.actionRowIcon}>
+            <FileDown size={18} strokeWidth={1.75} />
+          </span>
+          <span className={styles.actionRowText}>
+            <span className={styles.actionRowLabel}>{strings.settings.downloadTemplate}</span>
+            <span className={styles.actionRowMeta}>{strings.settings.downloadTemplateMeta}</span>
+          </span>
+        </button>
+
+        <Link href="/settings/import" className={styles.actionRow}>
+          <span className={styles.actionRowIcon}>
+            <Upload size={18} strokeWidth={1.75} />
+          </span>
+          <span className={styles.actionRowText}>
+            <span className={styles.actionRowLabel}>{strings.settings.importTransactions}</span>
+            <span className={styles.actionRowMeta}>{strings.settings.importTransactionsMeta}</span>
+          </span>
+          <ChevronRight size={16} strokeWidth={2} className={styles.actionRowChevron} />
+        </Link>
+
+        <button type="button" className={styles.actionRow} onClick={exportTransactionsCsv}>
+          <span className={styles.actionRowIcon}>
+            <Download size={18} strokeWidth={1.75} />
+          </span>
+          <span className={styles.actionRowText}>
+            <span className={styles.actionRowLabel}>{strings.settings.exportTransactions}</span>
+            <span className={styles.actionRowMeta}>{strings.settings.exportTransactionsMeta}</span>
+          </span>
+        </button>
+      </section>
 
       <section className={styles.section}>
         <div className={styles.sectionHeaderRow}>

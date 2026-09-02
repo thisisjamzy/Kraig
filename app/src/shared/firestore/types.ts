@@ -32,6 +32,13 @@ export interface FirestoreAccount {
   // or an edit that increases either). Optional/0 for a wallet with nothing
   // locked, and absent on accounts written before this field existed.
   lockedAmount?: number;
+  // A <=5 character label for the Home screen's wallet bar chart (its
+  // x-axis wraps/distorts with a full wallet name — see src/logic/home/
+  // useLogic.ts's `wallets` mapping) — set alongside the full `name` when
+  // creating/editing a wallet (src/logic/wallets and src/logic/walletDetail).
+  // Optional: a wallet written before this field existed, or one the user
+  // never bothered to set, falls back to the first 5 characters of `name`.
+  shortName?: string;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 }
@@ -60,6 +67,14 @@ export interface FirestoreTransaction {
   // the trigger's first run fills them in a moment later.
   signedAmount?: number;
   month?: string; // yyyy-MM
+  // Set when this transaction is a "cash" debt's repayment (see
+  // FirestoreDebt.debtType), written by aggregation.ts's recordRepayment
+  // alongside the matching debts/{id}/repayments/{id} doc, which carries
+  // the same id back via its own transactionId. An "existing" debt's
+  // repayment has no transaction at all by default, so these stay
+  // false/null on every other transaction.
+  isDebtRepayment?: boolean;
+  linkedDebtId?: string | null;
   createdBy: string;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
@@ -191,6 +206,117 @@ export interface FirestoreBudgetPlan {
   savingsMode: 'fixed' | 'percent';
   savingsValue: number;
   updatedAt?: Timestamp;
+}
+
+/**
+ * A forward-looking savings project with its own line-item costs (see
+ * `PRD Files/prd debt n goals` section 1) — "Buy a new car" broken into
+ * "Down payment," "Insurance," etc., each paid off (and marked complete)
+ * on its own. `totalAmount` is denormalized, the sum of every lineItem's
+ * `amount`, recalculated inside the same `runTransaction()` as any
+ * lineItems write (aggregation.ts's createGoalLineItem/
+ * markGoalLineItemComplete) — never trust a stale client copy of it
+ * without re-deriving. No frozen-balance field lives here on purpose: "how
+ * much of this line item is covered by locked wallet money" is computed
+ * live from FirestoreAccount.lockedAmount at render time (section 1.3,
+ * "no frozen balance stored on the schema"). `lineItemCount`/
+ * `completedLineItemCount`/`amountCompleted` are the same denormalize-for-
+ * read-performance idea the spec applies to `totalAmount`, extended one
+ * step further — recalculated alongside it in the same transaction — so
+ * the Goals list and Home's preview can show real progress without each
+ * subscribing to every goal's own lineItems subcollection just to render a
+ * progress bar.
+ */
+export interface FirestoreGoal {
+  id: string;
+  name: string;
+  description: string;
+  totalAmount: number; // denormalized sum of lineItems.amount
+  lineItemCount: number;
+  completedLineItemCount: number;
+  amountCompleted: number; // denormalized sum of completed lineItems.amount
+  currency: string;
+  deadline: Timestamp | null;
+  archived: boolean;
+  createdAt?: Timestamp;
+  updatedAt?: Timestamp;
+}
+
+/**
+ * users/{uid}/goals/{goalId}/lineItems/{lineItemId} — one sub-cost of a
+ * goal. Marking it complete (aggregation.ts's markGoalLineItemComplete)
+ * records a real Expense transaction and links back to it via
+ * `expenseId`; the transaction never needs to know about the goal.
+ */
+export interface FirestoreGoalLineItem {
+  id: string;
+  goalId: string;
+  name: string;
+  description: string;
+  amount: number;
+  completed: boolean;
+  completedAt: Timestamp | null;
+  expenseId: string | null;
+  createdAt?: Timestamp;
+  updatedAt?: Timestamp;
+}
+
+export type DebtType = 'cash' | 'existing';
+export type DebtPriority = 'low' | 'medium' | 'high';
+
+export interface FirestoreDebtRecurringPlan {
+  amount: number;
+  interval: 'weekly' | 'biweekly' | 'monthly' | 'yearly';
+  nextPaymentDate: Timestamp;
+  isActive: boolean;
+}
+
+export interface FirestoreDebtPaymentPlan {
+  type: 'none' | 'recurring';
+  recurring?: FirestoreDebtRecurringPlan;
+}
+
+/**
+ * A liability being paid down (see `PRD Files/prd debt n goals` section
+ * 2). `debtType` decides what a repayment actually does: `'cash'` means
+ * this was borrowed money that landed in an account, so repaying it always
+ * writes a real Expense transaction (debits that account); `'existing'`
+ * means an obligation that already existed outside the ledger (a
+ * mortgage, a car loan), so repaying it just logs progress, no account
+ * transaction unless the household links one manually. `currentBalance`
+ * and `totalRepaid` are denormalized, recalculated from the full
+ * `repayments` subcollection inside the same `runTransaction()` as every
+ * repayment write (aggregation.ts's recordRepayment) — never trust a
+ * stale client copy without re-deriving.
+ */
+export interface FirestoreDebt {
+  id: string;
+  name: string;
+  description: string;
+  debtType: DebtType;
+  principalAmount: number;
+  currentBalance: number; // denormalized: principalAmount - totalRepaid
+  totalRepaid: number; // denormalized
+  currency: string;
+  priority: DebtPriority;
+  startDate: Timestamp;
+  paymentPlan: FirestoreDebtPaymentPlan;
+  notes: string;
+  archivedAt: Timestamp | null;
+  createdAt?: Timestamp;
+  updatedAt?: Timestamp;
+}
+
+/** users/{uid}/debts/{debtId}/repayments/{repaymentId} */
+export interface FirestoreRepayment {
+  id: string;
+  debtId: string;
+  amount: number;
+  date: Timestamp;
+  method: 'manual' | 'planned';
+  notes: string;
+  transactionId: string | null; // always set for a 'cash' debt, optional for 'existing'
+  createdAt?: Timestamp;
 }
 
 export interface FirestoreExchangeRate {

@@ -4,7 +4,13 @@ import { useMemo, useState } from 'react';
 import { query, where, updateDoc, Timestamp } from 'firebase/firestore';
 import { ruleAppliesToMonth } from '@dreda/shared-recurrence';
 import { useFirestoreCollection, useFirestoreDoc } from '@/src/shared/firestore/hooks';
-import { transactionsRef, budgetRulesRef, plannedPaymentsRef, statsMonthlyRef, settingsRef } from '@/src/shared/firestore/refs';
+import {
+  transactionsRef,
+  budgetRulesRef,
+  plannedPaymentsRef,
+  statsMonthlyRef,
+  settingsRef,
+} from '@/src/shared/firestore/refs';
 import { useAccounts, useCategories, useCurrencyContext, useExchangeRates } from '@/src/shared/firestore/queries';
 import { toDisplay, round2 } from '@/src/shared/firestore/currency';
 import { toRecurrenceRule } from '@/src/shared/firestore/recurrence';
@@ -180,7 +186,11 @@ export function useLogic() {
   const wallets = arrangeCentered(
     accounts
       .map((account, index) => ({
-        name: account.name,
+        id: account.id,
+        // The chart's x-axis wraps/distorts with a full wallet name (see
+        // FirestoreAccount.shortName's header) — always <=5 characters here,
+        // either the user's own short name or a truncated fallback.
+        name: (account.shortName || account.name).slice(0, 5),
         amount: toDisplay(ctx, account.currentBalance, account.currency),
         color: walletColor(index),
       }))
