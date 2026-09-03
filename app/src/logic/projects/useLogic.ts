@@ -100,30 +100,30 @@ export function useLogic() {
   );
 
   const overview = useMemo(() => {
-    const today = isoDate(new Date());
+    const now = new Date();
+    const today = isoDate(now);
     const weekFromNow = new Date();
     weekFromNow.setDate(weekFromNow.getDate() + 7);
     let todayCount = 0;
     let scheduleThisWeekCount = 0;
+    let overdueTaskCount = 0;
     for (const task of taskDocs) {
       if (!task.dueDate) continue;
       const due = task.dueDate.toDate();
       if (isoDate(due) === today) todayCount++;
-      if (due >= new Date() && due <= weekFromNow) scheduleThisWeekCount++;
+      if (due >= now && due <= weekFromNow) scheduleThisWeekCount++;
+      if (!task.done && due < now) overdueTaskCount++;
     }
-    const atRiskProjectCount = activeProjects.filter(
-      (p) => p.status === 'Active' && isAtRisk(overdueByProject.get(p.id) ?? 0)
-    ).length;
     const pendingTaskCount = taskDocs.filter((t) => !t.done).length;
     return {
       todayCount,
       scheduleThisWeekCount,
       activeProjectCount: activeProjects.filter((p) => p.status === 'Active').length,
       allTaskCount: taskDocs.length,
-      atRiskProjectCount,
+      overdueTaskCount,
       pendingTaskCount,
     };
-  }, [taskDocs, activeProjects, overdueByProject]);
+  }, [taskDocs, activeProjects]);
 
   async function restoreArea(id: string) {
     if (!uid) return;
@@ -147,7 +147,7 @@ export function useLogic() {
   function openCreateArea() {
     router.push('/areas/new');
   }
-  function openTaskList(filter: 'today' | 'week' | 'atRisk' | 'all') {
+  function openTaskList(filter: 'today' | 'week' | 'overdue' | 'all') {
     router.push(`/tasks?filter=${filter}`);
   }
 

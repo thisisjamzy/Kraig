@@ -3,14 +3,12 @@
 import { ChevronLeft, ChevronRight, FolderKanban, Target, Wallet } from 'lucide-react';
 import { useLogic } from '@/src/logic/projectsCalendar/useLogic';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
+import { TaskQuickActionsMenu } from '@/src/widgets/TaskQuickActionsMenu/TaskQuickActionsMenu';
+import { formatTaskDateRange } from '@/src/shared/formatTaskDateRange';
 import { TASK_TYPE_LABEL, TASK_TYPE_ICON } from '@/src/viewmodels/projects';
 import styles from './ProjectsCalendarScreen.module.css';
 
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
-function formatTime(date: Date) {
-  return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-}
 
 export function ProjectsCalendarScreen() {
   const {
@@ -96,7 +94,19 @@ export function ProjectsCalendarScreen() {
                 const TypeIcon = TASK_TYPE_ICON[item.type] ?? TASK_TYPE_ICON.ToDo;
                 const typeLabel = TASK_TYPE_LABEL[item.type] ?? TASK_TYPE_LABEL.ToDo;
                 return (
-                  <button key={item.id} type="button" className={styles.agendaRow} onClick={() => openTask(item.id)}>
+                  <div
+                    key={item.id}
+                    className={styles.agendaRow}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => openTask(item.id)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        openTask(item.id);
+                      }
+                    }}
+                  >
                     <span className={styles.agendaIcon}>
                       <TypeIcon size={16} strokeWidth={2} />
                     </span>
@@ -106,9 +116,12 @@ export function ProjectsCalendarScreen() {
                         {item.emoji ? `${item.emoji} ` : ''}
                         {item.title}
                       </p>
-                      <span className={styles.agendaTime}>{formatTime(item.dueDate)}</span>
+                      <span className={styles.agendaTime}>{formatTaskDateRange(item.startTime, item.dueDate)}</span>
                     </div>
-                  </button>
+                    <span onClick={(event) => event.stopPropagation()}>
+                      <TaskQuickActionsMenu taskId={item.id} priority={item.priority} done={item.done} dueDate={item.dueDate} />
+                    </span>
+                  </div>
                 );
               })}
               {agenda.projectItems.map((item) => (

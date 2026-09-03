@@ -655,7 +655,7 @@ export const stringConstants = {
     tabArchive: 'Archive',
     overviewToday: 'Due today',
     overviewThisWeek: 'Due this week',
-    overviewProjects: 'At risk',
+    overviewOverdue: 'Overdue',
     overviewAllTasks: 'Pending',
     emptyAreas: 'No areas yet — add one to start organizing your projects.',
     emptyProjects: 'No projects yet.',

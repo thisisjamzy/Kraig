@@ -4,6 +4,7 @@ import { ChevronLeft } from 'lucide-react';
 import { EmojiPicker } from '@/src/widgets/EmojiPicker/EmojiPicker';
 import { useLogic } from '@/src/logic/taskEdit/useLogic';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
+import { ConfirmDialog } from '@/src/widgets/ConfirmDialog/ConfirmDialog';
 import { TASK_TYPES, TASK_TYPE_LABEL, PRIORITY_LEVELS } from '@/src/viewmodels/projects';
 import styles from './TaskEditScreen.module.css';
 
@@ -23,16 +24,21 @@ export function TaskEditScreen({ taskId }: { taskId: string | null }) {
     setProjectId,
     done,
     setDone,
-    startDate,
-    setStartDate,
-    dueDate,
-    setDueDate,
+    date,
+    setDate,
+    startTimeOfDay,
+    setStartTimeOfDay,
+    endTimeOfDay,
+    setEndTimeOfDay,
     notes,
     setNotes,
     saving,
     saveError,
     handleSave,
-    handleDelete,
+    deleteConfirmOpen,
+    openDeleteConfirm,
+    cancelDelete,
+    confirmDelete,
     goBack,
     loading,
     error,
@@ -144,29 +150,50 @@ export function TaskEditScreen({ taskId }: { taskId: string | null }) {
           )}
 
           <div className={styles.formField}>
-            <label className={styles.formLabel} htmlFor="task-start-date">
-              Start date &amp; time (optional)
+            <label className={styles.formLabel} htmlFor="task-date">
+              Date
             </label>
             <input
-              id="task-start-date"
-              type="datetime-local"
+              id="task-date"
+              type="date"
               className={styles.formInput}
-              value={startDate}
-              onChange={(event) => setStartDate(event.target.value)}
+              value={date}
+              onChange={(event) => setDate(event.target.value)}
+              required
             />
           </div>
 
-          <div className={styles.formField}>
-            <label className={styles.formLabel} htmlFor="task-due-date">
-              Due date &amp; time (optional)
-            </label>
-            <input
-              id="task-due-date"
-              type="datetime-local"
-              className={styles.formInput}
-              value={dueDate}
-              onChange={(event) => setDueDate(event.target.value)}
-            />
+          {/* Tasks are day-bound — one date above, a start and an end time
+              of day here, never a second datetime-local that could drift
+              onto a different day. */}
+          <div className={styles.timeRow}>
+            <div className={styles.formField}>
+              <label className={styles.formLabel} htmlFor="task-start-time">
+                Start time
+              </label>
+              <input
+                id="task-start-time"
+                type="time"
+                className={styles.formInput}
+                value={startTimeOfDay}
+                onChange={(event) => setStartTimeOfDay(event.target.value)}
+                required
+              />
+            </div>
+
+            <div className={styles.formField}>
+              <label className={styles.formLabel} htmlFor="task-end-time">
+                End time
+              </label>
+              <input
+                id="task-end-time"
+                type="time"
+                className={styles.formInput}
+                value={endTimeOfDay}
+                onChange={(event) => setEndTimeOfDay(event.target.value)}
+                required
+              />
+            </div>
           </div>
 
           <div className={styles.formField}>
@@ -183,7 +210,7 @@ export function TaskEditScreen({ taskId }: { taskId: string | null }) {
           </div>
 
           {isEditing && (
-            <button type="button" className={styles.deleteLink} onClick={handleDelete}>
+            <button type="button" className={styles.deleteLink} onClick={openDeleteConfirm}>
               Delete task
             </button>
           )}
@@ -193,12 +220,23 @@ export function TaskEditScreen({ taskId }: { taskId: string | null }) {
           <button
             type="button"
             className={styles.saveButton}
-            disabled={!title.trim() || !notes.trim() || saving}
+            disabled={!title.trim() || !notes.trim() || !date || !startTimeOfDay || !endTimeOfDay || saving}
             onClick={handleSave}
           >
             {saving ? 'Saving…' : 'Save'}
           </button>
         </div>
+      )}
+
+      {deleteConfirmOpen && (
+        <ConfirmDialog
+          title="Delete this task?"
+          message="It'll be removed from every list — this can't be undone."
+          confirmLabel="Delete"
+          cancelLabel="Cancel"
+          onConfirm={confirmDelete}
+          onCancel={cancelDelete}
+        />
       )}
     </div>
   );

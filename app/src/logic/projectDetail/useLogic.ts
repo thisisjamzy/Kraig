@@ -14,6 +14,7 @@ import { projectRef, tasksRef, areaRef, areasRef } from '@/src/shared/firestore/
 import { updateTaskDone } from '@/src/shared/firestore/taskWrites';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { isAtRisk, projectRescheduleFlag } from '@/src/shared/firestore/projectInsights';
+import { DEFAULT_PRIORITY } from '@/src/viewmodels/projects';
 import type { FirestoreProject, FirestoreTask, FirestoreArea, ProjectStatus } from '@/src/shared/firestore/types';
 
 export type TaskFilterTab = 'all' | 'done' | 'pending' | 'archived';
@@ -58,8 +59,10 @@ export function useLogic(projectId: string) {
           title: t.title,
           emoji: t.emoji ?? null,
           type: t.type ?? 'ToDo',
+          priority: t.priority ?? DEFAULT_PRIORITY,
           done: t.done,
           archived: t.archived,
+          startTime: t.startTime ? t.startTime.toDate() : null,
           dueDate: t.dueDate ? t.dueDate.toDate() : null,
           overdue: !t.done && Boolean(t.dueDate) && t.dueDate!.toDate() < today,
           ...(() => {

@@ -32,8 +32,16 @@
   gap: 2px;
 }
 
+.nameRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-xs);
+}
+
 .name {
   margin: 0;
+  min-width: 0;
   font-size: var(--font-size-sm);
   font-weight: 700;
   color: var(--color-text-primary);

@@ -15,6 +15,7 @@ import { useAllTasks } from '@/src/shared/hooks/useAllTasks';
 import { useAccounts, useCategories, useCurrencyContext } from '@/src/shared/firestore/queries';
 import { computeUpcomingPayments } from '@/src/shared/firestore/upcomingPayments';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
+import { DEFAULT_PRIORITY } from '@/src/viewmodels/projects';
 import type { FirestoreProject, FirestorePlannedPayment } from '@/src/shared/firestore/types';
 
 // Payments are "upcoming from today," not tied to the month being browsed
@@ -96,6 +97,8 @@ export function useLogic() {
         title: t.title,
         emoji: t.emoji ?? null,
         type: t.type ?? 'ToDo',
+        priority: t.priority ?? DEFAULT_PRIORITY,
+        startTime: t.startTime ? t.startTime.toDate() : null,
         dueDate: t.dueDate!.toDate(),
         done: t.done,
       }))

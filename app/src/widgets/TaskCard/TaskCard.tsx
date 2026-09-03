@@ -1,6 +1,8 @@
 'use client';
 
 import { Target } from 'lucide-react';
+import { TaskQuickActionsMenu } from '@/src/widgets/TaskQuickActionsMenu/TaskQuickActionsMenu';
+import { formatTaskDateRange } from '@/src/shared/formatTaskDateRange';
 import type { Priority } from '@/src/shared/firestore/types';
 import styles from './TaskCard.module.css';
 
@@ -11,31 +13,6 @@ export interface TaskCardTask {
   done: boolean;
   startTime: Date | null;
   dueDate: Date | null;
-}
-
-function formatDate(date: Date) {
-  return date.toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
-}
-function formatTime(date: Date) {
-  return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-}
-function sameDay(a: Date, b: Date) {
-  return a.toDateString() === b.toDateString();
-}
-
-/** "Sep 03, 9:00 AM – 5:00 PM" for a same-day range, "Sep 03, 9:00 AM – Sep
- * 04, 5:00 PM" spanning two days, or the existing single-timestamp format
- * when there's no separate start (most tasks). */
-function dateTimeLabel(task: TaskCardTask): string | null {
-  const { startTime, dueDate } = task;
-  if (startTime && dueDate) {
-    return sameDay(startTime, dueDate)
-      ? `${formatDate(startTime)}, ${formatTime(startTime)} – ${formatTime(dueDate)}`
-      : `${formatDate(startTime)}, ${formatTime(startTime)} – ${formatDate(dueDate)}, ${formatTime(dueDate)}`;
-  }
-  if (startTime) return `${formatDate(startTime)}, ${formatTime(startTime)}`;
-  if (dueDate) return `${formatDate(dueDate)} · ${formatTime(dueDate)}`;
-  return null;
 }
 
 type Status = 'Done' | 'Overdue' | 'Due today' | 'Upcoming' | 'No date';
@@ -66,22 +43,38 @@ const PRIORITY_CLASS: Record<Priority, string> = {
 };
 
 export function TaskCard({ task, onClick }: { task: TaskCardTask; onClick: () => void }) {
-  const label = dateTimeLabel(task);
+  const label = formatTaskDateRange(task.startTime, task.dueDate);
   const status = statusOf(task);
 
   return (
-    <button type="button" className={styles.card} onClick={onClick}>
+    <div
+      className={styles.card}
+      role="button"
+      tabIndex={0}
+      onClick={onClick}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onClick();
+        }
+      }}
+    >
       <span className={styles.iconCircle}>
         <Target size={16} strokeWidth={2} />
       </span>
       <div className={styles.body}>
-        <p className={`${styles.name} ${task.done ? styles.nameDone : ''}`}>{task.title}</p>
+        <div className={styles.nameRow}>
+          <p className={`${styles.name} ${task.done ? styles.nameDone : ''}`}>{task.title}</p>
+          <span onClick={(event) => event.stopPropagation()}>
+            <TaskQuickActionsMenu taskId={task.id} priority={task.priority} done={task.done} dueDate={task.dueDate} />
+          </span>
+        </div>
         {label && <p className={styles.dateTime}>{label}</p>}
         <div className={styles.badgeRow}>
           <span className={`${styles.badge} ${PRIORITY_CLASS[task.priority]}`}>{task.priority}</span>
           <span className={`${styles.badge} ${STATUS_CLASS[status]}`}>{status}</span>
         </div>
       </div>
-    </button>
+    </div>
   );
 }
