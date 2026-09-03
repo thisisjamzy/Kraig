@@ -147,6 +147,9 @@ export function useLogic() {
   function openCreateArea() {
     router.push('/areas/new');
   }
+  function openTaskList(filter: 'today' | 'week' | 'atRisk' | 'all') {
+    router.push(`/tasks?filter=${filter}`);
+  }
 
   return {
     tab,
@@ -163,6 +166,7 @@ export function useLogic() {
     openArea,
     openCreateProject,
     openCreateArea,
+    openTaskList,
 
     loading: areasLoading || archivedAreasLoading || projectsLoading || tasksLoading,
     error: areasError || projectsError,

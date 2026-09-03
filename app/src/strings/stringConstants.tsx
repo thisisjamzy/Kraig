@@ -452,6 +452,9 @@ export const stringConstants = {
     title: 'Categories',
     empty: "You haven't created any categories yet.",
     createCta: 'Create category',
+    editTitle: 'Edit category',
+    saveChanges: 'Save changes',
+    savingChanges: 'Saving…',
   },
 
   goals: {
@@ -645,6 +648,8 @@ export const stringConstants = {
 
   projects: {
     title: 'Projects',
+    taskBasketTitle: 'TASK Basket',
+    viewAllTasksLabel: 'View all tasks',
     tabAreas: 'Areas',
     tabProjects: 'Projects',
     tabArchive: 'Archive',

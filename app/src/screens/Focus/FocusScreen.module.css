@@ -74,46 +74,28 @@
   color: var(--color-danger);
 }
 
-.emojiSmall {
-  font-size: 1.125rem;
-  line-height: 1;
-  flex-shrink: 0;
+.filterRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
 }
 
-.taskRow {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  padding: var(--space-md);
+.filterChip {
+  padding: var(--space-xs) var(--space-md);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-full);
   background: none;
   font-family: inherit;
-  text-align: left;
-  cursor: pointer;
-  width: 100%;
-}
-
-.taskTitle {
-  flex: 1;
-  min-width: 0;
-  margin: 0;
   font-size: var(--font-size-sm);
-  font-weight: 600;
-  color: var(--color-text-primary);
-}
-
-.taskMeta {
-  flex-shrink: 0;
-  font-size: 0.7rem;
-  color: var(--color-text-secondary);
-}
-
-.taskMetaDanger {
-  flex-shrink: 0;
-  font-size: 0.7rem;
   font-weight: 700;
-  color: var(--color-danger);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.filterChipActive {
+  border-color: var(--ink-bg);
+  background: var(--ink-bg);
+  color: #ffffff;
 }
 
 .tileGrid {

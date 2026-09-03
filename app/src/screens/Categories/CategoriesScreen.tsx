@@ -33,9 +33,10 @@ export function CategoriesScreen() {
               <h2 className={styles.groupTitle}>{strings.budget.typeLabels[group.transactionType]}</h2>
               <div className={styles.categoryList}>
                 {group.categories.map((category) => (
-                  <p key={category.id} className={styles.categoryRow}>
-                    {category.name}
-                  </p>
+                  <Link key={category.id} href={`/categories/${category.id}/edit`} className={styles.categoryRow}>
+                    <span className={styles.categoryName}>{category.name}</span>
+                    {category.notes && <span className={styles.categoryDescription}>{category.notes}</span>}
+                  </Link>
                 ))}
               </div>
             </div>

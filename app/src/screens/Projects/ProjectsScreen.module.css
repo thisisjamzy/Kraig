@@ -15,7 +15,32 @@
   color: var(--color-text-primary);
 }
 
-/* 2x2 stat-tile grid — screen1's pastel Overview cards. */
+/* Top row — "TASK Basket" (same font specs as the "Portfolio" heading
+   below, via the shared .portfolioTitle class) top-left, a button to view
+   every pending task top-right. */
+
+.topRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.viewAllButton {
+  flex-shrink: 0;
+  padding: var(--space-xs) var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: none;
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color-brand);
+  cursor: pointer;
+}
+
+/* 2x2 stat-tile grid — screen1's pastel Overview cards, each one a button
+   that drills into the matching filtered task list (src/screens/TasksList). */
 
 .tileGrid {
   display: grid;
@@ -26,10 +51,15 @@
 .tile {
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   gap: 4px;
   padding: var(--space-md);
+  border: none;
   border-radius: var(--radius-lg);
   background: var(--color-surface);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
 .tilePurple {

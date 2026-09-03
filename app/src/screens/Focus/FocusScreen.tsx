@@ -3,22 +3,33 @@
 import { useLogic } from '@/src/logic/focus/useLogic';
 import { TrendChart } from '@/src/widgets/TrendChart/TrendChart';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
+import { TaskCard } from '@/src/widgets/TaskCard/TaskCard';
 import { PRIORITY_LEVELS } from '@/src/viewmodels/projects';
+import type { FocusPriorityFilter } from '@/src/logic/focus/useLogic';
 import styles from './FocusScreen.module.css';
 
-function formatDate(date: Date) {
-  return date.toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
-}
-function formatTime(date: Date) {
-  return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-}
+const FILTERS: FocusPriorityFilter[] = ['All', ...PRIORITY_LEVELS];
 
 export function FocusScreen() {
-  const { priorityGroups, successTrend, todaySuccess, timeLeftToday, openTask, loading } = useLogic();
+  const { priorityGroups, priorityFilter, setPriorityFilter, visiblePriorities, successTrend, todaySuccess, timeLeftToday, openTask, loading } =
+    useLogic();
 
   return (
     <div className={styles.page}>
       <h1 className={styles.pageTitle}>Focus</h1>
+
+      <div className={styles.filterRow}>
+        {FILTERS.map((filter) => (
+          <button
+            key={filter}
+            type="button"
+            className={`${styles.filterChip} ${priorityFilter === filter ? styles.filterChipActive : ''}`}
+            onClick={() => setPriorityFilter(filter)}
+          >
+            {filter === 'All' ? 'All' : `${filter} priority`}
+          </button>
+        ))}
+      </div>
 
       <ScreenState loading={loading} />
 
@@ -40,32 +51,30 @@ export function FocusScreen() {
             </div>
           </div>
 
-          {PRIORITY_LEVELS.map((priority) => {
+          {visiblePriorities.map((priority) => {
             const items = priorityGroups[priority];
             if (items.length === 0) return null;
             return (
               <div key={priority}>
-                <div className={styles.sectionTitleRow}>
-                  <h2 className={styles.chartTitle}>{priority} priority</h2>
-                </div>
+                {priorityFilter === 'All' && (
+                  <div className={styles.sectionTitleRow}>
+                    <h2 className={styles.chartTitle}>{priority} priority</h2>
+                  </div>
+                )}
                 <div className={styles.list}>
                   {items.map((task) => (
-                    <button key={task.id} type="button" className={styles.taskRow} onClick={() => openTask(task.id)}>
-                      {task.emoji && <span className={styles.emojiSmall}>{task.emoji}</span>}
-                      <p className={styles.taskTitle}>{task.title}</p>
-                      {task.dueDate && (
-                        <span className={task.overdue ? styles.taskMetaDanger : styles.taskMeta}>
-                          {formatDate(task.dueDate)} · {formatTime(task.dueDate)}
-                        </span>
-                      )}
-                    </button>
+                    <TaskCard
+                      key={task.id}
+                      task={{ id: task.id, title: task.title, priority, done: false, startTime: task.startTime, dueDate: task.dueDate }}
+                      onClick={() => openTask(task.id)}
+                    />
                   ))}
                 </div>
               </div>
             );
           })}
 
-          {PRIORITY_LEVELS.every((priority) => priorityGroups[priority].length === 0) && (
+          {visiblePriorities.every((priority) => priorityGroups[priority].length === 0) && (
             <p className={styles.emptyText}>Nothing left to complete. Nice work.</p>
           )}
         </>

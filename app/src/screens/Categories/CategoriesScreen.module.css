@@ -61,15 +61,27 @@
 }
 
 .categoryRow {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   padding: var(--space-md) var(--space-lg);
   border-bottom: 1px solid var(--color-border);
   background: var(--color-background);
-  font-size: var(--font-size-sm);
-  color: var(--color-text-primary);
+  text-decoration: none;
 }
 
 .categoryRow:last-child {
   border-bottom: none;
+}
+
+.categoryName {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+}
+
+.categoryDescription {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
 }
 
 .emptyText {

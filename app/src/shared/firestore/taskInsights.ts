@@ -117,6 +117,7 @@ export interface FocusTaskItem {
   id: string;
   title: string;
   emoji: string | null;
+  startTime: Date | null;
   dueDate: Date | null;
   overdue: boolean;
 }
@@ -135,6 +136,7 @@ export function pendingTasksByPriority(
       id: task.id,
       title: task.title,
       emoji: task.emoji ?? null,
+      startTime: task.startTime ? task.startTime.toDate() : null,
       dueDate,
       overdue: Boolean(dueDate) && dueDate! < today,
     });

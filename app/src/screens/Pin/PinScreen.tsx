@@ -1,14 +1,25 @@
 'use client';
 
-import { ArrowUpRight, Undo2 } from 'lucide-react';
+import { ArrowUpRight, Eye, EyeOff, Undo2 } from 'lucide-react';
 import { useLogic } from '@/src/logic/pin/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { Logo } from '@/src/widgets/Logo/Logo';
 import styles from './PinScreen.module.css';
 
 export function PinScreen() {
-  const { pin, keypad, appendDigit, backspace, handleContinue, canContinue, pinLength, mode, error } =
-    useLogic();
+  const {
+    pin,
+    keypad,
+    appendDigit,
+    backspace,
+    handleContinue,
+    canContinue,
+    pinLength,
+    mode,
+    error,
+    showPin,
+    togglePinVisibility,
+  } = useLogic();
   const strings = useStrings();
 
   return (
@@ -22,7 +33,7 @@ export function PinScreen() {
       <div className={styles.pinRow}>
         {Array.from({ length: pinLength }).map((_, index) => (
           <div key={index} className={styles.pinBox}>
-            {pin[index] ?? ''}
+            {pin[index] ? (showPin ? pin[index] : <span className={styles.pinDot} aria-hidden="true" />) : ''}
           </div>
         ))}
       </div>
@@ -35,8 +46,7 @@ export function PinScreen() {
 
       <div className={styles.bottomSection}>
         <div className={styles.keypad}>
-          {keypad.map((key, index) => {
-            
+          {keypad.map((key) => {
             if (key === 'back') {
               return (
                 <button
@@ -51,7 +61,18 @@ export function PinScreen() {
               );
             }
             if (key === '') {
-              return <div key={`blank-${index}`} aria-hidden="true" />;
+              return (
+                <button
+                  key="toggle-visibility"
+                  type="button"
+                  className={styles.key}
+                  onClick={togglePinVisibility}
+                  aria-label={showPin ? 'Hide PIN' : 'Show PIN'}
+                  aria-pressed={showPin}
+                >
+                  {showPin ? <EyeOff size={20} strokeWidth={2} /> : <Eye size={20} strokeWidth={2} />}
+                </button>
+              );
             }
             return (
               <button

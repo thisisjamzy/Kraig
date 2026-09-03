@@ -7,12 +7,16 @@
 // place in Projects mode that's specifically about numbers rather than
 // action — this one stays a plain worklist plus a single at-a-glance trend.
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAllTasks } from '@/src/shared/hooks/useAllTasks';
 import { pendingTasksByPriority, dailySuccessTrend } from '@/src/shared/firestore/taskInsights';
+import { PRIORITY_LEVELS } from '@/src/viewmodels/projects';
+import type { Priority } from '@/src/shared/firestore/types';
 
 const SUCCESS_TREND_DAYS = 7;
+
+export type FocusPriorityFilter = Priority | 'All';
 
 function timeLeftToday(): string {
   const now = new Date();
@@ -27,8 +31,10 @@ function timeLeftToday(): string {
 export function useLogic() {
   const router = useRouter();
   const { data: tasks, loading } = useAllTasks();
+  const [priorityFilter, setPriorityFilter] = useState<FocusPriorityFilter>('All');
 
   const priorityGroups = useMemo(() => pendingTasksByPriority(tasks), [tasks]);
+  const visiblePriorities = priorityFilter === 'All' ? PRIORITY_LEVELS : [priorityFilter];
   const successTrend = useMemo(() => dailySuccessTrend(tasks, SUCCESS_TREND_DAYS), [tasks]);
   const todaySuccess = successTrend.length > 0 ? successTrend[successTrend.length - 1].value : 0;
 
@@ -38,6 +44,9 @@ export function useLogic() {
 
   return {
     priorityGroups,
+    priorityFilter,
+    setPriorityFilter,
+    visiblePriorities,
     successTrend,
     todaySuccess,
     timeLeftToday: timeLeftToday(),
