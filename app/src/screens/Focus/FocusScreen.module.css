@@ -15,12 +15,6 @@
   color: var(--color-text-primary);
 }
 
-.sectionTitleRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
 .chartCard {
   display: flex;
   flex-direction: column;
@@ -77,25 +71,21 @@
 .filterRow {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-xs);
+  justify-content: flex-start;
+  gap: var(--space-sm);
 }
 
-.filterChip {
-  padding: var(--space-xs) var(--space-md);
+.filterSelect {
+  max-width: 100%;
+  padding: var(--space-sm) var(--space-lg);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-full);
-  background: none;
+  border-radius: var(--radius-md);
+  background: var(--color-background);
   font-family: inherit;
   font-size: var(--font-size-sm);
   font-weight: 700;
-  color: var(--color-text-secondary);
+  color: var(--color-text-primary);
   cursor: pointer;
-}
-
-.filterChipActive {
-  border-color: var(--ink-bg);
-  background: var(--ink-bg);
-  color: #ffffff;
 }
 
 .tileGrid {

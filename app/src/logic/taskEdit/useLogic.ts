@@ -5,24 +5,23 @@
 // ProjectDetail/AreaDetail into a single flow reachable from ProjectDetail,
 // the Projects-mode FAB (standalone), Focus, Calendar, and Analytics alike,
 // per "everything should be editable."
+//
+// Tasks are day-bound — one date, plus a start and an end time of day on
+// that same date, never spanning into a second day — so this holds a plain
+// date string and two time-of-day strings (not two independent
+// datetime-locals that could drift onto different days) and combines them
+// into the startTime/dueDate Timestamps taskWrites.ts actually wants right
+// before saving.
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { query, where } from 'firebase/firestore';
 import { useFirestoreCollection, useFirestoreDoc } from '@/src/shared/firestore/hooks';
 import { projectsRef, taskRef } from '@/src/shared/firestore/refs';
-import { createTask, updateTask, archiveTask } from '@/src/shared/firestore/taskWrites';
+import { createTask, updateTask, archiveTask, toDateOnly, toTimeOnly, combineDateAndTime } from '@/src/shared/firestore/taskWrites';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { DEFAULT_PRIORITY } from '@/src/viewmodels/projects';
 import type { FirestoreProject, FirestoreTask, TaskType, Priority } from '@/src/shared/firestore/types';
-
-// "YYYY-MM-DDTHH:mm", the exact value <input type="datetime-local"> reads
-// and writes — local time, no timezone suffix, so a task due "7pm" reads
-// back as 7pm regardless of where it's viewed from later.
-function toDatetimeLocal(date: Date) {
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
 
 // Read directly off window.location.search (not useSearchParams()) so this
 // screen never needs a Suspense boundary — same precedent as
@@ -50,8 +49,9 @@ export function useLogic(taskId: string | null) {
   const [priority, setPriority] = useState<Priority>(DEFAULT_PRIORITY);
   const [projectId, setProjectId] = useState<string>(projectIdFromSearch);
   const [done, setDone] = useState(false);
-  const [startDate, setStartDate] = useState('');
-  const [dueDate, setDueDate] = useState('');
+  const [date, setDate] = useState('');
+  const [startTimeOfDay, setStartTimeOfDay] = useState('');
+  const [endTimeOfDay, setEndTimeOfDay] = useState('');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -69,8 +69,12 @@ export function useLogic(taskId: string | null) {
       setPriority(existingTask.priority ?? DEFAULT_PRIORITY);
       setProjectId(existingTask.projectId ?? '');
       setDone(existingTask.done ?? false);
-      setStartDate(existingTask.startTime ? toDatetimeLocal(existingTask.startTime.toDate()) : '');
-      setDueDate(existingTask.dueDate ? toDatetimeLocal(existingTask.dueDate.toDate()) : '');
+      // The date comes from whichever of start/due this task already has —
+      // a legacy task (written before both were required) may only have one.
+      const anchor = existingTask.startTime ?? existingTask.dueDate;
+      setDate(anchor ? toDateOnly(anchor.toDate()) : '');
+      setStartTimeOfDay(existingTask.startTime ? toTimeOnly(existingTask.startTime.toDate()) : '');
+      setEndTimeOfDay(existingTask.dueDate ? toTimeOnly(existingTask.dueDate.toDate()) : '');
       setNotes(existingTask.notes ?? '');
       setSeeded(true);
     } else {
@@ -79,12 +83,16 @@ export function useLogic(taskId: string | null) {
   }, [isEditing, existingTask, seeded]);
 
   async function handleSave() {
-    if (!uid || saving || !title.trim() || !notes.trim()) return;
-    setSaving(true);
+    if (!uid || saving || !title.trim() || !notes.trim() || !date || !startTimeOfDay || !endTimeOfDay) return;
     setSaveError(null);
+    const start = combineDateAndTime(date, startTimeOfDay);
+    const due = combineDateAndTime(date, endTimeOfDay);
+    if (due <= start) {
+      setSaveError('End time must be after start time.');
+      return;
+    }
+    setSaving(true);
     try {
-      const start = startDate ? new Date(startDate) : null;
-      const due = dueDate ? new Date(dueDate) : null;
       const project = projects.find((p) => p.id === projectId) ?? null;
       const input = {
         title: title.trim(),
@@ -112,9 +120,18 @@ export function useLogic(taskId: string | null) {
     }
   }
 
-  async function handleDelete() {
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+
+  function openDeleteConfirm() {
+    setDeleteConfirmOpen(true);
+  }
+  function cancelDelete() {
+    setDeleteConfirmOpen(false);
+  }
+  async function confirmDelete() {
     if (!uid || !taskId) return;
     await archiveTask(uid, taskId);
+    setDeleteConfirmOpen(false);
     router.back();
   }
 
@@ -137,16 +154,21 @@ export function useLogic(taskId: string | null) {
     setProjectId,
     done,
     setDone,
-    startDate,
-    setStartDate,
-    dueDate,
-    setDueDate,
+    date,
+    setDate,
+    startTimeOfDay,
+    setStartTimeOfDay,
+    endTimeOfDay,
+    setEndTimeOfDay,
     notes,
     setNotes,
     saving,
     saveError,
     handleSave,
-    handleDelete,
+    deleteConfirmOpen,
+    openDeleteConfirm,
+    cancelDelete,
+    confirmDelete,
     goBack,
     loading: (isEditing && taskLoading) || projectsLoading,
     error: taskError,

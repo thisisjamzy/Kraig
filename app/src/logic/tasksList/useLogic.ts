@@ -11,12 +11,12 @@ import { useAllTasks } from '@/src/shared/hooks/useAllTasks';
 import { DEFAULT_PRIORITY } from '@/src/viewmodels/projects';
 import type { TaskCardTask } from '@/src/widgets/TaskCard/TaskCard';
 
-export type TaskListFilter = 'today' | 'week' | 'atRisk' | 'all';
+export type TaskListFilter = 'today' | 'week' | 'overdue' | 'all';
 
 const FILTER_TITLES: Record<TaskListFilter, string> = {
   today: 'Due today',
   week: 'Due this week',
-  atRisk: 'At risk',
+  overdue: 'Overdue',
   all: 'All tasks',
 };
 
@@ -32,7 +32,7 @@ function startOfDay(date: Date) {
 function filterFromSearch(): TaskListFilter {
   if (typeof window === 'undefined') return 'all';
   const raw = new URLSearchParams(window.location.search).get('filter');
-  return raw === 'today' || raw === 'week' || raw === 'atRisk' ? raw : 'all';
+  return raw === 'today' || raw === 'week' || raw === 'overdue' ? raw : 'all';
 }
 
 export function useLogic() {
@@ -41,7 +41,8 @@ export function useLogic() {
   const filter = filterFromSearch();
 
   const tasks = useMemo<TaskCardTask[]>(() => {
-    const today = startOfDay(new Date());
+    const now = new Date();
+    const today = startOfDay(now);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
     // Same 7-day horizon as src/logic/projects/useLogic.ts's own
@@ -57,7 +58,10 @@ export function useLogic() {
         const due = task.dueDate.toDate();
         if (filter === 'today') return due >= today && due < tomorrow;
         if (filter === 'week') return due >= today && due < weekEnd;
-        return due < today; // atRisk — overdue, the same signal a project's own "at risk" flag is built from
+        // overdue — same "due < now" signal src/logic/projects/useLogic.ts's
+        // own overdueTaskCount tile is built from, so the tile's number and
+        // this list always agree.
+        return due < now;
       })
       .map((task) => ({
         id: task.id,

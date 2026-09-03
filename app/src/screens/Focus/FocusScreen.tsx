@@ -5,31 +5,44 @@ import { TrendChart } from '@/src/widgets/TrendChart/TrendChart';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { TaskCard } from '@/src/widgets/TaskCard/TaskCard';
 import { PRIORITY_LEVELS } from '@/src/viewmodels/projects';
-import type { FocusPriorityFilter } from '@/src/logic/focus/useLogic';
+import type { FocusPriorityFilter, FocusDateFilter } from '@/src/logic/focus/useLogic';
 import styles from './FocusScreen.module.css';
 
-const FILTERS: FocusPriorityFilter[] = ['All', ...PRIORITY_LEVELS];
+const PRIORITY_FILTERS: FocusPriorityFilter[] = ['All', ...PRIORITY_LEVELS];
+const PRIORITY_FILTER_LABEL: Record<FocusPriorityFilter, string> = {
+  All: 'All priorities',
+  High: 'High priority',
+  Medium: 'Medium priority',
+  Low: 'Low priority',
+};
+
+const DATE_FILTERS: FocusDateFilter[] = ['all', 'today', 'thisWeek', 'thisMonth', 'lastWeek', 'lastMonth'];
+const DATE_FILTER_LABEL: Record<FocusDateFilter, string> = {
+  all: 'Any date',
+  today: 'Today',
+  thisWeek: 'This week',
+  thisMonth: 'This month',
+  lastWeek: 'Last week',
+  lastMonth: 'Last month',
+};
 
 export function FocusScreen() {
-  const { priorityGroups, priorityFilter, setPriorityFilter, visiblePriorities, successTrend, todaySuccess, timeLeftToday, openTask, loading } =
-    useLogic();
+  const {
+    visibleTasks,
+    priorityFilter,
+    setPriorityFilter,
+    dateFilter,
+    setDateFilter,
+    successTrend,
+    todaySuccess,
+    timeLeftToday,
+    openTask,
+    loading,
+  } = useLogic();
 
   return (
     <div className={styles.page}>
       <h1 className={styles.pageTitle}>Focus</h1>
-
-      <div className={styles.filterRow}>
-        {FILTERS.map((filter) => (
-          <button
-            key={filter}
-            type="button"
-            className={`${styles.filterChip} ${priorityFilter === filter ? styles.filterChipActive : ''}`}
-            onClick={() => setPriorityFilter(filter)}
-          >
-            {filter === 'All' ? 'All' : `${filter} priority`}
-          </button>
-        ))}
-      </div>
 
       <ScreenState loading={loading} />
 
@@ -51,31 +64,45 @@ export function FocusScreen() {
             </div>
           </div>
 
-          {visiblePriorities.map((priority) => {
-            const items = priorityGroups[priority];
-            if (items.length === 0) return null;
-            return (
-              <div key={priority}>
-                {priorityFilter === 'All' && (
-                  <div className={styles.sectionTitleRow}>
-                    <h2 className={styles.chartTitle}>{priority} priority</h2>
-                  </div>
-                )}
-                <div className={styles.list}>
-                  {items.map((task) => (
-                    <TaskCard
-                      key={task.id}
-                      task={{ id: task.id, title: task.title, priority, done: false, startTime: task.startTime, dueDate: task.dueDate }}
-                      onClick={() => openTask(task.id)}
-                    />
-                  ))}
-                </div>
-              </div>
-            );
-          })}
+          {/* Native <select>s rather than chip rows — always exactly one
+              line regardless of screen width, left-aligned rather than
+              stretched, same dropdown-for-a-single-choice pattern already
+              used by TaskEdit's own project picker. */}
+          <div className={styles.filterRow}>
+            <select
+              className={styles.filterSelect}
+              value={priorityFilter}
+              onChange={(event) => setPriorityFilter(event.target.value as FocusPriorityFilter)}
+              aria-label="Filter by priority"
+            >
+              {PRIORITY_FILTERS.map((filter) => (
+                <option key={filter} value={filter}>
+                  {PRIORITY_FILTER_LABEL[filter]}
+                </option>
+              ))}
+            </select>
+            <select
+              className={styles.filterSelect}
+              value={dateFilter}
+              onChange={(event) => setDateFilter(event.target.value as FocusDateFilter)}
+              aria-label="Filter by due date"
+            >
+              {DATE_FILTERS.map((filter) => (
+                <option key={filter} value={filter}>
+                  {DATE_FILTER_LABEL[filter]}
+                </option>
+              ))}
+            </select>
+          </div>
 
-          {visiblePriorities.every((priority) => priorityGroups[priority].length === 0) && (
+          {visibleTasks.length === 0 ? (
             <p className={styles.emptyText}>Nothing left to complete. Nice work.</p>
+          ) : (
+            <div className={styles.list}>
+              {visibleTasks.map((task) => (
+                <TaskCard key={task.id} task={task} onClick={() => openTask(task.id)} />
+              ))}
+            </div>
           )}
         </>
       )}

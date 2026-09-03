@@ -6,6 +6,8 @@ import { useLogic, type TaskFilterTab } from '@/src/logic/projectDetail/useLogic
 import { DonutChart } from '@/src/widgets/DonutChart/DonutChart';
 import { Modal } from '@/src/widgets/Modal/Modal';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
+import { TaskQuickActionsMenu } from '@/src/widgets/TaskQuickActionsMenu/TaskQuickActionsMenu';
+import { formatTaskDateRange } from '@/src/shared/formatTaskDateRange';
 import { TASK_TYPE_LABEL } from '@/src/viewmodels/projects';
 import type { ProjectStatus } from '@/src/shared/firestore/types';
 import styles from './ProjectDetailScreen.module.css';
@@ -29,9 +31,6 @@ const DESCRIPTION_PREVIEW_LENGTH = 160;
 
 function formatDate(date: Date) {
   return date.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' });
-}
-function formatTime(date: Date) {
-  return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 }
 
 export function ProjectDetailScreen({ projectId }: { projectId: string }) {
@@ -220,10 +219,8 @@ export function ProjectDetailScreen({ projectId }: { projectId: string }) {
                   <div className={styles.taskInfo} onClick={() => openTask(task.id)}>
                     <span className={styles.taskTypeTag}>{TASK_TYPE_LABEL[task.type]}</span>
                     <p className={`${styles.taskTitle} ${task.done ? styles.taskTitleDone : ''}`}>{task.title}</p>
-                    {task.dueDate && (
-                      <span className={styles.taskTimestamp}>
-                        {formatDate(task.dueDate)} | {formatTime(task.dueDate)}
-                      </span>
+                    {formatTaskDateRange(task.startTime, task.dueDate) && (
+                      <span className={styles.taskTimestamp}>{formatTaskDateRange(task.startTime, task.dueDate)}</span>
                     )}
                     {(task.overdue || task.rescheduled) && (
                       <span className={styles.taskFlags}>
@@ -241,6 +238,12 @@ export function ProjectDetailScreen({ projectId }: { projectId: string }) {
                     onChange={() => {}}
                     onClick={() => toggleTaskDone(task.id, !task.done)}
                     aria-label={task.done ? 'Mark as not done' : 'Mark as done'}
+                  />
+                  <TaskQuickActionsMenu
+                    taskId={task.id}
+                    priority={task.priority}
+                    done={task.done}
+                    dueDate={task.dueDate}
                   />
                 </div>
               ))}

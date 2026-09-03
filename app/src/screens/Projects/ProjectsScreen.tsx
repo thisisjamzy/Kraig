@@ -55,9 +55,9 @@ export function ProjectsScreen() {
           <span className={styles.tileLabel}>{strings.projects.overviewThisWeek}</span>
           <p className={styles.tileValue}>{overview.scheduleThisWeekCount}</p>
         </button>
-        <button type="button" className={`${styles.tile} ${styles.tileBlue}`} onClick={() => openTaskList('atRisk')}>
-          <span className={styles.tileLabel}>{strings.projects.overviewProjects}</span>
-          <p className={styles.tileValue}>{overview.atRiskProjectCount}</p>
+        <button type="button" className={`${styles.tile} ${styles.tileBlue}`} onClick={() => openTaskList('overdue')}>
+          <span className={styles.tileLabel}>{strings.projects.overviewOverdue}</span>
+          <p className={styles.tileValue}>{overview.overdueTaskCount}</p>
         </button>
         <button type="button" className={`${styles.tile} ${styles.tileGreen}`} onClick={() => openTaskList('all')}>
           <span className={styles.tileLabel}>{strings.projects.overviewAllTasks}</span>

@@ -71,11 +71,21 @@
 
 .titleRow {
   display: flex;
-  align-items: flex-start;
+  align-items: flex-end;
   gap: var(--space-sm);
 }
 
 .titleField {
+  flex: 1;
+  min-width: 0;
+}
+
+.timeRow {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.timeRow > .formField {
   flex: 1;
   min-width: 0;
 }
