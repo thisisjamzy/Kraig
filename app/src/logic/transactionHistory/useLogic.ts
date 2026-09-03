@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { query, orderBy, limit } from 'firebase/firestore';
 import { ArrowUpRight, ArrowDownLeft, PiggyBank, type LucideIcon } from 'lucide-react';
@@ -31,10 +31,22 @@ function formatDate(ts: FirestoreTransaction['date']) {
   return ts.toDate().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
 }
 
+// Read directly off window.location.search (not useSearchParams()) so this
+// screen never needs a Suspense boundary — same precedent as
+// src/logic/addTransaction/useLogic.ts's retroTargetFromSearch. Filtered
+// client-side after the existing date-ordered fetch rather than adding a
+// second `where` to the query — that would need a new composite index
+// (date desc + categoryId) just for this filter.
+function categoryIdFromSearch(): string {
+  if (typeof window === 'undefined') return '';
+  return new URLSearchParams(window.location.search).get('categoryId') ?? '';
+}
+
 export function useLogic() {
   const router = useRouter();
   const { user, loading: authLoading } = useFirebaseUser();
   const uid = user?.uid;
+  const [filterCategoryId] = useState(categoryIdFromSearch);
 
   const transactionsQuery = useMemo(
     () => (uid ? query(transactionsRef(uid), orderBy('date', 'desc'), limit(PAGE_SIZE)) : null),
@@ -64,20 +76,24 @@ export function useLogic() {
     return (categoryId: string | null) => (categoryId && map.get(categoryId)) || categoryId || '—';
   }, [categories]);
 
-  const transactions = transactionDocs.map((transaction) => {
-    const account = accountById.get(transaction.accountId);
-    return {
-      id: transaction.id,
-      title: categoryName(transaction.categoryId),
-      description: transaction.description,
-      account: account?.name ?? transaction.accountId,
-      amount: toDisplay(ctx, transaction.amount, account?.currency ?? ctx.base),
-      currency: ctx.display,
-      date: formatDate(transaction.date),
-      icon: TYPE_ICONS[transaction.type] ?? ArrowUpRight,
-      iconColor: accountColor.get(transaction.accountId) ?? walletColor(0),
-    };
-  });
+  const transactions = transactionDocs
+    .filter((transaction) => !filterCategoryId || transaction.categoryId === filterCategoryId)
+    .map((transaction) => {
+      const account = accountById.get(transaction.accountId);
+      return {
+        id: transaction.id,
+        title: categoryName(transaction.categoryId),
+        description: transaction.description,
+        account: account?.name ?? transaction.accountId,
+        amount: toDisplay(ctx, transaction.amount, account?.currency ?? ctx.base),
+        currency: ctx.display,
+        date: formatDate(transaction.date),
+        icon: TYPE_ICONS[transaction.type] ?? ArrowUpRight,
+        iconColor: accountColor.get(transaction.accountId) ?? walletColor(0),
+      };
+    });
+
+  const filterCategoryName = filterCategoryId ? categoryName(filterCategoryId) : null;
 
   function goBack() {
     router.push('/home');
@@ -89,6 +105,7 @@ export function useLogic() {
 
   return {
     transactions,
+    filterCategoryName,
     loading: authLoading || transactionsLoading || accountsLoading || categoriesLoading || ctxLoading,
     error: transactionsError,
     editHref,

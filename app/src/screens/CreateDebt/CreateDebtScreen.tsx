@@ -18,6 +18,10 @@ export function CreateDebtScreen() {
   const {
     debtType,
     setDebtType,
+    accounts,
+    accountId,
+    setAccountId,
+    needsAccount,
     name,
     setName,
     description,
@@ -81,6 +85,27 @@ export function CreateDebtScreen() {
               ))}
             </div>
           </div>
+
+          {needsAccount && (
+            <div className={styles.formField}>
+              <label className={styles.formLabel} htmlFor="debt-account">
+                {strings.createDebt.walletLabel}
+              </label>
+              <select
+                id="debt-account"
+                className={styles.formInput}
+                value={accountId}
+                onChange={(event) => setAccountId(event.target.value)}
+              >
+                {accounts.map((account) => (
+                  <option key={account.id} value={account.id}>
+                    {account.name}
+                  </option>
+                ))}
+              </select>
+              <p className={styles.hintText}>{strings.createDebt.walletHint}</p>
+            </div>
+          )}
 
           <div className={styles.formField}>
             <label className={styles.formLabel} htmlFor="debt-name">
@@ -239,7 +264,7 @@ export function CreateDebtScreen() {
           <button
             type="button"
             className={styles.saveButton}
-            disabled={!name.trim() || !principalAmount || saving}
+            disabled={!name.trim() || !principalAmount || (needsAccount && !accountId) || saving}
             onClick={handleSave}
           >
             {saving ? strings.createDebt.saving : strings.createDebt.save}

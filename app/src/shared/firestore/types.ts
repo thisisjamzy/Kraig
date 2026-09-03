@@ -254,12 +254,31 @@ export interface FirestoreGoalLineItem {
   name: string;
   description: string;
   amount: number;
+  // Custom manual order within the cross-goal "All goal items" list
+  // (src/logic/goalItems) — lower sorts first. Set once at creation
+  // (Date.now(), always after every existing item) and only ever changed by
+  // a manual reorder or by applying a Priority/Ease sort as the new
+  // baseline. Absent on a line item written before this field existed;
+  // every read defaults it to 0, same as this app's other back-compat
+  // fields.
+  rank: number;
+  // Shared Priority type (types.ts, above) — lets the cross-goal "All goal
+  // items" list filter across goals the same way it already sorts by
+  // deadline/amount. Absent on a line item written before this field
+  // existed; every read defaults it to 'Medium'.
+  priority: Priority;
+  // Independent of priority: how essential this cost actually is, not how
+  // urgent it is — a "Must have" item might be low priority (not due soon)
+  // while a "Nice to have" item is high priority (due soon but skippable).
+  necessity: GoalItemNecessity;
   completed: boolean;
   completedAt: Timestamp | null;
   expenseId: string | null;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 }
+
+export type GoalItemNecessity = 'MustHave' | 'NiceToHave';
 
 export type DebtType = 'cash' | 'existing';
 export type DebtPriority = 'low' | 'medium' | 'high';
@@ -294,6 +313,13 @@ export interface FirestoreDebt {
   name: string;
   description: string;
   debtType: DebtType;
+  // The wallet this debt's cash landed in (a 'cash' debt) — set once at
+  // creation, so every later repayment can default to debiting the same
+  // wallet instead of asking from scratch. Always null for an 'existing'
+  // debt created before this field existed, or one the household chose not
+  // to link (an 'existing' debt can still link an account per-repayment via
+  // recordRepayment's own accountId, independent of this field).
+  accountId: string | null;
   principalAmount: number;
   currentBalance: number; // denormalized: principalAmount - totalRepaid
   totalRepaid: number; // denormalized
@@ -360,4 +386,105 @@ export interface FirestoreUserDoc {
   archived: boolean;
   createdAt?: Timestamp;
   lastLoginAt?: Timestamp;
+}
+
+// ---------------------------------------------------------------------
+// Projects / Areas / Resources — PRD Files/PRD-PROJECTS.md section 7. The
+// PARA method (Projects, Areas, Resources, Archive) as this app's
+// organizing model for anything that isn't a ledger transaction. Same
+// per-user subcollection convention as the ledger (see this file's own
+// header and refs.ts) — no cross-account sharing here either.
+// ---------------------------------------------------------------------
+
+export interface FirestoreArea {
+  id: string;
+  name: string;
+  emoji: string | null; // optional, user-picked — viewmodels/projects.ts's EMOJI_OPTIONS
+  color: string; // one of viewmodels/projects.ts's PROJECT_COLORS swatches
+  description: string; // required — every area names what it actually covers
+  archived: boolean;
+  createdAt?: Timestamp;
+  updatedAt?: Timestamp;
+}
+
+export type ProjectStatus = 'Active' | 'Completed' | 'Archived';
+
+// Shared by projects and tasks — viewmodels/projects.ts's PRIORITY_LEVELS.
+export type Priority = 'Low' | 'Medium' | 'High';
+
+export interface FirestoreProject {
+  id: string;
+  name: string;
+  emoji: string | null;
+  areaId: string | null;
+  color: string;
+  priority: Priority;
+  // Both are plain, freely editable target dates — no immutable "baseline"
+  // (a household re-plans a personal project's dates as reality changes;
+  // freezing one at creation for a formal schedule-slippage comparison is
+  // more process than this feature calls for).
+  startDate: Timestamp | null;
+  endDate: Timestamp | null;
+  // Set once, the first time endDate is ever given a value — never changed
+  // again. Compared against the live endDate to show whether the project's
+  // timeline was extended or shortened (mirrors FirestoreTask.originalDueDate
+  // below — same reschedule-flag idea, one level up).
+  originalEndDate: Timestamp | null;
+  // Incremented each time an edit changes endDate to a new, different,
+  // non-null value — the Analytics screen's on-time-vs-rescheduled stat.
+  rescheduleCount: number;
+  status: ProjectStatus;
+  description: string; // required
+  // No separate `archived: boolean` — deliberately, so there's only ever
+  // one source of truth for whether a project is active: `status`. A
+  // second boolean that could drift out of sync with it (archived:false but
+  // status:'Archived', or the reverse) is exactly the kind of bug this
+  // avoids. "Archived" is one of ProjectStatus's three values, see above.
+  createdAt?: Timestamp;
+  updatedAt?: Timestamp;
+}
+
+// Meeting/Event/ToDo — shown at the top of each Calendar agenda row, and
+// selectable on the task edit screen (viewmodels/projects.ts's TASK_TYPES).
+export type TaskType = 'Meeting' | 'Event' | 'ToDo';
+
+export interface FirestoreTask {
+  id: string;
+  title: string;
+  emoji: string | null;
+  type: TaskType;
+  priority: Priority;
+  // A task belongs to a project, or is fully standalone (both null) — never
+  // tied to an area directly. areaId is never set by the user; it's mirrored
+  // from the project's own areaId purely so a task can be attributed to an
+  // area without a join, and is always null when projectId is null.
+  projectId: string | null;
+  areaId: string | null;
+  parentTaskId: string | null; // subtask — a later build step
+  // Only ever these two states, plus `archived` below as a third,
+  // independent "removed from view" flag — no kanban board, no in-progress
+  // status. A task is either not done yet or it's done.
+  done: boolean;
+  dueDate: Timestamp | null; // date AND time — the only schedule a task has, shown on the Calendar agenda as "time below"
+  // Set once, the first time dueDate is ever given a value — never changed
+  // again. Compared against the live dueDate to show whether it was
+  // extended or shortened (Analytics screen, task/project cards).
+  originalDueDate: Timestamp | null;
+  // Incremented each time an edit changes dueDate to a new, different,
+  // non-null value — the Analytics screen's on-time-vs-rescheduled stat.
+  rescheduleCount: number;
+  // Set the moment `done` flips true, cleared if it flips back — lets the
+  // Analytics screen bucket completions by week without re-deriving it from
+  // updatedAt (which changes on every edit, not only a completion).
+  completedAt: Timestamp | null;
+  calendarEventId: string | null; // the mirrored calendarEvents doc — a later build step
+  dependsOnTaskId: string | null; // Finish-to-Start only — a later build step
+  estimatedCost: number | null;
+  linkedTransactionId: string | null; // a later build step (PRD section 15)
+  notes: string; // required — every task says what it actually needs
+  tags: string[];
+  archived: boolean;
+  createdBy: string;
+  createdAt?: Timestamp;
+  updatedAt?: Timestamp;
 }

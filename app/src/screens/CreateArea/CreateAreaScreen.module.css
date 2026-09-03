@@ -1,0 +1,130 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  padding: var(--space-lg);
+  padding-top: calc(var(--space-lg) + env(safe-area-inset-top));
+  gap: var(--space-lg);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.backButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  background: none;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-family-heading);
+  font-size: var(--font-size-xl);
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.formField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+
+.formLabel {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.formInput,
+.formTextarea {
+  width: 100%;
+  min-width: 0;
+  padding: var(--space-md);
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  outline: none;
+  resize: none;
+}
+
+.titleRow {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+}
+
+.titleField {
+  flex: 1;
+  min-width: 0;
+}
+
+.colorGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+.colorSwatch {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+}
+
+.colorSwatchActive {
+  border-color: var(--color-text-primary);
+}
+
+.hintText {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.errorText {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-danger);
+}
+
+.saveButton {
+  padding: var(--space-md) var(--space-lg);
+  border: none;
+  border-radius: var(--radius-lg);
+  background: var(--ink-bg);
+  color: var(--color-brand);
+  font-family: inherit;
+  font-size: var(--font-size-md);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.saveButton:disabled {
+  background: #6b7380;
+  color: rgba(255, 255, 255, 0.85);
+  cursor: not-allowed;
+}

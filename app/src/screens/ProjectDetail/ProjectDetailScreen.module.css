@@ -1,0 +1,338 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  padding: var(--space-lg);
+  padding-top: calc(var(--space-lg) + env(safe-area-inset-top));
+  gap: var(--space-lg);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.backButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  background: none;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.title {
+  margin: 0;
+  min-width: 0;
+  flex: 1;
+  font-family: var(--font-family-heading);
+  font-size: var(--font-size-xl);
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.archiveButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  background: none;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+/* Title */
+
+.projectName {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--font-size-lg);
+  font-weight: 800;
+  color: var(--color-text-primary);
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+
+.emoji {
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+/* Status/area badges — both buttons, clickable to change the value inline */
+
+.badgeRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.statusPill {
+  flex-shrink: 0;
+  padding: 4px var(--space-md);
+  border: none;
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--color-brand) 15%, transparent);
+  color: var(--color-brand);
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.riskBadge {
+  padding: 2px var(--space-sm);
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--color-danger) 18%, transparent);
+  color: var(--color-danger);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.rescheduleBadge {
+  padding: 2px var(--space-sm);
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, #e8a33d 22%, transparent);
+  color: #a3671c;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.areaChip {
+  padding: 2px var(--space-sm);
+  border: none;
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  font-family: inherit;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--color-brand);
+  cursor: pointer;
+}
+
+/* Inline picker sheets (status/area/task-filter) — reuses Modal */
+
+.pickerOptions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.pickerOption {
+  padding: var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: none;
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  text-align: left;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.pickerOptionActive {
+  border-color: var(--ink-bg);
+  background: var(--ink-bg);
+  color: #ffffff;
+}
+
+/* Start - due date, single line, no labels */
+
+.dateRange {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+/* Description */
+
+.descriptionText {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+}
+
+.readMoreButton {
+  align-self: flex-start;
+  padding: 0;
+  margin-top: 4px;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: var(--color-brand);
+  cursor: pointer;
+}
+
+/* Activity card */
+
+.activityCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.activityTitle {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+/* Tasks — screen1-style divider list, no card border/radius per row */
+
+.taskRow {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: var(--space-md) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.list > .taskRow:last-child {
+  border-bottom: none;
+}
+
+.taskEmoji {
+  flex-shrink: 0;
+  margin-top: 1px;
+  font-size: 1.125rem;
+  line-height: 1;
+}
+
+.taskInfo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  cursor: pointer;
+}
+
+.taskTypeTag {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--color-text-secondary);
+}
+
+.taskTitle {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.taskTitleDone {
+  text-decoration: line-through;
+  color: var(--color-text-secondary);
+}
+
+.taskTimestamp {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.taskFlags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 0.7rem;
+}
+
+.taskMetaDanger {
+  color: var(--color-danger);
+  font-weight: 700;
+}
+
+.taskMetaReschedule {
+  color: #a3671c;
+  font-weight: 700;
+}
+
+.doneRadio {
+  flex-shrink: 0;
+  margin-top: 3px;
+  width: 18px;
+  height: 18px;
+  accent-color: var(--color-brand);
+  cursor: pointer;
+}
+
+.sectionTitleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: var(--font-size-md);
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.taskActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.filterButton {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px var(--space-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: none;
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.addIconButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 50%;
+  background: var(--ink-bg);
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.emptyText {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+}

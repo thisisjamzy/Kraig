@@ -2,22 +2,25 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, PieChart, SlidersHorizontal, Target, Plus } from 'lucide-react';
-import { hasBottomNav } from '@/src/shared/config/chromeVisibility';
+import { Home, PieChart, SlidersHorizontal, Target, CreditCard, Plus } from 'lucide-react';
+import { navMode } from '@/src/shared/config/chromeVisibility';
 import styles from './BottomNav.module.css';
 
 const NAV_ITEMS = [
   { href: '/home', label: 'Home', icon: Home },
   { href: '/statistics', label: 'Statistics', icon: PieChart },
   { href: '/budget', label: 'Budget', icon: SlidersHorizontal },
-  { href: '/goals', label: 'Goals & Debt', icon: Target },
+  { href: '/goals', label: 'Goals', icon: Target },
+  { href: '/debts', label: 'Debt', icon: CreditCard },
 ];
 
+// Money mode's own bottom nav — ProjectsBottomNav is Projects mode's
+// equivalent, rendered instead of this one on that mode's own hub routes
+// (see chromeVisibility.ts's navMode).
 export function BottomNav() {
   const pathname = usePathname();
 
-  // Full-screen detail flows in the mockups (no tab bar, just a back arrow).
-  if (!hasBottomNav(pathname)) {
+  if (navMode(pathname) !== 'money') {
     return null;
   }
 

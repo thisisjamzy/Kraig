@@ -15,12 +15,17 @@ import { useAccounts, useCategories, useCurrencyContext } from '@/src/shared/fir
 import { convert, round2 } from '@/src/shared/firestore/currency';
 import {
   createGoalLineItem,
+  updateGoalLineItem,
   deleteGoalLineItem,
   markGoalLineItemComplete,
   archiveGoal as archiveGoalWrite,
+  updateGoal,
 } from '@/src/shared/firestore/aggregation';
+import { useExchangeRates } from '@/src/shared/firestore/queries';
+import { currencyName } from '@/src/viewmodels/currencies';
+import { DEFAULT_PRIORITY, DEFAULT_NECESSITY } from '@/src/viewmodels/projects';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
-import type { FirestoreGoal, FirestoreGoalLineItem } from '@/src/shared/firestore/types';
+import type { FirestoreGoal, FirestoreGoalLineItem, Priority, GoalItemNecessity } from '@/src/shared/firestore/types';
 
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
@@ -60,6 +65,8 @@ export function useLogic(goalId: string) {
       lineItemDocs
         .map((item) => ({
           ...item,
+          priority: item.priority ?? DEFAULT_PRIORITY,
+          necessity: item.necessity ?? DEFAULT_NECESSITY,
           shortfall: Math.max(0, round2(item.amount - availableFrozen)),
           hasFunds: availableFrozen >= item.amount,
         }))
@@ -74,16 +81,33 @@ export function useLogic(goalId: string) {
   const deadline = goal?.deadline ? goal.deadline.toDate() : null;
 
   const [addOpen, setAddOpen] = useState(false);
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [itemName, setItemName] = useState('');
   const [itemDescription, setItemDescription] = useState('');
   const [itemAmount, setItemAmount] = useState('');
+  const [itemPriority, setItemPriority] = useState<Priority>(DEFAULT_PRIORITY);
+  const [itemNecessity, setItemNecessity] = useState<GoalItemNecessity>(DEFAULT_NECESSITY);
   const [savingItem, setSavingItem] = useState(false);
   const [itemError, setItemError] = useState<string | null>(null);
 
   function openAdd() {
+    setEditingItemId(null);
     setItemName('');
     setItemDescription('');
     setItemAmount('');
+    setItemPriority(DEFAULT_PRIORITY);
+    setItemNecessity(DEFAULT_NECESSITY);
+    setItemError(null);
+    setAddOpen(true);
+  }
+
+  function openEditItem(lineItem: FirestoreGoalLineItem) {
+    setEditingItemId(lineItem.id);
+    setItemName(lineItem.name);
+    setItemDescription(lineItem.description);
+    setItemAmount(String(lineItem.amount));
+    setItemPriority(lineItem.priority ?? DEFAULT_PRIORITY);
+    setItemNecessity(lineItem.necessity ?? DEFAULT_NECESSITY);
     setItemError(null);
     setAddOpen(true);
   }
@@ -95,14 +119,22 @@ export function useLogic(goalId: string) {
     setSavingItem(true);
     setItemError(null);
     try {
-      await createGoalLineItem(uid, goalId, {
+      const input = {
         name: itemName.trim(),
         description: itemDescription.trim(),
         amount,
-      });
+        priority: itemPriority,
+        necessity: itemNecessity,
+      };
+      if (editingItemId) {
+        await updateGoalLineItem(uid, goalId, editingItemId, input);
+      } else {
+        await createGoalLineItem(uid, goalId, input);
+      }
       setAddOpen(false);
+      setEditingItemId(null);
     } catch (error) {
-      setItemError(error instanceof Error ? error.message : 'Could not add this line item.');
+      setItemError(error instanceof Error ? error.message : 'Could not save this line item.');
     } finally {
       setSavingItem(false);
     }
@@ -158,6 +190,49 @@ export function useLogic(goalId: string) {
     }
   }
 
+  const { data: exchangeRates } = useExchangeRates();
+  const currencyOptions = (exchangeRates.length > 0 ? exchangeRates.map((rate) => rate.id) : [ctx.base]).map((code) => ({
+    code,
+    name: currencyName(code),
+  }));
+
+  const [goalEditOpen, setGoalEditOpen] = useState(false);
+  const [goalName, setGoalName] = useState('');
+  const [goalDescription, setGoalDescription] = useState('');
+  const [goalDeadline, setGoalDeadline] = useState('');
+  const [goalCurrency, setGoalCurrency] = useState('');
+  const [savingGoal, setSavingGoal] = useState(false);
+  const [goalSaveError, setGoalSaveError] = useState<string | null>(null);
+
+  function openGoalEdit() {
+    if (!goal) return;
+    setGoalName(goal.name);
+    setGoalDescription(goal.description);
+    setGoalDeadline(goal.deadline ? goal.deadline.toDate().toISOString().slice(0, 10) : '');
+    setGoalCurrency(goal.currency);
+    setGoalSaveError(null);
+    setGoalEditOpen(true);
+  }
+
+  async function handleSaveGoal() {
+    if (!uid || savingGoal || !goalName.trim()) return;
+    setSavingGoal(true);
+    setGoalSaveError(null);
+    try {
+      await updateGoal(uid, goalId, {
+        name: goalName.trim(),
+        description: goalDescription.trim(),
+        deadline: goalDeadline ? new Date(`${goalDeadline}T00:00:00`) : null,
+        currency: goalCurrency || ctx.base,
+      });
+      setGoalEditOpen(false);
+    } catch (error) {
+      setGoalSaveError(error instanceof Error ? error.message : 'Could not update this goal.');
+    } finally {
+      setSavingGoal(false);
+    }
+  }
+
   async function archiveGoal() {
     if (!uid) return;
     await archiveGoalWrite(uid, goalId);
@@ -185,16 +260,38 @@ export function useLogic(goalId: string) {
     addOpen,
     setAddOpen,
     openAdd,
+    editingItemId,
+    openEditItem,
     itemName,
     setItemName,
     itemDescription,
     setItemDescription,
     itemAmount,
     setItemAmount,
+    itemPriority,
+    setItemPriority,
+    itemNecessity,
+    setItemNecessity,
     savingItem,
     itemError,
     handleAddLineItem,
     handleDeleteLineItem,
+
+    currencyOptions,
+    goalEditOpen,
+    setGoalEditOpen,
+    openGoalEdit,
+    goalName,
+    setGoalName,
+    goalDescription,
+    setGoalDescription,
+    goalDeadline,
+    setGoalDeadline,
+    goalCurrency,
+    setGoalCurrency,
+    savingGoal,
+    goalSaveError,
+    handleSaveGoal,
 
     completeItemId,
     openMarkComplete,

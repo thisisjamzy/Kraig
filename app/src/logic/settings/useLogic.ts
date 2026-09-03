@@ -14,7 +14,7 @@ import type { FirestoreSettings, FirestoreExchangeRate, FirestoreTransaction } f
 import { currencyName } from '@/src/viewmodels/currencies';
 import { clearSignedIn } from '@/src/shared/config/authSession';
 import { PIN_DISABLED_KEY, PIN_HASH_CACHE_KEY, PIN_VERIFIED_KEY } from '@/src/shared/config/pinGate';
-import { clearClientCookie, setClientCookie } from '@/src/shared/config/clientCookies';
+import { clearClientCookie, setClientCookie, PERSISTENT_COOKIE_MAX_AGE_SECONDS } from '@/src/shared/config/clientCookies';
 import { callSetPin, callVerifyPin } from '@/src/shared/config/pinCallable';
 import { INITIAL_REMINDER_TIMES } from '@/src/viewmodels/settings';
 
@@ -216,7 +216,7 @@ export function useLogic() {
         clearClientCookie(PIN_DISABLED_KEY);
       } else {
         window.localStorage.setItem(PIN_DISABLED_KEY, '1');
-        setClientCookie(PIN_DISABLED_KEY, '1');
+        setClientCookie(PIN_DISABLED_KEY, '1', PERSISTENT_COOKIE_MAX_AGE_SECONDS);
       }
     } finally {
       setPinTogglePending(false);

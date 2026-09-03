@@ -55,6 +55,14 @@
         { "fieldPath": "archived", "order": "ASCENDING" },
         { "fieldPath": "accountId", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "tasks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "projectId", "order": "ASCENDING" },
+        { "fieldPath": "archived", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

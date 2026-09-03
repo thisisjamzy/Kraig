@@ -1,11 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { Plus, SlidersHorizontal, History, ArrowUpRight, ChevronRight, Target, Check, ChevronDown, Search } from 'lucide-react';
+import { Plus, SlidersHorizontal, History, ArrowUpRight, Check, ChevronDown, Search } from 'lucide-react';
 import { useLogic, formatAmount, formatCompact, type SpendingPeriod } from '@/src/logic/home/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { Modal } from '@/src/widgets/Modal/Modal';
+import { useSwipeModeSwitch } from '@/src/shared/hooks/useSwipeModeSwitch';
 import styles from './HomeScreen.module.css';
 
 // Colorless placeholder shapes shown while a chart has no real data yet (or
@@ -56,8 +57,10 @@ export function HomeScreen() {
     { key: 'quarter', label: strings.home.periodQuarter },
   ];
 
+  const swipeRef = useSwipeModeSwitch('money');
+
   return (
-    <div className={styles.page}>
+    <div className={styles.page} ref={swipeRef}>
       <ScreenState loading={loading} error={error} />
 
       <section className={styles.balanceCard}>
@@ -136,7 +139,7 @@ export function HomeScreen() {
           </Link>
         </div>
 
-        <div className={styles.walletsChart}>
+        <div className={styles.walletsChart} data-hscroll="true">
           {wallets.length > 0
             ? wallets.map((wallet) => (
                 <div key={wallet.id} className={styles.walletColumn}>
@@ -303,17 +306,6 @@ export function HomeScreen() {
         )}
         {budgets.length === 0 && !loading && <p className={styles.emptyText}>{strings.home.noBudgets}</p>}
       </section>
-
-      <Link href="/goals" className={styles.goalsDebtCard}>
-        <span className={styles.goalsDebtIcon}>
-          <Target size={18} strokeWidth={1.75} />
-        </span>
-        <span className={styles.goalsDebtText}>
-          <span className={styles.goalsDebtLabel}>{strings.home.goalsAndDebt}</span>
-          <span className={styles.goalsDebtMeta}>{strings.home.goalsAndDebtMeta}</span>
-        </span>
-        <ChevronRight size={16} strokeWidth={2} className={styles.goalsDebtChevron} />
-      </Link>
     </div>
   );
 }

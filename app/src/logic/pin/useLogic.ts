@@ -9,7 +9,8 @@ import {
   PIN_LENGTH,
   PIN_VERIFIED_KEY,
 } from '@/src/shared/config/pinGate';
-import { setClientCookie } from '@/src/shared/config/clientCookies';
+import { setClientCookie, PERSISTENT_COOKIE_MAX_AGE_SECONDS } from '@/src/shared/config/clientCookies';
+import { markSignedIn } from '@/src/shared/config/authSession';
 import { callSetPin, callVerifyPin } from '@/src/shared/config/pinCallable';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { useSettings } from '@/src/shared/firestore/queries';
@@ -26,6 +27,15 @@ function shuffledDigits() {
 }
 
 function unlockAndGoHome(isNewAccountFlow: boolean) {
+  // Re-affirm SIGNED_IN_KEY right here — a successful PIN Callable Function
+  // call is the strongest proof available that this user is genuinely
+  // signed in (it required a valid Firebase Auth token), so this is exactly
+  // the "double check before asking to sign in" moment: it self-heals
+  // SIGNED_IN_KEY's cookie if it ever drifted out of sync with its
+  // localStorage mirror (see authSession.ts's own header for the bug this
+  // fixes), so the hard navigation below never gets bounced to /sign-in by
+  // proxy.ts right after a correct PIN.
+  markSignedIn();
   window.sessionStorage.setItem(PIN_VERIFIED_KEY, '1');
   // Plain cookie, not httpOnly — there's no Next.js route left to set one
   // server-side (PRD-FIREBASE.md section 1), proxy.ts's gate is a UX
@@ -101,7 +111,7 @@ export function useLogic() {
   useEffect(() => {
     if (settingsLoading || !settings?.pinDisabled) return;
     window.localStorage.setItem(PIN_DISABLED_KEY, '1');
-    setClientCookie(PIN_DISABLED_KEY, '1');
+    setClientCookie(PIN_DISABLED_KEY, '1', PERSISTENT_COOKIE_MAX_AGE_SECONDS);
     window.location.assign('/loading');
   }, [settingsLoading, settings?.pinDisabled]);
 

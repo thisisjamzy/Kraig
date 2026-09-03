@@ -1,35 +1,30 @@
 // Single source of truth for which routes show the fixed app chrome
-// (AppHeader at the top, BottomNav at the bottom) — used by both of those
-// widgets and by the scroll container so it only reserves space for chrome
-// that's actually showing on the current route.
+// (AppHeader at the top, a bottom nav) and which bottom nav — used by
+// AppHeader, layout.tsx (to pick BottomNav vs ProjectsBottomNav), and the
+// scroll container so it only reserves space for chrome that's actually
+// showing on the current route.
+//
+// Whitelist, not blacklist: only a mode's own root/hub routes ever show
+// that mode's persistent chrome. Every drill-down (a detail screen, a
+// create/edit flow) shows none of it, back-arrow header instead, the same
+// convention /wallets/[wallet] and /goals/[id] already established.
 
-const HEADER_ROUTES = ['/home', '/statistics', '/budget', '/goals'];
+const MONEY_HUB_ROUTES = ['/home', '/statistics', '/budget', '/goals', '/debts'];
+const PROJECTS_HUB_ROUTES = ['/projects', '/projects/calendar', '/projects/focus', '/projects/analytics'];
 
-// A trailing slash on '/goals/' (not '/debts', which stays a bare prefix)
-// is deliberate: the Goals & Debt hub at the bare /goals path is now a 4th
-// bottom-nav tab (see BottomNav.tsx), same tier as /home /statistics
-// /budget — but everything nested under it (goal detail, debt detail,
-// create flows, debt's own repay/edit/plan pages) stays a drill-down with
-// just a back arrow, same as every other detail screen in this app.
-const NO_BOTTOM_NAV_PREFIXES = [
-  '/add-transaction',
-  '/edit-transaction',
-  '/add-budget-category',
-  '/create-category',
-  '/categories',
-  '/goals/',
-  '/debts',
-  '/transactions',
-  '/wallets',
-  '/settings',
-  '/payments',
-];
+export type NavMode = 'money' | 'projects' | 'none';
+
+export function navMode(pathname: string | null): NavMode {
+  if (!pathname) return 'none';
+  if (MONEY_HUB_ROUTES.includes(pathname)) return 'money';
+  if (PROJECTS_HUB_ROUTES.includes(pathname)) return 'projects';
+  return 'none';
+}
 
 export function hasAppHeader(pathname: string | null): boolean {
-  return HEADER_ROUTES.includes(pathname ?? '');
+  return navMode(pathname) !== 'none';
 }
 
 export function hasBottomNav(pathname: string | null): boolean {
-  if (!pathname) return false;
-  return !NO_BOTTOM_NAV_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+  return navMode(pathname) !== 'none';
 }

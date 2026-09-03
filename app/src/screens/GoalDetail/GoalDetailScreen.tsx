@@ -1,13 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronLeft, Trash2, CheckCircle2, XCircle } from 'lucide-react';
+import { ChevronLeft, Pencil, Trash2, CheckCircle2, Plus } from 'lucide-react';
 import { Modal } from '@/src/widgets/Modal/Modal';
 import { ConfirmDialog } from '@/src/widgets/ConfirmDialog/ConfirmDialog';
+import { ActionMenu } from '@/src/widgets/ActionMenu/ActionMenu';
 import { useLogic } from '@/src/logic/goalDetail/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { formatAmount } from '@/src/screens/Goals/GoalsScreen';
+import { PRIORITY_LEVELS, NECESSITY_OPTIONS, NECESSITY_LABEL } from '@/src/viewmodels/projects';
 import styles from './GoalDetailScreen.module.css';
 
 export function GoalDetailScreen({ goalId }: { goalId: string }) {
@@ -28,16 +30,38 @@ export function GoalDetailScreen({ goalId }: { goalId: string }) {
     addOpen,
     setAddOpen,
     openAdd,
+    editingItemId,
+    openEditItem,
     itemName,
     setItemName,
     itemDescription,
     setItemDescription,
     itemAmount,
     setItemAmount,
+    itemPriority,
+    setItemPriority,
+    itemNecessity,
+    setItemNecessity,
     savingItem,
     itemError,
     handleAddLineItem,
     handleDeleteLineItem,
+
+    currencyOptions,
+    goalEditOpen,
+    setGoalEditOpen,
+    openGoalEdit,
+    goalName,
+    setGoalName,
+    goalDescription,
+    setGoalDescription,
+    goalDeadline,
+    setGoalDeadline,
+    goalCurrency,
+    setGoalCurrency,
+    savingGoal,
+    goalSaveError,
+    handleSaveGoal,
 
     completeItemId,
     openMarkComplete,
@@ -70,14 +94,25 @@ export function GoalDetailScreen({ goalId }: { goalId: string }) {
         </button>
         <h1 className={styles.title}>{strings.goalDetail.headerTitle}</h1>
         {goal && (
-          <button
-            type="button"
-            className={styles.archiveButton}
-            onClick={() => setConfirmArchive(true)}
-            aria-label={strings.goalDetail.archiveGoal}
-          >
-            <Trash2 size={14} strokeWidth={1.75} />
-          </button>
+          <ActionMenu
+            title={goal.name}
+            ariaLabel={`Actions for ${goal.name}`}
+            items={[
+              {
+                key: 'edit',
+                label: strings.goalDetail.editGoal,
+                icon: <Pencil size={16} strokeWidth={1.75} />,
+                onSelect: openGoalEdit,
+              },
+              {
+                key: 'archive',
+                label: strings.goalDetail.archiveGoal,
+                icon: <Trash2 size={16} strokeWidth={1.75} />,
+                onSelect: () => setConfirmArchive(true),
+                danger: true,
+              },
+            ]}
+          />
         )}
       </header>
 
@@ -112,8 +147,8 @@ export function GoalDetailScreen({ goalId }: { goalId: string }) {
 
           <div className={styles.sectionTitleRow}>
             <h2 className={styles.sectionTitle}>{strings.goalDetail.lineItemsTitle}</h2>
-            <button type="button" className={styles.addLink} onClick={openAdd}>
-              {strings.goalDetail.addLineItem}
+            <button type="button" className={styles.addIconButton} onClick={openAdd} aria-label={strings.goalDetail.addLineItem}>
+              <Plus size={16} strokeWidth={2.25} />
             </button>
           </div>
 
@@ -129,34 +164,49 @@ export function GoalDetailScreen({ goalId }: { goalId: string }) {
                       <p className={styles.lineItemAmount}>
                         {formatAmount(item.amount)} {currency}
                       </p>
+                      {!item.completed && (
+                        <span className={item.hasFunds ? styles.fundsBadgeOk : styles.fundsBadgeShort}>
+                          {item.hasFunds ? 'Possible' : 'Not possible'}
+                        </span>
+                      )}
                     </div>
-                    {item.completed && <span className={styles.doneTag}>{strings.goalDetail.completedTag}</span>}
+                    {item.completed ? (
+                      <span className={styles.doneTag}>{strings.goalDetail.completedTag}</span>
+                    ) : (
+                      <ActionMenu
+                        title={item.name}
+                        ariaLabel={`Actions for ${item.name}`}
+                        items={[
+                          {
+                            key: 'complete',
+                            label: strings.goalDetail.markComplete,
+                            icon: <CheckCircle2 size={16} strokeWidth={1.75} />,
+                            onSelect: () => openMarkComplete(item),
+                          },
+                          {
+                            key: 'edit',
+                            label: strings.goalDetail.editLineItem,
+                            icon: <Pencil size={16} strokeWidth={1.75} />,
+                            onSelect: () => openEditItem(item),
+                          },
+                          {
+                            key: 'delete',
+                            label: strings.goalDetail.deleteLineItem,
+                            icon: <Trash2 size={16} strokeWidth={1.75} />,
+                            onSelect: () => setConfirmDeleteItemId(item.id),
+                            danger: true,
+                          },
+                        ]}
+                      />
+                    )}
                   </div>
 
-                  {!item.completed && (
-                    <>
-                      <div className={`${styles.statusRow} ${item.hasFunds ? styles.statusOk : styles.statusShort}`}>
-                        {item.hasFunds ? <CheckCircle2 size={14} strokeWidth={2} /> : <XCircle size={14} strokeWidth={2} />}
-                        <span>
-                          {item.hasFunds
-                            ? strings.goalDetail.frozenAvailable
-                            : `${strings.goalDetail.frozenInsufficient} (${formatAmount(item.shortfall)} ${currency})`}
-                        </span>
-                      </div>
-                      <div className={styles.lineItemActionsRow}>
-                        <button
-                          type="button"
-                          className={styles.deleteLink}
-                          onClick={() => setConfirmDeleteItemId(item.id)}
-                        >
-                          {strings.goalDetail.deleteLineItem}
-                        </button>
-                        <button type="button" className={styles.payButton} onClick={() => openMarkComplete(item)}>
-                          {strings.goalDetail.markComplete}
-                        </button>
-                      </div>
-                    </>
-                  )}
+                  <div className={styles.lineItemTagRow}>
+                    <span className={styles.priorityTag}>{item.priority}</span>
+                    <span className={item.necessity === 'MustHave' ? styles.necessityTagMust : styles.necessityTagNice}>
+                      {NECESSITY_LABEL[item.necessity]}
+                    </span>
+                  </div>
                 </div>
               ))}
             </div>
@@ -165,7 +215,10 @@ export function GoalDetailScreen({ goalId }: { goalId: string }) {
       )}
 
       {addOpen && (
-        <Modal title={strings.goalDetail.addLineItem} onClose={() => setAddOpen(false)}>
+        <Modal
+          title={editingItemId ? strings.goalDetail.editLineItemTitle : strings.goalDetail.addLineItem}
+          onClose={() => setAddOpen(false)}
+        >
           <div className={styles.formField}>
             <label className={styles.formLabel} htmlFor="line-item-name">
               {strings.goalDetail.nameLabel}
@@ -201,6 +254,36 @@ export function GoalDetailScreen({ goalId }: { goalId: string }) {
               value={itemDescription}
               onChange={(event) => setItemDescription(event.target.value)}
             />
+          </div>
+          <div className={styles.formField}>
+            <span className={styles.formLabel}>Priority</span>
+            <div className={styles.chipGroup}>
+              {PRIORITY_LEVELS.map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  className={`${styles.chip} ${itemPriority === option ? styles.chipActive : ''}`}
+                  onClick={() => setItemPriority(option)}
+                >
+                  {option}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className={styles.formField}>
+            <span className={styles.formLabel}>Necessity</span>
+            <div className={styles.chipGroup}>
+              {NECESSITY_OPTIONS.map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  className={`${styles.chip} ${itemNecessity === option ? styles.chipActive : ''}`}
+                  onClick={() => setItemNecessity(option)}
+                >
+                  {NECESSITY_LABEL[option]}
+                </button>
+              ))}
+            </div>
           </div>
           {itemError && <p className={styles.errorText}>{itemError}</p>}
           <button
@@ -284,6 +367,72 @@ export function GoalDetailScreen({ goalId }: { goalId: string }) {
             onClick={handleMarkComplete}
           >
             {completing ? strings.markLineItemComplete.saving : strings.markLineItemComplete.save}
+          </button>
+        </Modal>
+      )}
+
+      {goalEditOpen && (
+        <Modal title={strings.goalDetail.editGoal} onClose={() => setGoalEditOpen(false)}>
+          <div className={styles.formField}>
+            <label className={styles.formLabel} htmlFor="goal-name">
+              {strings.createGoal.nameLabel}
+            </label>
+            <input
+              id="goal-name"
+              className={styles.formInput}
+              value={goalName}
+              onChange={(event) => setGoalName(event.target.value)}
+            />
+          </div>
+          <div className={styles.formField}>
+            <label className={styles.formLabel} htmlFor="goal-description">
+              {strings.createGoal.descriptionLabel}
+            </label>
+            <textarea
+              id="goal-description"
+              className={styles.formTextarea}
+              rows={2}
+              value={goalDescription}
+              onChange={(event) => setGoalDescription(event.target.value)}
+            />
+          </div>
+          <div className={styles.formField}>
+            <label className={styles.formLabel} htmlFor="goal-deadline">
+              {strings.createGoal.deadlineLabel}
+            </label>
+            <input
+              id="goal-deadline"
+              type="date"
+              className={styles.formInput}
+              value={goalDeadline}
+              onChange={(event) => setGoalDeadline(event.target.value)}
+            />
+          </div>
+          <div className={styles.formField}>
+            <label className={styles.formLabel} htmlFor="goal-currency">
+              {strings.createGoal.currencyLabel}
+            </label>
+            <select
+              id="goal-currency"
+              className={styles.formInput}
+              value={goalCurrency}
+              onChange={(event) => setGoalCurrency(event.target.value)}
+            >
+              {currencyOptions.map((option) => (
+                <option key={option.code} value={option.code}>
+                  {option.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          {goalSaveError && <p className={styles.errorText}>{goalSaveError}</p>}
+          <button
+            type="button"
+            className={styles.modalSaveButton}
+            disabled={!goalName.trim() || savingGoal}
+            onClick={handleSaveGoal}
+          >
+            {savingGoal ? strings.goalDetail.saving : strings.goalDetail.save}
           </button>
         </Modal>
       )}

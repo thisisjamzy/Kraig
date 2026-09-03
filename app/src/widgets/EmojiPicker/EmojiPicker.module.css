@@ -1,0 +1,48 @@
+.trigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  border-radius: var(--radius-lg);
+  border: 1px dashed var(--color-border);
+  background: var(--color-surface);
+  cursor: pointer;
+}
+
+.triggerEmoji {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: var(--space-sm);
+}
+
+.cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  border-radius: var(--radius-md);
+  border: 2px solid transparent;
+  background: var(--color-surface);
+  font-size: 1.375rem;
+  cursor: pointer;
+}
+
+.cellActive {
+  border-color: var(--color-brand);
+}
+
+.noneCell {
+  grid-column: span 5;
+  aspect-ratio: auto;
+  padding: var(--space-sm);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}

@@ -35,17 +35,23 @@ export function useLogic(debtId: string) {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  // Default the account/category pickers once their options load — a page
-  // load, not a click-to-open modal, so there's no explicit "open" moment
-  // to seed from; run once per mount instead (same shape as
-  // src/logic/editTransaction/useLogic.ts's seededFor guard).
+  // Default the amount/account/category pickers once the debt and options
+  // load — a page load, not a click-to-open modal, so there's no explicit
+  // "open" moment to seed from; run once per mount instead (same shape as
+  // src/logic/editTransaction/useLogic.ts's seededFor guard). The amount
+  // pre-fills from an active recurring plan (still editable, never forces
+  // the user to start from a blank field); the account defaults to the
+  // debt's own linked wallet before falling back to the first one, so a
+  // repayment lands back in the same place the debt's cash came from.
   const seeded = useRef(false);
   useEffect(() => {
-    if (seeded.current || (accounts.length === 0 && categories.length === 0)) return;
+    if (seeded.current || !debt || (accounts.length === 0 && categories.length === 0)) return;
     seeded.current = true;
-    setAccountId((current) => current || accounts[0]?.id || '');
+    const planAmount = debt.paymentPlan.type === 'recurring' ? debt.paymentPlan.recurring?.amount : undefined;
+    setAmount((current) => current || (planAmount ? String(planAmount) : ''));
+    setAccountId((current) => current || debt.accountId || accounts[0]?.id || '');
     setCategoryId((current) => current || categories[0]?.id || '');
-  }, [accounts, categories]);
+  }, [debt, accounts, categories]);
 
   const useAccount = isCash || linkAccount;
 

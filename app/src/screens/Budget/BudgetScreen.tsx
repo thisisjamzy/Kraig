@@ -1,8 +1,12 @@
 'use client';
 
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { ChevronDown, ChevronLeft, ChevronRight, Pencil, Trash2, Plus, Settings, History } from 'lucide-react';
 import Link from 'next/link';
 import { Modal } from '@/src/widgets/Modal/Modal';
+import { ActionMenu } from '@/src/widgets/ActionMenu/ActionMenu';
+import { ConfirmDialog } from '@/src/widgets/ConfirmDialog/ConfirmDialog';
 import { useLogic, formatAmount, BUDGET_LINE_TYPES } from '@/src/logic/budget/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
@@ -10,6 +14,8 @@ import styles from './BudgetScreen.module.css';
 
 export function BudgetScreen() {
   const strings = useStrings();
+  const router = useRouter();
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const {
     monthIndex,
     year,
@@ -181,51 +187,81 @@ export function BudgetScreen() {
         </span>
       </div>
 
-      <h2 className={styles.sectionTitle}>{strings.budget.whatYoullSpendOn}</h2>
+      <div className={styles.sectionTitleRow}>
+        <h2 className={styles.sectionTitle}>{strings.budget.sectionTitle}</h2>
+        <Link href={addBudgetCategoryHref} className={styles.addIconButton} aria-label={strings.budget.addCategory}>
+          <Plus size={16} strokeWidth={2.25} />
+        </Link>
+      </div>
 
       <ScreenState loading={loading} error={error} />
 
       <div className={styles.categoryList}>
         {categories.map((entry) => (
-          <div key={entry.id} className={styles.categoryRow}>
-            <div className={styles.categoryText}>
+          <div
+            key={entry.id}
+            role="button"
+            tabIndex={0}
+            className={styles.categoryRow}
+            onClick={() => router.push(`/transactions?categoryId=${entry.categoryId}`)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                router.push(`/transactions?categoryId=${entry.categoryId}`);
+              }
+            }}
+          >
+            <div className={styles.categoryTopRow}>
               <p className={styles.categoryName}>{entry.category}</p>
-              {entry.description && (
-                <p className={styles.categoryDescription}>{entry.description}</p>
-              )}
-              <p className={styles.categoryAmount}>
-                {formatAmount(entry.spent)} {strings.budget.spentOfSuffix}{' '}
-                {formatAmount(entry.budgeted)} {currency} {strings.budget.spentSuffix}
-              </p>
-              <p className={styles.categoryRecurrence}>{recurrenceCaption(entry)}</p>
+              <span onClick={(event) => event.stopPropagation()}>
+                <ActionMenu
+                  title={entry.category}
+                  ariaLabel={`Actions for ${entry.category}`}
+                  items={[
+                    {
+                      key: 'edit',
+                      label: strings.budget.editAction,
+                      icon: <Pencil size={16} strokeWidth={1.75} />,
+                      onSelect: () => openEdit(entry),
+                    },
+                    {
+                      key: 'delete',
+                      label: strings.budget.deleteAction,
+                      icon: <Trash2 size={16} strokeWidth={1.75} />,
+                      onSelect: () => setConfirmDeleteId(entry.id),
+                      danger: true,
+                    },
+                  ]}
+                />
+              </span>
             </div>
-            <div className={styles.categoryActions}>
-              <button
-                type="button"
-                className={styles.iconButton}
-                onClick={() => openEdit(entry)}
-                aria-label={`Edit ${entry.category} amount`}
-              >
-                <Pencil size={16} strokeWidth={1.75} />
-              </button>
-              <button
-                type="button"
-                className={styles.iconButtonDanger}
-                onClick={() => handleDelete(entry.id)}
-                aria-label={`Delete ${entry.category}`}
-                title={entry.recurrence !== 'once' ? strings.budget.deleteRecurringHint : undefined}
-              >
-                <Trash2 size={16} strokeWidth={1.75} />
-              </button>
-            </div>
+            {entry.description && <p className={styles.categoryDescription}>{entry.description}</p>}
+            <p className={styles.categoryAmount}>
+              {formatAmount(entry.spent)} {strings.budget.spentOfSuffix}{' '}
+              {formatAmount(entry.budgeted)} {currency} {strings.budget.spentSuffix}
+            </p>
+            <p className={styles.categoryRecurrence}>{recurrenceCaption(entry)}</p>
           </div>
         ))}
       </div>
 
-      <Link href={addBudgetCategoryHref} className={styles.addCategoryButton}>
-        <Plus size={18} strokeWidth={2.25} />
-        {strings.budget.addCategory}
-      </Link>
+      {confirmDeleteId && (
+        <ConfirmDialog
+          title={strings.budget.deleteConfirmTitle}
+          message={
+            categories.find((c) => c.id === confirmDeleteId)?.recurrence !== 'once'
+              ? strings.budget.deleteRecurringHint
+              : strings.budget.deleteConfirmMessage
+          }
+          confirmLabel={strings.budget.deleteAction}
+          cancelLabel={strings.common.cancel}
+          onConfirm={() => {
+            handleDelete(confirmDeleteId);
+            setConfirmDeleteId(null);
+          }}
+          onCancel={() => setConfirmDeleteId(null)}
+        />
+      )}
 
       {showRetroTransactionButton && (
         <Link href={retroTransactionHref} className={styles.retroButton}>
