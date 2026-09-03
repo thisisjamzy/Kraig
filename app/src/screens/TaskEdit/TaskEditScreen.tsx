@@ -23,6 +23,8 @@ export function TaskEditScreen({ taskId }: { taskId: string | null }) {
     setProjectId,
     done,
     setDone,
+    startDate,
+    setStartDate,
     dueDate,
     setDueDate,
     notes,
@@ -140,6 +142,19 @@ export function TaskEditScreen({ taskId }: { taskId: string | null }) {
               </div>
             </div>
           )}
+
+          <div className={styles.formField}>
+            <label className={styles.formLabel} htmlFor="task-start-date">
+              Start date &amp; time (optional)
+            </label>
+            <input
+              id="task-start-date"
+              type="datetime-local"
+              className={styles.formInput}
+              value={startDate}
+              onChange={(event) => setStartDate(event.target.value)}
+            />
+          </div>
 
           <div className={styles.formField}>
             <label className={styles.formLabel} htmlFor="task-due-date">

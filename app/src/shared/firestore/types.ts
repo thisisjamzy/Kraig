@@ -465,6 +465,13 @@ export interface FirestoreTask {
   // independent "removed from view" flag — no kanban board, no in-progress
   // status. A task is either not done yet or it's done.
   done: boolean;
+  // Optional — most tasks are still a single point in time (dueDate alone).
+  // When set, the task spans a range (dueDate is then read as the end):
+  // task cards and the Calendar agenda show "start – end" instead of a
+  // single time. Not subject to the originalDueDate/rescheduleCount
+  // bookkeeping below — that tracks the deadline (dueDate) slipping, not
+  // the start.
+  startTime: Timestamp | null;
   dueDate: Timestamp | null; // date AND time — the only schedule a task has, shown on the Calendar agenda as "time below"
   // Set once, the first time dueDate is ever given a value — never changed
   // again. Compared against the live dueDate to show whether it was

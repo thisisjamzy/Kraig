@@ -24,6 +24,7 @@ export interface CreateTaskInput {
   // areaId mirrored from that project's own areaId) — never area-only.
   projectId: string | null;
   areaId: string | null;
+  startTime: Date | null;
   dueDate: Date | null;
   notes: string;
   createdBy: string;
@@ -40,6 +41,7 @@ export async function createTask(uid: string, input: CreateTaskInput): Promise<s
     areaId: input.areaId,
     parentTaskId: null,
     done: false,
+    startTime: input.startTime ? Timestamp.fromDate(input.startTime) : null,
     dueDate: input.dueDate ? Timestamp.fromDate(input.dueDate) : null,
     originalDueDate: input.dueDate ? Timestamp.fromDate(input.dueDate) : null,
     rescheduleCount: 0,
@@ -66,6 +68,7 @@ export interface UpdateTaskInput {
   projectId: string | null;
   areaId: string | null;
   done: boolean;
+  startTime: Date | null;
   dueDate: Date | null;
   notes: string;
 }
@@ -86,6 +89,7 @@ export async function updateTask(uid: string, taskId: string, input: UpdateTaskI
     projectId: input.projectId,
     areaId: input.areaId,
     done: input.done,
+    startTime: input.startTime ? Timestamp.fromDate(input.startTime) : null,
     dueDate: input.dueDate ? Timestamp.fromDate(input.dueDate) : null,
     notes: input.notes,
     updatedAt: serverTimestamp(),

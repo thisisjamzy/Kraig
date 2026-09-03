@@ -50,6 +50,7 @@ export function useLogic(taskId: string | null) {
   const [priority, setPriority] = useState<Priority>(DEFAULT_PRIORITY);
   const [projectId, setProjectId] = useState<string>(projectIdFromSearch);
   const [done, setDone] = useState(false);
+  const [startDate, setStartDate] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
@@ -68,6 +69,7 @@ export function useLogic(taskId: string | null) {
       setPriority(existingTask.priority ?? DEFAULT_PRIORITY);
       setProjectId(existingTask.projectId ?? '');
       setDone(existingTask.done ?? false);
+      setStartDate(existingTask.startTime ? toDatetimeLocal(existingTask.startTime.toDate()) : '');
       setDueDate(existingTask.dueDate ? toDatetimeLocal(existingTask.dueDate.toDate()) : '');
       setNotes(existingTask.notes ?? '');
       setSeeded(true);
@@ -81,6 +83,7 @@ export function useLogic(taskId: string | null) {
     setSaving(true);
     setSaveError(null);
     try {
+      const start = startDate ? new Date(startDate) : null;
       const due = dueDate ? new Date(dueDate) : null;
       const project = projects.find((p) => p.id === projectId) ?? null;
       const input = {
@@ -90,6 +93,7 @@ export function useLogic(taskId: string | null) {
         priority,
         projectId: project?.id ?? null,
         areaId: project?.areaId ?? null,
+        startTime: start,
         dueDate: due,
         notes: notes.trim(),
       };
@@ -133,6 +137,8 @@ export function useLogic(taskId: string | null) {
     setProjectId,
     done,
     setDone,
+    startDate,
+    setStartDate,
     dueDate,
     setDueDate,
     notes,

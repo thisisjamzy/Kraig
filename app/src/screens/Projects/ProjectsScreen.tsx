@@ -28,6 +28,7 @@ export function ProjectsScreen() {
     openArea,
     openCreateProject,
     openCreateArea,
+    openTaskList,
 
     loading,
     error,
@@ -38,23 +39,30 @@ export function ProjectsScreen() {
 
   return (
     <div className={styles.page} ref={swipeRef}>
+      <div className={styles.topRow}>
+        <h1 className={styles.portfolioTitle}>{strings.projects.taskBasketTitle}</h1>
+        <button type="button" className={styles.viewAllButton} onClick={() => openTaskList('all')}>
+          {strings.projects.viewAllTasksLabel}
+        </button>
+      </div>
+
       <div className={styles.tileGrid}>
-        <div className={`${styles.tile} ${styles.tilePurple}`}>
+        <button type="button" className={`${styles.tile} ${styles.tilePurple}`} onClick={() => openTaskList('today')}>
           <span className={styles.tileLabel}>{strings.projects.overviewToday}</span>
           <p className={styles.tileValue}>{overview.todayCount}</p>
-        </div>
-        <div className={`${styles.tile} ${styles.tileOrange}`}>
+        </button>
+        <button type="button" className={`${styles.tile} ${styles.tileOrange}`} onClick={() => openTaskList('week')}>
           <span className={styles.tileLabel}>{strings.projects.overviewThisWeek}</span>
           <p className={styles.tileValue}>{overview.scheduleThisWeekCount}</p>
-        </div>
-        <div className={`${styles.tile} ${styles.tileBlue}`}>
+        </button>
+        <button type="button" className={`${styles.tile} ${styles.tileBlue}`} onClick={() => openTaskList('atRisk')}>
           <span className={styles.tileLabel}>{strings.projects.overviewProjects}</span>
           <p className={styles.tileValue}>{overview.atRiskProjectCount}</p>
-        </div>
-        <div className={`${styles.tile} ${styles.tileGreen}`}>
+        </button>
+        <button type="button" className={`${styles.tile} ${styles.tileGreen}`} onClick={() => openTaskList('all')}>
           <span className={styles.tileLabel}>{strings.projects.overviewAllTasks}</span>
           <p className={styles.tileValue}>{overview.pendingTaskCount}</p>
-        </div>
+        </button>
       </div>
 
       <h2 className={styles.portfolioTitle}>Portfolio</h2>

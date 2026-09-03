@@ -64,6 +64,11 @@ export type PinMode = 'verify' | 'set';
 
 export function useLogic() {
   const [pin, setPin] = useState('');
+  // Masked (dots) by default, same as every other PIN/password entry in the
+  // app — toggled on request via the keypad's own unused blank slot (see
+  // PinScreen.tsx), not persisted across mounts.
+  const [showPin, setShowPin] = useState(false);
+  const togglePinVisibility = useCallback(() => setShowPin((current) => !current), []);
   // Randomized once per mount (each time the page opens), not on every render.
   const [digits] = useState(shuffledDigits);
   // Same 3-column phone-keypad layout as Add Transaction: three rows of
@@ -210,5 +215,17 @@ export function useLogic() {
 
   const canContinue = pin.length === PIN_LENGTH && !submitting && !authLoading;
 
-  return { pin, keypad, appendDigit, backspace, handleContinue, canContinue, pinLength: PIN_LENGTH, mode, error };
+  return {
+    pin,
+    keypad,
+    appendDigit,
+    backspace,
+    handleContinue,
+    canContinue,
+    pinLength: PIN_LENGTH,
+    mode,
+    error,
+    showPin,
+    togglePinVisibility,
+  };
 }
