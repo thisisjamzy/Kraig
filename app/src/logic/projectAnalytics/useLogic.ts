@@ -1,14 +1,13 @@
 'use client';
 
 // Every stat and chart this feature's own instructions asked for, in one
-// place — replaces what used to be a plain Notifications tab. The overdue/
-// due-today feed stays (so this doesn't lose the original tap-through
-// utility, and ProjectsBottomNav's badge still has something concrete to
-// point at), now alongside the numbers a household actually wants to see
-// about how their projects and tasks are going.
+// place — replaces what used to be a plain Notifications tab. overdue/today
+// stay as counts for the stat tiles (and ProjectsBottomNav's badge still has
+// something concrete to point at) — the tap-through list itself moved to
+// the Projects home's own "Overdue" tile (src/screens/TasksList), so this
+// screen doesn't duplicate it.
 
 import { useMemo } from 'react';
-import { useRouter } from 'next/navigation';
 import { query } from 'firebase/firestore';
 import { useFirestoreCollection } from '@/src/shared/firestore/hooks';
 import { areasRef, projectsRef } from '@/src/shared/firestore/refs';
@@ -32,7 +31,6 @@ import type { FirestoreArea, FirestoreProject } from '@/src/shared/firestore/typ
 const COMPLETED_WEEKS = 6;
 
 export function useLogic() {
-  const router = useRouter();
   const { user } = useFirebaseUser();
   const uid = user?.uid;
 
@@ -66,10 +64,6 @@ export function useLogic() {
     color: PROJECT_COLORS[index % PROJECT_COLORS.length],
   }));
 
-  function openTask(taskId: string) {
-    router.push(`/tasks/${taskId}/edit`);
-  }
-
   return {
     overdue,
     today,
@@ -81,7 +75,6 @@ export function useLogic() {
     projectsPerAreaSegments,
     completionPerArea,
     rescheduledByAreaSegments,
-    openTask,
     loading: tasksLoading || areasLoading || projectsLoading,
   };
 }

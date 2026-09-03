@@ -17,11 +17,8 @@ export function ProjectAnalyticsScreen() {
     projectsPerAreaSegments,
     completionPerArea,
     rescheduledByAreaSegments,
-    openTask,
     loading,
   } = useLogic();
-
-  const attention = [...overdue, ...today];
 
   return (
     <div className={styles.page}>
@@ -49,25 +46,6 @@ export function ProjectAnalyticsScreen() {
               <p className={styles.statValue}>{taskReschedule.rescheduled}</p>
             </div>
           </div>
-
-          {attention.length > 0 && (
-            <>
-              <div className={styles.sectionTitleRow}>
-                <h2 className={styles.chartTitle}>Needs attention</h2>
-              </div>
-              <div className={styles.list}>
-                {attention.map((task) => (
-                  <button key={task.id} type="button" className={styles.taskRow} onClick={() => openTask(task.id)}>
-                    {task.emoji && <span className={styles.emojiSmall}>{task.emoji}</span>}
-                    <p className={styles.taskTitle}>{task.title}</p>
-                    <span className={styles.taskMetaDanger}>
-                      {task.dueDate.toLocaleDateString('en-US', { month: 'short', day: '2-digit' })}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
 
           {completedTrend.some((p) => p.value > 0) && (
             <div className={styles.chartCard}>
