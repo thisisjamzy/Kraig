@@ -2,62 +2,123 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, ListOrdered, Trash2 } from 'lucide-react';
 import { useLogic } from '@/src/logic/goals/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
-import { TrendChart } from '@/src/widgets/TrendChart/TrendChart';
+import { GaugeChart, type GaugeSegment } from '@/src/widgets/GaugeChart/GaugeChart';
 import { ConfirmDialog } from '@/src/widgets/ConfirmDialog/ConfirmDialog';
+import { ActionMenu } from '@/src/widgets/ActionMenu/ActionMenu';
 import styles from './GoalsScreen.module.css';
 
 export function formatAmount(value: number) {
   return new Intl.NumberFormat('en-US').format(value);
 }
 
-const PRIORITY_LABEL_KEY = { high: 'priorityHigh', medium: 'priorityMedium', low: 'priorityLow' } as const;
+type GaugeMode = 'necessity' | 'priority';
 
 export function GoalsScreen() {
   const router = useRouter();
   const strings = useStrings();
-  const { tab, setTab, currency, goals, debts, debtSummary, totalDebtTrend, archiveGoal, archiveDebt, loading, error } =
+  const { currency, goals, necessityBreakdown, priorityBreakdown, archiveGoal, loading, lineItemsLoading, error } =
     useLogic();
 
   const [confirmGoalId, setConfirmGoalId] = useState<string | null>(null);
-  const [confirmDebtId, setConfirmDebtId] = useState<string | null>(null);
+  const [gaugeMode, setGaugeMode] = useState<GaugeMode>('necessity');
+
+  const hasAnyItems = necessityBreakdown.mustHaveCount + necessityBreakdown.niceToHaveCount > 0;
+
+  const necessitySegments: GaugeSegment[] = [
+    { label: 'Must have', value: necessityBreakdown.mustHaveCount, color: 'var(--color-brand)' },
+    { label: 'Nice to have', value: necessityBreakdown.niceToHaveCount, color: '#e8a33d' },
+  ];
+  const prioritySegments: GaugeSegment[] = [
+    { label: 'High', value: priorityBreakdown.highCount, color: 'var(--color-danger)' },
+    { label: 'Medium', value: priorityBreakdown.mediumCount, color: '#e8a33d' },
+    { label: 'Low', value: priorityBreakdown.lowCount, color: 'var(--color-brand)' },
+  ];
+  const segments = gaugeMode === 'necessity' ? necessitySegments : prioritySegments;
+  const segmentsTotal = segments.reduce((sum, segment) => sum + segment.value, 0);
+  const centerValue =
+    gaugeMode === 'necessity'
+      ? `${formatAmount(necessityBreakdown.mustHaveAmountRemaining)} ${currency}`
+      : `${formatAmount(priorityBreakdown.highAmountRemaining)} ${currency}`;
+  const centerLabel = gaugeMode === 'necessity' ? 'needed for must-haves' : 'needed for high priority';
 
   return (
     <div className={styles.page}>
-      <div className={styles.periodTabs}>
-        <button
-          type="button"
-          className={`${styles.periodTab} ${tab === 'goals' ? styles.periodTabActive : ''}`}
-          onClick={() => setTab('goals')}
-        >
-          {strings.goals.tabGoals}
-        </button>
-        <button
-          type="button"
-          className={`${styles.periodTab} ${tab === 'debt' ? styles.periodTabActive : ''}`}
-          onClick={() => setTab('debt')}
-        >
-          {strings.goals.tabDebt}
-        </button>
-      </div>
-
       <ScreenState loading={loading} error={error} />
 
-      {!loading && !error && tab === 'goals' && (
+      {!loading && !error && (
         <>
+          {!lineItemsLoading && hasAnyItems && (
+            <div className={styles.gaugeCard}>
+              <div className={styles.gaugeModeRow}>
+                <button
+                  type="button"
+                  className={`${styles.gaugeModeChip} ${gaugeMode === 'necessity' ? styles.gaugeModeChipActive : ''}`}
+                  onClick={() => setGaugeMode('necessity')}
+                >
+                  By need
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.gaugeModeChip} ${gaugeMode === 'priority' ? styles.gaugeModeChipActive : ''}`}
+                  onClick={() => setGaugeMode('priority')}
+                >
+                  By priority
+                </button>
+              </div>
+
+              <GaugeChart segments={segments} centerValue={centerValue} centerLabel={centerLabel} />
+
+              <div className={styles.gaugeLegend}>
+                {segments.map((segment) => (
+                  <span key={segment.label} className={styles.gaugeLegendItem}>
+                    <span className={styles.gaugeLegendDot} style={{ background: segment.color }} />
+                    {segment.label} &bull; {Math.round((segment.value / Math.max(1, segmentsTotal)) * 100)}%
+                  </span>
+                ))}
+              </div>
+
+              <div className={styles.gaugeActions}>
+                <button
+                  type="button"
+                  className={styles.gaugeActionPrimary}
+                  onClick={() => router.push('/goals/new')}
+                >
+                  <Plus size={16} strokeWidth={2.25} />
+                  {strings.goals.addGoal}
+                </button>
+                <button
+                  type="button"
+                  className={styles.gaugeActionSecondary}
+                  onClick={() => router.push('/goals/items')}
+                >
+                  <ListOrdered size={16} strokeWidth={2.25} />
+                  See all, ranked
+                </button>
+              </div>
+            </div>
+          )}
+
           {goals.length === 0 ? (
             <p className={styles.emptyText}>{strings.goals.emptyGoals}</p>
           ) : (
             <div className={styles.list}>
               {goals.map((goal) => (
-                <button
+                <div
                   key={goal.id}
-                  type="button"
+                  role="button"
+                  tabIndex={0}
                   className={styles.card}
                   onClick={() => router.push(`/goals/${goal.id}`)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      router.push(`/goals/${goal.id}`);
+                    }
+                  }}
                 >
                   <div className={styles.cardHeaderRow}>
                     <div className={styles.cardText}>
@@ -66,24 +127,20 @@ export function GoalsScreen() {
                         {goal.completedLineItemCount}/{goal.lineItemCount} {strings.goals.itemsDone}
                       </p>
                     </div>
-                    <span
-                      role="button"
-                      tabIndex={0}
-                      className={styles.iconButtonDanger}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        setConfirmGoalId(goal.id);
-                      }}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Enter' || event.key === ' ') {
-                          event.stopPropagation();
-                          event.preventDefault();
-                          setConfirmGoalId(goal.id);
-                        }
-                      }}
-                      aria-label={`${strings.goals.archiveAction} ${goal.name}`}
-                    >
-                      <Trash2 size={14} strokeWidth={1.75} />
+                    <span onClick={(event) => event.stopPropagation()}>
+                      <ActionMenu
+                        title={goal.name}
+                        ariaLabel={`Actions for ${goal.name}`}
+                        items={[
+                          {
+                            key: 'archive',
+                            label: strings.goals.archiveAction,
+                            icon: <Trash2 size={16} strokeWidth={1.75} />,
+                            onSelect: () => setConfirmGoalId(goal.id),
+                            danger: true,
+                          },
+                        ]}
+                      />
                     </span>
                   </div>
                   <div className={styles.track}>
@@ -105,118 +162,13 @@ export function GoalsScreen() {
                       </span>
                     </div>
                   )}
-                </button>
+                </div>
               ))}
             </div>
           )}
           <button type="button" className={styles.addButton} onClick={() => router.push('/goals/new')}>
             <Plus size={18} strokeWidth={2.25} />
             {strings.goals.addGoal}
-          </button>
-        </>
-      )}
-
-      {!loading && !error && tab === 'debt' && (
-        <>
-          {debtSummary.debtCount > 0 && (
-            <div className={styles.summaryCard}>
-              <div className={styles.summaryTotalRow}>
-                <span className={styles.amountMuted}>{strings.goals.totalDebtLabel}</span>
-                <span className={styles.summaryTotalValue}>
-                  {formatAmount(debtSummary.totalDebt)} {currency}
-                </span>
-              </div>
-              <div className={styles.priorityRow}>
-                {(['high', 'medium', 'low'] as const).map((priority) => (
-                  <div key={priority} className={styles.priorityChip}>
-                    <span className={`${styles.priorityDot} ${styles[`priorityDot_${priority}`]}`} />
-                    <span>{strings.goals[PRIORITY_LABEL_KEY[priority]]}</span>
-                    <span className={styles.amountMuted}>
-                      {formatAmount(debtSummary.byPriority[priority])} {currency}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-          {totalDebtTrend.length > 0 && (
-            <div className={styles.summaryCard}>
-              <p className={styles.trendTitle}>{strings.goals.totalDebtTrendTitle}</p>
-              <TrendChart
-                points={totalDebtTrend.map((point) => ({ label: point.label, value: point.total }))}
-                color="var(--color-danger)"
-              />
-            </div>
-          )}
-          {debts.length === 0 ? (
-            <p className={styles.emptyText}>{strings.goals.emptyDebt}</p>
-          ) : (
-            <div className={styles.list}>
-              {debts.map((debt) => (
-                <button
-                  key={debt.id}
-                  type="button"
-                  className={styles.card}
-                  onClick={() => router.push(`/debts/${debt.id}`)}
-                >
-                  <div className={styles.cardHeaderRow}>
-                    <div className={styles.cardText}>
-                      <p className={styles.cardName}>{debt.name}</p>
-                      <p className={styles.cardCategory}>
-                        <span className={`${styles.priorityDot} ${styles[`priorityDot_${debt.priority}`]}`} />{' '}
-                        {strings.goals[PRIORITY_LABEL_KEY[debt.priority]]}
-                      </p>
-                    </div>
-                    <span
-                      role="button"
-                      tabIndex={0}
-                      className={styles.iconButtonDanger}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        setConfirmDebtId(debt.id);
-                      }}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Enter' || event.key === ' ') {
-                          event.stopPropagation();
-                          event.preventDefault();
-                          setConfirmDebtId(debt.id);
-                        }
-                      }}
-                      aria-label={`${strings.goals.archiveAction} ${debt.name}`}
-                    >
-                      <Trash2 size={14} strokeWidth={1.75} />
-                    </span>
-                  </div>
-                  <div className={styles.track}>
-                    <div className={styles.fill} style={{ width: `${debt.percent}%` }} />
-                  </div>
-                  <div className={styles.amountRow}>
-                    <span className={styles.amountValue}>
-                      {formatAmount(debt.balance)} {currency}
-                    </span>
-                    <span className={styles.amountMuted}>
-                      {strings.goals.completedOfSuffix} {formatAmount(debt.principal)} {currency} &bull; {debt.percent}%
-                    </span>
-                  </div>
-                  {debt.nextPaymentDate && (
-                    <div className={styles.metaRow}>
-                      <span>
-                        {strings.goals.nextPaymentPrefix}{' '}
-                        {debt.nextPaymentDate.toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: '2-digit',
-                          year: 'numeric',
-                        })}
-                      </span>
-                    </div>
-                  )}
-                </button>
-              ))}
-            </div>
-          )}
-          <button type="button" className={styles.addButton} onClick={() => router.push('/debts/new')}>
-            <Plus size={18} strokeWidth={2.25} />
-            {strings.goals.addDebt}
           </button>
         </>
       )}
@@ -232,20 +184,6 @@ export function GoalsScreen() {
             setConfirmGoalId(null);
           }}
           onCancel={() => setConfirmGoalId(null)}
-        />
-      )}
-
-      {confirmDebtId && (
-        <ConfirmDialog
-          title={strings.goals.archiveDebtConfirmTitle}
-          message={strings.goals.archiveDebtConfirmMessage}
-          confirmLabel={strings.goals.archiveAction}
-          cancelLabel={strings.common.cancel}
-          onConfirm={() => {
-            archiveDebt(confirmDebtId);
-            setConfirmDebtId(null);
-          }}
-          onCancel={() => setConfirmDebtId(null)}
         />
       )}
     </div>

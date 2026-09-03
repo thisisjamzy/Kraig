@@ -7,6 +7,11 @@
   display: block;
 }
 
+.axisLabel {
+  font-size: 7px;
+  fill: var(--color-text-secondary);
+}
+
 .labelsRow {
   display: flex;
 }

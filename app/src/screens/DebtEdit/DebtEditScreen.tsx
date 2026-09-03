@@ -15,6 +15,10 @@ export function DebtEditScreen({ debtId }: { debtId: string }) {
     setName,
     description,
     setDescription,
+    accounts,
+    accountId,
+    setAccountId,
+    canBackfillAccount,
     principal,
     setPrincipal,
     priority,
@@ -70,6 +74,28 @@ export function DebtEditScreen({ debtId }: { debtId: string }) {
               onChange={(event) => setDescription(event.target.value)}
             />
           </div>
+          {canBackfillAccount && (
+            <div className={styles.formField}>
+              <label className={styles.formLabel} htmlFor="edit-debt-account">
+                {strings.createDebt.walletLabel}
+              </label>
+              <select
+                id="edit-debt-account"
+                className={styles.formInput}
+                value={accountId}
+                onChange={(event) => setAccountId(event.target.value)}
+              >
+                <option value="">{strings.createDebt.noWalletOption}</option>
+                {accounts.map((account) => (
+                  <option key={account.id} value={account.id}>
+                    {account.name}
+                  </option>
+                ))}
+              </select>
+              {accountId && <p className={styles.hintText}>{strings.createDebt.walletBackfillHint}</p>}
+            </div>
+          )}
+
           <div className={styles.formField}>
             <label className={styles.formLabel} htmlFor="edit-debt-principal">
               {strings.createDebt.principalLabel}
@@ -129,7 +155,7 @@ export function DebtEditScreen({ debtId }: { debtId: string }) {
             disabled={!name.trim() || !principal || saving}
             onClick={handleSave}
           >
-            {saving ? strings.createDebt.saving : strings.createDebt.save}
+            {saving ? strings.debtDetail.savingChanges : strings.debtDetail.saveChanges}
           </button>
         </div>
       )}

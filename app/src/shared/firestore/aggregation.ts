@@ -33,6 +33,7 @@ import {
   increment,
   serverTimestamp,
   deleteField,
+  writeBatch,
   Timestamp,
 } from 'firebase/firestore';
 import { getFirebaseFirestore } from '@/src/shared/config/firebaseClient';
@@ -52,10 +53,10 @@ import {
   repaymentsRef,
   repaymentRef,
 } from './refs';
-import { convert, type CurrencyContext } from './currency';
+import { convert, round2, type CurrencyContext } from './currency';
 import { toRecurrenceRule } from './recurrence';
 import { ruleAppliesToMonth } from '@dreda/shared-recurrence';
-import type { FirestoreDebtPaymentPlan, DebtType, DebtPriority, BudgetLineType } from './types';
+import type { FirestoreDebtPaymentPlan, DebtType, DebtPriority, BudgetLineType, Priority, GoalItemNecessity } from './types';
 
 function monthKey(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
@@ -597,6 +598,24 @@ export async function archiveGoal(uid: string, goalId: string): Promise<void> {
   await updateDoc(goalRef(uid, goalId), { archived: true, updatedAt: serverTimestamp() });
 }
 
+export interface UpdateGoalInput {
+  name: string;
+  description: string;
+  deadline: Date | null;
+  currency: string;
+}
+
+/** Goal-level fields only — totalAmount/lineItemCount/etc. stay owned by recalcGoalTotals. */
+export async function updateGoal(uid: string, goalId: string, input: UpdateGoalInput): Promise<void> {
+  await updateDoc(goalRef(uid, goalId), {
+    name: input.name,
+    description: input.description,
+    deadline: input.deadline ? Timestamp.fromDate(input.deadline) : null,
+    currency: input.currency,
+    updatedAt: serverTimestamp(),
+  });
+}
+
 /**
  * Recomputes a goal's denormalized totalAmount/lineItemCount/
  * completedLineItemCount/amountCompleted from its real lineItems
@@ -625,6 +644,8 @@ export interface CreateGoalLineItemInput {
   name: string;
   description: string;
   amount: number;
+  priority: Priority;
+  necessity: GoalItemNecessity;
 }
 
 export async function createGoalLineItem(uid: string, goalId: string, input: CreateGoalLineItemInput): Promise<string> {
@@ -634,6 +655,12 @@ export async function createGoalLineItem(uid: string, goalId: string, input: Cre
     name: input.name,
     description: input.description,
     amount: input.amount,
+    priority: input.priority,
+    necessity: input.necessity,
+    // A new item always lands at the end of the cross-goal to-do list's
+    // custom order — Date.now() is always greater than any earlier item's
+    // rank without needing to read the whole list first to find a max.
+    rank: Date.now(),
     completed: false,
     completedAt: null,
     expenseId: null,
@@ -642,6 +669,24 @@ export async function createGoalLineItem(uid: string, goalId: string, input: Cre
   });
   await recalcGoalTotals(uid, goalId);
   return id;
+}
+
+/**
+ * Bulk-sets rank on line items possibly spanning several goals — the
+ * cross-goal "All goal items" list's reordering (both a manual up/down swap
+ * and "use this order" after sorting by priority/ease). One batch so a
+ * multi-item reorder can never apply half its writes.
+ */
+export async function setGoalLineItemRanks(
+  uid: string,
+  items: { goalId: string; lineItemId: string; rank: number }[]
+): Promise<void> {
+  const db = getFirebaseFirestore();
+  const batch = writeBatch(db);
+  for (const item of items) {
+    batch.update(goalLineItemRef(uid, item.goalId, item.lineItemId), { rank: item.rank, updatedAt: serverTimestamp() });
+  }
+  await batch.commit();
 }
 
 export async function updateGoalLineItem(
@@ -654,6 +699,8 @@ export async function updateGoalLineItem(
     name: input.name,
     description: input.description,
     amount: input.amount,
+    priority: input.priority,
+    necessity: input.necessity,
     updatedAt: serverTimestamp(),
   });
   await recalcGoalTotals(uid, goalId);
@@ -735,6 +782,12 @@ export interface CreateDebtInput {
   name: string;
   description: string;
   debtType: DebtType;
+  // The wallet a 'cash' debt's borrowed money lands in — required for
+  // 'cash', so the principal can actually be credited there (see below) and
+  // every later repayment has a real default to debit. Not asked for an
+  // 'existing' debt at creation (that type has no wallet impact unless
+  // linked per-repayment).
+  accountId: string | null;
   principalAmount: number;
   currency: string;
   priority: DebtPriority;
@@ -747,7 +800,7 @@ export interface CreateDebtInput {
   } | null;
 }
 
-export async function createDebt(uid: string, input: CreateDebtInput): Promise<string> {
+export async function createDebt(uid: string, input: CreateDebtInput, ctx: CurrencyContext): Promise<string> {
   const id = crypto.randomUUID();
   const paymentPlan: FirestoreDebtPaymentPlan = input.recurring
     ? {
@@ -760,10 +813,11 @@ export async function createDebt(uid: string, input: CreateDebtInput): Promise<s
         },
       }
     : { type: 'none' };
-  await setDoc(debtRef(uid, id), {
+  const debtFields = {
     name: input.name,
     description: input.description,
     debtType: input.debtType,
+    accountId: input.accountId,
     principalAmount: input.principalAmount,
     currentBalance: input.principalAmount,
     totalRepaid: 0,
@@ -775,12 +829,115 @@ export async function createDebt(uid: string, input: CreateDebtInput): Promise<s
     archivedAt: null,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
-  });
+  };
+
+  // A 'cash' debt's borrowed money always lands in the wallet it's linked
+  // to — credited here as a real Inflow transaction, inside the same
+  // transaction as the debt doc itself, so the two can never diverge (the
+  // debt would never exist with its principal missing from the wallet, or
+  // vice versa).
+  if (input.debtType === 'cash' && input.accountId) {
+    const db = getFirebaseFirestore();
+    const accountId = input.accountId;
+    await runTransaction(db, async (tx) => {
+      const accountSnap = await tx.get(accountRef(uid, accountId));
+      writeTransactionContribution(
+        tx,
+        uid,
+        {
+          id: crypto.randomUUID(),
+          date: input.startDate,
+          type: 'Income',
+          description: `Loan received: ${input.name}`,
+          accountId,
+          categoryId: null,
+          amount: input.principalAmount,
+          direction: 'Inflow',
+          createdBy: uid,
+        },
+        accountSnap.data(),
+        ctx
+      );
+      tx.set(debtRef(uid, id), debtFields);
+    });
+  } else {
+    await setDoc(debtRef(uid, id), debtFields);
+  }
+
   return id;
 }
 
 export async function archiveDebt(uid: string, debtId: string): Promise<void> {
   await updateDoc(debtRef(uid, debtId), { archivedAt: serverTimestamp(), updatedAt: serverTimestamp() });
+}
+
+export interface UpdateDebtInput {
+  name: string;
+  description: string;
+  accountId: string | null;
+  principalAmount: number;
+  priority: DebtPriority;
+  startDate: Date;
+  notes: string;
+}
+
+/**
+ * Edits a debt's own fields. A 'cash' debt that never had a wallet linked
+ * (created before this field existed, or the household skipped it) gets one
+ * more chance here: choosing an account for the first time credits the
+ * current principal into it, exactly like createDebt does at creation —
+ * same reasoning, just a later moment. Only fires on that null-to-set
+ * transition, never on swapping an already-linked account (that would
+ * double-credit money that's already been recorded once).
+ */
+export async function updateDebt(
+  uid: string,
+  debtId: string,
+  before: { debtType: DebtType; accountId: string | null; name: string; totalRepaid: number },
+  input: UpdateDebtInput,
+  ctx: CurrencyContext
+): Promise<void> {
+  const update = {
+    name: input.name,
+    description: input.description,
+    accountId: input.accountId,
+    principalAmount: input.principalAmount,
+    currentBalance: Math.max(0, round2(input.principalAmount - before.totalRepaid)),
+    priority: input.priority,
+    startDate: Timestamp.fromDate(input.startDate),
+    notes: input.notes,
+    updatedAt: serverTimestamp(),
+  };
+
+  const backfillsAccount = before.debtType === 'cash' && !before.accountId && Boolean(input.accountId);
+
+  if (backfillsAccount && input.accountId) {
+    const db = getFirebaseFirestore();
+    const accountId = input.accountId;
+    await runTransaction(db, async (tx) => {
+      const accountSnap = await tx.get(accountRef(uid, accountId));
+      writeTransactionContribution(
+        tx,
+        uid,
+        {
+          id: crypto.randomUUID(),
+          date: new Date(),
+          type: 'Income',
+          description: `Loan received: ${input.name}`,
+          accountId,
+          categoryId: null,
+          amount: input.principalAmount,
+          direction: 'Inflow',
+          createdBy: uid,
+        },
+        accountSnap.data(),
+        ctx
+      );
+      tx.update(debtRef(uid, debtId), update);
+    });
+  } else {
+    await updateDoc(debtRef(uid, debtId), update);
+  }
 }
 
 function addInterval(date: Date, interval: 'weekly' | 'biweekly' | 'monthly' | 'yearly'): Date {

@@ -18,6 +18,17 @@ export interface TrendPoint {
 
 const MIN_POINT_SPACING = 40;
 
+// Keeps a large axis value (a wallet/debt balance can run into the
+// millions) from overflowing the label gutter or overlapping the plotted
+// line — same K/M abbreviation convention as src/logic/home/useLogic.ts's
+// formatCompact, kept local here since this is the only shared widget that
+// needs it on an SVG axis rather than a bar-chart value label.
+function formatAxisValue(value: number): string {
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(value % 1_000_000 === 0 ? 0 : 1)}M`;
+  if (value >= 1_000) return `${Math.round(value / 1_000)}K`;
+  return `${Math.round(value)}`;
+}
+
 export function TrendChart({ points, color }: { points: TrendPoint[]; color: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
@@ -37,12 +48,40 @@ export function TrendChart({ points, color }: { points: TrendPoint[]; color: str
   const max = Math.max(...points.map((point) => point.value), 1);
   const naturalWidth = Math.max(points.length * MIN_POINT_SPACING, 120);
   const width = Math.max(naturalWidth, containerWidth);
-  const xFor = (index: number) => (points.length > 1 ? (index / (points.length - 1)) * (width - 40) + 20 : width / 2);
+  // Left gutter reserved for the vertical axis's value labels — the plotted
+  // line and its gridlines both start after it, not at x=0.
+  const AXIS_GUTTER = 26;
+  const plotWidth = width - AXIS_GUTTER - 12;
+  const xFor = (index: number) =>
+    points.length > 1 ? (index / (points.length - 1)) * plotWidth + AXIS_GUTTER : AXIS_GUTTER + plotWidth / 2;
   const yFor = (value: number) => 85 - (value / max) * 75;
+
+  // Three horizontal gridlines (0%, 50%, 100% of max) — the vertical axis's
+  // indicator lines, each labeled with the value it represents.
+  const gridSteps = [0, 0.5, 1];
 
   return (
     <div ref={containerRef} className={styles.scroll}>
       <svg viewBox={`0 0 ${width} 100`} width={width} height={90} className={styles.svg}>
+        {gridSteps.map((step) => {
+          const y = yFor(max * step);
+          return (
+            <g key={step}>
+              <line
+                x1={AXIS_GUTTER}
+                y1={y}
+                x2={width}
+                y2={y}
+                stroke="var(--color-border)"
+                strokeWidth="1"
+                vectorEffect="non-scaling-stroke"
+              />
+              <text x={0} y={y} dy="3" className={styles.axisLabel}>
+                {formatAxisValue(max * step)}
+              </text>
+            </g>
+          );
+        })}
         <polyline
           points={points.map((point, index) => `${xFor(index)},${yFor(point.value)}`).join(' ')}
           fill="none"
@@ -54,9 +93,9 @@ export function TrendChart({ points, color }: { points: TrendPoint[]; color: str
           <circle key={index} cx={xFor(index)} cy={yFor(point.value)} r={3} fill={color} />
         ))}
       </svg>
-      <div className={styles.labelsRow} style={{ width }}>
+      <div className={styles.labelsRow} style={{ width, paddingLeft: AXIS_GUTTER }}>
         {points.map((point, index) => (
-          <span key={index} className={styles.label} style={{ flexBasis: width / points.length }}>
+          <span key={index} className={styles.label} style={{ flexBasis: plotWidth / points.length }}>
             {point.label}
           </span>
         ))}

@@ -4,6 +4,10 @@
   gap: var(--space-lg);
 }
 
+.wrapBottom {
+  flex-direction: column;
+}
+
 .svg {
   flex-shrink: 0;
 }
@@ -16,10 +20,21 @@
   flex: 1;
 }
 
+.legendBottom {
+  flex: none;
+  width: 100%;
+}
+
+/* Value sits right next to its label (not pushed to the row's far edge) —
+   the label no longer flex-grows to fill the row, so a legend row is only
+   ever as wide as its own content, left-aligned rather than each row
+   centering independently within the full row width. */
+
 .legendRow {
   display: flex;
   align-items: center;
-  gap: var(--space-xs);
+  justify-content: flex-start;
+  gap: 6px;
   font-size: var(--font-size-sm);
 }
 
@@ -31,12 +46,16 @@
 }
 
 .legendLabel {
-  flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--color-text-primary);
+}
+
+.legendBottom .legendLabel {
+  overflow: visible;
+  white-space: normal;
 }
 
 .legendValue {

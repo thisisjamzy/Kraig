@@ -9,7 +9,7 @@ import styles from './TransactionHistoryScreen.module.css';
 
 export function TransactionHistoryScreen() {
   const strings = useStrings();
-  const { transactions, loading, error, editHref, goBack } = useLogic();
+  const { transactions, filterCategoryName, loading, error, editHref, goBack } = useLogic();
 
   return (
     <div className={styles.page}>
@@ -17,7 +17,7 @@ export function TransactionHistoryScreen() {
         <button type="button" className={styles.backButton} onClick={goBack} aria-label="Back">
           <ChevronLeft size={18} strokeWidth={2} />
         </button>
-        <h1 className={styles.title}>{strings.transactionHistory.title}</h1>
+        <h1 className={styles.title}>{filterCategoryName ?? strings.transactionHistory.title}</h1>
         <div className={styles.headerActions}>
           <button type="button" className={styles.iconButton} aria-label="Search">
             <Search size={18} strokeWidth={1.75} />

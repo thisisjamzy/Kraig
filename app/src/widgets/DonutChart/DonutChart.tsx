@@ -17,10 +17,12 @@ export function DonutChart({
   segments,
   size = 120,
   thickness = 16,
+  legendPosition = 'right',
 }: {
   segments: DonutSegment[];
   size?: number;
   thickness?: number;
+  legendPosition?: 'right' | 'bottom';
 }) {
   const total = segments.reduce((sum, segment) => sum + segment.value, 0);
   if (total <= 0) return null;
@@ -35,7 +37,7 @@ export function DonutChart({
   const offsets = dashes.map((_, index) => dashes.slice(0, index).reduce((sum, dash) => sum + dash, 0));
 
   return (
-    <div className={styles.wrap}>
+    <div className={`${styles.wrap} ${legendPosition === 'bottom' ? styles.wrapBottom : ''}`}>
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className={styles.svg}>
         <g transform={`rotate(-90 ${size / 2} ${size / 2})`}>
           {segments.map((segment, index) => (
@@ -53,7 +55,7 @@ export function DonutChart({
           ))}
         </g>
       </svg>
-      <div className={styles.legend}>
+      <div className={`${styles.legend} ${legendPosition === 'bottom' ? styles.legendBottom : ''}`}>
         {segments.map((segment, index) => (
           <div key={index} className={styles.legendRow}>
             <span className={styles.legendDot} style={{ background: segment.color }} />

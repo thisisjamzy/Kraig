@@ -5,8 +5,9 @@
   right: 0;
   z-index: 20;
   display: flex;
-  align-items: center;
   justify-content: space-between;
+  align-items: center;
+  align-items: center;
   max-width: var(--app-max-width);
   margin-inline: auto;
   padding: var(--space-lg);
@@ -15,12 +16,13 @@
 }
 
 .logo {
-  height: 26px;
-  width: auto;
-  display: block;
+  justify-self: start;
+  height: 20px;
+  width: auto; 
 }
 
 .profileButton {
+  justify-self: end;
   display: flex;
   align-items: center;
   justify-content: center;

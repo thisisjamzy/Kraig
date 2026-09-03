@@ -68,11 +68,11 @@ export function useLogic(debtId: string) {
   async function archiveDebt() {
     if (!uid) return;
     await archiveDebtWrite(uid, debtId);
-    router.push('/goals');
+    router.push('/debts');
   }
 
   function goBack() {
-    router.push('/goals');
+    router.push('/debts');
   }
 
   return {

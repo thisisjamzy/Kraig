@@ -142,55 +142,6 @@
   flex-shrink: 0;
 }
 
-/* Goals & Debt entry point — its own screen now, this is just a link into it */
-
-.goalsDebtCard {
-  display: flex;
-  align-items: center;
-  gap: var(--space-md);
-  padding: var(--space-md) var(--space-lg);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  text-decoration: none;
-  color: inherit;
-}
-
-.goalsDebtIcon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  flex-shrink: 0;
-  border-radius: 50%;
-  background: var(--color-surface);
-  color: var(--color-text-primary);
-}
-
-.goalsDebtText {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.goalsDebtLabel {
-  font-size: var(--font-size-sm);
-  font-weight: 700;
-  color: var(--color-text-primary);
-}
-
-.goalsDebtMeta {
-  font-size: 0.75rem;
-  color: var(--color-text-secondary);
-}
-
-.goalsDebtChevron {
-  flex-shrink: 0;
-  color: var(--color-text-secondary);
-}
-
 /* Wallets chart */
 
 .walletsChart {

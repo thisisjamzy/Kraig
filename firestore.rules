@@ -183,6 +183,28 @@ service cloud.firestore {
         }
       }
 
+      // PARA — PRD Files/PRD-PROJECTS.md section 19. areas/projects use the
+      // same no-field-check read+create+update shape as accounts/categories
+      // above (safe to combine with read since neither ever references
+      // request.resource, unlike goals/debts above, which is why THOSE
+      // needed read split onto its own line — see this file's own comment
+      // there for the bug that shape causes when combined with a check).
+      match /areas/{areaId} {
+        allow read, create, update: if activeUser() && request.auth.uid == uid;
+        allow delete: if false; // archive in place
+      }
+      match /projects/{projectId} {
+        allow read, create, update: if activeUser() && request.auth.uid == uid;
+        allow delete: if false; // status moves to 'Archived' instead
+      }
+      match /tasks/{taskId} {
+        allow read: if activeUser() && request.auth.uid == uid;
+        allow create: if activeUser() && request.auth.uid == uid
+          && request.resource.data.createdBy == request.auth.uid;
+        allow update: if activeUser() && request.auth.uid == uid;
+        allow delete: if activeUser() && request.auth.uid == uid;
+      }
+
       match /settings/{docId} {
         allow read, write: if activeUser() && request.auth.uid == uid;
       }

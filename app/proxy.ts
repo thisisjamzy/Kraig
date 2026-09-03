@@ -15,21 +15,45 @@ import type { NextRequest } from 'next/server';
 import { SIGNED_IN_KEY } from '@/src/shared/config/appEntry';
 import { PIN_VERIFIED_KEY, PIN_DISABLED_KEY } from '@/src/shared/config/pinGate';
 
-const PUBLIC_PATHS = new Set(['/', '/sign-in', '/sign-up', '/pin', '/~offline']);
+const AUTH_PATHS = new Set(['/sign-in', '/sign-up']);
+const OPEN_PATHS = new Set(['/', '/~offline']);
 
 export default function proxy(request: NextRequest) {
-  if (PUBLIC_PATHS.has(request.nextUrl.pathname)) {
+  const { pathname } = request.nextUrl;
+  const signedIn = Boolean(request.cookies.get(SIGNED_IN_KEY));
+  const pinCleared = Boolean(request.cookies.get(PIN_VERIFIED_KEY)) || Boolean(request.cookies.get(PIN_DISABLED_KEY));
+
+  if (OPEN_PATHS.has(pathname)) {
     return NextResponse.next();
   }
 
-  if (!request.cookies.get(SIGNED_IN_KEY)) {
+  // Sign-in/sign-up are airtight against an already-authenticated session:
+  // once signed in, there is no path back to these forms — not the PIN
+  // screen's own back button (removed), not the browser back button, not a
+  // typed-in URL. Land wherever that session actually is instead (still
+  // needs the PIN, or already past it).
+  if (AUTH_PATHS.has(pathname)) {
+    if (!signedIn) return NextResponse.next();
+    return NextResponse.redirect(new URL(pinCleared ? '/loading' : '/pin', request.url));
+  }
+
+  if (!signedIn) {
     return NextResponse.redirect(new URL('/sign-in', request.url));
+  }
+
+  // /pin itself: only reachable signed-in, and only while genuinely still
+  // gated — once cleared (verified this session, or the household turned
+  // the PIN off), landing here again just bounces forward instead of
+  // re-prompting.
+  if (pathname === '/pin') {
+    if (pinCleared) return NextResponse.redirect(new URL('/loading', request.url));
+    return NextResponse.next();
   }
 
   // Settings' "Require PIN" toggle (src/logic/settings/useLogic.ts) — once
   // disabled on this device, skip the PIN gate entirely rather than
   // requiring PIN_VERIFIED_KEY too.
-  if (!request.cookies.get(PIN_VERIFIED_KEY) && !request.cookies.get(PIN_DISABLED_KEY)) {
+  if (!pinCleared) {
     return NextResponse.redirect(new URL('/pin', request.url));
   }
 

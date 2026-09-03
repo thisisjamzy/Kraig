@@ -34,6 +34,9 @@ import type {
   StatsMonthly,
   StatsBudgetProgress,
   FirestoreUserDoc,
+  FirestoreArea,
+  FirestoreProject,
+  FirestoreTask,
 } from './types';
 
 function sub(uid: string, name: string) {
@@ -124,6 +127,27 @@ export function repaymentRef(
   return doc(getFirebaseFirestore(), 'users', uid, 'debts', debtId, 'repayments', repaymentId) as DocumentReference<
     Omit<FirestoreRepayment, 'id'>
   >;
+}
+
+export function areasRef(uid: string): CollectionReference<FirestoreArea> {
+  return sub(uid, 'areas') as CollectionReference<FirestoreArea>;
+}
+export function areaRef(uid: string, id: string): DocumentReference<Omit<FirestoreArea, 'id'>> {
+  return subDoc(uid, 'areas', id) as DocumentReference<Omit<FirestoreArea, 'id'>>;
+}
+
+export function projectsRef(uid: string): CollectionReference<FirestoreProject> {
+  return sub(uid, 'projects') as CollectionReference<FirestoreProject>;
+}
+export function projectRef(uid: string, id: string): DocumentReference<Omit<FirestoreProject, 'id'>> {
+  return subDoc(uid, 'projects', id) as DocumentReference<Omit<FirestoreProject, 'id'>>;
+}
+
+export function tasksRef(uid: string): CollectionReference<FirestoreTask> {
+  return sub(uid, 'tasks') as CollectionReference<FirestoreTask>;
+}
+export function taskRef(uid: string, id: string): DocumentReference<Omit<FirestoreTask, 'id'>> {
+  return subDoc(uid, 'tasks', id) as DocumentReference<Omit<FirestoreTask, 'id'>>;
 }
 
 export function settingsRef(uid: string): DocumentReference<FirestoreSettings> {

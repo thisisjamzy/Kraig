@@ -123,14 +123,17 @@
   color: var(--color-text-primary);
 }
 
-.addLink {
-  padding: 0;
+.addIconButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
   border: none;
-  background: none;
-  font-family: inherit;
-  font-size: var(--font-size-sm);
-  font-weight: 700;
-  color: var(--color-brand);
+  border-radius: 50%;
+  background: var(--ink-bg);
+  color: #ffffff;
   cursor: pointer;
 }
 
@@ -185,56 +188,83 @@
   font-weight: 700;
 }
 
-.statusRow {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.75rem;
-}
-
-.statusOk {
-  color: var(--color-brand);
-}
-
-.statusShort {
-  color: var(--color-danger);
-}
-
-.lineItemActionsRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-sm);
-  margin-top: var(--space-xs);
-}
-
-.payButton {
-  padding: var(--space-xs) var(--space-md);
-  border: none;
-  border-radius: var(--radius-md);
-  background: var(--ink-bg);
-  color: var(--color-brand);
-  font-family: inherit;
-  font-size: 0.75rem;
+.fundsBadgeOk {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 2px var(--space-sm);
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, #2e9e5b 18%, transparent);
+  color: #2e9e5b;
+  font-size: 0.7rem;
   font-weight: 700;
-  cursor: pointer;
 }
 
-.payButton:disabled {
-  background: #6b7380;
-  color: rgba(255, 255, 255, 0.85);
-  cursor: not-allowed;
+.fundsBadgeShort {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 2px var(--space-sm);
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--color-danger) 18%, transparent);
+  color: var(--color-danger);
+  font-size: 0.7rem;
+  font-weight: 700;
 }
 
-.deleteLink {
-  padding: 0;
-  border: none;
+.lineItemTagRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}
+
+.priorityTag {
+  padding: 2px var(--space-sm);
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.necessityTagMust {
+  padding: 2px var(--space-sm);
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, #e8a33d 22%, transparent);
+  color: #a3671c;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.necessityTagNice {
+  padding: 2px var(--space-sm);
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.chipGroup {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}
+
+.chip {
+  padding: var(--space-xs) var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
   background: none;
   font-family: inherit;
-  font-size: 0.75rem;
+  font-size: var(--font-size-sm);
   font-weight: 600;
-  color: var(--color-danger);
+  color: var(--color-text-primary);
   cursor: pointer;
+}
+
+.chipActive {
+  border-color: var(--ink-bg);
+  background: var(--ink-bg);
+  color: #ffffff;
 }
 
 /* Modal form fields (add line item / mark as paid) */

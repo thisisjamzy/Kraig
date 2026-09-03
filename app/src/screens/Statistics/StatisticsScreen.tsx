@@ -73,21 +73,21 @@ export function StatisticsScreen() {
         </p>
 
         <div className={styles.tileGrid}>
-          <div className={styles.tile}>
+          <div className={`${styles.tile} ${styles.tileOrange}`}>
             <span className={styles.tileLabel}>{strings.statistics.spending}</span>
             <p className={styles.tileValueNegative}>-{formatAmount(summary.spending)}</p>
             <span className={styles.tileCaption}>{strings.statistics.totalOutflow}</span>
           </div>
-          <div className={styles.tile}>
+          <div className={`${styles.tile} ${styles.tileGreen}`}>
             <span className={styles.tileLabel}>{strings.statistics.income}</span>
             <p className={styles.tileValue}>{formatAmount(summary.income)}</p>
             <span className={styles.tileCaption}>{strings.statistics.totalInflow}</span>
           </div>
-          <div className={styles.tile}>
+          <div className={`${styles.tile} ${styles.tilePurple}`}>
             <span className={styles.tileLabel}>{strings.statistics.netSavings}</span>
             <p className={styles.tileValue}>{formatAmount(summary.netSavings)}</p>
           </div>
-          <div className={styles.tile}>
+          <div className={`${styles.tile} ${styles.tileBlue}`}>
             <span className={styles.tileLabel}>{strings.statistics.savingsRate}</span>
             <p className={styles.tileValue}>{summary.savingsRate}%</p>
           </div>
