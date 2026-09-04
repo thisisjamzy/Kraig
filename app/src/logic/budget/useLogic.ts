@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { query, where, setDoc, updateDoc, arrayUnion } from 'firebase/firestore';
+import { query, where, orderBy, limit, setDoc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { ruleAppliesToMonth } from '@dreda/shared-recurrence';
+import { ArrowUpRight, ArrowDownLeft, PiggyBank, type LucideIcon } from 'lucide-react';
 import { useFirestoreCollection, useFirestoreDoc } from '@/src/shared/firestore/hooks';
-import { budgetRulesRef, budgetRuleRef, statsMonthlyRef, budgetPlanRef } from '@/src/shared/firestore/refs';
+import { budgetRulesRef, budgetRuleRef, statsMonthlyRef, budgetPlanRef, transactionsRef } from '@/src/shared/firestore/refs';
 import { useAccounts, useCategories, useCurrencyContext } from '@/src/shared/firestore/queries';
 import { toDisplay, round2 } from '@/src/shared/firestore/currency';
 import { toRecurrenceRule } from '@/src/shared/firestore/recurrence';
@@ -12,9 +13,32 @@ import { recomputeBudgetProgressForRuleCurrentMonth } from '@/src/shared/firesto
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { currentMonthIndex, currentYear, toFrequencyFields, type Recurrence } from '@/src/viewmodels/budget';
 import { TRANSFER_CATEGORIES } from '@/src/viewmodels/categories';
-import type { FirestoreBudgetRule, StatsMonthly, FirestoreBudgetPlan, BudgetLineType } from '@/src/shared/firestore/types';
+import { walletColor } from '@/src/viewmodels/wallets';
+import type {
+  FirestoreBudgetRule,
+  StatsMonthly,
+  FirestoreBudgetPlan,
+  FirestoreTransaction,
+  BudgetLineType,
+} from '@/src/shared/firestore/types';
+
+// Same set src/logic/transactionHistory/useLogic.ts's own card list uses —
+// this panel now renders with that same card, so the icon needs to match.
+const TYPE_ICONS: Record<string, LucideIcon> = {
+  Expense: ArrowUpRight,
+  Income: ArrowDownLeft,
+  Savings: PiggyBank,
+};
 
 export const BUDGET_LINE_TYPES: BudgetLineType[] = ['Expense', 'Income', 'Savings', 'Transfer'];
+
+// PRD-BUDGET-TRANSACTIONS.md section 3.2 — the Budget screen's own preview
+// is deliberately small (a busy household can log 40+ transactions in a
+// month); "View all" opens the full month-scoped list instead. The "View
+// all" link itself only renders when more than this many exist (see
+// BudgetScreen.tsx) — no point linking to "everything" when the preview
+// already shows everything.
+const MONTH_TRANSACTIONS_PREVIEW_SIZE = 4;
 
 export function formatAmount(value: number) {
   return new Intl.NumberFormat('en-US').format(value);
@@ -114,6 +138,16 @@ export function useLogic() {
   const { ctx, loading: ctxLoading } = useCurrencyContext();
 
   const accountCurrency = useMemo(() => new Map(accounts.map((a) => [a.id, a.currency])), [accounts]);
+  const accountName = useMemo(() => new Map(accounts.map((a) => [a.id, a.name])), [accounts]);
+  // Same color-per-account convention Home's wallet chart and
+  // TransactionHistoryScreen use (src/viewmodels/wallets.ts's walletColor,
+  // keyed by an account's own fixed position in the accounts list) — this
+  // panel's cards use the exact same card as that screen, so need the same
+  // colors.
+  const accountColor = useMemo(
+    () => new Map(accounts.map((account, index) => [account.id, walletColor(index)])),
+    [accounts]
+  );
   const categoryName = useMemo(() => new Map(allCategories.map((c) => [c.id, c.name])), [allCategories]);
   const categoryTransactionType = useMemo(
     () => new Map(allCategories.map((c) => [c.id, c.transactionType])),
@@ -149,7 +183,11 @@ export function useLogic() {
           recurrenceMonths: bucket.recurrenceMonths,
         };
       })
-      .filter((entry): entry is NonNullable<typeof entry> => entry !== null);
+      .filter((entry): entry is NonNullable<typeof entry> => entry !== null)
+      // Highest-spent-first — which categories are actually active this
+      // month matters more than an arbitrary insertion order once the list
+      // is capped (PRD-BUDGET-TRANSACTIONS.md section 8, decision 2).
+      .sort((a, b) => b.spent - a.spent);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rules, monthStr, accountCurrency, categoryName, categoryTransactionType, ctx, statsMonthly]);
 
@@ -343,21 +381,70 @@ export function useLogic() {
   }
 
   const editingCategory = categories.find((entry) => entry.id === editingId) ?? null;
-  // Where the "record a past transaction" button sends them — Add
-  // Transaction, pre-dated into whichever month this screen is showing
-  // (src/logic/addTransaction/useLogic.ts reads these same two params).
+  // Where the "Record Transaction" button (PRD-BUDGET-TRANSACTIONS.md
+  // section 3.2) sends them — Add Transaction, pre-dated into whichever
+  // month this screen is showing (src/logic/addTransaction/useLogic.ts
+  // reads these same two params). Always visible now (it replaced the old
+  // bottom-of-page button that only showed on a non-current month — see
+  // section 8, decision 1), so there's no separate visibility flag anymore.
   const retroTransactionHref = `/add-transaction?month=${monthIndex}&year=${year}`;
-  // Only makes sense off the real current month — e.g. viewing August 2025
-  // while it's actually September 2026. On the current month, Add
-  // Transaction's own "+" quick action already covers it; showing this too
-  // would just be a second button doing the same thing.
-  const showRetroTransactionButton = monthIndex !== currentMonthIndex() || year !== currentYear();
+
+  // "This Month's Transactions" panel preview (PRD-BUDGET-TRANSACTIONS.md
+  // section 3.2) — reuses the existing (month ASC, date DESC) index, no new
+  // index needed (section 2.3).
+  const monthTransactionsQuery = useMemo(
+    () =>
+      uid
+        ? query(
+            transactionsRef(uid),
+            where('month', '==', monthStr),
+            orderBy('date', 'desc'),
+            limit(MONTH_TRANSACTIONS_PREVIEW_SIZE)
+          )
+        : null,
+    [uid, monthStr]
+  );
+  const { data: monthTransactionDocs, loading: monthTransactionsLoading } =
+    useFirestoreCollection<FirestoreTransaction>(monthTransactionsQuery);
+
+  // Same card shape src/logic/transactionHistory/useLogic.ts's own list
+  // uses — this panel renders with that exact same card component styling.
+  const monthTransactions = useMemo(
+    () =>
+      monthTransactionDocs.map((transaction) => {
+        const nativeCurrency = accountCurrency.get(transaction.accountId) ?? ctx.base;
+        return {
+          id: transaction.id,
+          title: categoryName.get(transaction.categoryId ?? '') ?? transaction.categoryId ?? '—',
+          description: transaction.description,
+          account: accountName.get(transaction.accountId) ?? transaction.accountId,
+          amount: round2(toDisplay(ctx, transaction.amount, nativeCurrency)),
+          currency: ctx.display,
+          date: transaction.date.toDate().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
+          icon: TYPE_ICONS[transaction.type] ?? ArrowUpRight,
+          iconColor: accountColor.get(transaction.accountId) ?? walletColor(0),
+          editHref: `/edit-transaction/${transaction.id}`,
+        };
+      }),
+    [monthTransactionDocs, accountCurrency, accountName, accountColor, categoryName, ctx]
+  );
+  // The preview only ever fetches MONTH_TRANSACTIONS_PREVIEW_SIZE — the real
+  // total for "View all N transactions this month" comes from the same
+  // statsMonthly doc the Budget screen's own totals already read.
+  const monthTransactionCount = statsMonthly?.transactionCount ?? 0;
+  // Month-scoped (not category-scoped) transaction list — the same
+  // TransactionHistoryScreen the category drill-down uses, filtered by
+  // month instead (PRD-BUDGET-TRANSACTIONS.md section 3.3).
+  const viewAllMonthTransactionsHref = `/transactions?month=${monthIndex}&year=${year}`;
 
   return {
     monthIndex,
     year,
     retroTransactionHref,
-    showRetroTransactionButton,
+    monthTransactions,
+    monthTransactionsLoading,
+    monthTransactionCount,
+    viewAllMonthTransactionsHref,
     // Where "Add category" sends them — its own page now, not a modal (see
     // src/logic/addBudgetCategory/useLogic.ts), so there's room there for
     // "can't find your category? create one" without stacking a modal on a

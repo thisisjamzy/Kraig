@@ -11,6 +11,8 @@
   "dependencies": {
     "@dreda/shared-recurrence": "*",
     "@ducanh2912/next-pwa": "^10.2.9",
+    "@heroui/react": "^3.2.4",
+    "@heroui/styles": "^3.2.4",
     "bcryptjs": "^3.0.3",
     "firebase": "^12.18.0",
     "firebase-admin": "^14.3.0",

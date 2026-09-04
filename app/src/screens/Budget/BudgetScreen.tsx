@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronDown, ChevronLeft, ChevronRight, Pencil, Trash2, Plus, Settings, History } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, Pencil, Trash2, Plus, Settings } from 'lucide-react';
 import Link from 'next/link';
 import { Modal } from '@/src/widgets/Modal/Modal';
 import { ActionMenu } from '@/src/widgets/ActionMenu/ActionMenu';
@@ -11,6 +11,10 @@ import { useLogic, formatAmount, BUDGET_LINE_TYPES } from '@/src/logic/budget/us
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import styles from './BudgetScreen.module.css';
+// The month transactions panel uses this exact same card component style as
+// the all-transactions list, so it reuses that module's classes directly
+// rather than duplicating them.
+import cardStyles from '@/src/screens/TransactionHistory/TransactionHistoryScreen.module.css';
 
 export function BudgetScreen() {
   const strings = useStrings();
@@ -20,7 +24,10 @@ export function BudgetScreen() {
     monthIndex,
     year,
     retroTransactionHref,
-    showRetroTransactionButton,
+    monthTransactions,
+    monthTransactionsLoading,
+    monthTransactionCount,
+    viewAllMonthTransactionsHref,
     monthPickerOpen,
     setMonthPickerOpen,
     pickerYear,
@@ -80,7 +87,16 @@ export function BudgetScreen() {
     setEditingId,
   } = useLogic();
 
+  // "Show more" on the heading list (PRD-BUDGET-TRANSACTIONS.md section
+  // 3.1) — purely a rendering slice, useLogic()'s own `categories` array is
+  // untouched.
+  const [showAllCategories, setShowAllCategories] = useState(false);
+  const HEADINGS_PREVIEW_SIZE = 6;
+  const visibleCategories = showAllCategories ? categories : categories.slice(0, HEADINGS_PREVIEW_SIZE);
+  const hiddenCategoryCount = Math.max(categories.length - HEADINGS_PREVIEW_SIZE, 0);
+
   const monthNames = strings.months;
+  const monthLabel = `${monthNames[monthIndex]} ${year}`;
 
   // 0% (nothing logged yet) is neutral — there's no judgment to make yet.
   // 100%+ (target met or exceeded) is positive. Anything logged but still
@@ -197,17 +213,17 @@ export function BudgetScreen() {
       <ScreenState loading={loading} error={error} />
 
       <div className={styles.categoryList}>
-        {categories.map((entry) => (
+        {visibleCategories.map((entry) => (
           <div
             key={entry.id}
             role="button"
             tabIndex={0}
             className={styles.categoryRow}
-            onClick={() => router.push(`/transactions?categoryId=${entry.categoryId}`)}
+            onClick={() => router.push(`/budget/category/${encodeURIComponent(entry.categoryId)}?month=${monthIndex}&year=${year}`)}
             onKeyDown={(event) => {
               if (event.key === 'Enter' || event.key === ' ') {
                 event.preventDefault();
-                router.push(`/transactions?categoryId=${entry.categoryId}`);
+                router.push(`/budget/category/${encodeURIComponent(entry.categoryId)}?month=${monthIndex}&year=${year}`);
               }
             }}
           >
@@ -245,6 +261,12 @@ export function BudgetScreen() {
         ))}
       </div>
 
+      {hiddenCategoryCount > 0 && (
+        <button type="button" className={styles.showMoreButton} onClick={() => setShowAllCategories((v) => !v)}>
+          {showAllCategories ? strings.budget.showLess : `${strings.budget.showMorePrefix} (${hiddenCategoryCount})`}
+        </button>
+      )}
+
       {confirmDeleteId && (
         <ConfirmDialog
           title={strings.budget.deleteConfirmTitle}
@@ -263,14 +285,56 @@ export function BudgetScreen() {
         />
       )}
 
-      {showRetroTransactionButton && (
-        <Link href={retroTransactionHref} className={styles.retroButton}>
-          <History size={18} strokeWidth={2.25} />
-          <span>
-            <span className={styles.retroButtonLabel}>{strings.budget.addRetroTransaction}</span>
-            <span className={styles.retroButtonHint}>{strings.budget.addRetroTransactionHint}</span>
-          </span>
+      <div className={styles.sectionTitleRow}>
+        <h2 className={styles.sectionTitle}>{strings.budget.monthTransactionsTitle}</h2>
+        <Link href={retroTransactionHref} className={styles.recordTransactionButton}>
+          <Plus size={16} strokeWidth={2.25} />
+          {strings.budget.recordTransaction}
         </Link>
+      </div>
+
+      {monthTransactionsLoading ? (
+        <p className={styles.emptyText}>Loading…</p>
+      ) : monthTransactions.length === 0 ? (
+        <p className={styles.emptyText}>
+          {strings.budget.noMonthTransactionsPrefix} {monthLabel} {strings.budget.noMonthTransactionsSuffix}
+        </p>
+      ) : (
+        <>
+          <div className={cardStyles.list}>
+            {monthTransactions.map((transaction) => {
+              const Icon = transaction.icon;
+              return (
+                <div key={transaction.id} className={cardStyles.card}>
+                  <span className={cardStyles.icon} style={{ background: transaction.iconColor }}>
+                    <Icon size={18} strokeWidth={2} color="#ffffff" />
+                  </span>
+                  <div className={cardStyles.info}>
+                    <p className={cardStyles.transactionTitle}>{transaction.title}</p>
+                    <p className={cardStyles.description}>{transaction.description}</p>
+                    <p className={cardStyles.account}>{transaction.account}</p>
+                    <div className={cardStyles.amountRow}>
+                      <span className={cardStyles.amount}>
+                        {formatAmount(transaction.amount)} {transaction.currency}
+                      </span>
+                      <span className={cardStyles.date}>{transaction.date}</span>
+                    </div>
+                  </div>
+                  <Link href={transaction.editHref} className={cardStyles.editButton} aria-label="Edit transaction">
+                    <Pencil size={14} strokeWidth={1.75} />
+                  </Link>
+                </div>
+              );
+            })}
+          </div>
+
+          {monthTransactionCount > monthTransactions.length && (
+            <Link href={viewAllMonthTransactionsHref} className={styles.viewAllLink}>
+              {strings.budget.viewAllMonthTransactionsPrefix} {monthTransactionCount}{' '}
+              {strings.budget.viewAllMonthTransactionsSuffix}
+            </Link>
+          )}
+        </>
       )}
 
       <p className={styles.footerNote}>{strings.budget.footerNote}</p>

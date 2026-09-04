@@ -299,29 +299,46 @@
   cursor: pointer;
 }
 
-.retroButton {
+.showMoreButton {
+  align-self: center;
+  padding: var(--space-sm) var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: none;
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+/* "Transactions this month" panel */
+
+.recordTransactionButton {
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
-  padding: var(--space-md);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  background: var(--color-surface);
-  color: var(--color-text-primary);
-  text-decoration: none;
-}
-
-.retroButtonLabel {
-  display: block;
-  font-size: var(--font-size-sm);
-  font-weight: 700;
-}
-
-.retroButtonHint {
-  display: block;
-  margin-top: 2px;
+  justify-content: center;
+  flex-shrink: 0;
+  gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-md);
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--ink-bg);
+  color: var(--color-brand);
+  font-family: inherit;
   font-size: 0.75rem;
-  color: var(--color-text-secondary);
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.viewAllLink {
+  align-self: center;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--color-brand);
+  text-decoration: none;
 }
 
 .footerNote {

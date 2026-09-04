@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "@heroui/styles";
 
 :root {
   --font-family-body: 'Inter', system-ui, sans-serif;

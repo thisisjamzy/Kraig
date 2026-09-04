@@ -6,13 +6,13 @@ import { query, where } from 'firebase/firestore';
 import { ruleAppliesToMonth } from '@dreda/shared-recurrence';
 import { getFirebaseAuth } from '@/src/shared/config/firebaseClient';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
-import { useFirestoreCollection } from '@/src/shared/firestore/hooks';
-import { budgetRulesRef } from '@/src/shared/firestore/refs';
+import { useFirestoreCollection, useFirestoreDoc } from '@/src/shared/firestore/hooks';
+import { budgetRulesRef, categoryRef } from '@/src/shared/firestore/refs';
 import { toRecurrenceRule } from '@/src/shared/firestore/recurrence';
 import { useAccounts, useCategories, useCurrencyContext } from '@/src/shared/firestore/queries';
 import { createTransactionWithAggregation, createTransferWithAggregation } from '@/src/shared/firestore/aggregation';
 import { TRANSFER_CATEGORIES } from '@/src/viewmodels/categories';
-import type { FirestoreBudgetRule } from '@/src/shared/firestore/types';
+import type { FirestoreBudgetRule, FirestoreCategory } from '@/src/shared/firestore/types';
 
 export type TransactionType = 'expense' | 'income' | 'transfer' | 'savings';
 export type Step = 'type' | 'category' | 'details' | 'review';
@@ -27,6 +27,15 @@ const CATEGORY_TYPE: Partial<Record<TransactionType, 'Expense' | 'Income' | 'Sav
   expense: 'Expense',
   income: 'Income',
   savings: 'Savings',
+};
+
+// The inverse of CATEGORY_TYPE — a deep-linked category's own
+// transactionType (PRD-BUDGET-TRANSACTIONS.md section 3.4) tells this
+// screen which TransactionType tab it belongs under.
+const TRANSACTION_TYPE_FOR_CATEGORY: Record<'Expense' | 'Income' | 'Savings', TransactionType> = {
+  Expense: 'expense',
+  Income: 'income',
+  Savings: 'savings',
 };
 
 export const KEYPAD_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'clear'] as const;
@@ -72,10 +81,22 @@ function retroTargetFromSearch(): { year: number; month: number } | null {
   return { year, month };
 }
 
+// PRD-BUDGET-TRANSACTIONS.md section 3.4 — a category row on the Budget
+// screen (or its month transaction panel) deep-links here with
+// ?categoryId=... so this flow can open straight on the 'details' step
+// with that category (and its type) already selected.
+function categoryIdFromSearch(): string {
+  if (typeof window === 'undefined') return '';
+  return new URLSearchParams(window.location.search).get('categoryId') ?? '';
+}
+
 export function useLogic() {
   const router = useRouter();
+  const { user } = useFirebaseUser();
+  const uid = user?.uid;
   const [retroTarget] = useState(retroTargetFromSearch);
-  const [step, setStep] = useState<Step>('type');
+  const [prefillCategoryId] = useState(categoryIdFromSearch);
+  const [step, setStep] = useState<Step>(() => (prefillCategoryId ? 'details' : 'type'));
   const [type, setType] = useState<TransactionType>('expense');
   const [category, setCategory] = useState(''); // categoryId, or a TRANSFER_CATEGORIES value for transfers
   const [showUnplanned, setShowUnplanned] = useState(false);
@@ -100,6 +121,24 @@ export function useLogic() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
+  // Fetch the deep-linked category itself (not the budgeted-only list below —
+  // it may not even have a budget line this month, section 3.4's own edge
+  // case) so its real transactionType/name can drive the prefill.
+  const prefillCategoryRef = useMemo(
+    () => (uid && prefillCategoryId ? categoryRef(uid, prefillCategoryId) : null),
+    [uid, prefillCategoryId]
+  );
+  const { data: prefillCategory, loading: prefillCategoryLoading } =
+    useFirestoreDoc<FirestoreCategory>(prefillCategoryRef);
+  const [prefillApplied, setPrefillApplied] = useState(false);
+
+  useEffect(() => {
+    if (!prefillCategoryId || prefillApplied || !prefillCategory) return;
+    setType(TRANSACTION_TYPE_FOR_CATEGORY[prefillCategory.transactionType]);
+    setCategory(prefillCategoryId);
+    setPrefillApplied(true);
+  }, [prefillCategoryId, prefillApplied, prefillCategory]);
+
   const { data: allAccounts, loading: accountsLoading, error: accountsError } = useAccounts();
   // Frozen wallets can't be a source or destination for anything until
   // unfrozen (see aggregation.ts's frozen checks, the enforcement point this
@@ -117,8 +156,6 @@ export function useLogic() {
   // same thing in both places. Recomputed off dateValue, not "today", so
   // changing the date (including via the Budget screen's retrospective
   // link above) re-filters against the right month.
-  const { user } = useFirebaseUser();
-  const uid = user?.uid;
   const activeBudgetRulesQuery = useMemo(
     () => (uid ? query(budgetRulesRef(uid), where('archived', '==', false)) : null),
     [uid]
@@ -368,7 +405,11 @@ export function useLogic() {
     goBack,
     goNext,
     handleConfirm,
-    loading: accountsLoading || categoriesLoading || budgetRulesLoading,
+    loading:
+      accountsLoading ||
+      categoriesLoading ||
+      budgetRulesLoading ||
+      (Boolean(prefillCategoryId) && (prefillCategoryLoading || !prefillApplied)),
     error: accountsError || categoriesError,
     submitting,
     submitError,
