@@ -105,6 +105,10 @@ export function AddTransactionScreen() {
         {stepPrefix} <span className={styles.subheadingHighlight}>{stepHighlight}</span>
       </p>
 
+      <ScreenState loading={loading} error={error} />
+
+      {!loading && !error && (
+        <>
       {step === 'type' && (
         <div className={styles.typeGrid}>
           {transactionTypes.map(({ key, label, description: typeDescription, icon: Icon }) => {
@@ -129,9 +133,7 @@ export function AddTransactionScreen() {
 
       {step === 'category' && (
         <div className={styles.categorySection}>
-          <ScreenState loading={loading} error={error} />
-
-          {!loading && !error && !hasBudgetedCategories && (
+          {!hasBudgetedCategories && (
             <div className={styles.noBudgetCard}>
               <p className={styles.noBudgetTitle}>{strings.addTransaction.noBudgetTitle}</p>
               <p className={styles.helperText}>{strings.addTransaction.noBudgetBody}</p>
@@ -174,7 +176,7 @@ export function AddTransactionScreen() {
             </div>
           )}
 
-          {!loading && !error && (hasBudgetedCategories || showUnplanned) && (
+          {(hasBudgetedCategories || showUnplanned) && (
             <button
               type="button"
               className={styles.unplannedLink}
@@ -363,6 +365,8 @@ export function AddTransactionScreen() {
           {strings.addTransaction.addingAnPrefix}{' '}
           <strong>{strings.addTransaction.types[type].label}</strong>
         </p>
+      )}
+        </>
       )}
 
       {datePickerOpen && (
