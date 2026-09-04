@@ -16,6 +16,7 @@ import { useEffect, useRef, useState } from 'react';
 import { MoreVertical } from 'lucide-react';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { updateTaskDone, updateTaskPriority, rescheduleTask, toDateOnly } from '@/src/shared/firestore/taskWrites';
+import { DateField } from '@/src/widgets/DateField/DateField';
 import { PRIORITY_LEVELS } from '@/src/viewmodels/projects';
 import type { Priority } from '@/src/shared/firestore/types';
 import styles from './TaskQuickActionsMenu.module.css';
@@ -75,10 +76,13 @@ export function TaskQuickActionsMenu({
     await updateTaskPriority(uid, taskId, next);
   }
 
-  async function handleReschedule() {
-    if (!uid || saving || !rescheduleValue) return;
+  // DateField confirms as soon as a day is picked (no separate save step
+  // the way the old native date input needed).
+  async function handleReschedule(newDate: string) {
+    if (!uid || saving || !newDate) return;
+    setRescheduleValue(newDate);
     setSaving(true);
-    await rescheduleTask(uid, taskId, rescheduleValue);
+    await rescheduleTask(uid, taskId, newDate);
     setSaving(false);
     setOpen(false);
   }
@@ -101,22 +105,15 @@ export function TaskQuickActionsMenu({
       {open && (
         <div className={styles.popover} onClick={(event) => event.stopPropagation()}>
           <p className={styles.groupLabel}>Status</p>
-          <div className={styles.chipGroup}>
-            <button
-              type="button"
-              className={`${styles.chip} ${!done ? styles.chipActive : ''}`}
-              onClick={() => handleDoneChange(false)}
-            >
-              Not done
-            </button>
-            <button
-              type="button"
-              className={`${styles.chip} ${done ? styles.chipActive : ''}`}
-              onClick={() => handleDoneChange(true)}
-            >
-              Done
-            </button>
-          </div>
+          <label className={styles.checkboxRow}>
+            <input
+              type="checkbox"
+              className={styles.checkbox}
+              checked={done}
+              onChange={(event) => handleDoneChange(event.target.checked)}
+            />
+            Mark as complete
+          </label>
 
           <p className={styles.groupLabel}>Priority</p>
           <div className={styles.chipGroup}>
@@ -133,15 +130,8 @@ export function TaskQuickActionsMenu({
           </div>
 
           <p className={styles.groupLabel}>Reschedule</p>
-          <input
-            type="date"
-            className={styles.dateInput}
-            value={rescheduleValue}
-            onChange={(event) => setRescheduleValue(event.target.value)}
-          />
-          <button type="button" className={styles.saveButton} disabled={saving || !rescheduleValue} onClick={handleReschedule}>
-            {saving ? 'Saving…' : 'Save date'}
-          </button>
+          <DateField id={`task-reschedule-${taskId}`} label="New date" value={rescheduleValue} onChange={handleReschedule} />
+          {saving && <p className={styles.savingHint}>Saving…</p>}
         </div>
       )}
     </div>

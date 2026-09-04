@@ -71,33 +71,26 @@
   color: #ffffff;
 }
 
-.dateInput {
-  width: 100%;
-  min-width: 0;
-  padding: 6px var(--space-sm);
-  border: none;
-  border-radius: var(--radius-sm);
-  background: var(--color-surface);
+.checkboxRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: 0.75rem;
+  font-weight: 600;
   color: var(--color-text-primary);
-  font-family: inherit;
-  font-size: 0.75rem;
-  outline: none;
-}
-
-.saveButton {
-  padding: 6px var(--space-sm);
-  border: none;
-  border-radius: var(--radius-sm);
-  background: var(--ink-bg);
-  color: var(--color-brand);
-  font-family: inherit;
-  font-size: 0.75rem;
-  font-weight: 700;
   cursor: pointer;
 }
 
-.saveButton:disabled {
-  background: #6b7380;
-  color: rgba(255, 255, 255, 0.85);
-  cursor: not-allowed;
+.checkbox {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  accent-color: var(--color-brand);
+  cursor: pointer;
+}
+
+.savingHint {
+  margin: 0;
+  font-size: 0.7rem;
+  color: var(--color-text-secondary);
 }
