@@ -5,6 +5,8 @@ import { EmojiPicker } from '@/src/widgets/EmojiPicker/EmojiPicker';
 import { useLogic } from '@/src/logic/taskEdit/useLogic';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { ConfirmDialog } from '@/src/widgets/ConfirmDialog/ConfirmDialog';
+import { TimeField } from '@/src/widgets/TimeField/TimeField';
+import { DateField } from '@/src/widgets/DateField/DateField';
 import { TASK_TYPES, TASK_TYPE_LABEL, PRIORITY_LEVELS } from '@/src/viewmodels/projects';
 import styles from './TaskEditScreen.module.css';
 
@@ -128,73 +130,25 @@ export function TaskEditScreen({ taskId }: { taskId: string | null }) {
           </div>
 
           {isEditing && (
-            <div className={styles.formField}>
-              <span className={styles.formLabel}>Status</span>
-              <div className={styles.chipGroup}>
-                <button
-                  type="button"
-                  className={`${styles.chip} ${!done ? styles.chipActive : ''}`}
-                  onClick={() => setDone(false)}
-                >
-                  Not done
-                </button>
-                <button
-                  type="button"
-                  className={`${styles.chip} ${done ? styles.chipActive : ''}`}
-                  onClick={() => setDone(true)}
-                >
-                  Done
-                </button>
-              </div>
-            </div>
+            <label className={styles.checkboxRow} htmlFor="task-done">
+              <input
+                id="task-done"
+                type="checkbox"
+                className={styles.checkbox}
+                checked={done}
+                onChange={(event) => setDone(event.target.checked)}
+              />
+              Mark as complete
+            </label>
           )}
 
-          <div className={styles.formField}>
-            <label className={styles.formLabel} htmlFor="task-date">
-              Date
-            </label>
-            <input
-              id="task-date"
-              type="date"
-              className={styles.formInput}
-              value={date}
-              onChange={(event) => setDate(event.target.value)}
-              required
-            />
-          </div>
+          <DateField id="task-date" label="Date" value={date} onChange={setDate} />
 
           {/* Tasks are day-bound — one date above, a start and an end time
               of day here, never a second datetime-local that could drift
               onto a different day. */}
-          <div className={styles.timeRow}>
-            <div className={styles.formField}>
-              <label className={styles.formLabel} htmlFor="task-start-time">
-                Start time
-              </label>
-              <input
-                id="task-start-time"
-                type="time"
-                className={styles.formInput}
-                value={startTimeOfDay}
-                onChange={(event) => setStartTimeOfDay(event.target.value)}
-                required
-              />
-            </div>
-
-            <div className={styles.formField}>
-              <label className={styles.formLabel} htmlFor="task-end-time">
-                End time
-              </label>
-              <input
-                id="task-end-time"
-                type="time"
-                className={styles.formInput}
-                value={endTimeOfDay}
-                onChange={(event) => setEndTimeOfDay(event.target.value)}
-                required
-              />
-            </div>
-          </div>
+          <TimeField id="task-start-time" label="Start time" value={startTimeOfDay} onChange={setStartTimeOfDay} />
+          <TimeField id="task-end-time" label="End time" value={endTimeOfDay} onChange={setEndTimeOfDay} />
 
           <div className={styles.formField}>
             <label className={styles.formLabel} htmlFor="task-notes">
@@ -220,7 +174,7 @@ export function TaskEditScreen({ taskId }: { taskId: string | null }) {
           <button
             type="button"
             className={styles.saveButton}
-            disabled={!title.trim() || !notes.trim() || !date || !startTimeOfDay || !endTimeOfDay || saving}
+            disabled={!title.trim() || !date || !startTimeOfDay || !endTimeOfDay || saving}
             onClick={handleSave}
           >
             {saving ? 'Saving…' : 'Save'}

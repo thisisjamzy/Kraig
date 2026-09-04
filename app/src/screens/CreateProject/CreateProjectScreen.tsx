@@ -3,6 +3,7 @@
 import { ChevronLeft } from 'lucide-react';
 import { useLogic } from '@/src/logic/createProject/useLogic';
 import { EmojiPicker } from '@/src/widgets/EmojiPicker/EmojiPicker';
+import { DateRangeField } from '@/src/widgets/DateRangeField/DateRangeField';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { PROJECT_COLORS, PRIORITY_LEVELS } from '@/src/viewmodels/projects';
@@ -118,31 +119,16 @@ export function CreateProjectScreen() {
             </div>
           </div>
 
-          <div className={styles.formField}>
-            <label className={styles.formLabel} htmlFor="project-start-date">
-              Start date
-            </label>
-            <input
-              id="project-start-date"
-              type="date"
-              className={styles.formInput}
-              value={startDate}
-              onChange={(event) => setStartDate(event.target.value)}
-            />
-          </div>
-
-          <div className={styles.formField}>
-            <label className={styles.formLabel} htmlFor="project-end-date">
-              {strings.createProject.plannedEndDateLabel}
-            </label>
-            <input
-              id="project-end-date"
-              type="date"
-              className={styles.formInput}
-              value={endDate}
-              onChange={(event) => setEndDate(event.target.value)}
-            />
-          </div>
+          <DateRangeField
+            id="project-timeline"
+            label="Timeline"
+            startValue={startDate}
+            endValue={endDate}
+            onChange={(start, end) => {
+              setStartDate(start);
+              setEndDate(end);
+            }}
+          />
 
           <div className={styles.formField}>
             <label className={styles.formLabel} htmlFor="project-description">

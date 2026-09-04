@@ -80,16 +80,6 @@
   min-width: 0;
 }
 
-.timeRow {
-  display: flex;
-  gap: var(--space-sm);
-}
-
-.timeRow > .formField {
-  flex: 1;
-  min-width: 0;
-}
-
 .chipGroup {
   display: flex;
   flex-wrap: wrap;
@@ -112,6 +102,27 @@
   border-color: var(--ink-bg);
   background: var(--ink-bg);
   color: #ffffff;
+}
+
+.checkboxRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.checkbox {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  accent-color: var(--color-brand);
+  cursor: pointer;
 }
 
 .deleteLink {

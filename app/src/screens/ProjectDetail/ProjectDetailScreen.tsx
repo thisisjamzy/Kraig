@@ -232,11 +232,10 @@ export function ProjectDetailScreen({ projectId }: { projectId: string }) {
                     )}
                   </div>
                   <input
-                    type="radio"
-                    className={styles.doneRadio}
+                    type="checkbox"
+                    className={styles.doneCheckbox}
                     checked={task.done}
-                    onChange={() => {}}
-                    onClick={() => toggleTaskDone(task.id, !task.done)}
+                    onChange={(event) => toggleTaskDone(task.id, event.target.checked)}
                     aria-label={task.done ? 'Mark as not done' : 'Mark as done'}
                   />
                   <TaskQuickActionsMenu

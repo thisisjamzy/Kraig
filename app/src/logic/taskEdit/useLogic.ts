@@ -83,7 +83,7 @@ export function useLogic(taskId: string | null) {
   }, [isEditing, existingTask, seeded]);
 
   async function handleSave() {
-    if (!uid || saving || !title.trim() || !notes.trim() || !date || !startTimeOfDay || !endTimeOfDay) return;
+    if (!uid || saving || !title.trim() || !date || !startTimeOfDay || !endTimeOfDay) return;
     setSaveError(null);
     const start = combineDateAndTime(date, startTimeOfDay);
     const due = combineDateAndTime(date, endTimeOfDay);
