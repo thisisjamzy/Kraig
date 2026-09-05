@@ -35,7 +35,6 @@ export function ProjectsScreen() {
   } = useLogic();
 
   const swipeRef = useSwipeModeSwitch('projects');
-  const archiveCount = archivedAreas.length + archivedProjects.length;
 
   return (
     <div className={styles.page} ref={swipeRef}>
@@ -73,28 +72,28 @@ export function ProjectsScreen() {
           className={`${styles.periodTab} ${tab === 'areas' ? styles.periodTabActive : ''}`}
           onClick={() => setTab('areas')}
         >
-          {strings.projects.tabAreas} ({areas.length})
+          {strings.projects.tabAreas}
         </button>
         <button
           type="button"
           className={`${styles.periodTab} ${tab === 'buckets' ? styles.periodTabActive : ''}`}
           onClick={() => setTab('buckets')}
         >
-          {strings.projects.tabBuckets} ({buckets.length})
+          {strings.projects.tabBuckets}
         </button>
         <button
           type="button"
           className={`${styles.periodTab} ${tab === 'projects' ? styles.periodTabActive : ''}`}
           onClick={() => setTab('projects')}
         >
-          {strings.projects.tabProjects} ({projects.length})
+          {strings.projects.tabProjects}
         </button>
         <button
           type="button"
           className={`${styles.periodTab} ${tab === 'archive' ? styles.periodTabActive : ''}`}
           onClick={() => setTab('archive')}
         >
-          {strings.projects.tabArchive} ({archiveCount})
+          {strings.projects.tabArchive}
         </button>
       </div>
 
