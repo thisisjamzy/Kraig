@@ -38,6 +38,7 @@ import type {
   FirestoreBucket,
   FirestoreProject,
   FirestoreTask,
+  FirestoreReconciliation,
 } from './types';
 import type { FirestoreAuditReport } from './auditReport';
 
@@ -56,6 +57,16 @@ export function accountsRef(uid: string): CollectionReference<FirestoreAccount> 
 // stored field, so a setDoc/updateDoc call shouldn't need to supply one.
 export function accountRef(uid: string, id: string): DocumentReference<Omit<FirestoreAccount, 'id'>> {
   return subDoc(uid, 'accounts', id) as DocumentReference<Omit<FirestoreAccount, 'id'>>;
+}
+
+// PRD-AUDIT-RECONCILIATION.md section 2.2 — the one household-wide
+// "Unjustified" wallet, a fixed, predictable doc id (rather than a
+// generated one) so every call site can reference it directly without a
+// query. A real accounts/{id} document (see FirestoreAccount.isSystemWallet)
+// so it can move money through the ordinary transfer mechanism unchanged.
+export const UNJUSTIFIED_WALLET_ID = 'unjustified';
+export function unjustifiedWalletRef(uid: string): DocumentReference<Omit<FirestoreAccount, 'id'>> {
+  return accountRef(uid, UNJUSTIFIED_WALLET_ID);
 }
 
 export function categoriesRef(uid: string): CollectionReference<FirestoreCategory> {
@@ -194,6 +205,16 @@ export function auditReportsRef(uid: string): CollectionReference<FirestoreAudit
 }
 export function auditReportRef(uid: string, id: string): DocumentReference<Omit<FirestoreAuditReport, 'id'>> {
   return subDoc(uid, 'auditReports', id) as DocumentReference<Omit<FirestoreAuditReport, 'id'>>;
+}
+
+// PRD-AUDIT-RECONCILIATION.md section 2.2 — history of "what do your
+// accounts actually hold right now" checks, see src/shared/firestore/
+// unaccountedBalance.ts.
+export function reconciliationsRef(uid: string): CollectionReference<FirestoreReconciliation> {
+  return sub(uid, 'reconciliations') as CollectionReference<FirestoreReconciliation>;
+}
+export function reconciliationRef(uid: string, id: string): DocumentReference<Omit<FirestoreReconciliation, 'id'>> {
+  return subDoc(uid, 'reconciliations', id) as DocumentReference<Omit<FirestoreReconciliation, 'id'>>;
 }
 
 export function userRef(uid: string): DocumentReference<FirestoreUserDoc> {

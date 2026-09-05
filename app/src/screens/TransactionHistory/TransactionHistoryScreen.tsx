@@ -145,7 +145,13 @@ export function TransactionHistoryScreen() {
                 <Icon size={18} strokeWidth={2} color="#ffffff" />
               </span>
               <div className={styles.info}>
-                <p className={styles.transactionTitle}>{transaction.title}</p>
+                <p className={styles.transactionTitle}>
+                  {transaction.title}
+                  {transaction.origin === 'backfill' && <span className={styles.originTag}>{strings.transactionHistory.backfilledTag}</span>}
+                  {transaction.origin === 'reconciliation' && (
+                    <span className={styles.originTag}>{strings.transactionHistory.reconciliationTag}</span>
+                  )}
+                </p>
                 <p className={styles.description}>{transaction.description}</p>
                 <p className={styles.account}>{transaction.account}</p>
                 <div className={styles.amountRow}>

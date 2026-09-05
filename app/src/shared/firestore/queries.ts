@@ -33,7 +33,15 @@ export function useAccounts() {
   const uid = user?.uid;
   const q = useMemo(() => (uid ? query(accountsRef(uid), where('archived', '==', false)) : null), [uid]);
   const state = useFirestoreCollection<FirestoreAccount>(q);
-  return { ...state, loading: authLoading || state.loading };
+  // The Unjustified wallet (PRD-AUDIT-RECONCILIATION.md section 2.2) is a
+  // real accounts/{id} document so it can move money through the ordinary
+  // transfer mechanism, but it's never a real, spendable wallet — filtered
+  // out here, once, so every screen built on this hook (Wallets, Home,
+  // every account picker) never needs its own check. The Reconciliation
+  // screens that DO need its balance read it directly via
+  // unjustifiedWalletRef, bypassing this hook entirely.
+  const data = useMemo(() => state.data.filter((account) => !account.isSystemWallet), [state.data]);
+  return { ...state, data, loading: authLoading || state.loading };
 }
 
 export function useCategories(transactionType?: 'Expense' | 'Income' | 'Savings') {

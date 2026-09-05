@@ -254,6 +254,27 @@
   font-weight: 600;
 }
 
+.explainToggleRow {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-lg);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  cursor: pointer;
+}
+
+.explainToggleRow input {
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.explainToggleText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
 .transferRow {
   display: flex;
   align-items: center;

@@ -255,6 +255,16 @@ service cloud.firestore {
         allow update: if false;
         allow delete: if activeUser() && request.auth.uid == uid;
       }
+
+      // PRD-AUDIT-RECONCILIATION.md section 2.2/4 — one document per "what
+      // do your accounts actually hold right now" check. History, kept
+      // indefinitely; no update needed since nothing ever edits a past
+      // check, only performs a new one.
+      match /reconciliations/{reconciliationId} {
+        allow read, create: if activeUser() && request.auth.uid == uid;
+        allow update: if false;
+        allow delete: if activeUser() && request.auth.uid == uid;
+      }
     }
   }
 }

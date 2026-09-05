@@ -1,14 +1,20 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { Plus, SlidersHorizontal, History, ArrowUpRight, Check, ChevronDown, Search } from 'lucide-react';
+import { Plus, SlidersHorizontal, History, ArrowUpRight, Check, ChevronDown, Search, Wallet, PiggyBank, CreditCard } from 'lucide-react';
 import { useLogic, formatAmount, formatCompact, type SpendingPeriod } from '@/src/logic/home/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
-import { Modal } from '@/src/widgets/Modal/Modal';
+import { Logo } from '@/src/widgets/Logo/Logo';
 import { useSwipeModeSwitch } from '@/src/shared/hooks/useSwipeModeSwitch';
 import { iconTint } from '@/src/viewmodels/iconTint';
 import styles from './HomeScreen.module.css';
+
+// A zeroed-out unaccounted balance is displayed as six asterisks rather than
+// "0" — a deliberate "nothing to see here" placeholder distinct from the
+// actual figure, per the home card design (Design/screen 6.jpg).
+const UNJUSTIFIED_PLACEHOLDER = '******';
 
 // Colorless placeholder shapes shown while a chart has no real data yet (or
 // is still loading) — reserves the same vertical space the real chart would
@@ -48,8 +54,9 @@ export function HomeScreen() {
     href: string;
   }[] = [
     { label: strings.home.quickActionAddNew, icon: Plus, href: '/add-transaction' },
-    { label: strings.home.quickActionSeeBudget, icon: SlidersHorizontal, href: '/budget' },
     { label: strings.home.quickActionHistory, icon: History, href: '/transactions' },
+    { label: strings.home.quickActionSeeBudget, icon: SlidersHorizontal, href: '/budget' },
+    { label: strings.home.quickActionDebts, icon: CreditCard, href: '/debts' },
   ];
 
   const periods: { key: SpendingPeriod; label: string }[] = [
@@ -60,30 +67,130 @@ export function HomeScreen() {
 
   const swipeRef = useSwipeModeSwitch('money');
 
+  // The currency picker is an anchored popover next to its trigger button,
+  // not a full-screen Modal — closes on an outside click/tap or Escape,
+  // same convention as ActionMenu (src/widgets/ActionMenu).
+  const currencyMenuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!currencyPickerOpen) return;
+    function handlePointerDown(event: MouseEvent | TouchEvent) {
+      if (currencyMenuRef.current && !currencyMenuRef.current.contains(event.target as Node)) {
+        setCurrencyPickerOpen(false);
+      }
+    }
+    function handleKeydown(event: KeyboardEvent) {
+      if (event.key === 'Escape') setCurrencyPickerOpen(false);
+    }
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('touchstart', handlePointerDown);
+    document.addEventListener('keydown', handleKeydown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('touchstart', handlePointerDown);
+      document.removeEventListener('keydown', handleKeydown);
+    };
+  }, [currencyPickerOpen, setCurrencyPickerOpen]);
+
   return (
     <div className={styles.page} ref={swipeRef}>
       <ScreenState loading={loading} error={error} />
 
       <section className={styles.balanceCard}>
-        <div className={styles.balanceTopRow}>
-          <span className={styles.balanceLabel}>{strings.home.balanceLabel}</span>
-          <button
-            type="button"
-            className={styles.currencyChip}
-            onClick={() => setCurrencyPickerOpen(true)}
-          >
-            {balance.currency}
-            <ChevronDown size={12} strokeWidth={2.5} />
-          </button>
+        <div className={styles.balanceCardTop}>
+          <div>
+            <p className={styles.balanceAmount}>{formatAmount(balance.total)}</p>
+            <span className={styles.balanceLabel}>{strings.home.balanceLabel}</span>
+          </div>
+          <div className={styles.currencyMenuWrap} ref={currencyMenuRef}>
+            <button
+              type="button"
+              className={styles.currencyChip}
+              onClick={() => setCurrencyPickerOpen((current) => !current)}
+              aria-expanded={currencyPickerOpen}
+            >
+              {balance.currency}
+              <ChevronDown size={12} strokeWidth={2.5} />
+            </button>
+
+            {currencyPickerOpen && (
+              <div className={styles.currencyPopover} onClick={(event) => event.stopPropagation()}>
+                <div className={styles.searchRow}>
+                  <Search size={16} strokeWidth={2} className={styles.searchIcon} />
+                  <input
+                    className={styles.searchInput}
+                    placeholder={strings.home.searchCurrenciesPlaceholder}
+                    value={currencySearch}
+                    onChange={(event) => setCurrencySearch(event.target.value)}
+                    autoFocus
+                  />
+                </div>
+                {currencyError && (
+                  <p className={styles.currencyErrorText} role="alert">
+                    {currencyError}
+                  </p>
+                )}
+                <div className={styles.currencyList}>
+                  {currencyOptions.map((entry) => (
+                    <button
+                      key={entry.code}
+                      type="button"
+                      className={styles.currencyRow}
+                      disabled={currencySaving}
+                      onClick={() => switchCurrency(entry.code)}
+                    >
+                      <span className={styles.currencyLabelGroup}>
+                        <span className={styles.currencyCode}>{entry.code}</span>
+                        <span className={styles.currencyName}>{entry.name}</span>
+                      </span>
+                      {balance.currency === entry.code && <Check size={16} strokeWidth={2.25} />}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
-        <p className={styles.balanceAmount}>{formatAmount(balance.total)}</p>
-        <div className={styles.spendableRow}>
-          <span className={styles.balanceLabel}>{strings.home.spendableLabel}</span>
-          <span className={styles.spendableChip}>
+
+        <div className={styles.progressTrack}>
+          <div className={styles.progressFill} style={{ width: `${balance.monthProgress}%` }} />
+        </div>
+
+        <Link href="/settings/reconciliation" className={styles.unjustifiedBlock}>
+          <span className={styles.unjustifiedLabel}>{strings.home.unjustifiedLabel}</span>
+          <div className={styles.balanceCardFooter}>
+            <span className={styles.unjustifiedValue}>
+              {balance.unjustified === 0
+                ? UNJUSTIFIED_PLACEHOLDER
+                : `${balance.unjustified > 0 ? '+' : ''}${formatAmount(balance.unjustified)} ${balance.currency}`}
+            </span>
+            <Logo variant="dark" height={16} className={styles.balanceLogo} />
+          </div>
+        </Link>
+      </section>
+
+      <div className={styles.summaryRow}>
+        <div className={styles.summaryCard}>
+          <span className={styles.summaryIcon}>
+            <PiggyBank size={16} strokeWidth={2} />
+          </span>
+          <span className={styles.summaryLabel}>{strings.home.savingsLabel}</span>
+          <span className={styles.summaryValue}>
+            {formatAmount(balance.savings)} {balance.currency}
+          </span>
+        </div>
+        <div className={styles.summaryCard}>
+          <span className={styles.summaryIcon}>
+            <Wallet size={16} strokeWidth={2} />
+          </span>
+          <span className={styles.summaryLabel}>{strings.home.spendableLabel}</span>
+          <span className={styles.summaryValue}>
             {formatAmount(balance.spendable)} {balance.currency}
           </span>
         </div>
+      </div>
 
+      <section className={styles.section}>
+        <h2 className={styles.sectionTitle}>{strings.home.quickActionsTitle}</h2>
         <div className={styles.quickActions}>
           {quickActions.map(({ label, icon: Icon, href }, index) => (
             <Link key={label} href={href} className={styles.quickAction}>
@@ -95,42 +202,6 @@ export function HomeScreen() {
           ))}
         </div>
       </section>
-
-      {currencyPickerOpen && (
-        <Modal title={strings.home.chooseCurrency} onClose={() => setCurrencyPickerOpen(false)}>
-          <div className={styles.searchRow}>
-            <Search size={16} strokeWidth={2} className={styles.searchIcon} />
-            <input
-              className={styles.searchInput}
-              placeholder={strings.home.searchCurrenciesPlaceholder}
-              value={currencySearch}
-              onChange={(event) => setCurrencySearch(event.target.value)}
-            />
-          </div>
-          {currencyError && (
-            <p className={styles.currencyErrorText} role="alert">
-              {currencyError}
-            </p>
-          )}
-          <div className={styles.currencyList}>
-            {currencyOptions.map((entry) => (
-              <button
-                key={entry.code}
-                type="button"
-                className={styles.currencyRow}
-                disabled={currencySaving}
-                onClick={() => switchCurrency(entry.code)}
-              >
-                <span className={styles.currencyLabelGroup}>
-                  <span className={styles.currencyCode}>{entry.code}</span>
-                  <span className={styles.currencyName}>{entry.name}</span>
-                </span>
-                {balance.currency === entry.code && <Check size={16} strokeWidth={2.25} />}
-              </button>
-            ))}
-          </div>
-        </Modal>
-      )}
 
       <section className={styles.section}>
         <div className={styles.sectionHeader}>

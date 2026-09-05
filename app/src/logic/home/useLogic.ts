@@ -10,6 +10,7 @@ import {
   plannedPaymentsRef,
   statsMonthlyRef,
   settingsRef,
+  unjustifiedWalletRef,
 } from '@/src/shared/firestore/refs';
 import { useAccounts, useCategories, useCurrencyContext, useExchangeRates } from '@/src/shared/firestore/queries';
 import { toDisplay, round2 } from '@/src/shared/firestore/currency';
@@ -20,6 +21,7 @@ import { walletColor, arrangeCentered } from '@/src/viewmodels/wallets';
 import { currencyName } from '@/src/viewmodels/currencies';
 import { dueLabel, formatDueDate } from '@/src/logic/paymentsCalendar/useLogic';
 import type {
+  FirestoreAccount,
   FirestoreBudgetRule,
   FirestorePlannedPayment,
   FirestoreTransaction,
@@ -177,7 +179,35 @@ export function useLogic() {
         0
       )
   );
-  const balance = { currency: ctx.display, total: totalBalance, spendable: spendableBalance };
+  // PRD-AUDIT-RECONCILIATION.md section 2.2 — the Unjustified wallet's own
+  // balance IS the household-wide unaccounted gap, read directly here
+  // (bypassing useAccounts(), which deliberately filters this wallet out
+  // everywhere else) so the Home card can surface it as its own figure
+  // rather than folding it into total/spendable, where it would misstate
+  // both.
+  const unjustifiedRef = useMemo(() => (uid ? unjustifiedWalletRef(uid) : null), [uid]);
+  const { data: unjustifiedWallet } = useFirestoreDoc<FirestoreAccount>(unjustifiedRef);
+  const unjustifiedBalance = round2(toDisplay(ctx, unjustifiedWallet?.currentBalance ?? 0, unjustifiedWallet?.currency ?? ctx.base));
+
+  // Money set aside as savings via lockedAmount (src/logic/walletDetail/
+  // useLogic.ts), summed across every wallet.
+  const savingsTotal = round2(
+    accounts.reduce((sum, account) => sum + toDisplay(ctx, account.lockedAmount ?? 0, account.currency), 0)
+  );
+
+  // How far into the current calendar month "now" falls, as a 0-100 percent
+  // for the balance card's progress bar.
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const monthProgress = round2((now.getDate() / daysInMonth) * 100);
+
+  const balance = {
+    currency: ctx.display,
+    total: totalBalance,
+    spendable: spendableBalance,
+    unjustified: unjustifiedBalance,
+    savings: savingsTotal,
+    monthProgress,
+  };
 
   // Color stays tied to each account's own fixed position in `accounts`
   // (the same convention Wallets and Transaction History use), assigned

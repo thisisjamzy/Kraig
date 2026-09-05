@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, PieChart, SlidersHorizontal, Target, CreditCard, Plus } from 'lucide-react';
+import { Home, PieChart, SlidersHorizontal, Target, Plus } from 'lucide-react';
 import { navMode } from '@/src/shared/config/chromeVisibility';
 import styles from './BottomNav.module.css';
 
@@ -11,7 +11,6 @@ const NAV_ITEMS = [
   { href: '/statistics', label: 'Statistics', icon: PieChart },
   { href: '/budget', label: 'Budget', icon: SlidersHorizontal },
   { href: '/goals', label: 'Goals', icon: Target },
-  { href: '/debts', label: 'Debt', icon: CreditCard },
 ];
 
 // Money mode's own bottom nav — ProjectsBottomNav is Projects mode's

@@ -50,6 +50,10 @@ export function useLogic() {
         name: name.trim(),
         emoji,
         areaId: areaId || null,
+        // This screen has no bucket picker yet — every project it creates
+        // is unbucketed (see FirestoreProject.bucketId's own comment in
+        // types.ts).
+        bucketId:null,
         color,
         priority,
         startDate: startDate ? Timestamp.fromDate(new Date(`${startDate}T00:00:00`)) : null,

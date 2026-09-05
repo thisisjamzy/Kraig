@@ -7,12 +7,13 @@ import { ruleAppliesToMonth } from '@dreda/shared-recurrence';
 import { getFirebaseAuth } from '@/src/shared/config/firebaseClient';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { useFirestoreCollection, useFirestoreDoc } from '@/src/shared/firestore/hooks';
-import { budgetRulesRef, categoryRef } from '@/src/shared/firestore/refs';
+import { budgetRulesRef, categoryRef, unjustifiedWalletRef } from '@/src/shared/firestore/refs';
 import { toRecurrenceRule } from '@/src/shared/firestore/recurrence';
 import { useAccounts, useCategories, useCurrencyContext } from '@/src/shared/firestore/queries';
-import { createTransactionWithAggregation, createTransferWithAggregation } from '@/src/shared/firestore/aggregation';
+import { createTransferWithAggregation } from '@/src/shared/firestore/aggregation';
+import { recordHistoricEntry } from '@/src/shared/firestore/unaccountedBalance';
 import { TRANSFER_CATEGORIES } from '@/src/viewmodels/categories';
-import type { FirestoreBudgetRule, FirestoreCategory } from '@/src/shared/firestore/types';
+import type { FirestoreBudgetRule, FirestoreCategory, FirestoreAccount } from '@/src/shared/firestore/types';
 
 export type TransactionType = 'expense' | 'income' | 'transfer' | 'savings';
 export type Step = 'type' | 'category' | 'details' | 'review';
@@ -120,6 +121,16 @@ export function useLogic() {
   const [accountPickerFor, setAccountPickerFor] = useState<'from' | 'to' | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  // PRD-AUDIT-RECONCILIATION.md section 2.5 — "this explains part of my
+  // unaccounted balance", shown only for a historic-dated (non-today),
+  // non-transfer entry while the Unjustified wallet actually has a
+  // nonzero balance to explain. Reset whenever the date or type changes
+  // away from where the toggle would even apply, so a leftover checked
+  // state can't silently apply to an unrelated entry.
+  const [explainsUnjustifiedBalance, setExplainsUnjustifiedBalance] = useState(false);
+  const unjustifiedWalletDocRef = useMemo(() => (uid ? unjustifiedWalletRef(uid) : null), [uid]);
+  const { data: unjustifiedWallet } = useFirestoreDoc<FirestoreAccount>(unjustifiedWalletDocRef);
+  const unjustifiedBalance = unjustifiedWallet?.currentBalance ?? 0;
 
   // Fetch the deep-linked category itself (not the budgeted-only list below —
   // it may not even have a budget line this month, section 3.4's own edge
@@ -209,6 +220,7 @@ export function useLogic() {
     setCategory('');
     setShowUnplanned(false);
     setChargesString('');
+    setExplainsUnjustifiedBalance(false);
   }
 
   function openDatePicker() {
@@ -236,6 +248,7 @@ export function useLogic() {
     const iso = `${pickerYear}-${pad2(pickerMonth + 1)}-${pad2(day)}`;
     setDateValue(iso);
     setDatePickerOpen(false);
+    if (iso === todayIso()) setExplainsUnjustifiedBalance(false);
     // Don't silently keep an out-of-budget selection across a date change —
     // clear it and send the user back to re-pick, same as if they'd never
     // chosen one. Unplanned mode is exempt: it opted out of the budget
@@ -300,6 +313,21 @@ export function useLogic() {
     }
   }
 
+  // Section 2.5's visibility condition — shown only for a historic-dated,
+  // non-transfer entry while there's actually something to explain, AND
+  // only for whichever direction would actually shrink the gap rather than
+  // widen it: a positive gap (section 2.1) means an unrecorded EXPENSE
+  // happened somewhere, so only an outflow-shaped entry (expense or
+  // savings) can explain it; a negative gap means an unrecorded INCOME,
+  // so only an income entry applies. Offering the toggle on the wrong
+  // direction would let a well-meaning check make the gap worse instead
+  // of closing it.
+  const canExplainUnjustifiedBalance =
+    !isTransfer &&
+    dateValue !== todayIso() &&
+    unjustifiedBalance !== 0 &&
+    (unjustifiedBalance > 0 ? type === 'expense' || type === 'savings' : type === 'income');
+
   async function handleConfirm() {
     if (submitting) return;
     setSubmitting(true);
@@ -332,9 +360,8 @@ export function useLogic() {
         });
       } else {
         const direction = type === 'income' ? 'Inflow' : 'Outflow';
-        await createTransactionWithAggregation(
+        await recordHistoricEntry(
           {
-            id: clientId,
             date,
             type: CATEGORY_TYPE[type]!,
             description,
@@ -344,6 +371,7 @@ export function useLogic() {
             direction,
             createdBy: uid,
           },
+          canExplainUnjustifiedBalance && explainsUnjustifiedBalance,
           ctx
         );
       }
@@ -395,6 +423,10 @@ export function useLogic() {
     fromAccountId,
     toAccountId,
     daysInMonth,
+    canExplainUnjustifiedBalance,
+    explainsUnjustifiedBalance,
+    setExplainsUnjustifiedBalance,
+    unjustifiedBalance,
     canContinue,
     selectType,
     openDatePicker,

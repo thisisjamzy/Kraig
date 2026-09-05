@@ -454,7 +454,13 @@ export async function generateAuditReport(uid: string, selection: AuditReportSel
     settings?.displayCurrency || settings?.defaultCurrency || 'XAF'
   );
 
-  const accounts = accountsSnap.docs.map((d) => ({ ...d.data(), id: d.id }) as FirestoreAccount).filter((a) => !a.archived);
+  // Excludes the Unjustified wallet (PRD-AUDIT-RECONCILIATION.md section
+  // 2.2/5) the same way useAccounts() does for every other screen — a
+  // discrepancy folded into "what you own" would misstate the very thing
+  // this report exists to surface honestly.
+  const accounts = accountsSnap.docs
+    .map((d) => ({ ...d.data(), id: d.id }) as FirestoreAccount)
+    .filter((a) => !a.archived && !a.isSystemWallet);
   const debts = debtsSnap.docs.map((d) => ({ ...d.data(), id: d.id }) as FirestoreDebt).filter((d) => !d.archivedAt);
   const categories = categoriesSnap.docs.map((d) => ({ ...d.data(), id: d.id }) as FirestoreCategory);
   const categoryById = new Map(categories.map((c) => [c.id, c]));

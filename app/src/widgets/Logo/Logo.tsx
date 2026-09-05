@@ -19,13 +19,23 @@ export function Logo({
   className,
   height,
   alt = 'Dreda',
+  variant = 'auto',
 }: {
   className?: string;
   height?: number;
   alt?: string;
+  // 'auto' (default) follows the ThemeProvider's data-theme ancestor, same
+  // as always. 'dark' forces the white-text lockup regardless of theme —
+  // for a surface that's hardcoded dark/colored (e.g. a gradient card) no
+  // matter which app theme is active.
+  variant?: 'auto' | 'dark';
 }) {
   const style = height ? { height, width: 'auto' as const } : undefined;
   const combinedClassName = (variant: string) => (className ? `${variant} ${className}` : variant);
+
+  if (variant === 'dark') {
+    return <img src="/logo_alt.png" alt={alt} style={style} className={className} />;
+  }
 
   return (
     <>
