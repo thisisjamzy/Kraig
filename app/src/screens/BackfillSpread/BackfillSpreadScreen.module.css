@@ -96,6 +96,16 @@
   gap: var(--space-sm);
 }
 
+.frequencyTabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}
+
+.frequencyTabs .typeTab {
+  flex: 0 1 auto;
+}
+
 .explainToggleRow {
   display: flex;
   align-items: flex-start;
