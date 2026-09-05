@@ -11,6 +11,9 @@ export function EditTransactionScreen({ transactionId }: { transactionId: string
   const {
     description,
     setDescription,
+    type,
+    setType,
+    types,
     categoryId,
     setCategoryId,
     categories,
@@ -29,6 +32,13 @@ export function EditTransactionScreen({ transactionId }: { transactionId: string
     loading,
     error,
     notFound,
+
+    deleteConfirmOpen,
+    openDeleteConfirm,
+    cancelDelete,
+    confirmDelete,
+    deleting,
+    deleteError,
   } = useLogic(transactionId);
 
   return (
@@ -56,6 +66,24 @@ export function EditTransactionScreen({ transactionId }: { transactionId: string
               value={description}
               onChange={(event) => setDescription(event.target.value)}
             />
+          </div>
+
+          <div className={styles.formField}>
+            <label className={styles.formLabel} htmlFor="edit-transaction-type">
+              {strings.editTransaction.typeLabel}
+            </label>
+            <select
+              id="edit-transaction-type"
+              className={styles.formInput}
+              value={type}
+              onChange={(event) => setType(event.target.value as typeof type)}
+            >
+              {types.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className={styles.formField}>
@@ -128,6 +156,34 @@ export function EditTransactionScreen({ transactionId }: { transactionId: string
           <button type="button" className={styles.saveButton} disabled={!canSave} onClick={handleSave}>
             {submitting ? strings.editTransaction.saving : strings.common.save}
           </button>
+        </div>
+      )}
+
+      {!loading && !error && !notFound && (
+        <div className={styles.dangerCard}>
+          <p className={styles.dangerTitle}>{strings.editTransaction.dangerZoneTitle}</p>
+
+          {deleteConfirmOpen ? (
+            <>
+              <p className={styles.deleteConfirmPrompt}>{strings.editTransaction.deleteConfirmPrompt}</p>
+              {deleteError && <p className={styles.errorText}>{deleteError}</p>}
+              <div className={styles.deleteActions}>
+                <button type="button" className={styles.cancelButton} onClick={cancelDelete} disabled={deleting}>
+                  {strings.editTransaction.deleteCancel}
+                </button>
+                <button type="button" className={styles.deleteButton} onClick={confirmDelete} disabled={deleting}>
+                  {deleting ? strings.editTransaction.deleting : strings.editTransaction.deleteConfirm}
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className={styles.sectionCaption}>{strings.editTransaction.deleteHint}</p>
+              <button type="button" className={styles.deleteButton} onClick={openDeleteConfirm}>
+                {strings.editTransaction.deleteButton}
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>

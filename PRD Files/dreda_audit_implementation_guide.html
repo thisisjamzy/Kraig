@@ -1,0 +1,224 @@
+<style>
+body { margin: 0; padding: 0; }
+.container { max-height: 800px; overflow-y: auto; padding: 20px; background: var(--surface-2); }
+.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 0.5px solid var(--border); }
+.header h1 { margin: 0; font-size: 22px; font-weight: 500; color: var(--text-primary); }
+.copy-btn { padding: 8px 16px; background: transparent; border: 0.5px solid var(--border-strong); border-radius: var(--radius); font-size: 14px; cursor: pointer; color: var(--text-primary); font-weight: 500; }
+.copy-btn:hover { background: var(--surface-1); }
+.section { margin: 24px 0; }
+.section h2 { font-size: 18px; font-weight: 500; margin: 16px 0 12px 0; color: var(--text-primary); }
+.section h3 { font-size: 16px; font-weight: 500; margin: 12px 0 8px 0; color: var(--text-primary); }
+.code-block { background: var(--surface-1); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 12px; margin: 8px 0; font-family: var(--font-mono); font-size: 13px; color: var(--text-primary); overflow-x: auto; line-height: 1.5; }
+.table-wrapper { overflow-x: auto; margin: 12px 0; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+table th, table td { padding: 8px; text-align: left; border: 0.5px solid var(--border); color: var(--text-primary); }
+table th { background: var(--surface-1); font-weight: 500; }
+.alert { padding: 12px; margin: 8px 0; border-left: 4px solid var(--border-accent); background: var(--bg-accent); border-radius: var(--radius); }
+.alert-text { color: var(--text-accent); font-size: 14px; }
+p { margin: 8px 0; line-height: 1.6; color: var(--text-primary); }
+ul, ol { margin: 8px 0; padding-left: 20px; }
+li { margin: 4px 0; color: var(--text-primary); }
+.copied { background: var(--fill-success); color: var(--on-success); }
+</style>
+
+<div class="container">
+<div class="header">
+<h1>Dreda Audit Report Implementation</h1>
+<button class="copy-btn" id="copyBtn">Copy all</button>
+</div>
+
+<div id="content">
+
+<div class="section">
+<h2>Core Formulas (Copy-Paste Ready)</h2>
+
+<h3>Financial Position</h3>
+<div class="code-block">NET_WORTH = sum(wallet.balance) - sum(debt.currentBalance)
+
+LIQUID_ASSETS = sum(wallet.balance for all wallets)
+
+MONTHS_OF_EXPENSES = LIQUID_ASSETS / avg(monthly_expense for last 3 months)
+
+SAVINGS_RATE = ((total_income - total_expense) / total_income) * 100
+
+EXPENSE_RATIO = (total_expense / total_income) * 100</div>
+
+<h3>Budget Performance</h3>
+<div class="code-block">BUDGET_VARIANCE = ((actual_spend - budgeted_amount) / budgeted_amount) * 100
+
+CONSISTENCY_SCORE = count(months where variance in [-10%, +10%]) / total_months * 100</div>
+
+<h3>Spending Volatility</h3>
+<div class="code-block">MEAN = sum(monthly_spend) / 12
+
+STD_DEV = sqrt(sum((monthly_spend - MEAN)^2) / 12)
+
+COEFFICIENT_OF_VARIATION = (STD_DEV / MEAN) * 100</div>
+
+<h3>Debt Metrics</h3>
+<div class="code-block">DEBT_TO_INCOME_RATIO = (total_debt / (monthly_income * 12)) * 100
+
+DEBT_PAYMENT_RATIO = (total_monthly_debt_payments / monthly_income) * 100
+
+MONTHS_TO_PAYOFF = debt.currentBalance / avg(monthly_repayment for last 3 months)</div>
+</div>
+
+<div class="section">
+<h2>Thresholds & Color Coding</h2>
+
+<h3>Savings Rate Status</h3>
+<div class="code-block">< 0%:           RED    "Spending more than earning"
+0 - 10%:        RED    "Barely saving"
+10 - 15%:       YELLOW "Modest savings"
+15 - 20%:       YELLOW "Acceptable but not enough"
+20 - 30%:       GREEN  "Good savings rate"
+30%+:           GREEN  "Excellent savings"</div>
+
+<h3>Months of Expenses (Emergency Fund)</h3>
+<div class="code-block">0 - 0.5:        RED    "CRITICAL"
+0.5 - 1:        RED    "LOW"
+1 - 2:          YELLOW "FAIR"
+2 - 3:          YELLOW "GOOD"
+3 - 6:          GREEN  "EXCELLENT"
+6+:             GREEN  "VERY SAFE"</div>
+
+<h3>Coefficient of Variation</h3>
+<div class="code-block">< 10%:          GREEN   "Predictable"
+10-20%:         YELLOW  "Somewhat variable"
+20-40%:         RED     "Highly variable"
+> 40%:          RED     "Chaotic"</div>
+</div>
+
+<div class="section">
+<h2>Wasteful Spending Detection</h2>
+
+<h3>Dining/Entertainment Alert</h3>
+<div class="code-block">IF dining_percent > 5%:     YELLOW "Watch"
+IF dining_percent > 8%:     ORANGE "High"
+IF dining_percent > 12%:    RED    "Excessive"</div>
+
+<h3>Subscription Creep Detection</h3>
+<div class="code-block">IF subscriptions > 15K/month:      FLAG "Bloated"
+IF new_subscriptions > 0:          FLAG "Creep detected"
+IF unused (0 usage in 60 days):    RED "CANCEL"</div>
+
+<h3>Shopping/Impulse Buying Alert</h3>
+<div class="code-block">IF shopping_percent > 3%:   YELLOW "Watch"
+IF shopping_percent > 5%:   ORANGE "Elevated"
+IF shopping_percent > 7%:   RED    "Excessive"
+IF CV > 40% AND percent > 3%: RED  "Impulse pattern"</div>
+</div>
+
+<div class="section">
+<h2>Presentation Rules</h2>
+
+<h3>Stat Cards</h3>
+<div class="code-block">Font size: 48px value, 12px subtitle
+Color: Green (↑), Red (↓), Yellow (→)
+Include: Value | Trend arrow | % change | Comparison</div>
+
+<h3>Budget Variance Table</h3>
+<div class="code-block">Columns: Category | Budget | Actual | Var % | Status
+Color: Green (under), Yellow (0-10%), Red (>10%)
+Sort by: Variance % descending</div>
+
+<h3>Volatility Analysis Table</h3>
+<div class="code-block">Columns: Category | Avg | Std Dev | CV % | Volatility | Issue
+Sort by: CV % descending
+Color: Green CV<15%, Yellow 15-30%, Red >30%</div>
+</div>
+
+<div class="section">
+<h2>Red Flag Alerts (Rules Engine)</h2>
+
+<div class="alert">
+<div class="alert-text"><strong>Alert 1: Net Worth Negative & Expense Ratio High</strong>
+IF net_worth < 0 AND expense_ratio > 75%:
+FLAG: "Debt is growing because expenses too high"</div>
+</div>
+
+<div class="alert">
+<div class="alert-text"><strong>Alert 2: Emergency Fund Low & Discretionary High</strong>
+IF months < 2 AND discretionary > 8%:
+FLAG: "Underfunded for emergencies but high discretionary"</div>
+</div>
+
+<div class="alert">
+<div class="alert-text"><strong>Alert 3: Savings Rate Declining</strong>
+IF savings_this_month < last_month < 2_mo_ago:
+FLAG: "Savings declining, creeping expenses detected"</div>
+</div>
+
+<div class="alert">
+<div class="alert-text"><strong>Alert 4: Chronic Overage (2+ months)</strong>
+IF category_variance > +25% for 2+ consecutive_months:
+FLAG: "Pattern detected, needs intervention"</div>
+</div>
+
+<div class="alert">
+<div class="alert-text"><strong>Alert 5: Volatility Too High</strong>
+IF cv > 30% for discretionary_category:
+FLAG: "Budget black hole, enforce weekly caps"</div>
+</div>
+</div>
+
+<div class="section">
+<h2>Report Sections & Content</h2>
+
+<h3>1. Executive Summary</h3>
+<p>4 stat cards (Net Worth, Savings Rate, Months Safe, Total Debt) | 3 red flags | 12-month sparkline | Goals status | Debt payoff summary</p>
+
+<h3>2. Balance Sheet</h3>
+<p>Assets table | Liabilities table | Net worth calculation | Account composition pie | Debt payoff opportunity</p>
+
+<h3>3. Cash Flow Analysis</h3>
+<p>Period summary table | 12-month trend chart | Savings rate trend line | Income breakdown | Expense breakdown | Wasteful spending alert</p>
+
+<h3>4. Spending Habits</h3>
+<p>Category trends chart | Monthly breakdown table | Volatility analysis | Top merchants | Recurring vs. variable | Subscription creep | Deep-dive patterns</p>
+
+<h3>5. Budget Adherence</h3>
+<p>Budget vs. actual table | Compliance gauges | Consistency score | Chronic overage analysis</p>
+
+<h3>6. Financial Health Metrics</h3>
+<p>6 metric cards | Overall health assessment | Income loss contingency | Summary table ranked by urgency</p>
+
+<h3>7. Goals & Debt Summary</h3>
+<p>Goals progress table | Debt summary table | Payoff timeline opportunity</p>
+
+<h3>8. Appendix</h3>
+<p>Detailed transaction audit log | Totals by category</p>
+</div>
+
+<div class="section">
+<h2>Key Implementation Notes</h2>
+<ul>
+<li>All numbers rounded: Math.round() or .toFixed(n)</li>
+<li>Currency formatting: toLocaleString with thousand separators</li>
+<li>Percentage formatting: 1-2 decimals (33%, 23.6%)</li>
+<li>Trend arrows: ↑ (green), ↓ (red), → (neutral)</li>
+<li>Annual impact mandatory: every variance must show "Annual cost"</li>
+<li>Specific actions required: never vague advice</li>
+<li>Expected outcomes: each action includes measurable outcome</li>
+<li>Motivation through life outcomes: connect to debt payoff, goals, emergency fund</li>
+<li>Every section must have a clear ask</li>
+</ul>
+</div>
+
+</div>
+</div>
+
+<script>
+document.getElementById('copyBtn').addEventListener('click', function() {
+  const text = document.getElementById('content').innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = this;
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => {
+      btn.textContent = 'Copy all';
+      btn.classList.remove('copied');
+    }, 2000);
+  });
+});
+</script>

@@ -1,0 +1,166 @@
+ PWA Auth Service with Offline Sync Integration for Dreda
+
+## Problem Statement
+
+Dreda's iOS PWA users experience a splash screen loop on app reopen because:
+- iOS destroys session cookies when suspending PWA home screen saves
+- App checks for auth after rendering protected UI, causing a flash/redirect loop
+- Auth state is lost even though tokens may be recoverable via refresh
+
+**Goal**: Implement silent token refresh on startup, validate auth *before* rendering, and store auth state in the offline sync layer (not just localStorage) so it survives app restarts and is consistent with the household's other synced data.
+
+---
+
+## What to Build
+
+### 1. **Auth State in Offline Sync** (Source of Truth)
+
+- Create an `authState` document in the offline sync store under `users/{uid}/`:
+  ```
+  {
+    uid: string
+    idToken: string
+    refreshToken: string
+    expiresAt: timestamp (calculated from idToken payload)
+    lastValidatedAt: timestamp
+    isValid: boolean
+  }
+  ```
+- Store alongside transactions, accounts, goals, debts, etc., not in localStorage alone
+- Offline sync keeps this in sync across tabs and persists across app restarts
+- Fall back to localStorage only if offline sync is unavailable (migration path)
+
+### 2. **Token Refresh Endpoint** (Backend)
+
+- Create `pages/api/auth/refresh.ts`:
+  - Accept `refreshToken` in POST body
+  - Call Firebase REST API (`securetoken.googleapis.com`) to exchange for new `idToken`
+  - Return new tokens or `401` if refresh token invalid
+  - Never store tokens on the server; client-side only
+
+### 3. **Auth Startup Validation** (Client)
+
+- Create `lib/auth/useAuthStartup.ts` hook:
+  - Runs once on app mount (in root layout or a dedicated `<AuthProvider>`)
+  - Reads `authState` from offline sync (with localStorage fallback)
+  - If no tokens: skip validation, let router redirect to login
+  - If tokens exist:
+    - Decode `idToken` JWT, check `expiresAt`
+    - If expired: call `/api/auth/refresh` silently
+    - If refresh succeeds: update offline sync + localStorage, mark `isValid: true`
+    - If refresh fails: clear auth state, mark `isValid: false`, redirect to login
+  - Signal to app that auth is ready via context/state (prevent rendering until checked)
+
+### 4. **Route Protection (Middleware + Client Guards)**
+
+- Middleware (`middleware.ts`):
+  - Check if `authState.isValid === true` in cookies or request header
+  - Block access to `/money`, `/projects`, `/settings` if not valid
+  - Redirect to `/login` on invalid
+- Client guard (wrap in root layout):
+  - Don't render `BottomNav` or protected screens until `authReady === true`
+  - Show minimal loader or blank screen during validation (no splash)
+
+### 5. **Service Worker: Network Failure Handling**
+
+- Update service worker to:
+  - Intercept API calls; if `401` received, clear `authState` and post message to client
+  - Client listens for message and redirects to login (no hung requests)
+  - Handle offline: use cached responses, queue auth-dependent requests for retry after refresh
+
+### 6. **Offline Sync Integration**
+
+- Extend offline sync to:
+  - Include `authState` in the sync document set (treat as critical system data)
+  - On sync pull from server: merge new `authState` if tokens were refreshed server-side (future multi-device support)
+  - On sync push: include `authState` as metadata (not as a household-shared document, keep uid-scoped)
+  - Retry logic: if sync fails due to `401`, trigger token refresh before retry
+
+### 7. **Token Validation Helper**
+
+- Create `lib/auth/tokenUtils.ts`:
+  ```typescript
+  export function isTokenExpired(token: string, bufferMs = 60000): boolean
+  export function decodeTokenPayload(token: string): { exp: number; ... }
+  export function calculateExpiresAt(token: string): number
+  ```
+
+---
+
+## Implementation Checklist (Before Deploy)
+
+### Code Implementation
+- [ ] Create `pages/api/auth/refresh.ts` endpoint (Firebase REST integration)
+- [ ] Create `lib/auth/tokenUtils.ts` (decode, expiry check, validation)
+- [ ] Create `lib/auth/useAuthStartup.ts` hook (refresh flow, offline sync sync)
+- [ ] Create `lib/auth/AuthContext.tsx` (provides `authReady` state to app)
+- [ ] Wrap root layout with `<AuthProvider>` (signals when auth validation is done)
+- [ ] Update `middleware.ts` to check `authState.isValid` on protected routes
+- [ ] Add guard in `app/(app)/layout.tsx`: don't render BottomNav until `authReady === true`
+- [ ] Update service worker to intercept 401 and post message to client
+- [ ] Extend offline sync to include `authState` document under `users/{uid}/`
+- [ ] Add retry logic in offline sync: on 401 during sync, trigger refresh before retry
+
+### Testing (Before Deploy)
+- [ ] **Fresh login**: new user logs in, tokens stored in offline sync + localStorage
+- [ ] **App reopen (valid token)**: close and reopen app, no redirect, protected routes load
+- [ ] **App reopen (expired token)**: close app for >1 hour, reopen, token refreshed silently, no splash loop
+- [ ] **Refresh fails (invalid refresh token)**: close app, invalidate refresh token externally, reopen, app redirects to login cleanly (no infinite loop)
+- [ ] **Offline after login**: log in, turn off network, close/reopen app, auth state restored from offline sync, app loads (read-only mode if sync disabled)
+- [ ] **Network during startup**: start app with no network, wait for timeout, fallback to offline sync, no hang
+- [ ] **Multi-tab consistency**: log in on tab A, switch to tab B, B should see updated auth state from sync
+- [ ] **Service worker 401 handling**: make an API call that returns 401, verify SW posts message, app redirects to login
+- [ ] **iOS PWA specific**: save to home screen, close app fully, reopen, verify no splash screen or redirect loop
+- [ ] **Logout**: clear auth state from offline sync + localStorage, verify all protected routes redirect to login
+
+### Security Review
+- [ ] Refresh token endpoint requires HTTPS only
+- [ ] Refresh token is never logged or exposed in error messages
+- [ ] idToken is decoded client-side only (never sent to third-party endpoints)
+- [ ] authState in offline sync is marked as uid-scoped (not shared with household)
+- [ ] Service worker doesn't cache 401 responses
+- [ ] Middleware checks authState before rendering (no client-side-only checks for security)
+
+### Performance & UX
+- [ ] Startup validation completes in <500ms (hit cache, no network call needed if token valid)
+- [ ] Splash screen/loader shown only during first app launch or refresh; not on every reopen
+- [ ] No flash of login screen if already authenticated
+- [ ] Offline sync merges auth state without blocking other syncs
+
+### Integration
+- [ ] Offline sync module exports a `getAuthState()` function that app can read
+- [ ] AuthContext provides single source of truth for `authReady` and `user` state
+- [ ] App redirects use the same login href everywhere (no hardcoded paths)
+- [ ] Firebase auth config matches across API endpoint and client SDK
+
+---
+
+## Files to Create / Modify
+
+**Create:**
+- `pages/api/auth/refresh.ts`
+- `lib/auth/tokenUtils.ts`
+- `lib/auth/useAuthStartup.ts`
+- `lib/auth/AuthContext.tsx`
+- `components/AuthProvider.tsx`
+
+**Modify:**
+- `app/layout.tsx` (wrap with AuthProvider, import guard)
+- `app/(app)/layout.tsx` (add authReady guard before BottomNav)
+- `middleware.ts` (add authState.isValid check)
+- `public/sw.js` (add 401 handling, post message to client)
+- Offline sync module: extend to include authState in sync payload
+- `next.config.js` or env: ensure API route is reachable (no CORS issues)
+
+---
+
+## Key Decisions Already Made (Confirm)
+
+1. **Auth state in offline sync** (not cookies, which iOS destroys)
+2. **Silent refresh on startup** (no user action required)
+3. **Middleware protects routes** (not client-side guards alone)
+4. **Service worker handles 401** (network layer knows when auth is invalid)
+5. **Offline sync is source of truth** (consistent with ledger/transaction sync already built)
+
+ 
+

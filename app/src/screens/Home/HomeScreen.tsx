@@ -7,6 +7,7 @@ import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { Modal } from '@/src/widgets/Modal/Modal';
 import { useSwipeModeSwitch } from '@/src/shared/hooks/useSwipeModeSwitch';
+import { iconTint } from '@/src/viewmodels/iconTint';
 import styles from './HomeScreen.module.css';
 
 // Colorless placeholder shapes shown while a chart has no real data yet (or
@@ -84,9 +85,9 @@ export function HomeScreen() {
         </div>
 
         <div className={styles.quickActions}>
-          {quickActions.map(({ label, icon: Icon, href }) => (
+          {quickActions.map(({ label, icon: Icon, href }, index) => (
             <Link key={label} href={href} className={styles.quickAction}>
-              <span className={styles.quickActionIcon}>
+              <span className={styles.quickActionIcon} style={{ background: iconTint(index) }}>
                 <Icon size={18} strokeWidth={1.75} />
               </span>
               {label}

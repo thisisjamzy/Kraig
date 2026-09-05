@@ -69,7 +69,13 @@ export async function recomputeEverything(bulkWriter: FirebaseFirestore.BulkWrit
   }
   for (const doc of trSnap.docs) {
     const t = doc.data();
-    balanceDeltas.set(t.fromAccountId, (balanceDeltas.get(t.fromAccountId) ?? 0) - t.amount);
+    // fromAccountId pays the transfer amount AND its own charges (a wire
+    // fee, a mobile-money charge); toAccountId only ever receives `amount`
+    // — same split as aggregation.ts's createTransferWithAggregation, which
+    // this recompute has to match exactly or a charged transfer leaves
+    // that account's recomputed balance permanently `charges` too high.
+    const charges = t.charges ?? 0;
+    balanceDeltas.set(t.fromAccountId, (balanceDeltas.get(t.fromAccountId) ?? 0) - (t.amount + charges));
     balanceDeltas.set(t.toAccountId, (balanceDeltas.get(t.toAccountId) ?? 0) + t.amount);
   }
   for (const doc of accountsSnap.docs) {

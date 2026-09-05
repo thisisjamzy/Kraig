@@ -193,6 +193,10 @@ service cloud.firestore {
         allow read, create, update: if activeUser() && request.auth.uid == uid;
         allow delete: if false; // archive in place
       }
+      match /buckets/{bucketId} {
+        allow read, create, update: if activeUser() && request.auth.uid == uid;
+        allow delete: if false; // archive in place
+      }
       match /projects/{projectId} {
         allow read, create, update: if activeUser() && request.auth.uid == uid;
         allow delete: if false; // status moves to 'Archived' instead
@@ -239,6 +243,17 @@ service cloud.firestore {
       }
       match /statsBudgetProgress/{monthId} {
         allow read, write: if activeUser() && request.auth.uid == uid;
+      }
+
+      // Generated financial audit reports (src/shared/firestore/
+      // auditReport.ts) — each one an immutable snapshot the household
+      // explicitly generated, never patched afterward; "generate again"
+      // always creates a new doc, so update is never needed. Deletable (a
+      // household can discard an old report) but never overwritten.
+      match /auditReports/{reportId} {
+        allow read, create: if activeUser() && request.auth.uid == uid;
+        allow update: if false;
+        allow delete: if activeUser() && request.auth.uid == uid;
       }
     }
   }

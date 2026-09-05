@@ -17,12 +17,14 @@ import {
   FileDown,
   Download,
   Upload,
+  FileBarChart,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Modal } from '@/src/widgets/Modal/Modal';
 import { useLogic } from '@/src/logic/settings/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
+import { iconTint } from '@/src/viewmodels/iconTint';
 import styles from './SettingsScreen.module.css';
 
 export function SettingsScreen() {
@@ -91,7 +93,7 @@ export function SettingsScreen() {
         className={styles.actionRow}
         onClick={() => handleShare(strings.settings.shareText)}
       >
-        <span className={styles.actionRowIcon}>
+        <span className={styles.actionRowIcon} style={{ background: iconTint(0) }}>
           <Share2 size={18} strokeWidth={1.75} />
         </span>
         <span className={styles.actionRowText}>
@@ -104,7 +106,7 @@ export function SettingsScreen() {
       </button>
 
       <button type="button" className={styles.actionRow} onClick={() => setCurrencyOpen(true)}>
-        <span className={styles.actionRowIcon}>
+        <span className={styles.actionRowIcon} style={{ background: iconTint(1) }}>
           <Coins size={18} strokeWidth={1.75} />
         </span>
         <span className={styles.actionRowText}>
@@ -115,7 +117,7 @@ export function SettingsScreen() {
       </button>
 
       <button type="button" className={styles.actionRow} onClick={openPinModal} disabled={!pinEnabled}>
-        <span className={styles.actionRowIcon}>
+        <span className={styles.actionRowIcon} style={{ background: iconTint(2) }}>
           <KeyRound size={18} strokeWidth={1.75} />
         </span>
         <span className={styles.actionRowText}>
@@ -126,7 +128,7 @@ export function SettingsScreen() {
       </button>
 
       <label className={styles.actionRow}>
-        <span className={styles.actionRowIcon}>
+        <span className={styles.actionRowIcon} style={{ background: iconTint(3) }}>
           <ShieldCheck size={18} strokeWidth={1.75} />
         </span>
         <span className={styles.actionRowText}>
@@ -142,7 +144,7 @@ export function SettingsScreen() {
       </label>
 
       <Link href="/categories" className={styles.actionRow}>
-        <span className={styles.actionRowIcon}>
+        <span className={styles.actionRowIcon} style={{ background: iconTint(4) }}>
           <Tags size={18} strokeWidth={1.75} />
         </span>
         <span className={styles.actionRowText}>
@@ -158,7 +160,7 @@ export function SettingsScreen() {
         </div>
 
         <button type="button" className={styles.actionRow} onClick={downloadCsvTemplate}>
-          <span className={styles.actionRowIcon}>
+          <span className={styles.actionRowIcon} style={{ background: iconTint(5) }}>
             <FileDown size={18} strokeWidth={1.75} />
           </span>
           <span className={styles.actionRowText}>
@@ -168,7 +170,7 @@ export function SettingsScreen() {
         </button>
 
         <Link href="/settings/import" className={styles.actionRow}>
-          <span className={styles.actionRowIcon}>
+          <span className={styles.actionRowIcon} style={{ background: iconTint(6) }}>
             <Upload size={18} strokeWidth={1.75} />
           </span>
           <span className={styles.actionRowText}>
@@ -179,7 +181,7 @@ export function SettingsScreen() {
         </Link>
 
         <button type="button" className={styles.actionRow} onClick={exportTransactionsCsv}>
-          <span className={styles.actionRowIcon}>
+          <span className={styles.actionRowIcon} style={{ background: iconTint(7) }}>
             <Download size={18} strokeWidth={1.75} />
           </span>
           <span className={styles.actionRowText}>
@@ -191,7 +193,38 @@ export function SettingsScreen() {
 
       <section className={styles.section}>
         <div className={styles.sectionHeaderRow}>
-          <span className={styles.sectionIcon}>
+          <span className={styles.sectionIcon} style={{ background: iconTint(8) }}>
+            <ShieldCheck size={16} strokeWidth={1.75} />
+          </span>
+          <h2 className={styles.sectionTitle}>{strings.settings.auditSectionTitle}</h2>
+        </div>
+
+        <Link href="/settings/reconcile" className={styles.actionRow}>
+          <span className={styles.actionRowIcon} style={{ background: iconTint(9) }}>
+            <ShieldCheck size={18} strokeWidth={1.75} />
+          </span>
+          <span className={styles.actionRowText}>
+            <span className={styles.actionRowLabel}>{strings.settings.reconcileBalances}</span>
+            <span className={styles.actionRowMeta}>{strings.settings.reconcileBalancesMeta}</span>
+          </span>
+          <ChevronRight size={16} strokeWidth={2} className={styles.actionRowChevron} />
+        </Link>
+
+        <Link href="/settings/audit-reports" className={styles.actionRow}>
+          <span className={styles.actionRowIcon} style={{ background: iconTint(10) }}>
+            <FileBarChart size={18} strokeWidth={1.75} />
+          </span>
+          <span className={styles.actionRowText}>
+            <span className={styles.actionRowLabel}>{strings.auditReports.entryLabel}</span>
+            <span className={styles.actionRowMeta}>{strings.auditReports.entryMeta}</span>
+          </span>
+          <ChevronRight size={16} strokeWidth={2} className={styles.actionRowChevron} />
+        </Link>
+      </section>
+
+      <section className={styles.section}>
+        <div className={styles.sectionHeaderRow}>
+          <span className={styles.sectionIcon} style={{ background: iconTint(11) }}>
             <Bell size={16} strokeWidth={1.75} />
           </span>
           <h2 className={styles.sectionTitle}>{strings.settings.dailyReminders}</h2>

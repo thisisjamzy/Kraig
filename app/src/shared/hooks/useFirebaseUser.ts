@@ -1,11 +1,15 @@
 'use client';
 
 // Firebase has no built-in provider/hook pair the way next-auth's
-// SessionProvider/useSession did — this is the small equivalent, just for
-// the one thing a client component still needs the Firebase SDK's own
-// current-user object for (Settings' name/email, PRD-AUTH-FIREBASE.md
-// section 6). Route protection never uses this — that's cookie-based
-// (proxy.ts, getSessionUid), unrelated to the client SDK's own auth state.
+// SessionProvider/useSession did — this is the small equivalent. Two kinds
+// of callers rely on it now: Settings' name/email (PRD-AUTH-FIREBASE.md
+// section 6), and every Firestore query hook (src/shared/firestore/
+// queries.ts) that needs the real uid to build its query. Route protection
+// itself (proxy.ts) still only reads its own local cookies, never this —
+// but PinGuard and src/logic/pin/useLogic.ts do use this hook to confirm a
+// real Firebase session actually backs those cookies before trusting them,
+// see authSession.ts's clearAllLocalAuthFlags header for why that check
+// exists.
 
 import { useEffect, useState } from 'react';
 import { onAuthStateChanged, type User } from 'firebase/auth';

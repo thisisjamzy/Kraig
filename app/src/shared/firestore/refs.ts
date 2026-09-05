@@ -35,9 +35,11 @@ import type {
   StatsBudgetProgress,
   FirestoreUserDoc,
   FirestoreArea,
+  FirestoreBucket,
   FirestoreProject,
   FirestoreTask,
 } from './types';
+import type { FirestoreAuditReport } from './auditReport';
 
 function sub(uid: string, name: string) {
   return collection(getFirebaseFirestore(), 'users', uid, name);
@@ -136,6 +138,13 @@ export function areaRef(uid: string, id: string): DocumentReference<Omit<Firesto
   return subDoc(uid, 'areas', id) as DocumentReference<Omit<FirestoreArea, 'id'>>;
 }
 
+export function bucketsRef(uid: string): CollectionReference<FirestoreBucket> {
+  return sub(uid, 'buckets') as CollectionReference<FirestoreBucket>;
+}
+export function bucketRef(uid: string, id: string): DocumentReference<Omit<FirestoreBucket, 'id'>> {
+  return subDoc(uid, 'buckets', id) as DocumentReference<Omit<FirestoreBucket, 'id'>>;
+}
+
 export function projectsRef(uid: string): CollectionReference<FirestoreProject> {
   return sub(uid, 'projects') as CollectionReference<FirestoreProject>;
 }
@@ -176,6 +185,15 @@ export function statsMonthlyRef(uid: string, month: string): DocumentReference<S
 }
 export function statsBudgetProgressRef(uid: string, month: string): DocumentReference<StatsBudgetProgress> {
   return subDoc(uid, 'statsBudgetProgress', month) as DocumentReference<StatsBudgetProgress>;
+}
+
+// Generated financial audit reports (src/shared/firestore/auditReport.ts) —
+// each one an immutable snapshot, never overwritten after creation.
+export function auditReportsRef(uid: string): CollectionReference<FirestoreAuditReport> {
+  return sub(uid, 'auditReports') as CollectionReference<FirestoreAuditReport>;
+}
+export function auditReportRef(uid: string, id: string): DocumentReference<Omit<FirestoreAuditReport, 'id'>> {
+  return subDoc(uid, 'auditReports', id) as DocumentReference<Omit<FirestoreAuditReport, 'id'>>;
 }
 
 export function userRef(uid: string): DocumentReference<FirestoreUserDoc> {

@@ -1,15 +1,18 @@
-// The 5-digit PIN is a "quick unlock" bound to the signed-in account, with
-// the real check happening server-side against Firestore (see
-// app/api/auth/pin/verify, .../pin/set, and src/shared/config/
-// firestoreUsers.ts — all user data, PIN included, lives solely in Firebase,
-// never in the Google Sheet). Two flags track "verified this session", kept
-// in sync with each other:
+// The 5-digit PIN is a "quick unlock" bound to the signed-in account, the
+// real check runs client-side against users/{uid}/private/pin
+// (src/shared/config/pinCallable.ts), behind firestore.rules — there's no
+// Next.js route or Cloud Function left in this path (PRD-FIREBASE.md
+// section 1, section 10's corrected version). Two flags track "verified
+// this session", kept in sync with each other:
 //  - PIN_VERIFIED_KEY, a sessionStorage flag PinGuard reads for an instant
 //    client-side gate — cleared when the browser/app session ends.
-//  - a same-named, httpOnly session cookie (no maxAge) that proxy.ts checks
-//    server-side before letting a (mobile) route through at all, since
-//    sessionStorage isn't readable from the server. Set alongside the
-//    sessionStorage flag by app/api/auth/pin/verify and .../pin/set.
+//  - a same-named, plain (non-httpOnly) session cookie (no maxAge) that
+//    proxy.ts's Edge middleware checks before letting a (mobile) route
+//    through at all, since sessionStorage isn't readable there. Set
+//    alongside the sessionStorage flag by src/logic/pin/useLogic.ts's
+//    unlockAndGoHome and src/logic/settings/useLogic.ts's PIN-change flow —
+//    neither is the real security boundary (Firestore Security Rules are),
+//    see clientCookies.ts's header.
 export const PIN_VERIFIED_KEY = 'dreda-pin-verified';
 export const PIN_LENGTH = 5;
 

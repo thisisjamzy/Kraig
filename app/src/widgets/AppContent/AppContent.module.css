@@ -12,3 +12,17 @@
 .withBottomNav {
   padding-bottom: calc(96px + env(safe-area-inset-bottom));
 }
+
+/* Printing (window.print(), e.g. a report's "Export as PDF" button)
+   should fill the actual paper/PDF page width — this mobile-frame
+   max-width and its overflow-x: hidden exist for the on-screen app shell
+   only, and would otherwise clip anything wider than a phone's viewport
+   right at the printed page's edge with no way to scroll to see it. */
+@media print {
+  .content {
+    max-width: none;
+    overflow-x: visible;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+}

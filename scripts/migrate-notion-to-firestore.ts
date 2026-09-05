@@ -387,7 +387,14 @@ async function recomputeAccountBalances(userDoc: FirebaseFirestore.DocumentRefer
   }
   for (const doc of trSnap.docs) {
     const t = doc.data();
-    deltas.set(t.fromAccountId, (deltas.get(t.fromAccountId) ?? 0) - t.amount);
+    // fromAccountId pays the transfer amount AND its own charges — same
+    // split as aggregation.ts's createTransferWithAggregation; this
+    // recompute reads the WHOLE transfers collection (not just what this
+    // migration itself wrote), so it has to match that exactly or a real
+    // charged transfer created later by the live app throws off this
+    // account's balance the next time this script runs.
+    const charges = t.charges ?? 0;
+    deltas.set(t.fromAccountId, (deltas.get(t.fromAccountId) ?? 0) - (t.amount + charges));
     deltas.set(t.toAccountId, (deltas.get(t.toAccountId) ?? 0) + t.amount);
   }
   for (const doc of accountsSnap.docs) {

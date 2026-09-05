@@ -18,19 +18,18 @@
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { query, where, orderBy, limit } from 'firebase/firestore';
-import { ArrowUpRight, ArrowDownLeft, PiggyBank, type LucideIcon } from 'lucide-react';
+import { query, where, orderBy, limit, Timestamp } from 'firebase/firestore';
+import { ArrowUpRight, ArrowDownLeft, PiggyBank, ArrowLeftRight, type LucideIcon } from 'lucide-react';
 import { useFirestoreCollection } from '@/src/shared/firestore/hooks';
-import { transactionsRef } from '@/src/shared/firestore/refs';
+import { transactionsRef, transfersRef } from '@/src/shared/firestore/refs';
 import { useAccounts, useCategories, useCurrencyContext } from '@/src/shared/firestore/queries';
 import { toDisplay } from '@/src/shared/firestore/currency';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { walletColor } from '@/src/viewmodels/wallets';
-import type { FirestoreTransaction } from '@/src/shared/firestore/types';
+import type { FirestoreTransaction, FirestoreTransfer } from '@/src/shared/firestore/types';
 
 // Same set Add Transaction's type step uses (src/logic/addTransaction) —
-// keyed by FirestoreTransaction.type (Title-Case), Transfer excluded since
-// this screen only reads the transactions collection, never transfers.
+// keyed by FirestoreTransaction.type (Title-Case).
 const TYPE_ICONS: Record<string, LucideIcon> = {
   Expense: ArrowUpRight,
   Income: ArrowDownLeft,
@@ -71,11 +70,23 @@ function targetFromSearch(): { monthIndex: number | null; year: number | null } 
   return { monthIndex, year };
 }
 
+// FirestoreTransaction.type values this screen ever sees (mirrors
+// TYPE_ICONS' keys), plus 'Transfer' (a FirestoreTransfer, a separate
+// collection with no `type` field of its own) and 'All' for "no type filter
+// applied".
+export type TransactionTypeFilter = 'All' | 'Expense' | 'Income' | 'Savings' | 'Transfer';
+export const TYPE_FILTERS: TransactionTypeFilter[] = ['All', 'Expense', 'Income', 'Savings', 'Transfer'];
+
 export function useLogic() {
   const router = useRouter();
   const { user, loading: authLoading } = useFirebaseUser();
   const uid = user?.uid;
   const [{ monthIndex, year }] = useState(targetFromSearch);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [typeFilter, setTypeFilter] = useState<TransactionTypeFilter>('All');
+  const [accountFilter, setAccountFilter] = useState<string>('All');
   const hasMonth = monthIndex !== null && year !== null;
   const monthStr = hasMonth ? `${year}-${pad2(monthIndex + 1)}` : null;
 
@@ -97,6 +108,36 @@ export function useLogic() {
   const transactionsLoading = hasMonth ? monthOnlyLoading : allTimeLoading;
   const transactionsError = hasMonth ? monthOnlyError : allTimeError;
 
+  // FirestoreTransfer has no `month` string field the way FirestoreTransaction
+  // does (see types.ts) — the month-view query below uses a plain date range
+  // instead, same shape src/logic/walletDetail/useLogic.ts already uses for
+  // its own transfer queries.
+  const monthOnlyTransfersQuery = useMemo(() => {
+    if (!uid || !hasMonth) return null;
+    const monthStart = Timestamp.fromDate(new Date(year!, monthIndex!, 1));
+    const monthEnd = Timestamp.fromDate(new Date(year!, monthIndex! + 1, 1));
+    return query(
+      transfersRef(uid),
+      where('date', '>=', monthStart),
+      where('date', '<', monthEnd),
+      orderBy('date', 'desc'),
+      limit(MONTH_ONLY_PAGE_SIZE)
+    );
+  }, [uid, hasMonth, year, monthIndex]);
+  const allTimeTransfersQuery = useMemo(
+    () => (uid && !hasMonth ? query(transfersRef(uid), orderBy('date', 'desc'), limit(ALL_TIME_PAGE_SIZE)) : null),
+    [uid, hasMonth]
+  );
+
+  const { data: monthOnlyTransferDocs, loading: monthOnlyTransfersLoading, error: monthOnlyTransfersError } =
+    useFirestoreCollection<FirestoreTransfer>(monthOnlyTransfersQuery);
+  const { data: allTimeTransferDocs, loading: allTimeTransfersLoading, error: allTimeTransfersError } =
+    useFirestoreCollection<FirestoreTransfer>(allTimeTransfersQuery);
+
+  const transferDocs = hasMonth ? monthOnlyTransferDocs : allTimeTransferDocs;
+  const transfersLoading = hasMonth ? monthOnlyTransfersLoading : allTimeTransfersLoading;
+  const transfersError = hasMonth ? monthOnlyTransfersError : allTimeTransfersError;
+
   const { data: accounts, loading: accountsLoading } = useAccounts();
   const { data: categories, loading: categoriesLoading } = useCategories();
   const { ctx, loading: ctxLoading } = useCurrencyContext();
@@ -116,20 +157,103 @@ export function useLogic() {
     return (categoryId: string | null) => (categoryId && map.get(categoryId)) || categoryId || '—';
   }, [categories]);
 
-  const transactions = transactionDocs.map((transaction) => {
+  // Filter first (type/account, on the raw docs — cheap field checks), THEN
+  // map to the display shape, so the search step below only ever scans rows
+  // already narrowed by the two dropdowns. Transfers are a separate
+  // collection with no `type` of their own (see FirestoreTransfer) — the
+  // 'Transfer' filter value selects them exclusively, any other specific
+  // type excludes them, and 'All' includes both alongside every
+  // transaction type.
+  const typeFilteredTransactions =
+    typeFilter === 'Transfer'
+      ? []
+      : transactionDocs.filter((transaction) => typeFilter === 'All' || transaction.type === typeFilter);
+  const accountAndTypeFilteredTransactions = typeFilteredTransactions.filter(
+    (transaction) => accountFilter === 'All' || transaction.accountId === accountFilter
+  );
+
+  const typeFilteredTransfers = typeFilter === 'All' || typeFilter === 'Transfer' ? transferDocs : [];
+  const accountAndTypeFilteredTransfers = typeFilteredTransfers.filter(
+    (transfer) =>
+      accountFilter === 'All' || transfer.fromAccountId === accountFilter || transfer.toAccountId === accountFilter
+  );
+
+  const mappedTransactions = accountAndTypeFilteredTransactions.map((transaction) => {
     const account = accountById.get(transaction.accountId);
     return {
       id: transaction.id,
+      kind: 'transaction' as const,
       title: categoryNameFallback(transaction.categoryId),
       description: transaction.description,
       account: account?.name ?? transaction.accountId,
       amount: toDisplay(ctx, transaction.amount, account?.currency ?? ctx.base),
       currency: ctx.display,
       date: formatDate(transaction.date),
+      sortMs: transaction.date.toMillis(),
       icon: TYPE_ICONS[transaction.type] ?? ArrowUpRight,
       iconColor: accountColor.get(transaction.accountId) ?? walletColor(0),
     };
   });
+
+  const mappedTransfers = accountAndTypeFilteredTransfers.map((transfer) => {
+    const fromAccount = accountById.get(transfer.fromAccountId);
+    const toAccount = accountById.get(transfer.toAccountId);
+    const fromName = fromAccount?.name ?? transfer.fromAccountId;
+    const toName = toAccount?.name ?? transfer.toAccountId;
+    return {
+      id: transfer.id,
+      kind: 'transfer' as const,
+      title: transfer.kind || 'Transfer',
+      description: transfer.description || transfer.notes || `${fromName} → ${toName}`,
+      account: `${fromName} → ${toName}`,
+      // Native currency, same as a transaction row — transfers between two
+      // accounts in different currencies aren't a case aggregation.ts's
+      // createTransferWithAggregation actually converts (see its own
+      // header), so this doesn't invent a conversion here either.
+      amount: transfer.amount,
+      currency: fromAccount?.currency ?? ctx.display,
+      date: formatDate(transfer.date),
+      sortMs: transfer.date.toMillis(),
+      icon: ArrowLeftRight,
+      iconColor: accountColor.get(transfer.fromAccountId) ?? walletColor(0),
+    };
+  });
+
+  const allTransactions = [...mappedTransactions, ...mappedTransfers].sort((a, b) => b.sortMs - a.sortMs);
+
+  // Client-side, over whatever page the queries above already fetched —
+  // this is a substring match Firestore itself can't do natively, and the
+  // page sizes here (ALL_TIME_PAGE_SIZE/MONTH_ONLY_PAGE_SIZE, 300 rows each)
+  // are small enough that scanning them in the browser is instant.
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+  const transactions = normalizedQuery
+    ? allTransactions.filter((transaction) =>
+        [transaction.title, transaction.description, transaction.account].some((field) =>
+          field.toLowerCase().includes(normalizedQuery)
+        )
+      )
+    : allTransactions;
+
+  const hasActiveFilters = typeFilter !== 'All' || accountFilter !== 'All';
+  const isFiltered = hasActiveFilters || normalizedQuery.length > 0;
+
+  function clearFilters() {
+    setTypeFilter('All');
+    setAccountFilter('All');
+    setSearchQuery('');
+  }
+
+  function toggleSearch() {
+    // Closing the search field also drops whatever was typed — reopening it
+    // should start blank, not silently re-apply a stale query the person
+    // can no longer see.
+    if (searchOpen) setSearchQuery('');
+    setSearchOpen(!searchOpen);
+  }
+
+  function toggleFilter() {
+    setFilterOpen((open) => !open);
+  }
 
   // Title: the month being viewed, otherwise the screen's generic default.
   const monthLabel = hasMonth
@@ -146,11 +270,27 @@ export function useLogic() {
 
   return {
     transactions,
+    isFiltered,
     monthLabel,
     isAllTransactionsView: !hasMonth,
-    loading: authLoading || transactionsLoading || accountsLoading || categoriesLoading || ctxLoading,
-    error: transactionsError,
+    loading: authLoading || transactionsLoading || transfersLoading || accountsLoading || categoriesLoading || ctxLoading,
+    error: transactionsError || transfersError,
     editHref,
     goBack,
+
+    searchOpen,
+    toggleSearch,
+    searchQuery,
+    setSearchQuery,
+
+    filterOpen,
+    toggleFilter,
+    typeFilter,
+    setTypeFilter,
+    accountFilter,
+    setAccountFilter,
+    accounts,
+    hasActiveFilters,
+    clearFilters,
   };
 }

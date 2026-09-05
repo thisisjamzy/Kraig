@@ -12,7 +12,7 @@ import { useAccounts, useCategories } from '@/src/shared/firestore/queries';
 import { buildTransactionCsvTemplate, buildTransactionsCsv, downloadTextFile } from '@/src/shared/firestore/csv';
 import type { FirestoreSettings, FirestoreExchangeRate, FirestoreTransaction } from '@/src/shared/firestore/types';
 import { currencyName } from '@/src/viewmodels/currencies';
-import { clearSignedIn } from '@/src/shared/config/authSession';
+import { clearAllLocalAuthFlags } from '@/src/shared/config/authSession';
 import { PIN_DISABLED_KEY, PIN_HASH_CACHE_KEY, PIN_VERIFIED_KEY } from '@/src/shared/config/pinGate';
 import { clearClientCookie, setClientCookie, PERSISTENT_COOKIE_MAX_AGE_SECONDS } from '@/src/shared/config/clientCookies';
 import { callSetPin, callVerifyPin } from '@/src/shared/config/pinCallable';
@@ -138,17 +138,7 @@ export function useLogic() {
     // No Next.js routes to call anymore (PRD-FIREBASE.md section 1) — clear
     // the Firebase client session and every local UX flag directly.
     await signOut(getFirebaseAuth()).catch(() => {});
-    clearSignedIn();
-    window.sessionStorage.removeItem(PIN_VERIFIED_KEY);
-    clearClientCookie(PIN_VERIFIED_KEY);
-    // The cached PIN hash is scoped to whoever's signed in — don't leave it
-    // behind for the next person on a shared device.
-    window.localStorage.removeItem(PIN_HASH_CACHE_KEY);
-    // "Require PIN" is this account's preference, not this device's — leaving
-    // it set would skip the PIN gate for whoever signs in next on a shared
-    // device, even if they never turned it off themselves.
-    window.localStorage.removeItem(PIN_DISABLED_KEY);
-    clearClientCookie(PIN_DISABLED_KEY);
+    clearAllLocalAuthFlags();
     router.push('/');
   }
 

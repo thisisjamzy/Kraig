@@ -53,6 +53,9 @@ export interface CreateTaskInput {
   // areaId mirrored from that project's own areaId) — never area-only.
   projectId: string | null;
   areaId: string | null;
+  // Same mirroring convention as areaId — the project's own bucketId (null
+  // when the project has no bucket, or projectId itself is null).
+  bucketId: string | null;
   // Required going forward — every task gets a start and an end time now
   // (the create/edit form and TaskQuickActionsMenu's reschedule both
   // enforce this at the UI layer). Stays optional on FirestoreTask itself
@@ -73,6 +76,7 @@ export async function createTask(uid: string, input: CreateTaskInput): Promise<s
     priority: input.priority,
     projectId: input.projectId,
     areaId: input.areaId,
+    bucketId: input.bucketId,
     parentTaskId: null,
     done: false,
     startTime: Timestamp.fromDate(input.startTime),
@@ -101,6 +105,7 @@ export interface UpdateTaskInput {
   priority: Priority;
   projectId: string | null;
   areaId: string | null;
+  bucketId: string | null;
   done: boolean;
   startTime: Date;
   dueDate: Date;
@@ -122,6 +127,7 @@ export async function updateTask(uid: string, taskId: string, input: UpdateTaskI
     priority: input.priority,
     projectId: input.projectId,
     areaId: input.areaId,
+    bucketId: input.bucketId,
     done: input.done,
     startTime: Timestamp.fromDate(input.startTime),
     dueDate: Timestamp.fromDate(input.dueDate),

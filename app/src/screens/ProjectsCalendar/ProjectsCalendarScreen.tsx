@@ -5,7 +5,8 @@ import { useLogic } from '@/src/logic/projectsCalendar/useLogic';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { TaskQuickActionsMenu } from '@/src/widgets/TaskQuickActionsMenu/TaskQuickActionsMenu';
 import { formatTaskDateRange } from '@/src/shared/formatTaskDateRange';
-import { TASK_TYPE_LABEL, TASK_TYPE_ICON } from '@/src/viewmodels/projects';
+import { TASK_TYPE_LABEL, TASK_TYPE_ICON, TASK_TYPES } from '@/src/viewmodels/projects';
+import { iconTint } from '@/src/viewmodels/iconTint';
 import styles from './ProjectsCalendarScreen.module.css';
 
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -93,6 +94,7 @@ export function ProjectsCalendarScreen() {
                 // render `undefined` as a component, which crashes.
                 const TypeIcon = TASK_TYPE_ICON[item.type] ?? TASK_TYPE_ICON.ToDo;
                 const typeLabel = TASK_TYPE_LABEL[item.type] ?? TASK_TYPE_LABEL.ToDo;
+                const typeTintIndex = Math.max(TASK_TYPES.indexOf(item.type), 0);
                 return (
                   <div
                     key={item.id}
@@ -107,7 +109,7 @@ export function ProjectsCalendarScreen() {
                       }
                     }}
                   >
-                    <span className={styles.agendaIcon}>
+                    <span className={styles.agendaIcon} style={{ background: iconTint(typeTintIndex) }}>
                       <TypeIcon size={16} strokeWidth={2} />
                     </span>
                     <div className={styles.agendaTaskBody}>
@@ -131,7 +133,7 @@ export function ProjectsCalendarScreen() {
                   className={styles.agendaRow}
                   onClick={() => openProject(item.id)}
                 >
-                  <span className={styles.agendaIcon}>
+                  <span className={styles.agendaIcon} style={{ background: iconTint(item.isMilestone ? 3 : 4) }}>
                     {item.isMilestone ? <Target size={16} strokeWidth={2} /> : <FolderKanban size={16} strokeWidth={2} />}
                   </span>
                   <div className={styles.agendaTaskBody}>
@@ -145,7 +147,7 @@ export function ProjectsCalendarScreen() {
               ))}
               {agenda.paymentItems.map((payment) => (
                 <button key={payment.id} type="button" className={styles.agendaRow} onClick={openPayment}>
-                  <span className={styles.agendaIcon}>
+                  <span className={styles.agendaIcon} style={{ background: iconTint(5) }}>
                     <Wallet size={16} strokeWidth={2} />
                   </span>
                   <div className={styles.agendaTaskBody}>

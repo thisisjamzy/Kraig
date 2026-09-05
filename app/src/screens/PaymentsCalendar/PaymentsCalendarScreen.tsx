@@ -1,7 +1,9 @@
 'use client';
 
+import { useState } from 'react';
 import { ChevronLeft, ChevronRight, ChevronDown, Check, Repeat, Plus, Trash2, Calendar } from 'lucide-react';
 import { Modal } from '@/src/widgets/Modal/Modal';
+import { ConfirmDialog } from '@/src/widgets/ConfirmDialog/ConfirmDialog';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import {
   useLogic,
@@ -39,7 +41,7 @@ function PaymentRow({
   onMarkAsPaid: (id: string) => void;
   markAsPaidLabel: string;
   recurringLabel: string;
-  onDelete: (id: string) => void;
+  onDelete: (payment: PendingPayment) => void;
   deleteLabel: string;
 }) {
   // "Mark as paid" only opens the confirm-transaction review step — see
@@ -72,7 +74,7 @@ function PaymentRow({
           <button
             type="button"
             className={styles.deleteButton}
-            onClick={() => onDelete(payment.id)}
+            onClick={() => onDelete(payment)}
             aria-label={`${deleteLabel}: ${payment.title}`}
           >
             <Trash2 size={14} strokeWidth={2} />
@@ -158,6 +160,8 @@ export function PaymentsCalendarScreen() {
 
   const selectedFilterLabel = DUE_FILTERS.find((entry) => entry.key === dueFilter)?.label ?? '';
 
+  const [confirmDeletePayment, setConfirmDeletePayment] = useState<PendingPayment | null>(null);
+
   return (
     <div className={styles.page}>
       <header className={styles.header}>
@@ -194,7 +198,7 @@ export function PaymentsCalendarScreen() {
                   onMarkAsPaid={openConfirmPayment}
                   markAsPaidLabel={strings.paymentsCalendar.markAsPaid}
                   recurringLabel={strings.paymentsCalendar.recurring}
-                  onDelete={handleDeletePayment}
+                  onDelete={setConfirmDeletePayment}
                   deleteLabel={strings.paymentsCalendar.deletePaymentLabel}
                 />
               ))}
@@ -273,7 +277,7 @@ export function PaymentsCalendarScreen() {
                 onMarkAsPaid={openConfirmPayment}
                 markAsPaidLabel={strings.paymentsCalendar.markAsPaid}
                 recurringLabel={strings.paymentsCalendar.recurring}
-                onDelete={handleDeletePayment}
+                onDelete={setConfirmDeletePayment}
                 deleteLabel={strings.paymentsCalendar.deletePaymentLabel}
               />
             ))}
@@ -549,6 +553,20 @@ export function PaymentsCalendarScreen() {
             </button>
           </div>
         </Modal>
+      )}
+
+      {confirmDeletePayment && (
+        <ConfirmDialog
+          title={strings.paymentsCalendar.deletePaymentConfirmTitle}
+          message={strings.paymentsCalendar.deletePaymentConfirmMessage}
+          confirmLabel={strings.paymentsCalendar.deletePaymentLabel}
+          cancelLabel={strings.common.cancel}
+          onCancel={() => setConfirmDeletePayment(null)}
+          onConfirm={() => {
+            handleDeletePayment(confirmDeletePayment.id);
+            setConfirmDeletePayment(null);
+          }}
+        />
       )}
     </div>
   );
