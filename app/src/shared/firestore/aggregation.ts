@@ -41,6 +41,7 @@ import { getFirebaseFirestore } from '@/src/shared/config/firebaseClient';
 import {
   accountRef,
   transactionRef,
+  transactionsRef,
   transferRef,
   statsHomeRef,
   statsMonthlyRef,
@@ -53,6 +54,8 @@ import {
   debtRef,
   repaymentsRef,
   repaymentRef,
+  UNJUSTIFIED_WALLET_ID,
+  unjustifiedWalletRef,
 } from './refs';
 import { convert, round2, type CurrencyContext } from './currency';
 import { toRecurrenceRule } from './recurrence';
@@ -95,6 +98,14 @@ export interface CreateTransactionInput {
   // is the only other caller that ever passes these.
   isDebtRepayment?: boolean;
   linkedDebtId?: string | null;
+  // PRD-AUDIT-RECONCILIATION.md — set only by createBackfillSpread (a
+  // recurring transaction spread across a range of past months) and
+  // recordTransactionExplainingUnjustifiedBalance/recordIncomeExplainingUnjustifiedBalance
+  // (below) respectively; every other caller leaves these undefined.
+  isHistoricBackfill?: boolean;
+  backfillBatchId?: string | null;
+  isUnjustifiedAdjustment?: boolean;
+  pairedTransferId?: string | null;
 }
 
 /**
@@ -109,7 +120,7 @@ export interface CreateTransactionInput {
  * happened before this runs — Firestore transactions require all reads
  * before any writes, and this function only ever writes.
  */
-function writeTransactionContribution(
+export function writeTransactionContribution(
   tx: import('firebase/firestore').Transaction,
   uid: string,
   input: CreateTransactionInput,
@@ -140,6 +151,10 @@ function writeTransactionContribution(
     signedAmount,
     month,
     ...(input.isDebtRepayment ? { isDebtRepayment: true, linkedDebtId: input.linkedDebtId ?? null } : {}),
+    ...(input.isHistoricBackfill ? { isHistoricBackfill: true, backfillBatchId: input.backfillBatchId ?? null } : {}),
+    ...(input.isUnjustifiedAdjustment
+      ? { isUnjustifiedAdjustment: true, pairedTransferId: input.pairedTransferId ?? null }
+      : {}),
     createdBy: input.createdBy,
     createdAt: dateTimestamp,
   });
@@ -473,6 +488,132 @@ export async function deleteTransactionWithAggregation(uid: string, transactionI
 
   if (categoryId) {
     await recomputeBudgetProgressForCategoryMonth(uid, categoryId, month);
+  }
+}
+
+/**
+ * PRD-AUDIT-RECONCILIATION.md section 1.4 — "Delete batch" removes every
+ * transaction sharing one backfillBatchId, reversing each one's effect on
+ * currentBalance/stats* the same way deleting any single transaction
+ * already does (deleteTransactionWithAggregation above), just looped
+ * across the batch. Sequential, not Promise.all, for the same reason
+ * importRow (src/logic/importCsv/useLogic.ts) imports one row at a time —
+ * a dozen concurrent writes to the same account/statsMonthly/stats-home
+ * docs would just contend with each other.
+ */
+export async function deleteBackfillBatch(uid: string, batchId: string, ctx: CurrencyContext): Promise<void> {
+  const snap = await getDocs(query(transactionsRef(uid), where('backfillBatchId', '==', batchId)));
+  for (const doc of snap.docs) {
+    await deleteTransactionWithAggregation(uid, doc.id, ctx);
+  }
+}
+
+/**
+ * PRD-AUDIT-RECONCILIATION.md section 2.1/2.3 — "explaining" a historic
+ * expense the ledger never recorded. The real wallet's *reported* balance
+ * already reflects that this money left the account (that's exactly what
+ * made up part of the gap), so recording a plain expense against it would
+ * double-count the drop. Instead: first move `amount` INTO the real wallet
+ * FROM the Unjustified wallet (acknowledging "this money really was there,
+ * the ledger just never knew it"), then record the expense against that
+ * same wallet — the two operations net to zero on the real wallet's
+ * balance, while the Unjustified wallet's balance drops by `amount`,
+ * shrinking the unexplained gap. Both the transfer and the expense happen
+ * in one runTransaction so they can never land only half-done.
+ *
+ * Deliberately NOT built on createTransferWithAggregation: that function's
+ * assertNotBelowLocked would misfire here — the Unjustified wallet has no
+ * `lockedAmount` concept and is explicitly allowed to swing to either sign
+ * (section 2.6), unlike every real wallet's "never below zero unless
+ * something is locked" assumption.
+ */
+export async function recordTransactionExplainingUnjustifiedBalance(
+  input: CreateTransactionInput & { transferId: string },
+  ctx: CurrencyContext
+): Promise<void> {
+  const uid = input.createdBy;
+  const db = getFirebaseFirestore();
+  const dateTimestamp = Timestamp.fromDate(input.date);
+
+  await runTransaction(db, async (tx) => {
+    const accountSnap = await tx.get(accountRef(uid, input.accountId));
+    const accountData = accountSnap.data();
+
+    // 1. Transfer `amount` from the Unjustified wallet into the real one —
+    // a credit to the real wallet, so its own locked-amount floor (which
+    // only ever blocks an outflow) never applies here.
+    tx.set(transferRef(uid, input.transferId), {
+      date: dateTimestamp,
+      description: `Reconciliation: ${input.description}`,
+      fromAccountId: UNJUSTIFIED_WALLET_ID,
+      toAccountId: input.accountId,
+      amount: input.amount,
+      charges: 0,
+      kind: 'Wallet to wallet',
+      notes: '',
+      createdBy: uid,
+      createdAt: dateTimestamp,
+    });
+    tx.update(unjustifiedWalletRef(uid), { currentBalance: increment(-input.amount) });
+    tx.update(accountRef(uid, input.accountId), { currentBalance: increment(input.amount) });
+
+    // 2. The actual expense against that same real wallet — same
+    // frozen/locked checks, same stats* math, every other expense gets.
+    writeTransactionContribution(tx, uid, { ...input, isUnjustifiedAdjustment: true }, accountData, ctx);
+  });
+
+  if (input.categoryId) {
+    await recomputeBudgetProgressForCategoryMonth(uid, input.categoryId, monthKey(input.date));
+  }
+}
+
+/**
+ * The mirror image of the function above — an unrecorded INCOME. The
+ * income is recorded against the real wallet first (same as any income),
+ * then that same amount is transferred out of the real wallet and into the
+ * Unjustified wallet, moving its balance back toward zero from the other
+ * direction.
+ */
+export async function recordIncomeExplainingUnjustifiedBalance(
+  input: CreateTransactionInput & { transferId: string },
+  ctx: CurrencyContext
+): Promise<void> {
+  const uid = input.createdBy;
+  const db = getFirebaseFirestore();
+  const dateTimestamp = Timestamp.fromDate(input.date);
+
+  await runTransaction(db, async (tx) => {
+    const accountSnap = await tx.get(accountRef(uid, input.accountId));
+    const accountData = accountSnap.data();
+
+    // 1. The income itself, against the real wallet — same as any income.
+    writeTransactionContribution(tx, uid, { ...input, isUnjustifiedAdjustment: true }, accountData, ctx);
+
+    // 2. Transfer that same amount back out of the real wallet and into
+    // the Unjustified wallet. No assertNotBelowLocked here — unlike an
+    // ordinary outflow, this one exactly cancels the income step above
+    // (the real wallet's balance nets to zero change overall), so it can
+    // never actually erode anything already locked; checking against
+    // accountData's pre-write currentBalance would (wrongly) evaluate the
+    // outflow as if the income had never landed first.
+    tx.set(transferRef(uid, input.transferId), {
+      date: dateTimestamp,
+      description: `Reconciliation: ${input.description}`,
+      fromAccountId: input.accountId,
+      toAccountId: UNJUSTIFIED_WALLET_ID,
+      amount: input.amount,
+      charges: 0,
+      kind: 'Wallet to wallet',
+      notes: '',
+      createdBy: uid,
+      createdAt: dateTimestamp,
+    });
+    tx.update(accountRef(uid, input.accountId), { currentBalance: increment(-input.amount) });
+    tx.update(unjustifiedWalletRef(uid), { currentBalance: increment(input.amount) });
+  });
+
+  if (input.categoryId) {
+    await recomputeBudgetProgressForCategoryMonth(uid, input.categoryId, monthKey(input.date));
   }
 }
 

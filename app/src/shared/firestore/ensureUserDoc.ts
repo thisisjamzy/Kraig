@@ -21,6 +21,7 @@
 import { getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import type { User } from 'firebase/auth';
 import { userRef, settingsRef, exchangeRateRef } from './refs';
+import { ensureUnjustifiedWallet } from './unaccountedBalance';
 
 const DEFAULT_EXCHANGE_RATES: Record<string, { rateToBase: number; notes: string }> = {
   XAF: { rateToBase: 1, notes: 'base currency' },
@@ -34,6 +35,11 @@ export async function ensureUserDoc(user: User): Promise<void> {
   const snap = await getDoc(ref);
   if (snap.exists()) {
     await updateDoc(ref, { lastLoginAt: serverTimestamp() });
+    // PRD-AUDIT-RECONCILIATION.md section 2.2 — an account that predates
+    // this feature has a user doc already, so it never runs the "new
+    // account" branch below; this is the lazy backfill path for it.
+    // Idempotent (checks existence first), safe to call on every login.
+    await ensureUnjustifiedWallet(user.uid, 'XAF');
     return;
   }
 
@@ -57,4 +63,6 @@ export async function ensureUserDoc(user: User): Promise<void> {
       setDoc(exchangeRateRef(user.uid, code), { rateToBase, notes, updatedAt: serverTimestamp() })
     )
   );
+
+  await ensureUnjustifiedWallet(user.uid, 'XAF');
 }

@@ -39,6 +39,15 @@ export interface FirestoreAccount {
   // Optional: a wallet written before this field existed, or one the user
   // never bothered to set, falls back to the first 5 characters of `name`.
   shortName?: string;
+  // PRD-AUDIT-RECONCILIATION.md section 2.2 — true only for the one
+  // household-wide "Unjustified" wallet (src/shared/firestore/
+  // unaccountedBalance.ts's UNJUSTIFIED_WALLET_ID), a real account document
+  // so it can move money via the ordinary transfer mechanism, but excluded
+  // everywhere a real, spendable wallet is expected: useAccounts() filters
+  // it out centrally, so every screen built on that hook (Wallets, Home,
+  // every account picker) never sees it without each needing its own check.
+  isSystemWallet?: boolean;
+  systemType?: 'unjustified' | null;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 }
@@ -75,6 +84,21 @@ export interface FirestoreTransaction {
   // false/null on every other transaction.
   isDebtRepayment?: boolean;
   linkedDebtId?: string | null;
+  // PRD-AUDIT-RECONCILIATION.md section 1.2 — true for every occurrence a
+  // backfill spread generated (src/shared/firestore/aggregation.ts's
+  // createBackfillSpread); backfillBatchId is shared by every occurrence
+  // from the same spread action, letting the household view or delete the
+  // whole batch as one unit rather than hunting down each row.
+  isHistoricBackfill?: boolean;
+  backfillBatchId?: string | null;
+  // PRD-AUDIT-RECONCILIATION.md section 2.2 — true for a transaction
+  // recorded through the "this explains part of my unaccounted balance"
+  // toggle (section 2.5); pairedTransferId points at the transfer created
+  // alongside it (moving the same amount into/out of the Unjustified
+  // wallet, section 2.1) so the Transaction History row can show both
+  // halves of the pair together.
+  isUnjustifiedAdjustment?: boolean;
+  pairedTransferId?: string | null;
   createdBy: string;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
@@ -386,6 +410,27 @@ export interface FirestoreUserDoc {
   archived: boolean;
   createdAt?: Timestamp;
   lastLoginAt?: Timestamp;
+}
+
+/**
+ * users/{uid}/reconciliations/{reconciliationId} — PRD-AUDIT-RECONCILIATION.md
+ * section 2.2. One document per "what do your accounts actually hold right
+ * now" check — a history, not a working value; the working value is always
+ * the Unjustified wallet's own currentBalance (src/shared/firestore/
+ * unaccountedBalance.ts), which keeps moving as the household explains
+ * individual historic transactions between checks. This history exists so
+ * the Audit Report can chart the gap shrinking (or not) over time, and so
+ * "tap a row to see the full per-account breakdown for that check" (the
+ * Reconciliation History screen) has something to read from.
+ */
+export interface FirestoreReconciliation {
+  id: string;
+  uid: string;
+  performedAt: Timestamp;
+  reportedBalances: Record<string, number>; // accountId -> what the person entered
+  ledgerBalancesAtTime: Record<string, number>; // accountId -> currentBalance read at the same moment
+  totalGap: number; // signed: total ledger minus total reported
+  notes: string;
 }
 
 // ---------------------------------------------------------------------

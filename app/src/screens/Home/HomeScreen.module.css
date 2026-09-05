@@ -5,29 +5,39 @@
   padding: var(--space-lg);
 }
 
-/* Balance card */
-
+/* Balance card — Design/screen 6.jpg's first frame: amount + label stacked
+   top-left, currency switcher top-right, a month-progress bar, the
+   unaccounted figure below it, and the wordmark bottom-left. Gradient
+   background is hardcoded dark regardless of app theme, so its own text/logo
+   always render in their light-on-dark variants rather than following
+   data-theme. */
 .balanceCard {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  text-align: center;
-  border: 1px solid var(--color-border);
+  gap: var(--space-md);
   border-radius: var(--radius-lg);
   padding: var(--space-lg);
+  background: linear-gradient(135deg, #2b2f77 0%, #4b3f9e 55%, #7b4fa0 100%);
+  color: #ffffff;
 }
 
-.balanceTopRow {
+.balanceCardTop {
   display: flex;
-  align-items: center;
-  justify-content: space-around;
-  width: 100%;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-md);
 }
 
 .balanceLabel {
+  display: block;
   font-size: var(--font-size-sm);
   font-weight: 600;
-  color: var(--color-text-secondary);
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.currencyMenuWrap {
+  position: relative;
+  flex-shrink: 0;
 }
 
 .currencyChip {
@@ -35,48 +45,142 @@
   align-items: center;
   gap: 4px;
   padding: 2px 10px;
-  border: 1px solid var(--color-border);
+  border: 1px solid rgba(255, 255, 255, 0.35);
   border-radius: var(--radius-full);
   background: none;
   font-family: inherit;
   font-size: var(--font-size-sm);
   font-weight: 600;
-  color: var(--color-text-primary);
+  color: #ffffff;
   cursor: pointer;
+  flex-shrink: 0;
+}
+
+/* Anchored right next to the currency chip — a context menu, not a
+   full-screen Modal — so it needs its own opaque, normal-contrast surface
+   independent of the dark gradient card behind it. */
+.currencyPopover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  width: 240px;
+  max-width: calc(100vw - 2 * var(--space-lg));
+  padding: var(--space-sm);
+  border-radius: var(--radius-lg);
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.24);
+  color: var(--color-text-primary);
+  text-align: left;
 }
 
 .balanceAmount {
   font-family: var(--font-family-heading);
   font-size: 2.25rem;
   font-weight: 800;
-  color: var(--color-text-primary);
-  margin: var(--space-xs) 0 var(--space-md);
+  color: #ffffff;
+  margin: 0;
 }
 
-.spendableRow {
+.progressTrack {
+  width: 100%;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.2);
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  border-radius: inherit;
+  background: #ffffff;
+}
+
+.unjustifiedBlock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  text-decoration: none;
+}
+
+.unjustifiedLabel {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* Value + logo share this row, space-between — the value on the left, the
+   wordmark on the right, same as the label sits above them on its own row. */
+.balanceCardFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.unjustifiedValue {
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: #ffffff;
+  white-space: nowrap;
+}
+
+.balanceLogo {
+  opacity: 0.9;
+}
+
+/* Savings / Spendable pair below the balance card */
+
+.summaryRow {
+  display: flex;
+  gap: var(--space-md);
+}
+
+.summaryCard {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: var(--space-md);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.summaryIcon {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-sm);
-  width: 100%;
-  padding-bottom: var(--space-lg);
-  margin-bottom: var(--space-lg);
-  border-bottom: 1px solid var(--color-border);
+  width: 28px;
+  height: 28px;
+  margin-bottom: 2px;
+  border-radius: 50%;
+  background: var(--ink-bg);
+  color: #ffffff;
 }
 
-.spendableChip {
-  padding: 4px 12px;
-  border-radius: var(--radius-full);
-  background: var(--color-brand);
-  color: #ffffff;
+.summaryLabel {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.summaryValue {
   font-size: var(--font-size-sm);
   font-weight: 700;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .quickActions {
   display: flex;
-  justify-content: center;
-  gap: var(--space-2xl);
+  justify-content: space-between;
+  gap: var(--space-sm);
   width: 100%;
 }
 
@@ -538,7 +642,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-xs);
-  max-height: 320px;
+  max-height: 240px;
   overflow-y: auto;
   margin-top: var(--space-sm);
 }

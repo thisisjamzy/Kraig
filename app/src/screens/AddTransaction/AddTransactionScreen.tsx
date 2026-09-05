@@ -56,6 +56,10 @@ export function AddTransactionScreen() {
     fromAccountId,
     toAccountId,
     daysInMonth,
+    canExplainUnjustifiedBalance,
+    explainsUnjustifiedBalance,
+    setExplainsUnjustifiedBalance,
+    unjustifiedBalance,
     canContinue,
     selectType,
     openDatePicker,
@@ -268,6 +272,22 @@ export function AddTransactionScreen() {
                 {strings.common.change}
               </button>
             </div>
+          )}
+
+          {canExplainUnjustifiedBalance && (
+            <label className={styles.explainToggleRow}>
+              <input
+                type="checkbox"
+                checked={explainsUnjustifiedBalance}
+                onChange={(event) => setExplainsUnjustifiedBalance(event.target.checked)}
+              />
+              <span className={styles.explainToggleText}>
+                <span className={styles.infoRowLabel}>{strings.addTransaction.explainUnjustifiedLabel}</span>
+                <span className={styles.helperText}>
+                  {strings.addTransaction.explainUnjustifiedHint} {formatMoney(String(Math.abs(unjustifiedBalance)))}
+                </span>
+              </span>
+            </label>
           )}
 
           <div className={styles.keypad}>

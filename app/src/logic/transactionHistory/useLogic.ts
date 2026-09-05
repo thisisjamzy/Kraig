@@ -70,6 +70,15 @@ function targetFromSearch(): { monthIndex: number | null; year: number | null } 
   return { monthIndex, year };
 }
 
+// PRD-AUDIT-RECONCILIATION.md section 1.4's "Manage backfill batches"
+// screen deep-links here with ?backfillBatch=<id> — a third mode, mutually
+// exclusive with the month view above, showing exactly (and only) the
+// transactions that one spread created.
+function backfillBatchFromSearch(): string | null {
+  if (typeof window === 'undefined') return null;
+  return new URLSearchParams(window.location.search).get('backfillBatch');
+}
+
 // FirestoreTransaction.type values this screen ever sees (mirrors
 // TYPE_ICONS' keys), plus 'Transfer' (a FirestoreTransfer, a separate
 // collection with no `type` field of its own) and 'All' for "no type filter
@@ -82,12 +91,13 @@ export function useLogic() {
   const { user, loading: authLoading } = useFirebaseUser();
   const uid = user?.uid;
   const [{ monthIndex, year }] = useState(targetFromSearch);
+  const [backfillBatchId] = useState(backfillBatchFromSearch);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterOpen, setFilterOpen] = useState(false);
   const [typeFilter, setTypeFilter] = useState<TransactionTypeFilter>('All');
   const [accountFilter, setAccountFilter] = useState<string>('All');
-  const hasMonth = monthIndex !== null && year !== null;
+  const hasMonth = monthIndex !== null && year !== null && !backfillBatchId;
   const monthStr = hasMonth ? `${year}-${pad2(monthIndex + 1)}` : null;
 
   const monthOnlyQuery = useMemo(
@@ -95,18 +105,24 @@ export function useLogic() {
     [uid, hasMonth, monthStr]
   );
   const allTimeQuery = useMemo(
-    () => (uid && !hasMonth ? query(transactionsRef(uid), orderBy('date', 'desc'), limit(ALL_TIME_PAGE_SIZE)) : null),
-    [uid, hasMonth]
+    () => (uid && !hasMonth && !backfillBatchId ? query(transactionsRef(uid), orderBy('date', 'desc'), limit(ALL_TIME_PAGE_SIZE)) : null),
+    [uid, hasMonth, backfillBatchId]
+  );
+  const backfillBatchQuery = useMemo(
+    () => (uid && backfillBatchId ? query(transactionsRef(uid), where('backfillBatchId', '==', backfillBatchId), orderBy('date', 'desc')) : null),
+    [uid, backfillBatchId]
   );
 
   const { data: monthOnlyDocs, loading: monthOnlyLoading, error: monthOnlyError } =
     useFirestoreCollection<FirestoreTransaction>(monthOnlyQuery);
   const { data: allTimeDocs, loading: allTimeLoading, error: allTimeError } =
     useFirestoreCollection<FirestoreTransaction>(allTimeQuery);
+  const { data: backfillBatchDocs, loading: backfillBatchLoading, error: backfillBatchError } =
+    useFirestoreCollection<FirestoreTransaction>(backfillBatchQuery);
 
-  const transactionDocs = hasMonth ? monthOnlyDocs : allTimeDocs;
-  const transactionsLoading = hasMonth ? monthOnlyLoading : allTimeLoading;
-  const transactionsError = hasMonth ? monthOnlyError : allTimeError;
+  const transactionDocs = backfillBatchId ? backfillBatchDocs : hasMonth ? monthOnlyDocs : allTimeDocs;
+  const transactionsLoading = backfillBatchId ? backfillBatchLoading : hasMonth ? monthOnlyLoading : allTimeLoading;
+  const transactionsError = backfillBatchId ? backfillBatchError : hasMonth ? monthOnlyError : allTimeError;
 
   // FirestoreTransfer has no `month` string field the way FirestoreTransaction
   // does (see types.ts) — the month-view query below uses a plain date range
@@ -124,9 +140,14 @@ export function useLogic() {
       limit(MONTH_ONLY_PAGE_SIZE)
     );
   }, [uid, hasMonth, year, monthIndex]);
+  // A backfill batch (PRD-AUDIT-RECONCILIATION.md section 1) never includes
+  // transfers — only createBackfillSpread's plain transactions or the
+  // Unjustified-wallet explain path's transaction half get tagged with a
+  // backfillBatchId, never the paired transfer — so batch mode skips this
+  // query entirely rather than fetching transfers it will never show.
   const allTimeTransfersQuery = useMemo(
-    () => (uid && !hasMonth ? query(transfersRef(uid), orderBy('date', 'desc'), limit(ALL_TIME_PAGE_SIZE)) : null),
-    [uid, hasMonth]
+    () => (uid && !hasMonth && !backfillBatchId ? query(transfersRef(uid), orderBy('date', 'desc'), limit(ALL_TIME_PAGE_SIZE)) : null),
+    [uid, hasMonth, backfillBatchId]
   );
 
   const { data: monthOnlyTransferDocs, loading: monthOnlyTransfersLoading, error: monthOnlyTransfersError } =
@@ -192,6 +213,17 @@ export function useLogic() {
       sortMs: transaction.date.toMillis(),
       icon: TYPE_ICONS[transaction.type] ?? ArrowUpRight,
       iconColor: accountColor.get(transaction.accountId) ?? walletColor(0),
+      // PRD-AUDIT-RECONCILIATION.md section 3 — a small origin tag so a row
+      // that looks unfamiliar (a transfer nobody remembers, a January
+      // entry logged in September) is legible rather than confusing.
+      // isHistoricBackfill takes precedence in the rare case both were
+      // ever true at once (a backfilled occurrence that also explained the
+      // gap), since "Backfilled" is the more informative label there.
+      origin: transaction.isHistoricBackfill
+        ? ('backfill' as const)
+        : transaction.isUnjustifiedAdjustment
+          ? ('reconciliation' as const)
+          : null,
     };
   });
 
@@ -216,6 +248,11 @@ export function useLogic() {
       sortMs: transfer.date.toMillis(),
       icon: ArrowLeftRight,
       iconColor: accountColor.get(transfer.fromAccountId) ?? walletColor(0),
+      // The reconciliation-paired transfer's own tag lives on its matching
+      // transaction row instead (see mappedTransactions above) — PRD-
+      // AUDIT-RECONCILIATION.md section 3 only asks that the transaction
+      // side be legible, not both halves independently.
+      origin: null as 'backfill' | 'reconciliation' | null,
     };
   });
 
@@ -255,13 +292,16 @@ export function useLogic() {
     setFilterOpen((open) => !open);
   }
 
-  // Title: the month being viewed, otherwise the screen's generic default.
-  const monthLabel = hasMonth
-    ? new Date(year!, monthIndex!, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-    : null;
+  // Title: the month being viewed, the batch's own title, or the screen's
+  // generic default.
+  const monthLabel = backfillBatchId
+    ? (transactionDocs[0]?.description ?? 'Backfilled transactions')
+    : hasMonth
+      ? new Date(year!, monthIndex!, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+      : null;
 
   function goBack() {
-    router.push('/home');
+    router.push(backfillBatchId ? '/settings/backfill/batches' : '/home');
   }
 
   function editHref(id: string) {
@@ -272,7 +312,7 @@ export function useLogic() {
     transactions,
     isFiltered,
     monthLabel,
-    isAllTransactionsView: !hasMonth,
+    isAllTransactionsView: !hasMonth && !backfillBatchId,
     loading: authLoading || transactionsLoading || transfersLoading || accountsLoading || categoriesLoading || ctxLoading,
     error: transactionsError || transfersError,
     editHref,

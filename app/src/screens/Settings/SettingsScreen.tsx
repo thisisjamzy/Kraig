@@ -18,6 +18,8 @@ import {
   Download,
   Upload,
   FileBarChart,
+  Scale,
+  CalendarClock,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Modal } from '@/src/widgets/Modal/Modal';
@@ -217,6 +219,28 @@ export function SettingsScreen() {
           <span className={styles.actionRowText}>
             <span className={styles.actionRowLabel}>{strings.auditReports.entryLabel}</span>
             <span className={styles.actionRowMeta}>{strings.auditReports.entryMeta}</span>
+          </span>
+          <ChevronRight size={16} strokeWidth={2} className={styles.actionRowChevron} />
+        </Link>
+
+        <Link href="/settings/reconciliation" className={styles.actionRow}>
+          <span className={styles.actionRowIcon} style={{ background: iconTint(12) }}>
+            <Scale size={18} strokeWidth={1.75} />
+          </span>
+          <span className={styles.actionRowText}>
+            <span className={styles.actionRowLabel}>{strings.reconciliation.entryLabel}</span>
+            <span className={styles.actionRowMeta}>{strings.reconciliation.entryMeta}</span>
+          </span>
+          <ChevronRight size={16} strokeWidth={2} className={styles.actionRowChevron} />
+        </Link>
+
+        <Link href="/settings/backfill" className={styles.actionRow}>
+          <span className={styles.actionRowIcon} style={{ background: iconTint(13) }}>
+            <CalendarClock size={18} strokeWidth={1.75} />
+          </span>
+          <span className={styles.actionRowText}>
+            <span className={styles.actionRowLabel}>{strings.backfill.entryLabel}</span>
+            <span className={styles.actionRowMeta}>{strings.backfill.entryMeta}</span>
           </span>
           <ChevronRight size={16} strokeWidth={2} className={styles.actionRowChevron} />
         </Link>

@@ -178,6 +178,18 @@
   color: var(--color-text-primary);
 }
 
+.originTag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  font-size: 0.625rem;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  vertical-align: middle;
+}
+
 .description {
   margin: 2px 0 0;
   font-size: 0.75rem;
