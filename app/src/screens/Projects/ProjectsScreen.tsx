@@ -1,15 +1,13 @@
 'use client';
 
-import { Plus, Target } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { useLogic } from '@/src/logic/projects/useLogic';
 import { useSwipeModeSwitch } from '@/src/shared/hooks/useSwipeModeSwitch';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
+import { ProjectCard } from '@/src/widgets/ProjectCard/ProjectCard';
+import { BucketCard } from '@/src/widgets/BucketCard/BucketCard';
 import styles from './ProjectsScreen.module.css';
-
-function formatDate(date: Date) {
-  return date.toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
-}
 
 export function ProjectsScreen() {
   const strings = useStrings();
@@ -18,6 +16,7 @@ export function ProjectsScreen() {
     setTab,
     overview,
     areas,
+    buckets,
     projects,
     archivedAreas,
     archivedProjects,
@@ -26,6 +25,7 @@ export function ProjectsScreen() {
     restoreProject,
     openProject,
     openArea,
+    openBucket,
     openCreateProject,
     openCreateArea,
     openTaskList,
@@ -77,6 +77,13 @@ export function ProjectsScreen() {
         </button>
         <button
           type="button"
+          className={`${styles.periodTab} ${tab === 'buckets' ? styles.periodTabActive : ''}`}
+          onClick={() => setTab('buckets')}
+        >
+          {strings.projects.tabBuckets} ({buckets.length})
+        </button>
+        <button
+          type="button"
           className={`${styles.periodTab} ${tab === 'projects' ? styles.periodTabActive : ''}`}
           onClick={() => setTab('projects')}
         >
@@ -117,39 +124,28 @@ export function ProjectsScreen() {
         </>
       )}
 
+      {!loading && !error && tab === 'buckets' && (
+        <>
+          {buckets.length === 0 ? (
+            <p className={styles.emptyText}>{strings.projects.emptyBuckets}</p>
+          ) : (
+            <div className={styles.bucketGrid}>
+              {buckets.map((bucket) => (
+                <BucketCard key={bucket.id} bucket={bucket} onClick={() => openBucket(bucket.id)} />
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
       {!loading && !error && tab === 'projects' && (
         <>
           {projects.length === 0 ? (
             <p className={styles.emptyText}>{strings.projects.emptyProjects}</p>
           ) : (
-            <div className={styles.projectList}>
+            <div className={styles.projectGrid}>
               {projects.map((project) => (
-                <button
-                  key={project.id}
-                  type="button"
-                  className={styles.projectCard}
-                  onClick={() => openProject(project.id)}
-                >
-                  <span className={styles.projectCardEmojiCircle} style={{ background: project.color }}>
-                    {project.emoji ?? '📁'}
-                  </span>
-                  <div className={styles.projectCardBody}>
-                    <p className={styles.cardName}>{project.name}</p>
-                    <p className={styles.cardMeta}>
-                      {project.startDate ? formatDate(project.startDate) : '—'} –{' '}
-                      {project.endDate ? formatDate(project.endDate) : '—'}
-                    </p>
-                    <div className={styles.projectCardBadgeRow}>
-                      <span className={styles.statusChip}>{project.status}</span>
-                      <span className={styles.taskCountChip}>{project.taskCount} tasks</span>
-                      {project.atRisk && (
-                        <span className={styles.riskChip}>
-                          <Target size={11} strokeWidth={2.25} /> At risk
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </button>
+                <ProjectCard key={project.id} project={project} onClick={() => openProject(project.id)} />
               ))}
             </div>
           )}

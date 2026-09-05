@@ -11,7 +11,6 @@
 // repeating it just to split the list into blocks would be redundant.
 
 import { useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { useAllTasks } from '@/src/shared/hooks/useAllTasks';
 import { pendingTasksByPriority, dailySuccessTrend } from '@/src/shared/firestore/taskInsights';
 import { PRIORITY_LEVELS } from '@/src/viewmodels/projects';
@@ -85,7 +84,6 @@ function dateRangeFor(filter: FocusDateFilter, now: Date): { start: Date; end: D
 }
 
 export function useLogic() {
-  const router = useRouter();
   const { data: tasks, loading } = useAllTasks();
   const [priorityFilter, setPriorityFilter] = useState<FocusPriorityFilter>('All');
   const [dateFilter, setDateFilter] = useState<FocusDateFilter>('all');
@@ -103,6 +101,7 @@ export function useLogic() {
         title: item.title,
         priority: item.priority,
         done: false,
+        status: item.status,
         startTime: item.startTime,
         dueDate: item.dueDate,
       }))
@@ -117,10 +116,6 @@ export function useLogic() {
   const successTrend = useMemo(() => dailySuccessTrend(tasks, SUCCESS_TREND_DAYS), [tasks]);
   const todaySuccess = successTrend.length > 0 ? successTrend[successTrend.length - 1].value : 0;
 
-  function openTask(taskId: string) {
-    router.push(`/tasks/${taskId}/edit`);
-  }
-
   return {
     visibleTasks,
     priorityFilter,
@@ -130,7 +125,6 @@ export function useLogic() {
     successTrend,
     todaySuccess,
     timeLeftToday: timeLeftToday(),
-    openTask,
     loading,
   };
 }

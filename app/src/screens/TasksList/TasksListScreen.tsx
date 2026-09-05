@@ -14,7 +14,7 @@ import { TaskCard } from '@/src/widgets/TaskCard/TaskCard';
 import styles from './TasksListScreen.module.css';
 
 export function TasksListScreen() {
-  const { title, tasks, statusFilter, setStatusFilter, priorityFilter, setPriorityFilter, openTask, goBack, loading } =
+  const { title, tasks, statusFilter, setStatusFilter, priorityFilter, setPriorityFilter, goBack, loading } =
     useLogic();
 
   return (
@@ -62,7 +62,7 @@ export function TasksListScreen() {
           ) : (
             <div className={styles.list}>
               {tasks.map((task) => (
-                <TaskCard key={task.id} task={task} onClick={() => openTask(task.id)} />
+                <TaskCard key={task.id} task={task} />
               ))}
             </div>
           )}

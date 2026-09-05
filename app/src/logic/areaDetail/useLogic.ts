@@ -7,11 +7,13 @@
 // (src/logic/areaEdit) — this hook is display-only plus the "open X" nav
 // helpers this detail screen needs.
 
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { query, where } from 'firebase/firestore';
 import { useFirestoreCollection, useFirestoreDoc } from '@/src/shared/firestore/hooks';
+import { useBuckets } from '@/src/shared/firestore/queries';
 import { areaRef, projectsRef, tasksRef } from '@/src/shared/firestore/refs';
+import { ensureDefaultBucket, defaultBucketId } from '@/src/shared/firestore/buckets';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { DEFAULT_PRIORITY } from '@/src/viewmodels/projects';
 import type { FirestoreArea, FirestoreProject, FirestoreTask } from '@/src/shared/firestore/types';
@@ -24,8 +26,38 @@ export function useLogic(areaId: string) {
   const areaDocRef = useMemo(() => (uid ? areaRef(uid, areaId) : null), [uid, areaId]);
   const { data: area, loading: areaLoading, error: areaError } = useFirestoreDoc<FirestoreArea>(areaDocRef);
 
+  // Self-heals an area that predates the Bucket feature — first load of any
+  // such area quietly gives it its own "General" bucket, same lazy-create
+  // pattern as ensureUnjustifiedWallet.
+  useEffect(() => {
+    if (!uid || !area) return;
+    ensureDefaultBucket(uid, areaId, area.color);
+  }, [uid, area, areaId]);
+
+  const { data: buckets, loading: bucketsLoading } = useBuckets(areaId);
+
   const projectsQuery = useMemo(() => (uid ? query(projectsRef(uid), where('areaId', '==', areaId)) : null), [uid, areaId]);
   const { data: projectDocs, loading: projectsLoading } = useFirestoreCollection<FirestoreProject>(projectsQuery);
+
+  // A project's bucketId counts toward that bucket if it resolves to one
+  // that's actually in this area's own bucket list; anything else (no
+  // bucketId, or a stale/unrecognized one) falls back to the area's default
+  // bucket — see buckets.ts's own header.
+  const bucketProjectCounts = useMemo(() => {
+    const knownIds = new Set(buckets.map((b) => b.id));
+    const counts = new Map<string, number>();
+    for (const project of projectDocs) {
+      if (project.status === 'Archived') continue;
+      const id = project.bucketId && knownIds.has(project.bucketId) ? project.bucketId : defaultBucketId(areaId);
+      counts.set(id, (counts.get(id) ?? 0) + 1);
+    }
+    return counts;
+  }, [projectDocs, buckets, areaId]);
+
+  const bucketsWithCounts = useMemo(
+    () => buckets.map((bucket) => ({ ...bucket, projectCount: bucketProjectCounts.get(bucket.id) ?? 0 })),
+    [buckets, bucketProjectCounts]
+  );
 
   // Single-field query (auto-indexed, no composite index to deploy) —
   // `archived` is filtered client-side instead of as a second `where`.
@@ -70,14 +102,23 @@ export function useLogic(areaId: string) {
   function openEdit() {
     router.push(`/areas/${areaId}/edit`);
   }
+  function openBucket(bucketId: string) {
+    router.push(`/buckets/${bucketId}`);
+  }
+  function openNewBucket() {
+    router.push(`/buckets/new?areaId=${areaId}`);
+  }
 
   return {
     area,
     projects,
+    buckets: bucketsWithCounts,
     goBack,
     openProject,
     openEdit,
-    loading: areaLoading || projectsLoading || tasksLoading,
+    openBucket,
+    openNewBucket,
+    loading: areaLoading || projectsLoading || tasksLoading || bucketsLoading,
     error: areaError,
   };
 }

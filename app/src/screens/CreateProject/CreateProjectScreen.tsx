@@ -13,12 +13,15 @@ export function CreateProjectScreen() {
   const strings = useStrings();
   const {
     areas,
+    buckets,
     name,
     setName,
     emoji,
     setEmoji,
     areaId,
     setAreaId,
+    bucketId,
+    setBucketId,
     color,
     setColor,
     priority,
@@ -86,6 +89,27 @@ export function CreateProjectScreen() {
               ))}
             </select>
           </div>
+
+          {areaId && (
+            <div className={styles.formField}>
+              <label className={styles.formLabel} htmlFor="project-bucket">
+                {strings.createProject.bucketLabel}
+              </label>
+              <select
+                id="project-bucket"
+                className={styles.formInput}
+                value={bucketId}
+                onChange={(event) => setBucketId(event.target.value)}
+              >
+                {buckets.map((bucket) => (
+                  <option key={bucket.id} value={bucket.id}>
+                    {bucket.emoji ? `${bucket.emoji} ` : ''}
+                    {bucket.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div className={styles.formField}>
             <span className={styles.formLabel}>{strings.createProject.colorLabel}</span>

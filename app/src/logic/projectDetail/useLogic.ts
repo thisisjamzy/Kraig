@@ -11,7 +11,6 @@ import { useRouter } from 'next/navigation';
 import { query, updateDoc, serverTimestamp, where } from 'firebase/firestore';
 import { useFirestoreCollection, useFirestoreDoc } from '@/src/shared/firestore/hooks';
 import { projectRef, tasksRef, areaRef, areasRef } from '@/src/shared/firestore/refs';
-import { updateTaskDone } from '@/src/shared/firestore/taskWrites';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { isAtRisk, projectRescheduleFlag } from '@/src/shared/firestore/projectInsights';
 import { DEFAULT_PRIORITY } from '@/src/viewmodels/projects';
@@ -61,6 +60,7 @@ export function useLogic(projectId: string) {
           type: t.type ?? 'ToDo',
           priority: t.priority ?? DEFAULT_PRIORITY,
           done: t.done,
+          status: t.status,
           archived: t.archived,
           startTime: t.startTime ? t.startTime.toDate() : null,
           dueDate: t.dueDate ? t.dueDate.toDate() : null,
@@ -106,11 +106,6 @@ export function useLogic(projectId: string) {
     ].filter((s) => s.value > 0);
   }, [activeTasks.length, completedCount]);
 
-  async function toggleTaskDone(taskId: string, done: boolean) {
-    if (!uid) return;
-    await updateTaskDone(uid, taskId, done);
-  }
-
   async function updateStatus(status: ProjectStatus) {
     if (!uid) return;
     await updateDoc(projectRef(uid, projectId), { status, updatedAt: serverTimestamp() });
@@ -130,9 +125,6 @@ export function useLogic(projectId: string) {
   function openAddTask() {
     router.push(`/tasks/new?projectId=${projectId}`);
   }
-  function openTask(taskId: string) {
-    router.push(`/tasks/${taskId}/edit`);
-  }
 
   return {
     project,
@@ -147,13 +139,11 @@ export function useLogic(projectId: string) {
     rescheduleFlag,
     activitySegments,
 
-    toggleTaskDone,
     updateStatus,
     updateAreaId,
     goBack,
     openEditProject,
     openAddTask,
-    openTask,
     loading: projectLoading || tasksLoading,
     error: projectError,
   };

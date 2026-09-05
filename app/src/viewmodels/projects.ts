@@ -6,7 +6,7 @@
 // user choice, not an auto-cycled one.
 
 import { CircleDot, Users, CalendarDays, type LucideIcon } from 'lucide-react';
-import type { TaskType, Priority, GoalItemNecessity } from '@/src/shared/firestore/types';
+import type { TaskType, TaskStatus, Priority, GoalItemNecessity } from '@/src/shared/firestore/types';
 
 export const PROJECT_COLORS = [
   '#7b7ef3',
@@ -47,6 +47,16 @@ export const PRIORITY_LEVELS: Priority[] = ['High', 'Medium', 'Low'];
 // Legacy projects/tasks written before priority existed default to Medium
 // wherever they're read (never stored as undefined going forward).
 export const DEFAULT_PRIORITY: Priority = 'Medium';
+
+export const TASK_STATUSES: TaskStatus[] = ['Pending', 'Stuck', 'In Review', 'Done'];
+
+// A task's real status: the stored field when present, otherwise derived
+// from `done` alone for a task written before status existed — never read
+// task.status directly, always through this (TaskQuickActionsMenu, TaskCard,
+// filters).
+export function resolveTaskStatus(task: { status?: TaskStatus; done: boolean }): TaskStatus {
+  return task.status ?? (task.done ? 'Done' : 'Pending');
+}
 
 export const NECESSITY_OPTIONS: GoalItemNecessity[] = ['MustHave', 'NiceToHave'];
 export const NECESSITY_LABEL: Record<GoalItemNecessity, string> = {

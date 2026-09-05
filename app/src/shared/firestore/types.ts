@@ -464,6 +464,11 @@ export interface FirestoreBucket {
   description: string; // required — same convention as Area
   areaId: string; // required — a bucket always belongs to exactly one area
   archived: boolean;
+  // True for the one bucket src/shared/firestore/buckets.ts auto-creates per
+  // area (fixed id `default-{areaId}`) — every project in that area with no
+  // bucket of its own effectively lives here, so this bucket can be
+  // renamed/recolored but never archived (see bucketEdit/useLogic.ts).
+  isDefault?: boolean;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 }
@@ -514,6 +519,11 @@ export interface FirestoreProject {
 // selectable on the task edit screen (viewmodels/projects.ts's TASK_TYPES).
 export type TaskType = 'Meeting' | 'Event' | 'ToDo';
 
+// viewmodels/tasks.ts's TASK_STATUSES — set from TaskQuickActionsMenu's
+// status picker, kept in sync with FirestoreTask.done (see that field's own
+// comment below).
+export type TaskStatus = 'Pending' | 'Stuck' | 'In Review' | 'Done';
+
 export interface FirestoreTask {
   id: string;
   title: string;
@@ -531,10 +541,19 @@ export interface FirestoreTask {
   // project itself has no bucket).
   bucketId: string | null;
   parentTaskId: string | null; // subtask — a later build step
-  // Only ever these two states, plus `archived` below as a third,
-  // independent "removed from view" flag — no kanban board, no in-progress
-  // status. A task is either not done yet or it's done.
+  // The done checkbox's own binary state, kept in sync with `status` below
+  // rather than independent of it: done flips true exactly when status
+  // becomes 'Done', and flips false (resetting status to 'Pending') when
+  // unchecked directly — see taskWrites.ts's updateTaskDone/
+  // updateTaskStatus. `archived` further below is a third, independent
+  // "removed from view" flag, unrelated to either.
   done: boolean;
+  // Optional so older docs (written before this field existed) still
+  // parse — read through resolveTaskStatus() (viewmodels/tasks.ts) rather
+  // than this field directly, which falls back to 'Done'/'Pending' from
+  // `done` alone for those. Changed via TaskQuickActionsMenu's status
+  // picker.
+  status?: TaskStatus;
   // Optional — most tasks are still a single point in time (dueDate alone).
   // When set, the task spans a range (dueDate is then read as the end):
   // task cards and the Calendar agenda show "start – end" instead of a

@@ -114,26 +114,33 @@ export function BucketEditScreen({ bucketId }: { bucketId: string }) {
             </button>
           </div>
 
-          <div className={styles.dangerCard}>
-            <p className={styles.dangerTitle}>Archive</p>
-            {bucket.archived ? (
-              <>
-                <span className={styles.archivedBadge}>Archived</span>
-                <button type="button" className={styles.unarchiveButton} onClick={unarchiveBucket}>
-                  Unarchive bucket
-                </button>
-              </>
-            ) : (
-              <>
-                <p className={styles.sectionCaption}>
-                  Hides it from its area and the bucket picker. Its projects and tasks stay intact.
-                </p>
-                <button type="button" className={styles.archiveButton} onClick={() => setConfirmArchive(true)}>
-                  Archive bucket
-                </button>
-              </>
-            )}
-          </div>
+          {bucket.isDefault ? (
+            <p className={styles.sectionCaption}>
+              This is the area&apos;s default bucket — every project here without one of its own lives in it, so it
+              can&apos;t be archived.
+            </p>
+          ) : (
+            <div className={styles.dangerCard}>
+              <p className={styles.dangerTitle}>Archive</p>
+              {bucket.archived ? (
+                <>
+                  <span className={styles.archivedBadge}>Archived</span>
+                  <button type="button" className={styles.unarchiveButton} onClick={unarchiveBucket}>
+                    Unarchive bucket
+                  </button>
+                </>
+              ) : (
+                <>
+                  <p className={styles.sectionCaption}>
+                    Hides it from its area and the bucket picker. Its projects and tasks stay intact.
+                  </p>
+                  <button type="button" className={styles.archiveButton} onClick={() => setConfirmArchive(true)}>
+                    Archive bucket
+                  </button>
+                </>
+              )}
+            </div>
+          )}
         </>
       )}
 

@@ -4,7 +4,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getDoc, query, updateDoc, serverTimestamp, Timestamp, where } from 'firebase/firestore';
 import { useFirestoreCollection, useFirestoreDoc } from '@/src/shared/firestore/hooks';
+import { useBuckets } from '@/src/shared/firestore/queries';
 import { projectRef, areasRef } from '@/src/shared/firestore/refs';
+import { ensureDefaultBucket, defaultBucketId } from '@/src/shared/firestore/buckets';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { PROJECT_COLORS, DEFAULT_PRIORITY } from '@/src/viewmodels/projects';
 import type { FirestoreProject, FirestoreArea, ProjectStatus, Priority } from '@/src/shared/firestore/types';
@@ -27,6 +29,7 @@ export function useLogic(projectId: string) {
   const [name, setName] = useState('');
   const [emoji, setEmoji] = useState<string | null>(null);
   const [areaId, setAreaId] = useState('');
+  const [bucketId, setBucketId] = useState('');
   const [color, setColor] = useState<string>(PROJECT_COLORS[0]);
   const [priority, setPriority] = useState<Priority>(DEFAULT_PRIORITY);
   const [startDate, setStartDate] = useState('');
@@ -43,6 +46,7 @@ export function useLogic(projectId: string) {
     setName(project.name);
     setEmoji(project.emoji ?? null);
     setAreaId(project.areaId ?? '');
+    setBucketId(project.bucketId ?? '');
     setColor(project.color);
     setPriority(project.priority ?? DEFAULT_PRIORITY);
     setStartDate(project.startDate ? toIso(project.startDate.toDate()) : '');
@@ -50,6 +54,25 @@ export function useLogic(projectId: string) {
     setStatus(project.status);
     setDescription(project.description ?? '');
   }, [project, seededFor, projectId]);
+
+  // Every bucket in the currently selected area — same lookup
+  // createProject/useLogic.ts uses.
+  const { data: buckets } = useBuckets(areaId || undefined);
+
+  // Once seeded, keep the bucket choice valid for whichever area is
+  // currently selected: a bucket from a different area (the user just
+  // switched areas), or a legacy null bucketId, both resolve to that
+  // area's own default the moment its bucket list is known.
+  useEffect(() => {
+    if (seededFor !== projectId) return;
+    if (!areaId) {
+      setBucketId('');
+      return;
+    }
+    if (uid) ensureDefaultBucket(uid, areaId, color);
+    setBucketId((current) => (buckets.some((b) => b.id === current) ? current : defaultBucketId(areaId)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `color`/`projectId` intentionally excluded, see createProject/useLogic.ts's identical effect.
+  }, [areaId, buckets, uid, seededFor]);
 
   async function handleSave() {
     if (!uid || saving || !name.trim() || !description.trim()) return;
@@ -67,11 +90,13 @@ export function useLogic(projectId: string) {
       const newEndDate = endDate ? new Date(`${endDate}T00:00:00`) : null;
       const newEndMs = newEndDate ? newEndDate.getTime() : null;
       const endDateChanged = newEndMs !== null && newEndMs !== beforeEndMs;
+      const resolvedBucketId = areaId ? bucketId || (await ensureDefaultBucket(uid, areaId, color)) : null;
 
       const update: Record<string, unknown> = {
         name: name.trim(),
         emoji,
         areaId: areaId || null,
+        bucketId: resolvedBucketId,
         color,
         priority,
         startDate: startDate ? Timestamp.fromDate(new Date(`${startDate}T00:00:00`)) : null,
@@ -113,12 +138,15 @@ export function useLogic(projectId: string) {
   return {
     project,
     areas,
+    buckets,
     name,
     setName,
     emoji,
     setEmoji,
     areaId,
     setAreaId,
+    bucketId,
+    setBucketId,
     color,
     setColor,
     priority,

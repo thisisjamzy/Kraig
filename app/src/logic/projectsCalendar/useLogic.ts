@@ -101,6 +101,7 @@ export function useLogic() {
         startTime: t.startTime ? t.startTime.toDate() : null,
         dueDate: t.dueDate!.toDate(),
         done: t.done,
+        status: t.status,
       }))
       .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
     const projectItems = projects
@@ -135,9 +136,6 @@ export function useLogic() {
   function selectDay(dateIso: string) {
     setSelectedDate(dateIso);
   }
-  function openTask(taskId: string) {
-    router.push(`/tasks/${taskId}/edit`);
-  }
   function openProject(projectId: string) {
     router.push(`/projects/${projectId}`);
   }
@@ -154,7 +152,6 @@ export function useLogic() {
     selectDay,
     agenda,
     todayIso: isoDate(today),
-    openTask,
     openProject,
     openPayment,
     loading: tasksLoading || projectsLoading || paymentsLoading || accountsLoading || categoriesLoading || ctxLoading,

@@ -58,7 +58,10 @@ export function useLogic(bucketId: string) {
   }
 
   async function archiveBucket() {
-    if (!uid) return;
+    // The default bucket is every unbucketed project's fallback home (see
+    // buckets.ts's own header) — archiving it would leave those projects
+    // with nowhere to resolve to, so it's never allowed to go away.
+    if (!uid || bucket?.isDefault) return;
     await updateDoc(bucketRef(uid, bucketId), { archived: true, updatedAt: serverTimestamp() });
     router.push(bucketAreaId ? `/areas/${bucketAreaId}` : '/projects');
   }
