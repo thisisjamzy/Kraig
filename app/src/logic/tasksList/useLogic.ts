@@ -96,6 +96,7 @@ export function useLogic() {
         title: task.title,
         priority: task.priority ?? DEFAULT_PRIORITY,
         done: task.done,
+        status: task.status,
         startTime: task.startTime ? task.startTime.toDate() : null,
         dueDate: task.dueDate ? task.dueDate.toDate() : null,
       }))
@@ -107,9 +108,6 @@ export function useLogic() {
       });
   }, [taskDocs, filter, statusFilter, priorityFilter]);
 
-  function openTask(taskId: string) {
-    router.push(`/tasks/${taskId}/edit`);
-  }
   function goBack() {
     router.back();
   }
@@ -121,7 +119,6 @@ export function useLogic() {
     setStatusFilter,
     priorityFilter,
     setPriorityFilter,
-    openTask,
     goBack,
     loading,
   };

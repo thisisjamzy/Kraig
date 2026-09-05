@@ -6,7 +6,7 @@
 // projects/useLogic.ts's header — a household's own tasks are a small
 // enough list to recompute live on every read.
 
-import type { FirestoreTask, Priority } from './types';
+import type { FirestoreTask, Priority, TaskStatus } from './types';
 import { DEFAULT_PRIORITY } from '@/src/viewmodels/projects';
 
 export interface TaskInsight {
@@ -120,6 +120,7 @@ export interface FocusTaskItem {
   startTime: Date | null;
   dueDate: Date | null;
   overdue: boolean;
+  status?: TaskStatus;
 }
 
 /** Every not-done task (any due date, or none), split into High/Medium/Low priority — the Focus screen's worklist. Each bucket is soonest-due first, undated tasks last. */
@@ -139,6 +140,7 @@ export function pendingTasksByPriority(
       startTime: task.startTime ? task.startTime.toDate() : null,
       dueDate,
       overdue: Boolean(dueDate) && dueDate! < today,
+      status: task.status,
     });
   }
   for (const list of Object.values(buckets)) {

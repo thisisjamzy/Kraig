@@ -23,10 +23,10 @@
 import { useMemo } from 'react';
 import { query, where } from 'firebase/firestore';
 import { useFirestoreCollection, useFirestoreDoc } from './hooks';
-import { accountsRef, categoriesRef, settingsRef, exchangeRatesRef } from './refs';
+import { accountsRef, categoriesRef, settingsRef, exchangeRatesRef, bucketsRef } from './refs';
 import { buildCurrencyContext } from './currency';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
-import type { FirestoreAccount, FirestoreCategory, FirestoreSettings, FirestoreExchangeRate } from './types';
+import type { FirestoreAccount, FirestoreCategory, FirestoreSettings, FirestoreExchangeRate, FirestoreBucket } from './types';
 
 export function useAccounts() {
   const { user, loading: authLoading } = useFirebaseUser();
@@ -41,6 +41,26 @@ export function useAccounts() {
   // screens that DO need its balance read it directly via
   // unjustifiedWalletRef, bypassing this hook entirely.
   const data = useMemo(() => state.data.filter((account) => !account.isSystemWallet), [state.data]);
+  return { ...state, data, loading: authLoading || state.loading };
+}
+
+// Scoped to one area when given (every screen that needs buckets already
+// knows which area it's working in) — the default bucket sorts first via
+// isDefault, so callers never have to special-case finding it.
+export function useBuckets(areaId?: string) {
+  const { user, loading: authLoading } = useFirebaseUser();
+  const uid = user?.uid;
+  const q = useMemo(() => {
+    if (!uid) return null;
+    return areaId
+      ? query(bucketsRef(uid), where('areaId', '==', areaId), where('archived', '==', false))
+      : query(bucketsRef(uid), where('archived', '==', false));
+  }, [uid, areaId]);
+  const state = useFirestoreCollection<FirestoreBucket>(q);
+  const data = useMemo(
+    () => [...state.data].sort((a, b) => Number(b.isDefault) - Number(a.isDefault) || a.name.localeCompare(b.name)),
+    [state.data]
+  );
   return { ...state, data, loading: authLoading || state.loading };
 }
 

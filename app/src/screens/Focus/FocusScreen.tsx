@@ -36,7 +36,6 @@ export function FocusScreen() {
     successTrend,
     todaySuccess,
     timeLeftToday,
-    openTask,
     loading,
   } = useLogic();
 
@@ -100,7 +99,7 @@ export function FocusScreen() {
           ) : (
             <div className={styles.list}>
               {visibleTasks.map((task) => (
-                <TaskCard key={task.id} task={task} onClick={() => openTask(task.id)} />
+                <TaskCard key={task.id} task={task} />
               ))}
             </div>
           )}

@@ -13,7 +13,7 @@
 
 import { getDoc, setDoc, updateDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { taskRef } from './refs';
-import type { TaskType, Priority } from './types';
+import type { TaskType, Priority, TaskStatus } from './types';
 
 // Tasks are day-bound — a single date, plus a start and an end time of day
 // on that same date (never spanning midnight into a second day) — so the
@@ -79,6 +79,7 @@ export async function createTask(uid: string, input: CreateTaskInput): Promise<s
     bucketId: input.bucketId,
     parentTaskId: null,
     done: false,
+    status: 'Pending',
     startTime: Timestamp.fromDate(input.startTime),
     dueDate: Timestamp.fromDate(input.dueDate),
     originalDueDate: Timestamp.fromDate(input.dueDate),
@@ -144,15 +145,42 @@ export async function updateTask(uid: string, taskId: string, input: UpdateTaskI
   }
   if (input.done && !before?.done) update.completedAt = serverTimestamp();
   else if (!input.done && before?.done) update.completedAt = null;
+  // Keep status in sync with the done checkbox here too, same rule as
+  // updateTaskDone below — otherwise saving the full edit form with the
+  // checkbox unticked could leave a stale status: 'Done' behind.
+  if (input.done && !before?.done) update.status = 'Done';
+  else if (!input.done && before?.done) update.status = 'Pending';
 
   await updateDoc(taskRef(uid, taskId), update);
 }
 
-/** Quick done/not-done toggle without touching the rest of the task — used by the single radio toggle on Project Detail's task rows. */
+/** Quick done/not-done toggle without touching the rest of the task — used
+ * by the single radio toggle on Project Detail's task rows, and
+ * TaskQuickActionsMenu's own checkbox. Ticking it always resolves status to
+ * 'Done'; unticking it resets status to 'Pending' — the checkbox is a
+ * binary shortcut, not aware of the in-between statuses (Stuck, In Review)
+ * that only the status picker (updateTaskStatus below) sets. */
 export async function updateTaskDone(uid: string, taskId: string, done: boolean): Promise<void> {
   const beforeSnap = await getDoc(taskRef(uid, taskId));
   const wasDone = beforeSnap.exists() ? Boolean(beforeSnap.data().done) : false;
-  const update: Record<string, unknown> = { done, updatedAt: serverTimestamp() };
+  const update: Record<string, unknown> = {
+    done,
+    status: done ? 'Done' : 'Pending',
+    updatedAt: serverTimestamp(),
+  };
+  if (done && !wasDone) update.completedAt = serverTimestamp();
+  else if (!done && wasDone) update.completedAt = null;
+  await updateDoc(taskRef(uid, taskId), update);
+}
+
+/** Sets status directly (TaskQuickActionsMenu's status picker) — kept in
+ * sync with `done` the other way round from updateTaskDone: status
+ * 'Done' means done:true, any other status means done:false. */
+export async function updateTaskStatus(uid: string, taskId: string, status: TaskStatus): Promise<void> {
+  const beforeSnap = await getDoc(taskRef(uid, taskId));
+  const wasDone = beforeSnap.exists() ? Boolean(beforeSnap.data().done) : false;
+  const done = status === 'Done';
+  const update: Record<string, unknown> = { status, done, updatedAt: serverTimestamp() };
   if (done && !wasDone) update.completedAt = serverTimestamp();
   else if (!done && wasDone) update.completedAt = null;
   await updateDoc(taskRef(uid, taskId), update);

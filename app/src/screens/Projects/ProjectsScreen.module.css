@@ -130,100 +130,16 @@
   gap: var(--space-md);
 }
 
-.projectList {
-  display: flex;
-  flex-direction: column;
-}
-
-/* Project card — emoji-in-colored-circle top-aligned on the left, name/
-   timeline/status/task-count/at-risk stacked on the right. */
-
-.projectCard {
-  display: flex;
-  align-items: flex-start;
+.projectGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: var(--space-md);
-  padding: var(--space-md) 0;
-  border: none;
-  border-radius: 0;
-  background: none;
-  font-family: inherit;
-  text-align: left;
-  cursor: pointer;
-  width: 100%;
 }
 
-.projectList > .projectCard:not(:last-child) {
-  border-bottom: 1px solid var(--color-border);
-}
-
-.projectCardEmojiCircle {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  flex-shrink: 0;
-  border-radius: 50%;
-  font-size: 1.125rem;
-}
-
-.projectCardBody {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.projectCardBadgeRow {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-xs);
-  margin-top: 2px;
-}
-
-.cardName {
-  margin: 0;
-  font-size: var(--font-size-sm);
-  font-weight: 700;
-  color: var(--color-text-primary);
-}
-
-.cardMeta {
-  margin: 0;
-  font-size: 0.75rem;
-  color: var(--color-text-secondary);
-}
-
-.statusChip {
-  padding: 2px var(--space-sm);
-  border-radius: var(--radius-full);
-  background: color-mix(in srgb, var(--color-brand) 15%, transparent);
-  color: var(--color-brand);
-  font-size: 0.7rem;
-  font-weight: 700;
-}
-
-.taskCountChip {
-  padding: 2px var(--space-sm);
-  border-radius: var(--radius-full);
-  background: var(--color-surface);
-  color: var(--color-text-secondary);
-  font-size: 0.7rem;
-  font-weight: 700;
-}
-
-.riskChip {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  padding: 2px var(--space-sm);
-  border-radius: var(--radius-full);
-  background: color-mix(in srgb, var(--color-danger) 18%, transparent);
-  color: var(--color-danger);
-  font-size: 0.7rem;
-  font-weight: 700;
+.bucketGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-md);
 }
 
 .areaGrid {

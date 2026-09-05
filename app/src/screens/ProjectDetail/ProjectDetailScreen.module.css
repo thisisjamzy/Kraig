@@ -200,84 +200,6 @@
 
 /* Tasks — screen1-style divider list, no card border/radius per row */
 
-.taskRow {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-sm);
-  padding: var(--space-md) 0;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.list > .taskRow:last-child {
-  border-bottom: none;
-}
-
-.taskEmoji {
-  flex-shrink: 0;
-  margin-top: 1px;
-  font-size: 1.125rem;
-  line-height: 1;
-}
-
-.taskInfo {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  cursor: pointer;
-}
-
-.taskTypeTag {
-  font-size: 0.6875rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  color: var(--color-text-secondary);
-}
-
-.taskTitle {
-  margin: 0;
-  font-size: var(--font-size-sm);
-  font-weight: 700;
-  color: var(--color-text-primary);
-}
-
-.taskTitleDone {
-  text-decoration: line-through;
-  color: var(--color-text-secondary);
-}
-
-.taskTimestamp {
-  font-size: 0.75rem;
-  color: var(--color-text-secondary);
-}
-
-.taskFlags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  font-size: 0.7rem;
-}
-
-.taskMetaDanger {
-  color: var(--color-danger);
-  font-weight: 700;
-}
-
-.taskMetaReschedule {
-  color: #a3671c;
-  font-weight: 700;
-}
-
-.doneCheckbox {
-  flex-shrink: 0;
-  margin-top: 3px;
-  width: 18px;
-  height: 18px;
-  accent-color: var(--color-brand);
-  cursor: pointer;
-}
-
 .sectionTitleRow {
   display: flex;
   align-items: center;
@@ -335,4 +257,5 @@
 .list {
   display: flex;
   flex-direction: column;
+  gap: var(--space-sm);
 }

@@ -3,9 +3,7 @@
 import { ChevronLeft, ChevronRight, FolderKanban, Target, Wallet } from 'lucide-react';
 import { useLogic } from '@/src/logic/projectsCalendar/useLogic';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
-import { TaskQuickActionsMenu } from '@/src/widgets/TaskQuickActionsMenu/TaskQuickActionsMenu';
-import { formatTaskDateRange } from '@/src/shared/formatTaskDateRange';
-import { TASK_TYPE_LABEL, TASK_TYPE_ICON, TASK_TYPES } from '@/src/viewmodels/projects';
+import { TaskCard } from '@/src/widgets/TaskCard/TaskCard';
 import { iconTint } from '@/src/viewmodels/iconTint';
 import styles from './ProjectsCalendarScreen.module.css';
 
@@ -21,7 +19,6 @@ export function ProjectsCalendarScreen() {
     selectDay,
     agenda,
     todayIso,
-    openTask,
     openProject,
     openPayment,
     loading,
@@ -87,45 +84,9 @@ export function ProjectsCalendarScreen() {
             <p className={styles.statLabel}>Nothing scheduled this day.</p>
           ) : (
             <div className={styles.agendaGroup}>
-              {agenda.taskItems.map((item) => {
-                // Falls back to the To-do icon/label for any task whose
-                // stored `type` isn't one of the three known values (an
-                // older or hand-edited doc) — a lookup miss must never
-                // render `undefined` as a component, which crashes.
-                const TypeIcon = TASK_TYPE_ICON[item.type] ?? TASK_TYPE_ICON.ToDo;
-                const typeLabel = TASK_TYPE_LABEL[item.type] ?? TASK_TYPE_LABEL.ToDo;
-                const typeTintIndex = Math.max(TASK_TYPES.indexOf(item.type), 0);
-                return (
-                  <div
-                    key={item.id}
-                    className={styles.agendaRow}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => openTask(item.id)}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter' || event.key === ' ') {
-                        event.preventDefault();
-                        openTask(item.id);
-                      }
-                    }}
-                  >
-                    <span className={styles.agendaIcon} style={{ background: iconTint(typeTintIndex) }}>
-                      <TypeIcon size={16} strokeWidth={2} />
-                    </span>
-                    <div className={styles.agendaTaskBody}>
-                      <span className={styles.agendaTypeCaption}>{typeLabel}</span>
-                      <p className={`${styles.agendaTitleBlock} ${item.done ? styles.agendaTitleDone : ''}`}>
-                        {item.emoji ? `${item.emoji} ` : ''}
-                        {item.title}
-                      </p>
-                      <span className={styles.agendaTime}>{formatTaskDateRange(item.startTime, item.dueDate)}</span>
-                    </div>
-                    <span onClick={(event) => event.stopPropagation()}>
-                      <TaskQuickActionsMenu taskId={item.id} priority={item.priority} done={item.done} dueDate={item.dueDate} />
-                    </span>
-                  </div>
-                );
-              })}
+              {agenda.taskItems.map((item) => (
+                <TaskCard key={item.id} task={item} />
+              ))}
               {agenda.projectItems.map((item) => (
                 <button
                   key={`${item.id}-${item.label}`}

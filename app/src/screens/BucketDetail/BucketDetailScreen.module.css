@@ -37,7 +37,7 @@
   color: var(--color-text-primary);
 }
 
-.archiveButton {
+.editButton {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -51,7 +51,7 @@
   cursor: pointer;
 }
 
-.areaName {
+.bucketName {
   margin: calc(-1 * var(--space-sm)) 0 0;
   display: flex;
   align-items: center;
@@ -68,17 +68,27 @@
   line-height: 1;
 }
 
+.areaChip {
+  align-self: flex-start;
+  padding: 2px var(--space-sm);
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
 .descriptionText {
-  margin: calc(-1 * var(--space-sm)) 0 0;
+  margin: 0;
   font-size: var(--font-size-sm);
   line-height: 1.5;
   color: var(--color-text-secondary);
 }
 
-.bucketGrid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-md);
+.emojiSmall {
+  font-size: 1.125rem;
+  line-height: 1;
+  flex-shrink: 0;
 }
 
 .sectionTitleRow {
