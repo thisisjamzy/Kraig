@@ -294,7 +294,7 @@ export function BudgetScreen() {
       </div>
 
       {monthTransactionsLoading ? (
-        <p className={styles.emptyText}>Loading…</p>
+        <ScreenState loading />
       ) : monthTransactions.length === 0 ? (
         <p className={styles.emptyText}>
           {strings.budget.noMonthTransactionsPrefix} {monthLabel} {strings.budget.noMonthTransactionsSuffix}
