@@ -1,10 +1,12 @@
 'use client';
 
+import { useState } from 'react';
 import { ChevronLeft } from 'lucide-react';
 import { useLogic } from '@/src/logic/projectEdit/useLogic';
 import { EmojiPicker } from '@/src/widgets/EmojiPicker/EmojiPicker';
 import { DateRangeField } from '@/src/widgets/DateRangeField/DateRangeField';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
+import { ConfirmDialog } from '@/src/widgets/ConfirmDialog/ConfirmDialog';
 import { PROJECT_COLORS, PRIORITY_LEVELS } from '@/src/viewmodels/projects';
 import type { ProjectStatus } from '@/src/shared/firestore/types';
 import styles from './ProjectEditScreen.module.css';
@@ -12,6 +14,7 @@ import styles from './ProjectEditScreen.module.css';
 const STATUSES: ProjectStatus[] = ['Active', 'Completed', 'Archived'];
 
 export function ProjectEditScreen({ projectId }: { projectId: string }) {
+  const [confirmArchive, setConfirmArchive] = useState(false);
   const {
     project,
     areas,
@@ -192,13 +195,27 @@ export function ProjectEditScreen({ projectId }: { projectId: string }) {
                 <p className={styles.sectionCaption}>
                   Hides it from your Projects tab. Its tasks stay intact and can still be reached individually.
                 </p>
-                <button type="button" className={styles.archiveButton} onClick={archiveProject}>
+                <button type="button" className={styles.archiveButton} onClick={() => setConfirmArchive(true)}>
                   Archive project
                 </button>
               </>
             )}
           </div>
         </>
+      )}
+
+      {confirmArchive && (
+        <ConfirmDialog
+          title="Archive this project?"
+          message="Hides it from your Projects tab. Its tasks stay intact and can still be reached individually, and you can unarchive it later."
+          confirmLabel="Archive project"
+          cancelLabel="Cancel"
+          onCancel={() => setConfirmArchive(false)}
+          onConfirm={() => {
+            archiveProject();
+            setConfirmArchive(false);
+          }}
+        />
       )}
     </div>
   );

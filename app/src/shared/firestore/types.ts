@@ -407,6 +407,22 @@ export interface FirestoreArea {
   updatedAt?: Timestamp;
 }
 
+// Sits between Area and Project — every area can have buckets, and a
+// project can belong to one (see FirestoreProject.bucketId below). Same
+// shape as FirestoreArea, deliberately, so the create/edit screens can
+// reuse the same form pattern.
+export interface FirestoreBucket {
+  id: string;
+  name: string;
+  emoji: string | null;
+  color: string;
+  description: string; // required — same convention as Area
+  areaId: string; // required — a bucket always belongs to exactly one area
+  archived: boolean;
+  createdAt?: Timestamp;
+  updatedAt?: Timestamp;
+}
+
 export type ProjectStatus = 'Active' | 'Completed' | 'Archived';
 
 // Shared by projects and tasks — viewmodels/projects.ts's PRIORITY_LEVELS.
@@ -417,6 +433,11 @@ export interface FirestoreProject {
   name: string;
   emoji: string | null;
   areaId: string | null;
+  // Optional — a project can belong directly to an area with no bucket.
+  // When set, areaId above is always that bucket's own areaId (the create/
+  // edit screens enforce this; a bucket never gets picked without pulling
+  // its area along, see src/logic/createProject/useLogic.ts).
+  bucketId: string | null;
   color: string;
   priority: Priority;
   // Both are plain, freely editable target dates — no immutable "baseline"
@@ -460,6 +481,10 @@ export interface FirestoreTask {
   // area without a join, and is always null when projectId is null.
   projectId: string | null;
   areaId: string | null;
+  // Same mirroring convention as areaId — copied from the project's own
+  // bucketId, never set directly, null whenever projectId is null (or the
+  // project itself has no bucket).
+  bucketId: string | null;
   parentTaskId: string | null; // subtask — a later build step
   // Only ever these two states, plus `archived` below as a third,
   // independent "removed from view" flag — no kanban board, no in-progress

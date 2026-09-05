@@ -1,13 +1,16 @@
 'use client';
 
+import { useState } from 'react';
 import { ChevronLeft } from 'lucide-react';
 import { useLogic } from '@/src/logic/areaEdit/useLogic';
 import { EmojiPicker } from '@/src/widgets/EmojiPicker/EmojiPicker';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
+import { ConfirmDialog } from '@/src/widgets/ConfirmDialog/ConfirmDialog';
 import { PROJECT_COLORS } from '@/src/viewmodels/projects';
 import styles from './AreaEditScreen.module.css';
 
 export function AreaEditScreen({ areaId }: { areaId: string }) {
+  const [confirmArchive, setConfirmArchive] = useState(false);
   const {
     area,
     name,
@@ -114,13 +117,27 @@ export function AreaEditScreen({ areaId }: { areaId: string }) {
                 <p className={styles.sectionCaption}>
                   Hides it from your Areas tab and the area picker. Its projects and tasks stay intact.
                 </p>
-                <button type="button" className={styles.archiveButton} onClick={archiveArea}>
+                <button type="button" className={styles.archiveButton} onClick={() => setConfirmArchive(true)}>
                   Archive area
                 </button>
               </>
             )}
           </div>
         </>
+      )}
+
+      {confirmArchive && (
+        <ConfirmDialog
+          title="Archive this area?"
+          message="Hides it from your Areas tab and the area picker. Its projects and tasks stay intact, and you can unarchive it later."
+          confirmLabel="Archive area"
+          cancelLabel="Cancel"
+          onCancel={() => setConfirmArchive(false)}
+          onConfirm={() => {
+            archiveArea();
+            setConfirmArchive(false);
+          }}
+        />
       )}
     </div>
   );

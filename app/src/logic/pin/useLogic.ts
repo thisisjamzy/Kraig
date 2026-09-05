@@ -10,7 +10,7 @@ import {
   PIN_VERIFIED_KEY,
 } from '@/src/shared/config/pinGate';
 import { setClientCookie, PERSISTENT_COOKIE_MAX_AGE_SECONDS } from '@/src/shared/config/clientCookies';
-import { markSignedIn } from '@/src/shared/config/authSession';
+import { clearAllLocalAuthFlags, markSignedIn } from '@/src/shared/config/authSession';
 import { callSetPin, callVerifyPin } from '@/src/shared/config/pinCallable';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { useSettings } from '@/src/shared/firestore/queries';
@@ -103,6 +103,23 @@ export function useLogic() {
   useEffect(() => {
     window.sessionStorage.removeItem(PIN_CREATE_HINT_KEY);
   }, []);
+
+  // proxy.ts and appEntry/useLogic.ts only ever check this device's local
+  // "signed in" flags (cookies/localStorage), never Firebase Auth's own
+  // session — so landing here at all just means those flags said yes, not
+  // that a real session actually exists. If it doesn't (the flags drifted
+  // out of sync with Firebase's own storage, e.g. after an iOS PWA relaunch
+  // evicts one storage area but not another), the old behavior was to let
+  // the person type a PIN and only then show "Not signed in — go back and
+  // sign in again" — but PinScreen.tsx has no back button, so that was a
+  // genuine dead end. Self-heal instead: clear every local flag and send
+  // them through sign-in the moment Firebase's real state (not just this
+  // screen's submit handler) confirms there's no one actually signed in.
+  useEffect(() => {
+    if (authLoading || user) return;
+    clearAllLocalAuthFlags();
+    window.location.assign('/sign-in');
+  }, [authLoading, user]);
 
   // Settings' "Require PIN" toggle (src/logic/settings/useLogic.ts) is
   // account-wide in Firestore, but this device's own PIN_DISABLED_KEY

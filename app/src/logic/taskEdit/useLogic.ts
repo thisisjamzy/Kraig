@@ -101,6 +101,7 @@ export function useLogic(taskId: string | null) {
         priority,
         projectId: project?.id ?? null,
         areaId: project?.areaId ?? null,
+        bucketId: project?.bucketId ?? null,
         startTime: start,
         dueDate: due,
         notes: notes.trim(),

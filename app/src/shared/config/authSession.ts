@@ -9,7 +9,7 @@
 // new account, hints the PIN screen to open straight into "create" mode.
 
 import { SIGNED_IN_KEY } from '@/src/shared/config/appEntry';
-import { PIN_CREATE_HINT_KEY } from '@/src/shared/config/pinGate';
+import { PIN_CREATE_HINT_KEY, PIN_DISABLED_KEY, PIN_HASH_CACHE_KEY, PIN_VERIFIED_KEY } from '@/src/shared/config/pinGate';
 import { setClientCookie, clearClientCookie, PERSISTENT_COOKIE_MAX_AGE_SECONDS } from '@/src/shared/config/clientCookies';
 
 // Missing a maxAge here once made this a *session* cookie, cleared the
@@ -34,4 +34,26 @@ export function markSignedIn(options: { isNewAccount?: boolean } = {}): void {
 export function clearSignedIn(): void {
   window.localStorage.removeItem(SIGNED_IN_KEY);
   clearClientCookie(SIGNED_IN_KEY);
+}
+
+// Every local flag proxy.ts/PinGuard/appEntry treat as proof of a signed-in,
+// PIN-cleared device, cleared together. Used both by a real sign-out
+// (src/logic/settings/useLogic.ts) and by the self-heal path below: these
+// flags are maintained entirely client-side and can drift out of sync with
+// Firebase Auth's own session (the thing that actually determines whether a
+// Firestore read succeeds) — an iOS PWA relaunch is exactly the case where
+// one storage area (localStorage/cookies) can outlive another (IndexedDB,
+// where the Firebase SDK itself persists the session). Rendering the app
+// shell on stale flags alone just produces a blank/broken screen once every
+// Firestore call silently returns nothing for a null-auth query
+// (src/shared/firestore/queries.ts), never an error to explain why — clearing
+// everything and sending the device back through sign-in is the only way out
+// of that stuck state.
+export function clearAllLocalAuthFlags(): void {
+  clearSignedIn();
+  window.sessionStorage.removeItem(PIN_VERIFIED_KEY);
+  clearClientCookie(PIN_VERIFIED_KEY);
+  window.localStorage.removeItem(PIN_DISABLED_KEY);
+  clearClientCookie(PIN_DISABLED_KEY);
+  window.localStorage.removeItem(PIN_HASH_CACHE_KEY);
 }

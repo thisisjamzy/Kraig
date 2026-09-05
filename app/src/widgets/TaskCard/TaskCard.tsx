@@ -3,6 +3,7 @@
 import { Target } from 'lucide-react';
 import { TaskQuickActionsMenu } from '@/src/widgets/TaskQuickActionsMenu/TaskQuickActionsMenu';
 import { formatTaskDateRange } from '@/src/shared/formatTaskDateRange';
+import { iconTint } from '@/src/viewmodels/iconTint';
 import type { Priority } from '@/src/shared/firestore/types';
 import styles from './TaskCard.module.css';
 
@@ -42,6 +43,13 @@ const PRIORITY_CLASS: Record<Priority, string> = {
   Low: styles.priorityLow,
 };
 
+// Every TaskCard shows the same Target icon (no per-type icon here, unlike
+// ProjectsCalendarScreen's agenda rows) — tinting the circle by the task's
+// own priority instead of a fixed index at least varies it meaningfully
+// (and by something the card already surfaces via the priority badge)
+// rather than reading as one flat grey column down the list.
+const PRIORITY_TINT_INDEX: Record<Priority, number> = { High: 7, Medium: 5, Low: 1 };
+
 export function TaskCard({ task, onClick }: { task: TaskCardTask; onClick: () => void }) {
   const label = formatTaskDateRange(task.startTime, task.dueDate);
   const status = statusOf(task);
@@ -59,7 +67,7 @@ export function TaskCard({ task, onClick }: { task: TaskCardTask; onClick: () =>
         }
       }}
     >
-      <span className={styles.iconCircle}>
+      <span className={styles.iconCircle} style={{ background: iconTint(PRIORITY_TINT_INDEX[task.priority]) }}>
         <Target size={16} strokeWidth={2} />
       </span>
       <div className={styles.body}>

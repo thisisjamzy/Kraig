@@ -8,6 +8,7 @@ import { navMode } from '@/src/shared/config/chromeVisibility';
 import { Modal } from '@/src/widgets/Modal/Modal';
 import { useAllTasks } from '@/src/shared/hooks/useAllTasks';
 import { overdueTasks, dueTodayTasks } from '@/src/shared/firestore/taskInsights';
+import { iconTint } from '@/src/viewmodels/iconTint';
 import styles from './ProjectsBottomNav.module.css';
 
 const NAV_ITEMS = [
@@ -66,9 +67,9 @@ export function ProjectsBottomNav() {
       {sheetOpen && (
         <Modal title="Create" onClose={() => setSheetOpen(false)}>
           <div className={styles.sheetList}>
-            {CREATE_OPTIONS.map(({ href, label, icon: Icon }) => (
+            {CREATE_OPTIONS.map(({ href, label, icon: Icon }, index) => (
               <Link key={href} href={href} className={styles.sheetOption} onClick={() => setSheetOpen(false)}>
-                <span className={styles.sheetOptionIcon}>
+                <span className={styles.sheetOptionIcon} style={{ background: iconTint(index) }}>
                   <Icon size={18} strokeWidth={1.75} />
                 </span>
                 <span className={styles.sheetOptionLabel}>{label}</span>

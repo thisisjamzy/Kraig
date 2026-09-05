@@ -12,14 +12,15 @@
 // (see refs.ts's header).
 //
 // Only covers what the app's write UI actually does today (verified against
-// every setDoc/updateDoc call site in src/logic): create/edit a
-// transaction, create a transfer, create/edit-amount/archive a budget
-// rule. updateTransactionWithAggregation is the one reverse-then-apply
-// path (see its own doc comment) — everything else here only ever applies
-// a new contribution, never has to reverse an old one. There is still no
-// edit/delete UI for transfers, or delete for transactions — extending
-// either the same way, mirroring functions/src/transfers.ts /
-// functions/src/transactions.ts, is what's still missing.
+// every setDoc/updateDoc call site in src/logic): create/edit/delete a
+// transaction (including its type, per src/logic/editTransaction/useLogic.ts),
+// create a transfer, create/edit-amount/archive a budget rule.
+// updateTransactionWithAggregation and deleteTransactionWithAggregation are
+// the two reverse-(then-apply) paths (see their own doc comments) —
+// everything else here only ever applies a new contribution, never has to
+// reverse an old one. There is still no edit/delete UI for transfers —
+// extending that the same way, mirroring functions/src/transfers.ts, is
+// what's still missing.
 
 import {
   runTransaction,
@@ -274,17 +275,44 @@ export async function updateTransactionWithAggregation(
       if (delta !== 0) tx.update(accountRef(uid, accId), { currentBalance: increment(delta) });
     }
 
-    // Converted-to-base deltas for stats*, using each side's own account's
-    // native currency — reverse the old contribution, apply the new one.
+    // Converted-to-base amounts for stats*, using each side's own account's
+    // native currency. Each contribution below carries its own signed
+    // incomeDelta/expenseDelta rather than one signed `convertedDelta` later
+    // re-classified by sign (positive = income, negative = expense) — that
+    // used to be how this worked, and it's wrong for the OLD/reversal side:
+    // negating a $100 income's contribution and re-classifying the result
+    // reads as a NEW $100 expense, not "$100 less income", so totalIncome
+    // AND totalExpense both silently inflated by the same amount on every
+    // single edit, even a no-op one that changed no numbers at all (two
+    // equal-and-opposite convertedDeltas landing in the same statsMonthly
+    // month never cancelled out, since one got bucketed as income and the
+    // other as expense instead of netting to zero). Computing each side's
+    // own incomeDelta/expenseDelta up front — negative for the reversal,
+    // positive for the new contribution — means a no-op edit's two
+    // contributions actually do cancel to exactly zero.
     const oldCurrency = accountSnaps.get(oldAccountId)?.data()?.currency ?? ctx.base;
     const newCurrency = accountSnaps.get(input.accountId)?.data()?.currency ?? ctx.base;
-    const oldConvertedDelta = convert(-oldSignedAmount, oldCurrency, ctx.base, ctx.rates);
-    const newConvertedDelta = convert(newSignedAmount, newCurrency, ctx.base, ctx.rates);
+    const oldAmountBase = convert(oldSignedAmount, oldCurrency, ctx.base, ctx.rates);
+    const newAmountBase = convert(newSignedAmount, newCurrency, ctx.base, ctx.rates);
 
-    type Contribution = { month: string; categoryId: string | null; convertedDelta: number; countDelta: number };
+    type Contribution = { month: string; categoryId: string | null; incomeDelta: number; expenseDelta: number; countDelta: number };
     const contributions: Contribution[] = [
-      { month: oldMonth, categoryId: oldCategoryId, convertedDelta: oldConvertedDelta, countDelta: -1 },
-      { month: newMonth, categoryId: input.categoryId, convertedDelta: newConvertedDelta, countDelta: 1 },
+      // Reverse what this transaction originally contributed.
+      {
+        month: oldMonth,
+        categoryId: oldCategoryId,
+        incomeDelta: oldAmountBase > 0 ? -oldAmountBase : 0,
+        expenseDelta: oldAmountBase < 0 ? oldAmountBase : 0,
+        countDelta: -1,
+      },
+      // Apply what the edited fields contribute.
+      {
+        month: newMonth,
+        categoryId: input.categoryId,
+        incomeDelta: newAmountBase > 0 ? newAmountBase : 0,
+        expenseDelta: newAmountBase < 0 ? -newAmountBase : 0,
+        countDelta: 1,
+      },
     ];
 
     // One combined statsMonthly write per distinct month touched (usually
@@ -305,13 +333,16 @@ export async function updateTransactionWithAggregation(
       const spendByCategory = new Map<string, number>();
       const countByCategory = new Map<string, number>();
       for (const c of group) {
-        const income = c.convertedDelta > 0 ? c.convertedDelta : 0;
-        const expense = c.convertedDelta < 0 ? -c.convertedDelta : 0;
-        totalIncomeDelta += income;
-        totalExpenseDelta += expense;
+        totalIncomeDelta += c.incomeDelta;
+        totalExpenseDelta += c.expenseDelta;
         countDelta += c.countDelta;
         if (c.categoryId) {
-          spendByCategory.set(c.categoryId, (spendByCategory.get(c.categoryId) ?? 0) + (expense - income));
+          // perCategorySpend's convention (see writeTransactionContribution):
+          // positive = net spend, negative = net inflow. expenseDelta is
+          // already 0 for an income-shaped contribution and vice versa, so
+          // `expenseDelta - incomeDelta` reproduces that same convention for
+          // both a fresh addition and a reversal.
+          spendByCategory.set(c.categoryId, (spendByCategory.get(c.categoryId) ?? 0) + (c.expenseDelta - c.incomeDelta));
           countByCategory.set(c.categoryId, (countByCategory.get(c.categoryId) ?? 0) + c.countDelta);
         }
       }
@@ -332,20 +363,20 @@ export async function updateTransactionWithAggregation(
       tx.set(statsMonthlyRef(uid, month), monthUpdate, { merge: true });
     }
 
-    // stats-home: totalBalanceBase always moves by both deltas combined;
+    // stats-home: totalBalanceBase always moves by both sides combined;
     // thisMonthIncome/Expense only for whichever side(s) land in the
     // current month (an edit into/out of the current month should still
     // move it correctly either way).
     const homeUpdate: Record<string, unknown> = {
-      totalBalanceBase: increment(oldConvertedDelta + newConvertedDelta),
+      totalBalanceBase: increment(newAmountBase - oldAmountBase),
       lastUpdated: serverTimestamp(),
     };
     let thisMonthIncomeDelta = 0;
     let thisMonthExpenseDelta = 0;
     for (const c of contributions) {
       if (c.month !== currentMonth) continue;
-      thisMonthIncomeDelta += c.convertedDelta > 0 ? c.convertedDelta : 0;
-      thisMonthExpenseDelta += c.convertedDelta < 0 ? -c.convertedDelta : 0;
+      thisMonthIncomeDelta += c.incomeDelta;
+      thisMonthExpenseDelta += c.expenseDelta;
     }
     if (thisMonthIncomeDelta !== 0 || thisMonthExpenseDelta !== 0) {
       homeUpdate.thisMonthIncome = increment(thisMonthIncomeDelta);
@@ -366,6 +397,83 @@ export async function updateTransactionWithAggregation(
   await Promise.all(
     [...pairs.values()].map(({ categoryId, month }) => recomputeBudgetProgressForCategoryMonth(uid, categoryId, month))
   );
+}
+
+/**
+ * Deletes a transaction and reverses everything it contributed — the same
+ * account/stats math updateTransactionWithAggregation's "old" (reversal)
+ * side already uses, just without an "apply the new one" half. Never a bare
+ * deleteDoc: without reversing currentBalance first, the wallet's stored
+ * balance would stay permanently too high (or too low, for a reversed
+ * expense) by this transaction's amount, exactly the kind of drift
+ * src/shared/firestore/reconciliation.ts's audit exists to catch — this is
+ * the write-side fix so that drift never happens in the first place.
+ */
+export async function deleteTransactionWithAggregation(uid: string, transactionId: string, ctx: CurrencyContext) {
+  const db = getFirebaseFirestore();
+  const currentMonth = monthKey(new Date());
+
+  let categoryId: string | null = null;
+  let month = '';
+
+  await runTransaction(db, async (tx) => {
+    const beforeSnap = await tx.get(transactionRef(uid, transactionId));
+    const before = beforeSnap.data();
+    if (!before) throw new Error('This transaction no longer exists.');
+    const accountId = before.accountId;
+    categoryId = before.categoryId ?? null;
+    month = before.month ?? monthKey(before.date.toDate());
+    const signedAmount = before.signedAmount ?? (before.direction === 'Inflow' ? before.amount : -before.amount);
+
+    const accountSnap = await tx.get(accountRef(uid, accountId));
+    const accountData = accountSnap.data();
+    if (accountData?.frozen) {
+      throw new Error('This wallet is frozen — unfreeze it before deleting this transaction.');
+    }
+    // Deleting an inflow (positive signedAmount) removes money from the
+    // account (delta = -signedAmount, negative) — the same "would this dip
+    // below what's locked" check every other outflow-shaped delta gets.
+    // Deleting an outflow only ever gives money back, never needs the check.
+    assertNotBelowLocked(accountData, -signedAmount);
+
+    tx.delete(transactionRef(uid, transactionId));
+    tx.update(accountRef(uid, accountId), { currentBalance: increment(-signedAmount) });
+
+    const nativeCurrency = accountData?.currency ?? ctx.base;
+    // The amount this transaction originally contributed, reversed — same
+    // incomeDelta/expenseDelta shape updateTransactionWithAggregation's
+    // reversal side uses (see its own comment on why re-classifying a
+    // single negated signed number by sign is the wrong, bug-prone shape).
+    const amountBase = convert(signedAmount, nativeCurrency, ctx.base, ctx.rates);
+    const incomeDelta = amountBase > 0 ? -amountBase : 0;
+    const expenseDelta = amountBase < 0 ? amountBase : 0;
+
+    const monthUpdate: Record<string, unknown> = {
+      totalIncome: increment(incomeDelta),
+      totalExpense: increment(expenseDelta),
+      transactionCount: increment(-1),
+      lastUpdated: serverTimestamp(),
+    };
+    if (categoryId) {
+      monthUpdate.perCategorySpend = { [categoryId]: increment(expenseDelta - incomeDelta) };
+      monthUpdate.perCategoryCount = { [categoryId]: increment(-1) };
+    }
+    tx.set(statsMonthlyRef(uid, month), monthUpdate, { merge: true });
+
+    const homeUpdate: Record<string, unknown> = {
+      totalBalanceBase: increment(-amountBase),
+      lastUpdated: serverTimestamp(),
+    };
+    if (month === currentMonth) {
+      homeUpdate.thisMonthIncome = increment(incomeDelta);
+      homeUpdate.thisMonthExpense = increment(expenseDelta);
+    }
+    tx.set(statsHomeRef(uid), homeUpdate, { merge: true });
+  });
+
+  if (categoryId) {
+    await recomputeBudgetProgressForCategoryMonth(uid, categoryId, month);
+  }
 }
 
 export interface CreateTransferInput {
