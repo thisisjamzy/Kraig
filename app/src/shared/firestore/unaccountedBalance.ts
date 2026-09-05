@@ -159,6 +159,13 @@ export async function recordHistoricEntry(
 // Historic Transaction Backfill (section 1)
 // ---------------------------------------------------------------------------
 
+// 'once' is a single occurrence on startDate (endDate/dayOfWeek/dayOfMonth
+// all ignored); 'daily'/'weekdays'/'weekly' walk startDate..endDate directly
+// ('weekdays' skips Saturday/Sunday, 'weekly' is anchored to dayOfWeek);
+// 'monthly'/'quarterly' walk calendar months (every 1 or every 3) landing on
+// dayOfMonth each time.
+export type BackfillFrequency = 'once' | 'daily' | 'weekdays' | 'weekly' | 'monthly' | 'quarterly';
+
 export interface BackfillSpreadInput {
   title: string;
   type: string; // 'Expense' | 'Income'
@@ -166,50 +173,83 @@ export interface BackfillSpreadInput {
   accountId: string;
   amount: number;
   direction: 'Inflow' | 'Outflow';
-  startMonth: string; // yyyy-MM
-  endMonth: string; // yyyy-MM, inclusive
-  dayOfMonth: number; // 1-28, kept low enough to exist in every month
+  frequency: BackfillFrequency;
+  startDate: string; // yyyy-MM-dd
+  endDate: string; // yyyy-MM-dd, inclusive — ignored when frequency is 'once'
+  dayOfWeek: number; // 0 (Sun) - 6 (Sat) — only used when frequency is 'weekly'
+  dayOfMonth: number; // 1-28, kept low enough to exist in every month — 'monthly'/'quarterly' only
   createdBy: string;
 }
 
 export interface BackfillOccurrence {
   date: Date;
-  month: string;
   title: string;
   amount: number;
 }
 
-// Section 1.5's range cap — bounds a single bulk write and keeps a
-// fat-fingered decade-long range from happening by accident.
-export const BACKFILL_MAX_MONTHS = 36;
+// Bounds a single bulk write (commitBackfillSpread writes one transaction
+// per occurrence, sequentially) and keeps a fat-fingered decade-long daily
+// spread from happening by accident. Applies to the occurrence COUNT, not
+// the calendar span, so it scales naturally with frequency: about a year of
+// daily entries, ~7 years weekly, decades for monthly/quarterly.
+export const BACKFILL_MAX_OCCURRENCES = 366;
 
-function parseMonthKey(key: string): { year: number; month0: number } {
-  const [y, m] = key.split('-').map(Number);
-  return { year: y, month0: m - 1 };
+function parseDateKey(key: string): Date {
+  const [y, m, d] = key.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+function addDays(date: Date, days: number): Date {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function addMonths(date: Date, months: number, dayOfMonth: number): Date {
+  return new Date(date.getFullYear(), date.getMonth() + months, dayOfMonth);
 }
 
 /** Builds the preview list shown before any write happens (section 1.4, Screen 2). */
 export function previewBackfillSpread(input: BackfillSpreadInput): BackfillOccurrence[] {
-  const start = parseMonthKey(input.startMonth);
-  const end = parseMonthKey(input.endMonth);
-  const startIndex = start.year * 12 + start.month0;
-  const endIndex = end.year * 12 + end.month0;
-  const count = Math.max(0, endIndex - startIndex + 1);
-  if (count > BACKFILL_MAX_MONTHS) {
-    throw new Error(`A backfill spread covers at most ${BACKFILL_MAX_MONTHS} months — narrow the range and try again.`);
+  const start = parseDateKey(input.startDate);
+
+  if (input.frequency === 'once') {
+    return [{ date: start, title: input.title, amount: input.amount }];
   }
+
+  const end = parseDateKey(input.endDate);
+  if (end < start) {
+    throw new Error('The end date must be on or after the start date.');
+  }
+
   const occurrences: BackfillOccurrence[] = [];
-  for (let i = 0; i < count; i++) {
-    const totalMonth = startIndex + i;
-    const year = Math.floor(totalMonth / 12);
-    const month0 = totalMonth % 12;
-    const date = new Date(year, month0, input.dayOfMonth);
-    occurrences.push({
-      date,
-      month: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`,
-      title: input.title,
-      amount: input.amount,
-    });
+
+  if (input.frequency === 'daily' || input.frequency === 'weekdays') {
+    for (let cursor = start; cursor <= end; cursor = addDays(cursor, 1)) {
+      const isWeekend = cursor.getDay() === 0 || cursor.getDay() === 6;
+      if (input.frequency === 'weekdays' && isWeekend) continue;
+      occurrences.push({ date: cursor, title: input.title, amount: input.amount });
+      if (occurrences.length > BACKFILL_MAX_OCCURRENCES) break;
+    }
+  } else if (input.frequency === 'weekly') {
+    const firstOccurrence = addDays(start, (input.dayOfWeek - start.getDay() + 7) % 7);
+    for (let cursor = firstOccurrence; cursor <= end; cursor = addDays(cursor, 7)) {
+      occurrences.push({ date: cursor, title: input.title, amount: input.amount });
+      if (occurrences.length > BACKFILL_MAX_OCCURRENCES) break;
+    }
+  } else {
+    // monthly or quarterly
+    const step = input.frequency === 'quarterly' ? 3 : 1;
+    let cursor = new Date(start.getFullYear(), start.getMonth(), input.dayOfMonth);
+    if (cursor < start) cursor = addMonths(cursor, step, input.dayOfMonth);
+    for (; cursor <= end; cursor = addMonths(cursor, step, input.dayOfMonth)) {
+      occurrences.push({ date: cursor, title: input.title, amount: input.amount });
+      if (occurrences.length > BACKFILL_MAX_OCCURRENCES) break;
+    }
+  }
+
+  if (occurrences.length > BACKFILL_MAX_OCCURRENCES) {
+    throw new Error(`A backfill spread covers at most ${BACKFILL_MAX_OCCURRENCES} occurrences — narrow the range and try again.`);
   }
   return occurrences;
 }

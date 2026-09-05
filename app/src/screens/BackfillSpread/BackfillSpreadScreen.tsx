@@ -1,14 +1,35 @@
 'use client';
 
 import { ChevronLeft } from 'lucide-react';
-import { useLogic } from '@/src/logic/backfillSpread/useLogic';
+import { useLogic, BACKFILL_FREQUENCIES } from '@/src/logic/backfillSpread/useLogic';
+import type { BackfillFrequency } from '@/src/logic/backfillSpread/useLogic';
 import { formatAmount } from '@/src/logic/walletDetail/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import styles from './BackfillSpreadScreen.module.css';
 
+const WEEKDAY_OPTIONS = [
+  { value: 0, label: 'Sunday' },
+  { value: 1, label: 'Monday' },
+  { value: 2, label: 'Tuesday' },
+  { value: 3, label: 'Wednesday' },
+  { value: 4, label: 'Thursday' },
+  { value: 5, label: 'Friday' },
+  { value: 6, label: 'Saturday' },
+];
+
 export function BackfillSpreadScreen() {
   const strings = useStrings();
   const s = strings.backfill;
+
+  const FREQUENCY_LABEL: Record<BackfillFrequency, string> = {
+    once: s.frequencyOnce,
+    daily: s.frequencyDaily,
+    weekdays: s.frequencyWeekdays,
+    weekly: s.frequencyWeekly,
+    monthly: s.frequencyMonthly,
+    quarterly: s.frequencyQuarterly,
+  };
+
   const {
     title,
     setTitle,
@@ -22,10 +43,14 @@ export function BackfillSpreadScreen() {
     accounts,
     amountString,
     setAmountString,
-    startMonth,
-    setStartMonth,
-    endMonth,
-    setEndMonth,
+    frequency,
+    setFrequency,
+    startDate,
+    setStartDate,
+    endDate,
+    setEndDate,
+    dayOfWeek,
+    setDayOfWeek,
     dayOfMonth,
     setDayOfMonth,
     canExplainUnjustifiedBalance,
@@ -138,50 +163,103 @@ export function BackfillSpreadScreen() {
             </select>
           </div>
 
-          <div className={styles.pickerRow}>
-            <div className={styles.formField}>
-              <label className={styles.formLabel} htmlFor="backfill-start">
-                {s.fromMonthLabel}
-              </label>
-              <input
-                id="backfill-start"
-                type="month"
-                className={styles.formInput}
-                value={startMonth}
-                onChange={(event) => setStartMonth(event.target.value)}
-              />
-            </div>
-            <div className={styles.formField}>
-              <label className={styles.formLabel} htmlFor="backfill-end">
-                {s.toMonthLabel}
-              </label>
-              <input
-                id="backfill-end"
-                type="month"
-                className={styles.formInput}
-                value={endMonth}
-                onChange={(event) => setEndMonth(event.target.value)}
-              />
+          <div className={styles.formField}>
+            <span className={styles.formLabel}>{s.frequencyLabel}</span>
+            <div className={styles.frequencyTabs}>
+              {BACKFILL_FREQUENCIES.map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  className={frequency === option ? `${styles.typeTab} ${styles.typeTabActive}` : styles.typeTab}
+                  onClick={() => setFrequency(option)}
+                >
+                  {FREQUENCY_LABEL[option]}
+                </button>
+              ))}
             </div>
           </div>
 
-          <div className={styles.formField}>
-            <label className={styles.formLabel} htmlFor="backfill-day">
-              {s.dayOfMonthLabel}
-            </label>
-            <select
-              id="backfill-day"
-              className={styles.formInput}
-              value={dayOfMonth}
-              onChange={(event) => setDayOfMonth(Number(event.target.value))}
-            >
-              {Array.from({ length: 28 }, (_, i) => i + 1).map((day) => (
-                <option key={day} value={day}>
-                  {day}
-                </option>
-              ))}
-            </select>
-          </div>
+          {frequency === 'once' ? (
+            <div className={styles.formField}>
+              <label className={styles.formLabel} htmlFor="backfill-start">
+                {s.onDateLabel}
+              </label>
+              <input
+                id="backfill-start"
+                type="date"
+                className={styles.formInput}
+                value={startDate}
+                onChange={(event) => setStartDate(event.target.value)}
+              />
+            </div>
+          ) : (
+            <div className={styles.pickerRow}>
+              <div className={styles.formField}>
+                <label className={styles.formLabel} htmlFor="backfill-start">
+                  {s.fromDateLabel}
+                </label>
+                <input
+                  id="backfill-start"
+                  type="date"
+                  className={styles.formInput}
+                  value={startDate}
+                  onChange={(event) => setStartDate(event.target.value)}
+                />
+              </div>
+              <div className={styles.formField}>
+                <label className={styles.formLabel} htmlFor="backfill-end">
+                  {s.toDateLabel}
+                </label>
+                <input
+                  id="backfill-end"
+                  type="date"
+                  className={styles.formInput}
+                  value={endDate}
+                  onChange={(event) => setEndDate(event.target.value)}
+                />
+              </div>
+            </div>
+          )}
+
+          {frequency === 'weekly' && (
+            <div className={styles.formField}>
+              <label className={styles.formLabel} htmlFor="backfill-weekday">
+                {s.dayOfWeekLabel}
+              </label>
+              <select
+                id="backfill-weekday"
+                className={styles.formInput}
+                value={dayOfWeek}
+                onChange={(event) => setDayOfWeek(Number(event.target.value))}
+              >
+                {WEEKDAY_OPTIONS.map((day) => (
+                  <option key={day.value} value={day.value}>
+                    {day.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {(frequency === 'monthly' || frequency === 'quarterly') && (
+            <div className={styles.formField}>
+              <label className={styles.formLabel} htmlFor="backfill-day">
+                {s.dayOfMonthLabel}
+              </label>
+              <select
+                id="backfill-day"
+                className={styles.formInput}
+                value={dayOfMonth}
+                onChange={(event) => setDayOfMonth(Number(event.target.value))}
+              >
+                {Array.from({ length: 28 }, (_, i) => i + 1).map((day) => (
+                  <option key={day} value={day}>
+                    {day}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {canExplainUnjustifiedBalance && (
             <label className={styles.explainToggleRow}>
