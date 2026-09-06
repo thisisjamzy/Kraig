@@ -1,38 +1,36 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { query, where, updateDoc, Timestamp } from 'firebase/firestore';
-import { ruleAppliesToMonth, effectiveBudgetedAmount } from '@dreda/shared-recurrence';
+import { query, where, orderBy, limit, updateDoc, Timestamp } from 'firebase/firestore';
+import { ArrowUpRight, ArrowDownLeft, PiggyBank, type LucideIcon } from 'lucide-react';
 import { useFirestoreCollection, useFirestoreDoc } from '@/src/shared/firestore/hooks';
-import {
-  transactionsRef,
-  budgetRulesRef,
-  plannedPaymentsRef,
-  statsMonthlyRef,
-  settingsRef,
-  unjustifiedWalletRef,
-} from '@/src/shared/firestore/refs';
+import { transactionsRef, plannedPaymentsRef, settingsRef, unjustifiedWalletRef } from '@/src/shared/firestore/refs';
 import { useAccounts, useCategories, useCurrencyContext, useExchangeRates } from '@/src/shared/firestore/queries';
 import { toDisplay, round2 } from '@/src/shared/firestore/currency';
-import { toRecurrenceRule } from '@/src/shared/firestore/recurrence';
 import { computeUpcomingPayments } from '@/src/shared/firestore/upcomingPayments';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { walletColor, arrangeCentered, isSavingsAccount } from '@/src/viewmodels/wallets';
 import { currencyName } from '@/src/viewmodels/currencies';
 import { dueLabel, formatDueDate } from '@/src/logic/paymentsCalendar/useLogic';
-import type {
-  FirestoreAccount,
-  FirestoreBudgetRule,
-  FirestorePlannedPayment,
-  FirestoreTransaction,
-  StatsMonthly,
-} from '@/src/shared/firestore/types';
+import type { FirestoreAccount, FirestorePlannedPayment, FirestoreTransaction } from '@/src/shared/firestore/types';
 
-export type SpendingPeriod = 'week' | 'month' | 'quarter';
+// Analytics now owns Quarter/Year (src/logic/statistics/useLogic.ts) — Home
+// keeps the shorter-range Week/Month views instead, since those are the
+// ones worth checking in on day to day.
+export type SpendingPeriod = 'week' | 'month';
 
 const UPCOMING_PAYMENTS_HORIZON_DAYS = 30;
 const UPCOMING_PAYMENTS_PREVIEW_COUNT = 3;
-const BUDGETS_PREVIEW_COUNT = 3;
+const RECENT_TRANSACTIONS_PREVIEW_COUNT = 5;
+
+// Same set src/logic/transactionHistory/useLogic.ts's own card list uses —
+// Home's Recent Transactions panel renders with that same card, so the icon
+// needs to match.
+const TYPE_ICONS: Record<string, LucideIcon> = {
+  Expense: ArrowUpRight,
+  Income: ArrowDownLeft,
+  Savings: PiggyBank,
+};
 
 export function formatAmount(value: number) {
   return new Intl.NumberFormat('en-US').format(value);
@@ -48,11 +46,6 @@ export function formatCompact(value: number) {
   return `${value}`;
 }
 
-function currentMonthKey() {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-}
-
 function rangeStartFor(period: SpendingPeriod, now: Date) {
   // Calendar-day aligned (midnight), not now.getTime() minus a fixed
   // duration — the latter cuts the oldest day off partway through
@@ -60,37 +53,32 @@ function rangeStartFor(period: SpendingPeriod, now: Date) {
   // earlier transactions from the query and rendering it as a blank bar
   // even though real transactions exist on it.
   if (period === 'week') return new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6);
-  if (period === 'quarter') return new Date(now.getFullYear(), now.getMonth() - 2, 1);
   return new Date(now.getFullYear(), now.getMonth(), 1);
 }
 
 function bucketKeyFor(period: SpendingPeriod, date: Date) {
   if (period === 'week') return date.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase();
-  if (period === 'quarter') return date.toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
   return `WK ${Math.ceil(date.getDate() / 7)}`;
 }
 
 // Every bucket the period spans, oldest to newest — walked independently of
-// whatever transactions actually exist, so a day/week/month with nothing
-// recorded still gets a column (rendered as a blank/grey placeholder,
-// see HomeScreen.tsx) instead of silently disappearing from the chart and
-// making the timeline look shorter than it really is.
+// whatever transactions actually exist, so a day/week with nothing recorded
+// still gets a column (rendered as a blank/grey placeholder, see
+// HomeScreen.tsx) instead of silently disappearing from the chart and
+// making the timeline look shorter than it really is. For 'month' this is
+// every week of the CURRENT calendar month, including ones "now" hasn't
+// reached yet — those just render with no data, rather than being hidden
+// entirely (a household checking in on the 3rd shouldn't see a 1-week-wide
+// chart with the rest of the month missing).
 function expectedBucketKeysFor(period: SpendingPeriod, now: Date): string[] {
   if (period === 'week') {
     return Array.from({ length: 7 }, (_, i) =>
       bucketKeyFor('week', new Date(now.getTime() - (6 - i) * 24 * 3600 * 1000))
     );
   }
-  if (period === 'quarter') {
-    return Array.from({ length: 3 }, (_, i) =>
-      bucketKeyFor('quarter', new Date(now.getFullYear(), now.getMonth() - (2 - i), 1))
-    );
-  }
-  // 'month': one bucket per week-of-month elapsed so far — a week that
-  // hasn't happened yet isn't "no data", it's just not reached, so this
-  // stops at the current week rather than the whole month.
-  const weeksSoFar = Math.ceil(now.getDate() / 7);
-  return Array.from({ length: weeksSoFar }, (_, i) => `WK ${i + 1}`);
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const totalWeeks = Math.ceil(daysInMonth / 7);
+  return Array.from({ length: totalWeeks }, (_, i) => `WK ${i + 1}`);
 }
 
 export function useLogic() {
@@ -101,13 +89,6 @@ export function useLogic() {
 
   const { data: accounts, loading: accountsLoading, error: accountsError } = useAccounts();
   const { data: categories, loading: categoriesLoading } = useCategories();
-  const activeBudgetRulesQuery = useMemo(
-    () => (uid ? query(budgetRulesRef(uid), where('archived', '==', false)) : null),
-    [uid]
-  );
-  const { data: rules, loading: rulesLoading } = useFirestoreCollection<FirestoreBudgetRule>(
-    activeBudgetRulesQuery
-  );
   const activePlannedPaymentsQuery = useMemo(
     () => (uid ? query(plannedPaymentsRef(uid), where('archived', '==', false)) : null),
     [uid]
@@ -115,17 +96,15 @@ export function useLogic() {
   const { data: plannedPayments, loading: plannedPaymentsLoading } = useFirestoreCollection<FirestorePlannedPayment>(
     activePlannedPaymentsQuery
   );
-  // Budget rules × ruleAppliesToMonth, computed live — same as Budget
-  // screen's own `categories` (src/logic/budget/useLogic.ts) — rather than
-  // read from the precomputed statsBudgetProgress/{month} doc, which only
-  // gets (re)written on specific write events (a transaction, or a rule
-  // being created/edited/deleted) and so goes stale for an ongoing
-  // recurring rule the moment the calendar rolls into a new month with no
-  // matching write yet — the Home preview was showing blank for an
-  // otherwise fully budgeted month because of exactly that gap.
-  const { data: statsMonthly, loading: statsMonthlyLoading } = useFirestoreDoc<StatsMonthly>(
-    useMemo(() => (uid ? statsMonthlyRef(uid, currentMonthKey()) : null), [uid])
+  // Most recent transactions across every account, not scoped to a month —
+  // this is a quick "what just happened" glance, not a budget-progress view
+  // (that's the Budget screen's own job).
+  const recentTransactionsQuery = useMemo(
+    () => (uid ? query(transactionsRef(uid), orderBy('date', 'desc'), limit(RECENT_TRANSACTIONS_PREVIEW_COUNT)) : null),
+    [uid]
   );
+  const { data: recentTransactionDocs, loading: recentTransactionsLoading } =
+    useFirestoreCollection<FirestoreTransaction>(recentTransactionsQuery);
   const { ctx, loading: ctxLoading } = useCurrencyContext();
 
   // Tapping the currency chip switches which currency the whole app
@@ -165,6 +144,15 @@ export function useLogic() {
     useFirestoreCollection<FirestoreTransaction>(breakdownQuery);
 
   const accountCurrency = useMemo(() => new Map(accounts.map((a) => [a.id, a.currency])), [accounts]);
+  const accountName = useMemo(() => new Map(accounts.map((a) => [a.id, a.name])), [accounts]);
+  // Same color-per-account convention the wallets chart below and
+  // TransactionHistoryScreen use (walletColor, keyed by an account's own
+  // fixed position in the accounts list) — this panel's cards use the exact
+  // same card as that screen, so need the same colors.
+  const accountColor = useMemo(
+    () => new Map(accounts.map((account, index) => [account.id, walletColor(index)])),
+    [accounts]
+  );
   const categoryName = useMemo(() => new Map(categories.map((c) => [c.id, c.name])), [categories]);
 
   const totalBalance = round2(
@@ -238,26 +226,27 @@ export function useLogic() {
   );
   const walletMax = Math.max(1, ...wallets.map((wallet) => wallet.amount));
 
-  const budgets = useMemo(() => {
-    const [y, m] = currentMonthKey().split('-').map(Number);
-    const monthStr = currentMonthKey();
-    return rules
-      .map((rule) => {
-        const occurrence = ruleAppliesToMonth(toRecurrenceRule(rule), y, m);
-        if (!occurrence || rule.excludedMonths?.includes(monthStr)) return null;
-        const ruleNative = rule.accountId ? accountCurrency.get(rule.accountId) ?? ctx.base : ctx.base;
-        const spentBase = statsMonthly?.perCategorySpend?.[rule.categoryId] ?? 0;
+  // Same card shape src/logic/transactionHistory/useLogic.ts's own list
+  // uses — this panel renders with that exact same card component styling.
+  const recentTransactions = useMemo(
+    () =>
+      recentTransactionDocs.map((transaction) => {
+        const nativeCurrency = accountCurrency.get(transaction.accountId) ?? ctx.base;
         return {
-          category: categoryName.get(rule.categoryId) ?? rule.categoryId,
-          spent: round2(toDisplay(ctx, spentBase, ctx.base)),
-          total: round2(
-            toDisplay(ctx, effectiveBudgetedAmount(rule.budgetedAmount, occurrence.multiplier, rule.monthOverrides, monthStr), ruleNative)
-          ),
+          id: transaction.id,
+          title: categoryName.get(transaction.categoryId ?? '') ?? transaction.categoryId ?? '—',
+          description: transaction.description,
+          account: accountName.get(transaction.accountId) ?? transaction.accountId,
+          amount: round2(toDisplay(ctx, transaction.amount, nativeCurrency)),
+          currency: ctx.display,
+          date: transaction.date.toDate().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
+          icon: TYPE_ICONS[transaction.type] ?? ArrowUpRight,
+          iconColor: accountColor.get(transaction.accountId) ?? walletColor(0),
+          editHref: `/edit-transaction/${transaction.id}`,
         };
-      })
-      .filter((entry): entry is NonNullable<typeof entry> => entry !== null)
-      .slice(0, BUDGETS_PREVIEW_COUNT);
-  }, [rules, statsMonthly, categoryName, accountCurrency, ctx]);
+      }),
+    [recentTransactionDocs, accountCurrency, accountName, accountColor, categoryName, ctx]
+  );
 
   const breakdown = useMemo(() => {
     const buckets = new Map<string, { day: string; income: number; expense: number }>();
@@ -304,7 +293,7 @@ export function useLogic() {
   return {
     balance,
     wallets,
-    budgets,
+    recentTransactions,
     upcomingPayments,
     period,
     setPeriod,
@@ -323,9 +312,8 @@ export function useLogic() {
       authLoading ||
       accountsLoading ||
       categoriesLoading ||
-      rulesLoading ||
       plannedPaymentsLoading ||
-      statsMonthlyLoading ||
+      recentTransactionsLoading ||
       ctxLoading ||
       breakdownLoading,
     error: accountsError,

@@ -72,16 +72,24 @@
 
 .categoryRow {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  align-items: center;
+  gap: var(--space-sm);
   padding: var(--space-md) var(--space-lg);
   border-bottom: 1px solid var(--color-border);
   background: var(--color-background);
-  text-decoration: none;
 }
 
 .categoryRow:last-child {
   border-bottom: none;
+}
+
+.categoryText {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+  text-decoration: none;
 }
 
 .categoryName {
@@ -91,6 +99,18 @@
 
 .categoryDescription {
   font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.editButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
   color: var(--color-text-secondary);
 }
 

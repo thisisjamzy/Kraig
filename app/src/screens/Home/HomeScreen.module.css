@@ -419,6 +419,45 @@
   color: #ffffff;
 }
 
+/* Axis + gridlines — same "3 indicators, clearly shows distance from zero"
+   shape every bar/line chart in the app now follows (see
+   src/screens/Statistics/StatisticsScreen.module.css's own barChart* set). */
+.breakdownRow {
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-sm);
+}
+
+.breakdownAxis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding-bottom: var(--space-sm);
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.breakdownArea {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.breakdownGridlines {
+  position: absolute;
+  inset: 0 0 var(--space-sm) 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  pointer-events: none;
+}
+
+.breakdownGridline {
+  display: block;
+  border-top: 1px solid var(--color-border);
+}
+
 .breakdownChart {
   display: flex;
   align-items: flex-end;
@@ -561,54 +600,6 @@
   font-size: 0.625rem;
   font-weight: 600;
   color: var(--color-text-secondary);
-}
-
-/* Budgets preview */
-
-.budgetList {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-md);
-}
-
-.budgetRow {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  text-decoration: none;
-  color: inherit;
-}
-
-.budgetInfo {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-sm);
-}
-
-.budgetCategory {
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  color: var(--color-text-primary);
-}
-
-.budgetAmount {
-  font-size: 0.75rem;
-  color: var(--color-text-secondary);
-  white-space: nowrap;
-}
-
-.budgetTrack {
-  height: 8px;
-  border-radius: var(--radius-full);
-  background: var(--color-surface);
-  overflow: hidden;
-}
-
-.budgetFill {
-  height: 100%;
-  border-radius: inherit;
-  background: var(--color-brand);
 }
 
 /* Currency picker modal */

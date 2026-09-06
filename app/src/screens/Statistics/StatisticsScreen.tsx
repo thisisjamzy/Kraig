@@ -5,7 +5,7 @@ import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import styles from './StatisticsScreen.module.css';
 
-const PERIOD_ORDER: StatsPeriod[] = ['Week', 'Month', 'Quarter', 'Year'];
+const PERIOD_ORDER: StatsPeriod[] = ['Quarter', 'Year'];
 const HABIT_PERIOD_ORDER: HabitPeriod[] = ['Daily', 'Monthly', 'Yearly'];
 // Three axis indicators (max, half, zero) — reused by every bar/line chart
 // on this page so each one clearly shows how far its values sit from zero,
@@ -32,14 +32,13 @@ export function StatisticsScreen() {
     setHabitPeriod,
     habitBreakdown,
     habitMax,
-    totalIncomeForPeriod,
-    incomeCurrency,
-    incomeSources,
     incomeConsistency,
     consistencyMax,
     financialTrends,
     trendsMax,
     savingsTrendMax,
+    categorySpendTrend,
+    categorySpendMax,
     loading,
     error,
   } = useLogic();
@@ -65,13 +64,16 @@ export function StatisticsScreen() {
     <div className={styles.page}>
       <ScreenState loading={loading} error={error} />
 
-      {/* One shared Week/Month/Quarter/Year filter — drives the summary
-          tiles below plus Spending Insights, Income Analysis, and
-          Financial Trends further down (each used to carry its own
-          separate, disconnected period control). */}
-      <div className={styles.globalPeriodRow}>{periodTabs(period, setPeriod)}</div>
-
       <section className={styles.summarySection}>
+        {/* One shared Quarter/Year filter — drives every "Records" number
+            below (global totals, not scoped to any one account) plus
+            Spending Insights and Financial Trends further down (each used
+            to carry its own separate, disconnected period control). */}
+        <div className={styles.sectionHeader}>
+          <h2 className={styles.sectionTitle}>{strings.statistics.recordsTitle}</h2>
+          {periodTabs(period, setPeriod)}
+        </div>
+
         <span className={styles.summaryLabel}>{strings.statistics.acrossAllAccounts}</span>
         <p className={styles.summaryAmount}>
           {formatAmount(summary.acrossAllAccounts)}{' '}
@@ -243,38 +245,6 @@ export function StatisticsScreen() {
           </>
         ) : (
           <p className={styles.emptyText}>{strings.statistics.noHabitData}</p>
-        )}
-      </section>
-
-      {/* Income Analysis */}
-      <section className={styles.section}>
-        <div className={styles.sectionHeader}>
-          <h2 className={styles.sectionTitle}>{strings.statistics.incomeAnalysis}</h2>
-        </div>
-
-        <p className={styles.totalIncome}>
-          {formatAmount(totalIncomeForPeriod)} <span className={styles.summaryCurrency}>{incomeCurrency}</span>
-        </p>
-        <p className={styles.totalIncomeCaption}>{strings.statistics.totalIncome}</p>
-
-        {incomeSources.length > 0 ? (
-          <div className={styles.incomeList}>
-            {incomeSources.map((source) => (
-              <div key={source.label} className={styles.incomeRow}>
-                <div className={styles.incomeRowHeader}>
-                  <span className={styles.incomeLabel}>{source.label}</span>
-                  <span className={styles.incomeValue}>
-                    {formatAmount(source.amount)} &bull; {source.percent}%
-                  </span>
-                </div>
-                <div className={styles.incomeTrack}>
-                  <div className={styles.incomeFill} style={{ width: `${source.percent}%` }} />
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className={styles.emptyText}>{strings.statistics.noIncomeThisPeriod}</p>
         )}
       </section>
 
@@ -524,6 +494,66 @@ export function StatisticsScreen() {
             </div>
           </div>
         </div>
+      </section>
+
+      {/* Category Spend Trend — the same period buckets as Financial Trends
+          above, stacked by the top 5 spending categories, so growth or
+          decline in any one category over time is visible (the donut only
+          shows one period's share, not how a category moves across
+          several). */}
+      <section className={styles.section}>
+        <div className={styles.sectionHeader}>
+          <h2 className={styles.sectionTitle}>{strings.statistics.categorySpendTrend}</h2>
+        </div>
+
+        {categorySpendTrend.series.length > 0 ? (
+          <>
+            <div className={styles.barChartRow}>
+              <div className={styles.barChartAxis} aria-hidden="true">
+                {AXIS_SCALE.map((fraction) => (
+                  <span key={fraction}>{formatAmount(Math.round(categorySpendMax * fraction))}</span>
+                ))}
+              </div>
+              <div className={styles.barChartArea}>
+                <div className={styles.barChartGridlines} aria-hidden="true">
+                  {AXIS_SCALE.map((fraction) => (
+                    <span key={fraction} className={styles.barChartGridline} />
+                  ))}
+                </div>
+                <div className={styles.barChart}>
+                  {categorySpendTrend.labels.map((label, bucketIndex) => (
+                    <div key={label} className={styles.barChartColumn}>
+                      <div className={styles.stackBar}>
+                        {categorySpendTrend.series.map((s) => (
+                          <div
+                            key={s.categoryId}
+                            className={styles.stackSegment}
+                            style={{
+                              height: `${(s.values[bucketIndex] / categorySpendMax) * 100}%`,
+                              background: s.color,
+                            }}
+                            title={`${s.label}: ${formatAmount(s.values[bucketIndex])} ${summary.currency}`}
+                          />
+                        ))}
+                      </div>
+                      <span className={styles.barChartLabel}>{label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className={styles.legend}>
+              {categorySpendTrend.series.map((s) => (
+                <span key={s.categoryId} className={styles.legendItem}>
+                  <span className={styles.legendDot} style={{ background: s.color }} />
+                  {s.label}
+                </span>
+              ))}
+            </div>
+          </>
+        ) : (
+          <p className={styles.emptyText}>{strings.statistics.noCategorySpendTrendData}</p>
+        )}
       </section>
 
       <section className={styles.section}>

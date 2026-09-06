@@ -2,7 +2,19 @@
 
 import { useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { Plus, SlidersHorizontal, History, ArrowUpRight, Check, ChevronDown, Search, Wallet, PiggyBank, CreditCard } from 'lucide-react';
+import {
+  Plus,
+  SlidersHorizontal,
+  History,
+  ArrowUpRight,
+  Check,
+  ChevronDown,
+  Search,
+  Wallet,
+  PiggyBank,
+  CreditCard,
+  Pencil,
+} from 'lucide-react';
 import { useLogic, formatAmount, formatCompact, type SpendingPeriod } from '@/src/logic/home/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
@@ -10,6 +22,11 @@ import { Logo } from '@/src/widgets/Logo/Logo';
 import { useSwipeModeSwitch } from '@/src/shared/hooks/useSwipeModeSwitch';
 import { iconTint } from '@/src/viewmodels/iconTint';
 import styles from './HomeScreen.module.css';
+// The Recent Transactions panel uses this exact same card component style
+// as the all-transactions list, so it reuses that module's classes
+// directly rather than duplicating them (same convention Budget's own
+// month-transactions panel already uses).
+import cardStyles from '@/src/screens/TransactionHistory/TransactionHistoryScreen.module.css';
 
 // A zeroed-out unaccounted balance is displayed as six asterisks rather than
 // "0" — a deliberate "nothing to see here" placeholder distinct from the
@@ -22,14 +39,17 @@ const UNJUSTIFIED_PLACEHOLDER = '******';
 // arrives.
 const PLACEHOLDER_BAR_HEIGHTS = [55, 80, 40, 65];
 const PLACEHOLDER_BREAKDOWN_COLUMNS = 6;
-const PLACEHOLDER_BUDGET_ROWS = [60, 35, 80];
+// Three axis indicators (max, half, zero) — same "at least 3, clearly show
+// distance from zero" bar as every other chart in the app now follows (see
+// src/screens/Statistics/StatisticsScreen.tsx's own AXIS_SCALE).
+const AXIS_SCALE = [1, 0.5, 0];
 
 export function HomeScreen() {
   const strings = useStrings();
   const {
     balance,
     wallets,
-    budgets,
+    recentTransactions,
     period,
     setPeriod,
     upcomingPayments,
@@ -62,7 +82,6 @@ export function HomeScreen() {
   const periods: { key: SpendingPeriod; label: string }[] = [
     { key: 'week', label: strings.home.periodWeek },
     { key: 'month', label: strings.home.periodMonth },
-    { key: 'quarter', label: strings.home.periodQuarter },
   ];
 
   const swipeRef = useSwipeModeSwitch('money');
@@ -288,38 +307,52 @@ export function HomeScreen() {
           </div>
         </div>
 
-        <div className={styles.breakdownChart}>
-          {breakdown.length > 0
-            ? breakdown.map((entry) => (
-                <div key={entry.day} className={styles.breakdownColumn}>
-                  <div className={styles.breakdownBars}>
-                    {entry.hasData ? (
-                      <>
-                        <div
-                          className={styles.breakdownBarIncome}
-                          style={{ height: `${Math.max((entry.income / breakdownMax) * 100, 4)}%` }}
-                        />
-                        <div
-                          className={styles.breakdownBarExpense}
-                          style={{ height: `${Math.max((entry.expense / breakdownMax) * 100, 4)}%` }}
-                        />
-                      </>
-                    ) : (
-                      <div className={styles.breakdownBarEmpty} aria-hidden="true" />
-                    )}
-                  </div>
-                  <span className={styles.breakdownLabel}>{entry.day}</span>
-                </div>
-              ))
-            : Array.from({ length: PLACEHOLDER_BREAKDOWN_COLUMNS }, (_, index) => (
-                <div key={index} className={styles.breakdownColumn} aria-hidden="true">
-                  <div className={styles.breakdownBars}>
-                    <div className={styles.placeholderBreakdownBar} style={{ height: '30%' }} />
-                    <div className={styles.placeholderBreakdownBar} style={{ height: '18%' }} />
-                  </div>
-                  <span className={`${styles.breakdownLabel} ${styles.placeholderLabel}`}>&nbsp;</span>
-                </div>
+        <div className={styles.breakdownRow}>
+          <div className={styles.breakdownAxis} aria-hidden="true">
+            {AXIS_SCALE.map((fraction) => (
+              <span key={fraction}>{formatCompact(Math.round(breakdownMax * fraction))}</span>
+            ))}
+          </div>
+          <div className={styles.breakdownArea}>
+            <div className={styles.breakdownGridlines} aria-hidden="true">
+              {AXIS_SCALE.map((fraction) => (
+                <span key={fraction} className={styles.breakdownGridline} />
               ))}
+            </div>
+            <div className={styles.breakdownChart}>
+              {breakdown.length > 0
+                ? breakdown.map((entry) => (
+                    <div key={entry.day} className={styles.breakdownColumn}>
+                      <div className={styles.breakdownBars}>
+                        {entry.hasData ? (
+                          <>
+                            <div
+                              className={styles.breakdownBarIncome}
+                              style={{ height: `${Math.max((entry.income / breakdownMax) * 100, 4)}%` }}
+                            />
+                            <div
+                              className={styles.breakdownBarExpense}
+                              style={{ height: `${Math.max((entry.expense / breakdownMax) * 100, 4)}%` }}
+                            />
+                          </>
+                        ) : (
+                          <div className={styles.breakdownBarEmpty} aria-hidden="true" />
+                        )}
+                      </div>
+                      <span className={styles.breakdownLabel}>{entry.day}</span>
+                    </div>
+                  ))
+                : Array.from({ length: PLACEHOLDER_BREAKDOWN_COLUMNS }, (_, index) => (
+                    <div key={index} className={styles.breakdownColumn} aria-hidden="true">
+                      <div className={styles.breakdownBars}>
+                        <div className={styles.placeholderBreakdownBar} style={{ height: '30%' }} />
+                        <div className={styles.placeholderBreakdownBar} style={{ height: '18%' }} />
+                      </div>
+                      <span className={`${styles.breakdownLabel} ${styles.placeholderLabel}`}>&nbsp;</span>
+                    </div>
+                  ))}
+            </div>
+          </div>
         </div>
 
         <div className={styles.legend}>
@@ -336,47 +369,42 @@ export function HomeScreen() {
 
       <section className={styles.section}>
         <div className={styles.sectionHeader}>
-          <h2 className={styles.sectionTitle}>{strings.home.budgets}</h2>
-          <Link href="/budget" className={styles.viewAllButton} aria-label="View all budgets">
+          <h2 className={styles.sectionTitle}>{strings.home.recentTransactionsTitle}</h2>
+          <Link href="/transactions" className={styles.viewAllButton} aria-label="View all transactions">
             <ArrowUpRight size={16} strokeWidth={2.25} />
           </Link>
         </div>
 
-        {budgets.length > 0 ? (
-          <div className={styles.budgetList}>
-            {budgets.map((budget) => {
-              const percent = Math.min((budget.spent / budget.total) * 100, 100);
+        {recentTransactions.length === 0 ? (
+          !loading && <p className={styles.emptyText}>{strings.home.noRecentTransactions}</p>
+        ) : (
+          <div className={cardStyles.list}>
+            {recentTransactions.map((transaction) => {
+              const Icon = transaction.icon;
               return (
-                <div key={budget.category} className={styles.budgetRow}>
-                  <div className={styles.budgetInfo}>
-                    <span className={styles.budgetCategory}>{budget.category}</span>
-                    <span className={styles.budgetAmount}>
-                      {formatAmount(budget.spent)} / {formatAmount(budget.total)} {balance.currency}
-                    </span>
+                <div key={transaction.id} className={cardStyles.card}>
+                  <span className={cardStyles.icon} style={{ background: transaction.iconColor }}>
+                    <Icon size={18} strokeWidth={2} color="#ffffff" />
+                  </span>
+                  <div className={cardStyles.info}>
+                    <p className={cardStyles.transactionTitle}>{transaction.title}</p>
+                    <p className={cardStyles.description}>{transaction.description}</p>
+                    <p className={cardStyles.account}>{transaction.account}</p>
+                    <div className={cardStyles.amountRow}>
+                      <span className={cardStyles.amount}>
+                        {formatAmount(transaction.amount)} {transaction.currency}
+                      </span>
+                      <span className={cardStyles.date}>{transaction.date}</span>
+                    </div>
                   </div>
-                  <div className={styles.budgetTrack}>
-                    <div className={styles.budgetFill} style={{ width: `${percent}%` }} />
-                  </div>
+                  <Link href={transaction.editHref} className={cardStyles.editButton} aria-label="Edit transaction">
+                    <Pencil size={14} strokeWidth={1.75} />
+                  </Link>
                 </div>
               );
             })}
           </div>
-        ) : (
-          <div className={styles.budgetList} aria-hidden="true">
-            {PLACEHOLDER_BUDGET_ROWS.map((width, index) => (
-              <div key={index} className={styles.budgetRow}>
-                <div className={styles.budgetInfo}>
-                  <span className={`${styles.budgetCategory} ${styles.placeholderLabel}`} style={{ width: 64 }} />
-                  <span className={`${styles.budgetAmount} ${styles.placeholderLabel}`} style={{ width: 48 }} />
-                </div>
-                <div className={styles.budgetTrack}>
-                  <div className={styles.placeholderBar} style={{ width: `${width}%`, height: '100%' }} />
-                </div>
-              </div>
-            ))}
-          </div>
         )}
-        {budgets.length === 0 && !loading && <p className={styles.emptyText}>{strings.home.noBudgets}</p>}
       </section>
     </div>
   );

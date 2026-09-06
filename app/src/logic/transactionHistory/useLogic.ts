@@ -87,6 +87,12 @@ function backfillBatchFromSearch(): string | null {
 export type TransactionTypeFilter = 'All' | 'Expense' | 'Income' | 'Savings' | 'Transfer';
 export const TYPE_FILTERS: TransactionTypeFilter[] = ['All', 'Expense', 'Income', 'Savings', 'Transfer'];
 
+// 'category' sorts the flat list alphabetically by category name (date-desc
+// as the tiebreaker within a category) — 'date' is the screen's original,
+// always-on ordering. Independent of groupByCategory below: grouping already
+// clusters by category regardless of which flat order it's built from.
+export type SortOption = 'date' | 'category';
+
 export function useLogic() {
   const router = useRouter();
   const { user, loading: authLoading } = useFirebaseUser();
@@ -98,6 +104,9 @@ export function useLogic() {
   const [filterOpen, setFilterOpen] = useState(false);
   const [typeFilter, setTypeFilter] = useState<TransactionTypeFilter>('All');
   const [accountFilter, setAccountFilter] = useState<string>('All');
+  const [categoryFilter, setCategoryFilter] = useState<string>('All');
+  const [sortBy, setSortBy] = useState<SortOption>('date');
+  const [groupByCategory, setGroupByCategory] = useState(false);
 
   // Long-press-to-select bulk delete — works on both transactions and
   // transfers (kindById below resolves which delete path each selected id
@@ -208,14 +217,22 @@ export function useLogic() {
   const accountAndTypeFilteredTransactions = typeFilteredTransactions.filter(
     (transaction) => accountFilter === 'All' || transaction.accountId === accountFilter
   );
+  // A transfer has no categoryId of its own (FirestoreTransfer) — picking a
+  // specific category means "only transactions in it", which excludes every
+  // transfer, same as the existing 'Transfer' type filter excludes every
+  // transaction.
+  const categoryFilteredTransactions = accountAndTypeFilteredTransactions.filter(
+    (transaction) => categoryFilter === 'All' || transaction.categoryId === categoryFilter
+  );
 
   const typeFilteredTransfers = typeFilter === 'All' || typeFilter === 'Transfer' ? transferDocs : [];
   const accountAndTypeFilteredTransfers = typeFilteredTransfers.filter(
     (transfer) =>
       accountFilter === 'All' || transfer.fromAccountId === accountFilter || transfer.toAccountId === accountFilter
   );
+  const categoryFilteredTransfers = categoryFilter === 'All' ? accountAndTypeFilteredTransfers : [];
 
-  const mappedTransactions = accountAndTypeFilteredTransactions.map((transaction) => {
+  const mappedTransactions = categoryFilteredTransactions.map((transaction) => {
     const account = accountById.get(transaction.accountId);
     return {
       id: transaction.id,
@@ -243,7 +260,7 @@ export function useLogic() {
     };
   });
 
-  const mappedTransfers = accountAndTypeFilteredTransfers.map((transfer) => {
+  const mappedTransfers = categoryFilteredTransfers.map((transfer) => {
     const fromAccount = accountById.get(transfer.fromAccountId);
     const toAccount = accountById.get(transfer.toAccountId);
     const fromName = fromAccount?.name ?? transfer.fromAccountId;
@@ -282,7 +299,7 @@ export function useLogic() {
   // page sizes here (ALL_TIME_PAGE_SIZE/MONTH_ONLY_PAGE_SIZE, 300 rows each)
   // are small enough that scanning them in the browser is instant.
   const normalizedQuery = searchQuery.trim().toLowerCase();
-  const transactions = normalizedQuery
+  const searchedTransactions = normalizedQuery
     ? allTransactions.filter((transaction) =>
         [transaction.title, transaction.description, transaction.account].some((field) =>
           field.toLowerCase().includes(normalizedQuery)
@@ -290,12 +307,40 @@ export function useLogic() {
       )
     : allTransactions;
 
-  const hasActiveFilters = typeFilter !== 'All' || accountFilter !== 'All';
+  // allTransactions is already date-desc — only re-sort when 'category' is
+  // picked, alphabetically by category/transfer-kind name with date-desc as
+  // the tiebreaker within a name.
+  const transactions =
+    sortBy === 'category'
+      ? [...searchedTransactions].sort((a, b) => a.title.localeCompare(b.title) || b.sortMs - a.sortMs)
+      : searchedTransactions;
+
+  // Buckets transactions (already sorted above) by category/transfer-kind
+  // name, then orders the buckets alphabetically — each bucket keeps
+  // whichever order `transactions` was already in, so a 'date' sort still
+  // shows the most recent entry first within every group.
+  const groupedTransactions = groupByCategory
+    ? Array.from(
+        transactions.reduce((groups, row) => {
+          const bucket = groups.get(row.title) ?? [];
+          bucket.push(row);
+          groups.set(row.title, bucket);
+          return groups;
+        }, new Map<string, typeof transactions>())
+      )
+        .map(([title, rows]) => ({ title, rows }))
+        .sort((a, b) => a.title.localeCompare(b.title))
+    : null;
+
+  const hasActiveFilters = typeFilter !== 'All' || accountFilter !== 'All' || categoryFilter !== 'All';
   const isFiltered = hasActiveFilters || normalizedQuery.length > 0;
 
   function clearFilters() {
     setTypeFilter('All');
     setAccountFilter('All');
+    setCategoryFilter('All');
+    setSortBy('date');
+    setGroupByCategory(false);
     setSearchQuery('');
   }
 
@@ -395,6 +440,7 @@ export function useLogic() {
 
   return {
     transactions,
+    groupedTransactions,
     isFiltered,
     monthLabel,
     isAllTransactionsView: !hasMonth && !backfillBatchId,
@@ -414,6 +460,13 @@ export function useLogic() {
     setTypeFilter,
     accountFilter,
     setAccountFilter,
+    categoryFilter,
+    setCategoryFilter,
+    categories,
+    sortBy,
+    setSortBy,
+    groupByCategory,
+    setGroupByCategory,
     accounts,
     hasActiveFilters,
     clearFilters,

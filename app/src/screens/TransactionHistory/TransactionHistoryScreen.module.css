@@ -119,12 +119,13 @@
 
 .filterRow {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-sm);
 }
 
 .filterSelect {
-  flex: 1;
-  min-width: 0;
+  flex: 1 1 45%;
+  min-width: 120px;
   padding: var(--space-md);
   border: none;
   border-radius: var(--radius-md);
@@ -133,6 +134,37 @@
   font-family: inherit;
   font-size: var(--font-size-sm);
   outline: none;
+}
+
+.groupToggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex: 1 1 100%;
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+}
+
+.groupedList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.categoryGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.categoryGroupTitle {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
 }
 
 .clearFiltersButton {
