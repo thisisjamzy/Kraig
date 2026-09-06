@@ -5,58 +5,44 @@
   padding: var(--space-lg);
 }
 
+/* A plain flex row, first item in .page's own flex column — no sticky
+   positioning and no full-bleed negative-margin trick. Those made this
+   bar float over the total-budget card below it instead of simply taking
+   its place in the page's normal top-to-bottom flow. */
 .header {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
-  /* /budget is a hub route — the shared, already-fixed AppHeader sits above
-     this, reserving 84px + the safe-area inset via AppContent.module.css's
-     .withHeader. This is Budget's own secondary title bar, stuck flush
-     underneath that (not at top: 0, which would put it under/behind
-     AppHeader) — same negative-margin/matching-padding trick as every
-     other screen's sticky header, just without a safe-area component of
-     its own since AppHeader already reserved that. */
-  position: sticky;
-  top: calc(84px + env(safe-area-inset-top));
-  z-index: 15;
-  margin-top: calc(-1 * var(--space-lg));
-  margin-left: calc(-1 * var(--space-lg));
-  margin-right: calc(-1 * var(--space-lg));
-  padding-top: var(--space-lg);
-  padding-left: var(--space-lg);
-  padding-right: var(--space-lg);
-  background: var(--color-background);
+}
+
+.headerText {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  min-width: 0;
 }
 
 .title {
   margin: 0;
   font-family: var(--font-family-heading);
   font-weight: 800;
-  font-size: var(--font-size-2xl);
+  font-size: var(--font-size-md);
   color: var(--color-text-primary);
 }
 
-.yearPill {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 10px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-full);
-  background: none;
-  font-family: inherit;
+.subtitle {
+  margin: 0;
   font-size: var(--font-size-sm);
-  font-weight: 600;
   color: var(--color-text-secondary);
-  cursor: pointer;
 }
 
-.configButton {
+.dateButton {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  align-self: center;
+  width: 40px;
+  height: 40px;
   flex-shrink: 0;
   margin-left: auto;
   border-radius: 50%;
@@ -66,13 +52,27 @@
   cursor: pointer;
 }
 
+/* Design/budget3.jpg's own middle frame (the "Total Balance" card) — same
+   brand-green gradient, big amount, masked-account-style bottom-left detail
+   and a round bottom-right action button. --color-brand is fixed across
+   themes (see globals.css), so this gradient doesn't need a dark-mode
+   override — it deliberately stays the same lime-green card either way. */
 .totalCard {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: var(--space-md);
+  gap: var(--space-sm);
   padding: var(--space-lg);
-  border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--color-brand) 85%, black) 0%, color-mix(in srgb, var(--color-brand) 45%, black) 100%);
+  color: #ffffff;
+}
+
+.totalCardTopRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
 }
 
 .totalLabel {
@@ -80,39 +80,78 @@
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--color-text-secondary);
+  color: rgba(255, 255, 255, 0.85);
 }
 
-.totalBudgetRow {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-}
-
-.totalInput {
-  flex: 1;
-  min-width: 0;
-  padding: var(--space-md);
-  border: none;
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
-  font-family: var(--font-family-heading);
-  font-size: var(--font-size-lg);
-  font-weight: 700;
-  color: var(--color-text-primary);
-  outline: none;
-}
-
-.saveButton {
+/* Doubles as an ActionMenu trigger button (see BudgetScreen.tsx) — resets
+   the button defaults ActionMenu's own .trigger class would otherwise
+   supply, since triggerClassName replaces it entirely rather than adding
+   to it. */
+.currencyBadge {
   flex-shrink: 0;
-  padding: var(--space-md) var(--space-lg);
   border: none;
-  border-radius: var(--radius-md);
-  background: var(--color-brand);
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.2);
   color: #ffffff;
   font-family: inherit;
-  font-size: var(--font-size-md);
+  font-size: 0.6875rem;
   font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.totalAmount {
+  margin: 0;
+  font-family: var(--font-family-heading);
+  font-size: var(--font-size-2xl);
+  font-weight: 500;
+  color: #ffffff;
+}
+
+.totalCardBottomRow {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-top: var(--space-xs);
+}
+
+.leftToBudget {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.leftToBudgetLabel {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.leftToBudgetValue {
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.addBudgetButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: var(--space-sm) var(--space-md);
+  border: none;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  text-decoration: none;
   cursor: pointer;
 }
 
@@ -135,7 +174,7 @@
   width: 100%;
   text-align: left;
   font-size: 0.625rem;
-  font-weight: 600;
+  font-weight: 800;
   letter-spacing: 0.02em;
   text-transform: uppercase;
   color: var(--color-text-secondary);
@@ -194,42 +233,17 @@
   color: var(--color-text-secondary);
 }
 
+/* Solid white backing, not the usual translucent-red tint — that reads fine
+   on the page's own background but disappears against the total card's own
+   green gradient. */
 .overspendWarning {
   margin: 0;
   padding: var(--space-sm);
   border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--color-danger) 12%, transparent);
+  background: rgba(255, 255, 255, 0.92);
   color: var(--color-danger);
   font-size: var(--font-size-sm);
-  font-weight: 600;
-}
-
-.summaryRow {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--space-sm);
-  padding-top: var(--space-sm);
-  border-top: 1px solid var(--color-border);
-}
-
-.summaryItem {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.summaryItemLabel {
-  font-size: 0.625rem;
   font-weight: 700;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  color: var(--color-text-secondary);
-}
-
-.summaryItemValue {
-  font-size: var(--font-size-sm);
-  font-weight: 700;
-  color: var(--color-text-primary);
 }
 
 .sectionTitle {
@@ -245,61 +259,124 @@
   justify-content: space-between;
 }
 
-.categoryList {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-sm);
+/* Horizontally-scrolling budget category cards — public/mockups/budget 2.png */
+
+.cardScroll {
+  display: flex;
+  gap: var(--space-md);
+  overflow-x: auto;
+  padding: 2px 2px var(--space-xs);
+  margin: 0 calc(-1 * var(--space-lg));
+  padding-left: var(--space-lg);
+  padding-right: var(--space-lg);
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
 }
 
-.categoryRow {
+.categoryCard {
   display: flex;
   flex-direction: column;
-  align-items: stretch;
-  gap: 4px;
-  padding: var(--space-lg);
+  justify-content: space-between;
+  flex: 0 0 auto;
+  scroll-snap-align: start;
+  width: 70%;
+  min-height: 150px;
+  padding: var(--space-md);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  background: none;
+  background: var(--color-background);
   font-family: inherit;
   text-align: left;
   cursor: pointer;
-  width: 100%;
-  min-width: 0;
 }
 
-.categoryTopRow {
+.cardTopRow {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: var(--space-sm);
+  gap: var(--space-xs);
 }
 
-.categoryName {
-  margin: 0;
+.cardHeading {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   min-width: 0;
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  color: var(--color-text-primary);
 }
 
-.categoryDescription {
+.cardCategoryName {
   margin: 0;
-  font-size: 0.75rem;
-  line-height: 1.4;
-  color: var(--color-text-secondary);
-}
-
-.categoryAmount {
-  margin: 2px 0 0;
-  font-size: 0.75rem;
-  font-weight: 600;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
   color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.categoryRecurrence {
-  margin: 2px 0 0;
+.cardFrequency {
+  margin: 0;
   font-size: 0.6875rem;
   color: var(--color-text-secondary);
+}
+
+.cardMenu {
+  flex-shrink: 0;
+}
+
+.typeBadge {
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  background: var(--color-background);
+  color: var(--color-text-secondary);
+}
+
+.typeBadge[data-type='Expense'] {
+  background: color-mix(in srgb, var(--color-danger) 18%, transparent);
+  color: var(--color-danger);
+}
+
+.typeBadge[data-type='Income'] {
+  background: color-mix(in srgb, var(--color-success) 20%, transparent);
+  color: var(--color-success);
+}
+
+.typeBadge[data-type='Savings'] {
+  background: color-mix(in srgb, var(--color-brand) 22%, transparent);
+  color: var(--color-brand);
+}
+
+.cardBottom {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-xs);
+}
+
+.cardAmounts {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.cardSpentLabel {
+  margin: 0;
+  font-size: 0.6875rem;
+  color: var(--color-text-secondary);
+}
+
+.cardBudgetedAmount {
+  margin: 0;
+  font-family: var(--font-family-heading);
+  font-size: var(--font-size-lg);
+  font-weight: 800;
+  color: var(--color-text-primary);
 }
 
 .addIconButton {

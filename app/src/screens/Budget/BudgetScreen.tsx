@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronDown, ChevronLeft, ChevronRight, Pencil, Trash2, Plus, Settings } from 'lucide-react';
+import { CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, Pencil, Trash2, Plus } from 'lucide-react';
 import Link from 'next/link';
 import { Modal } from '@/src/widgets/Modal/Modal';
 import { ActionMenu } from '@/src/widgets/ActionMenu/ActionMenu';
@@ -23,6 +23,7 @@ export function BudgetScreen() {
   const {
     monthIndex,
     year,
+    daysLeftInMonth,
     retroTransactionHref,
     monthTransactions,
     monthTransactionsLoading,
@@ -32,22 +33,10 @@ export function BudgetScreen() {
     setMonthPickerOpen,
     pickerYear,
     setPickerYear,
-    totalBudgetDraft,
-    setTotalBudgetDraft,
-    savingTotalBudget,
-    handleSaveTotalBudget,
-    configOpen,
-    setConfigOpen,
-    openConfig,
-    projectedIncomeDraft,
-    setProjectedIncomeDraft,
-    savingsMode,
-    setSavingsMode,
-    savingsValueDraft,
-    setSavingsValueDraft,
-    savingPlan,
     categories,
     currency,
+    currencyOptions,
+    setCurrency,
     addBudgetCategoryHref,
     editingCategory,
     editAvailableCategories,
@@ -73,20 +62,20 @@ export function BudgetScreen() {
     chooseEditEndMonth,
     savingEdit,
     editError,
-    projectedIncome,
+    plannedIncome,
     plannedSavings,
     actualIncome,
     actualSavings,
     incomeProgressPercent,
     savingsProgressPercent,
-    totalBudgeted,
-    totalSpent,
+    expenseProgressPercent,
+    totalExpenseBudgeted,
+    totalExpenseSpent,
     leftToBudget,
     overspendAmount,
     isOverspending,
     loading,
     error,
-    handleSavePlan,
     openMonthPicker,
     chooseMonth,
     openEdit,
@@ -94,14 +83,6 @@ export function BudgetScreen() {
     handleDelete,
     setEditingId,
   } = useLogic();
-
-  // "Show more" on the heading list (PRD-BUDGET-TRANSACTIONS.md section
-  // 3.1) — purely a rendering slice, useLogic()'s own `categories` array is
-  // untouched.
-  const [showAllCategories, setShowAllCategories] = useState(false);
-  const HEADINGS_PREVIEW_SIZE = 6;
-  const visibleCategories = showAllCategories ? categories : categories.slice(0, HEADINGS_PREVIEW_SIZE);
-  const hiddenCategoryCount = Math.max(categories.length - HEADINGS_PREVIEW_SIZE, 0);
 
   const monthNames = strings.months;
   const monthLabel = `${monthNames[monthIndex]} ${year}`;
@@ -112,6 +93,14 @@ export function BudgetScreen() {
   function percentClass(percent: number) {
     if (percent === 0) return styles.percentNeutral;
     return percent >= 100 ? styles.percentPositive : styles.percentNegative;
+  }
+
+  // Expenses read the opposite way — 0% (nothing spent yet) is still
+  // neutral, but staying under 100% of budget is the good outcome here and
+  // crossing it (overspent) is the bad one.
+  function expensePercentClass(percent: number) {
+    if (percent === 0) return styles.percentNeutral;
+    return percent > 100 ? styles.percentNegative : styles.percentPositive;
   }
 
   function recurrenceCaption(entry: {
@@ -133,46 +122,51 @@ export function BudgetScreen() {
     return strings.budget.recurrenceOnce;
   }
 
+  function goToCategory(categoryId: string) {
+    router.push(`/budget/category/${encodeURIComponent(categoryId)}?month=${monthIndex}&year=${year}`);
+  }
+
   return (
     <div className={styles.page}>
       <header className={styles.header}>
-        <h1 className={styles.title}>{monthNames[monthIndex]}</h1>
-        <button type="button" className={styles.yearPill} onClick={openMonthPicker}>
-          {year}
-          <ChevronDown size={14} strokeWidth={2} />
-        </button>
+        <div className={styles.headerText}>
+          <h1 className={styles.title}>{monthLabel}</h1>
+          {daysLeftInMonth !== null && (
+            <p className={styles.subtitle}>
+              {daysLeftInMonth > 0
+                ? `${daysLeftInMonth} ${strings.budget.daysLeftInMonth} ${monthNames[monthIndex]}`
+                : `${strings.budget.lastDayOfMonth} ${monthNames[monthIndex]}`}
+            </p>
+          )}
+        </div>
         <button
           type="button"
-          className={styles.configButton}
-          onClick={openConfig}
-          aria-label={strings.budget.editPlan}
+          className={styles.dateButton}
+          onClick={openMonthPicker}
+          aria-label={strings.budget.changeMonth}
         >
-          <Settings size={18} strokeWidth={1.75} />
+          <CalendarDays size={20} strokeWidth={1.75} />
         </button>
       </header>
 
       <div className={styles.totalCard}>
-        <span className={styles.totalLabel}>
-          {strings.budget.totalBudgetForPrefix} {monthNames[monthIndex]}
-        </span>
-
-        <div className={styles.totalBudgetRow}>
-          <input
-            className={styles.totalInput}
-            inputMode="numeric"
-            value={totalBudgetDraft}
-            onChange={(event) => setTotalBudgetDraft(event.target.value.replace(/[^0-9]/g, ''))}
-            placeholder="0"
+        <div className={styles.totalCardTopRow}>
+          <span className={styles.totalLabel}>{strings.budget.totalBudgetLabel}</span>
+          <ActionMenu
+            ariaLabel={strings.budget.switchCurrency}
+            triggerClassName={styles.currencyBadge}
+            triggerIcon={currency}
+            items={currencyOptions.map((option) => ({
+              key: option.code,
+              label: `${option.code} — ${option.name}`,
+              icon: option.code === currency ? <Check size={14} strokeWidth={2.5} /> : <span style={{ width: 14 }} />,
+              onSelect: () => setCurrency(option.code),
+            }))}
           />
-          <button
-            type="button"
-            className={styles.saveButton}
-            onClick={handleSaveTotalBudget}
-            disabled={savingTotalBudget}
-          >
-            {strings.common.save}
-          </button>
         </div>
+        <p className={styles.totalAmount}>
+          {formatAmount(totalExpenseBudgeted)} {currency}
+        </p>
 
         {isOverspending && (
           <p className={styles.overspendWarning}>
@@ -180,19 +174,17 @@ export function BudgetScreen() {
           </p>
         )}
 
-        <div className={styles.summaryRow}>
-          <div className={styles.summaryItem}>
-            <span className={styles.summaryItemLabel}>{strings.budget.spent}</span>
-            <span className={styles.summaryItemValue}>{formatAmount(totalSpent)}</span>
+        <div className={styles.totalCardBottomRow}>
+          <div className={styles.leftToBudget}>
+            <span className={styles.leftToBudgetLabel}>{strings.budget.leftToBudget}</span>
+            <span className={styles.leftToBudgetValue}>
+              {formatAmount(leftToBudget)} {currency}
+            </span>
           </div>
-          <div className={styles.summaryItem}>
-            <span className={styles.summaryItemLabel}>{strings.budget.budgeted}</span>
-            <span className={styles.summaryItemValue}>{formatAmount(totalBudgeted)}</span>
-          </div>
-          <div className={styles.summaryItem}>
-            <span className={styles.summaryItemLabel}>{strings.budget.leftToBudget}</span>
-            <span className={styles.summaryItemValue}>{formatAmount(leftToBudget)}</span>
-          </div>
+          <Link href={addBudgetCategoryHref} className={styles.addBudgetButton} aria-label={strings.budget.addBudget}>
+            <Plus size={18} strokeWidth={2.5} />
+            {strings.budget.addBudget}
+          </Link>
         </div>
       </div>
 
@@ -203,7 +195,7 @@ export function BudgetScreen() {
         <span className={styles.trackingCorner} />
 
         <span className={styles.trackingRowLabel}>{strings.budget.incomeRowLabel}</span>
-        <span className={styles.trackingTableValue}>{formatAmount(projectedIncome)}</span>
+        <span className={styles.trackingTableValue}>{formatAmount(plannedIncome)}</span>
         <span className={styles.trackingTableValue}>{formatAmount(actualIncome)}</span>
         <span className={`${styles.trackingPercentBadge} ${percentClass(incomeProgressPercent)}`}>
           {incomeProgressPercent}%
@@ -217,6 +209,15 @@ export function BudgetScreen() {
         <span className={`${styles.trackingPercentBadge} ${percentClass(savingsProgressPercent)}`}>
           {savingsProgressPercent}%
         </span>
+
+        <div className={styles.trackingTableDivider} />
+
+        <span className={styles.trackingRowLabel}>{strings.budget.expenseRowLabel}</span>
+        <span className={styles.trackingTableValue}>{formatAmount(totalExpenseBudgeted)}</span>
+        <span className={styles.trackingTableValue}>{formatAmount(totalExpenseSpent)}</span>
+        <span className={`${styles.trackingPercentBadge} ${expensePercentClass(expenseProgressPercent)}`}>
+          {expenseProgressPercent}%
+        </span>
       </div>
 
       <div className={styles.sectionTitleRow}>
@@ -228,59 +229,70 @@ export function BudgetScreen() {
 
       <ScreenState loading={loading} error={error} />
 
-      <div className={styles.categoryList}>
-        {visibleCategories.map((entry) => (
-          <div
-            key={entry.id}
-            role="button"
-            tabIndex={0}
-            className={styles.categoryRow}
-            onClick={() => router.push(`/budget/category/${encodeURIComponent(entry.categoryId)}?month=${monthIndex}&year=${year}`)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' || event.key === ' ') {
-                event.preventDefault();
-                router.push(`/budget/category/${encodeURIComponent(entry.categoryId)}?month=${monthIndex}&year=${year}`);
-              }
-            }}
-          >
-            <div className={styles.categoryTopRow}>
-              <p className={styles.categoryName}>{entry.category}</p>
-              <span onClick={(event) => event.stopPropagation()}>
-                <ActionMenu
-                  title={entry.category}
-                  ariaLabel={`Actions for ${entry.category}`}
-                  items={[
-                    {
-                      key: 'edit',
-                      label: strings.budget.editAction,
-                      icon: <Pencil size={16} strokeWidth={1.75} />,
-                      onSelect: () => openEdit(entry),
-                    },
-                    {
-                      key: 'delete',
-                      label: strings.budget.deleteAction,
-                      icon: <Trash2 size={16} strokeWidth={1.75} />,
-                      onSelect: () => setConfirmDeleteId(entry.id),
-                      danger: true,
-                    },
-                  ]}
-                />
-              </span>
+      {!loading && categories.length === 0 ? (
+        <p className={styles.emptyText}>
+          {strings.budget.noCategoriesPrefix} {monthLabel} {strings.budget.noCategoriesSuffix}
+        </p>
+      ) : (
+        <div className={styles.cardScroll}>
+          {categories.map((entry) => (
+            <div
+              key={entry.id}
+              role="button"
+              tabIndex={0}
+              className={styles.categoryCard}
+              data-type={entry.type}
+              onClick={() => goToCategory(entry.categoryId)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  goToCategory(entry.categoryId);
+                }
+              }}
+            >
+              <div className={styles.cardTopRow}>
+                <div className={styles.cardHeading}>
+                  <p className={styles.cardCategoryName}>{entry.category}</p>
+                  <p className={styles.cardFrequency}>{recurrenceCaption(entry)}</p>
+                </div>
+                <div className={styles.cardMenu} onClick={(event) => event.stopPropagation()}>
+                  <ActionMenu
+                    title={entry.category}
+                    ariaLabel={`Actions for ${entry.category}`}
+                    items={[
+                      {
+                        key: 'edit',
+                        label: strings.budget.editAction,
+                        icon: <Pencil size={16} strokeWidth={1.75} />,
+                        onSelect: () => openEdit(entry),
+                      },
+                      {
+                        key: 'delete',
+                        label: strings.budget.deleteAction,
+                        icon: <Trash2 size={16} strokeWidth={1.75} />,
+                        onSelect: () => setConfirmDeleteId(entry.id),
+                        danger: true,
+                      },
+                    ]}
+                  />
+                </div>
+              </div>
+              <div className={styles.cardBottom}>
+                <div className={styles.cardAmounts}>
+                  <p className={styles.cardSpentLabel}>
+                    {formatAmount(entry.spent)} {strings.budget.spentOfLabels[entry.type]}
+                  </p>
+                  <p className={styles.cardBudgetedAmount}>
+                    {formatAmount(entry.budgeted)} {currency}
+                  </p>
+                </div>
+                <span className={styles.typeBadge} data-type={entry.type}>
+                  {strings.budget.typeLabels[entry.type]}
+                </span>
+              </div>
             </div>
-            {entry.description && <p className={styles.categoryDescription}>{entry.description}</p>}
-            <p className={styles.categoryAmount}>
-              {formatAmount(entry.spent)} {strings.budget.spentOfSuffix}{' '}
-              {formatAmount(entry.budgeted)} {currency} {strings.budget.spentSuffix}
-            </p>
-            <p className={styles.categoryRecurrence}>{recurrenceCaption(entry)}</p>
-          </div>
-        ))}
-      </div>
-
-      {hiddenCategoryCount > 0 && (
-        <button type="button" className={styles.showMoreButton} onClick={() => setShowAllCategories((v) => !v)}>
-          {showAllCategories ? strings.budget.showLess : `${strings.budget.showMorePrefix} (${hiddenCategoryCount})`}
-        </button>
+          ))}
+        </div>
       )}
 
       {confirmDeleteId && (
@@ -390,62 +402,6 @@ export function BudgetScreen() {
               </button>
             ))}
           </div>
-        </Modal>
-      )}
-
-      {configOpen && (
-        <Modal title={strings.budget.configTitle} onClose={() => setConfigOpen(false)}>
-          <div className={styles.formField}>
-            <label className={styles.formLabel} htmlFor="config-projected-income">
-              {strings.budget.projectedIncomeLabel}
-            </label>
-            <input
-              id="config-projected-income"
-              className={styles.formInput}
-              inputMode="numeric"
-              value={projectedIncomeDraft}
-              onChange={(event) => setProjectedIncomeDraft(event.target.value.replace(/[^0-9]/g, ''))}
-              placeholder="0"
-            />
-          </div>
-
-          <div className={styles.formField}>
-            <span className={styles.formLabel}>{strings.budget.savingsModeLabel}</span>
-            <div className={styles.recurrenceGroup}>
-              <button
-                type="button"
-                className={`${styles.recurrenceOption} ${savingsMode === 'fixed' ? styles.recurrenceOptionActive : ''}`}
-                onClick={() => setSavingsMode('fixed')}
-              >
-                {strings.budget.savingsModeFixed}
-              </button>
-              <button
-                type="button"
-                className={`${styles.recurrenceOption} ${savingsMode === 'percent' ? styles.recurrenceOptionActive : ''}`}
-                onClick={() => setSavingsMode('percent')}
-              >
-                {strings.budget.savingsModePercent}
-              </button>
-            </div>
-          </div>
-
-          <div className={styles.formField}>
-            <label className={styles.formLabel} htmlFor="config-savings-value">
-              {savingsMode === 'percent' ? strings.budget.savingsPercentLabel : strings.budget.savingsAmountLabel}
-            </label>
-            <input
-              id="config-savings-value"
-              className={styles.formInput}
-              inputMode="numeric"
-              value={savingsValueDraft}
-              onChange={(event) => setSavingsValueDraft(event.target.value.replace(/[^0-9]/g, ''))}
-              placeholder="0"
-            />
-          </div>
-
-          <button type="button" className={styles.modalSaveButton} onClick={handleSavePlan} disabled={savingPlan}>
-            {strings.common.save}
-          </button>
         </Modal>
       )}
 

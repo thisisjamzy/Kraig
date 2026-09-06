@@ -5,6 +5,14 @@
   padding: var(--space-lg);
 }
 
+/* One shared Week/Month/Quarter/Year filter, above everything else on the
+   page — drives the summary tiles below plus every section that used to
+   carry its own separate, disconnected period control. */
+.globalPeriodRow {
+  display: flex;
+  justify-content: flex-end;
+}
+
 /* Summary */
 
 .summarySection {

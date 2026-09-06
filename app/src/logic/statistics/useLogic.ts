@@ -22,7 +22,10 @@ import type { FirestoreTransaction } from '@/src/shared/firestore/types';
 export type StatsPeriod = 'Week' | 'Month' | 'Quarter' | 'Year';
 export type HabitPeriod = 'Daily' | 'Monthly' | 'Yearly';
 
-const HISTORY_MONTHS = 12;
+// 24, not 12 — the single period filter's "vs previous period" comparison
+// needs a full previous window of history too, and a Year window's previous
+// window alone reaches back 24 months (see previousPeriodRangeFor below).
+const HISTORY_MONTHS = 24;
 const WEEKDAY_LABELS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
 const MONTH_LABELS = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
@@ -47,6 +50,30 @@ function periodStartFor(period: StatsPeriod, now: Date) {
   if (period === 'Quarter') return new Date(now.getFullYear(), now.getMonth() - 2, 1);
   if (period === 'Year') return new Date(now.getFullYear(), now.getMonth() - 11, 1);
   return new Date(now.getFullYear(), now.getMonth(), 1);
+}
+
+// The equal-length window immediately preceding periodStartFor's own
+// window — what the current period's totals get compared against.
+function previousPeriodRangeFor(period: StatsPeriod, now: Date) {
+  const currentStart = periodStartFor(period, now);
+  if (period === 'Week') {
+    const end = new Date(currentStart.getTime() - 1);
+    const start = new Date(currentStart.getTime() - 7 * 24 * 3600 * 1000);
+    return { start, end };
+  }
+  if (period === 'Quarter') {
+    const end = new Date(currentStart.getFullYear(), currentStart.getMonth(), 0, 23, 59, 59, 999);
+    const start = new Date(currentStart.getFullYear(), currentStart.getMonth() - 3, 1);
+    return { start, end };
+  }
+  if (period === 'Year') {
+    const end = new Date(currentStart.getFullYear(), currentStart.getMonth(), 0, 23, 59, 59, 999);
+    const start = new Date(currentStart.getFullYear(), currentStart.getMonth() - 12, 1);
+    return { start, end };
+  }
+  const end = new Date(currentStart.getFullYear(), currentStart.getMonth(), 0, 23, 59, 59, 999);
+  const start = new Date(currentStart.getFullYear(), currentStart.getMonth() - 1, 1);
+  return { start, end };
 }
 
 function habitStartFor(period: HabitPeriod, now: Date) {
@@ -103,19 +130,29 @@ export function useLogic() {
     accounts.reduce((sum, account) => sum + toDisplay(ctx, account.currentBalance, account.currency), 0)
   );
 
-  // --- This month vs last month (summary tiles + comparison table) -------
+  // --- Single Week/Month/Quarter/Year filter — drives the summary tiles at
+  // the top of the page plus every section below that used to carry its own
+  // separate period control (Spending Insights, Income Analysis, Financial
+  // Trends). Habit Breakdown keeps its own Daily/Monthly/Yearly control —
+  // that's a bucketing granularity, not this same date-range concept.
 
-  const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
-  const thisMonthRows = rows.filter((r) => inRange(r.dateObj, thisMonthStart, now));
-  const lastMonthRows = rows.filter((r) => inRange(r.dateObj, lastMonthStart, lastMonthEnd));
+  const [period, setPeriod] = useState<StatsPeriod>('Month');
+  const periodStart = periodStartFor(period, now);
+  const previousPeriodRange = previousPeriodRangeFor(period, now);
+  const periodRows = useMemo(
+    () => rows.filter((r) => inRange(r.dateObj, periodStart, now)),
+    [rows, periodStart, now]
+  );
+  const previousPeriodRows = useMemo(
+    () => rows.filter((r) => inRange(r.dateObj, previousPeriodRange.start, previousPeriodRange.end)),
+    [rows, previousPeriodRange.start, previousPeriodRange.end]
+  );
 
-  const income = sumType(thisMonthRows, 'Income');
-  const expense = sumType(thisMonthRows, 'Expense');
-  const netSavings = sumType(thisMonthRows, 'Savings');
+  const income = sumType(periodRows, 'Income');
+  const expense = sumType(periodRows, 'Expense');
+  const netSavings = sumType(periodRows, 'Savings');
   const spending = -expense;
-  // What fraction of this month's income actually landed in a Savings
+  // What fraction of this period's income actually landed in a Savings
   // category — paired with netSavings' own definition (real recorded
   // savings, not income-minus-expense; see src/logic/budget/useLogic.ts's
   // actualSavings, the same definition).
@@ -131,15 +168,15 @@ export function useLogic() {
     activeAccounts: accounts.length,
   };
 
-  const prevIncome = sumType(lastMonthRows, 'Income');
-  const prevExpense = sumType(lastMonthRows, 'Expense');
-  const prevNetSavings = sumType(lastMonthRows, 'Savings');
+  const prevIncome = sumType(previousPeriodRows, 'Income');
+  const prevExpense = sumType(previousPeriodRows, 'Expense');
+  const prevNetSavings = sumType(previousPeriodRows, 'Savings');
 
   // Empty (not three zeroed rows) until there's at least some real history
-  // in either month — same "nothing to compare yet" empty state a brand
+  // in either window — same "nothing to compare yet" empty state a brand
   // new account should see.
   const monthComparison =
-    thisMonthRows.length > 0 || lastMonthRows.length > 0
+    periodRows.length > 0 || previousPeriodRows.length > 0
       ? [
           { label: 'Spending', current: spending, previous: -prevExpense, percent: percentChange(spending, -prevExpense) },
           { label: 'Income', current: income, previous: prevIncome, percent: percentChange(income, prevIncome) },
@@ -153,17 +190,14 @@ export function useLogic() {
       : [];
 
   // --- Spending Insights: donut + top categories --------------------------
-
-  const [insightsPeriod, setInsightsPeriod] = useState<StatsPeriod>('Month');
-  const insightsStart = periodStartFor(insightsPeriod, now);
-  const insightsRows = rows.filter((r) => inRange(r.dateObj, insightsStart, now));
+  // Same window as the summary tiles above — periodRows.
 
   const topCategories = useMemo(() => {
     // Outflow categories only (Expense + Savings, same "money that left a
     // spendable wallet" grouping Budget screen's totalSpent uses) — Income
     // has its own section below.
     const spend = new Map<string, number>();
-    insightsRows.forEach((r) => {
+    periodRows.forEach((r) => {
       if (r.type === 'Income' || !r.categoryId) return;
       spend.set(r.categoryId, (spend.get(r.categoryId) ?? 0) + r.displayAmount);
     });
@@ -173,8 +207,8 @@ export function useLogic() {
       .slice(0, 5);
     const total = entries.reduce((sum, e) => sum + e.amount, 0) || 1;
     return entries.map((e) => ({ ...e, percent: Math.round((e.amount / total) * 100) }));
-     
-  }, [insightsRows, categoryName]);
+
+  }, [periodRows, categoryName]);
 
   const DONUT_RADIUS = 60;
   const donutCircumference = 2 * Math.PI * DONUT_RADIUS;
@@ -206,10 +240,9 @@ export function useLogic() {
   const habitMax = Math.max(1, ...habitBreakdown.flatMap((b) => [b.income, b.expense, b.savings]));
 
   // --- Income Analysis: total + by-category breakdown ----------------------
+  // Same window as the summary tiles above — periodRows, Income-type only.
 
-  const [incomePeriod, setIncomePeriod] = useState<StatsPeriod>('Month');
-  const incomeStart = periodStartFor(incomePeriod, now);
-  const incomeRows = rows.filter((r) => r.type === 'Income' && inRange(r.dateObj, incomeStart, now));
+  const incomeRows = useMemo(() => periodRows.filter((r) => r.type === 'Income'), [periodRows]);
   const totalIncomeForPeriod = round2(incomeRows.reduce((sum, r) => sum + r.displayAmount, 0));
   const incomeSources = useMemo(() => {
     const byCategory = new Map<string, number>();
@@ -256,16 +289,16 @@ export function useLogic() {
   const consistencyMax = Math.max(100, ...incomeConsistency.map((m) => m.percentOfAverage));
 
   // --- Financial Trends: Spending vs Income, bucketed by the period -------
+  // Same shared period control as the summary tiles above.
 
-  const [trendsPeriod, setTrendsPeriod] = useState<StatsPeriod>('Month');
   const trendsBuckets = useMemo(() => {
-    if (trendsPeriod === 'Week') {
+    if (period === 'Week') {
       return Array.from({ length: 7 }, (_, i) => {
         const d = startOfDay(new Date(now.getTime() - (6 - i) * 24 * 3600 * 1000));
         return { label: d.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase(), start: d, end: new Date(d.getTime() + 24 * 3600 * 1000 - 1) };
       });
     }
-    if (trendsPeriod === 'Quarter') {
+    if (period === 'Quarter') {
       // 6 buckets of half-months isn't meaningful — a quarter reads as its
       // 3 months, so this shows the trailing 6 months same as Year, just a
       // shorter, more zoomed-in window when the difference matters: 3
@@ -275,7 +308,7 @@ export function useLogic() {
         return { label: MONTH_LABELS[d.getMonth()], start: d, end: new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999) };
       });
     }
-    if (trendsPeriod === 'Year') {
+    if (period === 'Year') {
       return Array.from({ length: 12 }, (_, i) => {
         const d = new Date(now.getFullYear(), now.getMonth() - (11 - i), 1);
         return { label: MONTH_LABELS[d.getMonth()], start: d, end: new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999) };
@@ -286,7 +319,7 @@ export function useLogic() {
       const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
       return { label: MONTH_LABELS[d.getMonth()], start: d, end: new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999) };
     });
-  }, [trendsPeriod, now]);
+  }, [period, now]);
 
   const financialTrends = useMemo(
     () =>
@@ -318,16 +351,16 @@ export function useLogic() {
     donutCircumference,
     monthComparison,
 
-    insightsPeriod,
-    setInsightsPeriod,
+    // One shared Week/Month/Quarter/Year filter — drives the summary tiles
+    // plus Spending Insights, Income Analysis, and Financial Trends below.
+    period,
+    setPeriod,
 
     habitPeriod,
     setHabitPeriod,
     habitBreakdown,
     habitMax,
 
-    incomePeriod,
-    setIncomePeriod,
     totalIncomeForPeriod,
     incomeCurrency: ctx.display,
     incomeSources,
@@ -335,8 +368,6 @@ export function useLogic() {
     incomeConsistency,
     consistencyMax,
 
-    trendsPeriod,
-    setTrendsPeriod,
     financialTrends,
     trendsMax,
 

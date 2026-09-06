@@ -1,23 +1,23 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { query, where, orderBy, limit, setDoc, updateDoc, arrayUnion } from 'firebase/firestore';
+import { useMemo, useState } from 'react';
+import { query, where, orderBy, limit, updateDoc, arrayUnion } from 'firebase/firestore';
 import { ruleAppliesToMonth, effectiveBudgetedAmount } from '@dreda/shared-recurrence';
 import { ArrowUpRight, ArrowDownLeft, PiggyBank, type LucideIcon } from 'lucide-react';
 import { useFirestoreCollection, useFirestoreDoc } from '@/src/shared/firestore/hooks';
-import { budgetRulesRef, budgetRuleRef, statsMonthlyRef, budgetPlanRef, transactionsRef } from '@/src/shared/firestore/refs';
-import { useAccounts, useCategories, useCurrencyContext } from '@/src/shared/firestore/queries';
-import { toDisplay, round2 } from '@/src/shared/firestore/currency';
+import { budgetRulesRef, budgetRuleRef, statsMonthlyRef, transactionsRef, settingsRef } from '@/src/shared/firestore/refs';
+import { useAccounts, useCategories, useCurrencyContext, useExchangeRates } from '@/src/shared/firestore/queries';
+import { toDisplay, convert, round2 } from '@/src/shared/firestore/currency';
 import { toRecurrenceRule } from '@/src/shared/firestore/recurrence';
 import { recomputeBudgetProgressForRuleCurrentMonth, recomputeBudgetProgressForRuleAndMonth } from '@/src/shared/firestore/aggregation';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { currentMonthIndex, currentYear, toFrequencyFields, type Recurrence } from '@/src/viewmodels/budget';
 import { TRANSFER_CATEGORIES } from '@/src/viewmodels/categories';
+import { currencyName } from '@/src/viewmodels/currencies';
 import { walletColor } from '@/src/viewmodels/wallets';
 import type {
   FirestoreBudgetRule,
   StatsMonthly,
-  FirestoreBudgetPlan,
   FirestoreTransaction,
   BudgetLineType,
 } from '@/src/shared/firestore/types';
@@ -39,6 +39,9 @@ export const BUDGET_LINE_TYPES: BudgetLineType[] = ['Expense', 'Income', 'Saving
 // BudgetScreen.tsx) — no point linking to "everything" when the preview
 // already shows everything.
 const MONTH_TRANSACTIONS_PREVIEW_SIZE = 4;
+// Same cap src/logic/transactionHistory/useLogic.ts's own month view uses —
+// generous enough for a household's real monthly transaction volume.
+const MONTH_ALL_TRANSACTIONS_PAGE_SIZE = 300;
 
 export function formatAmount(value: number) {
   return new Intl.NumberFormat('en-US').format(value);
@@ -92,20 +95,6 @@ export function useLogic() {
   const [monthPickerOpen, setMonthPickerOpen] = useState(false);
   const [pickerYear, setPickerYear] = useState(year);
 
-  // Total budget: editable directly on the page (the original, simpler
-  // pattern) — its own draft/save, independent of the config modal below.
-  const [totalBudgetDraft, setTotalBudgetDraft] = useState('');
-  const [totalBudgetDraftSeededFor, setTotalBudgetDraftSeededFor] = useState<string | null>(null);
-  const [savingTotalBudget, setSavingTotalBudget] = useState(false);
-
-  // Config modal: projected income + how much of it you plan to save —
-  // the two figures income/savings tracking below compares against actuals.
-  const [configOpen, setConfigOpen] = useState(false);
-  const [projectedIncomeDraft, setProjectedIncomeDraft] = useState('');
-  const [savingsMode, setSavingsMode] = useState<'fixed' | 'percent'>('fixed');
-  const [savingsValueDraft, setSavingsValueDraft] = useState('');
-  const [savingPlan, setSavingPlan] = useState(false);
-
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editType, setEditTypeState] = useState<BudgetLineType>('Expense');
   const [editCategoryId, setEditCategoryId] = useState('');
@@ -149,6 +138,17 @@ export function useLogic() {
   }
 
   const monthStr = `${year}-${pad2(monthIndex + 1)}`;
+  // Header subtitle — now that the tracking table below carries its own
+  // Expenses row (projected vs. actual), the space under the month name no
+  // longer needs to repeat "left to spend" there too. Only meaningful for
+  // the real current month; browsing a past/future month has no "days
+  // left" to show.
+  const daysLeftInMonth = useMemo(() => {
+    const today = new Date();
+    if (year !== today.getFullYear() || monthIndex !== today.getMonth()) return null;
+    const daysInThisMonth = new Date(year, monthIndex + 1, 0).getDate();
+    return Math.max(0, daysInThisMonth - today.getDate());
+  }, [year, monthIndex]);
   const { user, loading: authLoading } = useFirebaseUser();
   const uid = user?.uid;
 
@@ -161,11 +161,22 @@ export function useLogic() {
   const { data: statsMonthly, loading: statsLoading } = useFirestoreDoc<StatsMonthly>(
     useMemo(() => (uid ? statsMonthlyRef(uid, monthStr) : null), [uid, monthStr])
   );
+  // Every category's actual (spent/received/saved) figure is computed live
+  // off this month's real transactions rather than trusted from
+  // statsMonthly.perCategorySpend — that field is only as correct as every
+  // increment ever applied to it, and a since-fixed sign bug (Income
+  // categories were being subtracted instead of added) left already-written
+  // months with a stale, wrong cumulative value that no code fix alone can
+  // correct. Re-deriving from source each time is self-healing: it can never
+  // drift from what the transactions themselves say, past or future.
+  const monthAllTransactionsQuery = useMemo(
+    () => (uid ? query(transactionsRef(uid), where('month', '==', monthStr), limit(MONTH_ALL_TRANSACTIONS_PAGE_SIZE)) : null),
+    [uid, monthStr]
+  );
+  const { data: monthAllTransactionDocs, loading: monthAllTransactionsLoading } =
+    useFirestoreCollection<FirestoreTransaction>(monthAllTransactionsQuery);
   const { data: accounts, loading: accountsLoading } = useAccounts();
   const { data: allCategories, loading: categoriesLoading } = useCategories();
-  const { data: plan, loading: planLoading } = useFirestoreDoc<FirestoreBudgetPlan>(
-    useMemo(() => (uid ? budgetPlanRef(uid, monthStr) : null), [uid, monthStr])
-  );
   const { ctx, loading: ctxLoading } = useCurrencyContext();
 
   const accountCurrency = useMemo(() => new Map(accounts.map((a) => [a.id, a.currency])), [accounts]);
@@ -191,6 +202,25 @@ export function useLogic() {
     return rule.type ?? categoryTransactionType.get(rule.categoryId) ?? 'Expense';
   }
 
+  // Same Income-vs-Expense sign convention as writeTransactionContribution
+  // (aggregation.ts): for an Income category a normal Inflow counts as
+  // positive progress, the opposite of an Expense/Savings category's
+  // Outflow. In base currency, matching what statsMonthly.perCategorySpend
+  // used to hold, so every downstream toDisplay(ctx, ..., ctx.base) call
+  // below keeps working unchanged.
+  const perCategoryActualBase = useMemo(() => {
+    const totals = new Map<string, number>();
+    for (const t of monthAllTransactionDocs) {
+      if (!t.categoryId) continue;
+      const native = accountCurrency.get(t.accountId) ?? ctx.base;
+      const signedAmount = t.direction === 'Inflow' ? t.amount : -t.amount;
+      const contribution = t.type === 'Income' ? signedAmount : -signedAmount;
+      const contributionBase = convert(contribution, native, ctx.base, ctx.rates);
+      totals.set(t.categoryId, (totals.get(t.categoryId) ?? 0) + contributionBase);
+    }
+    return totals;
+  }, [monthAllTransactionDocs, accountCurrency, ctx]);
+
   const categories = useMemo(() => {
     const [y, m] = monthStr.split('-').map(Number);
     return rules
@@ -202,7 +232,7 @@ export function useLogic() {
           toDisplay(ctx, effectiveBudgetedAmount(rule.budgetedAmount, occurrence.multiplier, rule.monthOverrides, monthStr), ruleNative)
         );
         const hasMonthOverride = Boolean(rule.monthOverrides?.[monthStr]);
-        const spentBase = statsMonthly?.perCategorySpend?.[rule.categoryId] ?? 0;
+        const spentBase = perCategoryActualBase.get(rule.categoryId) ?? 0;
         const spent = round2(toDisplay(ctx, spentBase, ctx.base));
         const bucket = toAppRecurrence(rule);
         return {
@@ -226,54 +256,92 @@ export function useLogic() {
       // is capped (PRD-BUDGET-TRANSACTIONS.md section 8, decision 2).
       .sort((a, b) => b.spent - a.spent);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rules, monthStr, accountCurrency, categoryName, categoryTransactionType, ctx, statsMonthly]);
+  }, [rules, monthStr, accountCurrency, categoryName, categoryTransactionType, ctx, perCategoryActualBase]);
 
   const currency = ctx.display;
-  const totalBudgeted = round2(categories.reduce((sum, entry) => sum + entry.budgeted, 0));
-  const totalSpent = round2(categories.reduce((sum, entry) => sum + entry.spent, 0));
-  // budgetPlans/{month} figures are entered directly in the display
-  // currency (there's no "native" source currency to convert from the way
-  // an account/transaction amount has), so read back as-is.
-  const totalBudget = plan?.totalBudget ?? totalBudgeted;
-  const projectedIncome = plan?.projectedIncome ?? 0;
-  const plannedSavings =
-    plan?.savingsMode === 'percent' ? round2((projectedIncome * (plan.savingsValue ?? 0)) / 100) : plan?.savingsValue ?? 0;
-  const leftToBudget = Math.max(totalBudget - totalBudgeted, 0);
-  // What you'd actually have left to spend after saving — if totalBudget
-  // (what you intend to allocate) is more than that, you're planning to
-  // overspend this month even before anything is actually bought.
-  const availableToSpend = projectedIncome - plannedSavings;
-  const overspendAmount = round2(totalBudget - availableToSpend);
-  const isOverspending = plan != null && overspendAmount > 0;
+  // Currency badge on the total card — same switch-and-persist write
+  // Settings' own currency picker and Home's currency chip make (see
+  // src/logic/home/useLogic.ts), just surfaced as a compact menu here
+  // instead of a full picker modal. exchangeRates' own doc IDs are the
+  // selectable codes — currencyName only supplies a human label for one.
+  const { data: exchangeRates } = useExchangeRates();
+  const currencyOptions = useMemo(
+    () => exchangeRates.map((rate) => ({ code: rate.id, name: currencyName(rate.id) })),
+    [exchangeRates]
+  );
+  const [currencySaving, setCurrencySaving] = useState(false);
+  async function setCurrency(code: string) {
+    if (currencySaving || !uid || code === currency) return;
+    setCurrencySaving(true);
+    try {
+      await updateDoc(settingsRef(uid), { displayCurrency: code });
+    } finally {
+      setCurrencySaving(false);
+    }
+  }
+
+  // Bottom-up, not a separately typed-in target: "how much you're planning
+  // to spend/receive/save this month" is always exactly the sum of the
+  // budget lines you've actually entered for that type — there's no more
+  // top-down budgetPlans/{month} figure to keep in sync with that by hand.
+  const expenseCategories = useMemo(() => categories.filter((entry) => entry.type === 'Expense'), [categories]);
+  const incomeCategories = useMemo(() => categories.filter((entry) => entry.type === 'Income'), [categories]);
+  const savingsCategories = useMemo(() => categories.filter((entry) => entry.type === 'Savings'), [categories]);
+  const totalExpenseBudgeted = round2(expenseCategories.reduce((sum, entry) => sum + entry.budgeted, 0));
+  const totalExpenseSpent = round2(expenseCategories.reduce((sum, entry) => sum + entry.spent, 0));
+  const plannedIncome = round2(incomeCategories.reduce((sum, entry) => sum + entry.budgeted, 0));
+  const plannedSavings = round2(savingsCategories.reduce((sum, entry) => sum + entry.budgeted, 0));
+  // What you'd actually have left to spend after saving — if your planned
+  // expenses are more than that, you're planning to overspend this month
+  // even before anything is actually bought. Only worth flagging once
+  // there's an actual income plan to compare against.
+  const availableToSpend = plannedIncome - plannedSavings;
+  const overspendAmount = round2(totalExpenseBudgeted - availableToSpend);
+  const isOverspending = plannedIncome > 0 && overspendAmount > 0;
+  // "Left to budget" — the headline card's own summary line. Not "left to
+  // spend": it's how much of the projected income (after planned savings)
+  // still has no Expense budget line claiming it at all. Floored at 0 —
+  // once every dollar of projected income is accounted for (or the plan
+  // overspends it), there's nothing left to budget; that overspent case is
+  // isOverspending's own warning above, not a negative number here.
+  const leftToBudget = Math.max(0, round2(availableToSpend - totalExpenseBudgeted));
 
   // Actual income/savings for the month — derived from real transactions,
-  // never typed in. A month with nothing logged yet just reads 0/0%; there's
-  // no other way to know what actually came in or got saved.
-  //
-  // Actual income reuses statsMonthly.totalIncome directly: only
-  // Income-type transactions ever produce an Inflow (see
-  // src/logic/addTransaction/useLogic.ts), so it's already exactly this.
-  // Actual savings has no equivalent aggregate — perCategorySpend is a flat
-  // per-category net-outflow map with no type breakdown, so this sums it
-  // over whichever categories are tagged transactionType 'Savings'. That
-  // also means money moved to savings currently still counts inside
-  // totalExpense/totalSpent too (a real double-count the household is aware
-  // of, not a bug this fixes — see the conversation that led here).
+  // never typed in, and — same bottom-up shift as planned above — summed
+  // per category rather than off one flat statsMonthly.totalIncome figure,
+  // so a transaction against any Income/Savings category (budgeted this
+  // month or not) always moves its type's own actual total. A month with
+  // nothing logged yet just reads 0/0%; there's no other way to know what
+  // actually came in or got saved.
+  const incomeCategoryIds = useMemo(
+    () => new Set(allCategories.filter((category) => category.transactionType === 'Income').map((c) => c.id)),
+    [allCategories]
+  );
   const savingsCategoryIds = useMemo(
     () => new Set(allCategories.filter((category) => category.transactionType === 'Savings').map((c) => c.id)),
     [allCategories]
   );
-  const actualSavingsBase = useMemo(() => {
-    const perCategorySpend = statsMonthly?.perCategorySpend ?? {};
-    return Object.entries(perCategorySpend).reduce(
-      (sum, [categoryId, amount]) => (savingsCategoryIds.has(categoryId) ? sum + amount : sum),
-      0
-    );
-  }, [statsMonthly, savingsCategoryIds]);
-  const actualIncome = round2(toDisplay(ctx, statsMonthly?.totalIncome ?? 0, ctx.base));
-  const actualSavings = round2(toDisplay(ctx, actualSavingsBase, ctx.base));
-  const incomeProgressPercent = projectedIncome > 0 ? Math.round((actualIncome / projectedIncome) * 100) : 0;
+  function sumPerCategory(categoryIds: Set<string>) {
+    let sum = 0;
+    for (const [categoryId, amount] of perCategoryActualBase) {
+      if (categoryIds.has(categoryId)) sum += amount;
+    }
+    return sum;
+  }
+  // Floored at 0 — a correction/refund against an Income category can drive
+  // the raw sum below zero, but "money received this month" reading negative
+  // would only confuse the summary card, so it never displays as such.
+  const actualIncome = Math.max(0, round2(toDisplay(ctx, sumPerCategory(incomeCategoryIds), ctx.base)));
+  const actualSavings = Math.max(0, round2(toDisplay(ctx, sumPerCategory(savingsCategoryIds), ctx.base)));
+  const incomeProgressPercent = plannedIncome > 0 ? Math.round((actualIncome / plannedIncome) * 100) : 0;
   const savingsProgressPercent = plannedSavings > 0 ? Math.round((actualSavings / plannedSavings) * 100) : 0;
+  // Expenses row of the same tracking table — projected is just
+  // totalExpenseBudgeted (already summed above), actual is
+  // totalExpenseSpent. Unlike Income/Savings, going over 100% here is the
+  // bad outcome (overspent), not the good one — see percentClass vs.
+  // expensePercentClass in BudgetScreen.tsx.
+  const expenseProgressPercent =
+    totalExpenseBudgeted > 0 ? Math.round((totalExpenseSpent / totalExpenseBudgeted) * 100) : 0;
 
   const budgetedCategoryIds = new Set(categories.map((entry) => entry.categoryId));
   // Any category — Expense, Income, or Savings — can carry a monthly
@@ -295,59 +363,6 @@ export function useLogic() {
   // Editing: same list, but also keeps whichever category this rule is
   // already assigned to (that one's "taken" by this very rule, not another).
   const editAvailableCategories = categoryOptionsForType(editType, editCategoryId);
-
-  // Seeds the inline total-budget field once real data arrives for the
-  // month being viewed, without clobbering what the user is actively
-  // typing — re-seeds when monthStr changes since it's a per-month doc.
-  useEffect(() => {
-    if (!planLoading && totalBudgetDraftSeededFor !== monthStr) {
-      setTotalBudgetDraft(plan?.totalBudget ? String(plan.totalBudget) : '');
-      setTotalBudgetDraftSeededFor(monthStr);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [plan, planLoading, monthStr]);
-
-  async function handleSaveTotalBudget() {
-    if (savingTotalBudget || !uid) return;
-    setSavingTotalBudget(true);
-    try {
-      await setDoc(
-        budgetPlanRef(uid, monthStr),
-        { totalBudget: Number(totalBudgetDraft.replace(/[^0-9]/g, '')) || 0 },
-        { merge: true }
-      );
-    } finally {
-      setSavingTotalBudget(false);
-    }
-  }
-
-  // Config modal: seeded from whatever's currently saved each time it
-  // opens, so it can't clobber a figure the user isn't actively editing.
-  function openConfig() {
-    setProjectedIncomeDraft(plan?.projectedIncome ? String(plan.projectedIncome) : '');
-    setSavingsMode(plan?.savingsMode ?? 'fixed');
-    setSavingsValueDraft(plan?.savingsValue ? String(plan.savingsValue) : '');
-    setConfigOpen(true);
-  }
-
-  async function handleSavePlan() {
-    if (savingPlan || !uid) return;
-    setSavingPlan(true);
-    try {
-      await setDoc(
-        budgetPlanRef(uid, monthStr),
-        {
-          projectedIncome: Number(projectedIncomeDraft.replace(/[^0-9]/g, '')) || 0,
-          savingsMode,
-          savingsValue: Number(savingsValueDraft.replace(/[^0-9]/g, '')) || 0,
-        },
-        { merge: true }
-      );
-      setConfigOpen(false);
-    } finally {
-      setSavingPlan(false);
-    }
-  }
 
   function openMonthPicker() {
     setPickerYear(year);
@@ -499,6 +514,7 @@ export function useLogic() {
   return {
     monthIndex,
     year,
+    daysLeftInMonth,
     retroTransactionHref,
     monthTransactions,
     monthTransactionsLoading,
@@ -513,22 +529,10 @@ export function useLogic() {
     setMonthPickerOpen,
     pickerYear,
     setPickerYear,
-    totalBudgetDraft,
-    setTotalBudgetDraft,
-    savingTotalBudget,
-    handleSaveTotalBudget,
-    configOpen,
-    setConfigOpen,
-    openConfig,
-    projectedIncomeDraft,
-    setProjectedIncomeDraft,
-    savingsMode,
-    setSavingsMode,
-    savingsValueDraft,
-    setSavingsValueDraft,
-    savingPlan,
     categories,
     currency,
+    currencyOptions,
+    setCurrency,
     editingCategory,
     editAvailableCategories,
     editType,
@@ -553,23 +557,28 @@ export function useLogic() {
     chooseEditEndMonth,
     savingEdit,
     editError,
-    totalBudget,
-    totalBudgeted,
-    totalSpent,
+    totalExpenseBudgeted,
+    totalExpenseSpent,
     leftToBudget,
-    projectedIncome,
+    plannedIncome,
     plannedSavings,
     actualIncome,
     actualSavings,
     incomeProgressPercent,
     savingsProgressPercent,
+    expenseProgressPercent,
     availableToSpend,
     overspendAmount,
     isOverspending,
     loading:
-      authLoading || rulesLoading || statsLoading || accountsLoading || categoriesLoading || planLoading || ctxLoading,
+      authLoading ||
+      rulesLoading ||
+      statsLoading ||
+      monthAllTransactionsLoading ||
+      accountsLoading ||
+      categoriesLoading ||
+      ctxLoading,
     error: rulesError,
-    handleSavePlan,
     openMonthPicker,
     chooseMonth,
     openEdit,
