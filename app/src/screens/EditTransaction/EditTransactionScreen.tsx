@@ -22,6 +22,7 @@ export function EditTransactionScreen({ transactionId }: { transactionId: string
     accountId,
     setAccountId,
     accounts,
+    spendableAccounts,
     dateValue,
     setDateValue,
     canSave,
@@ -130,7 +131,9 @@ export function EditTransactionScreen({ transactionId }: { transactionId: string
               value={accountId}
               onChange={(event) => setAccountId(event.target.value)}
             >
-              {accounts.map((account) => (
+              {/* A Savings Account can never fund a direct Expense — see
+                  spendableAccounts's own comment in useLogic.ts. */}
+              {(type === 'Expense' ? spendableAccounts : accounts).map((account) => (
                 <option key={account.id} value={account.id}>
                   {account.name}
                 </option>

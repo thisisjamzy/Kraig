@@ -9,18 +9,12 @@ import { budgetRulesRef, budgetRuleRef, statsMonthlyRef, transactionsRef, settin
 import { useAccounts, useCategories, useCurrencyContext, useExchangeRates } from '@/src/shared/firestore/queries';
 import { toDisplay, convert, round2 } from '@/src/shared/firestore/currency';
 import { toRecurrenceRule } from '@/src/shared/firestore/recurrence';
-import { recomputeBudgetProgressForRuleCurrentMonth, recomputeBudgetProgressForRuleAndMonth } from '@/src/shared/firestore/aggregation';
+import { recomputeBudgetProgressForRuleCurrentMonth } from '@/src/shared/firestore/aggregation';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
-import { currentMonthIndex, currentYear, toFrequencyFields, type Recurrence } from '@/src/viewmodels/budget';
-import { TRANSFER_CATEGORIES } from '@/src/viewmodels/categories';
+import { currentMonthIndex, currentYear, toAppRecurrence } from '@/src/viewmodels/budget';
 import { currencyName } from '@/src/viewmodels/currencies';
-import { walletColor } from '@/src/viewmodels/wallets';
-import type {
-  FirestoreBudgetRule,
-  StatsMonthly,
-  FirestoreTransaction,
-  BudgetLineType,
-} from '@/src/shared/firestore/types';
+import { isSavingsAccount, walletColor } from '@/src/viewmodels/wallets';
+import type { FirestoreBudgetRule, StatsMonthly, FirestoreTransaction, BudgetLineType } from '@/src/shared/firestore/types';
 
 // Same set src/logic/transactionHistory/useLogic.ts's own card list uses —
 // this panel now renders with that same card, so the icon needs to match.
@@ -70,20 +64,6 @@ function monthTargetFromSearch(): { year: number; month: number } | null {
   return { year, month };
 }
 
-function toAppRecurrence(
-  rule: FirestoreBudgetRule
-): { recurrence: Recurrence; recurrenceMonths?: number; endMonthIndex?: number; endYear?: number } {
-  if (rule.frequency === 'Once') return { recurrence: 'once' };
-  if (rule.endCondition === 'After Occurrences' && rule.endOccurrences) {
-    return { recurrence: 'limited', recurrenceMonths: rule.endOccurrences };
-  }
-  if (rule.endCondition === 'On Date' && rule.endDate) {
-    const end = rule.endDate.toDate();
-    return { recurrence: 'until', endMonthIndex: end.getMonth(), endYear: end.getFullYear() };
-  }
-  return { recurrence: 'monthly' };
-}
-
 export function useLogic() {
   // The month/year shown here is just which month's plan you're viewing —
   // it never touches the app's real current date after the initial load.
@@ -94,48 +74,6 @@ export function useLogic() {
   const [year, setYear] = useState(() => monthTarget?.year ?? currentYear());
   const [monthPickerOpen, setMonthPickerOpen] = useState(false);
   const [pickerYear, setPickerYear] = useState(year);
-
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editType, setEditTypeState] = useState<BudgetLineType>('Expense');
-  const [editCategoryId, setEditCategoryId] = useState('');
-  const [editDescriptionDraft, setEditDescriptionDraft] = useState('');
-  const [editAmountDraft, setEditAmountDraft] = useState('');
-  const [editRecurrence, setEditRecurrenceState] = useState<Recurrence>('monthly');
-  const [editRecurrenceMonths, setEditRecurrenceMonths] = useState('3');
-  const [editEndMonthIndex, setEditEndMonthIndex] = useState(currentMonthIndex());
-  const [editEndYear, setEditEndYear] = useState(currentYear());
-  const [editEndPickerOpen, setEditEndPickerOpen] = useState(false);
-  const [editEndPickerYear, setEditEndPickerYear] = useState(editEndYear);
-  const [editError, setEditError] = useState<string | null>(null);
-  const [savingEdit, setSavingEdit] = useState(false);
-
-  // Switching type clears whatever category was picked for the old type —
-  // it almost certainly doesn't belong to the new one's option list.
-  function setEditType(type: BudgetLineType) {
-    setEditTypeState(type);
-    setEditCategoryId('');
-  }
-
-  // Picking "until" needs a real end month to point at — seed it fresh off
-  // today's month each time (openEdit re-seeds it from the rule's own
-  // existing end date when there is one), rather than a stale leftover.
-  function setEditRecurrence(next: Recurrence) {
-    if (next === 'until' && editRecurrence !== 'until') {
-      setEditEndMonthIndex(currentMonthIndex());
-      setEditEndYear(currentYear());
-    }
-    setEditRecurrenceState(next);
-  }
-
-  function openEditEndPicker() {
-    setEditEndPickerYear(editEndYear);
-    setEditEndPickerOpen(true);
-  }
-  function chooseEditEndMonth(index: number) {
-    setEditEndMonthIndex(index);
-    setEditEndYear(editEndPickerYear);
-    setEditEndPickerOpen(false);
-  }
 
   const monthStr = `${year}-${pad2(monthIndex + 1)}`;
   // Header subtitle — now that the tracking table below carries its own
@@ -306,19 +244,14 @@ export function useLogic() {
   // isOverspending's own warning above, not a negative number here.
   const leftToBudget = Math.max(0, round2(availableToSpend - totalExpenseBudgeted));
 
-  // Actual income/savings for the month — derived from real transactions,
-  // never typed in, and — same bottom-up shift as planned above — summed
-  // per category rather than off one flat statsMonthly.totalIncome figure,
-  // so a transaction against any Income/Savings category (budgeted this
-  // month or not) always moves its type's own actual total. A month with
-  // nothing logged yet just reads 0/0%; there's no other way to know what
-  // actually came in or got saved.
+  // Actual income for the month — derived from real transactions, never
+  // typed in, and — same bottom-up shift as planned above — summed per
+  // category rather than off one flat statsMonthly.totalIncome figure, so a
+  // transaction against any Income category (budgeted this month or not)
+  // always moves the actual total. A month with nothing logged yet just
+  // reads 0/0%; there's no other way to know what actually came in.
   const incomeCategoryIds = useMemo(
     () => new Set(allCategories.filter((category) => category.transactionType === 'Income').map((c) => c.id)),
-    [allCategories]
-  );
-  const savingsCategoryIds = useMemo(
-    () => new Set(allCategories.filter((category) => category.transactionType === 'Savings').map((c) => c.id)),
     [allCategories]
   );
   function sumPerCategory(categoryIds: Set<string>) {
@@ -332,7 +265,17 @@ export function useLogic() {
   // the raw sum below zero, but "money received this month" reading negative
   // would only confuse the summary card, so it never displays as such.
   const actualIncome = Math.max(0, round2(toDisplay(ctx, sumPerCategory(incomeCategoryIds), ctx.base)));
-  const actualSavings = Math.max(0, round2(toDisplay(ctx, sumPerCategory(savingsCategoryIds), ctx.base)));
+  // Savings is account-type based now, not category based (see
+  // src/viewmodels/savingsTransfers.ts) — "actual" here is the live
+  // compounding total across every Savings Account, not this month's flow.
+  // A Savings Account's own currentBalance already bakes in every
+  // transaction/transfer that ever touched it, so this needs no query of
+  // its own.
+  const actualSavings = round2(
+    accounts
+      .filter(isSavingsAccount)
+      .reduce((sum, account) => sum + toDisplay(ctx, account.currentBalance, account.currency), 0)
+  );
   const incomeProgressPercent = plannedIncome > 0 ? Math.round((actualIncome / plannedIncome) * 100) : 0;
   const savingsProgressPercent = plannedSavings > 0 ? Math.round((actualSavings / plannedSavings) * 100) : 0;
   // Expenses row of the same tracking table — projected is just
@@ -343,27 +286,6 @@ export function useLogic() {
   const expenseProgressPercent =
     totalExpenseBudgeted > 0 ? Math.round((totalExpenseSpent / totalExpenseBudgeted) * 100) : 0;
 
-  const budgetedCategoryIds = new Set(categories.map((entry) => entry.categoryId));
-  // Any category — Expense, Income, or Savings — can carry a monthly
-  // budget line: an expense envelope, a projected-income figure, or a
-  // savings target, all read back through the same statsBudgetProgress
-  // mechanism (see aggregation.ts, which never assumes Expense-only).
-  // Transfer has no categories/{id} docs at all — TRANSFER_CATEGORIES (the
-  // same fixed 3-kind list Add Transaction's transfer step uses) stands in
-  // for them, so you can plan out "Wallet to savings" etc. the same way.
-  function categoryOptionsForType(type: BudgetLineType, keepId?: string) {
-    const options: { id: string; name: string }[] =
-      type === 'Transfer'
-        ? TRANSFER_CATEGORIES.map((kind) => ({ id: kind, name: kind }))
-        : allCategories
-            .filter((category) => category.transactionType === type)
-            .map((category) => ({ id: category.id, name: category.name }));
-    return options.filter((option) => !budgetedCategoryIds.has(option.id) || option.id === keepId);
-  }
-  // Editing: same list, but also keeps whichever category this rule is
-  // already assigned to (that one's "taken" by this very rule, not another).
-  const editAvailableCategories = categoryOptionsForType(editType, editCategoryId);
-
   function openMonthPicker() {
     setPickerYear(year);
     setMonthPickerOpen(true);
@@ -373,69 +295,6 @@ export function useLogic() {
     setMonthIndex(index);
     setYear(pickerYear);
     setMonthPickerOpen(false);
-  }
-
-  function openEdit(entry: {
-    id: string;
-    categoryId: string;
-    type: BudgetLineType;
-    description: string;
-    budgeted: number;
-    recurrence: Recurrence;
-    recurrenceMonths?: number;
-    endMonthIndex?: number;
-    endYear?: number;
-  }) {
-    setEditingId(entry.id);
-    setEditTypeState(entry.type);
-    setEditCategoryId(entry.categoryId);
-    setEditDescriptionDraft(entry.description);
-    setEditAmountDraft(String(entry.budgeted || ''));
-    // Sets the raw state directly, not the setEditRecurrence wrapper — that
-    // wrapper's "reset the end month to today" side effect is only for a
-    // person actively switching to 'until' in the picker, not for seeding
-    // the form from a rule that may already have its own real end date.
-    setEditRecurrenceState(entry.recurrence);
-    setEditRecurrenceMonths(String(entry.recurrenceMonths ?? 3));
-    setEditEndMonthIndex(entry.endMonthIndex ?? currentMonthIndex());
-    setEditEndYear(entry.endYear ?? currentYear());
-    setEditError(null);
-  }
-
-  // 'thisMonth': only the amount changes, only for monthStr (the month
-  // currently being viewed, which may be in the past) — categoryId/type/
-  // description/recurrence stay whatever the series already has, since
-  // those describe the whole line, not one month of it. 'allMonths' is the
-  // original whole-rule edit, unchanged. A 'Once' rule has no "other
-  // months" to distinguish from, so the screen never offers 'thisMonth' for
-  // one — always called with 'allMonths' there.
-  async function handleSaveEdit(scope: 'thisMonth' | 'allMonths') {
-    if (!editingId || !editCategoryId || savingEdit || !uid) return;
-    const amount = Number(editAmountDraft.replace(/[^0-9]/g, ''));
-    setSavingEdit(true);
-    setEditError(null);
-    try {
-      if (scope === 'thisMonth') {
-        await updateDoc(budgetRuleRef(uid, editingId), {
-          [`monthOverrides.${monthStr}`]: { budgetedAmount: amount },
-        });
-        await recomputeBudgetProgressForRuleAndMonth(uid, editingId, monthStr);
-      } else {
-        await updateDoc(budgetRuleRef(uid, editingId), {
-          categoryId: editCategoryId,
-          type: editType,
-          description: editDescriptionDraft.trim(),
-          budgetedAmount: amount,
-          ...toFrequencyFields(editRecurrence, editRecurrenceMonths, { monthIndex: editEndMonthIndex, year: editEndYear }),
-        });
-        await recomputeBudgetProgressForRuleCurrentMonth(uid, editingId);
-      }
-      setEditingId(null);
-    } catch (error) {
-      setEditError(error instanceof Error ? error.message : 'Could not update this budget item.');
-    } finally {
-      setSavingEdit(false);
-    }
   }
 
   // Deleting a one-off ("Once") rule removes it outright — there's no other
@@ -454,7 +313,6 @@ export function useLogic() {
     await recomputeBudgetProgressForRuleCurrentMonth(uid, id);
   }
 
-  const editingCategory = categories.find((entry) => entry.id === editingId) ?? null;
   // Where the "Record Transaction" button (PRD-BUDGET-TRANSACTIONS.md
   // section 3.2) sends them — Add Transaction, pre-dated into whichever
   // month this screen is showing (src/logic/addTransaction/useLogic.ts
@@ -520,10 +378,11 @@ export function useLogic() {
     monthTransactionsLoading,
     monthTransactionCount,
     viewAllMonthTransactionsHref,
-    // Where "Add category" sends them — its own page now, not a modal (see
-    // src/logic/addBudgetCategory/useLogic.ts), so there's room there for
-    // "can't find your category? create one" without stacking a modal on a
-    // modal.
+    // Where "Add category" sends them — its own page (see
+    // src/logic/addBudgetCategory/useLogic.ts). "Edit" on an existing line
+    // sends to its own page too (src/logic/editBudgetCategory/useLogic.ts),
+    // not a modal — BudgetScreen.tsx builds that href per-entry since it
+    // needs the entry's own rule id.
     addBudgetCategoryHref: `/add-budget-category?month=${monthIndex}&year=${year}`,
     monthPickerOpen,
     setMonthPickerOpen,
@@ -533,30 +392,6 @@ export function useLogic() {
     currency,
     currencyOptions,
     setCurrency,
-    editingCategory,
-    editAvailableCategories,
-    editType,
-    setEditType,
-    editCategoryId,
-    setEditCategoryId,
-    editDescriptionDraft,
-    setEditDescriptionDraft,
-    editAmountDraft,
-    setEditAmountDraft,
-    editRecurrence,
-    setEditRecurrence,
-    editRecurrenceMonths,
-    setEditRecurrenceMonths,
-    editEndMonthIndex,
-    editEndYear,
-    editEndPickerOpen,
-    openEditEndPicker,
-    closeEditEndPicker: () => setEditEndPickerOpen(false),
-    editEndPickerYear,
-    setEditEndPickerYear,
-    chooseEditEndMonth,
-    savingEdit,
-    editError,
     totalExpenseBudgeted,
     totalExpenseSpent,
     leftToBudget,
@@ -581,9 +416,6 @@ export function useLogic() {
     error: rulesError,
     openMonthPicker,
     chooseMonth,
-    openEdit,
-    handleSaveEdit,
     handleDelete,
-    setEditingId,
   };
 }

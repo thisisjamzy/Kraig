@@ -39,15 +39,6 @@ export const stringConstants = {
     inviteLink: 'www.dreda.com',
   },
 
-  pin: {
-    title: 'Enter Account PIN',
-    titleCreate: 'Create Your PIN',
-    continueLabel: 'Continue',
-    footerNotePrefix: 'This is an invite only platform, if you have forgotten your pin, visit',
-    footerNoteSuffix: 'to reset it.',
-    footerLink: 'www.dreda.com',
-  },
-
   home: {
     balanceLabel: 'Total Balance',
     spendableLabel: 'Spendable',
@@ -117,7 +108,7 @@ export const stringConstants = {
     financialTrends: 'Financial Trends',
     trendsSpending: 'Spending',
     trendsIncome: 'Income',
-    trendsSavings: 'Savings',
+    savingsTrend: 'Savings Trend',
   },
 
   budget: {
@@ -350,6 +341,8 @@ export const stringConstants = {
     upcomingPaymentsNone: 'No planned payments due from this wallet in the next 30 days.',
     upcomingPaymentsCovered: 'Covered by the available balance.',
     upcomingPaymentsShortPrefix: 'Short by',
+    savingsAccountTypeHint:
+      'Money can always move into a Savings Account, but it can never fund a direct expense — move it to another wallet first.',
     notSpendableLabel: 'Not spendable',
     notSpendableHint: "Excludes this wallet's balance from Home's Spendable total, without blocking transactions.",
     frozenLabel: 'Frozen',
@@ -444,20 +437,12 @@ export const stringConstants = {
     shareCopied: 'Link copied!',
     shareText: 'Track your spending effortlessly with Dreda.',
     currency: 'Currency',
-    appPin: 'App PIN',
-    appPinMeta: 'Change your unlock PIN',
     dailyReminders: 'Daily reminders',
     dailyRemindersCaption: "You'll be reminded to log your spending at these times each day.",
     addReminder: 'Add reminder',
     signOut: 'Sign out',
     chooseCurrency: 'Choose currency',
     searchCurrenciesPlaceholder: 'Search currencies',
-    confirmPinTitle: 'Confirm current PIN',
-    currentPinLabel: 'Current 5-digit PIN',
-    changePinTitle: 'Change app PIN',
-    newPinLabel: 'New 5-digit PIN',
-    requirePin: 'Require PIN',
-    requirePinMeta: 'Off skips the PIN screen — the app opens straight to Home.',
     createCategory: 'Categories',
     createCategoryMeta: 'View, or add a new Expense, Income, or Savings category',
     dataSectionTitle: 'Data',
@@ -727,6 +712,12 @@ export const stringConstants = {
     chooseEndMonth: 'Choose end month',
     save: 'Add category',
     saving: 'Adding…',
+  },
+
+  editBudgetCategory: {
+    title: 'Edit budget',
+    notFound: "This budget item couldn't be found.",
+    saving: 'Saving…',
   },
 
   createCategory: {

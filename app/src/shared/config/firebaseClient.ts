@@ -4,9 +4,8 @@
 // Firestore directly through the client SDK from here, governed by
 // Security Rules (firestore.rules) — there is no more server standing
 // between the app and its data (PRD-FIREBASE.md section 2). Auth
-// (PRD-AUTH-FIREBASE.md section 5) and the two PIN Callable Functions
-// (functions/src/pin.ts) are the only other Firebase surfaces the client
-// touches.
+// (PRD-AUTH-FIREBASE.md section 5) is the only other Firebase surface the
+// client touches.
 
 import { getApps, initializeApp, type FirebaseApp } from 'firebase/app';
 import { connectAuthEmulator, getAuth, type Auth } from 'firebase/auth';

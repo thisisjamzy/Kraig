@@ -7,7 +7,10 @@ import styles from './StatisticsScreen.module.css';
 
 const PERIOD_ORDER: StatsPeriod[] = ['Week', 'Month', 'Quarter', 'Year'];
 const HABIT_PERIOD_ORDER: HabitPeriod[] = ['Daily', 'Monthly', 'Yearly'];
-const CONSISTENCY_SCALE = [1, 0.5, 0];
+// Three axis indicators (max, half, zero) — reused by every bar/line chart
+// on this page so each one clearly shows how far its values sit from zero,
+// not just their size relative to each other.
+const AXIS_SCALE = [1, 0.5, 0];
 
 // Colorless placeholder rows — same row structure as the real lists, just
 // gray filler bars, so an empty/loading state reserves the same vertical
@@ -36,6 +39,7 @@ export function StatisticsScreen() {
     consistencyMax,
     financialTrends,
     trendsMax,
+    savingsTrendMax,
     loading,
     error,
   } = useLogic();
@@ -187,26 +191,40 @@ export function StatisticsScreen() {
 
         {habitBreakdown.some((day) => day.income || day.expense || day.savings) ? (
           <>
-            <div className={styles.habitChart}>
-              {habitBreakdown.map((day) => (
-                <div key={day.label} className={styles.habitColumn}>
-                  <div className={styles.habitBars}>
-                    <div
-                      className={styles.habitBarIncome}
-                      style={{ height: `${Math.max((day.income / habitMax) * 100, 2)}%` }}
-                    />
-                    <div
-                      className={styles.habitBarExpense}
-                      style={{ height: `${Math.max((day.expense / habitMax) * 100, 2)}%` }}
-                    />
-                    <div
-                      className={styles.habitBarSavings}
-                      style={{ height: `${Math.max((day.savings / habitMax) * 100, 2)}%` }}
-                    />
-                  </div>
-                  <span className={styles.habitLabel}>{day.label}</span>
+            <div className={styles.barChartRow}>
+              <div className={styles.barChartAxis} aria-hidden="true">
+                {AXIS_SCALE.map((fraction) => (
+                  <span key={fraction}>{formatAmount(Math.round(habitMax * fraction))}</span>
+                ))}
+              </div>
+              <div className={styles.barChartArea}>
+                <div className={styles.barChartGridlines} aria-hidden="true">
+                  {AXIS_SCALE.map((fraction) => (
+                    <span key={fraction} className={styles.barChartGridline} />
+                  ))}
                 </div>
-              ))}
+                <div className={styles.barChart}>
+                  {habitBreakdown.map((day) => (
+                    <div key={day.label} className={styles.barChartColumn}>
+                      <div className={styles.barChartBars}>
+                        <div
+                          className={styles.barIncome}
+                          style={{ height: `${Math.max((day.income / habitMax) * 100, 2)}%` }}
+                        />
+                        <div
+                          className={styles.barExpense}
+                          style={{ height: `${Math.max((day.expense / habitMax) * 100, 2)}%` }}
+                        />
+                        <div
+                          className={styles.barSavings}
+                          style={{ height: `${Math.max((day.savings / habitMax) * 100, 2)}%` }}
+                        />
+                      </div>
+                      <span className={styles.barChartLabel}>{day.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
             <div className={styles.legend}>
               <span className={styles.legendItem}>
@@ -267,13 +285,13 @@ export function StatisticsScreen() {
         {incomeConsistency.some((m) => m.amount > 0) ? (
           <div className={styles.consistencyRow}>
             <div className={styles.consistencyAxis} aria-hidden="true">
-              {CONSISTENCY_SCALE.map((fraction) => (
+              {AXIS_SCALE.map((fraction) => (
                 <span key={fraction}>{Math.round(consistencyMax * fraction)}%</span>
               ))}
             </div>
             <div className={styles.consistencyChart}>
               <div className={styles.consistencyGridlines} aria-hidden="true">
-                {CONSISTENCY_SCALE.map((fraction) => (
+                {AXIS_SCALE.map((fraction) => (
                   <span key={fraction} className={styles.consistencyGridline} />
                 ))}
               </div>
@@ -305,6 +323,63 @@ export function StatisticsScreen() {
         )}
       </section>
 
+      {/* Cashflow — same period-bucketed data as Financial Trends below, as
+          side-by-side income/expense bars instead of lines (same shape
+          Home's own Cashflow chart uses, see src/screens/Home/HomeScreen.tsx). */}
+      <section className={styles.section}>
+        <div className={styles.sectionHeader}>
+          <h2 className={styles.sectionTitle}>{strings.home.spendingBreakdown}</h2>
+        </div>
+
+        {financialTrends.length > 0 ? (
+          <>
+            <div className={styles.barChartRow}>
+              <div className={styles.barChartAxis} aria-hidden="true">
+                {AXIS_SCALE.map((fraction) => (
+                  <span key={fraction}>{formatAmount(Math.round(trendsMax * fraction))}</span>
+                ))}
+              </div>
+              <div className={styles.barChartArea}>
+                <div className={styles.barChartGridlines} aria-hidden="true">
+                  {AXIS_SCALE.map((fraction) => (
+                    <span key={fraction} className={styles.barChartGridline} />
+                  ))}
+                </div>
+                <div className={styles.barChart}>
+                  {financialTrends.map((point) => (
+                    <div key={point.label} className={styles.barChartColumn}>
+                      <div className={styles.barChartBars}>
+                        <div
+                          className={styles.barIncome}
+                          style={{ height: `${Math.max((point.income / trendsMax) * 100, 2)}%` }}
+                        />
+                        <div
+                          className={styles.barExpense}
+                          style={{ height: `${Math.max((point.spending / trendsMax) * 100, 2)}%` }}
+                        />
+                      </div>
+                      <span className={styles.barChartLabel}>{point.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className={styles.legend}>
+              <span className={styles.legendItem}>
+                <span className={styles.legendDot} style={{ background: '#ff9800' }} />
+                {strings.home.legendIncome}
+              </span>
+              <span className={styles.legendItem}>
+                <span className={styles.legendDot} style={{ background: '#7b7ef3' }} />
+                {strings.home.legendExpense}
+              </span>
+            </div>
+          </>
+        ) : (
+          <p className={styles.emptyText}>{strings.statistics.noSpendingThisMonth}</p>
+        )}
+      </section>
+
       {/* Financial Trends */}
       <section className={styles.section}>
         <div className={styles.sectionHeader}>
@@ -312,44 +387,65 @@ export function StatisticsScreen() {
         </div>
 
         <div className={styles.trendCard}>
-          <svg className={styles.trendChart} viewBox="0 0 300 90" preserveAspectRatio="none">
-            {financialTrends.length > 1 && (
-              <>
-                {(
-                  [
-                    ['income', 'var(--color-text-secondary)'],
-                    ['savings', 'var(--color-brand)'],
-                    ['spending', 'var(--color-danger)'],
-                  ] as const
-                ).map(([key, stroke]) => (
-                  <polyline
-                    key={key}
-                    fill="none"
-                    stroke={stroke}
-                    strokeWidth="2"
-                    points={financialTrends
-                      .map((point, index) => {
-                        const x = (index / (financialTrends.length - 1)) * 300;
-                        const y = 86 - (point[key] / trendsMax) * 80;
-                        return `${x},${y}`;
-                      })
-                      .join(' ')}
+          <div className={styles.trendRow}>
+            <div className={styles.trendAxis} aria-hidden="true">
+              {AXIS_SCALE.map((fraction) => (
+                <span key={fraction}>{formatAmount(Math.round(trendsMax * fraction))}</span>
+              ))}
+            </div>
+            <div className={styles.trendChartCol}>
+              <svg className={styles.trendChart} viewBox="0 0 300 90" preserveAspectRatio="none">
+                {AXIS_SCALE.map((fraction) => (
+                  <line
+                    key={fraction}
+                    x1={0}
+                    y1={86 - fraction * 80}
+                    x2={300}
+                    y2={86 - fraction * 80}
+                    stroke="var(--color-border)"
+                    strokeWidth="1"
+                    vectorEffect="non-scaling-stroke"
                   />
                 ))}
-                {financialTrends.map((point, index) => {
-                  const x = (index / (financialTrends.length - 1)) * 300;
-                  const y = 86 - (point.spending / trendsMax) * 80;
-                  return <circle key={point.label} cx={x} cy={y} r={2.5} fill="var(--color-danger)" />;
-                })}
-              </>
-            )}
-          </svg>
-          <div className={styles.trendLabels}>
-            {financialTrends.map((point) => (
-              <span key={point.label} className={styles.trendLabel}>
-                {point.label}
-              </span>
-            ))}
+                {financialTrends.length > 1 && (
+                  <>
+                    {(
+                      [
+                        ['income', 'var(--color-text-secondary)'],
+                        ['spending', 'var(--color-danger)'],
+                      ] as const
+                    ).map(([key, stroke]) => (
+                      <polyline
+                        key={key}
+                        fill="none"
+                        stroke={stroke}
+                        strokeWidth="2"
+                        vectorEffect="non-scaling-stroke"
+                        points={financialTrends
+                          .map((point, index) => {
+                            const x = (index / (financialTrends.length - 1)) * 300;
+                            const y = 86 - (point[key] / trendsMax) * 80;
+                            return `${x},${y}`;
+                          })
+                          .join(' ')}
+                      />
+                    ))}
+                    {financialTrends.map((point, index) => {
+                      const x = (index / (financialTrends.length - 1)) * 300;
+                      const y = 86 - (point.spending / trendsMax) * 80;
+                      return <circle key={point.label} cx={x} cy={y} r={2.5} fill="var(--color-danger)" />;
+                    })}
+                  </>
+                )}
+              </svg>
+              <div className={styles.trendLabels}>
+                {financialTrends.map((point) => (
+                  <span key={point.label} className={styles.trendLabel}>
+                    {point.label}
+                  </span>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -362,10 +458,71 @@ export function StatisticsScreen() {
             <span className={styles.legendLine} style={{ background: 'var(--color-text-secondary)' }} />
             {strings.statistics.trendsIncome}
           </span>
-          <span className={styles.legendItem}>
-            <span className={styles.legendLine} style={{ background: 'var(--color-brand)' }} />
-            {strings.statistics.trendsSavings}
-          </span>
+        </div>
+      </section>
+
+      {/* Savings Trend — the live compounding total across every Savings
+          Account, sampled at each bucket, not a flat "same amount saved"
+          line — its own scale, since a running total can dwarf a single
+          period's income/spending (see savingsTrendMax). */}
+      <section className={styles.section}>
+        <div className={styles.sectionHeader}>
+          <h2 className={styles.sectionTitle}>{strings.statistics.savingsTrend}</h2>
+        </div>
+
+        <div className={styles.trendCard}>
+          <div className={styles.trendRow}>
+            <div className={styles.trendAxis} aria-hidden="true">
+              {AXIS_SCALE.map((fraction) => (
+                <span key={fraction}>{formatAmount(Math.round(savingsTrendMax * fraction))}</span>
+              ))}
+            </div>
+            <div className={styles.trendChartCol}>
+              <svg className={styles.trendChart} viewBox="0 0 300 90" preserveAspectRatio="none">
+                {AXIS_SCALE.map((fraction) => (
+                  <line
+                    key={fraction}
+                    x1={0}
+                    y1={86 - fraction * 80}
+                    x2={300}
+                    y2={86 - fraction * 80}
+                    stroke="var(--color-border)"
+                    strokeWidth="1"
+                    vectorEffect="non-scaling-stroke"
+                  />
+                ))}
+                {financialTrends.length > 1 && (
+                  <>
+                    <polyline
+                      fill="none"
+                      stroke="var(--color-brand)"
+                      strokeWidth="2"
+                      vectorEffect="non-scaling-stroke"
+                      points={financialTrends
+                        .map((point, index) => {
+                          const x = (index / (financialTrends.length - 1)) * 300;
+                          const y = 86 - (point.savings / savingsTrendMax) * 80;
+                          return `${x},${y}`;
+                        })
+                        .join(' ')}
+                    />
+                    {financialTrends.map((point, index) => {
+                      const x = (index / (financialTrends.length - 1)) * 300;
+                      const y = 86 - (point.savings / savingsTrendMax) * 80;
+                      return <circle key={point.label} cx={x} cy={y} r={2.5} fill="var(--color-brand)" />;
+                    })}
+                  </>
+                )}
+              </svg>
+              <div className={styles.trendLabels}>
+                {financialTrends.map((point) => (
+                  <span key={point.label} className={styles.trendLabel}>
+                    {point.label}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 

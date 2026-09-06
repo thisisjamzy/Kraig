@@ -252,19 +252,59 @@
   white-space: nowrap;
 }
 
-/* Habit breakdown chart */
+/* Shared bar-chart-with-axis shape — Habit Breakdown (3 series) and
+   Cashflow (2 series) both use this same structure: an axis column of 3
+   value indicators beside a chart area with matching gridlines overlaid
+   behind the bars, so both charts clearly show how far each bar sits from
+   zero, not just its size relative to its neighbors. */
 
-.habitChart {
+.barChartRow {
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-sm);
+}
+
+.barChartAxis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding-bottom: var(--space-sm);
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.barChartArea {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.barChartGridlines {
+  position: absolute;
+  inset: 0 0 var(--space-sm) 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  pointer-events: none;
+}
+
+.barChartGridline {
+  display: block;
+  border-top: 1px solid var(--color-border);
+}
+
+.barChart {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
   gap: var(--space-xs);
-  height: 140px;
+  height: 220px;
   padding-bottom: var(--space-sm);
   border-bottom: 1px solid var(--color-border);
 }
 
-.habitColumn {
+.barChartColumn {
   display: flex;
   flex: 1;
   flex-direction: column;
@@ -274,35 +314,35 @@
   justify-content: flex-end;
 }
 
-.habitBars {
+.barChartBars {
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  gap: 2px;
+  gap: 3px;
   width: 100%;
   height: 100%;
 }
 
-.habitBarIncome,
-.habitBarExpense,
-.habitBarSavings {
-  width: 5px;
+.barIncome,
+.barExpense,
+.barSavings {
+  width: 6px;
   border-radius: 2px;
 }
 
-.habitBarIncome {
+.barIncome {
   background: #ff9800;
 }
 
-.habitBarExpense {
+.barExpense {
   background: #7b7ef3;
 }
 
-.habitBarSavings {
+.barSavings {
   background: var(--ink-bg);
 }
 
-.habitLabel {
+.barChartLabel {
   font-size: 0.625rem;
   font-weight: 600;
   color: var(--color-text-secondary);
@@ -393,7 +433,7 @@
   align-items: flex-end;
   gap: var(--space-sm);
   flex: 1;
-  height: 110px;
+  height: 200px;
 }
 
 .consistencyGridlines {
@@ -449,9 +489,32 @@
   border-radius: var(--radius-lg);
 }
 
+.trendRow {
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-sm);
+}
+
+.trendAxis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.trendChartCol {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
 .trendChart {
   width: 100%;
-  height: 90px;
+  height: 200px;
   display: block;
   overflow: visible;
 }

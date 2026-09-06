@@ -1,7 +1,9 @@
-// Set once a sign-in/sign-up completes. Persists across app restarts (unlike
-// the PIN's per-session verified flag), so the installed PWA can tell "never
-// signed in, show the splash screen" apart from "signed in before, prompt for
-// the PIN instead" on every relaunch.
+// Set once a sign-in/sign-up completes. Persists across app restarts, so the
+// installed PWA can tell "never signed in, show the splash screen" apart
+// from "signed in before, skip splash and force a fresh sign-in instead" on
+// every relaunch — src/logic/appEntry/useLogic.ts always requires real
+// re-authentication on a standalone relaunch either way, this flag only
+// picks which screen greets a fresh app-open.
 export const SIGNED_IN_KEY = 'dreda-signed-in';
 
 // True when the app is running as an installed PWA (added to the home

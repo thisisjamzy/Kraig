@@ -52,9 +52,10 @@ export function TrendChart({ points, color }: { points: TrendPoint[]; color: str
   // line and its gridlines both start after it, not at x=0.
   const AXIS_GUTTER = 26;
   const plotWidth = width - AXIS_GUTTER - 12;
+  const CHART_HEIGHT = 170;
   const xFor = (index: number) =>
     points.length > 1 ? (index / (points.length - 1)) * plotWidth + AXIS_GUTTER : AXIS_GUTTER + plotWidth / 2;
-  const yFor = (value: number) => 85 - (value / max) * 75;
+  const yFor = (value: number) => CHART_HEIGHT * 0.85 - (value / max) * CHART_HEIGHT * 0.75;
 
   // Three horizontal gridlines (0%, 50%, 100% of max) — the vertical axis's
   // indicator lines, each labeled with the value it represents.
@@ -62,7 +63,12 @@ export function TrendChart({ points, color }: { points: TrendPoint[]; color: str
 
   return (
     <div ref={containerRef} className={styles.scroll}>
-      <svg viewBox={`0 0 ${width} 100`} width={width} height={90} className={styles.svg}>
+      <svg
+        viewBox={`0 0 ${width} ${CHART_HEIGHT}`}
+        width={width}
+        height={CHART_HEIGHT - 10}
+        className={styles.svg}
+      >
         {gridSteps.map((step) => {
           const y = yFor(max * step);
           return (

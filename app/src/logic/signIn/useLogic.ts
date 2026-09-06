@@ -31,9 +31,9 @@ export function useLogic() {
       // ensureUserDoc covers an account that signed up before users/{uid}
       // existed, or just bumps lastLoginAt on a normal return visit.
       const credential = await signInWithEmailAndPassword(getFirebaseAuth(), email, password);
-      await ensureUserDoc(credential.user);
+      const { isNewAccount } = await ensureUserDoc(credential.user);
       markSignedIn();
-      router.push('/pin');
+      router.push(isNewAccount ? '/onboarding' : '/loading');
     } catch (err) {
       setError(firebaseErrorMessage(err));
       setSubmitting(false);

@@ -226,14 +226,6 @@ export interface FirestoreSettings {
   displayCurrency: string;
   timezone: string;
   householdName: string;
-  // Opt out of the PIN gate entirely — the app opens straight to /home.
-  // Account-wide (this doc, not a local flag) so it's the source of truth
-  // across devices; src/shared/config/pinGate.ts's PIN_DISABLED_KEY mirrors
-  // it into a local cookie/localStorage flag per device for proxy.ts's
-  // Edge middleware, which can't read Firestore (see that file's header).
-  // Undefined/false means the PIN is required, same as every account before
-  // this field existed.
-  pinDisabled?: boolean;
 }
 
 /**

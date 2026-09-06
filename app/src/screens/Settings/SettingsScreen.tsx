@@ -5,7 +5,6 @@ import {
   ChevronRight,
   Share2,
   Coins,
-  KeyRound,
   ShieldCheck,
   Bell,
   LogOut,
@@ -43,20 +42,6 @@ export function SettingsScreen() {
     currencyError,
     settingsLoading,
     settingsError,
-    pinModalOpen,
-    openPinModal,
-    closePinModal,
-    pinStep,
-    currentPinDraft,
-    setCurrentPinDraft,
-    confirmingPin,
-    handleConfirmCurrentPin,
-    pinDraft,
-    setPinDraft,
-    pinError,
-    pinEnabled,
-    pinTogglePending,
-    togglePinEnabled,
     reminders,
     shareCopied,
     handleShare,
@@ -64,7 +49,6 @@ export function SettingsScreen() {
     updateReminder,
     removeReminder,
     handleSignOut,
-    handleSavePin,
     setCurrency,
     goBack,
   } = useLogic();
@@ -115,33 +99,6 @@ export function SettingsScreen() {
         </span>
         <ChevronRight size={16} strokeWidth={2} className={styles.actionRowChevron} />
       </button>
-
-      <button type="button" className={styles.actionRow} onClick={openPinModal} disabled={!pinEnabled}>
-        <span className={styles.actionRowIcon} style={{ background: iconTint(2) }}>
-          <KeyRound size={18} strokeWidth={1.75} />
-        </span>
-        <span className={styles.actionRowText}>
-          <span className={styles.actionRowLabel}>{strings.settings.appPin}</span>
-          <span className={styles.actionRowMeta}>{strings.settings.appPinMeta}</span>
-        </span>
-        <ChevronRight size={16} strokeWidth={2} className={styles.actionRowChevron} />
-      </button>
-
-      <label className={styles.actionRow}>
-        <span className={styles.actionRowIcon} style={{ background: iconTint(3) }}>
-          <ShieldCheck size={18} strokeWidth={1.75} />
-        </span>
-        <span className={styles.actionRowText}>
-          <span className={styles.actionRowLabel}>{strings.settings.requirePin}</span>
-          <span className={styles.actionRowMeta}>{strings.settings.requirePinMeta}</span>
-        </span>
-        <input
-          type="checkbox"
-          checked={pinEnabled}
-          disabled={pinTogglePending}
-          onChange={togglePinEnabled}
-        />
-      </label>
 
       <Link href="/categories" className={styles.actionRow}>
         <span className={styles.actionRowIcon} style={{ background: iconTint(4) }}>
@@ -323,76 +280,6 @@ export function SettingsScreen() {
         </Modal>
       )}
 
-      {pinModalOpen && (
-        <Modal
-          title={pinStep === 'confirm' ? strings.settings.confirmPinTitle : strings.settings.changePinTitle}
-          onClose={closePinModal}
-        >
-          {pinStep === 'confirm' ? (
-            <>
-              <div className={styles.formField}>
-                <label className={styles.formLabel} htmlFor="current-pin">
-                  {strings.settings.currentPinLabel}
-                </label>
-                <input
-                  id="current-pin"
-                  className={styles.formInput}
-                  inputMode="numeric"
-                  type="password"
-                  maxLength={5}
-                  value={currentPinDraft}
-                  onChange={(event) => setCurrentPinDraft(event.target.value.replace(/[^0-9]/g, '').slice(0, 5))}
-                  placeholder="•••••"
-                />
-              </div>
-              {pinError && (
-                <p className={styles.errorText} role="alert">
-                  {pinError}
-                </p>
-              )}
-              <button
-                type="button"
-                className={styles.modalSaveButton}
-                disabled={currentPinDraft.length !== 5 || confirmingPin}
-                onClick={handleConfirmCurrentPin}
-              >
-                {strings.common.continueLabel}
-              </button>
-            </>
-          ) : (
-            <>
-              <div className={styles.formField}>
-                <label className={styles.formLabel} htmlFor="new-pin">
-                  {strings.settings.newPinLabel}
-                </label>
-                <input
-                  id="new-pin"
-                  className={styles.formInput}
-                  inputMode="numeric"
-                  type="password"
-                  maxLength={5}
-                  value={pinDraft}
-                  onChange={(event) => setPinDraft(event.target.value.replace(/[^0-9]/g, '').slice(0, 5))}
-                  placeholder="•••••"
-                />
-              </div>
-              {pinError && (
-                <p className={styles.errorText} role="alert">
-                  {pinError}
-                </p>
-              )}
-              <button
-                type="button"
-                className={styles.modalSaveButton}
-                disabled={pinDraft.length !== 5}
-                onClick={handleSavePin}
-              >
-                {strings.common.save}
-              </button>
-            </>
-          )}
-        </Modal>
-      )}
     </div>
   );
 }

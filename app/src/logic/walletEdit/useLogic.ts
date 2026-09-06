@@ -8,6 +8,7 @@ import { accountRef } from '@/src/shared/firestore/refs';
 import { useAccounts, useCurrencyContext } from '@/src/shared/firestore/queries';
 import { createTransferWithAggregation } from '@/src/shared/firestore/aggregation';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
+import { ACCOUNT_TYPES } from '@/src/viewmodels/wallets';
 import type { FirestoreAccount } from '@/src/shared/firestore/types';
 
 export function useLogic(walletId: string) {
@@ -26,6 +27,11 @@ export function useLogic(walletId: string) {
 
   const [name, setName] = useState('');
   const [shortName, setShortName] = useState('');
+  // Changing type to/from "Savings Account" doesn't need any migration of
+  // its own — every screen that reads account type does so live off this
+  // field (src/viewmodels/wallets.ts's isSavingsAccount), so flipping it
+  // here takes effect everywhere the moment this save lands.
+  const [type, setType] = useState<string>(ACCOUNT_TYPES[0]);
   const [startingBalance, setStartingBalance] = useState('');
   const [notSpendable, setNotSpendable] = useState(false);
   const [frozen, setFrozen] = useState(false);
@@ -42,6 +48,7 @@ export function useLogic(walletId: string) {
     setSeededFor(walletId);
     setName(wallet.name);
     setShortName(wallet.shortName || wallet.name.slice(0, 5));
+    setType(wallet.type);
     setStartingBalance(String(wallet.startingBalance));
     setNotSpendable(Boolean(wallet.notSpendable));
     setFrozen(Boolean(wallet.frozen));
@@ -75,6 +82,7 @@ export function useLogic(walletId: string) {
       await updateDoc(accountRef(uid, walletId), {
         name: trimmedName,
         shortName: shortName.trim().slice(0, 5) || trimmedName.slice(0, 5),
+        type,
         startingBalance: newStartingBalance,
         currentBalance: increment(startingBalanceDelta),
         notSpendable,
@@ -158,6 +166,9 @@ export function useLogic(walletId: string) {
     setName,
     shortName,
     setShortName,
+    type,
+    setType,
+    accountTypes: ACCOUNT_TYPES,
     startingBalance,
     setStartingBalance,
     notSpendable,
