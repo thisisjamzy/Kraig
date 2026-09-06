@@ -10,6 +10,16 @@
   display: flex;
   align-items: center;
   gap: var(--space-md);
+  position: sticky;
+  top: 0;
+  z-index: 15;
+  margin-top: calc(-1 * (var(--space-lg) + env(safe-area-inset-top)));
+  margin-left: calc(-1 * var(--space-lg));
+  margin-right: calc(-1 * var(--space-lg));
+  padding-top: calc(var(--space-lg) + env(safe-area-inset-top));
+  padding-left: var(--space-lg);
+  padding-right: var(--space-lg);
+  background: var(--color-background);
 }
 
 .backButton {
@@ -146,10 +156,29 @@
 .card {
   position: relative;
   display: flex;
+  align-items: flex-start;
   gap: var(--space-md);
   padding: var(--space-lg);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
+  /* Long-press-to-select shouldn't also trigger the browser's own text-
+     selection or (on iOS) the long-press callout/context menu. */
+  -webkit-touch-callout: none;
+  user-select: none;
+}
+
+.cardSelected {
+  border-color: var(--color-brand);
+  background: color-mix(in srgb, var(--color-brand) 8%, transparent);
+}
+
+.checkbox {
+  flex-shrink: 0;
+  margin-top: 2px;
+  width: 20px;
+  height: 20px;
+  accent-color: var(--color-brand);
+  cursor: pointer;
 }
 
 .icon {
@@ -244,4 +273,53 @@
   text-align: center;
   font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
+}
+
+.errorText {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-danger);
+}
+
+/* Same "fixed, full-bleed, capped at the mobile frame's own width" shape as
+   BottomNav.module.css's .bar — a plain position:fixed here would anchor to
+   the real viewport edge instead of the centered mobile frame on a wide
+   screen. */
+.selectionBar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  display: flex;
+  justify-content: flex-end;
+  max-width: var(--app-max-width);
+  margin-inline: auto;
+  padding: var(--space-lg);
+  padding-bottom: max(var(--space-lg), calc(var(--space-md) + env(safe-area-inset-bottom)));
+  pointer-events: none;
+}
+
+.deleteFab {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-md) var(--space-lg);
+  border: none;
+  border-radius: var(--radius-full);
+  background: var(--color-danger);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+}
+
+.deleteFab:disabled {
+  background: var(--color-border);
+  color: var(--color-text-secondary);
+  cursor: not-allowed;
+  box-shadow: none;
 }

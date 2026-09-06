@@ -1,10 +1,10 @@
 import type { Metadata } from 'next';
-import { ImportCsvScreen } from '@/src/screens/ImportCsv/ImportCsvScreen';
+import { ImportDataScreen } from '@/src/screens/ImportData/ImportDataScreen';
 
 export const metadata: Metadata = {
-  title: 'Import transactions · Dreda',
+  title: 'Import data · Dreda',
 };
 
-export default function ImportCsvPage() {
-  return <ImportCsvScreen />;
+export default function ImportDataPage() {
+  return <ImportDataScreen />;
 }

@@ -17,6 +17,11 @@ import type { FirestoreBudgetRule, FirestoreCategory, FirestoreAccount } from '@
 
 export type TransactionType = 'expense' | 'income' | 'transfer' | 'savings';
 export type Step = 'type' | 'category' | 'details' | 'review';
+// Savings-only sub-choice — "moved" behaves like a Transfer (kind hardcoded
+// to 'Wallet to savings'), "frozen" behaves like today's plain Savings
+// entry plus isFrozenSavings: true. Shown inline at the top of the
+// 'category' step rather than as its own STEP_ORDER entry.
+export type SavingsMode = 'moved' | 'frozen';
 
 const STEP_ORDER: Step[] = ['type', 'category', 'details', 'review'];
 
@@ -99,6 +104,7 @@ export function useLogic() {
   const [prefillCategoryId] = useState(categoryIdFromSearch);
   const [step, setStep] = useState<Step>(() => (prefillCategoryId ? 'details' : 'type'));
   const [type, setType] = useState<TransactionType>('expense');
+  const [savingsMode, setSavingsModeState] = useState<SavingsMode>('moved');
   const [category, setCategory] = useState(''); // categoryId, or a TRANSFER_CATEGORIES value for transfers
   const [showUnplanned, setShowUnplanned] = useState(false);
   const [description, setDescription] = useState('');
@@ -156,6 +162,12 @@ export function useLogic() {
   // filter is just the UX side of).
   const accounts = allAccounts.filter((account) => !account.frozen);
   const isTransfer = type === 'transfer';
+  // "Moved" savings never touches a Savings envelope category — it's a
+  // plain wallet-to-wallet move with a hardcoded kind — so it behaves like
+  // a transfer everywhere the category/account UI branches on isTransfer.
+  const isSavingsMoved = type === 'savings' && savingsMode === 'moved';
+  const isSavingsFrozen = type === 'savings' && savingsMode === 'frozen';
+  const isTransferLike = isTransfer || isSavingsMoved;
   const { data: fetchedCategories, loading: categoriesLoading, error: categoriesError } = useCategories(
     isTransfer ? undefined : CATEGORY_TYPE[type]
   );
@@ -196,19 +208,23 @@ export function useLogic() {
   const date = formatDisplayDate(dateValue);
   const categoriesForType = isTransfer
     ? TRANSFER_CATEGORIES.map((kind) => ({ id: kind, name: kind }))
-    : fetchedCategories.map((cat) => ({ id: cat.id, name: cat.name }));
+    : isSavingsMoved
+      ? [] // hardcoded to 'Wallet to savings' below — no picker to show
+      : fetchedCategories.map((cat) => ({ id: cat.id, name: cat.name }));
   // A Transfer-type budget rule's categoryId is one of these same
   // TRANSFER_CATEGORIES strings (see src/logic/budget/useLogic.ts's
   // categoryOptionsForType), so the same budget filter applies uniformly to
   // expense/income/savings/transfer — planning "Wallet to savings" works
-  // the same way as budgeting a Groceries envelope.
+  // the same way as budgeting a Groceries envelope. "Moved" savings has no
+  // envelope of its own to budget, so it skips this filter and the
+  // budgeted/unplanned dance entirely.
   const budgetedCategoriesForType = categoriesForType.filter((option) => budgetedCategoryIds.has(option.id));
-  const hasBudgetedCategories = budgetedCategoriesForType.length > 0;
+  const hasBudgetedCategories = isSavingsMoved || budgetedCategoriesForType.length > 0;
   // Shown list: budgeted-only by default. When nothing's budgeted this
   // month, that's an empty list — the screen shows the "add a budget /
   // record as unplanned" prompt instead — until the user explicitly opts
   // into unplanned mode, which reveals every category of this type.
-  const categoryOptions = showUnplanned ? categoriesForType : budgetedCategoriesForType;
+  const categoryOptions = isSavingsMoved ? [] : showUnplanned ? categoriesForType : budgetedCategoriesForType;
   // Where "add a budget" sends them — the Budget screen for the exact month
   // this transaction is dated in (monthIndex there is 0-based, same as
   // dateMonth - 1 here).
@@ -217,9 +233,17 @@ export function useLogic() {
 
   function selectType(key: TransactionType) {
     setType(key);
-    setCategory('');
+    setSavingsModeState('moved');
+    setCategory(key === 'savings' ? 'Wallet to savings' : '');
     setShowUnplanned(false);
     setChargesString('');
+    setExplainsUnjustifiedBalance(false);
+  }
+
+  function chooseSavingsMode(mode: SavingsMode) {
+    setSavingsModeState(mode);
+    setCategory(mode === 'moved' ? 'Wallet to savings' : '');
+    setShowUnplanned(false);
     setExplainsUnjustifiedBalance(false);
   }
 
@@ -323,7 +347,7 @@ export function useLogic() {
   // direction would let a well-meaning check make the gap worse instead
   // of closing it.
   const canExplainUnjustifiedBalance =
-    !isTransfer &&
+    !isTransferLike &&
     dateValue !== todayIso() &&
     unjustifiedBalance !== 0 &&
     (unjustifiedBalance > 0 ? type === 'expense' || type === 'savings' : type === 'income');
@@ -358,6 +382,18 @@ export function useLogic() {
           kind: category,
           createdBy: uid,
         });
+      } else if (isSavingsMoved) {
+        await createTransferWithAggregation({
+          id: clientId,
+          date,
+          description,
+          fromAccountId,
+          toAccountId,
+          amount: Number(amountString),
+          charges: 0,
+          kind: 'Wallet to savings',
+          createdBy: uid,
+        });
       } else {
         const direction = type === 'income' ? 'Inflow' : 'Outflow';
         await recordHistoricEntry(
@@ -370,6 +406,7 @@ export function useLogic() {
             amount: Number(amountString),
             direction,
             createdBy: uid,
+            isFrozenSavings: isSavingsFrozen || undefined,
           },
           canExplainUnjustifiedBalance && explainsUnjustifiedBalance,
           ctx
@@ -388,7 +425,7 @@ export function useLogic() {
     (step === 'details' &&
       Number(amountString) > 0 &&
       fromAccountId.length > 0 &&
-      (!isTransfer || (toAccountId.length > 0 && toAccountId !== fromAccountId))) ||
+      (!isTransferLike || (toAccountId.length > 0 && toAccountId !== fromAccountId))) ||
     (step === 'review' && !submitting);
 
   const daysInMonth = new Date(pickerYear, pickerMonth + 1, 0).getDate();
@@ -396,6 +433,9 @@ export function useLogic() {
   return {
     step,
     type,
+    savingsMode,
+    chooseSavingsMode,
+    isTransferLike,
     category,
     setCategory,
     description,

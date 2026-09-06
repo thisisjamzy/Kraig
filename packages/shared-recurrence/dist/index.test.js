@@ -107,3 +107,14 @@ const index_1 = require("./index");
     strict_1.default.ok((0, index_1.ruleAppliesToMonth)(rule, 2026, 6)); // June: still within end date
     strict_1.default.equal((0, index_1.ruleAppliesToMonth)(rule, 2026, 7), null); // July: past end date
 });
+(0, node_test_1.default)('effectiveBudgetedAmount: no override falls back to budgetedAmount * multiplier', () => {
+    strict_1.default.equal((0, index_1.effectiveBudgetedAmount)(200, 1, undefined, '2026-03'), 200);
+    strict_1.default.equal((0, index_1.effectiveBudgetedAmount)(200, 1, {}, '2026-03'), 200);
+    strict_1.default.equal((0, index_1.effectiveBudgetedAmount)(50, 4, undefined, '2026-03'), 200); // Weekly multiplier
+});
+(0, node_test_1.default)('effectiveBudgetedAmount: an override for that month wins outright, ignoring the multiplier', () => {
+    const overrides = { '2026-03': { budgetedAmount: 75 } };
+    strict_1.default.equal((0, index_1.effectiveBudgetedAmount)(200, 1, overrides, '2026-03'), 75);
+    // A different month on the same rule is untouched by the override.
+    strict_1.default.equal((0, index_1.effectiveBudgetedAmount)(200, 1, overrides, '2026-04'), 200);
+});

@@ -9,6 +9,23 @@
   display: flex;
   align-items: center;
   gap: var(--space-sm);
+  /* /budget is a hub route — the shared, already-fixed AppHeader sits above
+     this, reserving 84px + the safe-area inset via AppContent.module.css's
+     .withHeader. This is Budget's own secondary title bar, stuck flush
+     underneath that (not at top: 0, which would put it under/behind
+     AppHeader) — same negative-margin/matching-padding trick as every
+     other screen's sticky header, just without a safe-area component of
+     its own since AppHeader already reserved that. */
+  position: sticky;
+  top: calc(84px + env(safe-area-inset-top));
+  z-index: 15;
+  margin-top: calc(-1 * var(--space-lg));
+  margin-left: calc(-1 * var(--space-lg));
+  margin-right: calc(-1 * var(--space-lg));
+  padding-top: var(--space-lg);
+  padding-left: var(--space-lg);
+  padding-right: var(--space-lg);
+  background: var(--color-background);
 }
 
 .title {
@@ -475,6 +492,56 @@
 .modalSaveButton:disabled {
   background: #6b7380;
   color: rgba(255, 255, 255, 0.85);
+  cursor: not-allowed;
+}
+
+.monthPickerButton {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: var(--space-md);
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.overrideHint {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-brand);
+}
+
+.editSaveRow {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.editSaveRow .modalSaveButton {
+  flex: 1;
+}
+
+.editSaveThisMonthButton {
+  flex: 1;
+  padding: var(--space-md) var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: none;
+  font-family: inherit;
+  font-size: var(--font-size-md);
+  font-weight: 700;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.editSaveThisMonthButton:disabled {
+  opacity: 0.5;
   cursor: not-allowed;
 }
 

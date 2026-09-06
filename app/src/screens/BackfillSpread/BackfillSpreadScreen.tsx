@@ -35,11 +35,21 @@ export function BackfillSpreadScreen() {
     setTitle,
     type,
     setType,
+    savingsMode,
+    chooseSavingsMode,
+    isTransferLike,
     categoryId,
     setCategoryId,
     categoriesForType,
     accountId,
     setAccountId,
+    toAccountId,
+    setToAccountId,
+    transferKind,
+    setTransferKind,
+    transferKinds,
+    chargesString,
+    setChargesString,
     accounts,
     amountString,
     setAmountString,
@@ -65,6 +75,7 @@ export function BackfillSpreadScreen() {
     occurrences,
     totalAmount,
     accountName,
+    toAccountName,
     backToEdit,
     committing,
     commitError,
@@ -72,6 +83,8 @@ export function BackfillSpreadScreen() {
     goBack,
     openBatches,
   } = useLogic();
+
+  const isPureTransfer = type === 'transfer';
 
   return (
     <div className={styles.page}>
@@ -114,8 +127,46 @@ export function BackfillSpreadScreen() {
               >
                 Income
               </button>
+              <button
+                type="button"
+                className={type === 'savings' ? `${styles.typeTab} ${styles.typeTabActive}` : styles.typeTab}
+                onClick={() => setType('savings')}
+              >
+                {s.typeSavings}
+              </button>
+              <button
+                type="button"
+                className={type === 'transfer' ? `${styles.typeTab} ${styles.typeTabActive}` : styles.typeTab}
+                onClick={() => setType('transfer')}
+              >
+                {s.typeTransfer}
+              </button>
             </div>
           </div>
+
+          {type === 'savings' && (
+            <div className={styles.formField}>
+              <div className={styles.typeTabs}>
+                <button
+                  type="button"
+                  className={savingsMode === 'moved' ? `${styles.typeTab} ${styles.typeTabActive}` : styles.typeTab}
+                  onClick={() => chooseSavingsMode('moved')}
+                >
+                  {s.savingsModeMoved}
+                </button>
+                <button
+                  type="button"
+                  className={savingsMode === 'frozen' ? `${styles.typeTab} ${styles.typeTabActive}` : styles.typeTab}
+                  onClick={() => chooseSavingsMode('frozen')}
+                >
+                  {s.savingsModeFrozen}
+                </button>
+              </div>
+              <p className={styles.helperText}>
+                {savingsMode === 'moved' ? s.savingsModeMovedHint : s.savingsModeFrozenHint}
+              </p>
+            </div>
+          )}
 
           <div className={styles.formField}>
             <label className={styles.formLabel} htmlFor="backfill-amount">
@@ -131,25 +182,47 @@ export function BackfillSpreadScreen() {
             />
           </div>
 
-          <div className={styles.formField}>
-            <label className={styles.formLabel} htmlFor="backfill-category">
-              {s.categoryLabel}
-            </label>
-            <select id="backfill-category" className={styles.formInput} value={categoryId} onChange={(event) => setCategoryId(event.target.value)}>
-              <option value="" disabled>
-                {s.categoryPlaceholder}
-              </option>
-              {categoriesForType.map((cat) => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.name}
+          {!isTransferLike && (
+            <div className={styles.formField}>
+              <label className={styles.formLabel} htmlFor="backfill-category">
+                {s.categoryLabel}
+              </label>
+              <select id="backfill-category" className={styles.formInput} value={categoryId} onChange={(event) => setCategoryId(event.target.value)}>
+                <option value="" disabled>
+                  {s.categoryPlaceholder}
                 </option>
-              ))}
-            </select>
-          </div>
+                {categoriesForType.map((cat) => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {isPureTransfer && (
+            <div className={styles.formField}>
+              <label className={styles.formLabel} htmlFor="backfill-transfer-kind">
+                {s.transferKindLabel}
+              </label>
+              <select
+                id="backfill-transfer-kind"
+                className={styles.formInput}
+                value={transferKind}
+                onChange={(event) => setTransferKind(event.target.value as typeof transferKind)}
+              >
+                {transferKinds.map((kind) => (
+                  <option key={kind} value={kind}>
+                    {kind}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div className={styles.formField}>
             <label className={styles.formLabel} htmlFor="backfill-account">
-              {s.accountLabel}
+              {isTransferLike ? s.fromAccountLabel : s.accountLabel}
             </label>
             <select id="backfill-account" className={styles.formInput} value={accountId} onChange={(event) => setAccountId(event.target.value)}>
               <option value="" disabled>
@@ -162,6 +235,46 @@ export function BackfillSpreadScreen() {
               ))}
             </select>
           </div>
+
+          {isTransferLike && (
+            <div className={styles.formField}>
+              <label className={styles.formLabel} htmlFor="backfill-to-account">
+                {s.toAccountLabel}
+              </label>
+              <select
+                id="backfill-to-account"
+                className={styles.formInput}
+                value={toAccountId}
+                onChange={(event) => setToAccountId(event.target.value)}
+              >
+                <option value="" disabled>
+                  {s.toAccountLabel}
+                </option>
+                {accounts.map((account) => (
+                  <option key={account.id} value={account.id}>
+                    {account.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {isPureTransfer && (
+            <div className={styles.formField}>
+              <label className={styles.formLabel} htmlFor="backfill-charges">
+                {s.chargesLabel}
+              </label>
+              <input
+                id="backfill-charges"
+                className={styles.formInput}
+                inputMode="numeric"
+                value={chargesString}
+                onChange={(event) => setChargesString(event.target.value.replace(/[^0-9.]/g, ''))}
+                placeholder="0"
+              />
+              <p className={styles.helperText}>{s.chargesHint}</p>
+            </div>
+          )}
 
           <div className={styles.formField}>
             <span className={styles.formLabel}>{s.frequencyLabel}</span>
@@ -300,15 +413,18 @@ export function BackfillSpreadScreen() {
                 <span>{occ.date.toLocaleDateString()}</span>
                 <span>{occ.title}</span>
                 <span>
-                  {type === 'income' ? '+' : '-'}
+                  {isTransferLike ? '' : type === 'income' ? '+' : '-'}
                   {formatAmount(occ.amount)} {currency}
                 </span>
               </div>
             ))}
           </div>
           <p className={styles.previewTotal}>
-            {s.previewTotalPrefix} {type === 'income' ? '+' : '-'}
-            {formatAmount(totalAmount)} {currency} added to {accountName}&rsquo;s history
+            {s.previewTotalPrefix} {isTransferLike ? '' : type === 'income' ? '+' : '-'}
+            {formatAmount(totalAmount)} {currency}{' '}
+            {isTransferLike
+              ? `moved from ${accountName} to ${toAccountName}`
+              : `added to ${accountName}’s history`}
           </p>
 
           {commitError && <p className={styles.errorText}>{commitError}</p>}

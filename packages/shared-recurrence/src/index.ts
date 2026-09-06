@@ -151,3 +151,23 @@ export function nextOccurrenceOnOrAfter(rule: RecurrenceRule, from: Date, until:
   }
   return null;
 }
+
+/**
+ * A rule's budgeted figure for one specific month, honoring a per-month
+ * override when one exists — the "edit this month only, leave every other
+ * month alone" feature. `monthOverrides` is keyed the same way
+ * `excludedMonths` (FirestoreBudgetRule) already is: a plain yyyy-MM
+ * string. Falls back to the ordinary `budgetedAmount * multiplier` (the
+ * value `ruleAppliesToMonth`'s own MonthOccurrence.multiplier already
+ * scales for a Weekly rule landing more than once in the month) when this
+ * month has no override.
+ */
+export function effectiveBudgetedAmount(
+  budgetedAmount: number,
+  multiplier: number,
+  monthOverrides: Record<string, { budgetedAmount: number }> | null | undefined,
+  monthStr: string
+): number {
+  const override = monthOverrides?.[monthStr];
+  return override ? override.budgetedAmount : budgetedAmount * multiplier;
+}

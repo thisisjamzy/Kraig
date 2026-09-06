@@ -30,6 +30,9 @@ export function AddTransactionScreen() {
   const {
     step,
     type,
+    savingsMode,
+    chooseSavingsMode,
+    isTransferLike,
     category,
     setCategory,
     description,
@@ -137,6 +140,33 @@ export function AddTransactionScreen() {
 
       {step === 'category' && (
         <div className={styles.categorySection}>
+          {type === 'savings' && (
+            <div className={styles.savingsModeRow}>
+              {(['moved', 'frozen'] as const).map((mode) => {
+                const active = savingsMode === mode;
+                return (
+                  <button
+                    key={mode}
+                    type="button"
+                    className={`${styles.savingsModeOption} ${active ? styles.savingsModeOptionActive : ''}`}
+                    onClick={() => chooseSavingsMode(mode)}
+                  >
+                    <span className={styles.savingsModeLabel}>
+                      {mode === 'moved'
+                        ? strings.addTransaction.savingsModeMoved
+                        : strings.addTransaction.savingsModeFrozen}
+                    </span>
+                    <span className={styles.savingsModeHint}>
+                      {mode === 'moved'
+                        ? strings.addTransaction.savingsModeMovedHint
+                        : strings.addTransaction.savingsModeFrozenHint}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
           {!hasBudgetedCategories && (
             <div className={styles.noBudgetCard}>
               <p className={styles.noBudgetTitle}>{strings.addTransaction.noBudgetTitle}</p>
@@ -180,7 +210,7 @@ export function AddTransactionScreen() {
             </div>
           )}
 
-          {(hasBudgetedCategories || showUnplanned) && (
+          {!(type === 'savings' && savingsMode === 'moved') && (hasBudgetedCategories || showUnplanned) && (
             <button
               type="button"
               className={styles.unplannedLink}
@@ -217,7 +247,7 @@ export function AddTransactionScreen() {
 
           <p className={styles.amountDisplay}>{amountString || '0'}</p>
 
-          {type === 'transfer' ? (
+          {isTransferLike ? (
             <>
               <div className={styles.transferRow}>
                 <button
@@ -239,20 +269,22 @@ export function AddTransactionScreen() {
                 </button>
               </div>
 
-              <div className={styles.infoRow}>
-                <div className={styles.infoRowText}>
-                  <span className={styles.infoRowLabel}>{strings.addTransaction.chargesLabel}</span>
-                  <span className={styles.helperText}>{strings.addTransaction.chargesHint}</span>
+              {type === 'transfer' && (
+                <div className={styles.infoRow}>
+                  <div className={styles.infoRowText}>
+                    <span className={styles.infoRowLabel}>{strings.addTransaction.chargesLabel}</span>
+                    <span className={styles.helperText}>{strings.addTransaction.chargesHint}</span>
+                  </div>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    className={styles.chargesInput}
+                    placeholder="0"
+                    value={chargesString}
+                    onChange={(event) => setChargesString(event.target.value.replace(/[^0-9.]/g, ''))}
+                  />
                 </div>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  className={styles.chargesInput}
-                  placeholder="0"
-                  value={chargesString}
-                  onChange={(event) => setChargesString(event.target.value.replace(/[^0-9.]/g, ''))}
-                />
-              </div>
+              )}
             </>
           ) : (
             <div className={styles.infoRow}>
@@ -337,7 +369,7 @@ export function AddTransactionScreen() {
             <span className={styles.reviewLabel}>{strings.addTransaction.reviewAccounts}</span>
             <span className={styles.reviewValueWithAction}>
               <span className={styles.reviewValue}>
-                {type === 'transfer' ? `${fromAccount} to ${toAccount}` : fromAccount}
+                {isTransferLike ? `${fromAccount} to ${toAccount}` : fromAccount}
               </span>
               <button
                 type="button"

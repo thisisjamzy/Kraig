@@ -6,6 +6,16 @@
 // for the "can't find your category? create one" flow below: a modal
 // stacked on top of a modal was cramped, and losing the in-progress budget
 // line just to go create a category elsewhere was worse.
+//
+// The line's own start month defaults to whichever month the Budget screen
+// was browsing (?month=&year=), but is independently editable here — a
+// household can deliberately backdate a recurring budget line's anchor into
+// a past month (so browsing back shows it there too, same as a backdated
+// transaction already could) or schedule one to start in the future,
+// without first navigating the Budget screen itself to that month. An
+// "until" recurrence choice similarly lets an end month/year be picked
+// directly, on top of the existing "for a few months" (raw occurrence
+// count) and "every month" (never-ending) choices.
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -14,7 +24,10 @@ import { ruleAppliesToMonth } from '@dreda/shared-recurrence';
 import { useFirestoreCollection } from '@/src/shared/firestore/hooks';
 import { budgetRulesRef, budgetRuleRef, categoryRef } from '@/src/shared/firestore/refs';
 import { toRecurrenceRule } from '@/src/shared/firestore/recurrence';
-import { recomputeBudgetProgressForRuleCurrentMonth } from '@/src/shared/firestore/aggregation';
+import {
+  recomputeBudgetProgressForRuleCurrentMonth,
+  recomputeBudgetProgressForRuleAndMonth,
+} from '@/src/shared/firestore/aggregation';
 import { useCategories } from '@/src/shared/firestore/queries';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { currentMonthIndex, currentYear, toFrequencyFields, type Recurrence } from '@/src/viewmodels/budget';
@@ -46,12 +59,50 @@ function monthTargetFromSearch(): { year: number; month: number } {
 
 export function useLogic() {
   const router = useRouter();
-  const [{ year, month: monthIndex }] = useState(monthTargetFromSearch);
-  const monthStr = `${year}-${pad2(monthIndex + 1)}`;
-  const budgetHref = `/budget?month=${monthIndex}&year=${year}`;
+  // Where "cancel"/"save" send you back to — the month the Budget screen
+  // was actually showing, fixed at mount. Independent of the start-month
+  // picker below, which is free to point somewhere else entirely.
+  const [{ year: viewingYear, month: viewingMonthIndex }] = useState(monthTargetFromSearch);
+  const budgetHref = `/budget?month=${viewingMonthIndex}&year=${viewingYear}`;
 
   const { user, loading: authLoading } = useFirebaseUser();
   const uid = user?.uid;
+
+  // --- Start month (anchorDate) — defaults to the viewed month, editable ---
+
+  const [startMonthIndex, setStartMonthIndex] = useState(viewingMonthIndex);
+  const [startYear, setStartYear] = useState(viewingYear);
+  const [startPickerOpen, setStartPickerOpen] = useState(false);
+  const [startPickerYear, setStartPickerYear] = useState(startYear);
+
+  function openStartPicker() {
+    setStartPickerYear(startYear);
+    setStartPickerOpen(true);
+  }
+  function chooseStartMonth(index: number) {
+    setStartMonthIndex(index);
+    setStartYear(startPickerYear);
+    setStartPickerOpen(false);
+  }
+
+  const monthStr = `${startYear}-${pad2(startMonthIndex + 1)}`;
+
+  // --- End month ("until" recurrence only) — defaults to the start month ---
+
+  const [endMonthIndex, setEndMonthIndex] = useState(viewingMonthIndex);
+  const [endYear, setEndYear] = useState(viewingYear);
+  const [endPickerOpen, setEndPickerOpen] = useState(false);
+  const [endPickerYear, setEndPickerYear] = useState(endYear);
+
+  function openEndPicker() {
+    setEndPickerYear(endYear);
+    setEndPickerOpen(true);
+  }
+  function chooseEndMonth(index: number) {
+    setEndMonthIndex(index);
+    setEndYear(endPickerYear);
+    setEndPickerOpen(false);
+  }
 
   const activeBudgetRulesQuery = useMemo(
     () => (uid ? query(budgetRulesRef(uid), where('archived', '==', false)) : null),
@@ -61,6 +112,9 @@ export function useLogic() {
     useFirestoreCollection<FirestoreBudgetRule>(activeBudgetRulesQuery);
   const { data: allCategories, loading: categoriesLoading } = useCategories();
 
+  // Scoped to the chosen START month, not the month the Budget screen
+  // happened to be viewing — moving the start month elsewhere should
+  // immediately reflect that month's own already-budgeted categories.
   const budgetedCategoryIds = useMemo(() => {
     const [y, m] = monthStr.split('-').map(Number);
     const ids = new Set<string>();
@@ -76,10 +130,21 @@ export function useLogic() {
   const [categoryId, setCategoryId] = useState('');
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
-  const [recurrence, setRecurrence] = useState<Recurrence>('monthly');
+  const [recurrence, setRecurrenceState] = useState<Recurrence>('monthly');
   const [recurrenceMonths, setRecurrenceMonths] = useState('3');
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  // Picking "until" needs a real end month to point at — seed it fresh off
+  // the current start month each time, rather than whatever stale value it
+  // last held from an earlier "until" selection.
+  function setRecurrence(next: Recurrence) {
+    if (next === 'until' && recurrence !== 'until') {
+      setEndMonthIndex(startMonthIndex);
+      setEndYear(startYear);
+    }
+    setRecurrenceState(next);
+  }
 
   function setType(next: BudgetLineType) {
     setTypeState(next);
@@ -154,14 +219,20 @@ export function useLogic() {
         type,
         description: description.trim(),
         budgetedAmount: Number(amount.replace(/[^0-9]/g, '')) || 0,
-        ...toFrequencyFields(recurrence, recurrenceMonths),
+        ...toFrequencyFields(recurrence, recurrenceMonths, { monthIndex: endMonthIndex, year: endYear }),
         interval: 1,
-        anchorDate: Timestamp.fromDate(new Date(year, monthIndex, 1)),
-        endDate: null,
+        anchorDate: Timestamp.fromDate(new Date(startYear, startMonthIndex, 1)),
         accountId: null,
         tag: '',
         archived: false,
       });
+      // Populates the anchor month's own statsBudgetProgress snapshot right
+      // away — the current-month-only recompute below would otherwise never
+      // touch a past (or not-yet-current) start month at all, leaving the
+      // Audit Report's trailing-months read with a gap for it (the live
+      // Budget/Home screens don't need this — they compute a rule's figure
+      // straight off ruleAppliesToMonth on every render, anchor-agnostic).
+      await recomputeBudgetProgressForRuleAndMonth(uid, id, monthStr);
       await recomputeBudgetProgressForRuleCurrentMonth(uid, id);
       router.push(budgetHref);
     } catch (error) {
@@ -175,10 +246,26 @@ export function useLogic() {
   }
 
   return {
-    monthIndex,
-    year,
     budgetHref,
     goBack,
+
+    startMonthIndex,
+    startYear,
+    startPickerOpen,
+    openStartPicker,
+    closeStartPicker: () => setStartPickerOpen(false),
+    startPickerYear,
+    setStartPickerYear,
+    chooseStartMonth,
+
+    endMonthIndex,
+    endYear,
+    endPickerOpen,
+    openEndPicker,
+    closeEndPicker: () => setEndPickerOpen(false),
+    endPickerYear,
+    setEndPickerYear,
+    chooseEndMonth,
 
     type,
     setType,

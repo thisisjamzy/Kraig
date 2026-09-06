@@ -1,15 +1,35 @@
 'use client';
 
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
 import { useLogic, BUDGET_LINE_TYPES, CATEGORY_CREATE_TYPES } from '@/src/logic/addBudgetCategory/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
+import { Modal } from '@/src/widgets/Modal/Modal';
 import styles from './AddBudgetCategoryScreen.module.css';
 
 export function AddBudgetCategoryScreen() {
   const strings = useStrings();
   const {
     goBack,
+
+    startMonthIndex,
+    startYear,
+    startPickerOpen,
+    openStartPicker,
+    closeStartPicker,
+    startPickerYear,
+    setStartPickerYear,
+    chooseStartMonth,
+
+    endMonthIndex,
+    endYear,
+    endPickerOpen,
+    openEndPicker,
+    closeEndPicker,
+    endPickerYear,
+    setEndPickerYear,
+    chooseEndMonth,
+
     type,
     setType,
     categoryId,
@@ -42,6 +62,8 @@ export function AddBudgetCategoryScreen() {
 
     loading,
   } = useLogic();
+
+  const monthNames = strings.months;
 
   return (
     <div className={styles.page}>
@@ -179,6 +201,14 @@ export function AddBudgetCategoryScreen() {
           </div>
 
           <div className={styles.formField}>
+            <span className={styles.formLabel}>{strings.addBudgetCategory.startMonthLabel}</span>
+            <button type="button" className={styles.monthPickerButton} onClick={openStartPicker}>
+              {monthNames[startMonthIndex]} {startYear}
+              <ChevronDown size={14} strokeWidth={2.5} />
+            </button>
+          </div>
+
+          <div className={styles.formField}>
             <label className={styles.formLabel} htmlFor="budget-category-amount">
               {strings.addBudgetCategory.amountLabel}
             </label>
@@ -221,12 +251,98 @@ export function AddBudgetCategoryScreen() {
             )}
           </div>
 
+          {recurrence === 'until' && (
+            <div className={styles.formField}>
+              <span className={styles.formLabel}>{strings.addBudgetCategory.endMonthLabel}</span>
+              <button type="button" className={styles.monthPickerButton} onClick={openEndPicker}>
+                {monthNames[endMonthIndex]} {endYear}
+                <ChevronDown size={14} strokeWidth={2.5} />
+              </button>
+            </div>
+          )}
+
           {saveError && <p className={styles.errorText}>{saveError}</p>}
 
           <button type="button" className={styles.saveButton} disabled={!categoryId || saving} onClick={handleSave}>
             {saving ? strings.addBudgetCategory.saving : strings.addBudgetCategory.save}
           </button>
         </div>
+      )}
+
+      {startPickerOpen && (
+        <Modal title={strings.addBudgetCategory.chooseStartMonth} onClose={closeStartPicker}>
+          <div className={styles.yearStepper}>
+            <button
+              type="button"
+              className={styles.yearStepButton}
+              onClick={() => setStartPickerYear((value) => value - 1)}
+              aria-label="Previous year"
+            >
+              <ChevronLeft size={16} strokeWidth={2} />
+            </button>
+            <span className={styles.yearStepValue}>{startPickerYear}</span>
+            <button
+              type="button"
+              className={styles.yearStepButton}
+              onClick={() => setStartPickerYear((value) => value + 1)}
+              aria-label="Next year"
+            >
+              <ChevronRight size={16} strokeWidth={2} />
+            </button>
+          </div>
+          <div className={styles.monthGrid}>
+            {monthNames.map((name, index) => (
+              <button
+                key={name}
+                type="button"
+                className={`${styles.monthButton} ${
+                  index === startMonthIndex && startPickerYear === startYear ? styles.monthButtonActive : ''
+                }`}
+                onClick={() => chooseStartMonth(index)}
+              >
+                {name.slice(0, 3)}
+              </button>
+            ))}
+          </div>
+        </Modal>
+      )}
+
+      {endPickerOpen && (
+        <Modal title={strings.addBudgetCategory.chooseEndMonth} onClose={closeEndPicker}>
+          <div className={styles.yearStepper}>
+            <button
+              type="button"
+              className={styles.yearStepButton}
+              onClick={() => setEndPickerYear((value) => value - 1)}
+              aria-label="Previous year"
+            >
+              <ChevronLeft size={16} strokeWidth={2} />
+            </button>
+            <span className={styles.yearStepValue}>{endPickerYear}</span>
+            <button
+              type="button"
+              className={styles.yearStepButton}
+              onClick={() => setEndPickerYear((value) => value + 1)}
+              aria-label="Next year"
+            >
+              <ChevronRight size={16} strokeWidth={2} />
+            </button>
+          </div>
+          <div className={styles.monthGrid}>
+            {monthNames.map((name, index) => (
+              <button
+                key={name}
+                type="button"
+                className={`${styles.monthButton} ${
+                  index === endMonthIndex && endPickerYear === endYear ? styles.monthButtonActive : ''
+                }`}
+                onClick={() => chooseEndMonth(index)}
+              >
+                {name.slice(0, 3)}
+              </button>
+            ))}
+          </div>
+        </Modal>
       )}
     </div>
   );

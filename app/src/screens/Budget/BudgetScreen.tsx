@@ -63,6 +63,14 @@ export function BudgetScreen() {
     setEditRecurrence,
     editRecurrenceMonths,
     setEditRecurrenceMonths,
+    editEndMonthIndex,
+    editEndYear,
+    editEndPickerOpen,
+    openEditEndPicker,
+    closeEditEndPicker,
+    editEndPickerYear,
+    setEditEndPickerYear,
+    chooseEditEndMonth,
     savingEdit,
     editError,
     projectedIncome,
@@ -106,13 +114,21 @@ export function BudgetScreen() {
     return percent >= 100 ? styles.percentPositive : styles.percentNegative;
   }
 
-  function recurrenceCaption(entry: { recurrence: 'once' | 'monthly' | 'limited'; recurrenceMonths?: number }) {
+  function recurrenceCaption(entry: {
+    recurrence: 'once' | 'monthly' | 'limited' | 'until';
+    recurrenceMonths?: number;
+    endMonthIndex?: number;
+    endYear?: number;
+  }) {
     if (entry.recurrence === 'monthly') return strings.budget.recurrenceMonthly;
     if (entry.recurrence === 'limited') {
       const months = entry.recurrenceMonths ?? 1;
       const suffix =
         months === 1 ? strings.budget.recurrenceLimitedSuffixOne : strings.budget.recurrenceLimitedSuffixMany;
       return `${strings.budget.recurrenceLimitedPrefix} ${months} ${suffix}`;
+    }
+    if (entry.recurrence === 'until' && entry.endMonthIndex !== undefined && entry.endYear !== undefined) {
+      return `${strings.budget.recurrenceMonthly} · ${strings.addBudgetCategory.endMonthLabel.toLowerCase()} ${monthNames[entry.endMonthIndex]} ${entry.endYear}`;
     }
     return strings.budget.recurrenceOnce;
   }
@@ -537,19 +553,93 @@ export function BudgetScreen() {
             )}
           </div>
 
+          {editRecurrence === 'until' && (
+            <div className={styles.formField}>
+              <span className={styles.formLabel}>{strings.addBudgetCategory.endMonthLabel}</span>
+              <button type="button" className={styles.monthPickerButton} onClick={openEditEndPicker}>
+                {monthNames[editEndMonthIndex]} {editEndYear}
+                <ChevronDown size={14} strokeWidth={2.5} />
+              </button>
+            </div>
+          )}
+
+          {editingCategory.hasMonthOverride && (
+            <p className={styles.overrideHint}>{strings.budget.monthOverrideHint}</p>
+          )}
+
           {editError && (
             <p className={styles.errorText} role="alert">
               {editError}
             </p>
           )}
-          <button
-            type="button"
-            className={styles.modalSaveButton}
-            disabled={!editCategoryId || savingEdit}
-            onClick={handleSaveEdit}
-          >
-            {strings.common.save}
-          </button>
+
+          {editingCategory.recurrence === 'once' ? (
+            <button
+              type="button"
+              className={styles.modalSaveButton}
+              disabled={!editCategoryId || savingEdit}
+              onClick={() => handleSaveEdit('allMonths')}
+            >
+              {strings.common.save}
+            </button>
+          ) : (
+            <div className={styles.editSaveRow}>
+              <button
+                type="button"
+                className={styles.editSaveThisMonthButton}
+                disabled={!editCategoryId || savingEdit}
+                onClick={() => handleSaveEdit('thisMonth')}
+              >
+                {strings.budget.saveThisMonthOnly}
+              </button>
+              <button
+                type="button"
+                className={styles.modalSaveButton}
+                disabled={!editCategoryId || savingEdit}
+                onClick={() => handleSaveEdit('allMonths')}
+              >
+                {strings.budget.saveAllMonths}
+              </button>
+            </div>
+          )}
+        </Modal>
+      )}
+
+      {editEndPickerOpen && (
+        <Modal title={strings.addBudgetCategory.chooseEndMonth} onClose={closeEditEndPicker}>
+          <div className={styles.yearStepper}>
+            <button
+              type="button"
+              className={styles.yearStepButton}
+              onClick={() => setEditEndPickerYear((value) => value - 1)}
+              aria-label="Previous year"
+            >
+              <ChevronLeft size={16} strokeWidth={2} />
+            </button>
+            <span className={styles.yearStepValue}>{editEndPickerYear}</span>
+            <button
+              type="button"
+              className={styles.yearStepButton}
+              onClick={() => setEditEndPickerYear((value) => value + 1)}
+              aria-label="Next year"
+            >
+              <ChevronRight size={16} strokeWidth={2} />
+            </button>
+          </div>
+          <div className={styles.monthGrid}>
+            {monthNames.map((name, index) => (
+              <button
+                key={name}
+                type="button"
+                className={`${styles.monthButton} ${
+                  index === editEndMonthIndex && editEndPickerYear === editEndYear ? styles.monthButtonActive : ''
+                }`}
+                onClick={() => chooseEditEndMonth(index)}
+              >
+                {name.slice(0, 3)}
+              </button>
+            ))}
+          </div>
         </Modal>
       )}
     </div>

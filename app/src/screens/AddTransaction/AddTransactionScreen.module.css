@@ -11,6 +11,16 @@
   display: flex;
   align-items: center;
   gap: var(--space-md);
+  position: sticky;
+  top: 0;
+  z-index: 15;
+  margin-top: calc(-1 * (var(--space-lg) + env(safe-area-inset-top)));
+  margin-left: calc(-1 * var(--space-lg));
+  margin-right: calc(-1 * var(--space-lg));
+  padding-top: calc(var(--space-lg) + env(safe-area-inset-top));
+  padding-left: var(--space-lg);
+  padding-right: var(--space-lg);
+  background: var(--color-background);
 }
 
 .backButton {
@@ -102,6 +112,43 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-lg);
+}
+
+.savingsModeRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-sm);
+}
+
+.savingsModeOption {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: var(--space-md);
+  border: none;
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  text-align: left;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.savingsModeOptionActive {
+  background: var(--ink-bg);
+  color: var(--ink-text);
+}
+
+.savingsModeLabel {
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+}
+
+.savingsModeHint {
+  font-size: 0.6875rem;
+  opacity: 0.75;
+  line-height: 1.35;
 }
 
 .categoryList {

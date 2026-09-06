@@ -14,13 +14,12 @@
 // Only covers what the app's write UI actually does today (verified against
 // every setDoc/updateDoc call site in src/logic): create/edit/delete a
 // transaction (including its type, per src/logic/editTransaction/useLogic.ts),
-// create a transfer, create/edit-amount/archive a budget rule.
-// updateTransactionWithAggregation and deleteTransactionWithAggregation are
-// the two reverse-(then-apply) paths (see their own doc comments) —
-// everything else here only ever applies a new contribution, never has to
-// reverse an old one. There is still no edit/delete UI for transfers —
-// extending that the same way, mirroring functions/src/transfers.ts, is
-// what's still missing.
+// create/delete a transfer, create/edit-amount/archive a budget rule.
+// updateTransactionWithAggregation/deleteTransactionWithAggregation and
+// deleteTransferWithAggregation are the reverse-(then-apply) paths (see
+// their own doc comments) — everything else here only ever applies a new
+// contribution, never has to reverse an old one. There is still no edit UI
+// for a transfer's own fields (amount, accounts, ...) — only delete.
 
 import {
   runTransaction,
@@ -43,6 +42,7 @@ import {
   transactionRef,
   transactionsRef,
   transferRef,
+  transfersRef,
   statsHomeRef,
   statsMonthlyRef,
   statsBudgetProgressRef,
@@ -59,7 +59,7 @@ import {
 } from './refs';
 import { convert, round2, type CurrencyContext } from './currency';
 import { toRecurrenceRule } from './recurrence';
-import { ruleAppliesToMonth } from '@dreda/shared-recurrence';
+import { ruleAppliesToMonth, effectiveBudgetedAmount } from '@dreda/shared-recurrence';
 import type { FirestoreDebtPaymentPlan, DebtType, DebtPriority, BudgetLineType, Priority, GoalItemNecessity } from './types';
 
 function monthKey(date: Date) {
@@ -106,6 +106,10 @@ export interface CreateTransactionInput {
   backfillBatchId?: string | null;
   isUnjustifiedAdjustment?: boolean;
   pairedTransferId?: string | null;
+  // See FirestoreTransaction.isFrozenSavings (types.ts) — only ever true
+  // for a Savings-type, Outflow-direction entry; callers enforce that, this
+  // function trusts it rather than re-validating type/direction itself.
+  isFrozenSavings?: boolean;
 }
 
 /**
@@ -131,7 +135,20 @@ export function writeTransactionContribution(
   if (accountData?.frozen) {
     throw new Error('This wallet is frozen — unfreeze it before recording a transaction against it.');
   }
-  assertNotBelowLocked(accountData, signedAmount);
+  if (input.isFrozenSavings) {
+    // Money never leaves the account — only lockedAmount grows. This isn't
+    // the ordinary "would this debit dip below what's locked" question
+    // (currentBalance isn't moving at all here); it's "is there enough
+    // unlocked balance in this account to lock this much in the first
+    // place".
+    const currentBalance = accountData?.currentBalance ?? 0;
+    const lockedAmount = accountData?.lockedAmount ?? 0;
+    if (currentBalance < lockedAmount + input.amount) {
+      throw new Error('Not enough unlocked balance in this wallet to freeze that much.');
+    }
+  } else {
+    assertNotBelowLocked(accountData, signedAmount);
+  }
   const month = monthKey(input.date);
   const currentMonth = monthKey(new Date());
   const dateTimestamp = Timestamp.fromDate(input.date);
@@ -155,11 +172,16 @@ export function writeTransactionContribution(
     ...(input.isUnjustifiedAdjustment
       ? { isUnjustifiedAdjustment: true, pairedTransferId: input.pairedTransferId ?? null }
       : {}),
+    ...(input.isFrozenSavings ? { isFrozenSavings: true } : {}),
     createdBy: input.createdBy,
     createdAt: dateTimestamp,
   });
 
-  tx.update(accountRef(uid, input.accountId), { currentBalance: increment(signedAmount) });
+  if (input.isFrozenSavings) {
+    tx.update(accountRef(uid, input.accountId), { lockedAmount: increment(input.amount) });
+  } else {
+    tx.update(accountRef(uid, input.accountId), { currentBalance: increment(signedAmount) });
+  }
 
   const monthUpdate: Record<string, unknown> = {
     totalIncome: increment(income),
@@ -168,13 +190,21 @@ export function writeTransactionContribution(
     lastUpdated: serverTimestamp(),
   };
   if (input.categoryId) {
-    monthUpdate.perCategorySpend = { [input.categoryId]: increment(expense - income) };
+    // perCategorySpend tracks "progress toward this category's budget", not
+    // literally net expense — for an Income category the normal (Inflow)
+    // transaction should INCREASE progress, so the sign flips relative to
+    // an Expense category's convention (see the matching comments in
+    // updateTransactionWithAggregation/deleteTransactionWithAggregation).
+    monthUpdate.perCategorySpend = { [input.categoryId]: increment(input.type === 'Income' ? income - expense : expense - income) };
     monthUpdate.perCategoryCount = { [input.categoryId]: increment(1) };
   }
   tx.set(statsMonthlyRef(uid, month), monthUpdate, { merge: true });
 
   const homeUpdate: Record<string, unknown> = {
-    totalBalanceBase: increment(convertedDelta),
+    // Net worth doesn't move for a frozen-savings entry — the money never
+    // left the household's accounts, it just changed from spendable to
+    // locked within the same one.
+    totalBalanceBase: increment(input.isFrozenSavings ? 0 : convertedDelta),
     lastUpdated: serverTimestamp(),
   };
   if (month === currentMonth) {
@@ -256,6 +286,10 @@ export async function updateTransactionWithAggregation(
     oldCategoryId = before.categoryId ?? null;
     oldMonth = before.month ?? monthKey(before.date.toDate());
     const oldSignedAmount = before.signedAmount ?? (before.direction === 'Inflow' ? before.amount : -before.amount);
+    // Edit Transaction has no control for changing this classification —
+    // whatever the doc already was, it stays (only amount/date/category/
+    // account/description can move here).
+    const isFrozenSavings = Boolean(before.isFrozenSavings);
 
     const accountIds = Array.from(new Set([oldAccountId, input.accountId]));
     const accountSnaps = new Map(
@@ -281,10 +315,22 @@ export async function updateTransactionWithAggregation(
     // Account balances: a net delta per account touched — the same account
     // on both sides (the common case, just an amount/category/date edit)
     // nets to the plain difference; different accounts (the transaction
-    // moved wallets) each get their own directed delta.
+    // moved wallets) each get their own directed delta. A frozen-savings
+    // entry never touched currentBalance in the first place (see
+    // writeTransactionContribution) — it moves lockedAmount instead, on
+    // both the reversal and the reapplied side.
     const accountDeltas = new Map<string, number>();
-    accountDeltas.set(oldAccountId, (accountDeltas.get(oldAccountId) ?? 0) - oldSignedAmount);
-    accountDeltas.set(input.accountId, (accountDeltas.get(input.accountId) ?? 0) + newSignedAmount);
+    const lockedDeltas = new Map<string, number>();
+    if (isFrozenSavings) {
+      lockedDeltas.set(oldAccountId, (lockedDeltas.get(oldAccountId) ?? 0) - Math.abs(oldSignedAmount));
+      lockedDeltas.set(input.accountId, (lockedDeltas.get(input.accountId) ?? 0) + Math.abs(newSignedAmount));
+    } else {
+      accountDeltas.set(oldAccountId, (accountDeltas.get(oldAccountId) ?? 0) - oldSignedAmount);
+      accountDeltas.set(input.accountId, (accountDeltas.get(input.accountId) ?? 0) + newSignedAmount);
+    }
+    for (const [accId, delta] of lockedDeltas) {
+      if (delta !== 0) tx.update(accountRef(uid, accId), { lockedAmount: increment(delta) });
+    }
     for (const [accId, delta] of accountDeltas) {
       assertNotBelowLocked(accountSnaps.get(accId)?.data(), delta);
       if (delta !== 0) tx.update(accountRef(uid, accId), { currentBalance: increment(delta) });
@@ -310,12 +356,13 @@ export async function updateTransactionWithAggregation(
     const oldAmountBase = convert(oldSignedAmount, oldCurrency, ctx.base, ctx.rates);
     const newAmountBase = convert(newSignedAmount, newCurrency, ctx.base, ctx.rates);
 
-    type Contribution = { month: string; categoryId: string | null; incomeDelta: number; expenseDelta: number; countDelta: number };
+    type Contribution = { month: string; categoryId: string | null; type: string; incomeDelta: number; expenseDelta: number; countDelta: number };
     const contributions: Contribution[] = [
       // Reverse what this transaction originally contributed.
       {
         month: oldMonth,
         categoryId: oldCategoryId,
+        type: before.type,
         incomeDelta: oldAmountBase > 0 ? -oldAmountBase : 0,
         expenseDelta: oldAmountBase < 0 ? oldAmountBase : 0,
         countDelta: -1,
@@ -324,6 +371,7 @@ export async function updateTransactionWithAggregation(
       {
         month: newMonth,
         categoryId: input.categoryId,
+        type: input.type,
         incomeDelta: newAmountBase > 0 ? newAmountBase : 0,
         expenseDelta: newAmountBase < 0 ? -newAmountBase : 0,
         countDelta: 1,
@@ -353,11 +401,11 @@ export async function updateTransactionWithAggregation(
         countDelta += c.countDelta;
         if (c.categoryId) {
           // perCategorySpend's convention (see writeTransactionContribution):
-          // positive = net spend, negative = net inflow. expenseDelta is
-          // already 0 for an income-shaped contribution and vice versa, so
-          // `expenseDelta - incomeDelta` reproduces that same convention for
-          // both a fresh addition and a reversal.
-          spendByCategory.set(c.categoryId, (spendByCategory.get(c.categoryId) ?? 0) + (c.expenseDelta - c.incomeDelta));
+          // positive = progress toward budget. For an Expense category that's
+          // net spend (expenseDelta - incomeDelta); for an Income category
+          // it's net received, the opposite sign (incomeDelta - expenseDelta).
+          const delta = c.type === 'Income' ? c.incomeDelta - c.expenseDelta : c.expenseDelta - c.incomeDelta;
+          spendByCategory.set(c.categoryId, (spendByCategory.get(c.categoryId) ?? 0) + delta);
           countByCategory.set(c.categoryId, (countByCategory.get(c.categoryId) ?? 0) + c.countDelta);
         }
       }
@@ -383,7 +431,7 @@ export async function updateTransactionWithAggregation(
     // current month (an edit into/out of the current month should still
     // move it correctly either way).
     const homeUpdate: Record<string, unknown> = {
-      totalBalanceBase: increment(newAmountBase - oldAmountBase),
+      totalBalanceBase: increment(isFrozenSavings ? 0 : newAmountBase - oldAmountBase),
       lastUpdated: serverTimestamp(),
     };
     let thisMonthIncomeDelta = 0;
@@ -445,14 +493,22 @@ export async function deleteTransactionWithAggregation(uid: string, transactionI
     if (accountData?.frozen) {
       throw new Error('This wallet is frozen — unfreeze it before deleting this transaction.');
     }
-    // Deleting an inflow (positive signedAmount) removes money from the
-    // account (delta = -signedAmount, negative) — the same "would this dip
-    // below what's locked" check every other outflow-shaped delta gets.
-    // Deleting an outflow only ever gives money back, never needs the check.
-    assertNotBelowLocked(accountData, -signedAmount);
 
     tx.delete(transactionRef(uid, transactionId));
-    tx.update(accountRef(uid, accountId), { currentBalance: increment(-signedAmount) });
+    if (before.isFrozenSavings) {
+      // Never touched currentBalance to begin with (see
+      // writeTransactionContribution) — reverse the lockedAmount it added
+      // instead.
+      tx.update(accountRef(uid, accountId), { lockedAmount: increment(-Math.abs(signedAmount)) });
+    } else {
+      // Deleting an inflow (positive signedAmount) removes money from the
+      // account (delta = -signedAmount, negative) — the same "would this
+      // dip below what's locked" check every other outflow-shaped delta
+      // gets. Deleting an outflow only ever gives money back, never needs
+      // the check.
+      assertNotBelowLocked(accountData, -signedAmount);
+      tx.update(accountRef(uid, accountId), { currentBalance: increment(-signedAmount) });
+    }
 
     const nativeCurrency = accountData?.currency ?? ctx.base;
     // The amount this transaction originally contributed, reversed — same
@@ -470,13 +526,16 @@ export async function deleteTransactionWithAggregation(uid: string, transactionI
       lastUpdated: serverTimestamp(),
     };
     if (categoryId) {
-      monthUpdate.perCategorySpend = { [categoryId]: increment(expenseDelta - incomeDelta) };
+      // Same Income-vs-Expense sign convention as writeTransactionContribution.
+      monthUpdate.perCategorySpend = {
+        [categoryId]: increment(before.type === 'Income' ? incomeDelta - expenseDelta : expenseDelta - incomeDelta),
+      };
       monthUpdate.perCategoryCount = { [categoryId]: increment(-1) };
     }
     tx.set(statsMonthlyRef(uid, month), monthUpdate, { merge: true });
 
     const homeUpdate: Record<string, unknown> = {
-      totalBalanceBase: increment(-amountBase),
+      totalBalanceBase: increment(before.isFrozenSavings ? 0 : -amountBase),
       lastUpdated: serverTimestamp(),
     };
     if (month === currentMonth) {
@@ -502,9 +561,13 @@ export async function deleteTransactionWithAggregation(uid: string, transactionI
  * docs would just contend with each other.
  */
 export async function deleteBackfillBatch(uid: string, batchId: string, ctx: CurrencyContext): Promise<void> {
-  const snap = await getDocs(query(transactionsRef(uid), where('backfillBatchId', '==', batchId)));
-  for (const doc of snap.docs) {
+  const transactionsSnap = await getDocs(query(transactionsRef(uid), where('backfillBatchId', '==', batchId)));
+  for (const doc of transactionsSnap.docs) {
     await deleteTransactionWithAggregation(uid, doc.id, ctx);
+  }
+  const transfersSnap = await getDocs(query(transfersRef(uid), where('backfillBatchId', '==', batchId)));
+  for (const doc of transfersSnap.docs) {
+    await deleteTransferWithAggregation(uid, doc.id);
   }
 }
 
@@ -630,6 +693,12 @@ export interface CreateTransferInput {
   charges?: number;
   kind: string;
   createdBy: string;
+  // Set only by commitBackfillSpread (src/shared/firestore/unaccountedBalance.ts)
+  // for a recurring transfer spread across a range of past months — see
+  // CreateTransactionInput's own isHistoricBackfill for the matching
+  // transaction-side convention; every other caller leaves these undefined.
+  isHistoricBackfill?: boolean;
+  backfillBatchId?: string | null;
 }
 
 /**
@@ -676,6 +745,7 @@ export async function createTransferWithAggregation(input: CreateTransferInput) 
       notes: '',
       createdBy: input.createdBy,
       createdAt: dateTimestamp,
+      ...(input.isHistoricBackfill ? { isHistoricBackfill: true, backfillBatchId: input.backfillBatchId ?? null } : {}),
     });
     // fromAccountId pays the transfer amount AND the charges; toAccountId
     // only ever receives the transfer amount itself.
@@ -694,6 +764,60 @@ export async function createTransferWithAggregation(input: CreateTransferInput) 
   });
 
   await recomputeBudgetProgressForCategoryMonth(uid, input.kind, month);
+}
+
+/**
+ * Deletes a transfer and reverses everything it contributed — the same
+ * "reverse, then delete" shape deleteTransactionWithAggregation uses, just
+ * for the two-account, no-income/expense effect createTransferWithAggregation
+ * has. Never a bare deleteDoc, for the same reason: without reversing both
+ * accounts' currentBalance first, one would stay permanently too high and
+ * the other too low by this transfer's amount.
+ */
+export async function deleteTransferWithAggregation(uid: string, transferId: string): Promise<void> {
+  const db = getFirebaseFirestore();
+  let kind = '';
+  let month = '';
+
+  await runTransaction(db, async (tx) => {
+    const beforeSnap = await tx.get(transferRef(uid, transferId));
+    const before = beforeSnap.data();
+    if (!before) throw new Error('This transfer no longer exists.');
+    kind = before.kind;
+    month = monthKey(before.date.toDate());
+    const charges = before.charges ?? 0;
+
+    const [fromSnap, toSnap] = await Promise.all([
+      tx.get(accountRef(uid, before.fromAccountId)),
+      tx.get(accountRef(uid, before.toAccountId)),
+    ]);
+    const fromData = fromSnap.data();
+    const toData = toSnap.data();
+    if (fromData?.frozen || toData?.frozen) {
+      throw new Error('One of these wallets is frozen — unfreeze it before deleting this transfer.');
+    }
+    // Reversing toAccountId's credit is a real outflow from its balance
+    // (money leaving), so it gets the same "would this dip below what's
+    // locked" check any other outflow gets. Reversing fromAccountId's debit
+    // only ever gives money back, never needs the check.
+    assertNotBelowLocked(toData, -before.amount);
+
+    tx.delete(transferRef(uid, transferId));
+    tx.update(accountRef(uid, before.fromAccountId), { currentBalance: increment(before.amount + charges) });
+    tx.update(accountRef(uid, before.toAccountId), { currentBalance: increment(-before.amount) });
+
+    tx.set(
+      statsMonthlyRef(uid, month),
+      {
+        perCategorySpend: { [before.kind]: increment(-before.amount) },
+        perCategoryCount: { [before.kind]: increment(-1) },
+        lastUpdated: serverTimestamp(),
+      },
+      { merge: true }
+    );
+  });
+
+  await recomputeBudgetProgressForCategoryMonth(uid, kind, month);
 }
 
 /**
@@ -767,7 +891,7 @@ async function recomputeBudgetProgressForCategoryMonth(uid: string, categoryId: 
       progress[ruleDoc.id] = deleteField();
       continue;
     }
-    const budgeted = (Number(rule.budgetedAmount) || 0) * occurrence.multiplier;
+    const budgeted = effectiveBudgetedAmount(Number(rule.budgetedAmount) || 0, occurrence.multiplier, rule.monthOverrides, month);
     const spent = perCategorySpend[categoryId] ?? 0;
     const count = perCategoryCount[categoryId] ?? 0;
     progress[ruleDoc.id] = { budgeted, spent, remaining: budgeted - spent, count };
@@ -778,15 +902,16 @@ async function recomputeBudgetProgressForCategoryMonth(uid: string, categoryId: 
 }
 
 /**
- * Recomputes exactly one rule's entry in the CURRENT month's
+ * Recomputes exactly one rule's entry in one specific month's
  * statsBudgetProgress doc — mirrors functions/src/budgetRules.ts's
- * onBudgetRuleWrite, called after a budget rule is created, its amount
- * edited, or it's archived. Deliberately current-month-only, same as the
- * trigger version (past months shouldn't get rewritten by a later rule
- * edit).
+ * onBudgetRuleWrite. Takes an explicit month rather than assuming "now" so
+ * a rule newly anchored into a past month (a retrospective budget) can have
+ * that past month's snapshot populated too, and so a "this month only"
+ * amount override (rule.monthOverrides) can refresh just the one month it
+ * targets — see recomputeBudgetProgressForRuleCurrentMonth below for the
+ * current-month convenience wrapper most callers still want.
  */
-export async function recomputeBudgetProgressForRuleCurrentMonth(uid: string, ruleId: string) {
-  const month = monthKey(new Date());
+export async function recomputeBudgetProgressForRuleAndMonth(uid: string, ruleId: string, month: string): Promise<void> {
   const ruleSnap = await getDoc(budgetRuleRef(uid, ruleId));
   const rule = ruleSnap.data();
 
@@ -805,13 +930,24 @@ export async function recomputeBudgetProgressForRuleCurrentMonth(uid: string, ru
   const monthlySnap = await getDoc(statsMonthlyRef(uid, month));
   const spent = monthlySnap.data()?.perCategorySpend?.[rule.categoryId] ?? 0;
   const count = monthlySnap.data()?.perCategoryCount?.[rule.categoryId] ?? 0;
-  const budgeted = (Number(rule.budgetedAmount) || 0) * occurrence.multiplier;
+  const budgeted = effectiveBudgetedAmount(Number(rule.budgetedAmount) || 0, occurrence.multiplier, rule.monthOverrides, month);
 
   await setDoc(
     statsBudgetProgressRef(uid, month),
     { [ruleId]: { budgeted, spent, remaining: budgeted - spent, count } },
     { merge: true }
   );
+}
+
+/**
+ * Deliberately current-month-only, same as the onBudgetRuleWrite trigger
+ * this mirrors — a plain edit to a rule's own fields shouldn't rewrite
+ * already-closed past months' snapshots. Retrospective-anchor creation and
+ * "this month only" overrides both need a specific past month recomputed
+ * too, and call recomputeBudgetProgressForRuleAndMonth directly for that.
+ */
+export async function recomputeBudgetProgressForRuleCurrentMonth(uid: string, ruleId: string): Promise<void> {
+  await recomputeBudgetProgressForRuleAndMonth(uid, ruleId, monthKey(new Date()));
 }
 
 // ---------------------------------------------------------------------

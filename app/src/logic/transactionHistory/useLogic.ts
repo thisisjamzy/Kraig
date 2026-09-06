@@ -24,6 +24,7 @@ import { useFirestoreCollection } from '@/src/shared/firestore/hooks';
 import { transactionsRef, transfersRef } from '@/src/shared/firestore/refs';
 import { useAccounts, useCategories, useCurrencyContext } from '@/src/shared/firestore/queries';
 import { toDisplay } from '@/src/shared/firestore/currency';
+import { deleteTransactionWithAggregation, deleteTransferWithAggregation } from '@/src/shared/firestore/aggregation';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { walletColor } from '@/src/viewmodels/wallets';
 import type { FirestoreTransaction, FirestoreTransfer } from '@/src/shared/firestore/types';
@@ -97,6 +98,16 @@ export function useLogic() {
   const [filterOpen, setFilterOpen] = useState(false);
   const [typeFilter, setTypeFilter] = useState<TransactionTypeFilter>('All');
   const [accountFilter, setAccountFilter] = useState<string>('All');
+
+  // Long-press-to-select bulk delete — works on both transactions and
+  // transfers (kindById below resolves which delete path each selected id
+  // needs), since a transfer is a real ledger entry too and deserves the
+  // same delete capability a transaction has.
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const hasMonth = monthIndex !== null && year !== null && !backfillBatchId;
   const monthStr = hasMonth ? `${year}-${pad2(monthIndex + 1)}` : null;
 
@@ -140,24 +151,29 @@ export function useLogic() {
       limit(MONTH_ONLY_PAGE_SIZE)
     );
   }, [uid, hasMonth, year, monthIndex]);
-  // A backfill batch (PRD-AUDIT-RECONCILIATION.md section 1) never includes
-  // transfers — only createBackfillSpread's plain transactions or the
-  // Unjustified-wallet explain path's transaction half get tagged with a
-  // backfillBatchId, never the paired transfer — so batch mode skips this
-  // query entirely rather than fetching transfers it will never show.
   const allTimeTransfersQuery = useMemo(
     () => (uid && !hasMonth && !backfillBatchId ? query(transfersRef(uid), orderBy('date', 'desc'), limit(ALL_TIME_PAGE_SIZE)) : null),
     [uid, hasMonth, backfillBatchId]
+  );
+  // A backfill spread can now generate transfers too (Savings backfilled as
+  // "moved to another account", or a plain recurring Transfer) — tagged with
+  // the same backfillBatchId convention as the transaction side, so batch
+  // mode needs its own transfers query alongside backfillBatchQuery above.
+  const backfillBatchTransfersQuery = useMemo(
+    () => (uid && backfillBatchId ? query(transfersRef(uid), where('backfillBatchId', '==', backfillBatchId), orderBy('date', 'desc')) : null),
+    [uid, backfillBatchId]
   );
 
   const { data: monthOnlyTransferDocs, loading: monthOnlyTransfersLoading, error: monthOnlyTransfersError } =
     useFirestoreCollection<FirestoreTransfer>(monthOnlyTransfersQuery);
   const { data: allTimeTransferDocs, loading: allTimeTransfersLoading, error: allTimeTransfersError } =
     useFirestoreCollection<FirestoreTransfer>(allTimeTransfersQuery);
+  const { data: backfillBatchTransferDocs, loading: backfillBatchTransfersLoading, error: backfillBatchTransfersError } =
+    useFirestoreCollection<FirestoreTransfer>(backfillBatchTransfersQuery);
 
-  const transferDocs = hasMonth ? monthOnlyTransferDocs : allTimeTransferDocs;
-  const transfersLoading = hasMonth ? monthOnlyTransfersLoading : allTimeTransfersLoading;
-  const transfersError = hasMonth ? monthOnlyTransfersError : allTimeTransfersError;
+  const transferDocs = backfillBatchId ? backfillBatchTransferDocs : hasMonth ? monthOnlyTransferDocs : allTimeTransferDocs;
+  const transfersLoading = backfillBatchId ? backfillBatchTransfersLoading : hasMonth ? monthOnlyTransfersLoading : allTimeTransfersLoading;
+  const transfersError = backfillBatchId ? backfillBatchTransfersError : hasMonth ? monthOnlyTransfersError : allTimeTransfersError;
 
   const { data: accounts, loading: accountsLoading } = useAccounts();
   const { data: categories, loading: categoriesLoading } = useCategories();
@@ -251,12 +267,15 @@ export function useLogic() {
       // The reconciliation-paired transfer's own tag lives on its matching
       // transaction row instead (see mappedTransactions above) — PRD-
       // AUDIT-RECONCILIATION.md section 3 only asks that the transaction
-      // side be legible, not both halves independently.
-      origin: null as 'backfill' | 'reconciliation' | null,
+      // side be legible, not both halves independently. A backfilled
+      // transfer has no such paired transaction, so it carries its own tag
+      // directly, same as mappedTransactions above.
+      origin: transfer.isHistoricBackfill ? ('backfill' as const) : null,
     };
   });
 
   const allTransactions = [...mappedTransactions, ...mappedTransfers].sort((a, b) => b.sortMs - a.sortMs);
+  const kindById = useMemo(() => new Map(allTransactions.map((row) => [row.id, row.kind])), [allTransactions]);
 
   // Client-side, over whatever page the queries above already fetched —
   // this is a substring match Firestore itself can't do natively, and the
@@ -292,15 +311,81 @@ export function useLogic() {
     setFilterOpen((open) => !open);
   }
 
+  function enterSelectionMode(id: string) {
+    setSelectionMode(true);
+    setSelectedIds(new Set([id]));
+  }
+
+  function toggleSelected(id: string) {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function exitSelectionMode() {
+    setSelectionMode(false);
+    setSelectedIds(new Set());
+    setDeleteError(null);
+  }
+
+  function openConfirmDelete() {
+    if (selectedIds.size === 0) return;
+    setDeleteError(null);
+    setConfirmDeleteOpen(true);
+  }
+
+  function cancelConfirmDelete() {
+    setConfirmDeleteOpen(false);
+  }
+
+  // Sequential, not concurrent — same reasoning as every other bulk write in
+  // this codebase (importCsv, backfill's commitBackfillSpread): a handful of
+  // simultaneous writes to the same account/statsMonthly/stats-home docs
+  // would just contend with each other for no benefit. A failure partway
+  // through leaves what's already deleted gone and what's left still
+  // selected, so retrying only re-attempts what didn't succeed.
+  async function confirmDeleteSelected() {
+    if (!uid || deleting || selectedIds.size === 0) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      for (const id of selectedIds) {
+        if (kindById.get(id) === 'transfer') {
+          await deleteTransferWithAggregation(uid, id);
+        } else {
+          await deleteTransactionWithAggregation(uid, id, ctx);
+        }
+        setSelectedIds((current) => {
+          const next = new Set(current);
+          next.delete(id);
+          return next;
+        });
+      }
+      setConfirmDeleteOpen(false);
+      exitSelectionMode();
+    } catch (error) {
+      setDeleteError(error instanceof Error ? error.message : 'Could not delete the selected transactions.');
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   // Title: the month being viewed, the batch's own title, or the screen's
   // generic default.
   const monthLabel = backfillBatchId
-    ? (transactionDocs[0]?.description ?? 'Backfilled transactions')
+    ? (transactionDocs[0]?.description ?? transferDocs[0]?.description ?? 'Backfilled transactions')
     : hasMonth
       ? new Date(year!, monthIndex!, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
       : null;
 
   function goBack() {
+    if (selectionMode) {
+      exitSelectionMode();
+      return;
+    }
     router.push(backfillBatchId ? '/settings/backfill/batches' : '/home');
   }
 
@@ -332,5 +417,17 @@ export function useLogic() {
     accounts,
     hasActiveFilters,
     clearFilters,
+
+    selectionMode,
+    selectedIds,
+    enterSelectionMode,
+    toggleSelected,
+    exitSelectionMode,
+    confirmDeleteOpen,
+    openConfirmDelete,
+    cancelConfirmDelete,
+    confirmDeleteSelected,
+    deleting,
+    deleteError,
   };
 }

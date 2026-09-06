@@ -2,14 +2,14 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { query, where, orderBy, limit, setDoc, updateDoc, arrayUnion } from 'firebase/firestore';
-import { ruleAppliesToMonth } from '@dreda/shared-recurrence';
+import { ruleAppliesToMonth, effectiveBudgetedAmount } from '@dreda/shared-recurrence';
 import { ArrowUpRight, ArrowDownLeft, PiggyBank, type LucideIcon } from 'lucide-react';
 import { useFirestoreCollection, useFirestoreDoc } from '@/src/shared/firestore/hooks';
 import { budgetRulesRef, budgetRuleRef, statsMonthlyRef, budgetPlanRef, transactionsRef } from '@/src/shared/firestore/refs';
 import { useAccounts, useCategories, useCurrencyContext } from '@/src/shared/firestore/queries';
 import { toDisplay, round2 } from '@/src/shared/firestore/currency';
 import { toRecurrenceRule } from '@/src/shared/firestore/recurrence';
-import { recomputeBudgetProgressForRuleCurrentMonth } from '@/src/shared/firestore/aggregation';
+import { recomputeBudgetProgressForRuleCurrentMonth, recomputeBudgetProgressForRuleAndMonth } from '@/src/shared/firestore/aggregation';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { currentMonthIndex, currentYear, toFrequencyFields, type Recurrence } from '@/src/viewmodels/budget';
 import { TRANSFER_CATEGORIES } from '@/src/viewmodels/categories';
@@ -67,10 +67,16 @@ function monthTargetFromSearch(): { year: number; month: number } | null {
   return { year, month };
 }
 
-function toAppRecurrence(rule: FirestoreBudgetRule): { recurrence: Recurrence; recurrenceMonths?: number } {
+function toAppRecurrence(
+  rule: FirestoreBudgetRule
+): { recurrence: Recurrence; recurrenceMonths?: number; endMonthIndex?: number; endYear?: number } {
   if (rule.frequency === 'Once') return { recurrence: 'once' };
   if (rule.endCondition === 'After Occurrences' && rule.endOccurrences) {
     return { recurrence: 'limited', recurrenceMonths: rule.endOccurrences };
+  }
+  if (rule.endCondition === 'On Date' && rule.endDate) {
+    const end = rule.endDate.toDate();
+    return { recurrence: 'until', endMonthIndex: end.getMonth(), endYear: end.getFullYear() };
   }
   return { recurrence: 'monthly' };
 }
@@ -105,8 +111,12 @@ export function useLogic() {
   const [editCategoryId, setEditCategoryId] = useState('');
   const [editDescriptionDraft, setEditDescriptionDraft] = useState('');
   const [editAmountDraft, setEditAmountDraft] = useState('');
-  const [editRecurrence, setEditRecurrence] = useState<Recurrence>('monthly');
+  const [editRecurrence, setEditRecurrenceState] = useState<Recurrence>('monthly');
   const [editRecurrenceMonths, setEditRecurrenceMonths] = useState('3');
+  const [editEndMonthIndex, setEditEndMonthIndex] = useState(currentMonthIndex());
+  const [editEndYear, setEditEndYear] = useState(currentYear());
+  const [editEndPickerOpen, setEditEndPickerOpen] = useState(false);
+  const [editEndPickerYear, setEditEndPickerYear] = useState(editEndYear);
   const [editError, setEditError] = useState<string | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
 
@@ -115,6 +125,27 @@ export function useLogic() {
   function setEditType(type: BudgetLineType) {
     setEditTypeState(type);
     setEditCategoryId('');
+  }
+
+  // Picking "until" needs a real end month to point at — seed it fresh off
+  // today's month each time (openEdit re-seeds it from the rule's own
+  // existing end date when there is one), rather than a stale leftover.
+  function setEditRecurrence(next: Recurrence) {
+    if (next === 'until' && editRecurrence !== 'until') {
+      setEditEndMonthIndex(currentMonthIndex());
+      setEditEndYear(currentYear());
+    }
+    setEditRecurrenceState(next);
+  }
+
+  function openEditEndPicker() {
+    setEditEndPickerYear(editEndYear);
+    setEditEndPickerOpen(true);
+  }
+  function chooseEditEndMonth(index: number) {
+    setEditEndMonthIndex(index);
+    setEditEndYear(editEndPickerYear);
+    setEditEndPickerOpen(false);
   }
 
   const monthStr = `${year}-${pad2(monthIndex + 1)}`;
@@ -167,7 +198,10 @@ export function useLogic() {
         const occurrence = ruleAppliesToMonth(toRecurrenceRule(rule), y, m);
         if (!occurrence || rule.excludedMonths?.includes(monthStr)) return null;
         const ruleNative = rule.accountId ? accountCurrency.get(rule.accountId) ?? ctx.base : ctx.base;
-        const budgeted = round2(toDisplay(ctx, rule.budgetedAmount * occurrence.multiplier, ruleNative));
+        const budgeted = round2(
+          toDisplay(ctx, effectiveBudgetedAmount(rule.budgetedAmount, occurrence.multiplier, rule.monthOverrides, monthStr), ruleNative)
+        );
+        const hasMonthOverride = Boolean(rule.monthOverrides?.[monthStr]);
         const spentBase = statsMonthly?.perCategorySpend?.[rule.categoryId] ?? 0;
         const spent = round2(toDisplay(ctx, spentBase, ctx.base));
         const bucket = toAppRecurrence(rule);
@@ -181,6 +215,9 @@ export function useLogic() {
           spent,
           recurrence: bucket.recurrence,
           recurrenceMonths: bucket.recurrenceMonths,
+          endMonthIndex: bucket.endMonthIndex,
+          endYear: bucket.endYear,
+          hasMonthOverride,
         };
       })
       .filter((entry): entry is NonNullable<typeof entry> => entry !== null)
@@ -331,31 +368,53 @@ export function useLogic() {
     budgeted: number;
     recurrence: Recurrence;
     recurrenceMonths?: number;
+    endMonthIndex?: number;
+    endYear?: number;
   }) {
     setEditingId(entry.id);
     setEditTypeState(entry.type);
     setEditCategoryId(entry.categoryId);
     setEditDescriptionDraft(entry.description);
     setEditAmountDraft(String(entry.budgeted || ''));
-    setEditRecurrence(entry.recurrence);
+    // Sets the raw state directly, not the setEditRecurrence wrapper — that
+    // wrapper's "reset the end month to today" side effect is only for a
+    // person actively switching to 'until' in the picker, not for seeding
+    // the form from a rule that may already have its own real end date.
+    setEditRecurrenceState(entry.recurrence);
     setEditRecurrenceMonths(String(entry.recurrenceMonths ?? 3));
+    setEditEndMonthIndex(entry.endMonthIndex ?? currentMonthIndex());
+    setEditEndYear(entry.endYear ?? currentYear());
     setEditError(null);
   }
 
-  async function handleSaveEdit() {
+  // 'thisMonth': only the amount changes, only for monthStr (the month
+  // currently being viewed, which may be in the past) — categoryId/type/
+  // description/recurrence stay whatever the series already has, since
+  // those describe the whole line, not one month of it. 'allMonths' is the
+  // original whole-rule edit, unchanged. A 'Once' rule has no "other
+  // months" to distinguish from, so the screen never offers 'thisMonth' for
+  // one — always called with 'allMonths' there.
+  async function handleSaveEdit(scope: 'thisMonth' | 'allMonths') {
     if (!editingId || !editCategoryId || savingEdit || !uid) return;
     const amount = Number(editAmountDraft.replace(/[^0-9]/g, ''));
     setSavingEdit(true);
     setEditError(null);
     try {
-      await updateDoc(budgetRuleRef(uid, editingId), {
-        categoryId: editCategoryId,
-        type: editType,
-        description: editDescriptionDraft.trim(),
-        budgetedAmount: amount,
-        ...toFrequencyFields(editRecurrence, editRecurrenceMonths),
-      });
-      await recomputeBudgetProgressForRuleCurrentMonth(uid, editingId);
+      if (scope === 'thisMonth') {
+        await updateDoc(budgetRuleRef(uid, editingId), {
+          [`monthOverrides.${monthStr}`]: { budgetedAmount: amount },
+        });
+        await recomputeBudgetProgressForRuleAndMonth(uid, editingId, monthStr);
+      } else {
+        await updateDoc(budgetRuleRef(uid, editingId), {
+          categoryId: editCategoryId,
+          type: editType,
+          description: editDescriptionDraft.trim(),
+          budgetedAmount: amount,
+          ...toFrequencyFields(editRecurrence, editRecurrenceMonths, { monthIndex: editEndMonthIndex, year: editEndYear }),
+        });
+        await recomputeBudgetProgressForRuleCurrentMonth(uid, editingId);
+      }
       setEditingId(null);
     } catch (error) {
       setEditError(error instanceof Error ? error.message : 'Could not update this budget item.');
@@ -484,6 +543,14 @@ export function useLogic() {
     setEditRecurrence,
     editRecurrenceMonths,
     setEditRecurrenceMonths,
+    editEndMonthIndex,
+    editEndYear,
+    editEndPickerOpen,
+    openEditEndPicker,
+    closeEditEndPicker: () => setEditEndPickerOpen(false),
+    editEndPickerYear,
+    setEditEndPickerYear,
+    chooseEditEndMonth,
     savingEdit,
     editError,
     totalBudget,
