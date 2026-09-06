@@ -5,11 +5,10 @@
 // of callers rely on it now: Settings' name/email (PRD-AUTH-FIREBASE.md
 // section 6), and every Firestore query hook (src/shared/firestore/
 // queries.ts) that needs the real uid to build its query. Route protection
-// itself (proxy.ts) still only reads its own local cookies, never this —
-// but PinGuard and src/logic/pin/useLogic.ts do use this hook to confirm a
-// real Firebase session actually backs those cookies before trusting them,
-// see authSession.ts's clearAllLocalAuthFlags header for why that check
-// exists.
+// itself (proxy.ts) still only reads its own local cookie, never this — but
+// AuthGuard (src/widgets/AuthGuard) does use this hook to confirm a real
+// Firebase session actually backs that cookie before trusting it, see
+// authSession.ts's header for why that check exists.
 
 import { useEffect, useState } from 'react';
 import { onAuthStateChanged, type User } from 'firebase/auth';

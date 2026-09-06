@@ -72,14 +72,10 @@ export function OAuthButtons({ dividerLabel, googleLabel, appleLabel, onError }:
         if (!result || cancelled || handledRedirect.current) return;
         handledRedirect.current = true;
 
-        await ensureUserDoc(result.user);
+        const { isNewAccount } = await ensureUserDoc(result.user);
 
-        // No "is this a new account" hint here (unlike the password sign-up
-        // path) — an OAuth sign-in could be either, and there's no session
-        // route anymore to ask. /pin's own fallback (try verify, flip to
-        // "create" mode on a NO_PIN response) already covers both cases.
         markSignedIn();
-        router.push('/pin');
+        router.push(isNewAccount ? '/onboarding' : '/loading');
       } catch (error) {
         if (!cancelled) onError?.(error instanceof Error ? error.message : 'Sign-in failed.');
       }

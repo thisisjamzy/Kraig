@@ -30,7 +30,12 @@ const DEFAULT_EXCHANGE_RATES: Record<string, { rateToBase: number; notes: string
   GBP: { rateToBase: 765, notes: 'approximate — update periodically' },
 };
 
-export async function ensureUserDoc(user: User): Promise<void> {
+// Returns whether this call just created users/{uid} (a genuinely new
+// account) or found it already there (a returning sign-in) — sign-in,
+// sign-up, and OAuthButtons all use this to decide whether to route to
+// /onboarding or straight into the app, now that there's no PIN screen's
+// own create-vs-verify fallback to lean on for that distinction.
+export async function ensureUserDoc(user: User): Promise<{ isNewAccount: boolean }> {
   const ref = userRef(user.uid);
   const snap = await getDoc(ref);
   if (snap.exists()) {
@@ -40,7 +45,7 @@ export async function ensureUserDoc(user: User): Promise<void> {
     // account" branch below; this is the lazy backfill path for it.
     // Idempotent (checks existence first), safe to call on every login.
     await ensureUnjustifiedWallet(user.uid, 'XAF');
-    return;
+    return { isNewAccount: false };
   }
 
   await setDoc(ref, {
@@ -65,4 +70,5 @@ export async function ensureUserDoc(user: User): Promise<void> {
   );
 
   await ensureUnjustifiedWallet(user.uid, 'XAF');
+  return { isNewAccount: true };
 }

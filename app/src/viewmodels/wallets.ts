@@ -55,3 +55,19 @@ export const ACCOUNT_TYPES = [
   'E-wallet',
   'Current Account',
 ] as const;
+
+// The one ACCOUNT_TYPES value with special behavior: money can always flow
+// INTO a Savings Account (a transaction crediting it, or a transfer whose
+// toAccountId is one), but it can never fund a direct Expense — see
+// src/logic/addTransaction/useLogic.ts and src/logic/editTransaction/
+// useLogic.ts, which both filter it out of the "which wallet is this
+// spent from" picker. Moving money back out to a spendable wallet is a
+// deliberate Transfer (still allowed, since a Transfer's own fromAccountId
+// isn't a "direct spend"). "Total savings" everywhere in the app (Budget,
+// Statistics, Home) is just the live balance sum of accounts of this type —
+// see src/viewmodels/savingsTransfers.ts.
+export const SAVINGS_ACCOUNT_TYPE = 'Savings Account';
+
+export function isSavingsAccount(account: { type: string }): boolean {
+  return account.type === SAVINGS_ACCOUNT_TYPE;
+}

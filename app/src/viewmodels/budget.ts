@@ -1,5 +1,5 @@
 import { Timestamp } from 'firebase/firestore';
-import type { Frequency, EndCondition } from '@/src/shared/firestore/types';
+import type { Frequency, EndCondition, FirestoreBudgetRule } from '@/src/shared/firestore/types';
 
 // 'until' is new — repeats every month same as 'monthly', but stops after a
 // specific end month/year the user picks, rather than after a raw count of
@@ -36,4 +36,22 @@ export function toFrequencyFields(
     endDate:
       recurrence === 'until' && endMonth ? Timestamp.fromDate(new Date(endMonth.year, endMonth.monthIndex, 1)) : null,
   };
+}
+
+// The inverse of toFrequencyFields above — reads a stored rule's own
+// Frequency/EndCondition fields back into the recurrence picker's shape.
+// Shared by src/logic/budget (the Budget screen's own category list) and
+// src/logic/editBudgetCategory (its standalone edit page).
+export function toAppRecurrence(
+  rule: FirestoreBudgetRule
+): { recurrence: Recurrence; recurrenceMonths?: number; endMonthIndex?: number; endYear?: number } {
+  if (rule.frequency === 'Once') return { recurrence: 'once' };
+  if (rule.endCondition === 'After Occurrences' && rule.endOccurrences) {
+    return { recurrence: 'limited', recurrenceMonths: rule.endOccurrences };
+  }
+  if (rule.endCondition === 'On Date' && rule.endDate) {
+    const end = rule.endDate.toDate();
+    return { recurrence: 'until', endMonthIndex: end.getMonth(), endYear: end.getFullYear() };
+  }
+  return { recurrence: 'monthly' };
 }

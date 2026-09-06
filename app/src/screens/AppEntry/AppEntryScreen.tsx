@@ -19,6 +19,7 @@ export function AppEntryScreen() {
   // 'checking': this is what SSR itself sends down (isStandalonePwa() can
   // only run client-side, so the initial render always lands here) — show
   // the logo-centered loading screen instead of a blank page while the
-  // effect above decides splash vs. straight-to-/pin.
+  // effect above decides splash vs. forced sign-out and straight to
+  // /sign-in.
   return <LoadingScreen />;
 }

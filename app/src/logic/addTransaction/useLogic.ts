@@ -13,6 +13,7 @@ import { useAccounts, useCategories, useCurrencyContext } from '@/src/shared/fir
 import { createTransferWithAggregation } from '@/src/shared/firestore/aggregation';
 import { recordHistoricEntry } from '@/src/shared/firestore/unaccountedBalance';
 import { TRANSFER_CATEGORIES } from '@/src/viewmodels/categories';
+import { isSavingsAccount } from '@/src/viewmodels/wallets';
 import type { FirestoreBudgetRule, FirestoreCategory, FirestoreAccount } from '@/src/shared/firestore/types';
 
 export type TransactionType = 'expense' | 'income' | 'transfer' | 'savings';
@@ -161,6 +162,11 @@ export function useLogic() {
   // unfrozen (see aggregation.ts's frozen checks, the enforcement point this
   // filter is just the UX side of).
   const accounts = allAccounts.filter((account) => !account.frozen);
+  // A Savings Account can always receive money (Income, Savings, or either
+  // side of a Transfer — that's how money becomes savings, or how it moves
+  // back out to a spendable wallet), but it can never fund a direct Expense.
+  // Used below to keep it out of that one picker specifically.
+  const spendableAccounts = accounts.filter((account) => !isSavingsAccount(account));
   const isTransfer = type === 'transfer';
   // "Moved" savings never touches a Savings envelope category — it's a
   // plain wallet-to-wallet move with a hardcoded kind — so it behaves like
@@ -197,12 +203,28 @@ export function useLogic() {
     return ids;
   }, [budgetRules, dateYear, dateMonth, dateMonthKey]);
 
-  // Default both account pickers once accounts load, distinct accounts for from/to.
+  // Default both account pickers once accounts load, distinct accounts for
+  // from/to. fromAccountId defaults to a spendable one — the initial type
+  // is 'expense', and a Savings Account can't fund that.
   useEffect(() => {
     if (accounts.length === 0) return;
-    setFromAccountId((current) => current || accounts[0].id);
+    setFromAccountId((current) => current || spendableAccounts[0]?.id || accounts[0].id);
     setToAccountId((current) => current || accounts[Math.min(1, accounts.length - 1)].id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accounts]);
+
+  // A Savings Account can never fund a direct Expense — if the type just
+  // switched to 'expense' (or accounts reloaded) while one happened to be
+  // selected, fall back to the first spendable account rather than letting
+  // a "blocked" account silently pay for something.
+  useEffect(() => {
+    if (type !== 'expense') return;
+    const current = accounts.find((account) => account.id === fromAccountId);
+    if (current && isSavingsAccount(current)) {
+      setFromAccountId(spendableAccounts[0]?.id ?? '');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [type, fromAccountId, accounts]);
 
   const isExpense = type === 'expense';
   const date = formatDisplayDate(dateValue);
@@ -454,6 +476,7 @@ export function useLogic() {
     setShowUnplanned,
     budgetHref,
     accounts,
+    spendableAccounts,
     datePickerOpen,
     setDatePickerOpen,
     pickerMonth,

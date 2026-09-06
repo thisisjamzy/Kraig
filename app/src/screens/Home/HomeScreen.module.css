@@ -424,7 +424,7 @@
   align-items: flex-end;
   justify-content: space-between;
   gap: var(--space-xs);
-  height: 140px;
+  height: 220px;
   padding-bottom: var(--space-sm);
   border-bottom: 1px solid var(--color-border);
 }

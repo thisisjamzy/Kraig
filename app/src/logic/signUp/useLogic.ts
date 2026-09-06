@@ -27,14 +27,14 @@ export function useLogic() {
       // No session route anymore (PRD-FIREBASE.md section 1) and no
       // onCreate Auth trigger either (Spark plan, no Cloud Functions
       // deployed — see firestore.rules' header) — ensureUserDoc creates
-      // users/{uid} itself, awaited here so it exists before /pin's own
-      // Firestore reads ever run.
+      // users/{uid} itself, awaited here so it exists before onboarding's
+      // own Firestore reads ever run.
       const credential = await createUserWithEmailAndPassword(getFirebaseAuth(), email, password);
       await updateProfile(credential.user, { displayName: name.trim() });
       await ensureUserDoc(credential.user);
 
-      markSignedIn({ isNewAccount: true });
-      router.push('/pin');
+      markSignedIn();
+      router.push('/onboarding');
     } catch (err) {
       setError(firebaseErrorMessage(err));
       setSubmitting(false);

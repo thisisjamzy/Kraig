@@ -19,6 +19,7 @@ import { transactionRef } from '@/src/shared/firestore/refs';
 import { useAccounts, useCategories, useCurrencyContext } from '@/src/shared/firestore/queries';
 import { updateTransactionWithAggregation, deleteTransactionWithAggregation } from '@/src/shared/firestore/aggregation';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
+import { isSavingsAccount } from '@/src/viewmodels/wallets';
 import type { FirestoreTransaction } from '@/src/shared/firestore/types';
 
 export type EditableTransactionType = 'Expense' | 'Income' | 'Savings';
@@ -47,6 +48,13 @@ export function useLogic(transactionId: string) {
   // an in-progress edit) — aggregation.ts's own frozen check is still the
   // real enforcement point at save time.
   const accounts = allAccounts.filter((account) => !account.frozen || account.id === original?.accountId);
+  // A Savings Account can never fund a direct Expense — same rule
+  // src/logic/addTransaction/useLogic.ts enforces, with the same escape
+  // hatch: a transaction already recorded against one stays selectable
+  // rather than silently dropping out from under an in-progress edit.
+  const spendableAccounts = accounts.filter(
+    (account) => !isSavingsAccount(account) || account.id === original?.accountId
+  );
 
   const [description, setDescription] = useState('');
   const [type, setTypeState] = useState<EditableTransactionType>('Expense');
@@ -67,9 +75,20 @@ export function useLogic(transactionId: string) {
   // belongs to the old type's list) — setType is the only way the form
   // itself changes type, so clearing categoryId here can't also fire during
   // the initial seed below (that sets categoryId directly, after setType).
+  // Switching TO Expense also drops the selected account if it's a Savings
+  // Account (unless it's the transaction's own original account, still
+  // protected by the same escape hatch spendableAccounts uses) — a Savings
+  // Account can never fund a direct Expense.
   function setType(nextType: EditableTransactionType) {
     setTypeState(nextType);
     setCategoryId('');
+    if (nextType === 'Expense') {
+      setAccountId((current) => {
+        const account = accounts.find((a) => a.id === current);
+        if (!account || !isSavingsAccount(account) || current === original?.accountId) return current;
+        return spendableAccounts[0]?.id ?? '';
+      });
+    }
   }
 
   const { ctx } = useCurrencyContext();
@@ -162,6 +181,7 @@ export function useLogic(transactionId: string) {
     accountId,
     setAccountId,
     accounts,
+    spendableAccounts,
     dateValue,
     setDateValue,
     canSave,

@@ -2,12 +2,12 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, Pencil, Trash2, Plus } from 'lucide-react';
+import { CalendarDays, Check, ChevronLeft, ChevronRight, Pencil, Trash2, Plus } from 'lucide-react';
 import Link from 'next/link';
 import { Modal } from '@/src/widgets/Modal/Modal';
 import { ActionMenu } from '@/src/widgets/ActionMenu/ActionMenu';
 import { ConfirmDialog } from '@/src/widgets/ConfirmDialog/ConfirmDialog';
-import { useLogic, formatAmount, BUDGET_LINE_TYPES } from '@/src/logic/budget/useLogic';
+import { useLogic, formatAmount } from '@/src/logic/budget/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import styles from './BudgetScreen.module.css';
@@ -38,30 +38,6 @@ export function BudgetScreen() {
     currencyOptions,
     setCurrency,
     addBudgetCategoryHref,
-    editingCategory,
-    editAvailableCategories,
-    editType,
-    setEditType,
-    editCategoryId,
-    setEditCategoryId,
-    editDescriptionDraft,
-    setEditDescriptionDraft,
-    editAmountDraft,
-    setEditAmountDraft,
-    editRecurrence,
-    setEditRecurrence,
-    editRecurrenceMonths,
-    setEditRecurrenceMonths,
-    editEndMonthIndex,
-    editEndYear,
-    editEndPickerOpen,
-    openEditEndPicker,
-    closeEditEndPicker,
-    editEndPickerYear,
-    setEditEndPickerYear,
-    chooseEditEndMonth,
-    savingEdit,
-    editError,
     plannedIncome,
     plannedSavings,
     actualIncome,
@@ -78,10 +54,7 @@ export function BudgetScreen() {
     error,
     openMonthPicker,
     chooseMonth,
-    openEdit,
-    handleSaveEdit,
     handleDelete,
-    setEditingId,
   } = useLogic();
 
   const monthNames = strings.months;
@@ -264,7 +237,8 @@ export function BudgetScreen() {
                         key: 'edit',
                         label: strings.budget.editAction,
                         icon: <Pencil size={16} strokeWidth={1.75} />,
-                        onSelect: () => openEdit(entry),
+                        onSelect: () =>
+                          router.push(`/edit-budget-category/${entry.id}?month=${monthIndex}&year=${year}`),
                       },
                       {
                         key: 'delete',
@@ -405,199 +379,6 @@ export function BudgetScreen() {
         </Modal>
       )}
 
-      {editingCategory && (
-        <Modal
-          title={`${editingCategory.category} ${strings.budget.editCategoryTitleSuffix}`}
-          onClose={() => setEditingId(null)}
-        >
-          <div className={styles.formField}>
-            <span className={styles.formLabel}>{strings.budget.typeLabel}</span>
-            <div className={styles.recurrenceGroup}>
-              {BUDGET_LINE_TYPES.map((option) => (
-                <button
-                  key={option}
-                  type="button"
-                  className={`${styles.recurrenceOption} ${editType === option ? styles.recurrenceOptionActive : ''}`}
-                  onClick={() => setEditType(option)}
-                >
-                  {strings.budget.typeLabels[option]}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className={styles.formField}>
-            <label className={styles.formLabel} htmlFor="edit-category-id">
-              {strings.budget.categoryLabel}
-            </label>
-            {editAvailableCategories.length === 0 ? (
-              <p className={styles.emptyText}>{strings.budget.noCategoriesLeft}</p>
-            ) : (
-              <select
-                id="edit-category-id"
-                className={styles.formInput}
-                value={editCategoryId}
-                onChange={(event) => setEditCategoryId(event.target.value)}
-              >
-                {editCategoryId === '' && (
-                  <option value="" disabled>
-                    {strings.budget.categoryPlaceholder}
-                  </option>
-                )}
-                {editAvailableCategories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
-              </select>
-            )}
-          </div>
-          <div className={styles.formField}>
-            <label className={styles.formLabel} htmlFor="edit-category-description">
-              {strings.budget.descriptionLabel}
-            </label>
-            <textarea
-              id="edit-category-description"
-              className={styles.formTextarea}
-              value={editDescriptionDraft}
-              onChange={(event) => setEditDescriptionDraft(event.target.value)}
-              placeholder={strings.budget.descriptionPlaceholder}
-              rows={3}
-            />
-          </div>
-          <div className={styles.formField}>
-            <label className={styles.formLabel} htmlFor="edit-category-amount">
-              {strings.budget.amountLabel}
-            </label>
-            <input
-              id="edit-category-amount"
-              className={styles.formInput}
-              inputMode="numeric"
-              value={editAmountDraft}
-              onChange={(event) => setEditAmountDraft(event.target.value.replace(/[^0-9]/g, ''))}
-              placeholder="0"
-            />
-          </div>
-
-          <div className={styles.formField}>
-            <span className={styles.formLabel}>{strings.budget.editRecurrenceLabel}</span>
-            <div className={styles.recurrenceGroup}>
-              {strings.budget.recurrenceOptions.map((option) => (
-                <button
-                  key={option.key}
-                  type="button"
-                  className={`${styles.recurrenceOption} ${
-                    editRecurrence === option.key ? styles.recurrenceOptionActive : ''
-                  }`}
-                  onClick={() => setEditRecurrence(option.key)}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-            {editRecurrence === 'limited' && (
-              <div className={styles.recurrenceMonthsRow}>
-                <input
-                  className={styles.recurrenceMonthsInput}
-                  inputMode="numeric"
-                  value={editRecurrenceMonths}
-                  onChange={(event) =>
-                    setEditRecurrenceMonths(event.target.value.replace(/[^0-9]/g, ''))
-                  }
-                />
-                <span className={styles.recurrenceMonthsLabel}>{strings.budget.monthsSuffix}</span>
-              </div>
-            )}
-          </div>
-
-          {editRecurrence === 'until' && (
-            <div className={styles.formField}>
-              <span className={styles.formLabel}>{strings.addBudgetCategory.endMonthLabel}</span>
-              <button type="button" className={styles.monthPickerButton} onClick={openEditEndPicker}>
-                {monthNames[editEndMonthIndex]} {editEndYear}
-                <ChevronDown size={14} strokeWidth={2.5} />
-              </button>
-            </div>
-          )}
-
-          {editingCategory.hasMonthOverride && (
-            <p className={styles.overrideHint}>{strings.budget.monthOverrideHint}</p>
-          )}
-
-          {editError && (
-            <p className={styles.errorText} role="alert">
-              {editError}
-            </p>
-          )}
-
-          {editingCategory.recurrence === 'once' ? (
-            <button
-              type="button"
-              className={styles.modalSaveButton}
-              disabled={!editCategoryId || savingEdit}
-              onClick={() => handleSaveEdit('allMonths')}
-            >
-              {strings.common.save}
-            </button>
-          ) : (
-            <div className={styles.editSaveRow}>
-              <button
-                type="button"
-                className={styles.editSaveThisMonthButton}
-                disabled={!editCategoryId || savingEdit}
-                onClick={() => handleSaveEdit('thisMonth')}
-              >
-                {strings.budget.saveThisMonthOnly}
-              </button>
-              <button
-                type="button"
-                className={styles.modalSaveButton}
-                disabled={!editCategoryId || savingEdit}
-                onClick={() => handleSaveEdit('allMonths')}
-              >
-                {strings.budget.saveAllMonths}
-              </button>
-            </div>
-          )}
-        </Modal>
-      )}
-
-      {editEndPickerOpen && (
-        <Modal title={strings.addBudgetCategory.chooseEndMonth} onClose={closeEditEndPicker}>
-          <div className={styles.yearStepper}>
-            <button
-              type="button"
-              className={styles.yearStepButton}
-              onClick={() => setEditEndPickerYear((value) => value - 1)}
-              aria-label="Previous year"
-            >
-              <ChevronLeft size={16} strokeWidth={2} />
-            </button>
-            <span className={styles.yearStepValue}>{editEndPickerYear}</span>
-            <button
-              type="button"
-              className={styles.yearStepButton}
-              onClick={() => setEditEndPickerYear((value) => value + 1)}
-              aria-label="Next year"
-            >
-              <ChevronRight size={16} strokeWidth={2} />
-            </button>
-          </div>
-          <div className={styles.monthGrid}>
-            {monthNames.map((name, index) => (
-              <button
-                key={name}
-                type="button"
-                className={`${styles.monthButton} ${
-                  index === editEndMonthIndex && editEndPickerYear === editEndYear ? styles.monthButtonActive : ''
-                }`}
-                onClick={() => chooseEditEndMonth(index)}
-              >
-                {name.slice(0, 3)}
-              </button>
-            ))}
-          </div>
-        </Modal>
-      )}
     </div>
   );
 }

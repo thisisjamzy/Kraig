@@ -14,7 +14,7 @@
 // other way — an explicit, impossible-to-forget parameter, and it keeps
 // this module free of any dependency on auth state or React.
 
-import { collection, doc, type CollectionReference, type DocumentReference, type Timestamp } from 'firebase/firestore';
+import { collection, doc, type CollectionReference, type DocumentReference } from 'firebase/firestore';
 import { getFirebaseFirestore } from '@/src/shared/config/firebaseClient';
 import type {
   FirestoreAccount,
@@ -219,12 +219,4 @@ export function reconciliationRef(uid: string, id: string): DocumentReference<Om
 
 export function userRef(uid: string): DocumentReference<FirestoreUserDoc> {
   return doc(getFirebaseFirestore(), 'users', uid) as DocumentReference<FirestoreUserDoc>;
-}
-
-export interface PinDoc {
-  pinHash: string;
-  updatedAt?: Timestamp;
-}
-export function userPinRef(uid: string): DocumentReference<PinDoc> {
-  return doc(getFirebaseFirestore(), 'users', uid, 'private', 'pin') as DocumentReference<PinDoc>;
 }

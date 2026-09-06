@@ -17,7 +17,7 @@ import { toDisplay, round2 } from '@/src/shared/firestore/currency';
 import { toRecurrenceRule } from '@/src/shared/firestore/recurrence';
 import { computeUpcomingPayments } from '@/src/shared/firestore/upcomingPayments';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
-import { walletColor, arrangeCentered } from '@/src/viewmodels/wallets';
+import { walletColor, arrangeCentered, isSavingsAccount } from '@/src/viewmodels/wallets';
 import { currencyName } from '@/src/viewmodels/currencies';
 import { dueLabel, formatDueDate } from '@/src/logic/paymentsCalendar/useLogic';
 import type {
@@ -194,10 +194,15 @@ export function useLogic() {
   const { data: unjustifiedWallet } = useFirestoreDoc<FirestoreAccount>(unjustifiedRef);
   const unjustifiedBalance = round2(toDisplay(ctx, unjustifiedWallet?.currentBalance ?? 0, unjustifiedWallet?.currency ?? ctx.base));
 
-  // Money set aside as savings via lockedAmount (src/logic/walletDetail/
-  // useLogic.ts), summed across every wallet.
-  const savingsTotal = round2(
-    accounts.reduce((sum, account) => sum + toDisplay(ctx, account.lockedAmount ?? 0, account.currency), 0)
+  // Savings is account-type based (see src/viewmodels/savingsTransfers.ts) —
+  // the live compounding total across every Savings Account, not this
+  // month's flow. Not the wallet lockedAmount figure this tile used to show
+  // either (which read 0 for any household that never used per-wallet
+  // locking, even with real savings activity every month) — a Savings
+  // Account's own currentBalance already bakes in everything that ever
+  // touched it, so this needs no query of its own.
+  const netSavings = round2(
+    accounts.filter(isSavingsAccount).reduce((sum, account) => sum + toDisplay(ctx, account.currentBalance, account.currency), 0)
   );
 
   // How far into the current calendar month "now" falls, as a 0-100 percent
@@ -210,7 +215,7 @@ export function useLogic() {
     total: totalBalance,
     spendable: spendableBalance,
     unjustified: unjustifiedBalance,
-    savings: savingsTotal,
+    savings: netSavings,
     monthProgress,
   };
 

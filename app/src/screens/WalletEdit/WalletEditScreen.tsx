@@ -5,6 +5,7 @@ import { useLogic } from '@/src/logic/walletEdit/useLogic';
 import { formatAmount } from '@/src/logic/walletDetail/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
+import { SAVINGS_ACCOUNT_TYPE } from '@/src/viewmodels/wallets';
 import styles from './WalletEditScreen.module.css';
 
 export function WalletEditScreen({ walletId }: { walletId: string }) {
@@ -16,6 +17,9 @@ export function WalletEditScreen({ walletId }: { walletId: string }) {
     setName,
     shortName,
     setShortName,
+    type,
+    setType,
+    accountTypes,
     startingBalance,
     setStartingBalance,
     notSpendable,
@@ -83,6 +87,26 @@ export function WalletEditScreen({ walletId }: { walletId: string }) {
                 placeholder={strings.wallets.shortNamePlaceholder}
               />
               <p className={styles.sectionCaption}>{strings.wallets.shortNameHint}</p>
+            </div>
+            <div className={styles.formField}>
+              <label className={styles.formLabel} htmlFor="wallet-type">
+                {strings.wallets.typeLabel}
+              </label>
+              <select
+                id="wallet-type"
+                className={styles.formInput}
+                value={type}
+                onChange={(event) => setType(event.target.value)}
+              >
+                {accountTypes.map((accountType) => (
+                  <option key={accountType} value={accountType}>
+                    {accountType}
+                  </option>
+                ))}
+              </select>
+              {type === SAVINGS_ACCOUNT_TYPE && (
+                <p className={styles.sectionCaption}>{strings.walletDetail.savingsAccountTypeHint}</p>
+              )}
             </div>
             <div className={styles.formField}>
               <label className={styles.formLabel} htmlFor="wallet-starting-balance">

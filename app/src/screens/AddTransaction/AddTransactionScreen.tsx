@@ -50,6 +50,7 @@ export function AddTransactionScreen() {
     setShowUnplanned,
     budgetHref,
     accounts,
+    spendableAccounts,
     datePickerOpen,
     setDatePickerOpen,
     pickerMonth,
@@ -468,7 +469,10 @@ export function AddTransactionScreen() {
       {accountPickerFor && (
         <Modal title={strings.addTransaction.chooseAccount} onClose={() => setAccountPickerFor(null)}>
           <div className={styles.accountList}>
-            {accounts.map((account) => {
+            {/* A Savings Account can never fund a direct Expense — this is
+                the only picker that ever excludes it (see
+                spendableAccounts's own comment in useLogic.ts). */}
+            {(type === 'expense' ? spendableAccounts : accounts).map((account) => {
               const active =
                 (accountPickerFor === 'from' && account.id === fromAccountId) ||
                 (accountPickerFor === 'to' && account.id === toAccountId);
