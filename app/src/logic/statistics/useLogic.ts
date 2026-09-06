@@ -36,15 +36,21 @@ function startOfDay(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }
 
+// Calendar-day aligned (midnight), not now.getTime() minus a fixed
+// duration — the latter cuts the oldest day off partway through whenever
+// "now" isn't exactly midnight, silently excluding that day's earlier
+// transactions and rendering it as a blank bar even though real
+// transactions exist on it (see startOfDay's use in the Financial Trends
+// week bucketing below, which already got this right).
 function periodStartFor(period: StatsPeriod, now: Date) {
-  if (period === 'Week') return new Date(now.getTime() - 6 * 24 * 3600 * 1000);
+  if (period === 'Week') return new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6);
   if (period === 'Quarter') return new Date(now.getFullYear(), now.getMonth() - 2, 1);
   if (period === 'Year') return new Date(now.getFullYear(), now.getMonth() - 11, 1);
   return new Date(now.getFullYear(), now.getMonth(), 1);
 }
 
 function habitStartFor(period: HabitPeriod, now: Date) {
-  if (period === 'Daily') return new Date(now.getTime() - 6 * 24 * 3600 * 1000);
+  if (period === 'Daily') return new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6);
   if (period === 'Yearly') return new Date(now.getFullYear(), 0, 1);
   return new Date(now.getFullYear(), now.getMonth(), 1);
 }

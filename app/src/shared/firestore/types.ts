@@ -99,6 +99,17 @@ export interface FirestoreTransaction {
   // halves of the pair together.
   isUnjustifiedAdjustment?: boolean;
   pairedTransferId?: string | null;
+  // True for a Savings-type entry recorded as "frozen in this account"
+  // rather than moved elsewhere (src/logic/addTransaction/useLogic.ts's and
+  // src/logic/backfillSpread/useLogic.ts's savings-mode choice) — the money
+  // never leaves the account, so unlike every other transaction this one
+  // does NOT touch currentBalance/totalBalanceBase; it increments the same
+  // account's lockedAmount instead (see aggregation.ts's
+  // writeTransactionContribution). Still a real transaction — it counts
+  // toward totalExpense/perCategorySpend/budget tracking exactly like any
+  // other Savings entry, and still shows up in Transaction History; only
+  // its effect on the account's own balance differs.
+  isFrozenSavings?: boolean;
   createdBy: string;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
@@ -121,6 +132,14 @@ export interface FirestoreTransfer {
   notes: string;
   createdBy: string;
   createdAt?: Timestamp;
+  // Same convention as FirestoreTransaction's own isHistoricBackfill/
+  // backfillBatchId — true for every occurrence a backfill spread
+  // generated (a recurring Transfer, or a Savings entry backfilled as
+  // "moved to another account"); backfillBatchId is shared by every
+  // occurrence from the same spread so the batch can be viewed/deleted as
+  // one unit. See src/shared/firestore/unaccountedBalance.ts.
+  isHistoricBackfill?: boolean;
+  backfillBatchId?: string | null;
 }
 
 export type Frequency = 'Once' | 'Daily' | 'Weekly' | 'Monthly' | 'Quarterly' | 'Yearly';
@@ -161,6 +180,17 @@ export interface FirestoreBudgetRule {
   // aggregation.ts's/recomputeStats.ts's/functions' exclusion checks).
   // Optional — most rules never skip a month.
   excludedMonths?: string[];
+  // Sibling to excludedMonths, same yyyy-MM keying, but for "change the
+  // budgeted figure for this one month" instead of "skip this month
+  // outright" — lets a household edit April's number on a recurring
+  // "Groceries" line without touching March, May, or any other month.
+  // Set from the Budget screen's "Save for this month only" edit path
+  // (src/logic/budget/useLogic.ts). Read everywhere a rule's per-month
+  // budgeted figure is computed, via @dreda/shared-recurrence's own
+  // effectiveBudgetedAmount (keeps this one rule in one place, same as
+  // ruleAppliesToMonth itself). Optional — most rules never override a
+  // month.
+  monthOverrides?: Record<string, { budgetedAmount: number }>;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 }

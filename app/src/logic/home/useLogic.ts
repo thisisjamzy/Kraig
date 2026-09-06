@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { query, where, updateDoc, Timestamp } from 'firebase/firestore';
-import { ruleAppliesToMonth } from '@dreda/shared-recurrence';
+import { ruleAppliesToMonth, effectiveBudgetedAmount } from '@dreda/shared-recurrence';
 import { useFirestoreCollection, useFirestoreDoc } from '@/src/shared/firestore/hooks';
 import {
   transactionsRef,
@@ -54,7 +54,12 @@ function currentMonthKey() {
 }
 
 function rangeStartFor(period: SpendingPeriod, now: Date) {
-  if (period === 'week') return new Date(now.getTime() - 6 * 24 * 3600 * 1000);
+  // Calendar-day aligned (midnight), not now.getTime() minus a fixed
+  // duration — the latter cuts the oldest day off partway through
+  // whenever "now" isn't exactly midnight, silently excluding that day's
+  // earlier transactions from the query and rendering it as a blank bar
+  // even though real transactions exist on it.
+  if (period === 'week') return new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6);
   if (period === 'quarter') return new Date(now.getFullYear(), now.getMonth() - 2, 1);
   return new Date(now.getFullYear(), now.getMonth(), 1);
 }
@@ -240,7 +245,9 @@ export function useLogic() {
         return {
           category: categoryName.get(rule.categoryId) ?? rule.categoryId,
           spent: round2(toDisplay(ctx, spentBase, ctx.base)),
-          total: round2(toDisplay(ctx, rule.budgetedAmount * occurrence.multiplier, ruleNative)),
+          total: round2(
+            toDisplay(ctx, effectiveBudgetedAmount(rule.budgetedAmount, occurrence.multiplier, rule.monthOverrides, monthStr), ruleNative)
+          ),
         };
       })
       .filter((entry): entry is NonNullable<typeof entry> => entry !== null)

@@ -15,6 +15,7 @@ import { getDoc, getDocs, setDoc, updateDoc, query, where, orderBy, limit, serve
 import {
   accountsRef,
   transactionsRef,
+  transfersRef,
   reconciliationsRef,
   reconciliationRef,
   UNJUSTIFIED_WALLET_ID,
@@ -24,10 +25,14 @@ import {
   createTransactionWithAggregation,
   recordTransactionExplainingUnjustifiedBalance,
   recordIncomeExplainingUnjustifiedBalance,
+  createTransferWithAggregation,
   deleteBackfillBatch as deleteBackfillBatchTransactions,
 } from './aggregation';
 import { round2, type CurrencyContext } from './currency';
-import type { FirestoreAccount, FirestoreTransaction, FirestoreReconciliation } from './types';
+import type { FirestoreAccount, FirestoreTransaction, FirestoreTransfer, FirestoreReconciliation } from './types';
+import type { TRANSFER_CATEGORIES } from '../../viewmodels/categories';
+
+type TransferKind = (typeof TRANSFER_CATEGORIES)[number];
 
 // ---------------------------------------------------------------------------
 // The Unjustified wallet itself
@@ -137,6 +142,13 @@ export interface ExplainHistoricEntryInput {
   createdBy: string;
   isHistoricBackfill?: boolean;
   backfillBatchId?: string | null;
+  // Only ever set alongside a Savings entry that stays in its own account
+  // rather than moving anywhere — mutually exclusive with
+  // explainsUnjustifiedBalance below (that path always moves money
+  // into/out of the Unjustified wallet via a real transfer, which
+  // "frozen, never moved" directly contradicts; callers don't offer both
+  // at once).
+  isFrozenSavings?: boolean;
 }
 
 export async function recordHistoricEntry(
@@ -166,13 +178,9 @@ export async function recordHistoricEntry(
 // dayOfMonth each time.
 export type BackfillFrequency = 'once' | 'daily' | 'weekdays' | 'weekly' | 'monthly' | 'quarterly';
 
-export interface BackfillSpreadInput {
+interface BackfillSpreadCommon {
   title: string;
-  type: string; // 'Expense' | 'Income'
-  categoryId: string | null;
-  accountId: string;
   amount: number;
-  direction: 'Inflow' | 'Outflow';
   frequency: BackfillFrequency;
   startDate: string; // yyyy-MM-dd
   endDate: string; // yyyy-MM-dd, inclusive — ignored when frequency is 'once'
@@ -180,6 +188,27 @@ export interface BackfillSpreadInput {
   dayOfMonth: number; // 1-28, kept low enough to exist in every month — 'monthly'/'quarterly' only
   createdBy: string;
 }
+
+export interface BackfillTransactionSpreadInput extends BackfillSpreadCommon {
+  kind: 'transaction';
+  type: string; // 'Expense' | 'Income' | 'Savings'
+  categoryId: string | null;
+  accountId: string;
+  direction: 'Inflow' | 'Outflow';
+  // Only for type 'Savings' — see ExplainHistoricEntryInput's own doc comment
+  // for the mutual-exclusion rule with the Unjustified-balance toggle.
+  isFrozenSavings?: boolean;
+}
+
+export interface BackfillTransferSpreadInput extends BackfillSpreadCommon {
+  kind: 'transfer';
+  fromAccountId: string;
+  toAccountId: string;
+  transferKind: TransferKind;
+  charges?: number;
+}
+
+export type BackfillSpreadInput = BackfillTransactionSpreadInput | BackfillTransferSpreadInput;
 
 export interface BackfillOccurrence {
   date: Date;
@@ -255,12 +284,15 @@ export function previewBackfillSpread(input: BackfillSpreadInput): BackfillOccur
 }
 
 /**
- * Writes one real transaction per previewed occurrence — sequential, not
- * concurrent, same reasoning as importRow (src/logic/importCsv/useLogic.ts):
- * a dozen simultaneous writes to the same account/statsMonthly/stats-home
- * docs would just contend with each other for no benefit. `fundFromUnjustified`
- * applies the same explain-the-gap choice to every occurrence in the spread
- * as one decision (section 2.5) rather than asking per-occurrence.
+ * Writes one real transaction or transfer per previewed occurrence —
+ * sequential, not concurrent, same reasoning as every other bulk write in
+ * this codebase (e.g. deleteBackfillBatch below): a dozen simultaneous
+ * writes to the same account/statsMonthly/stats-home docs would just
+ * contend with each other for no benefit. `fundFromUnjustified` applies the
+ * same explain-the-gap choice to every occurrence in the spread as one
+ * decision (section 2.5) rather than asking per-occurrence — it only ever
+ * applies to the 'transaction' branch, since a transfer never touches the
+ * Unjustified wallet.
  */
 export async function commitBackfillSpread(
   input: BackfillSpreadInput,
@@ -269,24 +301,45 @@ export async function commitBackfillSpread(
 ): Promise<{ batchId: string; count: number }> {
   const occurrences = previewBackfillSpread(input);
   const batchId = crypto.randomUUID();
-  for (const occ of occurrences) {
-    await recordHistoricEntry(
-      {
+
+  if (input.kind === 'transaction') {
+    for (const occ of occurrences) {
+      await recordHistoricEntry(
+        {
+          date: occ.date,
+          type: input.type,
+          description: input.title,
+          accountId: input.accountId,
+          categoryId: input.categoryId,
+          amount: input.amount,
+          direction: input.direction,
+          createdBy: input.createdBy,
+          isHistoricBackfill: true,
+          backfillBatchId: batchId,
+          isFrozenSavings: input.isFrozenSavings,
+        },
+        fundFromUnjustified,
+        ctx
+      );
+    }
+  } else {
+    for (const occ of occurrences) {
+      await createTransferWithAggregation({
+        id: crypto.randomUUID(),
         date: occ.date,
-        type: input.type,
         description: input.title,
-        accountId: input.accountId,
-        categoryId: input.categoryId,
+        fromAccountId: input.fromAccountId,
+        toAccountId: input.toAccountId,
         amount: input.amount,
-        direction: input.direction,
+        charges: input.charges,
+        kind: input.transferKind,
         createdBy: input.createdBy,
         isHistoricBackfill: true,
         backfillBatchId: batchId,
-      },
-      fundFromUnjustified,
-      ctx
-    );
+      });
+    }
   }
+
   return { batchId, count: occurrences.length };
 }
 
@@ -299,23 +352,33 @@ export interface BackfillBatch {
   total: number;
 }
 
-/** Groups every backfilled transaction by batch, for the "Manage backfill batches" screen. */
+/** Groups every backfilled transaction or transfer by batch, for the "Manage backfill batches" screen. */
 export async function listBackfillBatches(uid: string): Promise<BackfillBatch[]> {
-  const snap = await getDocs(query(transactionsRef(uid), where('isHistoricBackfill', '==', true), orderBy('date', 'asc')));
+  const [transactionsSnap, transfersSnap] = await Promise.all([
+    getDocs(query(transactionsRef(uid), where('isHistoricBackfill', '==', true), orderBy('date', 'asc'))),
+    getDocs(query(transfersRef(uid), where('isHistoricBackfill', '==', true), orderBy('date', 'asc'))),
+  ]);
   const batches = new Map<string, BackfillBatch>();
-  snap.docs.forEach((doc) => {
-    const t = { ...doc.data(), id: doc.id } as FirestoreTransaction;
-    const batchId = t.backfillBatchId ?? 'unknown';
+  const merge = (batchId: string, description: string, month: string, amount: number) => {
     const existing = batches.get(batchId);
-    const month = t.month ?? '';
     if (!existing) {
-      batches.set(batchId, { batchId, title: t.description, startMonth: month, endMonth: month, count: 1, total: t.amount });
+      batches.set(batchId, { batchId, title: description, startMonth: month, endMonth: month, count: 1, total: amount });
     } else {
       existing.endMonth = month > existing.endMonth ? month : existing.endMonth;
       existing.startMonth = month < existing.startMonth ? month : existing.startMonth;
       existing.count += 1;
-      existing.total += t.amount;
+      existing.total += amount;
     }
+  };
+  transactionsSnap.docs.forEach((doc) => {
+    const t = { ...doc.data(), id: doc.id } as FirestoreTransaction;
+    merge(t.backfillBatchId ?? 'unknown', t.description, t.month ?? '', t.amount);
+  });
+  transfersSnap.docs.forEach((doc) => {
+    const t = { ...doc.data(), id: doc.id } as FirestoreTransfer;
+    const d = t.date.toDate();
+    const month = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    merge(t.backfillBatchId ?? 'unknown', t.description, month, t.amount);
   });
   return [...batches.values()].sort((a, b) => b.endMonth.localeCompare(a.endMonth));
 }

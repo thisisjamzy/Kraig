@@ -17,6 +17,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ruleAppliesToMonth = ruleAppliesToMonth;
 exports.nextOccurrenceOnOrAfter = nextOccurrenceOnOrAfter;
+exports.effectiveBudgetedAmount = effectiveBudgetedAmount;
 function stripTime(d) {
     return new Date(d.getFullYear(), d.getMonth(), d.getDate());
 }
@@ -136,4 +137,18 @@ function nextOccurrenceOnOrAfter(rule, from, until) {
             return candidate;
     }
     return null;
+}
+/**
+ * A rule's budgeted figure for one specific month, honoring a per-month
+ * override when one exists — the "edit this month only, leave every other
+ * month alone" feature. `monthOverrides` is keyed the same way
+ * `excludedMonths` (FirestoreBudgetRule) already is: a plain yyyy-MM
+ * string. Falls back to the ordinary `budgetedAmount * multiplier` (the
+ * value `ruleAppliesToMonth`'s own MonthOccurrence.multiplier already
+ * scales for a Weekly rule landing more than once in the month) when this
+ * month has no override.
+ */
+function effectiveBudgetedAmount(budgetedAmount, multiplier, monthOverrides, monthStr) {
+    const override = monthOverrides?.[monthStr];
+    return override ? override.budgetedAmount : budgetedAmount * multiplier;
 }

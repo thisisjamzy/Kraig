@@ -4,7 +4,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ruleAppliesToMonth, nextOccurrenceOnOrAfter, type RecurrenceRule } from './index';
+import { ruleAppliesToMonth, nextOccurrenceOnOrAfter, effectiveBudgetedAmount, type RecurrenceRule } from './index';
 
 test('nextOccurrenceOnOrAfter finds the next monthly occurrence within the horizon', () => {
   const rule: RecurrenceRule = { frequency: 'Monthly', interval: 1, anchorDate: new Date(2026, 0, 15) };
@@ -114,4 +114,17 @@ test('ruleAppliesToMonth: "On Date" end condition stops future months', () => {
   };
   assert.ok(ruleAppliesToMonth(rule, 2026, 6)); // June: still within end date
   assert.equal(ruleAppliesToMonth(rule, 2026, 7), null); // July: past end date
+});
+
+test('effectiveBudgetedAmount: no override falls back to budgetedAmount * multiplier', () => {
+  assert.equal(effectiveBudgetedAmount(200, 1, undefined, '2026-03'), 200);
+  assert.equal(effectiveBudgetedAmount(200, 1, {}, '2026-03'), 200);
+  assert.equal(effectiveBudgetedAmount(50, 4, undefined, '2026-03'), 200); // Weekly multiplier
+});
+
+test('effectiveBudgetedAmount: an override for that month wins outright, ignoring the multiplier', () => {
+  const overrides = { '2026-03': { budgetedAmount: 75 } };
+  assert.equal(effectiveBudgetedAmount(200, 1, overrides, '2026-03'), 75);
+  // A different month on the same rule is untouched by the override.
+  assert.equal(effectiveBudgetedAmount(200, 1, overrides, '2026-04'), 200);
 });

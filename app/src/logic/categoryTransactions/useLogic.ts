@@ -242,7 +242,12 @@ export function useLogic(categoryId: string) {
         const d = doc.date.toDate();
         if (d.getFullYear() !== refYear || d.getMonth() + 1 !== m) continue;
         const native = accountCurrency.get(doc.accountId) ?? ctx.base;
-        const contribution = doc.direction === 'Outflow' ? doc.amount : -doc.amount;
+        // Same Income-vs-Expense sign convention as
+        // writeTransactionContribution (aggregation.ts): for an Income
+        // category the normal Inflow transaction should count as positive
+        // progress, the opposite of an Expense category's Outflow.
+        const signedAmount = doc.direction === 'Inflow' ? doc.amount : -doc.amount;
+        const contribution = doc.type === 'Income' ? signedAmount : -signedAmount;
         spentBase += toDisplay(ctx, contribution, native);
       }
       return {

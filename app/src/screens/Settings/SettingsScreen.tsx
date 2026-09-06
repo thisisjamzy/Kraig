@@ -67,8 +67,6 @@ export function SettingsScreen() {
     handleSavePin,
     setCurrency,
     goBack,
-    downloadCsvTemplate,
-    exportTransactionsCsv,
   } = useLogic();
 
   return (
@@ -161,7 +159,18 @@ export function SettingsScreen() {
           <h2 className={styles.sectionTitle}>{strings.settings.dataSectionTitle}</h2>
         </div>
 
-        <button type="button" className={styles.actionRow} onClick={downloadCsvTemplate}>
+        <Link href="/settings/export" className={styles.actionRow}>
+          <span className={styles.actionRowIcon} style={{ background: iconTint(7) }}>
+            <Download size={18} strokeWidth={1.75} />
+          </span>
+          <span className={styles.actionRowText}>
+            <span className={styles.actionRowLabel}>{strings.settings.exportData}</span>
+            <span className={styles.actionRowMeta}>{strings.settings.exportDataMeta}</span>
+          </span>
+          <ChevronRight size={16} strokeWidth={2} className={styles.actionRowChevron} />
+        </Link>
+
+        <Link href="/settings/download-template" className={styles.actionRow}>
           <span className={styles.actionRowIcon} style={{ background: iconTint(5) }}>
             <FileDown size={18} strokeWidth={1.75} />
           </span>
@@ -169,28 +178,19 @@ export function SettingsScreen() {
             <span className={styles.actionRowLabel}>{strings.settings.downloadTemplate}</span>
             <span className={styles.actionRowMeta}>{strings.settings.downloadTemplateMeta}</span>
           </span>
-        </button>
+          <ChevronRight size={16} strokeWidth={2} className={styles.actionRowChevron} />
+        </Link>
 
         <Link href="/settings/import" className={styles.actionRow}>
           <span className={styles.actionRowIcon} style={{ background: iconTint(6) }}>
             <Upload size={18} strokeWidth={1.75} />
           </span>
           <span className={styles.actionRowText}>
-            <span className={styles.actionRowLabel}>{strings.settings.importTransactions}</span>
-            <span className={styles.actionRowMeta}>{strings.settings.importTransactionsMeta}</span>
+            <span className={styles.actionRowLabel}>{strings.settings.importData}</span>
+            <span className={styles.actionRowMeta}>{strings.settings.importDataMeta}</span>
           </span>
           <ChevronRight size={16} strokeWidth={2} className={styles.actionRowChevron} />
         </Link>
-
-        <button type="button" className={styles.actionRow} onClick={exportTransactionsCsv}>
-          <span className={styles.actionRowIcon} style={{ background: iconTint(7) }}>
-            <Download size={18} strokeWidth={1.75} />
-          </span>
-          <span className={styles.actionRowText}>
-            <span className={styles.actionRowLabel}>{strings.settings.exportTransactions}</span>
-            <span className={styles.actionRowMeta}>{strings.settings.exportTransactionsMeta}</span>
-          </span>
-        </button>
       </section>
 
       <section className={styles.section}>

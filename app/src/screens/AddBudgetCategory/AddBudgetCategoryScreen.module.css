@@ -11,6 +11,16 @@
   display: flex;
   align-items: center;
   gap: var(--space-md);
+  position: sticky;
+  top: 0;
+  z-index: 15;
+  margin-top: calc(-1 * (var(--space-lg) + env(safe-area-inset-top)));
+  margin-left: calc(-1 * var(--space-lg));
+  margin-right: calc(-1 * var(--space-lg));
+  padding-top: calc(var(--space-lg) + env(safe-area-inset-top));
+  padding-left: var(--space-lg);
+  padding-right: var(--space-lg);
+  background: var(--color-background);
 }
 
 .backButton {
@@ -123,6 +133,77 @@
   margin: 0;
   font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
+}
+
+.monthPickerButton {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: var(--space-md);
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Start/end month picker modals — same shape as BudgetScreen's own month
+   picker (year stepper + month grid), duplicated here since CSS Modules
+   are scoped per file. */
+.yearStepper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-lg);
+}
+
+.yearStepButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  background: none;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.yearStepValue {
+  font-family: var(--font-family-heading);
+  font-size: var(--font-size-lg);
+  font-weight: 800;
+  color: var(--color-text-primary);
+  min-width: 4ch;
+  text-align: center;
+}
+
+.monthGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-sm);
+}
+
+.monthButton {
+  padding: var(--space-sm);
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.monthButtonActive {
+  background: var(--ink-bg);
+  color: #ffffff;
 }
 
 .errorText {
