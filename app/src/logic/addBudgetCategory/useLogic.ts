@@ -19,7 +19,7 @@
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { query, where, setDoc, Timestamp } from 'firebase/firestore';
+import { query, where, setDoc, updateDoc, Timestamp } from 'firebase/firestore';
 import { ruleAppliesToMonth } from '@dreda/shared-recurrence';
 import { useFirestoreCollection } from '@/src/shared/firestore/hooks';
 import { budgetRulesRef, budgetRuleRef, categoryRef } from '@/src/shared/firestore/refs';
@@ -83,6 +83,11 @@ export function useLogic() {
     setStartMonthIndex(index);
     setStartYear(startPickerYear);
     setStartPickerOpen(false);
+    // categoryOptions is scoped to the start month (see budgetedCategoryIds
+    // below) — a category picked while viewing one month may no longer be
+    // valid for another, so clear it rather than let a stale selection slip
+    // through to handleSave.
+    setCategoryId('');
   }
 
   const monthStr = `${startYear}-${pad2(startMonthIndex + 1)}`;
@@ -213,6 +218,23 @@ export function useLogic() {
     setSaving(true);
     setSaveError(null);
     try {
+      // A category can't carry two active budgets covering the same
+      // month — categoryOptions above already excludes one from the
+      // picker, but a category chosen before changing the start month (or
+      // any other path that slips past that filter) shouldn't leave the two
+      // rules coexisting and double-counting this category's budgeted
+      // total. Silently archive whichever rule already covers it here; the
+      // new one takes over.
+      const overriddenRule = rules.find((rule) => {
+        if (rule.categoryId !== categoryId) return false;
+        const occurrence = ruleAppliesToMonth(toRecurrenceRule(rule), startYear, startMonthIndex + 1);
+        return Boolean(occurrence) && !rule.excludedMonths?.includes(monthStr);
+      });
+      if (overriddenRule) {
+        await updateDoc(budgetRuleRef(uid, overriddenRule.id), { archived: true });
+        await recomputeBudgetProgressForRuleAndMonth(uid, overriddenRule.id, monthStr);
+        await recomputeBudgetProgressForRuleCurrentMonth(uid, overriddenRule.id);
+      }
       const id = `rule_${crypto.randomUUID().slice(0, 8)}`;
       await setDoc(budgetRuleRef(uid, id), {
         categoryId,

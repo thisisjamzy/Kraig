@@ -23,21 +23,17 @@ export function StatisticsScreen() {
     donutSlices,
     donutCircumference,
     monthComparison,
-    insightsPeriod,
-    setInsightsPeriod,
+    period,
+    setPeriod,
     habitPeriod,
     setHabitPeriod,
     habitBreakdown,
     habitMax,
-    incomePeriod,
-    setIncomePeriod,
     totalIncomeForPeriod,
     incomeCurrency,
     incomeSources,
     incomeConsistency,
     consistencyMax,
-    trendsPeriod,
-    setTrendsPeriod,
     financialTrends,
     trendsMax,
     loading,
@@ -64,6 +60,12 @@ export function StatisticsScreen() {
   return (
     <div className={styles.page}>
       <ScreenState loading={loading} error={error} />
+
+      {/* One shared Week/Month/Quarter/Year filter — drives the summary
+          tiles below plus Spending Insights, Income Analysis, and
+          Financial Trends further down (each used to carry its own
+          separate, disconnected period control). */}
+      <div className={styles.globalPeriodRow}>{periodTabs(period, setPeriod)}</div>
 
       <section className={styles.summarySection}>
         <span className={styles.summaryLabel}>{strings.statistics.acrossAllAccounts}</span>
@@ -102,7 +104,6 @@ export function StatisticsScreen() {
       <section className={styles.section}>
         <div className={styles.sectionHeader}>
           <h2 className={styles.sectionTitle}>{strings.statistics.spendingInsights}</h2>
-          {periodTabs(insightsPeriod, setInsightsPeriod)}
         </div>
 
         <div className={styles.donutRow}>
@@ -231,7 +232,6 @@ export function StatisticsScreen() {
       <section className={styles.section}>
         <div className={styles.sectionHeader}>
           <h2 className={styles.sectionTitle}>{strings.statistics.incomeAnalysis}</h2>
-          {periodTabs(incomePeriod, setIncomePeriod)}
         </div>
 
         <p className={styles.totalIncome}>
@@ -309,7 +309,6 @@ export function StatisticsScreen() {
       <section className={styles.section}>
         <div className={styles.sectionHeader}>
           <h2 className={styles.sectionTitle}>{strings.statistics.financialTrends}</h2>
-          {periodTabs(trendsPeriod, setTrendsPeriod)}
         </div>
 
         <div className={styles.trendCard}>
@@ -371,7 +370,9 @@ export function StatisticsScreen() {
       </section>
 
       <section className={styles.section}>
-        <h2 className={styles.sectionTitle}>{strings.statistics.thisMonthVsLastMonth}</h2>
+        <h2 className={styles.sectionTitle}>
+          This {strings.statistics.periods[period]} vs Last {strings.statistics.periods[period]}
+        </h2>
         {monthComparison.length > 0 ? (
           <div className={styles.comparisonList}>
             {monthComparison.map((row) => (
