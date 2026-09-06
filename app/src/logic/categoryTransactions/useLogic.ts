@@ -74,6 +74,15 @@ function monthTargetFromSearch(): { monthIndex: number | null; year: number | nu
   return { monthIndex, year };
 }
 
+// This screen is reachable from Budget's own category row (no returnTo —
+// defaults to /budget) and, since Settings > Categories links here too, from
+// there via an explicit ?returnTo so "back" lands wherever the person came
+// from rather than always assuming Budget.
+function returnToFromSearch(): string | null {
+  if (typeof window === 'undefined') return null;
+  return new URLSearchParams(window.location.search).get('returnTo');
+}
+
 // The date window a time-range filter covers. `week` is always the rolling
 // last 7 real days; `month`/`quarter`/`year` anchor off the month this
 // screen was opened for when there is one, falling back to today's own
@@ -108,6 +117,7 @@ export function useLogic(categoryId: string) {
   const { user, loading: authLoading } = useFirebaseUser();
   const uid = user?.uid;
   const [{ monthIndex, year }] = useState(monthTargetFromSearch);
+  const [returnTo] = useState(returnToFromSearch);
   const hasMonth = monthIndex !== null && year !== null;
   const monthStr = hasMonth ? `${year}-${pad2(monthIndex + 1)}` : null;
   const [timeRange, setTimeRange] = useState<TimeRange>('month');
@@ -264,6 +274,10 @@ export function useLogic(categoryId: string) {
   const addTransactionHref = `/add-transaction?categoryId=${categoryId}${hasMonth ? `&month=${monthIndex}&year=${year}` : ''}`;
 
   function goBack() {
+    if (returnTo) {
+      router.push(returnTo);
+      return;
+    }
     router.push(hasMonth ? `/budget?month=${monthIndex}&year=${year}` : '/budget');
   }
 

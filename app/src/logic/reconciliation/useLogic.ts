@@ -46,6 +46,9 @@ export function useLogic() {
       .then((rows) => {
         if (!cancelled) setExplained(rows);
       })
+      .catch(() => {
+        if (!cancelled) setExplained([]);
+      })
       .finally(() => {
         if (!cancelled) setExplainedLoading(false);
       });

@@ -5,14 +5,6 @@
   padding: var(--space-lg);
 }
 
-/* One shared Week/Month/Quarter/Year filter, above everything else on the
-   page — drives the summary tiles below plus every section that used to
-   carry its own separate, disconnected period control. */
-.globalPeriodRow {
-  display: flex;
-  justify-content: flex-end;
-}
-
 /* Summary */
 
 .summarySection {
@@ -348,65 +340,21 @@
   color: var(--color-text-secondary);
 }
 
-/* Income analysis */
+/* Category Spend Trend — a stacked variant of the same bar chart shape:
+   one bar per bucket, its own height built from segments (one per
+   category) rather than side-by-side bars. */
 
-.totalIncome {
-  margin: 0;
-  font-family: var(--font-family-heading);
-  font-size: 1.75rem;
-  font-weight: 800;
-  color: var(--color-text-primary);
-}
-
-.totalIncomeCaption {
-  margin: calc(-1 * var(--space-sm)) 0 0;
-  font-size: var(--font-size-sm);
-  font-style: italic;
-  color: #ff9800;
-}
-
-.incomeList {
+.stackBar {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-md);
-}
-
-.incomeRow {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.incomeRowHeader {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-sm);
-}
-
-.incomeLabel {
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  color: var(--color-text-primary);
-}
-
-.incomeValue {
-  font-size: 0.75rem;
-  color: var(--color-text-secondary);
-  white-space: nowrap;
-}
-
-.incomeTrack {
-  height: 6px;
-  border-radius: var(--radius-full);
-  background: var(--color-surface);
+  flex-direction: column-reverse;
+  width: 20px;
+  height: 100%;
+  border-radius: 2px;
   overflow: hidden;
 }
 
-.incomeFill {
-  height: 100%;
-  border-radius: inherit;
-  background: var(--ink-bg);
+.stackSegment {
+  width: 100%;
 }
 
 /* Income consistency chart */

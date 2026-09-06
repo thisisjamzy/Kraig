@@ -3,7 +3,13 @@
 import { useRef } from 'react';
 import { ChevronLeft, Search, SlidersHorizontal, Pencil, Trash2, X } from 'lucide-react';
 import Link from 'next/link';
-import { useLogic, formatAmount, TYPE_FILTERS, type TransactionTypeFilter } from '@/src/logic/transactionHistory/useLogic';
+import {
+  useLogic,
+  formatAmount,
+  TYPE_FILTERS,
+  type TransactionTypeFilter,
+  type SortOption,
+} from '@/src/logic/transactionHistory/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { ConfirmDialog } from '@/src/widgets/ConfirmDialog/ConfirmDialog';
@@ -16,6 +22,7 @@ export function TransactionHistoryScreen() {
   const strings = useStrings();
   const {
     transactions,
+    groupedTransactions,
     isFiltered,
     monthLabel,
     isAllTransactionsView,
@@ -33,6 +40,13 @@ export function TransactionHistoryScreen() {
     setTypeFilter,
     accountFilter,
     setAccountFilter,
+    categoryFilter,
+    setCategoryFilter,
+    categories,
+    sortBy,
+    setSortBy,
+    groupByCategory,
+    setGroupByCategory,
     accounts,
     hasActiveFilters,
     clearFilters,
@@ -83,6 +97,59 @@ export function TransactionHistoryScreen() {
       return;
     }
     if (selectionMode) toggleSelected(id);
+  }
+
+  function renderRow(transaction: (typeof transactions)[number]) {
+    const Icon = transaction.icon;
+    const selected = selectedIds.has(transaction.id);
+    return (
+      <div
+        key={transaction.id}
+        className={selected ? `${styles.card} ${styles.cardSelected}` : styles.card}
+        onPointerDown={() => startLongPress(transaction.id)}
+        onPointerUp={cancelLongPress}
+        onPointerLeave={cancelLongPress}
+        onPointerCancel={cancelLongPress}
+        onClick={() => handleCardClick(transaction.id)}
+        onContextMenu={(event) => selectionMode && event.preventDefault()}
+      >
+        {selectionMode && (
+          <input
+            type="checkbox"
+            className={styles.checkbox}
+            checked={selected}
+            onChange={() => toggleSelected(transaction.id)}
+            onClick={(event) => event.stopPropagation()}
+            aria-label={selected ? 'Deselect transaction' : 'Select transaction'}
+          />
+        )}
+        <span className={styles.icon} style={{ background: transaction.iconColor }}>
+          <Icon size={18} strokeWidth={2} color="#ffffff" />
+        </span>
+        <div className={styles.info}>
+          <p className={styles.transactionTitle}>
+            {transaction.title}
+            {transaction.origin === 'backfill' && <span className={styles.originTag}>{strings.transactionHistory.backfilledTag}</span>}
+            {transaction.origin === 'reconciliation' && (
+              <span className={styles.originTag}>{strings.transactionHistory.reconciliationTag}</span>
+            )}
+          </p>
+          <p className={styles.description}>{transaction.description}</p>
+          <p className={styles.account}>{transaction.account}</p>
+          <div className={styles.amountRow}>
+            <span className={styles.amount}>
+              {formatAmount(transaction.amount)} {transaction.currency}
+            </span>
+            <span className={styles.date}>{transaction.date}</span>
+          </div>
+        </div>
+        {!selectionMode && transaction.kind === 'transaction' && (
+          <Link href={editHref(transaction.id)} className={styles.editButton} aria-label="Edit transaction">
+            <Pencil size={14} strokeWidth={1.75} />
+          </Link>
+        )}
+      </div>
+    );
   }
 
   return (
@@ -180,6 +247,36 @@ export function TransactionHistoryScreen() {
               </option>
             ))}
           </select>
+          <select
+            className={styles.filterSelect}
+            value={categoryFilter}
+            onChange={(event) => setCategoryFilter(event.target.value)}
+            aria-label={strings.transactionHistory.filterCategoryLabel}
+          >
+            <option value="All">{strings.transactionHistory.filterCategoryAll}</option>
+            {categories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name}
+              </option>
+            ))}
+          </select>
+          <select
+            className={styles.filterSelect}
+            value={sortBy}
+            onChange={(event) => setSortBy(event.target.value as SortOption)}
+            aria-label={strings.transactionHistory.sortByLabel}
+          >
+            <option value="date">{strings.transactionHistory.sortByDate}</option>
+            <option value="category">{strings.transactionHistory.sortByCategory}</option>
+          </select>
+          <label className={styles.groupToggle}>
+            <input
+              type="checkbox"
+              checked={groupByCategory}
+              onChange={(event) => setGroupByCategory(event.target.checked)}
+            />
+            {strings.transactionHistory.groupByCategory}
+          </label>
         </div>
       )}
 
@@ -197,60 +294,18 @@ export function TransactionHistoryScreen() {
         </p>
       )}
 
-      <div className={styles.list}>
-        {transactions.map((transaction) => {
-          const Icon = transaction.icon;
-          const selected = selectedIds.has(transaction.id);
-          return (
-            <div
-              key={transaction.id}
-              className={selected ? `${styles.card} ${styles.cardSelected}` : styles.card}
-              onPointerDown={() => startLongPress(transaction.id)}
-              onPointerUp={cancelLongPress}
-              onPointerLeave={cancelLongPress}
-              onPointerCancel={cancelLongPress}
-              onClick={() => handleCardClick(transaction.id)}
-              onContextMenu={(event) => selectionMode && event.preventDefault()}
-            >
-              {selectionMode && (
-                <input
-                  type="checkbox"
-                  className={styles.checkbox}
-                  checked={selected}
-                  onChange={() => toggleSelected(transaction.id)}
-                  onClick={(event) => event.stopPropagation()}
-                  aria-label={selected ? 'Deselect transaction' : 'Select transaction'}
-                />
-              )}
-              <span className={styles.icon} style={{ background: transaction.iconColor }}>
-                <Icon size={18} strokeWidth={2} color="#ffffff" />
-              </span>
-              <div className={styles.info}>
-                <p className={styles.transactionTitle}>
-                  {transaction.title}
-                  {transaction.origin === 'backfill' && <span className={styles.originTag}>{strings.transactionHistory.backfilledTag}</span>}
-                  {transaction.origin === 'reconciliation' && (
-                    <span className={styles.originTag}>{strings.transactionHistory.reconciliationTag}</span>
-                  )}
-                </p>
-                <p className={styles.description}>{transaction.description}</p>
-                <p className={styles.account}>{transaction.account}</p>
-                <div className={styles.amountRow}>
-                  <span className={styles.amount}>
-                    {formatAmount(transaction.amount)} {transaction.currency}
-                  </span>
-                  <span className={styles.date}>{transaction.date}</span>
-                </div>
-              </div>
-              {!selectionMode && transaction.kind === 'transaction' && (
-                <Link href={editHref(transaction.id)} className={styles.editButton} aria-label="Edit transaction">
-                  <Pencil size={14} strokeWidth={1.75} />
-                </Link>
-              )}
+      {groupedTransactions ? (
+        <div className={styles.groupedList}>
+          {groupedTransactions.map((group) => (
+            <div key={group.title} className={styles.categoryGroup}>
+              <h2 className={styles.categoryGroupTitle}>{group.title}</h2>
+              <div className={styles.list}>{group.rows.map((transaction) => renderRow(transaction))}</div>
             </div>
-          );
-        })}
-      </div>
+          ))}
+        </div>
+      ) : (
+        <div className={styles.list}>{transactions.map((transaction) => renderRow(transaction))}</div>
+      )}
 
       {selectionMode && (
         <div className={styles.selectionBar}>

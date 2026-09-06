@@ -354,9 +354,12 @@ export interface BackfillBatch {
 
 /** Groups every backfilled transaction or transfer by batch, for the "Manage backfill batches" screen. */
 export async function listBackfillBatches(uid: string): Promise<BackfillBatch[]> {
+  // where + orderBy on different fields needs a composite index Firestore
+  // won't auto-create; every doc here gets merged into a batch summary
+  // regardless of order, so the orderBy buys nothing — drop it.
   const [transactionsSnap, transfersSnap] = await Promise.all([
-    getDocs(query(transactionsRef(uid), where('isHistoricBackfill', '==', true), orderBy('date', 'asc'))),
-    getDocs(query(transfersRef(uid), where('isHistoricBackfill', '==', true), orderBy('date', 'asc'))),
+    getDocs(query(transactionsRef(uid), where('isHistoricBackfill', '==', true))),
+    getDocs(query(transfersRef(uid), where('isHistoricBackfill', '==', true))),
   ]);
   const batches = new Map<string, BackfillBatch>();
   const merge = (batchId: string, description: string, month: string, amount: number) => {
@@ -393,8 +396,12 @@ export async function deleteBackfillBatch(uid: string, batchId: string, ctx: Cur
 // ---------------------------------------------------------------------------
 
 export async function listExplainedTransactions(uid: string, take = 100): Promise<FirestoreTransaction[]> {
-  const snap = await getDocs(
-    query(transactionsRef(uid), where('isUnjustifiedAdjustment', '==', true), orderBy('date', 'desc'), limit(take))
-  );
-  return snap.docs.map((d) => ({ ...d.data(), id: d.id }) as FirestoreTransaction);
+  // where + orderBy on different fields needs a composite index Firestore
+  // won't auto-create; this collection is scoped to one household's
+  // unjustified adjustments (small), so sort client-side instead.
+  const snap = await getDocs(query(transactionsRef(uid), where('isUnjustifiedAdjustment', '==', true)));
+  return snap.docs
+    .map((d) => ({ ...d.data(), id: d.id }) as FirestoreTransaction)
+    .sort((a, b) => b.date.toMillis() - a.date.toMillis())
+    .slice(0, take);
 }

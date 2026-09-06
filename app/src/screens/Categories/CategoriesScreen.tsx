@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronLeft, Plus } from 'lucide-react';
+import { ChevronLeft, Pencil, Plus } from 'lucide-react';
 import Link from 'next/link';
 import { useLogic } from '@/src/logic/categories/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
@@ -33,10 +33,19 @@ export function CategoriesScreen() {
               <h2 className={styles.groupTitle}>{strings.budget.typeLabels[group.transactionType]}</h2>
               <div className={styles.categoryList}>
                 {group.categories.map((category) => (
-                  <Link key={category.id} href={`/categories/${category.id}/edit`} className={styles.categoryRow}>
-                    <span className={styles.categoryName}>{category.name}</span>
-                    {category.notes && <span className={styles.categoryDescription}>{category.notes}</span>}
-                  </Link>
+                  <div key={category.id} className={styles.categoryRow}>
+                    <Link href={`/budget/category/${category.id}?returnTo=/categories`} className={styles.categoryText}>
+                      <span className={styles.categoryName}>{category.name}</span>
+                      {category.notes && <span className={styles.categoryDescription}>{category.notes}</span>}
+                    </Link>
+                    <Link
+                      href={`/categories/${category.id}/edit`}
+                      className={styles.editButton}
+                      aria-label={strings.categories.editCta}
+                    >
+                      <Pencil size={14} strokeWidth={2} />
+                    </Link>
+                  </div>
                 ))}
               </div>
             </div>

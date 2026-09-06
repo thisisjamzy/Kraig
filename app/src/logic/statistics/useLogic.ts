@@ -44,7 +44,11 @@ function cumulativeAnchoredToTotal(flows: number[], total: number): number[] {
   return cumulative;
 }
 
-export type StatsPeriod = 'Week' | 'Month' | 'Quarter' | 'Year';
+// Week/Month moved to Home's own Cashflow chart (src/logic/home/useLogic.ts)
+// — Analytics now focuses on the longer Quarter/Year view exclusively, so
+// every "Records" number here is a genuinely global quarter/year total,
+// not a day-to-day check-in (that's what Home is for).
+export type StatsPeriod = 'Quarter' | 'Year';
 export type HabitPeriod = 'Daily' | 'Monthly' | 'Yearly';
 
 // 24, not 12 — the single period filter's "vs previous period" comparison
@@ -63,40 +67,22 @@ function startOfDay(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }
 
-// Calendar-day aligned (midnight), not now.getTime() minus a fixed
-// duration — the latter cuts the oldest day off partway through whenever
-// "now" isn't exactly midnight, silently excluding that day's earlier
-// transactions and rendering it as a blank bar even though real
-// transactions exist on it (see startOfDay's use in the Financial Trends
-// week bucketing below, which already got this right).
 function periodStartFor(period: StatsPeriod, now: Date) {
-  if (period === 'Week') return new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6);
   if (period === 'Quarter') return new Date(now.getFullYear(), now.getMonth() - 2, 1);
-  if (period === 'Year') return new Date(now.getFullYear(), now.getMonth() - 11, 1);
-  return new Date(now.getFullYear(), now.getMonth(), 1);
+  return new Date(now.getFullYear(), now.getMonth() - 11, 1);
 }
 
 // The equal-length window immediately preceding periodStartFor's own
 // window — what the current period's totals get compared against.
 function previousPeriodRangeFor(period: StatsPeriod, now: Date) {
   const currentStart = periodStartFor(period, now);
-  if (period === 'Week') {
-    const end = new Date(currentStart.getTime() - 1);
-    const start = new Date(currentStart.getTime() - 7 * 24 * 3600 * 1000);
-    return { start, end };
-  }
   if (period === 'Quarter') {
     const end = new Date(currentStart.getFullYear(), currentStart.getMonth(), 0, 23, 59, 59, 999);
     const start = new Date(currentStart.getFullYear(), currentStart.getMonth() - 3, 1);
     return { start, end };
   }
-  if (period === 'Year') {
-    const end = new Date(currentStart.getFullYear(), currentStart.getMonth(), 0, 23, 59, 59, 999);
-    const start = new Date(currentStart.getFullYear(), currentStart.getMonth() - 12, 1);
-    return { start, end };
-  }
   const end = new Date(currentStart.getFullYear(), currentStart.getMonth(), 0, 23, 59, 59, 999);
-  const start = new Date(currentStart.getFullYear(), currentStart.getMonth() - 1, 1);
+  const start = new Date(currentStart.getFullYear(), currentStart.getMonth() - 12, 1);
   return { start, end };
 }
 
@@ -225,13 +211,13 @@ export function useLogic() {
     accounts.filter(isSavingsAccount).reduce((sum, account) => sum + toDisplay(ctx, account.currentBalance, account.currency), 0)
   );
 
-  // --- Single Week/Month/Quarter/Year filter — drives the summary tiles at
-  // the top of the page plus every section below that used to carry its own
-  // separate period control (Spending Insights, Income Analysis, Financial
-  // Trends). Habit Breakdown keeps its own Daily/Monthly/Yearly control —
-  // that's a bucketing granularity, not this same date-range concept.
+  // --- Single Quarter/Year filter — drives the Records tiles at the top of
+  // the page plus every section below that used to carry its own separate
+  // period control (Spending Insights, Financial Trends). Habit Breakdown
+  // keeps its own Daily/Monthly/Yearly control — that's a bucketing
+  // granularity, not this same date-range concept.
 
-  const [period, setPeriod] = useState<StatsPeriod>('Month');
+  const [period, setPeriod] = useState<StatsPeriod>('Quarter');
   const periodStart = periodStartFor(period, now);
   const previousPeriodRange = previousPeriodRangeFor(period, now);
   const periodRows = useMemo(
@@ -358,28 +344,6 @@ export function useLogic() {
   }, [habitBuckets, rows, transferRows]);
   const habitMax = Math.max(1, ...habitBreakdown.flatMap((b) => [b.income, b.expense, b.savings]));
 
-  // --- Income Analysis: total + by-category breakdown ----------------------
-  // Same window as the summary tiles above — periodRows, Income-type only.
-
-  const incomeRows = useMemo(() => periodRows.filter((r) => r.type === 'Income'), [periodRows]);
-  const totalIncomeForPeriod = round2(incomeRows.reduce((sum, r) => sum + r.displayAmount, 0));
-  const incomeSources = useMemo(() => {
-    const byCategory = new Map<string, number>();
-    incomeRows.forEach((r) => {
-      const key = r.categoryId ?? '—';
-      byCategory.set(key, (byCategory.get(key) ?? 0) + r.displayAmount);
-    });
-    const total = totalIncomeForPeriod || 1;
-    return [...byCategory.entries()]
-      .map(([categoryId, amount]) => ({
-        label: categoryName.get(categoryId) ?? categoryId,
-        amount: round2(amount),
-        percent: Math.round((amount / total) * 100),
-      }))
-      .sort((a, b) => b.amount - a.amount);
-     
-  }, [incomeRows, categoryName, totalIncomeForPeriod]);
-
   // --- Income Consistency: last 6 months vs their own average -------------
 
   const incomeConsistency = useMemo(() => {
@@ -411,31 +375,14 @@ export function useLogic() {
   // Same shared period control as the summary tiles above.
 
   const trendsBuckets = useMemo(() => {
-    if (period === 'Week') {
-      return Array.from({ length: 7 }, (_, i) => {
-        const d = startOfDay(new Date(now.getTime() - (6 - i) * 24 * 3600 * 1000));
-        return { label: d.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase(), start: d, end: new Date(d.getTime() + 24 * 3600 * 1000 - 1) };
-      });
-    }
     if (period === 'Quarter') {
-      // 6 buckets of half-months isn't meaningful — a quarter reads as its
-      // 3 months, so this shows the trailing 6 months same as Year, just a
-      // shorter, more zoomed-in window when the difference matters: 3
-      // months of real bars instead of 6.
       return Array.from({ length: 3 }, (_, i) => {
         const d = new Date(now.getFullYear(), now.getMonth() - (2 - i), 1);
         return { label: MONTH_LABELS[d.getMonth()], start: d, end: new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999) };
       });
     }
-    if (period === 'Year') {
-      return Array.from({ length: 12 }, (_, i) => {
-        const d = new Date(now.getFullYear(), now.getMonth() - (11 - i), 1);
-        return { label: MONTH_LABELS[d.getMonth()], start: d, end: new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999) };
-      });
-    }
-    // Month (default): trailing 6 months, matching the mockup's Mar-Aug span.
-    return Array.from({ length: 6 }, (_, i) => {
-      const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
+    return Array.from({ length: 12 }, (_, i) => {
+      const d = new Date(now.getFullYear(), now.getMonth() - (11 - i), 1);
       return { label: MONTH_LABELS[d.getMonth()], start: d, end: new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999) };
     });
   }, [period, now]);
@@ -478,6 +425,44 @@ export function useLogic() {
   const trendsMax = Math.max(1, ...financialTrends.flatMap((t) => [t.spending, t.income]));
   const savingsTrendMax = Math.max(1, ...financialTrends.map((t) => t.savings));
 
+  // --- Category Spend Trend: the same buckets as Financial Trends above,
+  // stacked by category so growth/decline in any one category over time is
+  // visible, not just its share of a single period's total (that's what the
+  // Spending Insights donut already shows).
+
+  const categorySpendTrend = useMemo(() => {
+    const totalsByCategory = new Map<string, number>();
+    rows.forEach((r) => {
+      if (r.type === 'Income' || !r.categoryId) return;
+      if (!inRange(r.dateObj, trendsBuckets[0]?.start ?? now, now)) return;
+      totalsByCategory.set(r.categoryId, (totalsByCategory.get(r.categoryId) ?? 0) + r.displayAmount);
+    });
+    const topCategoryIds = [...totalsByCategory.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([id]) => id);
+
+    const series = topCategoryIds.map((categoryId, index) => ({
+      categoryId,
+      label: categoryName.get(categoryId) ?? categoryId,
+      color: categoryColor(index),
+      values: trendsBuckets.map((bucket) =>
+        round2(
+          rows.reduce(
+            (sum, r) => (r.categoryId === categoryId && inRange(r.dateObj, bucket.start, bucket.end) ? sum + r.displayAmount : sum),
+            0
+          )
+        )
+      ),
+    }));
+
+    return { labels: trendsBuckets.map((b) => b.label), series };
+  }, [trendsBuckets, rows, categoryName, now]);
+  const categorySpendMax = Math.max(
+    1,
+    ...categorySpendTrend.labels.map((_, i) => categorySpendTrend.series.reduce((sum, s) => sum + s.values[i], 0))
+  );
+
   return {
     summary,
     topCategories,
@@ -485,8 +470,8 @@ export function useLogic() {
     donutCircumference,
     monthComparison,
 
-    // One shared Week/Month/Quarter/Year filter — drives the summary tiles
-    // plus Spending Insights, Income Analysis, and Financial Trends below.
+    // One shared Quarter/Year filter — drives the Records tiles plus
+    // Spending Insights and Financial Trends below.
     period,
     setPeriod,
 
@@ -495,16 +480,15 @@ export function useLogic() {
     habitBreakdown,
     habitMax,
 
-    totalIncomeForPeriod,
-    incomeCurrency: ctx.display,
-    incomeSources,
-
     incomeConsistency,
     consistencyMax,
 
     financialTrends,
     trendsMax,
     savingsTrendMax,
+
+    categorySpendTrend,
+    categorySpendMax,
 
     loading:
       authLoading || transactionsLoading || transfersLoading || accountsLoading || categoriesLoading || ctxLoading,
