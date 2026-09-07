@@ -222,6 +222,14 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+.headerControls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
 }
 
 .sectionTitle {

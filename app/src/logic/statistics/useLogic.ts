@@ -19,15 +19,23 @@
 
 import { useMemo, useState } from 'react';
 import { query, where, Timestamp } from 'firebase/firestore';
-import { useFirestoreCollection } from '@/src/shared/firestore/hooks';
-import { transactionsRef, transfersRef } from '@/src/shared/firestore/refs';
+import { ruleAppliesToMonth, effectiveBudgetedAmount } from '@dreda/shared-recurrence';
+import { useFirestoreCollection, useFirestoreDoc } from '@/src/shared/firestore/hooks';
+import { transactionsRef, transfersRef, budgetRulesRef, unjustifiedWalletRef } from '@/src/shared/firestore/refs';
 import { useAccounts, useCategories, useCurrencyContext } from '@/src/shared/firestore/queries';
 import { toDisplay, round2 } from '@/src/shared/firestore/currency';
+import { toRecurrenceRule } from '@/src/shared/firestore/recurrence';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { categoryColor } from '@/src/viewmodels/statistics';
 import { isSavingsAccount } from '@/src/viewmodels/wallets';
 import { savingsTransactionFlow, savingsTransferFlow } from '@/src/viewmodels/savingsTransfers';
-import type { FirestoreTransaction, FirestoreTransfer } from '@/src/shared/firestore/types';
+import type {
+  FirestoreTransaction,
+  FirestoreTransfer,
+  FirestoreBudgetRule,
+  FirestoreAccount,
+  BudgetLineType,
+} from '@/src/shared/firestore/types';
 
 // Cumulative running total per bucket, anchored so the LAST (most recent)
 // bucket always equals the account's true live total — every earlier bucket
@@ -65,6 +73,10 @@ export function formatAmount(value: number) {
 
 function startOfDay(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function pad2(n: number) {
+  return String(n).padStart(2, '0');
 }
 
 function periodStartFor(period: StatsPeriod, now: Date) {
@@ -153,6 +165,12 @@ export function useLogic() {
   );
   const { data: allTransfers, loading: transfersLoading } = useFirestoreCollection<FirestoreTransfer>(transfersQuery);
 
+  const budgetRulesQuery = useMemo(
+    () => (uid ? query(budgetRulesRef(uid), where('archived', '==', false)) : null),
+    [uid]
+  );
+  const { data: budgetRules, loading: budgetRulesLoading } = useFirestoreCollection<FirestoreBudgetRule>(budgetRulesQuery);
+
   const { data: accounts, loading: accountsLoading } = useAccounts();
   const { data: categories, loading: categoriesLoading } = useCategories();
   const { ctx, loading: ctxLoading } = useCurrencyContext();
@@ -160,6 +178,16 @@ export function useLogic() {
   const accountCurrency = useMemo(() => new Map(accounts.map((a) => [a.id, a.currency])), [accounts]);
   const accountType = useMemo(() => new Map(accounts.map((a) => [a.id, a.type])), [accounts]);
   const categoryName = useMemo(() => new Map(categories.map((c) => [c.id, c.name])), [categories]);
+  // A rule written before FirestoreBudgetRule.type existed has no explicit
+  // type — same fallback src/logic/budget/useLogic.ts's own budgetLineType
+  // uses: whatever type its linked category is.
+  const categoryTransactionType = useMemo(
+    () => new Map(categories.map((c) => [c.id, c.transactionType])),
+    [categories]
+  );
+  function budgetLineType(rule: FirestoreBudgetRule): BudgetLineType {
+    return rule.type ?? categoryTransactionType.get(rule.categoryId) ?? 'Expense';
+  }
 
   // Every transaction's amount, converted once up front to the display
   // currency — everything below just filters/sums this, never reconverts.
@@ -211,6 +239,17 @@ export function useLogic() {
     accounts.filter(isSavingsAccount).reduce((sum, account) => sum + toDisplay(ctx, account.currentBalance, account.currency), 0)
   );
 
+  // PRD-AUDIT-RECONCILIATION.md section 2.2 — the Unjustified wallet's own
+  // balance IS the household-wide unaccounted gap, read directly here
+  // (bypassing useAccounts(), which deliberately filters this wallet out
+  // everywhere else), same as Home's own Unaccounted tile
+  // (src/logic/home/useLogic.ts).
+  const unjustifiedRef = useMemo(() => (uid ? unjustifiedWalletRef(uid) : null), [uid]);
+  const { data: unjustifiedWallet } = useFirestoreDoc<FirestoreAccount>(unjustifiedRef);
+  const unaccountedFor = round2(
+    toDisplay(ctx, unjustifiedWallet?.currentBalance ?? 0, unjustifiedWallet?.currency ?? ctx.base)
+  );
+
   // --- Single Quarter/Year filter — drives the Records tiles at the top of
   // the page plus every section below that used to carry its own separate
   // period control (Spending Insights, Financial Trends). Habit Breakdown
@@ -250,6 +289,7 @@ export function useLogic() {
     income,
     netSavings,
     savingsRate,
+    unaccountedFor,
     activeAccounts: accounts.length,
   };
 
@@ -425,6 +465,34 @@ export function useLogic() {
   const trendsMax = Math.max(1, ...financialTrends.flatMap((t) => [t.spending, t.income]));
   const savingsTrendMax = Math.max(1, ...financialTrends.map((t) => t.savings));
 
+  // --- Budget vs. Spend: same buckets as Financial Trends above, but
+  // Expense budget lines against actual spend, so a plan that's drifting
+  // (or one that's been raised/lowered over time) is visible across months
+  // instead of only the single current month Budget's own screen tracks.
+
+  const budgetVsSpendTrend = useMemo(() => {
+    return trendsBuckets.map((bucket, i) => {
+      const y = bucket.start.getFullYear();
+      const m = bucket.start.getMonth() + 1;
+      const monthStr = `${y}-${pad2(m)}`;
+      let budgetedBase = 0;
+      for (const rule of budgetRules) {
+        if (budgetLineType(rule) !== 'Expense') continue;
+        const occurrence = ruleAppliesToMonth(toRecurrenceRule(rule), y, m);
+        if (!occurrence || rule.excludedMonths?.includes(monthStr)) continue;
+        const ruleNative = rule.accountId ? accountCurrency.get(rule.accountId) ?? ctx.base : ctx.base;
+        budgetedBase += toDisplay(
+          ctx,
+          effectiveBudgetedAmount(rule.budgetedAmount, occurrence.multiplier, rule.monthOverrides, monthStr),
+          ruleNative
+        );
+      }
+      return { label: bucket.label, budgeted: round2(budgetedBase), spent: financialTrends[i]?.spending ?? 0 };
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trendsBuckets, budgetRules, accountCurrency, ctx, financialTrends]);
+  const budgetVsSpendMax = Math.max(1, ...budgetVsSpendTrend.flatMap((b) => [b.budgeted, b.spent]));
+
   // --- Category Spend Trend: the same buckets as Financial Trends above,
   // stacked by category so growth/decline in any one category over time is
   // visible, not just its share of a single period's total (that's what the
@@ -487,11 +555,20 @@ export function useLogic() {
     trendsMax,
     savingsTrendMax,
 
+    budgetVsSpendTrend,
+    budgetVsSpendMax,
+
     categorySpendTrend,
     categorySpendMax,
 
     loading:
-      authLoading || transactionsLoading || transfersLoading || accountsLoading || categoriesLoading || ctxLoading,
+      authLoading ||
+      transactionsLoading ||
+      transfersLoading ||
+      accountsLoading ||
+      categoriesLoading ||
+      ctxLoading ||
+      budgetRulesLoading,
     error: transactionsError,
   };
 }

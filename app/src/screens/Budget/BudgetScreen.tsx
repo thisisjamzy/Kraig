@@ -8,6 +8,7 @@ import { Modal } from '@/src/widgets/Modal/Modal';
 import { ActionMenu } from '@/src/widgets/ActionMenu/ActionMenu';
 import { ConfirmDialog } from '@/src/widgets/ConfirmDialog/ConfirmDialog';
 import { useLogic, formatAmount } from '@/src/logic/budget/useLogic';
+import { CATEGORY_ICON_COLOR } from '@/src/viewmodels/categories';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import styles from './BudgetScreen.module.css';
@@ -141,17 +142,13 @@ export function BudgetScreen() {
           {formatAmount(totalExpenseBudgeted)} {currency}
         </p>
 
-        {isOverspending && (
-          <p className={styles.overspendWarning}>
-            {strings.budget.overspendWarningPrefix} {formatAmount(overspendAmount)} {currency}
-          </p>
-        )}
-
         <div className={styles.totalCardBottomRow}>
           <div className={styles.leftToBudget}>
-            <span className={styles.leftToBudgetLabel}>{strings.budget.leftToBudget}</span>
-            <span className={styles.leftToBudgetValue}>
-              {formatAmount(leftToBudget)} {currency}
+            <span className={styles.leftToBudgetLabel}>
+              {isOverspending ? strings.budget.plannedOverspend : strings.budget.leftToBudget}
+            </span>
+            <span className={isOverspending ? styles.leftToBudgetValueWarning : styles.leftToBudgetValue}>
+              {formatAmount(isOverspending ? overspendAmount : leftToBudget)} {currency}
             </span>
           </div>
           <Link href={addBudgetCategoryHref} className={styles.addBudgetButton} aria-label={strings.budget.addBudget}>
@@ -307,25 +304,22 @@ export function BudgetScreen() {
             {monthTransactions.map((transaction) => {
               const Icon = transaction.icon;
               return (
-                <div key={transaction.id} className={cardStyles.card}>
+                <Link key={transaction.id} href={transaction.editHref} className={cardStyles.card}>
                   <span className={cardStyles.icon} style={{ background: transaction.iconColor }}>
-                    <Icon size={18} strokeWidth={2} color="#ffffff" />
+                    <Icon size={20} strokeWidth={2} color={CATEGORY_ICON_COLOR} />
                   </span>
                   <div className={cardStyles.info}>
                     <p className={cardStyles.transactionTitle}>{transaction.title}</p>
                     <p className={cardStyles.description}>{transaction.description}</p>
                     <p className={cardStyles.account}>{transaction.account}</p>
-                    <div className={cardStyles.amountRow}>
-                      <span className={cardStyles.amount}>
-                        {formatAmount(transaction.amount)} {transaction.currency}
-                      </span>
-                      <span className={cardStyles.date}>{transaction.date}</span>
-                    </div>
                   </div>
-                  <Link href={transaction.editHref} className={cardStyles.editButton} aria-label="Edit transaction">
-                    <Pencil size={14} strokeWidth={1.75} />
-                  </Link>
-                </div>
+                  <div className={cardStyles.amountRow}>
+                    <span className={cardStyles.amount}>
+                      {formatAmount(transaction.amount)} {transaction.currency}
+                    </span>
+                    <span className={cardStyles.date}>{transaction.date}</span>
+                  </div>
+                </Link>
               );
             })}
           </div>

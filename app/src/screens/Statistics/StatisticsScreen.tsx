@@ -1,8 +1,11 @@
 'use client';
 
+import { useState } from 'react';
+import Link from 'next/link';
 import { useLogic, formatAmount, type StatsPeriod, type HabitPeriod } from '@/src/logic/statistics/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
+import { barHeightPercent, axisValueAt } from '@/src/shared/charts/scale';
 import styles from './StatisticsScreen.module.css';
 
 const PERIOD_ORDER: StatsPeriod[] = ['Quarter', 'Year'];
@@ -37,11 +40,40 @@ export function StatisticsScreen() {
     financialTrends,
     trendsMax,
     savingsTrendMax,
+    budgetVsSpendTrend,
+    budgetVsSpendMax,
     categorySpendTrend,
     categorySpendMax,
     loading,
     error,
   } = useLogic();
+
+  // Each bar chart's own log-scale toggle — independent per chart since a
+  // big outlier in one (e.g. one habit-breakdown bucket) doesn't mean
+  // another chart's data is similarly skewed.
+  const [habitLogScale, setHabitLogScale] = useState(false);
+  const [cashflowLogScale, setCashflowLogScale] = useState(false);
+
+  function scaleToggle(logScale: boolean, onChange: (logScale: boolean) => void) {
+    return (
+      <div className={styles.periodTabs}>
+        <button
+          type="button"
+          className={`${styles.periodTab} ${!logScale ? styles.periodTabActive : ''}`}
+          onClick={() => onChange(false)}
+        >
+          {strings.common.scaleLinear}
+        </button>
+        <button
+          type="button"
+          className={`${styles.periodTab} ${logScale ? styles.periodTabActive : ''}`}
+          onClick={() => onChange(true)}
+        >
+          {strings.common.scaleLog}
+        </button>
+      </div>
+    );
+  }
 
   function periodTabs(current: StatsPeriod, onChange: (period: StatsPeriod) => void) {
     return (
@@ -99,6 +131,13 @@ export function StatisticsScreen() {
             <span className={styles.tileLabel}>{strings.statistics.savingsRate}</span>
             <p className={styles.tileValue}>{summary.savingsRate}%</p>
           </div>
+          <Link href="/settings/reconciliation" className={`${styles.tile} ${styles.tileGray} ${styles.tileWide}`}>
+            <span className={styles.tileLabel}>{strings.statistics.unaccountedFor}</span>
+            <p className={summary.unaccountedFor < 0 ? styles.tileValueNegative : styles.tileValue}>
+              {summary.unaccountedFor > 0 ? '+' : summary.unaccountedFor < 0 ? '-' : ''}
+              {formatAmount(summary.unaccountedFor)} {summary.currency}
+            </p>
+          </Link>
         </div>
 
         <p className={styles.activeAccounts}>
@@ -177,17 +216,20 @@ export function StatisticsScreen() {
       <section className={styles.section}>
         <div className={styles.sectionHeader}>
           <h2 className={styles.sectionTitle}>{strings.statistics.habitBreakdown}</h2>
-          <div className={styles.periodTabs}>
-            {HABIT_PERIOD_ORDER.map((period) => (
-              <button
-                key={period}
-                type="button"
-                className={`${styles.periodTab} ${habitPeriod === period ? styles.periodTabActive : ''}`}
-                onClick={() => setHabitPeriod(period)}
-              >
-                {strings.statistics.habitPeriods[period]}
-              </button>
-            ))}
+          <div className={styles.headerControls}>
+            <div className={styles.periodTabs}>
+              {HABIT_PERIOD_ORDER.map((period) => (
+                <button
+                  key={period}
+                  type="button"
+                  className={`${styles.periodTab} ${habitPeriod === period ? styles.periodTabActive : ''}`}
+                  onClick={() => setHabitPeriod(period)}
+                >
+                  {strings.statistics.habitPeriods[period]}
+                </button>
+              ))}
+            </div>
+            {scaleToggle(habitLogScale, setHabitLogScale)}
           </div>
         </div>
 
@@ -196,7 +238,7 @@ export function StatisticsScreen() {
             <div className={styles.barChartRow}>
               <div className={styles.barChartAxis} aria-hidden="true">
                 {AXIS_SCALE.map((fraction) => (
-                  <span key={fraction}>{formatAmount(Math.round(habitMax * fraction))}</span>
+                  <span key={fraction}>{formatAmount(Math.round(axisValueAt(fraction, habitMax, habitLogScale)))}</span>
                 ))}
               </div>
               <div className={styles.barChartArea}>
@@ -211,15 +253,15 @@ export function StatisticsScreen() {
                       <div className={styles.barChartBars}>
                         <div
                           className={styles.barIncome}
-                          style={{ height: `${Math.max((day.income / habitMax) * 100, 2)}%` }}
+                          style={{ height: `${barHeightPercent(day.income, habitMax, habitLogScale)}%` }}
                         />
                         <div
                           className={styles.barExpense}
-                          style={{ height: `${Math.max((day.expense / habitMax) * 100, 2)}%` }}
+                          style={{ height: `${barHeightPercent(day.expense, habitMax, habitLogScale)}%` }}
                         />
                         <div
                           className={styles.barSavings}
-                          style={{ height: `${Math.max((day.savings / habitMax) * 100, 2)}%` }}
+                          style={{ height: `${barHeightPercent(day.savings, habitMax, habitLogScale)}%` }}
                         />
                       </div>
                       <span className={styles.barChartLabel}>{day.label}</span>
@@ -299,6 +341,7 @@ export function StatisticsScreen() {
       <section className={styles.section}>
         <div className={styles.sectionHeader}>
           <h2 className={styles.sectionTitle}>{strings.home.spendingBreakdown}</h2>
+          {scaleToggle(cashflowLogScale, setCashflowLogScale)}
         </div>
 
         {financialTrends.length > 0 ? (
@@ -306,7 +349,7 @@ export function StatisticsScreen() {
             <div className={styles.barChartRow}>
               <div className={styles.barChartAxis} aria-hidden="true">
                 {AXIS_SCALE.map((fraction) => (
-                  <span key={fraction}>{formatAmount(Math.round(trendsMax * fraction))}</span>
+                  <span key={fraction}>{formatAmount(Math.round(axisValueAt(fraction, trendsMax, cashflowLogScale)))}</span>
                 ))}
               </div>
               <div className={styles.barChartArea}>
@@ -321,11 +364,11 @@ export function StatisticsScreen() {
                       <div className={styles.barChartBars}>
                         <div
                           className={styles.barIncome}
-                          style={{ height: `${Math.max((point.income / trendsMax) * 100, 2)}%` }}
+                          style={{ height: `${barHeightPercent(point.income, trendsMax, cashflowLogScale)}%` }}
                         />
                         <div
                           className={styles.barExpense}
-                          style={{ height: `${Math.max((point.spending / trendsMax) * 100, 2)}%` }}
+                          style={{ height: `${barHeightPercent(point.spending, trendsMax, cashflowLogScale)}%` }}
                         />
                       </div>
                       <span className={styles.barChartLabel}>{point.label}</span>
@@ -493,6 +536,89 @@ export function StatisticsScreen() {
               </div>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* Budget vs. Spend — Expense budget lines against actual spend across
+          the same buckets, so a drifting or since-changed plan is visible
+          across months, not just the single current month Budget tracks. */}
+      <section className={styles.section}>
+        <div className={styles.sectionHeader}>
+          <h2 className={styles.sectionTitle}>{strings.statistics.budgetVsSpend}</h2>
+        </div>
+
+        <div className={styles.trendCard}>
+          <div className={styles.trendRow}>
+            <div className={styles.trendAxis} aria-hidden="true">
+              {AXIS_SCALE.map((fraction) => (
+                <span key={fraction}>{formatAmount(Math.round(budgetVsSpendMax * fraction))}</span>
+              ))}
+            </div>
+            <div className={styles.trendChartCol}>
+              <svg className={styles.trendChart} viewBox="0 0 300 90" preserveAspectRatio="none">
+                {AXIS_SCALE.map((fraction) => (
+                  <line
+                    key={fraction}
+                    x1={0}
+                    y1={86 - fraction * 80}
+                    x2={300}
+                    y2={86 - fraction * 80}
+                    stroke="var(--color-border)"
+                    strokeWidth="1"
+                    vectorEffect="non-scaling-stroke"
+                  />
+                ))}
+                {budgetVsSpendTrend.length > 1 && (
+                  <>
+                    {(
+                      [
+                        ['budgeted', 'var(--color-text-secondary)'],
+                        ['spent', 'var(--color-danger)'],
+                      ] as const
+                    ).map(([key, stroke]) => (
+                      <polyline
+                        key={key}
+                        fill="none"
+                        stroke={stroke}
+                        strokeWidth="2"
+                        vectorEffect="non-scaling-stroke"
+                        points={budgetVsSpendTrend
+                          .map((point, index) => {
+                            const x = (index / (budgetVsSpendTrend.length - 1)) * 300;
+                            const y = 86 - (point[key] / budgetVsSpendMax) * 80;
+                            return `${x},${y}`;
+                          })
+                          .join(' ')}
+                      />
+                    ))}
+                    {budgetVsSpendTrend.map((point, index) => {
+                      const x = (index / (budgetVsSpendTrend.length - 1)) * 300;
+                      const y = 86 - (point.spent / budgetVsSpendMax) * 80;
+                      return <circle key={point.label} cx={x} cy={y} r={2.5} fill="var(--color-danger)" />;
+                    })}
+                  </>
+                )}
+              </svg>
+              <div className={styles.trendLabels}>
+                {budgetVsSpendTrend.map((point) => (
+                  <span key={point.label} className={styles.trendLabel}>
+                    {point.label}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className={styles.legend}>
+          <span className={styles.legendItem}>
+            <span className={styles.legendLine} style={{ background: 'var(--color-danger)' }} />
+            {strings.statistics.budgetVsSpendSpent}
+          </span>
+          <span className={styles.legendItem}>
+            <span className={styles.legendLine} style={{ background: 'var(--color-text-secondary)' }} />
+            {strings.statistics.budgetVsSpendBudgeted}
+          </span>
         </div>
       </section>
 

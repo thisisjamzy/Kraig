@@ -1,9 +1,10 @@
 'use client';
 
-import { ChevronLeft, Pencil, Plus } from 'lucide-react';
+import { ChevronLeft, Plus } from 'lucide-react';
 import Link from 'next/link';
 import { Select, ListBox } from '@heroui/react';
 import { useLogic, formatAmount, type TimeRange } from '@/src/logic/categoryTransactions/useLogic';
+import { CATEGORY_ICON_COLOR } from '@/src/viewmodels/categories';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import styles from './CategoryTransactionsScreen.module.css';
@@ -163,25 +164,22 @@ export function CategoryTransactionsScreen({ categoryId }: { categoryId: string 
         {transactions.map((transaction) => {
           const Icon = transaction.icon;
           return (
-            <div key={transaction.id} className={styles.card}>
+            <Link key={transaction.id} href={editHref(transaction.id)} className={styles.card}>
               <span className={styles.icon} style={{ background: transaction.iconColor }}>
-                <Icon size={18} strokeWidth={2} color="#ffffff" />
+                <Icon size={20} strokeWidth={2} color={CATEGORY_ICON_COLOR} />
               </span>
               <div className={styles.info}>
                 <p className={styles.transactionTitle}>{transaction.title}</p>
                 <p className={styles.description}>{transaction.description}</p>
                 <p className={styles.account}>{transaction.account}</p>
-                <div className={styles.amountRow}>
-                  <span className={styles.amount}>
-                    {formatAmount(transaction.amount)} {transaction.currency}
-                  </span>
-                  <span className={styles.date}>{transaction.date}</span>
-                </div>
               </div>
-              <Link href={editHref(transaction.id)} className={styles.editButton} aria-label="Edit transaction">
-                <Pencil size={14} strokeWidth={1.75} />
-              </Link>
-            </div>
+              <div className={styles.amountRow}>
+                <span className={styles.amount}>
+                  {formatAmount(transaction.amount)} {transaction.currency}
+                </span>
+                <span className={styles.date}>{transaction.date}</span>
+              </div>
+            </Link>
           );
         })}
       </div>

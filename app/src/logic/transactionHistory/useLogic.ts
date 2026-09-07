@@ -26,7 +26,7 @@ import { useAccounts, useCategories, useCurrencyContext } from '@/src/shared/fir
 import { toDisplay } from '@/src/shared/firestore/currency';
 import { deleteTransactionWithAggregation, deleteTransferWithAggregation } from '@/src/shared/firestore/aggregation';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
-import { walletColor } from '@/src/viewmodels/wallets';
+import { categoryAccentColor } from '@/src/viewmodels/categories';
 import type { FirestoreTransaction, FirestoreTransfer } from '@/src/shared/firestore/types';
 
 // Same set Add Transaction's type step uses (src/logic/addTransaction) —
@@ -189,15 +189,6 @@ export function useLogic() {
   const { ctx, loading: ctxLoading } = useCurrencyContext();
 
   const accountById = useMemo(() => new Map(accounts.map((account) => [account.id, account])), [accounts]);
-  // Same color-per-account convention Home's wallet chart and Wallets use
-  // (src/viewmodels/wallets.ts's walletColor, keyed by an account's own
-  // fixed position in the accounts list) — every row for the same account
-  // gets the same colored circle, rather than a color that just cycles by
-  // row position and means nothing.
-  const accountColor = useMemo(
-    () => new Map(accounts.map((account, index) => [account.id, walletColor(index)])),
-    [accounts]
-  );
   const categoryNameFallback = useMemo(() => {
     const map = new Map(categories.map((category) => [category.id, category.name]));
     return (categoryId: string | null) => (categoryId && map.get(categoryId)) || categoryId || '—';
@@ -245,7 +236,7 @@ export function useLogic() {
       date: formatDate(transaction.date),
       sortMs: transaction.date.toMillis(),
       icon: TYPE_ICONS[transaction.type] ?? ArrowUpRight,
-      iconColor: accountColor.get(transaction.accountId) ?? walletColor(0),
+      iconColor: categoryAccentColor(categoryNameFallback(transaction.categoryId)),
       // PRD-AUDIT-RECONCILIATION.md section 3 — a small origin tag so a row
       // that looks unfamiliar (a transfer nobody remembers, a January
       // entry logged in September) is legible rather than confusing.
@@ -280,7 +271,7 @@ export function useLogic() {
       date: formatDate(transfer.date),
       sortMs: transfer.date.toMillis(),
       icon: ArrowLeftRight,
-      iconColor: accountColor.get(transfer.fromAccountId) ?? walletColor(0),
+      iconColor: categoryAccentColor(transfer.kind || 'Transfer'),
       // The reconciliation-paired transfer's own tag lives on its matching
       // transaction row instead (see mappedTransactions above) — PRD-
       // AUDIT-RECONCILIATION.md section 3 only asks that the transaction

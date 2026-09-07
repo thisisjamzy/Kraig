@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Trash2 } from 'lucide-react';
+import { ChevronLeft, Plus, Trash2 } from 'lucide-react';
 import { useLogic } from '@/src/logic/debtsList/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
@@ -34,6 +34,13 @@ export function DebtsListScreen() {
 
   return (
     <div className={styles.page}>
+      <header className={styles.header}>
+        <button type="button" className={styles.backButton} onClick={() => router.push('/home')} aria-label="Back">
+          <ChevronLeft size={18} strokeWidth={2} />
+        </button>
+        <h1 className={styles.title}>{strings.goals.tabDebt}</h1>
+      </header>
+
       <ScreenState loading={loading} error={error} />
 
       {!loading && !error && (

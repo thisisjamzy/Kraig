@@ -11,6 +11,7 @@ import { computeUpcomingPayments } from '@/src/shared/firestore/upcomingPayments
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { walletColor, arrangeCentered, isSavingsAccount } from '@/src/viewmodels/wallets';
 import { currencyName } from '@/src/viewmodels/currencies';
+import { categoryAccentColor } from '@/src/viewmodels/categories';
 import { dueLabel, formatDueDate } from '@/src/logic/paymentsCalendar/useLogic';
 import type { FirestoreAccount, FirestorePlannedPayment, FirestoreTransaction } from '@/src/shared/firestore/types';
 
@@ -145,14 +146,6 @@ export function useLogic() {
 
   const accountCurrency = useMemo(() => new Map(accounts.map((a) => [a.id, a.currency])), [accounts]);
   const accountName = useMemo(() => new Map(accounts.map((a) => [a.id, a.name])), [accounts]);
-  // Same color-per-account convention the wallets chart below and
-  // TransactionHistoryScreen use (walletColor, keyed by an account's own
-  // fixed position in the accounts list) — this panel's cards use the exact
-  // same card as that screen, so need the same colors.
-  const accountColor = useMemo(
-    () => new Map(accounts.map((account, index) => [account.id, walletColor(index)])),
-    [accounts]
-  );
   const categoryName = useMemo(() => new Map(categories.map((c) => [c.id, c.name])), [categories]);
 
   const totalBalance = round2(
@@ -232,20 +225,21 @@ export function useLogic() {
     () =>
       recentTransactionDocs.map((transaction) => {
         const nativeCurrency = accountCurrency.get(transaction.accountId) ?? ctx.base;
+        const title = categoryName.get(transaction.categoryId ?? '') ?? transaction.categoryId ?? '—';
         return {
           id: transaction.id,
-          title: categoryName.get(transaction.categoryId ?? '') ?? transaction.categoryId ?? '—',
+          title,
           description: transaction.description,
           account: accountName.get(transaction.accountId) ?? transaction.accountId,
           amount: round2(toDisplay(ctx, transaction.amount, nativeCurrency)),
           currency: ctx.display,
           date: transaction.date.toDate().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
           icon: TYPE_ICONS[transaction.type] ?? ArrowUpRight,
-          iconColor: accountColor.get(transaction.accountId) ?? walletColor(0),
+          iconColor: categoryAccentColor(title),
           editHref: `/edit-transaction/${transaction.id}`,
         };
       }),
-    [recentTransactionDocs, accountCurrency, accountName, accountColor, categoryName, ctx]
+    [recentTransactionDocs, accountCurrency, accountName, categoryName, ctx]
   );
 
   const breakdown = useMemo(() => {

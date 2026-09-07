@@ -1,8 +1,8 @@
 'use client';
 
 import { useRef } from 'react';
-import { ChevronLeft, Search, SlidersHorizontal, Pencil, Trash2, X } from 'lucide-react';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { ChevronLeft, Search, SlidersHorizontal, Trash2, X } from 'lucide-react';
 import {
   useLogic,
   formatAmount,
@@ -10,6 +10,7 @@ import {
   type TransactionTypeFilter,
   type SortOption,
 } from '@/src/logic/transactionHistory/useLogic';
+import { CATEGORY_ICON_COLOR } from '@/src/viewmodels/categories';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { ConfirmDialog } from '@/src/widgets/ConfirmDialog/ConfirmDialog';
@@ -20,6 +21,7 @@ const LONG_PRESS_MS = 500;
 
 export function TransactionHistoryScreen() {
   const strings = useStrings();
+  const router = useRouter();
   const {
     transactions,
     groupedTransactions,
@@ -88,7 +90,7 @@ export function TransactionHistoryScreen() {
       longPressTimer.current = null;
     }
   }
-  function handleCardClick(id: string) {
+  function handleCardClick(transaction: (typeof transactions)[number]) {
     // The long press itself already entered selection mode and selected
     // this row — the pointerup/click that follows shouldn't then toggle it
     // straight back off.
@@ -96,7 +98,13 @@ export function TransactionHistoryScreen() {
       longPressFired.current = false;
       return;
     }
-    if (selectionMode) toggleSelected(id);
+    if (selectionMode) {
+      toggleSelected(transaction.id);
+      return;
+    }
+    // Transfers have no edit page of their own (see editHref/kindById) —
+    // only a transaction row is clickable to edit.
+    if (transaction.kind === 'transaction') router.push(editHref(transaction.id));
   }
 
   function renderRow(transaction: (typeof transactions)[number]) {
@@ -110,7 +118,7 @@ export function TransactionHistoryScreen() {
         onPointerUp={cancelLongPress}
         onPointerLeave={cancelLongPress}
         onPointerCancel={cancelLongPress}
-        onClick={() => handleCardClick(transaction.id)}
+        onClick={() => handleCardClick(transaction)}
         onContextMenu={(event) => selectionMode && event.preventDefault()}
       >
         {selectionMode && (
@@ -124,7 +132,7 @@ export function TransactionHistoryScreen() {
           />
         )}
         <span className={styles.icon} style={{ background: transaction.iconColor }}>
-          <Icon size={18} strokeWidth={2} color="#ffffff" />
+          <Icon size={20} strokeWidth={2} color={CATEGORY_ICON_COLOR} />
         </span>
         <div className={styles.info}>
           <p className={styles.transactionTitle}>
@@ -136,18 +144,13 @@ export function TransactionHistoryScreen() {
           </p>
           <p className={styles.description}>{transaction.description}</p>
           <p className={styles.account}>{transaction.account}</p>
-          <div className={styles.amountRow}>
-            <span className={styles.amount}>
-              {formatAmount(transaction.amount)} {transaction.currency}
-            </span>
-            <span className={styles.date}>{transaction.date}</span>
-          </div>
         </div>
-        {!selectionMode && transaction.kind === 'transaction' && (
-          <Link href={editHref(transaction.id)} className={styles.editButton} aria-label="Edit transaction">
-            <Pencil size={14} strokeWidth={1.75} />
-          </Link>
-        )}
+        <div className={styles.amountRow}>
+          <span className={styles.amount}>
+            {formatAmount(transaction.amount)} {transaction.currency}
+          </span>
+          <span className={styles.date}>{transaction.date}</span>
+        </div>
       </div>
     );
   }

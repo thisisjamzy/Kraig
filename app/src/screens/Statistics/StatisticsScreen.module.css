@@ -65,6 +65,19 @@
   background: color-mix(in srgb, #8bc34a 16%, var(--color-background));
 }
 
+.tileGray {
+  background: color-mix(in srgb, #9ca3af 16%, var(--color-background));
+}
+
+/* The Unaccounted-for tile links to Settings > Reconciliation and sits
+   alone in an otherwise-2-column grid — full width reads better than a
+   half-width tile floating next to empty space. */
+.tileWide {
+  grid-column: span 2;
+  text-decoration: none;
+  color: inherit;
+}
+
 .tileLabel {
   font-size: 0.6875rem;
   font-weight: 700;
@@ -127,6 +140,12 @@
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+.headerControls {
+  display: flex;
+  align-items: center;
   gap: var(--space-sm);
 }
 
