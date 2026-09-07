@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
   Plus,
@@ -13,7 +13,7 @@ import {
   Wallet,
   PiggyBank,
   CreditCard,
-  Pencil,
+  Target,
 } from 'lucide-react';
 import { useLogic, formatAmount, formatCompact, type SpendingPeriod } from '@/src/logic/home/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
@@ -21,6 +21,8 @@ import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { Logo } from '@/src/widgets/Logo/Logo';
 import { useSwipeModeSwitch } from '@/src/shared/hooks/useSwipeModeSwitch';
 import { iconTint } from '@/src/viewmodels/iconTint';
+import { CATEGORY_ICON_COLOR } from '@/src/viewmodels/categories';
+import { barHeightPercent, axisValueAt } from '@/src/shared/charts/scale';
 import styles from './HomeScreen.module.css';
 // The Recent Transactions panel uses this exact same card component style
 // as the all-transactions list, so it reuses that module's classes
@@ -76,8 +78,13 @@ export function HomeScreen() {
     { label: strings.home.quickActionAddNew, icon: Plus, href: '/add-transaction' },
     { label: strings.home.quickActionHistory, icon: History, href: '/transactions' },
     { label: strings.home.quickActionSeeBudget, icon: SlidersHorizontal, href: '/budget' },
+    { label: strings.home.quickActionGoals, icon: Target, href: '/goals' },
     { label: strings.home.quickActionDebts, icon: CreditCard, href: '/debts' },
   ];
+
+  // Cashflow's own log-scale toggle — a big outlier week/month otherwise
+  // flattens every smaller bar to a sliver against a linear axis.
+  const [cashflowLogScale, setCashflowLogScale] = useState(false);
 
   const periods: { key: SpendingPeriod; label: string }[] = [
     { key: 'week', label: strings.home.periodWeek },
@@ -293,24 +300,42 @@ export function HomeScreen() {
       <section className={styles.section}>
         <div className={styles.sectionHeader}>
           <h2 className={styles.sectionTitle}>{strings.home.spendingBreakdown}</h2>
-          <div className={styles.periodTabs}>
-            {periods.map(({ key, label }) => (
+          <div className={styles.headerControls}>
+            <div className={styles.periodTabs}>
+              {periods.map(({ key, label }) => (
+                <button
+                  key={key}
+                  type="button"
+                  className={`${styles.periodTab} ${period === key ? styles.periodTabActive : ''}`}
+                  onClick={() => setPeriod(key)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <div className={styles.periodTabs}>
               <button
-                key={key}
                 type="button"
-                className={`${styles.periodTab} ${period === key ? styles.periodTabActive : ''}`}
-                onClick={() => setPeriod(key)}
+                className={`${styles.periodTab} ${!cashflowLogScale ? styles.periodTabActive : ''}`}
+                onClick={() => setCashflowLogScale(false)}
               >
-                {label}
+                {strings.common.scaleLinear}
               </button>
-            ))}
+              <button
+                type="button"
+                className={`${styles.periodTab} ${cashflowLogScale ? styles.periodTabActive : ''}`}
+                onClick={() => setCashflowLogScale(true)}
+              >
+                {strings.common.scaleLog}
+              </button>
+            </div>
           </div>
         </div>
 
         <div className={styles.breakdownRow}>
           <div className={styles.breakdownAxis} aria-hidden="true">
             {AXIS_SCALE.map((fraction) => (
-              <span key={fraction}>{formatCompact(Math.round(breakdownMax * fraction))}</span>
+              <span key={fraction}>{formatCompact(Math.round(axisValueAt(fraction, breakdownMax, cashflowLogScale)))}</span>
             ))}
           </div>
           <div className={styles.breakdownArea}>
@@ -328,11 +353,11 @@ export function HomeScreen() {
                           <>
                             <div
                               className={styles.breakdownBarIncome}
-                              style={{ height: `${Math.max((entry.income / breakdownMax) * 100, 4)}%` }}
+                              style={{ height: `${barHeightPercent(entry.income, breakdownMax, cashflowLogScale, 4)}%` }}
                             />
                             <div
                               className={styles.breakdownBarExpense}
-                              style={{ height: `${Math.max((entry.expense / breakdownMax) * 100, 4)}%` }}
+                              style={{ height: `${barHeightPercent(entry.expense, breakdownMax, cashflowLogScale, 4)}%` }}
                             />
                           </>
                         ) : (
@@ -382,25 +407,22 @@ export function HomeScreen() {
             {recentTransactions.map((transaction) => {
               const Icon = transaction.icon;
               return (
-                <div key={transaction.id} className={cardStyles.card}>
+                <Link key={transaction.id} href={transaction.editHref} className={cardStyles.card}>
                   <span className={cardStyles.icon} style={{ background: transaction.iconColor }}>
-                    <Icon size={18} strokeWidth={2} color="#ffffff" />
+                    <Icon size={20} strokeWidth={2} color={CATEGORY_ICON_COLOR} />
                   </span>
                   <div className={cardStyles.info}>
                     <p className={cardStyles.transactionTitle}>{transaction.title}</p>
                     <p className={cardStyles.description}>{transaction.description}</p>
                     <p className={cardStyles.account}>{transaction.account}</p>
-                    <div className={cardStyles.amountRow}>
-                      <span className={cardStyles.amount}>
-                        {formatAmount(transaction.amount)} {transaction.currency}
-                      </span>
-                      <span className={cardStyles.date}>{transaction.date}</span>
-                    </div>
                   </div>
-                  <Link href={transaction.editHref} className={cardStyles.editButton} aria-label="Edit transaction">
-                    <Pencil size={14} strokeWidth={1.75} />
-                  </Link>
-                </div>
+                  <div className={cardStyles.amountRow}>
+                    <span className={cardStyles.amount}>
+                      {formatAmount(transaction.amount)} {transaction.currency}
+                    </span>
+                    <span className={cardStyles.date}>{transaction.date}</span>
+                  </div>
+                </Link>
               );
             })}
           </div>

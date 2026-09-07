@@ -2,15 +2,18 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, PieChart, SlidersHorizontal, Target, Plus } from 'lucide-react';
+import { Home, PieChart, SlidersHorizontal, Plus } from 'lucide-react';
 import { navMode } from '@/src/shared/config/chromeVisibility';
 import styles from './BottomNav.module.css';
 
+// Goals dropped from here — reachable from Home's own Quick Actions instead
+// (src/screens/Home/HomeScreen.tsx) — /goals stays a MONEY_HUB_ROUTE
+// (chromeVisibility.ts) so this bar still shows there, just with no tab of
+// its own highlighted, same as /debts already works.
 const NAV_ITEMS = [
   { href: '/home', label: 'Home', icon: Home },
   { href: '/statistics', label: 'Statistics', icon: PieChart },
   { href: '/budget', label: 'Budget', icon: SlidersHorizontal },
-  { href: '/goals', label: 'Goals', icon: Target },
 ];
 
 // Money mode's own bottom nav — ProjectsBottomNav is Projects mode's

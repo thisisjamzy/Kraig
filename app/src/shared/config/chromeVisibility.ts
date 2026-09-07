@@ -9,7 +9,11 @@
 // create/edit flow) shows none of it, back-arrow header instead, the same
 // convention /wallets/[wallet] and /goals/[id] already established.
 
-const MONEY_HUB_ROUTES = ['/home', '/statistics', '/budget', '/goals', '/debts'];
+// /goals and /debts dropped out of this list on purpose — both are reached
+// via Home's own Quick Actions and now behave like any other drill-down
+// (their own back-arrow header, no bottom nav), not a hub a person lands on
+// directly and switches between via the tab bar.
+const MONEY_HUB_ROUTES = ['/home', '/statistics', '/budget'];
 const PROJECTS_HUB_ROUTES = ['/projects', '/projects/calendar', '/projects/focus', '/projects/analytics'];
 
 export type NavMode = 'money' | 'projects' | 'none';

@@ -33,7 +33,7 @@ import { useAccounts, useCategories, useCurrencyContext } from '@/src/shared/fir
 import { toDisplay, round2 } from '@/src/shared/firestore/currency';
 import { toRecurrenceRule } from '@/src/shared/firestore/recurrence';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
-import { walletColor } from '@/src/viewmodels/wallets';
+import { categoryAccentColor } from '@/src/viewmodels/categories';
 import type { FirestoreTransaction, FirestoreBudgetRule, StatsMonthly, FirestoreCategory } from '@/src/shared/firestore/types';
 
 const TYPE_ICONS: Record<string, LucideIcon> = {
@@ -135,15 +135,6 @@ export function useLogic(categoryId: string) {
   const { ctx, loading: ctxLoading } = useCurrencyContext();
 
   const accountById = useMemo(() => new Map(accounts.map((account) => [account.id, account])), [accounts]);
-  // Same color-per-account convention Home's wallet chart and Wallets use
-  // (src/viewmodels/wallets.ts's walletColor, keyed by an account's own
-  // fixed position in the accounts list) — every row for the same account
-  // gets the same colored circle, rather than a color that just cycles by
-  // row position and means nothing.
-  const accountColor = useMemo(
-    () => new Map(accounts.map((account, index) => [account.id, walletColor(index)])),
-    [accounts]
-  );
   const accountCurrency = useMemo(() => new Map(accounts.map((a) => [a.id, a.currency])), [accounts]);
   const categoryNameFallback = useMemo(() => {
     const map = new Map(categories.map((category) => [category.id, category.name]));
@@ -170,16 +161,17 @@ export function useLogic(categoryId: string) {
     })
     .map((transaction) => {
       const account = accountById.get(transaction.accountId);
+      const title = categoryNameFallback(transaction.categoryId);
       return {
         id: transaction.id,
-        title: categoryNameFallback(transaction.categoryId),
+        title,
         description: transaction.description,
         account: account?.name ?? transaction.accountId,
         amount: toDisplay(ctx, transaction.amount, account?.currency ?? ctx.base),
         currency: ctx.display,
         date: formatDate(transaction.date),
         icon: TYPE_ICONS[transaction.type] ?? ArrowUpRight,
-        iconColor: accountColor.get(transaction.accountId) ?? walletColor(0),
+        iconColor: categoryAccentColor(title),
       };
     });
 

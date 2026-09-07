@@ -11,9 +11,11 @@
 // transaction at a time. The two are easy to conflate by name; they don't
 // share any code or data.
 
-import { getDoc, getDocs, setDoc, updateDoc, query, where, orderBy, limit, serverTimestamp } from 'firebase/firestore';
+import { getDoc, getDocs, setDoc, writeBatch, query, where, orderBy, limit, serverTimestamp } from 'firebase/firestore';
+import { getFirebaseFirestore } from '@/src/shared/config/firebaseClient';
 import {
   accountsRef,
+  accountRef,
   transactionsRef,
   transfersRef,
   reconciliationsRef,
@@ -75,18 +77,20 @@ export interface ReconciliationResult {
 }
 
 /**
- * Sets the Unjustified wallet's balance to the freshly measured gap — a
- * deliberate full reset, not an incremental adjustment, since each
- * reconciliation is meant to be an authoritative re-check of the truth,
- * not a guess layered on a guess (section 2.3's own reasoning). Reads
- * every real wallet (accounts minus the Unjustified one itself), so this
- * intentionally does NOT run inside a single runTransaction — the number
- * of wallets is unbounded across households in principle, and Firestore
- * transactions cap how many documents they can touch; a plain read-then-
- * two-writes sequence matches this app's existing "no locking, last-write-
- * wins" trust model (the same tradeoff already recorded for every other
- * unlocked write here) rather than forcing an artificial wallet-count cap
- * just to fit inside one transaction.
+ * Snaps every real wallet's own currentBalance to what was reported for it
+ * — reconciliation is the household's authoritative re-check of the truth,
+ * so the ledger should end up actually agreeing with reality, not just
+ * recording the size of the disagreement. The Unjustified wallet still gets
+ * the freshly measured gap on top of that (section 2.3), a deliberate full
+ * reset rather than an incremental adjustment, so it keeps explaining
+ * whatever this reconciliation couldn't attribute to a specific account.
+ * Total Balance and Spendable on Home are both derived live from each
+ * account's currentBalance (see src/logic/home/useLogic.ts), so updating
+ * the accounts here is enough to correct those too — no separate write for
+ * either. One batch, not a runTransaction — a household's real wallet count
+ * comfortably fits a single batch's 500-write cap, and this app's existing
+ * "no locking, last-write-wins" trust model already accepts the same
+ * plain-read-then-write tradeoff everywhere else.
  */
 export async function performReconciliation(
   uid: string,
@@ -107,8 +111,14 @@ export async function performReconciliation(
   }
   const totalGap = round2(totalLedger - totalReported);
 
-  await updateDoc(unjustifiedWalletRef(uid), { currentBalance: totalGap, updatedAt: serverTimestamp() });
-  await setDoc(reconciliationRef(uid, crypto.randomUUID()), {
+  const batch = writeBatch(getFirebaseFirestore());
+  for (const wallet of realWallets) {
+    const reported = reportedBalances[wallet.id];
+    if (reported === undefined) continue;
+    batch.update(accountRef(uid, wallet.id), { currentBalance: round2(reported), updatedAt: serverTimestamp() });
+  }
+  batch.update(unjustifiedWalletRef(uid), { currentBalance: totalGap, updatedAt: serverTimestamp() });
+  batch.set(reconciliationRef(uid, crypto.randomUUID()), {
     uid,
     performedAt: serverTimestamp(),
     reportedBalances,
@@ -116,6 +126,7 @@ export async function performReconciliation(
     totalGap,
     notes: '',
   });
+  await batch.commit();
 
   return { totalLedger: round2(totalLedger), totalReported: round2(totalReported), totalGap };
 }
