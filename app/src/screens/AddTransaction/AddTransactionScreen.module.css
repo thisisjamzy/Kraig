@@ -233,6 +233,74 @@
   cursor: pointer;
 }
 
+.goalLinkSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.goalLinkHeaderRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.goalLinkRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-lg);
+  border: none;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-background);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.goalLinkRow:last-child {
+  border-bottom: none;
+}
+
+.goalLinkRowText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.goalLinkRowGoal {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.goalLinkRowName {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.goalLinkRowAmount {
+  flex-shrink: 0;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.linkedGoalBadge {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-lg);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-brand) 12%, transparent);
+  color: var(--color-brand);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
 .descriptionCard {
   display: flex;
   flex-direction: column;
@@ -525,60 +593,6 @@
 .typeIndicator strong {
   color: var(--color-text-primary);
   font-weight: 700;
-}
-
-/* Date picker modal */
-
-.monthStepper {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-lg);
-}
-
-.monthStepButton {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  border: 1px solid var(--color-border);
-  background: none;
-  color: var(--color-text-primary);
-  cursor: pointer;
-}
-
-.monthStepValue {
-  font-family: var(--font-family-heading);
-  font-size: var(--font-size-md);
-  font-weight: 800;
-  color: var(--color-text-primary);
-  min-width: 12ch;
-  text-align: center;
-}
-
-.dayGrid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 6px;
-}
-
-.dayButton {
-  height: 36px;
-  border: none;
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
-  font-family: inherit;
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  color: var(--color-text-primary);
-  cursor: pointer;
-}
-
-.dayButtonActive {
-  background: var(--ink-bg);
-  color: #ffffff;
 }
 
 /* Account picker modal */

@@ -60,7 +60,15 @@ import {
 import { convert, round2, type CurrencyContext } from './currency';
 import { toRecurrenceRule } from './recurrence';
 import { ruleAppliesToMonth, effectiveBudgetedAmount } from '@dreda/shared-recurrence';
-import type { FirestoreDebtPaymentPlan, DebtType, DebtPriority, BudgetLineType, Priority, GoalItemNecessity } from './types';
+import type {
+  FirestoreDebtPaymentPlan,
+  DebtType,
+  DebtPriority,
+  BudgetLineType,
+  Priority,
+  GoalItemNecessity,
+  Frequency,
+} from './types';
 
 function monthKey(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
@@ -959,6 +967,7 @@ export interface CreateGoalInput {
   description: string;
   deadline: Date | null;
   currency: string;
+  kind: 'Fixed' | 'Variable';
 }
 
 export async function createGoal(uid: string, input: CreateGoalInput): Promise<string> {
@@ -973,6 +982,7 @@ export async function createGoal(uid: string, input: CreateGoalInput): Promise<s
     currency: input.currency,
     deadline: input.deadline ? Timestamp.fromDate(input.deadline) : null,
     archived: false,
+    kind: input.kind,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
@@ -990,7 +1000,13 @@ export interface UpdateGoalInput {
   currency: string;
 }
 
-/** Goal-level fields only — totalAmount/lineItemCount/etc. stay owned by recalcGoalTotals. */
+/**
+ * Goal-level fields only — totalAmount/lineItemCount/etc. stay owned by
+ * recalcGoalTotals. `kind` is deliberately not editable here — it's a
+ * creation-time choice (see CreateGoalInput); changing it after the fact
+ * would leave already-created line items' budget rules (or lack thereof)
+ * inconsistent with the new kind.
+ */
 export async function updateGoal(uid: string, goalId: string, input: UpdateGoalInput): Promise<void> {
   await updateDoc(goalRef(uid, goalId), {
     name: input.name,
@@ -1031,10 +1047,59 @@ export interface CreateGoalLineItemInput {
   amount: number;
   priority: Priority;
   necessity: GoalItemNecessity;
+  categoryId: string;
+  // The category's own transactionType — the caller (goalDetail/useLogic.ts)
+  // already has this from its own categoryTransactionType map, so this
+  // avoids a second category read here just to tag a Fixed goal's
+  // auto-created budget rule (or a later addGoalLineItemToBudget call)
+  // with the right BudgetLineType.
+  categoryType: BudgetLineType;
+  accountId: string | null;
+  dueDate: Date | null;
+  // Fixed-goal items only — see FirestoreGoalLineItem.recurrence's header.
+  recurrence?: { frequency: Frequency; interval: number } | null;
 }
 
-export async function createGoalLineItem(uid: string, goalId: string, input: CreateGoalLineItemInput): Promise<string> {
+/**
+ * A Fixed goal's line item auto-creates its own recurring FirestoreBudgetRule
+ * right away — no manual "Add to budget" step, and no monthly generation job
+ * anywhere (this app has none, Spark plan). The rule just anchors to the
+ * start of the CURRENT month, so @dreda/shared-recurrence's own
+ * ruleAppliesToMonth naturally covers this month forward and refuses every
+ * month before it — "non-retroactive" falls out of the recurrence engine's
+ * existing rule, nothing new to enforce.
+ */
+export async function createGoalLineItem(
+  uid: string,
+  goalId: string,
+  goalKind: 'Fixed' | 'Variable',
+  input: CreateGoalLineItemInput
+): Promise<string> {
   const id = crypto.randomUUID();
+  let budgetRuleId: string | null = null;
+  if (goalKind === 'Fixed') {
+    budgetRuleId = `rule_${crypto.randomUUID().slice(0, 8)}`;
+    const now = new Date();
+    await setDoc(budgetRuleRef(uid, budgetRuleId), {
+      categoryId: input.categoryId,
+      type: input.categoryType,
+      description: input.description,
+      budgetedAmount: round2(input.amount),
+      frequency: input.recurrence?.frequency ?? 'Monthly',
+      interval: input.recurrence?.interval ?? 1,
+      anchorDate: Timestamp.fromDate(new Date(now.getFullYear(), now.getMonth(), 1)),
+      endCondition: 'Never',
+      endOccurrences: null,
+      endDate: null,
+      accountId: null,
+      tag: null,
+      archived: false,
+      sourceGoalLineItemId: id,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+    await recomputeBudgetProgressForRuleCurrentMonth(uid, budgetRuleId);
+  }
   await setDoc(goalLineItemRef(uid, goalId, id), {
     goalId,
     name: input.name,
@@ -1042,6 +1107,12 @@ export async function createGoalLineItem(uid: string, goalId: string, input: Cre
     amount: input.amount,
     priority: input.priority,
     necessity: input.necessity,
+    categoryId: input.categoryId,
+    accountId: input.accountId,
+    dueDate: input.dueDate ? Timestamp.fromDate(input.dueDate) : null,
+    recurrence: goalKind === 'Fixed' ? (input.recurrence ?? null) : null,
+    budgetRuleId,
+    addedToBudget: false,
     // A new item always lands at the end of the cross-goal to-do list's
     // custom order — Date.now() is always greater than any earlier item's
     // rank without needing to read the whole list first to find a max.
@@ -1074,10 +1145,18 @@ export async function setGoalLineItemRanks(
   await batch.commit();
 }
 
+/**
+ * `existingBudgetRuleId` is the line item's own already-known
+ * FirestoreGoalLineItem.budgetRuleId (the caller already has the full doc
+ * loaded, so this avoids a redundant read here) — present only for a Fixed
+ * goal's item, and when present its auto-created rule's category/amount/
+ * recurrence are kept in sync with whatever changed here.
+ */
 export async function updateGoalLineItem(
   uid: string,
   goalId: string,
   lineItemId: string,
+  existingBudgetRuleId: string | null | undefined,
   input: CreateGoalLineItemInput
 ): Promise<void> {
   await updateDoc(goalLineItemRef(uid, goalId, lineItemId), {
@@ -1086,15 +1165,110 @@ export async function updateGoalLineItem(
     amount: input.amount,
     priority: input.priority,
     necessity: input.necessity,
+    categoryId: input.categoryId,
+    accountId: input.accountId,
+    dueDate: input.dueDate ? Timestamp.fromDate(input.dueDate) : null,
+    recurrence: input.recurrence ?? null,
     updatedAt: serverTimestamp(),
   });
+  if (existingBudgetRuleId) {
+    await updateDoc(budgetRuleRef(uid, existingBudgetRuleId), {
+      categoryId: input.categoryId,
+      type: input.categoryType,
+      description: input.description,
+      budgetedAmount: round2(input.amount),
+      frequency: input.recurrence?.frequency ?? 'Monthly',
+      interval: input.recurrence?.interval ?? 1,
+      updatedAt: serverTimestamp(),
+    });
+    await recomputeBudgetProgressForRuleCurrentMonth(uid, existingBudgetRuleId);
+  }
   await recalcGoalTotals(uid, goalId);
 }
 
-/** Only a not-yet-completed line item — deleting one that already paid for
- * something real would silently orphan the reasoning behind that expense. */
-export async function deleteGoalLineItem(uid: string, goalId: string, lineItemId: string): Promise<void> {
+/**
+ * A Variable goal item's manual "Add to budget" action — bumps this month's
+ * budget for the item's own category by its amount, or creates a one-off
+ * rule for it if the category has no budget line yet this month. Same
+ * category+month lookup shape as ensureBudgetCoverageForCategoryMonth
+ * above, but that helper only ever backfills a $0 placeholder so actual
+ * spend still has somewhere to land — this one carries a real amount, since
+ * the whole point here is to add real planned money to the budget. A
+ * one-off (`frequency: 'Once'`) rule, not recurring — a Fixed goal's own
+ * line items get a real recurring rule instead (see createGoalLineItem's
+ * Fixed-goal branch), so this path is Variable-items-only by construction
+ * (the UI never offers this button for a Fixed goal's items).
+ */
+export async function addGoalLineItemToBudget(
+  uid: string,
+  goalId: string,
+  lineItemId: string,
+  categoryId: string,
+  amount: number,
+  type: BudgetLineType
+): Promise<void> {
+  const month = monthKey(new Date());
+  const [year, monthNum] = month.split('-').map(Number);
+  const rulesSnap = await getDocs(
+    query(budgetRulesRef(uid), where('categoryId', '==', categoryId), where('archived', '==', false))
+  );
+  const coveringRule = rulesSnap.docs.find((ruleDoc) => {
+    const rule = ruleDoc.data();
+    const occurrence = ruleAppliesToMonth(toRecurrenceRule(rule), year, monthNum);
+    return occurrence && !rule.excludedMonths?.includes(month);
+  });
+
+  let ruleId: string;
+  if (coveringRule) {
+    ruleId = coveringRule.id;
+    await updateDoc(budgetRuleRef(uid, ruleId), {
+      budgetedAmount: round2((coveringRule.data().budgetedAmount ?? 0) + amount),
+      updatedAt: serverTimestamp(),
+    });
+  } else {
+    ruleId = `rule_${crypto.randomUUID().slice(0, 8)}`;
+    await setDoc(budgetRuleRef(uid, ruleId), {
+      categoryId,
+      type,
+      description: '',
+      budgetedAmount: round2(amount),
+      frequency: 'Once',
+      interval: 1,
+      anchorDate: Timestamp.fromDate(new Date(year, monthNum - 1, 1)),
+      endCondition: 'Never',
+      endOccurrences: null,
+      endDate: null,
+      accountId: null,
+      tag: null,
+      archived: false,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+  }
+
+  await updateDoc(goalLineItemRef(uid, goalId, lineItemId), { addedToBudget: true, updatedAt: serverTimestamp() });
+  await recomputeBudgetProgressForRuleAndMonth(uid, ruleId, month);
+  await recomputeBudgetProgressForRuleCurrentMonth(uid, ruleId);
+}
+
+/**
+ * Only a not-yet-completed line item — deleting one that already paid for
+ * something real would silently orphan the reasoning behind that expense.
+ * `budgetRuleId` (the item's own already-known FirestoreGoalLineItem field)
+ * archives that Fixed-goal item's auto-created rule too, rather than
+ * leaving it behind still budgeting for a cost that no longer exists.
+ */
+export async function deleteGoalLineItem(
+  uid: string,
+  goalId: string,
+  lineItemId: string,
+  budgetRuleId?: string | null
+): Promise<void> {
   await deleteDoc(goalLineItemRef(uid, goalId, lineItemId));
+  if (budgetRuleId) {
+    await updateDoc(budgetRuleRef(uid, budgetRuleId), { archived: true, updatedAt: serverTimestamp() });
+    await recomputeBudgetProgressForRuleCurrentMonth(uid, budgetRuleId);
+  }
   await recalcGoalTotals(uid, goalId);
 }
 
@@ -1103,15 +1277,23 @@ export interface MarkGoalLineItemCompleteInput {
   categoryId: string | null;
   date: Date;
   description: string;
+  // The completed item's own category transactionType — an Expense-category
+  // item spends out of accountId (Outflow); a Savings-category item credits
+  // accountId, which the goal form already restricts to a real Savings
+  // Account wallet (viewmodels/wallets.ts's SAVINGS_ACCOUNT_TYPE), so this
+  // is a deposit into it (Inflow), not a frozen-lock like Add Transaction's
+  // "frozen savings" mode. Defaults to 'Expense' — the only behavior this
+  // function had before Savings-category goal items existed.
+  categoryType?: 'Expense' | 'Savings';
 }
 
 /**
- * Marking a line item complete records a real Expense transaction (via
- * writeTransactionContribution, the same write createTransactionWithAggregation
- * uses) and links the two — both inside one runTransaction() so a line item
- * can never end up "complete" without the expense actually existing, or
- * vice versa. The line item's own `amount` is what gets spent; there's no
- * separate amount to type in here.
+ * Marking a line item complete records a real Expense or Savings transaction
+ * (via writeTransactionContribution, the same write
+ * createTransactionWithAggregation uses) and links the two — both inside one
+ * runTransaction() so a line item can never end up "complete" without the
+ * transaction actually existing, or vice versa. The line item's own `amount`
+ * is what moves; there's no separate amount to type in here.
  */
 export async function markGoalLineItemComplete(
   uid: string,
@@ -1123,6 +1305,8 @@ export async function markGoalLineItemComplete(
 ): Promise<void> {
   const db = getFirebaseFirestore();
   const clientId = crypto.randomUUID();
+  const categoryType = input.categoryType ?? 'Expense';
+  const direction = categoryType === 'Savings' ? 'Inflow' : 'Outflow';
 
   await runTransaction(db, async (tx) => {
     const accountSnap = await tx.get(accountRef(uid, input.accountId));
@@ -1132,12 +1316,12 @@ export async function markGoalLineItemComplete(
       {
         id: clientId,
         date: input.date,
-        type: 'Expense',
+        type: categoryType,
         description: input.description,
         accountId: input.accountId,
         categoryId: input.categoryId,
         amount: lineItemAmount,
-        direction: 'Outflow',
+        direction,
         createdBy: uid,
       },
       accountSnap.data(),
@@ -1153,7 +1337,7 @@ export async function markGoalLineItemComplete(
 
   if (input.categoryId) {
     const month = monthKey(input.date);
-    await ensureBudgetCoverageForCategoryMonth(uid, input.categoryId, month, 'Expense');
+    await ensureBudgetCoverageForCategoryMonth(uid, input.categoryId, month, categoryType);
     await recomputeBudgetProgressForCategoryMonth(uid, input.categoryId, month);
   }
   await recalcGoalTotals(uid, goalId);

@@ -159,10 +159,17 @@
   gap: var(--space-md);
 }
 
+/* Three-row, horizontally-optimized card: row 1 is the category (top left
+   — this page is already scoped to one goal, so there's no goal label to
+   pair a date with here, unlike GoalsScreen's cross-goal version) plus an
+   "In budget" indicator right next to it, with the due date and the
+   action trigger grouped at the row's far end; row 2 is the item name and
+   amount; row 3 wraps every remaining badge (kind/priority/necessity/
+   possibility/done) together. */
 .lineItem {
   display: flex;
   flex-direction: column;
-  gap: var(--space-xs);
+  gap: 6px;
   padding: var(--space-md) var(--space-lg);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
@@ -170,22 +177,71 @@
 
 .lineItemHeaderRow {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  min-height: 20px;
+}
+
+.lineItemHeaderLeft {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.lineItemHeaderRight {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.addedToBudgetTag {
+  flex-shrink: 0;
+  padding: 2px var(--space-sm);
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--color-brand) 18%, transparent);
+  color: var(--color-brand);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.lineItemNameRow {
+  display: flex;
+  align-items: baseline;
   justify-content: space-between;
   gap: var(--space-sm);
 }
 
-.lineItemName {
+.lineItemAmount {
   margin: 0;
+  flex-shrink: 0;
   font-size: var(--font-size-sm);
-  font-weight: 700;
+  font-weight: 800;
   color: var(--color-text-primary);
 }
 
-.lineItemAmount {
+.lineItemName {
   margin: 0;
+  min-width: 0;
+  flex: 1;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lineItemCategoryText {
+  margin: 0;
+  min-width: 0;
   font-size: 0.75rem;
   color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .doneTag {
@@ -198,9 +254,38 @@
   font-weight: 700;
 }
 
+.kindBadgeFixed {
+  flex-shrink: 0;
+  padding: 2px var(--space-sm);
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, #4b6bfb 18%, transparent);
+  color: #3049c4;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.kindBadgeVariable {
+  flex-shrink: 0;
+  padding: 2px var(--space-sm);
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.kindBadgeUnclassified {
+  flex-shrink: 0;
+  padding: 2px var(--space-sm);
+  border-radius: var(--radius-full);
+  border: 1px dashed var(--color-border);
+  color: var(--color-text-secondary);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
 .fundsBadgeOk {
   display: inline-block;
-  margin-top: 4px;
   padding: 2px var(--space-sm);
   border-radius: var(--radius-full);
   background: color-mix(in srgb, #2e9e5b 18%, transparent);
@@ -211,7 +296,6 @@
 
 .fundsBadgeShort {
   display: inline-block;
-  margin-top: 4px;
   padding: 2px var(--space-sm);
   border-radius: var(--radius-full);
   background: color-mix(in srgb, var(--color-danger) 18%, transparent);
@@ -253,6 +337,22 @@
   font-weight: 700;
 }
 
+.dueDateText {
+  margin: 0;
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.dueDateTextPlaceholder {
+  margin: 0;
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  font-style: italic;
+  color: var(--color-text-secondary);
+  opacity: 0.7;
+}
+
 .chipGroup {
   display: flex;
   flex-wrap: wrap;
@@ -275,6 +375,70 @@
   border-color: var(--ink-bg);
   background: var(--ink-bg);
   color: #ffffff;
+}
+
+/* Two selects side by side (category+priority) — each field keeps its own
+   label above it, the row just splits the width evenly instead of each
+   select taking the full form width on its own line. */
+.formRow {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.formRow > .formField {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Due date sits on the same line as its own label — no separate row, no
+   boxed/bordered trigger, just plain text (or a dd/mm/yy placeholder when
+   nothing's picked yet) that opens the calendar on tap. */
+.dueDateFieldRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.dueDateInlineRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.dueDateTrigger {
+  border: none;
+  background: none;
+  padding: 0;
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.dueDateTriggerPlaceholder {
+  border: none;
+  background: none;
+  padding: 0;
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.clearDueDateButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
 }
 
 /* Modal form fields (add line item / mark as paid) */

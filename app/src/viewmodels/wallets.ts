@@ -16,32 +16,25 @@ export function walletColor(index: number) {
   return WALLET_COLORS[index % WALLET_COLORS.length];
 }
 
-/**
- * Reorders items (already sorted by whatever should peak in the middle,
- * largest first) into a center-outward "normal distribution" layout for a
- * bar chart — the largest bar in the middle column, the next two flanking
- * it on either side, and so on out to the smallest bars at the two edges.
- * Used for Home's wallet balances chart so the tallest bar reads as the
- * peak of a bell curve rather than sitting wherever its account happened to
- * be created.
- */
-export function arrangeCentered<T>(sortedDescending: T[]): T[] {
-  const n = sortedDescending.length;
-  const result = new Array<T>(n);
-  let left = Math.floor((n - 1) / 2);
-  let right = left + 1;
-  let placeLeft = true;
-  for (const item of sortedDescending) {
-    if (placeLeft) {
-      result[left] = item;
-      left -= 1;
-    } else {
-      result[right] = item;
-      right += 1;
-    }
-    placeLeft = !placeLeft;
-  }
-  return result;
+// Pastel gradient variant of each WALLET_COLORS entry, same index-to-hue
+// mapping — used only for the wallet card's own background (Home's card
+// list), where the card text is dark (not white), so the background needs
+// to stay light enough for that to stay readable across the whole gradient.
+// WALLET_COLORS itself stays untouched everywhere else (dots, legends),
+// which is dark text on the app's own light/dark surface, not on the
+// swatch itself.
+const WALLET_CARD_COLORS = [
+  'linear-gradient(135deg, #e8e9fd, #c9caf7)',
+  'linear-gradient(135deg, #fde8e8, #f7c9c9)',
+  'linear-gradient(135deg, #fff0d9, #ffd699)',
+  'linear-gradient(135deg, #f0f0f2, #d3d3da)',
+  'linear-gradient(135deg, #e0f7f9, #a9e4e8)',
+  'linear-gradient(135deg, #e8f0fe, #b9d0fb)',
+  'linear-gradient(135deg, #fff6d9, #fce18f)',
+] as const;
+
+export function walletCardColor(index: number) {
+  return WALLET_CARD_COLORS[index % WALLET_CARD_COLORS.length];
 }
 
 // sheets/SCHEMA.md's Accounts.Type dropdown, carried over as the fixed enum
@@ -70,4 +63,32 @@ export const SAVINGS_ACCOUNT_TYPE = 'Savings Account';
 
 export function isSavingsAccount(account: { type: string }): boolean {
   return account.type === SAVINGS_ACCOUNT_TYPE;
+}
+
+// FNV-1a, 32-bit — deterministic and dependency-free, just needs to spread
+// an account id across enough bits to look non-sequential once formatted.
+function fnv1a(input: string, seed: number): number {
+  let hash = seed >>> 0;
+  for (let i = 0; i < input.length; i++) {
+    hash ^= input.charCodeAt(i);
+    hash = Math.imul(hash, 16777619) >>> 0;
+  }
+  return hash >>> 0;
+}
+
+/**
+ * A stable, cosmetic 16-digit "wallet number" derived from the account's
+ * own id (Design/card design.jpg's "CARD NUMBER") — this app has no real
+ * card issuing, so it's never a real PAN. Hashed twice with different
+ * seeds for ~64 bits of spread, then formatted as four groups of four.
+ * Always starts with 8 — never a real network's own leading digit (Visa's
+ * 4, or Mastercard's 51-55 / 2221-2720) — so it can never be mistaken for
+ * an actual Visa or Mastercard number.
+ */
+export function walletCardNumber(id: string): string {
+  const a = fnv1a(id, 2166136261);
+  const b = fnv1a(`${id}:2`, 0x811c9dc5);
+  const combined = (BigInt(a) * BigInt(4294967296) + BigInt(b)).toString().padStart(20, '0').slice(0, 15);
+  const digits = `8${combined}`;
+  return digits.match(/.{1,4}/g)!.join(' ');
 }

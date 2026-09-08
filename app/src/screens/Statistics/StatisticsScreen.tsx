@@ -42,6 +42,9 @@ export function StatisticsScreen() {
     savingsTrendMax,
     budgetVsSpendTrend,
     budgetVsSpendMax,
+    fixedVsVariableTrend,
+    fixedVsVariableMax,
+    minimumRequiredThisMonth,
     categorySpendTrend,
     categorySpendMax,
     loading,
@@ -130,6 +133,13 @@ export function StatisticsScreen() {
           <div className={`${styles.tile} ${styles.tileBlue}`}>
             <span className={styles.tileLabel}>{strings.statistics.savingsRate}</span>
             <p className={styles.tileValue}>{summary.savingsRate}%</p>
+          </div>
+          <div className={`${styles.tile} ${styles.tilePurple} ${styles.tileWide}`}>
+            <span className={styles.tileLabel}>{strings.statistics.minimumRequired}</span>
+            <p className={styles.tileValue}>
+              {formatAmount(minimumRequiredThisMonth)} {summary.currency}
+            </p>
+            <span className={styles.tileCaption}>{strings.statistics.minimumRequiredCaption}</span>
           </div>
           <Link href="/settings/reconciliation" className={`${styles.tile} ${styles.tileGray} ${styles.tileWide}`}>
             <span className={styles.tileLabel}>{strings.statistics.unaccountedFor}</span>
@@ -620,6 +630,63 @@ export function StatisticsScreen() {
             {strings.statistics.budgetVsSpendBudgeted}
           </span>
         </div>
+      </section>
+
+      {/* Fixed vs. Variable — Expense budget lines only (same scope as
+          Budget vs. Spend above), split by whether the covering rule came
+          from a Fixed goal's line item or anywhere else. */}
+      <section className={styles.section}>
+        <div className={styles.sectionHeader}>
+          <h2 className={styles.sectionTitle}>{strings.statistics.fixedVsVariable}</h2>
+        </div>
+
+        {fixedVsVariableTrend.some((b) => b.fixed || b.variable) ? (
+          <>
+            <div className={styles.barChartRow}>
+              <div className={styles.barChartAxis} aria-hidden="true">
+                {AXIS_SCALE.map((fraction) => (
+                  <span key={fraction}>{formatAmount(Math.round(fixedVsVariableMax * fraction))}</span>
+                ))}
+              </div>
+              <div className={styles.barChartArea}>
+                <div className={styles.barChartGridlines} aria-hidden="true">
+                  {AXIS_SCALE.map((fraction) => (
+                    <span key={fraction} className={styles.barChartGridline} />
+                  ))}
+                </div>
+                <div className={styles.barChart}>
+                  {fixedVsVariableTrend.map((point) => (
+                    <div key={point.label} className={styles.barChartColumn}>
+                      <div className={styles.barChartBars}>
+                        <div
+                          className={styles.barIncome}
+                          style={{ height: `${barHeightPercent(point.fixed, fixedVsVariableMax, false)}%` }}
+                        />
+                        <div
+                          className={styles.barExpense}
+                          style={{ height: `${barHeightPercent(point.variable, fixedVsVariableMax, false)}%` }}
+                        />
+                      </div>
+                      <span className={styles.barChartLabel}>{point.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className={styles.legend}>
+              <span className={styles.legendItem}>
+                <span className={styles.legendDot} style={{ background: '#ff9800' }} />
+                {strings.statistics.fixedVsVariableFixed}
+              </span>
+              <span className={styles.legendItem}>
+                <span className={styles.legendDot} style={{ background: '#7b7ef3' }} />
+                {strings.statistics.fixedVsVariableVariable}
+              </span>
+            </div>
+          </>
+        ) : (
+          <p className={styles.emptyText}>{strings.statistics.noFixedVsVariableData}</p>
+        )}
       </section>
 
       {/* Category Spend Trend — the same period buckets as Financial Trends

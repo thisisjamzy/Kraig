@@ -1,7 +1,10 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { ChevronLeft, ChevronUp, ChevronDown, SlidersHorizontal } from 'lucide-react';
+import { ChevronLeft, GripVertical, SlidersHorizontal } from 'lucide-react';
+import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
+import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { useLogic, type GoalItemSort } from '@/src/logic/goalItems/useLogic';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { formatAmount } from '@/src/screens/Goals/GoalsScreen';
@@ -15,6 +18,19 @@ const SORT_LABEL: Record<GoalItemSort, string> = {
   priority: 'Priority',
   ease: 'Ease',
 };
+
+interface ItemRow {
+  id: string;
+  goalId: string;
+  goalName: string;
+  name: string;
+  amount: number;
+  priority: Priority;
+  necessity: GoalItemNecessity;
+  dueDateObj: Date | null;
+  categoryName: string;
+  categoryColor: string;
+}
 
 function FilterMenu({
   priorityFilter,
@@ -88,6 +104,65 @@ function FilterMenu({
   );
 }
 
+// One draggable row — useSortable must run inside its own component (not a
+// plain .map() callback) since it's a hook. Only the grip handle carries
+// the drag listeners, so the rest of the row stays a normal tap target
+// (openGoal) and dragging never fights the page's own vertical scroll.
+function ItemCard({
+  item,
+  currency,
+  draggable,
+  onOpen,
+}: {
+  item: ItemRow;
+  currency: string;
+  draggable: boolean;
+  onOpen: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={isDragging ? `${styles.itemRow} ${styles.itemRowDragging}` : styles.itemRow}
+    >
+      {draggable && (
+        <button type="button" className={styles.dragHandle} aria-label="Drag to reorder" {...attributes} {...listeners}>
+          <GripVertical size={16} strokeWidth={2} />
+        </button>
+      )}
+      <button type="button" className={styles.itemInfo} onClick={onOpen}>
+        <span className={styles.itemGoal}>{item.goalName}</span>
+        <p className={styles.itemName}>{item.name}</p>
+        <div className={styles.itemTagRow}>
+          <span className={styles.categoryTag} style={{ background: item.categoryColor }}>
+            {item.categoryName}
+          </span>
+          <span className={styles.priorityTag}>{item.priority}</span>
+          <span className={item.necessity === 'MustHave' ? styles.necessityTagMust : styles.necessityTagNice}>
+            {NECESSITY_LABEL[item.necessity]}
+          </span>
+        </div>
+      </button>
+      <div className={styles.itemTrailing}>
+        <span className={styles.itemAmount}>
+          {formatAmount(item.amount)} {currency}
+        </span>
+        {item.dueDateObj && (
+          <span className={styles.itemDueDate}>
+            {item.dueDateObj.toLocaleDateString('en-US', { month: 'short', day: '2-digit' })}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function GoalItemsScreen() {
   const {
     items,
@@ -98,12 +173,18 @@ export function GoalItemsScreen() {
     necessityFilter,
     toggleNecessityFilter,
     applySortAsCustomOrder,
-    moveItem,
+    handleDragEnd,
     currency,
     openGoal,
     goBack,
     loading,
   } = useLogic();
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
+
+  async function onDragEnd(event: DragEndEvent) {
+    await handleDragEnd(event);
+  }
 
   return (
     <div className={styles.page}>
@@ -122,7 +203,7 @@ export function GoalItemsScreen() {
 
       <p className={styles.hintText}>
         Everything left to do across every goal. Sort by priority (nearest deadline first) or ease (smallest cost
-        first), then fine-tune the order yourself — it&apos;s remembered until you change it again.
+        first), then drag to fine-tune the order yourself — it&apos;s remembered until you change it again.
       </p>
 
       <div className={styles.chipGroup}>
@@ -151,47 +232,21 @@ export function GoalItemsScreen() {
           {items.length === 0 ? (
             <p className={styles.emptyText}>Nothing left to do — every goal item is complete.</p>
           ) : (
-            <div className={styles.list}>
-              {items.map((item, index) => (
-                <div key={item.id} className={styles.itemRow}>
-                  <button type="button" className={styles.itemInfo} onClick={() => openGoal(item.goalId)}>
-                    <span className={styles.itemGoal}>{item.goalName}</span>
-                    <p className={styles.itemName}>{item.name}</p>
-                    <span className={styles.itemAmount}>
-                      {formatAmount(item.amount)} {currency}
-                    </span>
-                    <div className={styles.itemTagRow}>
-                      <span className={styles.priorityTag}>{item.priority}</span>
-                      <span className={item.necessity === 'MustHave' ? styles.necessityTagMust : styles.necessityTagNice}>
-                        {NECESSITY_LABEL[item.necessity]}
-                      </span>
-                    </div>
-                  </button>
-                  {sortMode === 'custom' && (
-                    <div className={styles.reorderButtons}>
-                      <button
-                        type="button"
-                        className={styles.reorderButton}
-                        onClick={() => moveItem(index, -1)}
-                        disabled={index === 0}
-                        aria-label="Move up"
-                      >
-                        <ChevronUp size={14} strokeWidth={2.25} />
-                      </button>
-                      <button
-                        type="button"
-                        className={styles.reorderButton}
-                        onClick={() => moveItem(index, 1)}
-                        disabled={index === items.length - 1}
-                        aria-label="Move down"
-                      >
-                        <ChevronDown size={14} strokeWidth={2.25} />
-                      </button>
-                    </div>
-                  )}
+            <DndContext sensors={sensors} onDragEnd={onDragEnd}>
+              <SortableContext items={items.map((item) => item.id)} strategy={verticalListSortingStrategy}>
+                <div className={styles.list}>
+                  {items.map((item) => (
+                    <ItemCard
+                      key={item.id}
+                      item={item}
+                      currency={currency}
+                      draggable={sortMode === 'custom'}
+                      onOpen={() => openGoal(item.goalId)}
+                    />
+                  ))}
                 </div>
-              ))}
-            </div>
+              </SortableContext>
+            </DndContext>
           )}
         </>
       )}

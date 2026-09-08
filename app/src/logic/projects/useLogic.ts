@@ -26,6 +26,7 @@ import { areasRef, areaRef, projectsRef, projectRef, tasksRef } from '@/src/shar
 import { defaultBucketId } from '@/src/shared/firestore/buckets';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { overdueCountByProject, isAtRisk } from '@/src/shared/firestore/projectInsights';
+import { updateTaskTodayPriority, toDateOnly } from '@/src/shared/firestore/taskWrites';
 import { DEFAULT_PRIORITY } from '@/src/viewmodels/projects';
 import type { FirestoreArea, FirestoreProject, FirestoreTask } from '@/src/shared/firestore/types';
 
@@ -182,6 +183,54 @@ export function useLogic() {
     };
   }, [taskDocs, activeProjects]);
 
+  // "Today's priorities" — tasks whose priorityDate matches today's own
+  // toDateOnly() output (see taskWrites.ts's updateTaskTodayPriority).
+  // Completing one drops it from this list entirely (not just crossed out)
+  // — the list is "what's left to focus on today", not a running log.
+  const todayIso = toDateOnly(new Date());
+  const todayPriorityTasks = useMemo(
+    () =>
+      taskDocs
+        .filter((task) => task.priorityDate === todayIso && !task.done)
+        .map((task) => ({
+          id: task.id,
+          title: task.title,
+          priority: task.priority ?? DEFAULT_PRIORITY,
+          done: task.done,
+          status: task.status,
+          startTime: task.startTime ? task.startTime.toDate() : null,
+          dueDate: task.dueDate ? task.dueDate.toDate() : null,
+        })),
+    [taskDocs, todayIso]
+  );
+
+  // The picker's own source list — every not-yet-done task, regardless of
+  // whether it's already a today-priority (so the picker can show it
+  // checked and let the user un-pick it from the same list).
+  const pendingTasksForPicker = useMemo(
+    () =>
+      taskDocs
+        .filter((task) => !task.done)
+        .map((task) => ({
+          id: task.id,
+          title: task.title,
+          priority: task.priority ?? DEFAULT_PRIORITY,
+          dueDate: task.dueDate ? task.dueDate.toDate() : null,
+          isTodayPriority: task.priorityDate === todayIso,
+        }))
+        .sort((a, b) => (a.dueDate?.getTime() ?? Infinity) - (b.dueDate?.getTime() ?? Infinity)),
+    [taskDocs, todayIso]
+  );
+
+  const [priorityPickerOpen, setPriorityPickerOpen] = useState(false);
+
+  async function toggleTodayPriority(taskId: string) {
+    if (!uid) return;
+    const current = taskDocs.find((task) => task.id === taskId);
+    const isPriority = current?.priorityDate === todayIso;
+    await updateTaskTodayPriority(uid, taskId, !isPriority);
+  }
+
   async function restoreArea(id: string) {
     if (!uid) return;
     await updateDoc(areaRef(uid, id), { archived: false, updatedAt: serverTimestamp() });
@@ -215,6 +264,11 @@ export function useLogic() {
     tab,
     setTab,
     overview,
+    todayPriorityTasks,
+    pendingTasksForPicker,
+    priorityPickerOpen,
+    setPriorityPickerOpen,
+    toggleTodayPriority,
     areas,
     buckets,
     projects,

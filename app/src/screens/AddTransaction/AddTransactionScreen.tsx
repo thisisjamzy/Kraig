@@ -2,7 +2,6 @@
 
 import {
   ChevronLeft,
-  ChevronRight,
   ArrowUpRight,
   ArrowDownLeft,
   ArrowLeftRight,
@@ -13,6 +12,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { Modal } from '@/src/widgets/Modal/Modal';
+import { HeroDatePicker } from '@/src/widgets/HeroDatePicker/HeroDatePicker';
 import { useLogic, KEYPAD_KEYS, formatMoney, type TransactionType } from '@/src/logic/addTransaction/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
@@ -34,7 +34,12 @@ export function AddTransactionScreen() {
     chooseSavingsMode,
     isTransferLike,
     category,
+    categoryName,
     setCategory,
+    linkableGoalItems,
+    linkedGoalItem,
+    selectLinkedGoalItem,
+    clearLinkedGoalItem,
     description,
     setDescription,
     amountString,
@@ -51,24 +56,17 @@ export function AddTransactionScreen() {
     budgetHref,
     accounts,
     spendableAccounts,
-    datePickerOpen,
-    setDatePickerOpen,
-    pickerMonth,
-    pickerYear,
     accountPickerFor,
     setAccountPickerFor,
     fromAccountId,
     toAccountId,
-    daysInMonth,
     canExplainUnjustifiedBalance,
     explainsUnjustifiedBalance,
     setExplainsUnjustifiedBalance,
     unjustifiedBalance,
     canContinue,
     selectType,
-    openDatePicker,
-    chooseDay,
-    shiftPickerMonth,
+    chooseDate,
     chooseAccount,
     pressKey,
     goBack,
@@ -141,7 +139,7 @@ export function AddTransactionScreen() {
 
       {step === 'category' && (
         <div className={styles.categorySection}>
-          {type === 'savings' && (
+          {type === 'savings' && !linkedGoalItem && (
             <div className={styles.savingsModeRow}>
               {(['moved', 'frozen'] as const).map((mode) => {
                 const active = savingsMode === mode;
@@ -168,7 +166,47 @@ export function AddTransactionScreen() {
             </div>
           )}
 
-          {!hasBudgetedCategories && (
+          {(linkedGoalItem || linkableGoalItems.length > 0) && (
+            <div className={styles.goalLinkSection}>
+              <div className={styles.goalLinkHeaderRow}>
+                <span className={styles.descriptionLabel}>{strings.addTransaction.linkGoalTitle}</span>
+                {linkedGoalItem && (
+                  <button type="button" className={styles.unplannedLink} onClick={clearLinkedGoalItem}>
+                    {strings.addTransaction.linkGoalClear}
+                  </button>
+                )}
+              </div>
+              {linkedGoalItem ? (
+                <div className={styles.linkedGoalBadge}>
+                  <span>
+                    {strings.addTransaction.linkedGoalPrefix} {linkedGoalItem.goalName}: {linkedGoalItem.name}
+                  </span>
+                </div>
+              ) : (
+                <>
+                  <p className={styles.helperText}>{strings.addTransaction.linkGoalHint}</p>
+                  <div className={styles.categoryList}>
+                    {linkableGoalItems.map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        className={styles.goalLinkRow}
+                        onClick={() => selectLinkedGoalItem(item.id)}
+                      >
+                        <span className={styles.goalLinkRowText}>
+                          <span className={styles.goalLinkRowGoal}>{item.goalName}</span>
+                          <span className={styles.goalLinkRowName}>{item.name}</span>
+                        </span>
+                        <span className={styles.goalLinkRowAmount}>{formatMoney(String(item.amount))}</span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {!linkedGoalItem && !hasBudgetedCategories && (
             <div className={styles.noBudgetCard}>
               <p className={styles.noBudgetTitle}>{strings.addTransaction.noBudgetTitle}</p>
               <p className={styles.helperText}>{strings.addTransaction.noBudgetBody}</p>
@@ -189,11 +227,11 @@ export function AddTransactionScreen() {
             </div>
           )}
 
-          {showUnplanned && (
+          {!linkedGoalItem && showUnplanned && (
             <p className={styles.helperText}>{strings.addTransaction.unplannedNotice}</p>
           )}
 
-          {categoriesForType.length > 0 && (
+          {!linkedGoalItem && categoriesForType.length > 0 && (
             <div className={styles.categoryList}>
               {categoriesForType.map((option) => (
                 <button
@@ -211,7 +249,7 @@ export function AddTransactionScreen() {
             </div>
           )}
 
-          {!(type === 'savings' && savingsMode === 'moved') && (hasBudgetedCategories || showUnplanned) && (
+          {!linkedGoalItem && !(type === 'savings' && savingsMode === 'moved') && (hasBudgetedCategories || showUnplanned) && (
             <button
               type="button"
               className={styles.unplannedLink}
@@ -241,9 +279,13 @@ export function AddTransactionScreen() {
               <span className={styles.infoRowLabel}>{strings.addTransaction.transactionDate}</span>
               <span className={styles.infoRowValue}>{date}</span>
             </div>
-            <button type="button" className={styles.pillButtonInteractive} onClick={openDatePicker}>
-              {strings.common.change}
-            </button>
+            <HeroDatePicker
+              value={dateValue}
+              onChange={chooseDate}
+              triggerLabel={strings.common.change}
+              triggerClassName={styles.pillButtonInteractive}
+              aria-label={strings.addTransaction.chooseDate}
+            />
           </div>
 
           <p className={styles.amountDisplay}>{amountString || '0'}</p>
@@ -348,7 +390,7 @@ export function AddTransactionScreen() {
           </div>
           <div className={styles.reviewRow}>
             <span className={styles.reviewLabel}>{strings.addTransaction.reviewCategory}</span>
-            <span className={styles.reviewValue}>{category || '—'}</span>
+            <span className={styles.reviewValue}>{categoryName || '—'}</span>
           </div>
           <div className={styles.reviewRow}>
             <span className={styles.reviewLabel}>{strings.addTransaction.reviewAmount}</span>
@@ -385,9 +427,13 @@ export function AddTransactionScreen() {
             <span className={styles.reviewLabel}>{strings.addTransaction.reviewDate}</span>
             <span className={styles.reviewValueWithAction}>
               <span className={styles.reviewValue}>{date}</span>
-              <button type="button" className={styles.reviewChangeButton} onClick={openDatePicker}>
-                {strings.common.change}
-              </button>
+              <HeroDatePicker
+                value={dateValue}
+                onChange={chooseDate}
+                triggerLabel={strings.common.change}
+                triggerClassName={styles.reviewChangeButton}
+                aria-label={strings.addTransaction.chooseDate}
+              />
             </span>
           </div>
         </div>
@@ -420,50 +466,6 @@ export function AddTransactionScreen() {
         </p>
       )}
         </>
-      )}
-
-      {datePickerOpen && (
-        <Modal title={strings.addTransaction.chooseDate} onClose={() => setDatePickerOpen(false)}>
-          <div className={styles.monthStepper}>
-            <button
-              type="button"
-              className={styles.monthStepButton}
-              onClick={() => shiftPickerMonth(-1)}
-              aria-label="Previous month"
-            >
-              <ChevronLeft size={16} strokeWidth={2} />
-            </button>
-            <span className={styles.monthStepValue}>
-              {strings.months[pickerMonth]} {pickerYear}
-            </span>
-            <button
-              type="button"
-              className={styles.monthStepButton}
-              onClick={() => shiftPickerMonth(1)}
-              aria-label="Next month"
-            >
-              <ChevronRight size={16} strokeWidth={2} />
-            </button>
-          </div>
-          <div className={styles.dayGrid}>
-            {Array.from({ length: daysInMonth }, (_, index) => index + 1).map((day) => {
-              const iso = `${pickerYear}-${String(pickerMonth + 1).padStart(2, '0')}-${String(
-                day
-              ).padStart(2, '0')}`;
-              const active = iso === dateValue;
-              return (
-                <button
-                  key={day}
-                  type="button"
-                  className={`${styles.dayButton} ${active ? styles.dayButtonActive : ''}`}
-                  onClick={() => chooseDay(day)}
-                >
-                  {day}
-                </button>
-              );
-            })}
-          </div>
-        </Modal>
       )}
 
       {accountPickerFor && (

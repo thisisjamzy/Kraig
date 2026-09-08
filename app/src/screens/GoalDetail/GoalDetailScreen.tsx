@@ -1,7 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronLeft, Pencil, Trash2, CheckCircle2, Plus } from 'lucide-react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { ChevronLeft, Pencil, Trash2, CheckCircle2, Wallet, Plus } from 'lucide-react';
 import { Modal } from '@/src/widgets/Modal/Modal';
 import { ConfirmDialog } from '@/src/widgets/ConfirmDialog/ConfirmDialog';
 import { ActionMenu } from '@/src/widgets/ActionMenu/ActionMenu';
@@ -9,15 +11,17 @@ import { useLogic } from '@/src/logic/goalDetail/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { formatAmount } from '@/src/screens/Goals/GoalsScreen';
-import { PRIORITY_LEVELS, NECESSITY_OPTIONS, NECESSITY_LABEL } from '@/src/viewmodels/projects';
+import { NECESSITY_LABEL } from '@/src/viewmodels/projects';
 import styles from './GoalDetailScreen.module.css';
 
 export function GoalDetailScreen({ goalId }: { goalId: string }) {
   const strings = useStrings();
+  const router = useRouter();
   const [confirmArchive, setConfirmArchive] = useState(false);
   const [confirmDeleteItemId, setConfirmDeleteItemId] = useState<string | null>(null);
   const {
     goal,
+    isFixedGoal,
     currency,
     lineItems,
     amountCompleted,
@@ -27,25 +31,9 @@ export function GoalDetailScreen({ goalId }: { goalId: string }) {
     accounts,
     categories,
 
-    addOpen,
-    setAddOpen,
-    openAdd,
-    editingItemId,
-    openEditItem,
-    itemName,
-    setItemName,
-    itemDescription,
-    setItemDescription,
-    itemAmount,
-    setItemAmount,
-    itemPriority,
-    setItemPriority,
-    itemNecessity,
-    setItemNecessity,
-    savingItem,
-    itemError,
-    handleAddLineItem,
     handleDeleteLineItem,
+    addToBudgetError,
+    handleAddToBudget,
 
     currencyOptions,
     goalEditOpen,
@@ -85,6 +73,13 @@ export function GoalDetailScreen({ goalId }: { goalId: string }) {
   } = useLogic(goalId);
 
   const completingItem = lineItems.find((item) => item.id === completeItemId) ?? null;
+  // Every item on this page shares the one goal's own kind — "Unclassified"
+  // only for a goal written before Fixed/Variable existed, not a per-item
+  // distinction.
+  const kindBadgeLabel =
+    goal?.kind === 'Fixed' ? strings.goals.filterFixed : goal?.kind === 'Variable' ? strings.goals.filterVariable : strings.goals.kindUnclassified;
+  const kindBadgeClass =
+    goal?.kind === 'Fixed' ? styles.kindBadgeFixed : goal?.kind === 'Variable' ? styles.kindBadgeVariable : styles.kindBadgeUnclassified;
 
   return (
     <div className={styles.page}>
@@ -147,10 +142,12 @@ export function GoalDetailScreen({ goalId }: { goalId: string }) {
 
           <div className={styles.sectionTitleRow}>
             <h2 className={styles.sectionTitle}>{strings.goalDetail.lineItemsTitle}</h2>
-            <button type="button" className={styles.addIconButton} onClick={openAdd} aria-label={strings.goalDetail.addLineItem}>
+            <Link href={`/add-goal-item/${goalId}`} className={styles.addIconButton} aria-label={strings.goalDetail.addLineItem}>
               <Plus size={16} strokeWidth={2.25} />
-            </button>
+            </Link>
           </div>
+
+          {addToBudgetError && <p className={styles.errorText}>{addToBudgetError}</p>}
 
           {lineItems.length === 0 ? (
             <p className={styles.emptyText}>{strings.goalDetail.emptyLineItems}</p>
@@ -159,35 +156,47 @@ export function GoalDetailScreen({ goalId }: { goalId: string }) {
               {lineItems.map((item) => (
                 <div key={item.id} className={styles.lineItem}>
                   <div className={styles.lineItemHeaderRow}>
-                    <div>
-                      <p className={styles.lineItemName}>{item.name}</p>
-                      <p className={styles.lineItemAmount}>
-                        {formatAmount(item.amount)} {currency}
-                      </p>
-                      {!item.completed && (
-                        <span className={item.hasFunds ? styles.fundsBadgeOk : styles.fundsBadgeShort}>
-                          {item.hasFunds ? 'Possible' : 'Not possible'}
-                        </span>
+                    <div className={styles.lineItemHeaderLeft}>
+                      <p className={styles.lineItemCategoryText}>{item.categoryName}</p>
+                      {(item.addedToBudget || item.budgetRuleId) && (
+                        <span className={styles.addedToBudgetTag}>{strings.goalDetail.addedToBudgetTag}</span>
                       )}
                     </div>
-                    {item.completed ? (
-                      <span className={styles.doneTag}>{strings.goalDetail.completedTag}</span>
-                    ) : (
+                    <div className={styles.lineItemHeaderRight}>
+                      <p className={item.dueDateObj ? styles.dueDateText : styles.dueDateTextPlaceholder}>
+                        {item.dueDateObj
+                          ? item.dueDateObj.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
+                          : strings.goalDetail.dueDateNone}
+                      </p>
                       <ActionMenu
                         title={item.name}
                         ariaLabel={`Actions for ${item.name}`}
                         items={[
-                          {
-                            key: 'complete',
-                            label: strings.goalDetail.markComplete,
-                            icon: <CheckCircle2 size={16} strokeWidth={1.75} />,
-                            onSelect: () => openMarkComplete(item),
-                          },
+                          ...(!isFixedGoal && !item.completed && !item.addedToBudget
+                            ? [
+                                {
+                                  key: 'addToBudget',
+                                  label: strings.goalDetail.addToBudget,
+                                  icon: <Wallet size={16} strokeWidth={1.75} />,
+                                  onSelect: () => handleAddToBudget(item.id),
+                                },
+                              ]
+                            : []),
+                          ...(!item.completed
+                            ? [
+                                {
+                                  key: 'complete',
+                                  label: strings.goalDetail.markComplete,
+                                  icon: <CheckCircle2 size={16} strokeWidth={1.75} />,
+                                  onSelect: () => openMarkComplete(item),
+                                },
+                              ]
+                            : []),
                           {
                             key: 'edit',
                             label: strings.goalDetail.editLineItem,
                             icon: <Pencil size={16} strokeWidth={1.75} />,
-                            onSelect: () => openEditItem(item),
+                            onSelect: () => router.push(`/edit-goal-item/${goalId}/${item.id}`),
                           },
                           {
                             key: 'delete',
@@ -198,103 +207,35 @@ export function GoalDetailScreen({ goalId }: { goalId: string }) {
                           },
                         ]}
                       />
-                    )}
+                    </div>
+                  </div>
+
+                  <div className={styles.lineItemNameRow}>
+                    <p className={styles.lineItemName}>{item.name}</p>
+                    <p className={styles.lineItemAmount}>
+                      {formatAmount(item.amount)} {currency}
+                    </p>
                   </div>
 
                   <div className={styles.lineItemTagRow}>
+                    <span className={kindBadgeClass}>{kindBadgeLabel}</span>
                     <span className={styles.priorityTag}>{item.priority}</span>
                     <span className={item.necessity === 'MustHave' ? styles.necessityTagMust : styles.necessityTagNice}>
                       {NECESSITY_LABEL[item.necessity]}
                     </span>
+                    {item.completed ? (
+                      <span className={styles.doneTag}>{strings.goalDetail.completedTag}</span>
+                    ) : (
+                      <span className={item.hasFunds ? styles.fundsBadgeOk : styles.fundsBadgeShort}>
+                        {item.hasFunds ? 'Possible' : 'Not possible'}
+                      </span>
+                    )}
                   </div>
                 </div>
               ))}
             </div>
           )}
         </>
-      )}
-
-      {addOpen && (
-        <Modal
-          title={editingItemId ? strings.goalDetail.editLineItemTitle : strings.goalDetail.addLineItem}
-          onClose={() => setAddOpen(false)}
-        >
-          <div className={styles.formField}>
-            <label className={styles.formLabel} htmlFor="line-item-name">
-              {strings.goalDetail.nameLabel}
-            </label>
-            <input
-              id="line-item-name"
-              className={styles.formInput}
-              value={itemName}
-              onChange={(event) => setItemName(event.target.value)}
-            />
-          </div>
-          <div className={styles.formField}>
-            <label className={styles.formLabel} htmlFor="line-item-amount">
-              {strings.goalDetail.amountLabel}
-            </label>
-            <input
-              id="line-item-amount"
-              className={styles.formInput}
-              inputMode="numeric"
-              value={itemAmount}
-              onChange={(event) => setItemAmount(event.target.value.replace(/[^0-9.]/g, ''))}
-              placeholder="0"
-            />
-          </div>
-          <div className={styles.formField}>
-            <label className={styles.formLabel} htmlFor="line-item-description">
-              {strings.goalDetail.descriptionLabel}
-            </label>
-            <textarea
-              id="line-item-description"
-              className={styles.formTextarea}
-              rows={2}
-              value={itemDescription}
-              onChange={(event) => setItemDescription(event.target.value)}
-            />
-          </div>
-          <div className={styles.formField}>
-            <span className={styles.formLabel}>Priority</span>
-            <div className={styles.chipGroup}>
-              {PRIORITY_LEVELS.map((option) => (
-                <button
-                  key={option}
-                  type="button"
-                  className={`${styles.chip} ${itemPriority === option ? styles.chipActive : ''}`}
-                  onClick={() => setItemPriority(option)}
-                >
-                  {option}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className={styles.formField}>
-            <span className={styles.formLabel}>Necessity</span>
-            <div className={styles.chipGroup}>
-              {NECESSITY_OPTIONS.map((option) => (
-                <button
-                  key={option}
-                  type="button"
-                  className={`${styles.chip} ${itemNecessity === option ? styles.chipActive : ''}`}
-                  onClick={() => setItemNecessity(option)}
-                >
-                  {NECESSITY_LABEL[option]}
-                </button>
-              ))}
-            </div>
-          </div>
-          {itemError && <p className={styles.errorText}>{itemError}</p>}
-          <button
-            type="button"
-            className={styles.modalSaveButton}
-            disabled={!itemName.trim() || !itemAmount || savingItem}
-            onClick={handleAddLineItem}
-          >
-            {savingItem ? strings.goalDetail.saving : strings.goalDetail.save}
-          </button>
-        </Modal>
       )}
 
       {completingItem && (

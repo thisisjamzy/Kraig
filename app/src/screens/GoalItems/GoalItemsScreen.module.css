@@ -102,16 +102,44 @@
   flex-direction: column;
 }
 
+/* Horizontal card: drag handle, then content (grows), then a trailing
+   amount/due-date column on the right — the amount and its date read like
+   a receipt total, not buried inside the same stack as the tags. */
 .itemRow {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
   padding: var(--space-md) 0;
   border-bottom: 1px solid var(--color-border);
+  background: var(--color-background);
 }
 
 .list > .itemRow:last-child {
   border-bottom: none;
+}
+
+/* Lifted card look while actively being dragged — a visible shadow and
+   slight scale so it's unambiguous which card is moving. */
+.itemRowDragging {
+  position: relative;
+  z-index: 10;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  border-radius: var(--radius-md);
+  transform-origin: center;
+}
+
+.dragHandle {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: none;
+  color: var(--color-text-secondary);
+  cursor: grab;
+  touch-action: none;
 }
 
 .itemInfo {
@@ -140,11 +168,40 @@
   font-size: var(--font-size-sm);
   font-weight: 700;
   color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Trailing amount + due date, right-aligned — amount on top, date below it
+   only when the item actually has one. */
+.itemTrailing {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
 }
 
 .itemAmount {
-  font-size: 0.75rem;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+}
+
+.itemDueDate {
+  font-size: 0.6875rem;
   color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.categoryTag {
+  padding: 2px var(--space-sm);
+  border-radius: var(--radius-full);
+  color: #000000;
+  font-size: 0.65rem;
+  font-weight: 700;
 }
 
 .itemTagRow {
@@ -245,29 +302,4 @@
 
 .checkboxRow:hover {
   background: var(--color-surface);
-}
-
-.reorderButtons {
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.reorderButton {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 22px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: none;
-  color: var(--color-text-primary);
-  cursor: pointer;
-}
-
-.reorderButton:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
 }

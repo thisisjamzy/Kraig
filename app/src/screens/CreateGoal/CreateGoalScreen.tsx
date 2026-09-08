@@ -18,6 +18,8 @@ export function CreateGoalScreen() {
     currency,
     setCurrency,
     currencyOptions,
+    kind,
+    setKind,
     saving,
     saveError,
     handleSave,
@@ -49,6 +51,29 @@ export function CreateGoalScreen() {
               onChange={(event) => setName(event.target.value)}
               placeholder={strings.createGoal.namePlaceholder}
             />
+          </div>
+
+          <div className={styles.formField}>
+            <span className={styles.formLabel}>{strings.createGoal.kindLabel}</span>
+            <div className={styles.chipGroup}>
+              <button
+                type="button"
+                className={`${styles.chip} ${kind === 'Variable' ? styles.chipActive : ''}`}
+                onClick={() => setKind('Variable')}
+              >
+                {strings.createGoal.kindVariable}
+              </button>
+              <button
+                type="button"
+                className={`${styles.chip} ${kind === 'Fixed' ? styles.chipActive : ''}`}
+                onClick={() => setKind('Fixed')}
+              >
+                {strings.createGoal.kindFixed}
+              </button>
+            </div>
+            <p className={styles.hintText}>
+              {kind === 'Fixed' ? strings.createGoal.kindFixedHint : strings.createGoal.kindVariableHint}
+            </p>
           </div>
 
           <div className={styles.formField}>

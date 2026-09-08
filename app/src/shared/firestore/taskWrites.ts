@@ -193,6 +193,18 @@ export async function updateTaskPriority(uid: string, taskId: string, priority: 
   await updateDoc(taskRef(uid, taskId), { priority, updatedAt: serverTimestamp() });
 }
 
+/** Marks/unmarks a task as one of today's top priorities (the Time hub's
+ * own "Today's priorities" picker) — sets priorityDate to today's own
+ * toDateOnly() when marking, null when unmarking. A no-op collection to
+ * write into per day (no separate "priorities/{date}" doc), so toggling is
+ * just this one field on the task itself. */
+export async function updateTaskTodayPriority(uid: string, taskId: string, isPriority: boolean): Promise<void> {
+  await updateDoc(taskRef(uid, taskId), {
+    priorityDate: isPriority ? toDateOnly(new Date()) : null,
+    updatedAt: serverTimestamp(),
+  });
+}
+
 /** Quick reschedule — moves a task to a different date while keeping both
  * its start and end times of day (and so its duration) exactly as they
  * were, staying day-bound by construction. Same originalDueDate/

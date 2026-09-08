@@ -328,6 +328,7 @@ export function useLogic() {
           description: 'Auto-created during import.',
           deadline: null,
           currency: (hint.currency as string) || ctx.base,
+          kind: 'Variable',
         });
       }
       default:
@@ -595,11 +596,15 @@ export function useLogic() {
         }
         case 'goals': {
           const d = draft as unknown as GoalDraft;
+          // The import spreadsheet has no Fixed/Variable column yet —
+          // every bulk-imported goal lands Variable, same as any goal
+          // created before this field existed.
           const id = await createGoal(uid!, {
             name: d.name,
             description: d.description,
             deadline: d.deadline,
             currency: d.currency,
+            kind: 'Variable',
           });
           maps.goals.set(nameKey(d.name), id);
           return;
@@ -607,12 +612,21 @@ export function useLogic() {
         case 'goalItems': {
           const d = draft as unknown as GoalItemDraft;
           const goalId = resolved.goalId!;
-          const lineItemId = await createGoalLineItem(uid!, goalId, {
+          // The import spreadsheet has no category/wallet/due-date columns
+          // for goal items yet — bulk-imported items land uncategorized and
+          // get their category assigned later via the goal's own edit form.
+          // Every imported goal is Variable (see the 'goals' case above), so
+          // this never needs a categoryType for an auto-created budget rule.
+          const lineItemId = await createGoalLineItem(uid!, goalId, 'Variable', {
             name: d.name,
             description: d.description,
             amount: d.amount,
             priority: d.priority,
             necessity: d.necessity,
+            categoryId: '',
+            categoryType: 'Expense',
+            accountId: null,
+            dueDate: null,
           });
           if (d.completed) {
             await updateDoc(goalLineItemRef(uid!, goalId, lineItemId), {

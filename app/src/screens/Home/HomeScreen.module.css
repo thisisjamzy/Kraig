@@ -85,6 +85,26 @@
   margin: 0;
 }
 
+.balanceAmountRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.balanceVisibilityToggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+  cursor: pointer;
+}
+
 .progressTrack {
   width: 100%;
   height: 6px;
@@ -254,73 +274,110 @@
   flex-shrink: 0;
 }
 
-/* Wallets chart */
-
-.walletsChart {
+/* Wallet cards — Design/card design.jpg's layout (type+name top, a
+   generated "wallet number" mid-card, available/required stats + logo on
+   the bottom row) repurposed as a horizontally-scrolling row, one real
+   card per wallet, in that wallet's own existing color. */
+.walletCardsRow {
   display: flex;
-  align-items: flex-end;
-  /* flex-start, not center: a centered overflowing flex row starts scrolled
-     to its midpoint, so both the first and last bar are half cut off until
-     the user scrolls one way or the other. Left-aligned means the row
-     always opens on the first bar, fully visible, scrolling right from
-     there. */
-  justify-content: flex-start;
+  align-items: stretch;
   gap: var(--space-md);
   overflow-x: auto;
-  padding: 20px var(--space-md) 2px;
-  min-height: 122px;
+  margin: 0 calc(-1 * var(--space-lg));
+  padding: 4px var(--space-lg) 8px;
 }
 
-.walletColumn {
+/* Height is left to the content, not a fixed aspect-ratio — a strict
+   credit-card ratio (1.586) fights the card's own text on a narrow phone
+   viewport and forces it taller/squarer than intended. Letting height stay
+   auto while width stays a wide percentage keeps every card reliably
+   landscape (wide, short) regardless of screen width. */
+.walletCard {
   display: flex;
   flex: 0 0 auto;
   flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  width: 40px;
+  justify-content: space-between;
+  gap: var(--space-lg);
+  width: 50%;
+  padding: var(--space-md) var(--space-lg);
+  border-radius: var(--radius-lg);
+  color: #14141c;
 }
 
-.walletValue {
-  position: absolute;
-  bottom: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  margin-bottom: 4px;
-  font-size: 0.625rem;
-  font-weight: 700;
-  color: var(--color-text-secondary);
-  white-space: nowrap;
-}
-
-.walletBarTrack {
+.walletCardTop {
   display: flex;
-  align-items: flex-end;
-  width: 100%;
-  height: 100px;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
 }
 
-.walletBar {
-  position: relative;
-  width: 100%;
-  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
-  transition: height 0.2s ease;
+.walletCardType {
+  margin: 0;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(20, 20, 28, 0.7);
 }
 
-.walletName {
-  max-width: 40px;
-  font-size: 0.625rem;
-  font-weight: 600;
-  color: var(--color-text-secondary);
-  white-space: nowrap;
+.walletCardName {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.walletCardLabel {
+  margin: 0 0 2px;
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(20, 20, 28, 0.6);
+}
+
+.walletCardNumberBlock {
+  margin: var(--space-md) 0;
+}
+
+.walletCardNumber {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.walletCardBottomRow {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-md);
+}
+
+.walletCardStat {
+  min-width: 0;
+}
+
+.walletCardStatValue {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.walletCardLogoRow {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.walletCardLogo {
+  opacity: 0.85;
 }
 
 /* Colorless placeholder shapes — same geometry as the real bars, no data yet */
-
-.placeholderBar {
-  background: color-mix(in srgb, var(--color-text-secondary) 22%, transparent);
-}
 
 .placeholderBreakdownBar {
   width: 7px;

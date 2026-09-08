@@ -18,11 +18,23 @@ export function DonutChart({
   size = 120,
   thickness = 16,
   legendPosition = 'right',
+  centerValue,
+  centerLabel,
+  legendWrap = false,
 }: {
   segments: DonutSegment[];
   size?: number;
   thickness?: number;
   legendPosition?: 'right' | 'bottom';
+  // Optional callout text over the ring's own hole — e.g. a total amount +
+  // what it represents (see Design/goal1.jpg's "$2,482 / Your savings").
+  centerValue?: string;
+  centerLabel?: string;
+  // A 'bottom' legend normally stacks one row per segment full-width —
+  // legendWrap instead lets each label+value chip flow left-to-right and
+  // wrap, for a bottom legend with more than a couple of segments (see
+  // Goals' priority/type/category breakdown).
+  legendWrap?: boolean;
 }) {
   const total = segments.reduce((sum, segment) => sum + segment.value, 0);
   if (total <= 0) return null;
@@ -38,24 +50,34 @@ export function DonutChart({
 
   return (
     <div className={`${styles.wrap} ${legendPosition === 'bottom' ? styles.wrapBottom : ''}`}>
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className={styles.svg}>
-        <g transform={`rotate(-90 ${size / 2} ${size / 2})`}>
-          {segments.map((segment, index) => (
-            <circle
-              key={index}
-              cx={size / 2}
-              cy={size / 2}
-              r={radius}
-              fill="none"
-              stroke={segment.color}
-              strokeWidth={thickness}
-              strokeDasharray={`${dashes[index]} ${circumference - dashes[index]}`}
-              strokeDashoffset={-offsets[index]}
-            />
-          ))}
-        </g>
-      </svg>
-      <div className={`${styles.legend} ${legendPosition === 'bottom' ? styles.legendBottom : ''}`}>
+      <div className={styles.svgWrap}>
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className={styles.svg}>
+          <g transform={`rotate(-90 ${size / 2} ${size / 2})`}>
+            {segments.map((segment, index) => (
+              <circle
+                key={index}
+                cx={size / 2}
+                cy={size / 2}
+                r={radius}
+                fill="none"
+                stroke={segment.color}
+                strokeWidth={thickness}
+                strokeDasharray={`${dashes[index]} ${circumference - dashes[index]}`}
+                strokeDashoffset={-offsets[index]}
+              />
+            ))}
+          </g>
+        </svg>
+        {(centerValue || centerLabel) && (
+          <div className={styles.center}>
+            {centerValue && <span className={styles.centerValue}>{centerValue}</span>}
+            {centerLabel && <span className={styles.centerLabel}>{centerLabel}</span>}
+          </div>
+        )}
+      </div>
+      <div
+        className={`${styles.legend} ${legendPosition === 'bottom' ? styles.legendBottom : ''} ${legendPosition === 'bottom' && legendWrap ? styles.legendWrap : ''}`}
+      >
         {segments.map((segment, index) => (
           <div key={index} className={styles.legendRow}>
             <span className={styles.legendDot} style={{ background: segment.color }} />

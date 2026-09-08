@@ -18,14 +18,22 @@ import {
   updateGoalLineItem,
   deleteGoalLineItem,
   markGoalLineItemComplete,
+  addGoalLineItemToBudget,
   archiveGoal as archiveGoalWrite,
   updateGoal,
 } from '@/src/shared/firestore/aggregation';
 import { useExchangeRates } from '@/src/shared/firestore/queries';
 import { currencyName } from '@/src/viewmodels/currencies';
+import { categoryAccentColor } from '@/src/viewmodels/categories';
 import { DEFAULT_PRIORITY, DEFAULT_NECESSITY } from '@/src/viewmodels/projects';
+import { isSavingsAccount } from '@/src/viewmodels/wallets';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
-import type { FirestoreGoal, FirestoreGoalLineItem, Priority, GoalItemNecessity } from '@/src/shared/firestore/types';
+import type { FirestoreGoal, FirestoreGoalLineItem, Priority, GoalItemNecessity, Frequency } from '@/src/shared/firestore/types';
+
+// Recurring bills/subscriptions/savings transfers don't make sense as
+// Once/Daily/Weekly — a Fixed goal's own recurrence picker only offers the
+// frequencies that actually describe a repeating bill.
+export const FIXED_ITEM_FREQUENCIES: Frequency[] = ['Monthly', 'Quarterly', 'Yearly'];
 
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
@@ -45,7 +53,35 @@ export function useLogic(goalId: string) {
     useFirestoreCollection<FirestoreGoalLineItem>(lineItemsQuery);
 
   const { data: accounts, loading: accountsLoading } = useAccounts();
-  const { data: categories, loading: categoriesLoading } = useCategories('Expense');
+  // A goal item is never money coming in — only Expense/Savings categories
+  // are ever relevant here, so Income is dropped even though useCategories()
+  // itself returns every non-archived category.
+  const { data: allCategories, loading: categoriesLoading } = useCategories();
+  const categories = useMemo(
+    () => allCategories.filter((category) => category.transactionType !== 'Income'),
+    [allCategories]
+  );
+  const categoryTransactionType = useMemo(
+    () => new Map(categories.map((category) => [category.id, category.transactionType])),
+    [categories]
+  );
+  const categoryNameFallback = useMemo(() => {
+    const map = new Map(categories.map((category) => [category.id, category.name]));
+    return (id: string | undefined | null) => (id && map.get(id)) || id || 'No category';
+  }, [categories]);
+  // A Savings-category item can only earmark a Savings Account (that's the
+  // only place "savings" actually lives); an Expense-category item can only
+  // earmark a spendable, non-frozen wallet — same split addTransaction's own
+  // spendableAccounts already enforces for a direct Expense.
+  const nonFrozenAccounts = useMemo(() => accounts.filter((account) => !account.frozen), [accounts]);
+  const spendableAccounts = useMemo(
+    () => nonFrozenAccounts.filter((account) => !isSavingsAccount(account)),
+    [nonFrozenAccounts]
+  );
+  const savingsAccounts = useMemo(() => nonFrozenAccounts.filter(isSavingsAccount), [nonFrozenAccounts]);
+  function accountOptionsForCategory(categoryId: string) {
+    return categoryTransactionType.get(categoryId) === 'Savings' ? savingsAccounts : spendableAccounts;
+  }
 
   const currency = goal?.currency ?? ctx.display;
 
@@ -69,9 +105,12 @@ export function useLogic(goalId: string) {
           necessity: item.necessity ?? DEFAULT_NECESSITY,
           shortfall: Math.max(0, round2(item.amount - availableFrozen)),
           hasFunds: availableFrozen >= item.amount,
+          categoryName: categoryNameFallback(item.categoryId),
+          categoryColor: categoryAccentColor(categoryNameFallback(item.categoryId)),
+          dueDateObj: item.dueDate ? item.dueDate.toDate() : null,
         }))
         .sort((a, b) => Number(a.completed) - Number(b.completed)),
-    [lineItemDocs, availableFrozen]
+    [lineItemDocs, availableFrozen, categoryNameFallback]
   );
 
   const totalAmount = goal?.totalAmount ?? 0;
@@ -87,8 +126,22 @@ export function useLogic(goalId: string) {
   const [itemAmount, setItemAmount] = useState('');
   const [itemPriority, setItemPriority] = useState<Priority>(DEFAULT_PRIORITY);
   const [itemNecessity, setItemNecessity] = useState<GoalItemNecessity>(DEFAULT_NECESSITY);
+  const [itemCategoryId, setItemCategoryIdState] = useState('');
+  const [itemAccountId, setItemAccountId] = useState('');
+  const [itemDueDate, setItemDueDate] = useState('');
+  const [itemRecurrenceFrequency, setItemRecurrenceFrequency] = useState<Frequency>('Monthly');
   const [savingItem, setSavingItem] = useState(false);
   const [itemError, setItemError] = useState<string | null>(null);
+
+  // Picking a new category can invalidate the already-picked account (a
+  // Savings-category item can't keep an Expense wallet selected, and vice
+  // versa) — same "clear it rather than silently keep an invalid pick"
+  // convention src/logic/addTransaction/useLogic.ts's chooseDate uses.
+  function setItemCategoryId(categoryId: string) {
+    setItemCategoryIdState(categoryId);
+    const validAccountIds = new Set(accountOptionsForCategory(categoryId).map((account) => account.id));
+    setItemAccountId((current) => (validAccountIds.has(current) ? current : ''));
+  }
 
   function openAdd() {
     setEditingItemId(null);
@@ -97,6 +150,10 @@ export function useLogic(goalId: string) {
     setItemAmount('');
     setItemPriority(DEFAULT_PRIORITY);
     setItemNecessity(DEFAULT_NECESSITY);
+    setItemCategoryIdState(categories[0]?.id ?? '');
+    setItemAccountId('');
+    setItemDueDate('');
+    setItemRecurrenceFrequency('Monthly');
     setItemError(null);
     setAddOpen(true);
   }
@@ -108,14 +165,20 @@ export function useLogic(goalId: string) {
     setItemAmount(String(lineItem.amount));
     setItemPriority(lineItem.priority ?? DEFAULT_PRIORITY);
     setItemNecessity(lineItem.necessity ?? DEFAULT_NECESSITY);
+    setItemCategoryIdState(lineItem.categoryId ?? categories[0]?.id ?? '');
+    setItemAccountId(lineItem.accountId ?? '');
+    setItemDueDate(lineItem.dueDate ? lineItem.dueDate.toDate().toISOString().slice(0, 10) : '');
+    setItemRecurrenceFrequency(lineItem.recurrence?.frequency ?? 'Monthly');
     setItemError(null);
     setAddOpen(true);
   }
 
+  const isFixedGoal = goal?.kind === 'Fixed';
+  const canSaveLineItem = itemName.trim().length > 0 && Number(itemAmount) > 0 && itemCategoryId.length > 0;
+
   async function handleAddLineItem() {
-    if (!uid || savingItem) return;
+    if (!uid || savingItem || !canSaveLineItem) return;
     const amount = Number(itemAmount);
-    if (!itemName.trim() || !(amount > 0)) return;
     setSavingItem(true);
     setItemError(null);
     try {
@@ -125,14 +188,23 @@ export function useLogic(goalId: string) {
         amount,
         priority: itemPriority,
         necessity: itemNecessity,
+        categoryId: itemCategoryId,
+        categoryType: categoryTransactionType.get(itemCategoryId) ?? 'Expense',
+        accountId: itemAccountId || null,
+        dueDate: itemDueDate ? new Date(`${itemDueDate}T00:00:00`) : null,
+        recurrence: isFixedGoal ? { frequency: itemRecurrenceFrequency, interval: 1 } : null,
       };
       if (editingItemId) {
-        await updateGoalLineItem(uid, goalId, editingItemId, input);
+        const existing = lineItemDocs.find((item) => item.id === editingItemId);
+        await updateGoalLineItem(uid, goalId, editingItemId, existing?.budgetRuleId, input);
       } else {
-        await createGoalLineItem(uid, goalId, input);
+        await createGoalLineItem(uid, goalId, goal?.kind ?? 'Variable', input);
       }
       setAddOpen(false);
       setEditingItemId(null);
+      // Add/edit now lives on its own page (src/screens/GoalLineItemForm),
+      // not a modal over this one — a successful save returns to the goal.
+      router.push(`/goals/${goalId}`);
     } catch (error) {
       setItemError(error instanceof Error ? error.message : 'Could not save this line item.');
     } finally {
@@ -142,7 +214,33 @@ export function useLogic(goalId: string) {
 
   async function handleDeleteLineItem(lineItemId: string) {
     if (!uid) return;
-    await deleteGoalLineItem(uid, goalId, lineItemId);
+    const existing = lineItemDocs.find((item) => item.id === lineItemId);
+    await deleteGoalLineItem(uid, goalId, lineItemId, existing?.budgetRuleId);
+  }
+
+  const [addingToBudgetId, setAddingToBudgetId] = useState<string | null>(null);
+  const [addToBudgetError, setAddToBudgetError] = useState<string | null>(null);
+
+  async function handleAddToBudget(lineItemId: string) {
+    if (!uid || addingToBudgetId) return;
+    const lineItem = lineItemDocs.find((item) => item.id === lineItemId);
+    if (!lineItem || !lineItem.categoryId) return;
+    setAddingToBudgetId(lineItemId);
+    setAddToBudgetError(null);
+    try {
+      await addGoalLineItemToBudget(
+        uid,
+        goalId,
+        lineItemId,
+        lineItem.categoryId,
+        lineItem.amount,
+        categoryTransactionType.get(lineItem.categoryId) ?? 'Expense'
+      );
+    } catch (error) {
+      setAddToBudgetError(error instanceof Error ? error.message : 'Could not add this item to the budget.');
+    } finally {
+      setAddingToBudgetId(null);
+    }
   }
 
   const [completeItemId, setCompleteItemId] = useState<string | null>(null);
@@ -155,8 +253,8 @@ export function useLogic(goalId: string) {
 
   function openMarkComplete(lineItem: FirestoreGoalLineItem) {
     setCompleteItemId(lineItem.id);
-    setCompleteAccountId(accounts[0]?.id ?? '');
-    setCompleteCategoryId(categories[0]?.id ?? '');
+    setCompleteAccountId(lineItem.accountId ?? accounts[0]?.id ?? '');
+    setCompleteCategoryId(lineItem.categoryId ?? categories[0]?.id ?? '');
     setCompleteDate(todayIso());
     setCompleteDescription(`${goal?.name ?? 'Goal'}: ${lineItem.name}`);
     setCompleteError(null);
@@ -179,6 +277,7 @@ export function useLogic(goalId: string) {
           categoryId: completeCategoryId || null,
           date: new Date(`${completeDate}T00:00:00`),
           description: completeDescription,
+          categoryType: categoryTransactionType.get(completeCategoryId) === 'Savings' ? 'Savings' : 'Expense',
         },
         ctx
       );
@@ -245,6 +344,7 @@ export function useLogic(goalId: string) {
 
   return {
     goal,
+    isFixedGoal,
     currency,
     lineItems,
     totalAmount,
@@ -272,10 +372,23 @@ export function useLogic(goalId: string) {
     setItemPriority,
     itemNecessity,
     setItemNecessity,
+    itemCategoryId,
+    setItemCategoryId,
+    itemAccountId,
+    setItemAccountId,
+    itemDueDate,
+    setItemDueDate,
+    itemRecurrenceFrequency,
+    setItemRecurrenceFrequency,
+    accountOptionsForCategory,
+    canSaveLineItem,
     savingItem,
     itemError,
     handleAddLineItem,
     handleDeleteLineItem,
+    addingToBudgetId,
+    addToBudgetError,
+    handleAddToBudget,
 
     currencyOptions,
     goalEditOpen,

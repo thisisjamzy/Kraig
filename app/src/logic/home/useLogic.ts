@@ -1,19 +1,20 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { query, where, orderBy, limit, updateDoc, Timestamp } from 'firebase/firestore';
 import { ArrowUpRight, ArrowDownLeft, PiggyBank, type LucideIcon } from 'lucide-react';
 import { useFirestoreCollection, useFirestoreDoc } from '@/src/shared/firestore/hooks';
-import { transactionsRef, plannedPaymentsRef, settingsRef, unjustifiedWalletRef } from '@/src/shared/firestore/refs';
+import { transactionsRef, settingsRef, unjustifiedWalletRef, goalsRef } from '@/src/shared/firestore/refs';
 import { useAccounts, useCategories, useCurrencyContext, useExchangeRates } from '@/src/shared/firestore/queries';
 import { toDisplay, round2 } from '@/src/shared/firestore/currency';
-import { computeUpcomingPayments } from '@/src/shared/firestore/upcomingPayments';
+import { computeUpcomingPaymentsFromGoalItems } from '@/src/shared/firestore/upcomingPayments';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
-import { walletColor, arrangeCentered, isSavingsAccount } from '@/src/viewmodels/wallets';
+import { useGoalLineItemsByGoal } from '@/src/shared/hooks/useGoalLineItemsByGoal';
+import { walletCardColor, walletCardNumber, isSavingsAccount } from '@/src/viewmodels/wallets';
 import { currencyName } from '@/src/viewmodels/currencies';
 import { categoryAccentColor } from '@/src/viewmodels/categories';
 import { dueLabel, formatDueDate } from '@/src/logic/paymentsCalendar/useLogic';
-import type { FirestoreAccount, FirestorePlannedPayment, FirestoreTransaction } from '@/src/shared/firestore/types';
+import type { FirestoreAccount, FirestoreTransaction, FirestoreGoal } from '@/src/shared/firestore/types';
 
 // Analytics now owns Quarter/Year (src/logic/statistics/useLogic.ts) — Home
 // keeps the shorter-range Week/Month views instead, since those are the
@@ -23,6 +24,12 @@ export type SpendingPeriod = 'week' | 'month';
 const UPCOMING_PAYMENTS_HORIZON_DAYS = 30;
 const UPCOMING_PAYMENTS_PREVIEW_COUNT = 3;
 const RECENT_TRANSACTIONS_PREVIEW_COUNT = 5;
+const BALANCES_HIDDEN_STORAGE_KEY = 'balances-hidden';
+// Six asterisks everywhere a real figure would otherwise show, once the
+// user's toggled balances hidden — the exact same placeholder shape the
+// balance card's own "nothing to see here" unjustified-amount state
+// already uses (see UNJUSTIFIED_PLACEHOLDER in HomeScreen.tsx).
+export const HIDDEN_AMOUNT_PLACEHOLDER = '******';
 
 // Same set src/logic/transactionHistory/useLogic.ts's own card list uses —
 // Home's Recent Transactions panel renders with that same card, so the icon
@@ -84,19 +91,40 @@ function expectedBucketKeysFor(period: SpendingPeriod, now: Date): string[] {
 
 export function useLogic() {
   const [period, setPeriod] = useState<SpendingPeriod>('week');
+
+  // Persisted per-device, not per-household data — a privacy toggle for
+  // "someone's looking over my shoulder", not a real setting worth a
+  // Firestore round-trip. Defaults visible; read from localStorage once on
+  // mount (same pattern ThemeProvider's own scheme toggle uses) rather
+  // than in a lazy useState initializer, since that would run during SSR
+  // where window doesn't exist.
+  const [balancesHidden, setBalancesHidden] = useState(false);
+  useEffect(() => {
+    const stored = window.localStorage.getItem(BALANCES_HIDDEN_STORAGE_KEY);
+    if (stored === '1') setBalancesHidden(true);
+  }, []);
+  function toggleBalancesHidden() {
+    setBalancesHidden((current) => {
+      const next = !current;
+      window.localStorage.setItem(BALANCES_HIDDEN_STORAGE_KEY, next ? '1' : '0');
+      return next;
+    });
+  }
   const now = useMemo(() => new Date(), []);
   const { user, loading: authLoading } = useFirebaseUser();
   const uid = user?.uid;
 
   const { data: accounts, loading: accountsLoading, error: accountsError } = useAccounts();
   const { data: categories, loading: categoriesLoading } = useCategories();
-  const activePlannedPaymentsQuery = useMemo(
-    () => (uid ? query(plannedPaymentsRef(uid), where('archived', '==', false)) : null),
-    [uid]
-  );
-  const { data: plannedPayments, loading: plannedPaymentsLoading } = useFirestoreCollection<FirestorePlannedPayment>(
-    activePlannedPaymentsQuery
-  );
+
+  // Which wallets a goal is actually targeting — every active goal's own
+  // line items, same fan-out-per-goal hook src/logic/goals/useLogic.ts's
+  // own gauge card uses. Only feeds the wallets chart's "required" bar
+  // below; nothing else here depends on it.
+  const goalsQuery = useMemo(() => (uid ? query(goalsRef(uid), where('archived', '==', false)) : null), [uid]);
+  const { data: goalDocs, loading: goalsLoading } = useFirestoreCollection<FirestoreGoal>(goalsQuery);
+  const { itemsByGoal, loading: goalItemsLoading } = useGoalLineItemsByGoal(goalDocs);
+
   // Most recent transactions across every account, not scoped to a month —
   // this is a quick "what just happened" glance, not a budget-progress view
   // (that's the Budget screen's own job).
@@ -107,6 +135,17 @@ export function useLogic() {
   const { data: recentTransactionDocs, loading: recentTransactionsLoading } =
     useFirestoreCollection<FirestoreTransaction>(recentTransactionsQuery);
   const { ctx, loading: ctxLoading } = useCurrencyContext();
+
+  const requiredByAccountId = useMemo(() => {
+    const totals = new Map<string, number>();
+    for (const goal of goalDocs) {
+      for (const item of itemsByGoal[goal.id] ?? []) {
+        if (item.completed || !item.accountId) continue;
+        totals.set(item.accountId, (totals.get(item.accountId) ?? 0) + toDisplay(ctx, item.amount, goal.currency));
+      }
+    }
+    return totals;
+  }, [goalDocs, itemsByGoal, ctx]);
 
   // Tapping the currency chip switches which currency the whole app
   // displays amounts in — same write Settings' own currency picker makes
@@ -201,23 +240,25 @@ export function useLogic() {
   };
 
   // Color stays tied to each account's own fixed position in `accounts`
-  // (the same convention Wallets and Transaction History use), assigned
-  // before the chart-only reordering below — so a wallet's color never
-  // shifts just because its balance moved it to a different column.
-  const wallets = arrangeCentered(
-    accounts
-      .map((account, index) => ({
-        id: account.id,
-        // The chart's x-axis wraps/distorts with a full wallet name (see
-        // FirestoreAccount.shortName's header) — always <=5 characters here,
-        // either the user's own short name or a truncated fallback.
-        name: (account.shortName || account.name).slice(0, 5),
-        amount: toDisplay(ctx, account.currentBalance, account.currency),
-        color: walletColor(index),
-      }))
-      .sort((a, b) => b.amount - a.amount)
-  );
-  const walletMax = Math.max(1, ...wallets.map((wallet) => wallet.amount));
+  // (the same convention Wallets and Transaction History use) — a
+  // wallet's card color never shifts just because its balance moved it to
+  // a different position in this list.
+  const wallets = accounts
+    .map((account, index) => ({
+      id: account.id,
+      name: account.name,
+      type: account.type,
+      cardNumber: walletCardNumber(account.id),
+      amount: toDisplay(ctx, account.currentBalance, account.currency),
+      currency: ctx.display,
+      color: walletCardColor(index),
+      // How much of what a goal is targeting for this specific wallet is
+      // still outstanding (unpaid/uncompleted line items) — 0 renders as
+      // "*****" on the card rather than a real figure (Design/card
+      // design.jpg's CVV slot repurposed for this).
+      required: round2(requiredByAccountId.get(account.id) ?? 0),
+    }))
+    .sort((a, b) => b.amount - a.amount);
 
   // Same card shape src/logic/transactionHistory/useLogic.ts's own list
   // uses — this panel renders with that exact same card component styling.
@@ -274,14 +315,14 @@ export function useLogic() {
 
   const upcomingPayments = useMemo(
     () =>
-      computeUpcomingPayments(plannedPayments, accounts, categories, ctx, UPCOMING_PAYMENTS_HORIZON_DAYS)
+      computeUpcomingPaymentsFromGoalItems(goalDocs, itemsByGoal, accounts, categories, ctx, UPCOMING_PAYMENTS_HORIZON_DAYS)
         .slice(0, UPCOMING_PAYMENTS_PREVIEW_COUNT)
         .map((payment) => ({
           ...payment,
           dueDateLabel: formatDueDate(payment.dueDate),
           dueInLabel: dueLabel(payment.dueDate),
         })),
-    [plannedPayments, accounts, categories, ctx]
+    [goalDocs, itemsByGoal, accounts, categories, ctx]
   );
 
   return {
@@ -291,8 +332,9 @@ export function useLogic() {
     upcomingPayments,
     period,
     setPeriod,
+    balancesHidden,
+    toggleBalancesHidden,
     breakdown,
-    walletMax,
     breakdownMax,
     currencyPickerOpen,
     setCurrencyPickerOpen,
@@ -306,10 +348,11 @@ export function useLogic() {
       authLoading ||
       accountsLoading ||
       categoriesLoading ||
-      plannedPaymentsLoading ||
       recentTransactionsLoading ||
       ctxLoading ||
-      breakdownLoading,
+      breakdownLoading ||
+      goalsLoading ||
+      goalItemsLoading,
     error: accountsError,
   };
 }
