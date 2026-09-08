@@ -1,9 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { ChevronLeft, ChevronRight, ChevronDown, Check, Repeat, Plus, Trash2, Calendar } from 'lucide-react';
+import { ChevronLeft, ChevronDown, Check, Repeat, Plus } from 'lucide-react';
 import { Modal } from '@/src/widgets/Modal/Modal';
-import { ConfirmDialog } from '@/src/widgets/ConfirmDialog/ConfirmDialog';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import {
   useLogic,
@@ -13,7 +11,6 @@ import {
   formatDueDate,
   formatToday,
   DUE_FILTERS,
-  FREQUENCY_OPTIONS,
 } from '@/src/logic/paymentsCalendar/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import styles from './PaymentsCalendarScreen.module.css';
@@ -34,15 +31,11 @@ function PaymentRow({
   onMarkAsPaid,
   markAsPaidLabel,
   recurringLabel,
-  onDelete,
-  deleteLabel,
 }: {
   payment: PendingPayment;
   onMarkAsPaid: (id: string) => void;
   markAsPaidLabel: string;
   recurringLabel: string;
-  onDelete: (payment: PendingPayment) => void;
-  deleteLabel: string;
 }) {
   // "Mark as paid" only opens the confirm-transaction review step — see
   // PaymentsCalendarScreen's confirmingPayment modal for the actual commit.
@@ -70,24 +63,14 @@ function PaymentRow({
         <span className={styles.amount}>
           {formatAmount(payment.amount)} {payment.currency}
         </span>
-        <div className={styles.badgeRow}>
-          <button
-            type="button"
-            className={styles.deleteButton}
-            onClick={() => onDelete(payment)}
-            aria-label={`${deleteLabel}: ${payment.title}`}
-          >
-            <Trash2 size={14} strokeWidth={2} />
-          </button>
-          <button
-            type="button"
-            className={styles.paidButton}
-            onClick={() => onMarkAsPaid(payment.id)}
-            aria-label={`${markAsPaidLabel}: ${payment.title}`}
-          >
-            <Check size={16} strokeWidth={2.5} />
-          </button>
-        </div>
+        <button
+          type="button"
+          className={styles.paidButton}
+          onClick={() => onMarkAsPaid(payment.id)}
+          aria-label={`${markAsPaidLabel}: ${payment.title}`}
+        >
+          <Check size={16} strokeWidth={2.5} />
+        </button>
       </div>
     </div>
   );
@@ -116,51 +99,13 @@ export function PaymentsCalendarScreen() {
     cancelConfirmPayment,
     confirmPayment,
     goBack,
-
-    addOpen,
-    setAddOpen,
-    openAddPayment,
-    expenseCategories,
-    newCategoryId,
-    setNewCategoryId,
-    newDescription,
-    setNewDescription,
-    newAmount,
-    setNewAmount,
-    newDueDate,
-    newAccountId,
-    setNewAccountId,
-    newFrequency,
-    setNewFrequency,
-    newInterval,
-    setNewInterval,
-    newEndAfterOccurrences,
-    setNewEndAfterOccurrences,
-    creating,
-    createError,
-    handleCreatePayment,
-    handleDeletePayment,
-
-    datePickerOpen,
-    setDatePickerOpen,
-    openDatePicker,
-    chooseDueDay,
-    shiftPickerMonth,
-    pickerMonth,
-    pickerYear,
-    daysInMonth,
+    goToGoals,
 
     loading,
     error,
   } = useLogic();
 
-  const frequencyOption = FREQUENCY_OPTIONS.find((option) => option.key === newFrequency)!;
-  const intervalCount = Number(newInterval) || 1;
-  const intervalUnitLabel = intervalCount === 1 ? frequencyOption.unitLabel : frequencyOption.unitLabelPlural;
-
   const selectedFilterLabel = DUE_FILTERS.find((entry) => entry.key === dueFilter)?.label ?? '';
-
-  const [confirmDeletePayment, setConfirmDeletePayment] = useState<PendingPayment | null>(null);
 
   return (
     <div className={styles.page}>
@@ -198,8 +143,6 @@ export function PaymentsCalendarScreen() {
                   onMarkAsPaid={openConfirmPayment}
                   markAsPaidLabel={strings.paymentsCalendar.markAsPaid}
                   recurringLabel={strings.paymentsCalendar.recurring}
-                  onDelete={setConfirmDeletePayment}
-                  deleteLabel={strings.paymentsCalendar.deletePaymentLabel}
                 />
               ))}
             </div>
@@ -216,7 +159,7 @@ export function PaymentsCalendarScreen() {
           </>
         )}
 
-        <button type="button" className={styles.addPaymentButton} onClick={openAddPayment}>
+        <button type="button" className={styles.addPaymentButton} onClick={goToGoals}>
           <Plus size={16} strokeWidth={2.25} />
           {strings.paymentsCalendar.addPayment}
         </button>
@@ -277,217 +220,10 @@ export function PaymentsCalendarScreen() {
                 onMarkAsPaid={openConfirmPayment}
                 markAsPaidLabel={strings.paymentsCalendar.markAsPaid}
                 recurringLabel={strings.paymentsCalendar.recurring}
-                onDelete={setConfirmDeletePayment}
-                deleteLabel={strings.paymentsCalendar.deletePaymentLabel}
               />
             ))}
           </div>
         </Modal>
-      )}
-
-      {addOpen && (
-        <div className={styles.fullScreen}>
-          <header className={styles.header}>
-            <button
-              type="button"
-              className={styles.backButton}
-              onClick={() => setAddOpen(false)}
-              aria-label="Close"
-            >
-              <ChevronLeft size={18} strokeWidth={2} />
-            </button>
-            <h1 className={styles.title}>{strings.paymentsCalendar.addPaymentTitle}</h1>
-          </header>
-
-          <div className={styles.fullScreenBody}>
-            <p className={styles.sectionCaption}>{strings.paymentsCalendar.addPaymentHint}</p>
-
-            {expenseCategories.length === 0 ? (
-              <p className={styles.emptyText}>{strings.paymentsCalendar.noExpenseCategories}</p>
-            ) : (
-              <div className={styles.formField}>
-                <label className={styles.formLabel} htmlFor="new-payment-category">
-                  {strings.paymentsCalendar.categoryLabel}
-                </label>
-                <select
-                  id="new-payment-category"
-                  className={styles.formInput}
-                  value={newCategoryId}
-                  onChange={(event) => setNewCategoryId(event.target.value)}
-                >
-                  <option value="" disabled>
-                    {strings.paymentsCalendar.categoryPlaceholder}
-                  </option>
-                  {expenseCategories.map((category) => (
-                    <option key={category.id} value={category.id}>
-                      {category.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            <div className={styles.formField}>
-              <label className={styles.formLabel} htmlFor="new-payment-description">
-                {strings.paymentsCalendar.descriptionLabel}
-              </label>
-              <input
-                id="new-payment-description"
-                className={styles.formInput}
-                value={newDescription}
-                onChange={(event) => setNewDescription(event.target.value)}
-                placeholder={strings.paymentsCalendar.descriptionPlaceholder}
-              />
-            </div>
-
-            <div className={styles.formField}>
-              <label className={styles.formLabel} htmlFor="new-payment-amount">
-                {strings.paymentsCalendar.amountLabel}
-              </label>
-              <input
-                id="new-payment-amount"
-                className={styles.formInput}
-                inputMode="numeric"
-                value={newAmount}
-                onChange={(event) => setNewAmount(event.target.value.replace(/[^0-9]/g, ''))}
-                placeholder="0"
-              />
-            </div>
-
-            <div className={styles.formField}>
-              <span className={styles.formLabel}>{strings.paymentsCalendar.dueDateLabel}</span>
-              <button type="button" className={styles.dateChip} onClick={openDatePicker}>
-                <Calendar size={16} strokeWidth={1.75} />
-                {newDueDate ? formatDueDate(newDueDate) : strings.paymentsCalendar.chooseDate}
-              </button>
-            </div>
-
-            <div className={styles.formField}>
-              <label className={styles.formLabel} htmlFor="new-payment-account">
-                {strings.paymentsCalendar.accountLabel}
-              </label>
-              <select
-                id="new-payment-account"
-                className={styles.formInput}
-                value={newAccountId}
-                onChange={(event) => setNewAccountId(event.target.value)}
-              >
-                <option value="">{strings.paymentsCalendar.accountOptional}</option>
-                {accounts.map((account) => (
-                  <option key={account.id} value={account.id}>
-                    {account.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className={styles.formField}>
-              <span className={styles.formLabel}>{strings.paymentsCalendar.repeatsLabel}</span>
-              <div className={styles.recurrenceGroup}>
-                {FREQUENCY_OPTIONS.map((option) => (
-                  <button
-                    key={option.key}
-                    type="button"
-                    className={`${styles.recurrenceOption} ${
-                      newFrequency === option.key ? styles.recurrenceOptionActive : ''
-                    }`}
-                    onClick={() => setNewFrequency(option.key)}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-
-              {newFrequency !== 'Once' && (
-                <>
-                  <div className={styles.recurrenceMonthsRow}>
-                    <span className={styles.recurrenceMonthsLabel}>{strings.paymentsCalendar.everyPrefix}</span>
-                    <input
-                      className={styles.recurrenceMonthsInput}
-                      inputMode="numeric"
-                      value={newInterval}
-                      onChange={(event) => setNewInterval(event.target.value.replace(/[^0-9]/g, ''))}
-                    />
-                    <span className={styles.recurrenceMonthsLabel}>{intervalUnitLabel}</span>
-                  </div>
-
-                  <div className={styles.formField}>
-                    <label className={styles.formLabel} htmlFor="new-payment-end-after">
-                      {strings.paymentsCalendar.endAfterLabel}
-                    </label>
-                    <input
-                      id="new-payment-end-after"
-                      className={styles.formInput}
-                      inputMode="numeric"
-                      value={newEndAfterOccurrences}
-                      onChange={(event) => setNewEndAfterOccurrences(event.target.value.replace(/[^0-9]/g, ''))}
-                      placeholder={strings.paymentsCalendar.endAfterPlaceholder}
-                    />
-                  </div>
-                </>
-              )}
-            </div>
-
-            {createError && (
-              <p className={styles.errorText} role="alert">
-                {createError}
-              </p>
-            )}
-          </div>
-
-          <div className={styles.fullScreenFooter}>
-            <button
-              type="button"
-              className={styles.modalSaveButton}
-              disabled={!newCategoryId || !newDescription.trim() || !newAmount || !newDueDate || creating}
-              onClick={handleCreatePayment}
-            >
-              {strings.common.save}
-            </button>
-          </div>
-
-          {datePickerOpen && (
-            <Modal title={strings.paymentsCalendar.chooseDate} onClose={() => setDatePickerOpen(false)}>
-              <div className={styles.monthStepper}>
-                <button
-                  type="button"
-                  className={styles.monthStepButton}
-                  onClick={() => shiftPickerMonth(-1)}
-                  aria-label="Previous month"
-                >
-                  <ChevronLeft size={16} strokeWidth={2} />
-                </button>
-                <span className={styles.monthStepValue}>
-                  {strings.months[pickerMonth]} {pickerYear}
-                </span>
-                <button
-                  type="button"
-                  className={styles.monthStepButton}
-                  onClick={() => shiftPickerMonth(1)}
-                  aria-label="Next month"
-                >
-                  <ChevronRight size={16} strokeWidth={2} />
-                </button>
-              </div>
-              <div className={styles.dayGrid}>
-                {Array.from({ length: daysInMonth }, (_, index) => index + 1).map((day) => {
-                  const iso = `${pickerYear}-${String(pickerMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                  const active = iso === newDueDate;
-                  return (
-                    <button
-                      key={day}
-                      type="button"
-                      className={`${styles.dayButton} ${active ? styles.dayButtonActive : ''}`}
-                      onClick={() => chooseDueDay(day)}
-                    >
-                      {day}
-                    </button>
-                  );
-                })}
-              </div>
-            </Modal>
-          )}
-        </div>
       )}
 
       {confirmingPayment && (
@@ -553,20 +289,6 @@ export function PaymentsCalendarScreen() {
             </button>
           </div>
         </Modal>
-      )}
-
-      {confirmDeletePayment && (
-        <ConfirmDialog
-          title={strings.paymentsCalendar.deletePaymentConfirmTitle}
-          message={strings.paymentsCalendar.deletePaymentConfirmMessage}
-          confirmLabel={strings.paymentsCalendar.deletePaymentLabel}
-          cancelLabel={strings.common.cancel}
-          onCancel={() => setConfirmDeletePayment(null)}
-          onConfirm={() => {
-            handleDeletePayment(confirmDeletePayment.id);
-            setConfirmDeletePayment(null);
-          }}
-        />
       )}
     </div>
   );

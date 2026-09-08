@@ -7,6 +7,8 @@ import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { ProjectCard } from '@/src/widgets/ProjectCard/ProjectCard';
 import { BucketCard } from '@/src/widgets/BucketCard/BucketCard';
+import { TaskCard } from '@/src/widgets/TaskCard/TaskCard';
+import { Modal } from '@/src/widgets/Modal/Modal';
 import styles from './ProjectsScreen.module.css';
 
 export function ProjectsScreen() {
@@ -15,6 +17,11 @@ export function ProjectsScreen() {
     tab,
     setTab,
     overview,
+    todayPriorityTasks,
+    pendingTasksForPicker,
+    priorityPickerOpen,
+    setPriorityPickerOpen,
+    toggleTodayPriority,
     areas,
     buckets,
     projects,
@@ -63,6 +70,28 @@ export function ProjectsScreen() {
           <p className={styles.tileValue}>{overview.pendingTaskCount}</p>
         </button>
       </div>
+
+      <div className={styles.topRow}>
+        <h2 className={styles.portfolioTitle}>{strings.projects.todayPrioritiesTitle}</h2>
+        <button type="button" className={styles.viewAllButton} onClick={() => setPriorityPickerOpen(true)}>
+          {todayPriorityTasks.length > 0 ? strings.projects.editPriorities : strings.projects.setPriorities}
+        </button>
+      </div>
+
+      {todayPriorityTasks.length === 0 ? (
+        <p className={styles.emptyText}>{strings.projects.todayPrioritiesEmpty}</p>
+      ) : (
+        <>
+          {todayPriorityTasks.length < 3 && (
+            <p className={styles.priorityHint}>{strings.projects.todayPrioritiesHint}</p>
+          )}
+          <div className={styles.priorityList}>
+            {todayPriorityTasks.map((task) => (
+              <TaskCard key={task.id} task={task} />
+            ))}
+          </div>
+        </>
+      )}
 
       <h2 className={styles.portfolioTitle}>Portfolio</h2>
 
@@ -198,6 +227,40 @@ export function ProjectsScreen() {
             </>
           )}
         </>
+      )}
+
+      {priorityPickerOpen && (
+        <Modal title={strings.projects.priorityPickerTitle} onClose={() => setPriorityPickerOpen(false)}>
+          <p className={styles.priorityHint}>{strings.projects.priorityPickerHint}</p>
+          {pendingTasksForPicker.length === 0 ? (
+            <p className={styles.emptyText}>{strings.projects.priorityPickerEmpty}</p>
+          ) : (
+            <div className={styles.pickerList}>
+              {pendingTasksForPicker.map((task) => (
+                <label key={task.id} className={styles.pickerRow}>
+                  <input
+                    type="checkbox"
+                    className={styles.pickerCheckbox}
+                    checked={task.isTodayPriority}
+                    onChange={() => toggleTodayPriority(task.id)}
+                  />
+                  <span className={styles.pickerRowText}>
+                    <span className={styles.pickerRowTitle}>{task.title}</span>
+                    <span className={styles.pickerRowMeta}>
+                      {task.priority}
+                      {task.dueDate
+                        ? ` • ${task.dueDate.toLocaleDateString('en-US', { month: 'short', day: '2-digit' })}`
+                        : ''}
+                    </span>
+                  </span>
+                </label>
+              ))}
+            </div>
+          )}
+          <button type="button" className={styles.modalSaveButton} onClick={() => setPriorityPickerOpen(false)}>
+            {strings.projects.priorityPickerDone}
+          </button>
+        </Modal>
       )}
     </div>
   );

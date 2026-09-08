@@ -7,14 +7,15 @@ import { ruleAppliesToMonth } from '@dreda/shared-recurrence';
 import { getFirebaseAuth } from '@/src/shared/config/firebaseClient';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { useFirestoreCollection, useFirestoreDoc } from '@/src/shared/firestore/hooks';
-import { budgetRulesRef, categoryRef, unjustifiedWalletRef } from '@/src/shared/firestore/refs';
+import { budgetRulesRef, categoryRef, goalsRef, unjustifiedWalletRef } from '@/src/shared/firestore/refs';
 import { toRecurrenceRule } from '@/src/shared/firestore/recurrence';
 import { useAccounts, useCategories, useCurrencyContext } from '@/src/shared/firestore/queries';
-import { createTransferWithAggregation } from '@/src/shared/firestore/aggregation';
+import { createTransferWithAggregation, markGoalLineItemComplete } from '@/src/shared/firestore/aggregation';
 import { recordHistoricEntry } from '@/src/shared/firestore/unaccountedBalance';
+import { useGoalLineItemsByGoal } from '@/src/shared/hooks/useGoalLineItemsByGoal';
 import { TRANSFER_CATEGORIES } from '@/src/viewmodels/categories';
 import { isSavingsAccount } from '@/src/viewmodels/wallets';
-import type { FirestoreBudgetRule, FirestoreCategory, FirestoreAccount } from '@/src/shared/firestore/types';
+import type { FirestoreBudgetRule, FirestoreCategory, FirestoreAccount, FirestoreGoal } from '@/src/shared/firestore/types';
 
 export type TransactionType = 'expense' | 'income' | 'transfer' | 'savings';
 export type Step = 'type' | 'category' | 'details' | 'review';
@@ -120,10 +121,6 @@ export function useLogic() {
   );
   const [fromAccountId, setFromAccountId] = useState('');
   const [toAccountId, setToAccountId] = useState('');
-
-  const [datePickerOpen, setDatePickerOpen] = useState(false);
-  const [pickerMonth, setPickerMonth] = useState(() => retroTarget?.month ?? new Date().getMonth());
-  const [pickerYear, setPickerYear] = useState(() => retroTarget?.year ?? new Date().getFullYear());
 
   const [accountPickerFor, setAccountPickerFor] = useState<'from' | 'to' | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -240,7 +237,72 @@ export function useLogic() {
   // the same way as budgeting a Groceries envelope. "Moved" savings has no
   // envelope of its own to budget, so it skips this filter and the
   // budgeted/unplanned dance entirely.
+  // `category` itself is a raw categoryId (or, for a transfer/moved-savings,
+  // already a display label — TRANSFER_CATEGORIES/'Wallet to savings' use
+  // the same string as both id and name) — the review step must never show
+  // that raw id to the user, only the resolved category name.
+  const categoryName = categoriesForType.find((option) => option.id === category)?.name ?? category;
   const budgetedCategoriesForType = categoriesForType.filter((option) => budgetedCategoryIds.has(option.id));
+
+  // Recording an Expense or Savings can be linked to an incomplete goal
+  // line item instead of a plain transaction — submitting then calls
+  // markGoalLineItemComplete (goalDetail's own "mark complete" write) so
+  // the item's payment status updates too, rather than creating an
+  // unlinked transaction. Only offered for expense/savings (a goal item is
+  // never Income-flavored) and only against items whose own category is
+  // one of THIS type's categories (fetchedCategories is already filtered
+  // to CATEGORY_TYPE[type]), so a Savings pick never lists an Expense item
+  // or vice versa.
+  const { data: activeGoals } = useFirestoreCollection<FirestoreGoal>(
+    useMemo(() => (uid ? query(goalsRef(uid), where('archived', '==', false)) : null), [uid])
+  );
+  const { itemsByGoal } = useGoalLineItemsByGoal(activeGoals);
+  const [linkedGoalItemId, setLinkedGoalItemId] = useState('');
+  const goalNameById = useMemo(() => new Map(activeGoals.map((goal) => [goal.id, goal.name])), [activeGoals]);
+  const linkableGoalItems = useMemo(() => {
+    if (type !== 'expense' && type !== 'savings') return [];
+    const fetchedCategoryIds = new Set(fetchedCategories.map((cat) => cat.id));
+    return Object.values(itemsByGoal)
+      .flat()
+      .filter((item) => !item.completed && item.categoryId && fetchedCategoryIds.has(item.categoryId))
+      .map((item) => ({
+        id: item.id,
+        goalId: item.goalId,
+        goalName: goalNameById.get(item.goalId) ?? 'Goal',
+        name: item.name,
+        amount: item.amount,
+        categoryId: item.categoryId!,
+        accountId: item.accountId,
+      }));
+  }, [type, itemsByGoal, fetchedCategories, goalNameById]);
+  const linkedGoalItem = linkableGoalItems.find((item) => item.id === linkedGoalItemId) ?? null;
+  // A linked goal item is settled as a direct Expense/Savings write against
+  // its own accountId (see handleConfirm below) even when savingsMode
+  // still defaults to 'moved' — never treat it as transfer-shaped once
+  // linked, or the details step would wrongly show a from/to account pair.
+  const isEffectivelyTransferLike = !linkedGoalItem && isTransferLike;
+
+  function selectLinkedGoalItem(id: string) {
+    const item = linkableGoalItems.find((entry) => entry.id === id);
+    if (!item) return;
+    setLinkedGoalItemId(id);
+    setCategory(item.categoryId);
+    setDescription(`${item.goalName}: ${item.name}`);
+    setAmountString(String(item.amount));
+    if (item.accountId) setFromAccountId(item.accountId);
+  }
+
+  function clearLinkedGoalItem() {
+    setLinkedGoalItemId('');
+  }
+
+  // Picking a different category by hand after linking means the user
+  // changed their mind about which item this is for — unlink rather than
+  // silently keep completing the old item under a mismatched category.
+  function chooseCategory(id: string) {
+    setCategory(id);
+    if (linkedGoalItemId) setLinkedGoalItemId('');
+  }
   const hasBudgetedCategories = isSavingsMoved || budgetedCategoriesForType.length > 0;
   // Shown list: budgeted-only by default. When nothing's budgeted this
   // month, that's an empty list — the screen shows the "add a budget /
@@ -260,6 +322,7 @@ export function useLogic() {
     setShowUnplanned(false);
     setChargesString('');
     setExplainsUnjustifiedBalance(false);
+    setLinkedGoalItemId('');
   }
 
   function chooseSavingsMode(mode: SavingsMode) {
@@ -267,13 +330,7 @@ export function useLogic() {
     setCategory(mode === 'moved' ? 'Wallet to savings' : '');
     setShowUnplanned(false);
     setExplainsUnjustifiedBalance(false);
-  }
-
-  function openDatePicker() {
-    const parsed = new Date(`${dateValue}T00:00:00`);
-    setPickerMonth(parsed.getMonth());
-    setPickerYear(parsed.getFullYear());
-    setDatePickerOpen(true);
+    setLinkedGoalItemId('');
   }
 
   // Does `categoryId` still have a budget line in (year, month)? Used below
@@ -290,33 +347,18 @@ export function useLogic() {
     });
   }
 
-  function chooseDay(day: number) {
-    const iso = `${pickerYear}-${pad2(pickerMonth + 1)}-${pad2(day)}`;
+  function chooseDate(iso: string) {
     setDateValue(iso);
-    setDatePickerOpen(false);
     if (iso === todayIso()) setExplainsUnjustifiedBalance(false);
     // Don't silently keep an out-of-budget selection across a date change —
     // clear it and send the user back to re-pick, same as if they'd never
     // chosen one. Unplanned mode is exempt: it opted out of the budget
     // filter entirely.
-    if (!showUnplanned && category && !categoryBudgetedFor(category, pickerYear, pickerMonth + 1)) {
+    const [isoYear, isoMonth] = iso.split('-').map(Number);
+    if (!linkedGoalItemId && !showUnplanned && category && !categoryBudgetedFor(category, isoYear, isoMonth)) {
       setCategory('');
       setStep((current) => (current === 'details' || current === 'review' ? 'category' : current));
     }
-  }
-
-  function shiftPickerMonth(delta: number) {
-    let nextMonth = pickerMonth + delta;
-    let nextYear = pickerYear;
-    if (nextMonth < 0) {
-      nextMonth = 11;
-      nextYear -= 1;
-    } else if (nextMonth > 11) {
-      nextMonth = 0;
-      nextYear += 1;
-    }
-    setPickerMonth(nextMonth);
-    setPickerYear(nextYear);
   }
 
   function chooseAccount(id: string) {
@@ -369,7 +411,8 @@ export function useLogic() {
   // direction would let a well-meaning check make the gap worse instead
   // of closing it.
   const canExplainUnjustifiedBalance =
-    !isTransferLike &&
+    !isEffectivelyTransferLike &&
+    !linkedGoalItem &&
     dateValue !== todayIso() &&
     unjustifiedBalance !== 0 &&
     (unjustifiedBalance > 0 ? type === 'expense' || type === 'savings' : type === 'income');
@@ -392,7 +435,22 @@ export function useLogic() {
     const date = new Date(`${dateValue}T00:00:00`);
 
     try {
-      if (isTransfer) {
+      if (linkedGoalItem) {
+        await markGoalLineItemComplete(
+          uid,
+          linkedGoalItem.goalId,
+          linkedGoalItem.id,
+          Number(amountString),
+          {
+            accountId: fromAccountId,
+            categoryId: category || linkedGoalItem.categoryId,
+            date,
+            description,
+            categoryType: type === 'savings' ? 'Savings' : 'Expense',
+          },
+          ctx
+        );
+      } else if (isTransfer) {
         await createTransferWithAggregation({
           id: clientId,
           date,
@@ -447,19 +505,22 @@ export function useLogic() {
     (step === 'details' &&
       Number(amountString) > 0 &&
       fromAccountId.length > 0 &&
-      (!isTransferLike || (toAccountId.length > 0 && toAccountId !== fromAccountId))) ||
+      (!isEffectivelyTransferLike || (toAccountId.length > 0 && toAccountId !== fromAccountId))) ||
     (step === 'review' && !submitting);
-
-  const daysInMonth = new Date(pickerYear, pickerMonth + 1, 0).getDate();
 
   return {
     step,
     type,
     savingsMode,
     chooseSavingsMode,
-    isTransferLike,
+    isTransferLike: isEffectivelyTransferLike,
     category,
-    setCategory,
+    categoryName,
+    setCategory: chooseCategory,
+    linkableGoalItems,
+    linkedGoalItem,
+    selectLinkedGoalItem,
+    clearLinkedGoalItem,
     description,
     setDescription,
     amountString,
@@ -477,24 +538,17 @@ export function useLogic() {
     budgetHref,
     accounts,
     spendableAccounts,
-    datePickerOpen,
-    setDatePickerOpen,
-    pickerMonth,
-    pickerYear,
     accountPickerFor,
     setAccountPickerFor,
     fromAccountId,
     toAccountId,
-    daysInMonth,
     canExplainUnjustifiedBalance,
     explainsUnjustifiedBalance,
     setExplainsUnjustifiedBalance,
     unjustifiedBalance,
     canContinue,
     selectType,
-    openDatePicker,
-    chooseDay,
-    shiftPickerMonth,
+    chooseDate,
     chooseAccount,
     pressKey,
     goBack,

@@ -21,6 +21,7 @@ export function useLogic() {
   const [description, setDescription] = useState('');
   const [deadline, setDeadline] = useState('');
   const [currency, setCurrency] = useState(ctx.base);
+  const [kind, setKind] = useState<'Fixed' | 'Variable'>('Variable');
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -34,6 +35,7 @@ export function useLogic() {
         description: description.trim(),
         deadline: deadline ? new Date(`${deadline}T00:00:00`) : null,
         currency: currency || ctx.base,
+        kind,
       });
       router.push(`/goals/${id}`);
     } catch (error) {
@@ -56,6 +58,8 @@ export function useLogic() {
     currency: currency || ctx.base,
     setCurrency,
     currencyOptions,
+    kind,
+    setKind,
     saving,
     saveError,
     handleSave,

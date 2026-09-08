@@ -21,19 +21,22 @@ import { useMemo, useState } from 'react';
 import { query, where, Timestamp } from 'firebase/firestore';
 import { ruleAppliesToMonth, effectiveBudgetedAmount } from '@dreda/shared-recurrence';
 import { useFirestoreCollection, useFirestoreDoc } from '@/src/shared/firestore/hooks';
-import { transactionsRef, transfersRef, budgetRulesRef, unjustifiedWalletRef } from '@/src/shared/firestore/refs';
+import { transactionsRef, transfersRef, budgetRulesRef, unjustifiedWalletRef, goalsRef } from '@/src/shared/firestore/refs';
 import { useAccounts, useCategories, useCurrencyContext } from '@/src/shared/firestore/queries';
 import { toDisplay, round2 } from '@/src/shared/firestore/currency';
 import { toRecurrenceRule } from '@/src/shared/firestore/recurrence';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
+import { useGoalLineItemsByGoal } from '@/src/shared/hooks/useGoalLineItemsByGoal';
 import { categoryColor } from '@/src/viewmodels/statistics';
 import { isSavingsAccount } from '@/src/viewmodels/wallets';
+import { DEFAULT_NECESSITY } from '@/src/viewmodels/projects';
 import { savingsTransactionFlow, savingsTransferFlow } from '@/src/viewmodels/savingsTransfers';
 import type {
   FirestoreTransaction,
   FirestoreTransfer,
   FirestoreBudgetRule,
   FirestoreAccount,
+  FirestoreGoal,
   BudgetLineType,
 } from '@/src/shared/firestore/types';
 
@@ -170,6 +173,13 @@ export function useLogic() {
     [uid]
   );
   const { data: budgetRules, loading: budgetRulesLoading } = useFirestoreCollection<FirestoreBudgetRule>(budgetRulesQuery);
+
+  // For "minimum required this month" — every active goal's own line items,
+  // same fan-out-per-goal hook src/logic/goals/useLogic.ts's own gauge card
+  // uses, so the two screens' MustHave figures can never disagree.
+  const goalsQuery = useMemo(() => (uid ? query(goalsRef(uid), where('archived', '==', false)) : null), [uid]);
+  const { data: goalDocs, loading: goalsLoading } = useFirestoreCollection<FirestoreGoal>(goalsQuery);
+  const { itemsByGoal, loading: goalItemsLoading } = useGoalLineItemsByGoal(goalDocs);
 
   const { data: accounts, loading: accountsLoading } = useAccounts();
   const { data: categories, loading: categoriesLoading } = useCategories();
@@ -493,6 +503,58 @@ export function useLogic() {
   }, [trendsBuckets, budgetRules, accountCurrency, ctx, financialTrends]);
   const budgetVsSpendMax = Math.max(1, ...budgetVsSpendTrend.flatMap((b) => [b.budgeted, b.spent]));
 
+  // --- Fixed vs. Variable: same Expense-only budgeted figure as Budget vs.
+  // Spend above, split by whether the covering rule came from a Fixed
+  // goal's line item (sourceGoalLineItemId set — see aggregation.ts's
+  // createGoalLineItem) or anywhere else (a hand-added Budget category, or
+  // a Variable goal item's one-off "Add to budget" — both Variable by this
+  // split's definition).
+
+  const fixedVsVariableTrend = useMemo(() => {
+    return trendsBuckets.map((bucket) => {
+      const y = bucket.start.getFullYear();
+      const m = bucket.start.getMonth() + 1;
+      const monthStr = `${y}-${pad2(m)}`;
+      let fixedBase = 0;
+      let variableBase = 0;
+      for (const rule of budgetRules) {
+        if (budgetLineType(rule) !== 'Expense') continue;
+        const occurrence = ruleAppliesToMonth(toRecurrenceRule(rule), y, m);
+        if (!occurrence || rule.excludedMonths?.includes(monthStr)) continue;
+        const ruleNative = rule.accountId ? accountCurrency.get(rule.accountId) ?? ctx.base : ctx.base;
+        const amount = toDisplay(
+          ctx,
+          effectiveBudgetedAmount(rule.budgetedAmount, occurrence.multiplier, rule.monthOverrides, monthStr),
+          ruleNative
+        );
+        if (rule.sourceGoalLineItemId) fixedBase += amount;
+        else variableBase += amount;
+      }
+      return { label: bucket.label, fixed: round2(fixedBase), variable: round2(variableBase) };
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trendsBuckets, budgetRules, accountCurrency, ctx]);
+  const fixedVsVariableMax = Math.max(1, ...fixedVsVariableTrend.flatMap((b) => [b.fixed, b.variable]));
+
+  // --- Minimum required this month: every active goal's own MustHave line
+  // items, not-yet-completed — "how little could this household spend and
+  // still cover what it's already decided it can't skip." Whether an item
+  // has already been folded into a budget rule (Fixed, or Variable via Add
+  // to budget) doesn't matter here — this is about the household's own
+  // stated necessity, not the budget's current state.
+
+  const minimumRequiredThisMonth = useMemo(() => {
+    let total = 0;
+    for (const goal of goalDocs) {
+      for (const item of itemsByGoal[goal.id] ?? []) {
+        if (item.completed) continue;
+        if ((item.necessity ?? DEFAULT_NECESSITY) !== 'MustHave') continue;
+        total += toDisplay(ctx, item.amount, goal.currency);
+      }
+    }
+    return round2(total);
+  }, [goalDocs, itemsByGoal, ctx]);
+
   // --- Category Spend Trend: the same buckets as Financial Trends above,
   // stacked by category so growth/decline in any one category over time is
   // visible, not just its share of a single period's total (that's what the
@@ -558,6 +620,10 @@ export function useLogic() {
     budgetVsSpendTrend,
     budgetVsSpendMax,
 
+    fixedVsVariableTrend,
+    fixedVsVariableMax,
+    minimumRequiredThisMonth,
+
     categorySpendTrend,
     categorySpendMax,
 
@@ -568,7 +634,9 @@ export function useLogic() {
       accountsLoading ||
       categoriesLoading ||
       ctxLoading ||
-      budgetRulesLoading,
+      budgetRulesLoading ||
+      goalsLoading ||
+      goalItemsLoading,
     error: transactionsError,
   };
 }

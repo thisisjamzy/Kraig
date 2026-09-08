@@ -13,20 +13,24 @@
 //    smallest cost first) as the new custom order — writes sequential rank
 //    values (0, 1, 2, ...) so the list becomes exactly that order, and the
 //    user can then fine-tune it from there.
-//  - Manually nudge one item up/down (only while sorted by "Custom") — a
-//    plain swap of the two adjacent items' rank values.
+//  - Drag-and-drop one item to a new position (only while sorted by
+//    "Custom") — dnd-kit's onDragEnd gives the old/new index directly,
+//    reordered exactly like applySortAsCustomOrder's own rank rewrite.
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { query, where } from 'firebase/firestore';
+import type { DragEndEvent } from '@dnd-kit/core';
+import { arrayMove } from '@dnd-kit/sortable';
 import { useFirestoreCollection } from '@/src/shared/firestore/hooks';
 import { goalsRef } from '@/src/shared/firestore/refs';
 import { setGoalLineItemRanks } from '@/src/shared/firestore/aggregation';
-import { useCurrencyContext } from '@/src/shared/firestore/queries';
+import { useCurrencyContext, useCategories } from '@/src/shared/firestore/queries';
 import { toDisplay, round2 } from '@/src/shared/firestore/currency';
 import { useGoalLineItemsByGoal } from '@/src/shared/hooks/useGoalLineItemsByGoal';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { DEFAULT_PRIORITY, DEFAULT_NECESSITY } from '@/src/viewmodels/projects';
+import { categoryAccentColor } from '@/src/viewmodels/categories';
 import type { FirestoreGoal, Priority, GoalItemNecessity } from '@/src/shared/firestore/types';
 
 export type GoalItemSort = 'custom' | 'priority' | 'ease';
@@ -41,6 +45,9 @@ interface GoalItemRow {
   priority: Priority;
   necessity: GoalItemNecessity;
   deadline: Date | null;
+  dueDateObj: Date | null;
+  categoryName: string;
+  categoryColor: string;
 }
 
 export function useLogic() {
@@ -53,12 +60,18 @@ export function useLogic() {
   const { data: goalDocs, loading: goalsLoading } = useFirestoreCollection<FirestoreGoal>(goalsQuery);
 
   const { itemsByGoal, loading: itemsLoading } = useGoalLineItemsByGoal(goalDocs);
+  const { data: categories, loading: categoriesLoading } = useCategories();
+  const categoryName = useMemo(() => {
+    const map = new Map(categories.map((category) => [category.id, category.name]));
+    return (id: string | undefined | null) => (id && map.get(id)) || id || '—';
+  }, [categories]);
 
   const pendingItems = useMemo(() => {
     const list: GoalItemRow[] = [];
     for (const goal of goalDocs) {
       for (const item of itemsByGoal[goal.id] ?? []) {
         if (item.completed) continue;
+        const label = categoryName(item.categoryId);
         list.push({
           id: item.id,
           goalId: goal.id,
@@ -69,11 +82,14 @@ export function useLogic() {
           priority: item.priority ?? DEFAULT_PRIORITY,
           necessity: item.necessity ?? DEFAULT_NECESSITY,
           deadline: goal.deadline ? goal.deadline.toDate() : null,
+          dueDateObj: item.dueDate ? item.dueDate.toDate() : null,
+          categoryName: label,
+          categoryColor: categoryAccentColor(label),
         });
       }
     }
     return list;
-  }, [goalDocs, itemsByGoal, ctx]);
+  }, [goalDocs, itemsByGoal, ctx, categoryName]);
 
   const [sortMode, setSortMode] = useState<GoalItemSort>('custom');
   const sortedItems = useMemo(() => {
@@ -129,16 +145,18 @@ export function useLogic() {
     setSortMode('custom');
   }
 
-  async function moveItem(index: number, direction: -1 | 1) {
+  async function handleDragEnd(event: DragEndEvent) {
     if (!uid || sortMode !== 'custom') return;
-    const targetIndex = index + direction;
-    if (targetIndex < 0 || targetIndex >= items.length) return;
-    const a = items[index];
-    const b = items[targetIndex];
-    await setGoalLineItemRanks(uid, [
-      { goalId: a.goalId, lineItemId: a.id, rank: b.rank },
-      { goalId: b.goalId, lineItemId: b.id, rank: a.rank },
-    ]);
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = items.findIndex((item) => item.id === active.id);
+    const newIndex = items.findIndex((item) => item.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    const reordered = arrayMove(items, oldIndex, newIndex);
+    await setGoalLineItemRanks(
+      uid,
+      reordered.map((item, index) => ({ goalId: item.goalId, lineItemId: item.id, rank: index }))
+    );
   }
 
   function openGoal(goalId: string) {
@@ -157,10 +175,10 @@ export function useLogic() {
     necessityFilter,
     toggleNecessityFilter,
     applySortAsCustomOrder,
-    moveItem,
+    handleDragEnd,
     currency: ctx.display,
     openGoal,
     goBack,
-    loading: ctxLoading || goalsLoading || itemsLoading,
+    loading: ctxLoading || goalsLoading || itemsLoading || categoriesLoading,
   };
 }

@@ -27,14 +27,20 @@ export function Logo({
   // 'auto' (default) follows the ThemeProvider's data-theme ancestor, same
   // as always. 'dark' forces the white-text lockup regardless of theme —
   // for a surface that's hardcoded dark/colored (e.g. a gradient card) no
-  // matter which app theme is active.
-  variant?: 'auto' | 'dark';
+  // matter which app theme is active. 'light' is the mirror image — the
+  // dark-text lockup, forced regardless of theme, for a surface that's
+  // hardcoded light/pastel (e.g. Home's wallet cards).
+  variant?: 'auto' | 'dark' | 'light';
 }) {
   const style = height ? { height, width: 'auto' as const } : undefined;
   const combinedClassName = (variant: string) => (className ? `${variant} ${className}` : variant);
 
   if (variant === 'dark') {
     return <img src="/logo_alt.png" alt={alt} style={style} className={className} />;
+  }
+
+  if (variant === 'light') {
+    return <img src="/logo_primary.png" alt={alt} style={style} className={className} />;
   }
 
   return (

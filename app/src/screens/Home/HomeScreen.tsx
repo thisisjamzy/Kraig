@@ -14,8 +14,10 @@ import {
   PiggyBank,
   CreditCard,
   Target,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
-import { useLogic, formatAmount, formatCompact, type SpendingPeriod } from '@/src/logic/home/useLogic';
+import { useLogic, formatAmount, formatCompact, HIDDEN_AMOUNT_PLACEHOLDER, type SpendingPeriod } from '@/src/logic/home/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { Logo } from '@/src/widgets/Logo/Logo';
@@ -39,7 +41,6 @@ const UNJUSTIFIED_PLACEHOLDER = '******';
 // is still loading) — reserves the same vertical space the real chart would
 // take instead of the section collapsing to nothing, then jumping once data
 // arrives.
-const PLACEHOLDER_BAR_HEIGHTS = [55, 80, 40, 65];
 const PLACEHOLDER_BREAKDOWN_COLUMNS = 6;
 // Three axis indicators (max, half, zero) — same "at least 3, clearly show
 // distance from zero" bar as every other chart in the app now follows (see
@@ -54,9 +55,10 @@ export function HomeScreen() {
     recentTransactions,
     period,
     setPeriod,
+    balancesHidden,
+    toggleBalancesHidden,
     upcomingPayments,
     breakdown,
-    walletMax,
     breakdownMax,
     loading,
     error,
@@ -124,7 +126,20 @@ export function HomeScreen() {
       <section className={styles.balanceCard}>
         <div className={styles.balanceCardTop}>
           <div>
-            <p className={styles.balanceAmount}>{formatAmount(balance.total)}</p>
+            <div className={styles.balanceAmountRow}>
+              <p className={styles.balanceAmount}>
+                {balancesHidden ? HIDDEN_AMOUNT_PLACEHOLDER : formatAmount(balance.total)}
+              </p>
+              <button
+                type="button"
+                className={styles.balanceVisibilityToggle}
+                onClick={toggleBalancesHidden}
+                aria-label={balancesHidden ? strings.home.showBalances : strings.home.hideBalances}
+                aria-pressed={balancesHidden}
+              >
+                {balancesHidden ? <EyeOff size={16} strokeWidth={2} /> : <Eye size={16} strokeWidth={2} />}
+              </button>
+            </div>
             <span className={styles.balanceLabel}>{strings.home.balanceLabel}</span>
           </div>
           <div className={styles.currencyMenuWrap} ref={currencyMenuRef}>
@@ -201,7 +216,7 @@ export function HomeScreen() {
           </span>
           <span className={styles.summaryLabel}>{strings.home.savingsLabel}</span>
           <span className={styles.summaryValue}>
-            {formatAmount(balance.savings)} {balance.currency}
+            {balancesHidden ? HIDDEN_AMOUNT_PLACEHOLDER : `${formatAmount(balance.savings)} ${balance.currency}`}
           </span>
         </div>
         <div className={styles.summaryCard}>
@@ -210,7 +225,7 @@ export function HomeScreen() {
           </span>
           <span className={styles.summaryLabel}>{strings.home.spendableLabel}</span>
           <span className={styles.summaryValue}>
-            {formatAmount(balance.spendable)} {balance.currency}
+            {balancesHidden ? HIDDEN_AMOUNT_PLACEHOLDER : `${formatAmount(balance.spendable)} ${balance.currency}`}
           </span>
         </div>
       </div>
@@ -232,40 +247,50 @@ export function HomeScreen() {
       <section className={styles.section}>
         <div className={styles.sectionHeader}>
           <h2 className={styles.sectionTitle}>{strings.home.wallets}</h2>
-          <Link href="/wallets" className={styles.viewAllButton} aria-label="View all wallets">
-            <ArrowUpRight size={16} strokeWidth={2.25} />
-          </Link>
+          <div className={styles.headerControls}>
+            <Link href="/wallets" className={styles.viewAllButton} aria-label="View all wallets">
+              <ArrowUpRight size={16} strokeWidth={2.25} />
+            </Link>
+          </div>
         </div>
 
-        <div className={styles.walletsChart} data-hscroll="true">
-          {wallets.length > 0
-            ? wallets.map((wallet) => (
-                <div key={wallet.id} className={styles.walletColumn}>
-                  <div className={styles.walletBarTrack}>
-                    <div
-                      className={styles.walletBar}
-                      style={{
-                        height: `${Math.max((wallet.amount / walletMax) * 100, 6)}%`,
-                        background: wallet.color,
-                      }}
-                    >
-                      <span className={styles.walletValue}>{formatCompact(wallet.amount)}</span>
-                    </div>
-                  </div>
-                  <span className={styles.walletName}>{wallet.name}</span>
+        {wallets.length > 0 ? (
+          <div className={styles.walletCardsRow} data-hscroll="true">
+            {wallets.map((wallet) => (
+              <div key={wallet.id} className={styles.walletCard} style={{ background: wallet.color }}>
+                <div className={styles.walletCardTop}>
+                  <p className={styles.walletCardType}>{wallet.type}</p>
+                  <p className={styles.walletCardName}>{wallet.name}</p>
                 </div>
-              ))
-            : PLACEHOLDER_BAR_HEIGHTS.map((height, index) => (
-                <div key={index} className={styles.walletColumn} aria-hidden="true">
-                  <div className={styles.walletBarTrack}>
-                    <div className={`${styles.walletBar} ${styles.placeholderBar}`} style={{ height: `${height}%` }} />
-                  </div>
-                  <span className={`${styles.walletName} ${styles.placeholderLabel}`}>&nbsp;</span>
+
+                <div className={styles.walletCardNumberBlock}>
+                  <p className={styles.walletCardLabel}>{strings.home.walletNumberLabel}</p>
+                  <p className={styles.walletCardNumber}>{wallet.cardNumber}</p>
                 </div>
-              ))}
-        </div>
-        {wallets.length === 0 && !loading && (
-          <p className={styles.emptyText}>{strings.home.noWallets}</p>
+
+                <div className={styles.walletCardBottomRow}>
+                  <div className={styles.walletCardStat}>
+                    <p className={styles.walletCardLabel}>{strings.home.walletsAvailable}</p>
+                    <p className={styles.walletCardStatValue}>
+                      {balancesHidden ? HIDDEN_AMOUNT_PLACEHOLDER : `${formatCompact(wallet.amount)} ${wallet.currency}`}
+                    </p>
+                  </div>
+                  <div className={styles.walletCardStat}>
+                    <p className={styles.walletCardLabel}>{strings.home.walletsRequired}</p>
+                    <p className={styles.walletCardStatValue}>
+                      {balancesHidden ? HIDDEN_AMOUNT_PLACEHOLDER : wallet.required > 0 ? formatCompact(wallet.required) : '*****'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className={styles.walletCardLogoRow}>
+                  <Logo height={14} variant="light" className={styles.walletCardLogo} />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          !loading && <p className={styles.emptyText}>{strings.home.noWallets}</p>
         )}
       </section>
 

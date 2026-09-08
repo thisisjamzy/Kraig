@@ -137,15 +137,9 @@
   color: #ffffff;
 }
 
-/* Solid white backing, not the usual translucent-red tint — that reads fine
-   on the page's own background but disappears against the total card's own
-   green gradient. */
 .leftToBudgetValueWarning {
   font-size: var(--font-size-sm);
   font-weight: 700;
-  padding: 2px 6px;
-  border-radius: var(--radius-sm);
-  background: rgba(255, 255, 255, 0.92);
   color: var(--color-danger);
 }
 

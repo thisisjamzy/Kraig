@@ -191,6 +191,13 @@ export interface FirestoreBudgetRule {
   // ruleAppliesToMonth itself). Optional — most rules never override a
   // month.
   monthOverrides?: Record<string, { budgetedAmount: number }>;
+  // Set only on a rule auto-created for a Fixed goal's line item
+  // (aggregation.ts's createGoalLineItem) — Analytics' Fixed-vs-Variable
+  // split (src/logic/statistics/useLogic.ts) buckets a rule as Fixed
+  // whenever this is present, Variable otherwise. Absent on every
+  // hand-created rule (addBudgetCategory, addGoalLineItemToBudget's
+  // one-off Variable-item rules).
+  sourceGoalLineItemId?: string;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 }
@@ -284,6 +291,15 @@ export interface FirestoreGoal {
   currency: string;
   deadline: Timestamp | null;
   archived: boolean;
+  // Variable (the default): line items are one-off plans, manually "added
+  // to budget" (aggregation.ts's addGoalLineItemToBudget) when the
+  // household is ready to commit one to a month's plan. Fixed: a basket of
+  // recurring costs (rent, subscriptions, a recurring savings transfer) —
+  // every line item added to it automatically gets its own recurring
+  // budget rule (createGoalLineItem's Fixed-goal branch), no manual step.
+  // Optional for back-compat with a goal written before this field
+  // existed; every read defaults it to 'Variable'.
+  kind?: 'Fixed' | 'Variable';
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 }
@@ -300,6 +316,37 @@ export interface FirestoreGoalLineItem {
   name: string;
   description: string;
   amount: number;
+  // What this item actually is, budget-wise — every line item is
+  // budgetable now, not just a wish-list entry. Its category's own
+  // transactionType ('Expense' | 'Savings', Income excluded — a goal item
+  // is never money coming in) is what decides which accountId below is
+  // even selectable: a Savings-category item may only point at a Savings
+  // Account, an Expense-category item may only point at a spendable one
+  // (see src/logic/goalDetail/useLogic.ts's validation). Optional only for
+  // back-compat with a line item written before this field existed — the
+  // add/edit form always requires it going forward, same convention as
+  // priority/necessity below.
+  categoryId?: string;
+  // The wallet this item is earmarked against, if any — lets Home compute
+  // "how much of what's required for this wallet is actually there yet"
+  // (src/logic/home/useLogic.ts's wallet chart). Optional: a goal item
+  // doesn't have to target a specific account.
+  accountId: string | null;
+  // Fixed-goal items only — how often this recurring cost repeats.
+  // createGoalLineItem uses this to build the auto-generated
+  // FirestoreBudgetRule's own frequency/interval; irrelevant (and unset)
+  // for a Variable goal's items, which are one-off by nature.
+  recurrence?: { frequency: Frequency; interval: number } | null;
+  // The budget rule createGoalLineItem auto-created for this item (Fixed
+  // goals only) — looked up directly by id rather than queried by
+  // FirestoreBudgetRule.sourceGoalLineItemId, so an edit/delete here can
+  // update/archive that rule without a round-trip query.
+  budgetRuleId?: string | null;
+  // When this cost is actually due — replaces the old separate
+  // plannedPayments-based "Upcoming Payments" feature entirely (Home and
+  // the Payments Calendar now read due dates straight off line items
+  // instead). Optional: not every goal item has a hard deadline.
+  dueDate: Timestamp | null;
   // Custom manual order within the cross-goal "All goal items" list
   // (src/logic/goalItems) — lower sorts first. Set once at creation
   // (Date.now(), always after every existing item) and only ever changed by
@@ -320,6 +367,14 @@ export interface FirestoreGoalLineItem {
   completed: boolean;
   completedAt: Timestamp | null;
   expenseId: string | null;
+  // Set once this (Variable-goal) item's amount has been folded into a
+  // month's budget via the "Add to budget" action (aggregation.ts's
+  // addGoalLineItemToBudget) — hides that action afterward so the same
+  // item's amount can't be added twice, and lets Analytics tell an
+  // already-counted Variable item apart from one still just a plan. A
+  // Fixed goal's items never set this — they get a real recurring budget
+  // rule automatically instead (see createGoalLineItem).
+  addedToBudget?: boolean;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 }
@@ -605,4 +660,12 @@ export interface FirestoreTask {
   createdBy: string;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
+  // "YYYY-MM-DD" (taskWrites.ts's toDateOnly) of the day this task was
+  // picked as one of that day's top priorities on the Time hub (Projects
+  // hub) — not a Timestamp, since it's only ever compared for equality
+  // against today's own toDateOnly() output, never read as a real instant.
+  // null/absent means "not a priority for any day". Stays set after that
+  // day passes (harmless history) — a task simply stops showing under
+  // "Today's priorities" once the date no longer matches today.
+  priorityDate?: string | null;
 }
