@@ -117,40 +117,62 @@
   cursor: pointer;
 }
 
-.filterRow {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-sm);
+/* The filter popover anchors to its own trigger button (same convention as
+   Home's currency popover and ActionMenu) rather than a full-screen Modal —
+   .filterMenuWrap is the positioning context, .filterPopover the panel
+   itself. */
+.filterMenuWrap {
+  position: relative;
+  flex-shrink: 0;
 }
 
-.filterSelect {
-  flex: 1 1 45%;
-  min-width: 120px;
-  padding: var(--space-md);
-  border: none;
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
-  color: var(--color-text-primary);
-  font-family: inherit;
-  font-size: var(--font-size-sm);
-  outline: none;
-}
-
-.dateFilterField {
+.filterPopover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 30;
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  flex: 1 1 45%;
-  min-width: 120px;
+  gap: var(--space-md);
+  width: 280px;
+  max-width: calc(100vw - 2 * var(--space-lg));
+  max-height: 70vh;
+  overflow-y: auto;
+  padding: var(--space-md);
+  border-radius: var(--radius-lg);
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.24);
+  color: var(--color-text-primary);
+  text-align: left;
 }
 
-.dateFilterLabel {
+.filterPopoverTitle {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
+/* Every filter/sort/group control is its own labeled field — a plain
+   stacked layout (rather than the old flex-wrap grid of unlabeled selects)
+   so nothing needs a shared row width to make sense, and the date range
+   below naturally lands on a line of its own. */
+.filterField {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.filterFieldLabel {
   font-size: 0.7rem;
   font-weight: 600;
   color: var(--color-text-secondary);
 }
 
-.filterDateInput {
+.filterSelect {
   width: 100%;
   padding: var(--space-md);
   border: none;
@@ -162,26 +184,54 @@
   outline: none;
 }
 
-.groupToggle {
+.dateRangeRow {
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
-  flex: 1 1 100%;
-  padding: var(--space-sm) var(--space-md);
-  font-size: var(--font-size-sm);
+  gap: var(--space-xs);
+}
+
+.dateRangeSeparator {
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+}
+
+.filterDateInput {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  padding: var(--space-md);
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
   color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  outline: none;
 }
 
 .groupedList {
   display: flex;
   flex-direction: column;
-  gap: var(--space-lg);
+  gap: var(--space-md);
 }
 
 .categoryGroup {
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
+}
+
+.categoryGroupHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
 .categoryGroupTitle {
@@ -191,6 +241,23 @@
   letter-spacing: 0.02em;
   text-transform: uppercase;
   color: var(--color-text-secondary);
+}
+
+.categoryGroupCount {
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.categoryGroupChevron,
+.categoryGroupChevronCollapsed {
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+  transition: transform 0.15s ease;
+}
+
+.categoryGroupChevronCollapsed {
+  transform: rotate(-90deg);
 }
 
 .clearFiltersButton {
@@ -400,4 +467,36 @@
   color: var(--color-text-secondary);
   cursor: not-allowed;
   box-shadow: none;
+}
+
+/* "Add transaction" — same fixed, frame-capped row and circular button as
+   Categories.module.css's own .fabRow/.fab, shown instead of .selectionBar
+   whenever selection mode isn't active. */
+.fabRow {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--space-lg) + env(safe-area-inset-bottom));
+  display: flex;
+  justify-content: flex-end;
+  max-width: var(--app-max-width);
+  margin-inline: auto;
+  padding-right: var(--space-lg);
+  pointer-events: none;
+}
+
+.fab {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: none;
+  background: var(--ink-bg);
+  color: var(--color-brand);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+  text-decoration: none;
 }
