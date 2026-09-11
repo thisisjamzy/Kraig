@@ -39,10 +39,26 @@
 
 .title {
   margin: 0;
+  min-width: 0;
+  flex: 1;
   font-family: var(--font-family-heading);
   font-size: var(--font-size-xl);
   font-weight: 800;
   color: var(--color-text-primary);
+}
+
+.addIconButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: var(--radius-full);
+  background: var(--ink-bg);
+  color: var(--ink-text);
+  cursor: pointer;
 }
 
 .filterRow {

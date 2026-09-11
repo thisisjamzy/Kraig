@@ -302,6 +302,8 @@
   padding: var(--space-md) var(--space-lg);
   border-radius: var(--radius-lg);
   color: #14141c;
+  text-decoration: none;
+  cursor: pointer;
 }
 
 .walletCardTop {

@@ -7,7 +7,7 @@ import { EmojiPicker } from '@/src/widgets/EmojiPicker/EmojiPicker';
 import { DateRangeField } from '@/src/widgets/DateRangeField/DateRangeField';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { ConfirmDialog } from '@/src/widgets/ConfirmDialog/ConfirmDialog';
-import { PROJECT_COLORS, PRIORITY_LEVELS } from '@/src/viewmodels/projects';
+import { PROJECT_COLORS, PRIORITY_LEVELS, projectCoverImageUrl } from '@/src/viewmodels/projects';
 import type { ProjectStatus } from '@/src/shared/firestore/types';
 import styles from './ProjectEditScreen.module.css';
 
@@ -62,6 +62,13 @@ export function ProjectEditScreen({ projectId }: { projectId: string }) {
 
       {!loading && !error && project && (
         <>
+          <div
+            className={styles.cover}
+            style={{ backgroundImage: `url(${projectCoverImageUrl(project.id)})` }}
+            role="img"
+            aria-label=""
+          />
+
           <div className={styles.form}>
             <div className={styles.titleRow}>
               <EmojiPicker value={emoji} onChange={setEmoji} label="Project emoji" noneLabel="No emoji" />
@@ -93,7 +100,6 @@ export function ProjectEditScreen({ projectId }: { projectId: string }) {
                 <option value="">No area</option>
                 {areas.map((area) => (
                   <option key={area.id} value={area.id}>
-                    {area.emoji ? `${area.emoji} ` : ''}
                     {area.name}
                   </option>
                 ))}
@@ -113,7 +119,6 @@ export function ProjectEditScreen({ projectId }: { projectId: string }) {
                 >
                   {buckets.map((bucket) => (
                     <option key={bucket.id} value={bucket.id}>
-                      {bucket.emoji ? `${bucket.emoji} ` : ''}
                       {bucket.name}
                     </option>
                   ))}

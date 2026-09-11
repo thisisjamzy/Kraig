@@ -11,10 +11,15 @@
 // repeating it just to split the list into blocks would be redundant.
 
 import { useMemo, useState } from 'react';
+import { query } from 'firebase/firestore';
+import { useFirestoreCollection } from '@/src/shared/firestore/hooks';
+import { useBuckets } from '@/src/shared/firestore/queries';
+import { areasRef, projectsRef } from '@/src/shared/firestore/refs';
+import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { useAllTasks } from '@/src/shared/hooks/useAllTasks';
 import { pendingTasksByPriority, dailySuccessTrend } from '@/src/shared/firestore/taskInsights';
 import { PRIORITY_LEVELS } from '@/src/viewmodels/projects';
-import type { Priority } from '@/src/shared/firestore/types';
+import type { Priority, FirestoreArea, FirestoreProject } from '@/src/shared/firestore/types';
 import type { TaskCardTask } from '@/src/widgets/TaskCard/TaskCard';
 
 const SUCCESS_TREND_DAYS = 7;
@@ -84,9 +89,27 @@ function dateRangeFor(filter: FocusDateFilter, now: Date): { start: Date; end: D
 }
 
 export function useLogic() {
+  const { user } = useFirebaseUser();
+  const uid = user?.uid;
   const { data: tasks, loading } = useAllTasks();
   const [priorityFilter, setPriorityFilter] = useState<FocusPriorityFilter>('All');
   const [dateFilter, setDateFilter] = useState<FocusDateFilter>('all');
+
+  // Keyed by task id so the visible list — built from pendingTasksByPriority's
+  // own FocusTaskItem shape, which doesn't carry project/bucket/area ids —
+  // can still look each task's own context back up.
+  const taskById = useMemo(() => new Map(tasks.map((t) => [t.id, t])), [tasks]);
+
+  const projectsQuery = useMemo(() => (uid ? query(projectsRef(uid)) : null), [uid]);
+  const { data: projectDocs } = useFirestoreCollection<FirestoreProject>(projectsQuery);
+  const projectName = useMemo(() => new Map(projectDocs.map((p) => [p.id, p.name])), [projectDocs]);
+
+  const areasQuery = useMemo(() => (uid ? query(areasRef(uid)) : null), [uid]);
+  const { data: areaDocs } = useFirestoreCollection<FirestoreArea>(areasQuery);
+  const areaName = useMemo(() => new Map(areaDocs.map((a) => [a.id, a.name])), [areaDocs]);
+
+  const { data: bucketDocs } = useBuckets();
+  const bucketName = useMemo(() => new Map(bucketDocs.map((b) => [b.id, b.name])), [bucketDocs]);
 
   const priorityGroups = useMemo(() => pendingTasksByPriority(tasks), [tasks]);
 
@@ -96,22 +119,28 @@ export function useLogic() {
     return visiblePriorities
       .flatMap((priority) => priorityGroups[priority].map((item) => ({ ...item, priority })))
       .filter((item) => !range || (item.dueDate && item.dueDate >= range.start && item.dueDate < range.end))
-      .map((item) => ({
-        id: item.id,
-        title: item.title,
-        priority: item.priority,
-        done: false,
-        status: item.status,
-        startTime: item.startTime,
-        dueDate: item.dueDate,
-      }))
+      .map((item) => {
+        const source = taskById.get(item.id);
+        return {
+          id: item.id,
+          title: item.title,
+          priority: item.priority,
+          done: false,
+          status: item.status,
+          startTime: item.startTime,
+          dueDate: item.dueDate,
+          projectName: source?.projectId ? projectName.get(source.projectId) ?? null : null,
+          bucketName: source?.bucketId ? bucketName.get(source.bucketId) ?? null : null,
+          areaName: source?.areaId ? areaName.get(source.areaId) ?? null : null,
+        };
+      })
       .sort((a, b) => {
         if (!a.dueDate && !b.dueDate) return 0;
         if (!a.dueDate) return 1;
         if (!b.dueDate) return -1;
         return a.dueDate.getTime() - b.dueDate.getTime();
       });
-  }, [priorityGroups, priorityFilter, dateFilter]);
+  }, [priorityGroups, priorityFilter, dateFilter, taskById, projectName, bucketName, areaName]);
 
   const successTrend = useMemo(() => dailySuccessTrend(tasks, SUCCESS_TREND_DAYS), [tasks]);
   const todaySuccess = successTrend.length > 0 ? successTrend[successTrend.length - 1].value : 0;

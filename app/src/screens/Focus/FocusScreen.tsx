@@ -1,5 +1,7 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
+import { Plus } from 'lucide-react';
 import { useLogic } from '@/src/logic/focus/useLogic';
 import { TrendChart } from '@/src/widgets/TrendChart/TrendChart';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
@@ -38,10 +40,22 @@ export function FocusScreen() {
     timeLeftToday,
     loading,
   } = useLogic();
+  const router = useRouter();
 
   return (
     <div className={styles.page}>
-      <h1 className={styles.pageTitle}>Focus</h1>
+      <div className={styles.pageTitleRow}>
+        <h1 className={styles.pageTitle}>Focus</h1>
+        <button
+          type="button"
+          className={styles.addIconButton}
+          onClick={() => router.push('/tasks/new')}
+          aria-label="New task"
+          title="New task"
+        >
+          <Plus size={16} strokeWidth={2.5} />
+        </button>
+      </div>
 
       <ScreenState loading={loading} />
 

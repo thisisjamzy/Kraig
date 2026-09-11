@@ -257,7 +257,12 @@ export function HomeScreen() {
         {wallets.length > 0 ? (
           <div className={styles.walletCardsRow} data-hscroll="true">
             {wallets.map((wallet) => (
-              <div key={wallet.id} className={styles.walletCard} style={{ background: wallet.color }}>
+              <Link
+                key={wallet.id}
+                href={`/wallets/${wallet.id}`}
+                className={styles.walletCard}
+                style={{ background: wallet.color }}
+              >
                 <div className={styles.walletCardTop}>
                   <p className={styles.walletCardType}>{wallet.type}</p>
                   <p className={styles.walletCardName}>{wallet.name}</p>
@@ -286,7 +291,7 @@ export function HomeScreen() {
                 <div className={styles.walletCardLogoRow}>
                   <Logo height={14} variant="light" className={styles.walletCardLogo} />
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         ) : (

@@ -1,6 +1,7 @@
 'use client';
 
-import { ChevronLeft } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { ChevronLeft, Plus } from 'lucide-react';
 import {
   useLogic,
   STATUS_FILTERS,
@@ -16,6 +17,7 @@ import styles from './TasksListScreen.module.css';
 export function TasksListScreen() {
   const { title, tasks, statusFilter, setStatusFilter, priorityFilter, setPriorityFilter, goBack, loading } =
     useLogic();
+  const router = useRouter();
 
   return (
     <div className={styles.page}>
@@ -24,6 +26,15 @@ export function TasksListScreen() {
           <ChevronLeft size={18} strokeWidth={2} />
         </button>
         <h1 className={styles.title}>{title}</h1>
+        <button
+          type="button"
+          className={styles.addIconButton}
+          onClick={() => router.push('/tasks/new')}
+          aria-label="New task"
+          title="New task"
+        >
+          <Plus size={16} strokeWidth={2.5} />
+        </button>
       </header>
 
       <div className={styles.filterRow}>

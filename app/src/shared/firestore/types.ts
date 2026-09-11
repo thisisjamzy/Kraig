@@ -235,6 +235,16 @@ export interface FirestoreSettings {
   householdName: string;
 }
 
+// users/{uid}/settings/taskTypes — a household's own custom task types
+// (viewmodels/projects.ts's TASK_TYPES ToDo/Meeting/Event are always
+// available and never stored here), added from the task edit screen's own
+// Details page. Same settings/{docId} collection and rule as
+// FirestoreSettings above (a fixed id, "taskTypes", not "app" — no new
+// Firestore rule needed for it).
+export interface FirestoreTaskTypesSettings {
+  names: string[];
+}
+
 /**
  * users/{uid}/budgetPlans/{yyyy-mm} — one doc per month, replacing the old
  * single global settings.totalBudget (which was the same number no matter
@@ -592,9 +602,14 @@ export interface FirestoreProject {
   updatedAt?: Timestamp;
 }
 
-// Meeting/Event/ToDo — shown at the top of each Calendar agenda row, and
-// selectable on the task edit screen (viewmodels/projects.ts's TASK_TYPES).
-export type TaskType = 'Meeting' | 'Event' | 'ToDo';
+// Shown at the top of each Calendar agenda row, and selectable on the task
+// edit screen (viewmodels/projects.ts's TASK_TYPES). Meeting/Event/ToDo are
+// the built-in presets, but a household can add its own free-form type
+// (viewmodels/projects.ts's isValidCustomTaskType — one capitalized word)
+// via the task edit screen's own Details page, stored in
+// settings/taskTypes (src/shared/firestore/refs.ts's taskTypesRef) — so
+// this is a plain string, not a closed union.
+export type TaskType = string;
 
 // viewmodels/tasks.ts's TASK_STATUSES — set from TaskQuickActionsMenu's
 // status picker, kept in sync with FirestoreTask.done (see that field's own

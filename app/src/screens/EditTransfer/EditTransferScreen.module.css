@@ -45,15 +45,6 @@
   color: var(--color-text-primary);
 }
 
-.cover {
-  height: 140px;
-  flex-shrink: 0;
-  margin: 0 calc(-1 * var(--space-lg));
-  background-color: var(--color-border);
-  background-size: cover;
-  background-position: center;
-}
-
 .form {
   display: flex;
   flex-direction: column;
@@ -73,8 +64,13 @@
   color: var(--color-text-primary);
 }
 
-.formInput,
-.formTextarea {
+.hintText {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.formInput {
   width: 100%;
   min-width: 0;
   padding: var(--space-md);
@@ -86,52 +82,6 @@
   font-size: var(--font-size-sm);
   outline: none;
   resize: none;
-}
-
-.titleRow {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-sm);
-}
-
-.titleField {
-  flex: 1;
-  min-width: 0;
-}
-
-.areaField {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-xs);
-}
-
-.areaChip {
-  align-self: flex-start;
-  padding: 4px var(--space-sm);
-  border-radius: var(--radius-full);
-  background: var(--color-surface);
-  font-size: var(--font-size-sm);
-  font-weight: 700;
-  color: var(--color-text-primary);
-}
-
-.colorGrid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-sm);
-}
-
-.colorSwatch {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  border: 2px solid transparent;
-  cursor: pointer;
-  padding: 0;
-}
-
-.colorSwatchActive {
-  border-color: var(--color-text-primary);
 }
 
 .errorText {
@@ -158,15 +108,13 @@
   cursor: not-allowed;
 }
 
-/* Danger zone — archive / unarchive */
-
 .dangerCard {
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
   padding: var(--space-lg);
   border: 1px solid color-mix(in srgb, var(--color-danger) 35%, var(--color-border));
-  border-radius: 0;
+  border-radius: var(--radius-lg);
 }
 
 .dangerTitle {
@@ -176,24 +124,21 @@
   color: var(--color-text-primary);
 }
 
-.archivedBadge {
-  align-self: flex-start;
-  padding: 4px var(--space-sm);
-  border-radius: var(--radius-full);
-  background: var(--color-surface);
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--color-text-secondary);
-}
-
 .sectionCaption {
   margin: 0;
-  font-size: 0.75rem;
+  font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
+  line-height: 1.5;
 }
 
-.archiveButton,
-.unarchiveButton {
+.deleteConfirmPrompt {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  line-height: 1.5;
+}
+
+.deleteButton {
   padding: var(--space-md) var(--space-lg);
   border: 1px solid color-mix(in srgb, var(--color-danger) 40%, transparent);
   border-radius: var(--radius-lg);
@@ -205,7 +150,34 @@
   cursor: pointer;
 }
 
-.unarchiveButton {
-  border-color: var(--color-border);
+.deleteButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.deleteActions {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.deleteActions .deleteButton {
+  flex: 1;
+}
+
+.cancelButton {
+  flex: 1;
+  padding: var(--space-md) var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: none;
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
   color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.cancelButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }

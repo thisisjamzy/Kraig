@@ -15,13 +15,13 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { query, where } from 'firebase/firestore';
+import { query, setDoc, arrayUnion, where } from 'firebase/firestore';
 import { useFirestoreCollection, useFirestoreDoc } from '@/src/shared/firestore/hooks';
-import { projectsRef, taskRef } from '@/src/shared/firestore/refs';
+import { projectsRef, taskRef, taskTypesRef } from '@/src/shared/firestore/refs';
 import { createTask, updateTask, archiveTask, toDateOnly, toTimeOnly, combineDateAndTime } from '@/src/shared/firestore/taskWrites';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
-import { DEFAULT_PRIORITY } from '@/src/viewmodels/projects';
-import type { FirestoreProject, FirestoreTask, TaskType, Priority } from '@/src/shared/firestore/types';
+import { DEFAULT_PRIORITY, TASK_TYPES, isValidCustomTaskType } from '@/src/viewmodels/projects';
+import type { FirestoreProject, FirestoreTask, FirestoreTaskTypesSettings, TaskType, Priority } from '@/src/shared/firestore/types';
 
 // Read directly off window.location.search (not useSearchParams()) so this
 // screen never needs a Suspense boundary — same precedent as
@@ -30,6 +30,12 @@ function projectIdFromSearch(): string {
   if (typeof window === 'undefined') return '';
   return new URLSearchParams(window.location.search).get('projectId') ?? '';
 }
+
+// The main form vs. the Details sub-page (priority + task type) — a local
+// view toggle within this one screen rather than a real route change, so
+// every field already typed in stays right where it was (see
+// Design/Newtask 4.PNG's own "Details" page, reached from "New Reminder").
+export type TaskEditView = 'form' | 'details';
 
 export function useLogic(taskId: string | null) {
   const router = useRouter();
@@ -43,6 +49,23 @@ export function useLogic(taskId: string | null) {
   const projectsQuery = useMemo(() => (uid ? query(projectsRef(uid), where('status', '!=', 'Archived')) : null), [uid]);
   const { data: projects, loading: projectsLoading } = useFirestoreCollection<FirestoreProject>(projectsQuery);
 
+  const taskTypesDocRef = useMemo(() => (uid ? taskTypesRef(uid) : null), [uid]);
+  const { data: taskTypesDoc, loading: taskTypesLoading } = useFirestoreDoc<FirestoreTaskTypesSettings>(taskTypesDocRef);
+  // Built-ins first, then any custom ones a household added — deduped in
+  // case a custom name happens to match a built-in.
+  const taskTypeOptions = useMemo(() => {
+    const custom = (taskTypesDoc?.names ?? []).filter((name) => !TASK_TYPES.includes(name));
+    return [...TASK_TYPES, ...custom];
+  }, [taskTypesDoc]);
+
+  const [view, setView] = useState<TaskEditView>('form');
+  function openDetails() {
+    setView('details');
+  }
+  function closeDetails() {
+    setView('form');
+  }
+
   const [title, setTitle] = useState('');
   const [emoji, setEmoji] = useState<string | null>(null);
   const [type, setType] = useState<TaskType>('ToDo');
@@ -55,6 +78,7 @@ export function useLogic(taskId: string | null) {
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [newTaskTypeError, setNewTaskTypeError] = useState<string | null>(null);
 
   // Seed once — from the existing task in edit mode (fired once its data
   // arrives), or immediately for a fresh create (nothing to wait for).
@@ -82,8 +106,10 @@ export function useLogic(taskId: string | null) {
     }
   }, [isEditing, existingTask, seeded]);
 
+  const isValid = Boolean(title.trim() && date && startTimeOfDay && endTimeOfDay);
+
   async function handleSave() {
-    if (!uid || saving || !title.trim() || !date || !startTimeOfDay || !endTimeOfDay) return;
+    if (!uid || saving || !isValid) return;
     setSaveError(null);
     const start = combineDateAndTime(date, startTimeOfDay);
     const due = combineDateAndTime(date, endTimeOfDay);
@@ -121,6 +147,23 @@ export function useLogic(taskId: string | null) {
     }
   }
 
+  // Adds a household-wide custom type (settings/taskTypes) and switches
+  // this task to it — one capitalized word, same rule for every entry
+  // point (isValidCustomTaskType), so nothing downstream (the Calendar
+  // agenda, TaskCard) ever has to worry about a type string that isn't
+  // display-ready as-is.
+  async function addCustomTaskType(name: string) {
+    const trimmed = name.trim();
+    if (!uid || !trimmed) return;
+    if (!isValidCustomTaskType(trimmed)) {
+      setNewTaskTypeError('One capitalized word — e.g. "Errand".');
+      return;
+    }
+    setNewTaskTypeError(null);
+    await setDoc(taskTypesRef(uid), { names: arrayUnion(trimmed) }, { merge: true });
+    setType(trimmed);
+  }
+
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   function openDeleteConfirm() {
@@ -143,6 +186,12 @@ export function useLogic(taskId: string | null) {
   return {
     isEditing,
     projects,
+    view,
+    openDetails,
+    closeDetails,
+    taskTypeOptions,
+    newTaskTypeError,
+    addCustomTaskType,
     title,
     setTitle,
     emoji,
@@ -163,6 +212,7 @@ export function useLogic(taskId: string | null) {
     setEndTimeOfDay,
     notes,
     setNotes,
+    isValid,
     saving,
     saveError,
     handleSave,
@@ -171,7 +221,7 @@ export function useLogic(taskId: string | null) {
     cancelDelete,
     confirmDelete,
     goBack,
-    loading: (isEditing && taskLoading) || projectsLoading,
+    loading: (isEditing && taskLoading) || projectsLoading || taskTypesLoading,
     error: taskError,
   };
 }

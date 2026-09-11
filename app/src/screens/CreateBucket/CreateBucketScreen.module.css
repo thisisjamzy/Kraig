@@ -7,10 +7,14 @@
   gap: var(--space-lg);
 }
 
+/* X — "New bucket" — check, a true 3-column grid so the title stays
+   centered regardless of how wide the two side buttons are (Design/
+   Newtask2.PNG, Newtask 4.PNG). The emoji picker sits on its own row
+   below, not in this header. */
 .header {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  gap: var(--space-md);
   position: sticky;
   top: 0;
   z-index: 15;
@@ -20,58 +24,95 @@
   padding-top: calc(var(--space-lg) + env(safe-area-inset-top));
   padding-left: var(--space-lg);
   padding-right: var(--space-lg);
+  padding-bottom: var(--space-md);
   background: var(--color-page);
 }
 
-.backButton {
+.emojiRow {
+  display: flex;
+  justify-content: center;
+}
+
+.headerTitle {
+  grid-column: 2;
+  justify-self: center;
+  margin: 0;
+  font-family: var(--font-family-heading);
+  font-size: var(--font-size-lg);
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.iconButton {
   display: flex;
   align-items: center;
   justify-content: center;
+  justify-self: start;
   width: 36px;
   height: 36px;
   flex-shrink: 0;
   border-radius: 50%;
   border: 1px solid var(--color-border);
-  background: none;
+  background: var(--color-background);
   color: var(--color-text-primary);
   cursor: pointer;
 }
 
-.title {
-  margin: 0;
-  font-family: var(--font-family-heading);
-  font-size: var(--font-size-xl);
-  font-weight: 800;
-  color: var(--color-text-primary);
+/* Grey/muted until every required field is filled, then turns solid
+   black — same "not ready yet" -> "ready" convention as iOS's own
+   Reminders checkmark. */
+.saveIconButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  justify-self: end;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  cursor: not-allowed;
+}
+
+.saveIconButtonActive {
+  background: var(--ink-bg);
+  color: var(--ink-text);
+  cursor: pointer;
 }
 
 .form {
   display: flex;
   flex-direction: column;
-  gap: var(--space-lg);
+  gap: var(--space-md);
 }
 
-.formField {
+/* Every input/row group is its own flat white card, rounded — same
+   Design/Newtask2.PNG grouped-card convention as TaskEdit's own form. */
+.card,
+.listGroup {
   display: flex;
   flex-direction: column;
-  gap: var(--space-xs);
-  min-width: 0;
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: 20px;
+  overflow: hidden;
 }
 
-.formLabel {
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  color: var(--color-text-primary);
+.cardDivider {
+  height: 1px;
+  margin: 0 var(--space-md);
+  background: var(--color-border);
 }
 
-.formInput,
-.formTextarea {
+.titleInput,
+.notesInput {
   width: 100%;
   min-width: 0;
   padding: var(--space-md);
   border: none;
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
+  background: none;
   color: var(--color-text-primary);
   font-family: inherit;
   font-size: var(--font-size-sm);
@@ -79,31 +120,77 @@
   resize: none;
 }
 
-.titleRow {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-sm);
+.titleInput {
+  font-weight: 700;
 }
 
-.titleField {
+.listRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+  padding: var(--space-md);
+  border: none;
+  background: none;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.listRowStatic {
+  cursor: default;
+}
+
+.listRowIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+}
+
+.listRowLabel {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.listRowValue {
   flex: 1;
   min-width: 0;
+  text-align: right;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.areaField {
+.listRowSwatch {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  margin-left: auto;
+}
+
+.listRowChevron {
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+}
+
+.expandPanel {
   display: flex;
   flex-direction: column;
-  gap: var(--space-xs);
-}
-
-.areaChip {
-  align-self: flex-start;
-  padding: 4px var(--space-sm);
-  border-radius: var(--radius-full);
-  background: var(--color-surface);
-  font-size: var(--font-size-sm);
-  font-weight: 700;
-  color: var(--color-text-primary);
+  gap: var(--space-sm);
+  padding: 0 var(--space-md) var(--space-md);
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-md);
 }
 
 .colorGrid {
@@ -129,22 +216,4 @@
   margin: 0;
   font-size: var(--font-size-sm);
   color: var(--color-danger);
-}
-
-.saveButton {
-  padding: var(--space-md) var(--space-lg);
-  border: none;
-  border-radius: var(--radius-lg);
-  background: var(--ink-bg);
-  color: var(--color-brand);
-  font-family: inherit;
-  font-size: var(--font-size-md);
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.saveButton:disabled {
-  background: #6b7380;
-  color: rgba(255, 255, 255, 0.85);
-  cursor: not-allowed;
 }

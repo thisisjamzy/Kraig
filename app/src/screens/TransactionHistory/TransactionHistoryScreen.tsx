@@ -44,6 +44,10 @@ export function TransactionHistoryScreen() {
     setAccountFilter,
     categoryFilter,
     setCategoryFilter,
+    dateFromValue,
+    setDateFromValue,
+    dateToValue,
+    setDateToValue,
     categories,
     sortBy,
     setSortBy,
@@ -102,9 +106,7 @@ export function TransactionHistoryScreen() {
       toggleSelected(transaction.id);
       return;
     }
-    // Transfers have no edit page of their own (see editHref/kindById) —
-    // only a transaction row is clickable to edit.
-    if (transaction.kind === 'transaction') router.push(editHref(transaction.id));
+    router.push(editHref(transaction.id));
   }
 
   function renderRow(transaction: (typeof transactions)[number]) {
@@ -263,6 +265,28 @@ export function TransactionHistoryScreen() {
               </option>
             ))}
           </select>
+          <label className={styles.dateFilterField}>
+            <span className={styles.dateFilterLabel}>{strings.transactionHistory.filterDateFromLabel}</span>
+            <input
+              type="date"
+              className={styles.filterDateInput}
+              value={dateFromValue}
+              max={dateToValue || undefined}
+              onChange={(event) => setDateFromValue(event.target.value)}
+              aria-label={strings.transactionHistory.filterDateFromLabel}
+            />
+          </label>
+          <label className={styles.dateFilterField}>
+            <span className={styles.dateFilterLabel}>{strings.transactionHistory.filterDateToLabel}</span>
+            <input
+              type="date"
+              className={styles.filterDateInput}
+              value={dateToValue}
+              min={dateFromValue || undefined}
+              onChange={(event) => setDateToValue(event.target.value)}
+              aria-label={strings.transactionHistory.filterDateToLabel}
+            />
+          </label>
           <select
             className={styles.filterSelect}
             value={sortBy}

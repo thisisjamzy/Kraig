@@ -51,9 +51,10 @@
    and input sits on top of it with (unchanged from before this split, so
    nothing that already read --color-background needed to change). Kept
    equal to --color-background in dark mode — this is a light-mode-only
-   distinction (Design request: page background #fcf7ff, cards white). */
+   distinction (Design request: page background #F7FBFF at 85% opacity,
+   cards white). */
 [data-theme='light'] {
-  --color-page: #fcf7ff;
+  --color-page: rgba(247, 251, 255, 0.85);
   --color-background: #ffffff;
   --color-surface: #f5f5f7;
   --color-text-primary: #111114;

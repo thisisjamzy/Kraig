@@ -18,9 +18,10 @@ export function useLogic() {
   const [description, setDescription] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const isValid = Boolean(name.trim() && description.trim());
 
   async function handleSave() {
-    if (!uid || saving || !name.trim() || !description.trim()) return;
+    if (!uid || saving || !isValid) return;
     setSaving(true);
     setSaveError(null);
     try {
@@ -54,6 +55,7 @@ export function useLogic() {
     setColor,
     description,
     setDescription,
+    isValid,
     saving,
     saveError,
     handleSave,

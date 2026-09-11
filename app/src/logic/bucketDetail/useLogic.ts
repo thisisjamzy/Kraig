@@ -70,6 +70,9 @@ export function useLogic(bucketId: string) {
           name: p.name,
           emoji: p.emoji ?? null,
           color: p.color,
+          description: p.description,
+          areaName: area?.name ?? null,
+          bucketName: bucket?.name ?? null,
           status: p.status,
           priority: p.priority ?? DEFAULT_PRIORITY,
           startDate: p.startDate ? p.startDate.toDate() : null,
@@ -78,7 +81,7 @@ export function useLogic(bucketId: string) {
           completionPercent: stats.total > 0 ? Math.round((stats.done / stats.total) * 100) : 0,
         };
       });
-  }, [projectDocs, knownBucketIds, bucketAreaId, bucketId, taskStatsByProject]);
+  }, [projectDocs, knownBucketIds, bucketAreaId, bucketId, taskStatsByProject, area, bucket]);
 
   function goBack() {
     router.push(bucketAreaId ? `/areas/${bucketAreaId}` : '/projects');
@@ -89,6 +92,9 @@ export function useLogic(bucketId: string) {
   function openEdit() {
     router.push(`/buckets/${bucketId}/edit`);
   }
+  function openNewProject() {
+    router.push(`/projects/new?areaId=${bucketAreaId ?? ''}&bucketId=${bucketId}`);
+  }
 
   return {
     bucket,
@@ -97,6 +103,7 @@ export function useLogic(bucketId: string) {
     goBack,
     openProject,
     openEdit,
+    openNewProject,
     loading: bucketLoading || projectsLoading || tasksLoading,
     error: bucketError,
   };
