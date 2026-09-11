@@ -11,7 +11,7 @@
 // transaction at a time. The two are easy to conflate by name; they don't
 // share any code or data.
 
-import { getDoc, getDocs, setDoc, writeBatch, query, where, orderBy, limit, serverTimestamp } from 'firebase/firestore';
+import { getDoc, getDocs, setDoc, writeBatch, query, where, orderBy, limit, serverTimestamp, increment } from 'firebase/firestore';
 import { getFirebaseFirestore } from '@/src/shared/config/firebaseClient';
 import {
   accountsRef,
@@ -80,17 +80,23 @@ export interface ReconciliationResult {
  * Snaps every real wallet's own currentBalance to what was reported for it
  * — reconciliation is the household's authoritative re-check of the truth,
  * so the ledger should end up actually agreeing with reality, not just
- * recording the size of the disagreement. The Unjustified wallet still gets
- * the freshly measured gap on top of that (section 2.3), a deliberate full
- * reset rather than an incremental adjustment, so it keeps explaining
- * whatever this reconciliation couldn't attribute to a specific account.
- * Total Balance and Spendable on Home are both derived live from each
- * account's currentBalance (see src/logic/home/useLogic.ts), so updating
- * the accounts here is enough to correct those too — no separate write for
- * either. One batch, not a runTransaction — a household's real wallet count
- * comfortably fits a single batch's 500-write cap, and this app's existing
- * "no locking, last-write-wins" trust model already accepts the same
- * plain-read-then-write tradeoff everywhere else.
+ * recording the size of the disagreement. The Unjustified wallet's own
+ * balance is INCREMENTED by this reconciliation's freshly measured gap, not
+ * overwritten by it — a household that ends every week with a fresh, say,
+ * 50k gap sees that 50k compound week over week (100k, 150k, ...) rather
+ * than being quietly reset back down to 50k on every check, which used to
+ * hide just how much total drift had never actually been explained. Any
+ * amount the household DOES explain in the meantime (the "explains part of
+ * my unaccounted balance" toggle, section 2.5) already moves real money
+ * into/out of this same wallet via an ordinary transfer, so it nets out of
+ * this running total the normal way. Total Balance and Spendable on Home
+ * are both derived live from each account's currentBalance (see
+ * src/logic/home/useLogic.ts), so updating the accounts here is enough to
+ * correct those too — no separate write for either. One batch, not a
+ * runTransaction — a household's real wallet count comfortably fits a
+ * single batch's 500-write cap, and this app's existing "no locking,
+ * last-write-wins" trust model already accepts the same plain-read-then-write
+ * tradeoff everywhere else.
  */
 export async function performReconciliation(
   uid: string,
@@ -117,7 +123,7 @@ export async function performReconciliation(
     if (reported === undefined) continue;
     batch.update(accountRef(uid, wallet.id), { currentBalance: round2(reported), updatedAt: serverTimestamp() });
   }
-  batch.update(unjustifiedWalletRef(uid), { currentBalance: totalGap, updatedAt: serverTimestamp() });
+  batch.update(unjustifiedWalletRef(uid), { currentBalance: increment(totalGap), updatedAt: serverTimestamp() });
   batch.set(reconciliationRef(uid, crypto.randomUUID()), {
     uid,
     performedAt: serverTimestamp(),
