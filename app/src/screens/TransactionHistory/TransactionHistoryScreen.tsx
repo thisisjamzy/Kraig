@@ -1,14 +1,17 @@
 'use client';
 
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, Search, SlidersHorizontal, Trash2, X } from 'lucide-react';
+import Link from 'next/link';
+import { ChevronLeft, ChevronDown, Plus, Search, SlidersHorizontal, Trash2, X } from 'lucide-react';
 import {
   useLogic,
   formatAmount,
   TYPE_FILTERS,
+  GROUP_OPTIONS,
   type TransactionTypeFilter,
   type SortOption,
+  type GroupOption,
 } from '@/src/logic/transactionHistory/useLogic';
 import { CATEGORY_ICON_COLOR } from '@/src/viewmodels/categories';
 import { useStrings } from '@/src/strings/useStrings';
@@ -38,6 +41,7 @@ export function TransactionHistoryScreen() {
     setSearchQuery,
     filterOpen,
     toggleFilter,
+    setFilterOpen,
     typeFilter,
     setTypeFilter,
     accountFilter,
@@ -51,8 +55,10 @@ export function TransactionHistoryScreen() {
     categories,
     sortBy,
     setSortBy,
-    groupByCategory,
-    setGroupByCategory,
+    groupBy,
+    setGroupBy,
+    collapsedGroupTitles,
+    toggleGroupCollapsed,
     accounts,
     hasActiveFilters,
     clearFilters,
@@ -70,6 +76,37 @@ export function TransactionHistoryScreen() {
   } = useLogic();
 
   const title = monthLabel ?? strings.transactionHistory.title;
+
+  const GROUP_OPTION_LABEL: Record<GroupOption, string> = {
+    none: strings.transactionHistory.groupByNone,
+    category: strings.transactionHistory.groupByCategory,
+    wallet: strings.transactionHistory.groupByWallet,
+    type: strings.transactionHistory.groupByType,
+  };
+
+  // The filter popover is anchored to its own trigger button, not a
+  // full-screen Modal — closes on an outside click/tap or Escape, same
+  // convention as Home's currency popover and ActionMenu.
+  const filterMenuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!filterOpen) return;
+    function handlePointerDown(event: MouseEvent | TouchEvent) {
+      if (filterMenuRef.current && !filterMenuRef.current.contains(event.target as Node)) {
+        setFilterOpen(false);
+      }
+    }
+    function handleKeydown(event: KeyboardEvent) {
+      if (event.key === 'Escape') setFilterOpen(false);
+    }
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('touchstart', handlePointerDown);
+    document.addEventListener('keydown', handleKeydown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('touchstart', handlePointerDown);
+      document.removeEventListener('keydown', handleKeydown);
+    };
+  }, [filterOpen, setFilterOpen]);
 
   // Long-press detection: onPointerDown starts a timer; releasing/leaving
   // before it fires cancels it (a normal tap). Pointer events cover both
@@ -184,18 +221,133 @@ export function TransactionHistoryScreen() {
                 >
                   <Search size={18} strokeWidth={1.75} />
                 </button>
-                <button
-                  type="button"
-                  className={
-                    filterOpen || hasActiveFilters ? `${styles.iconButton} ${styles.iconButtonActive}` : styles.iconButton
-                  }
-                  aria-label="Filter"
-                  aria-pressed={filterOpen}
-                  onClick={toggleFilter}
-                >
-                  <SlidersHorizontal size={18} strokeWidth={1.75} />
-                  {hasActiveFilters && <span className={styles.filterDot} />}
-                </button>
+                <div className={styles.filterMenuWrap} ref={filterMenuRef}>
+                  <button
+                    type="button"
+                    className={
+                      filterOpen || hasActiveFilters ? `${styles.iconButton} ${styles.iconButtonActive}` : styles.iconButton
+                    }
+                    aria-label="Filter"
+                    aria-expanded={filterOpen}
+                    onClick={toggleFilter}
+                  >
+                    <SlidersHorizontal size={18} strokeWidth={1.75} />
+                    {hasActiveFilters && <span className={styles.filterDot} />}
+                  </button>
+
+                  {filterOpen && (
+                    <div className={styles.filterPopover} onClick={(event) => event.stopPropagation()}>
+                      <p className={styles.filterPopoverTitle}>{strings.transactionHistory.filterMenuTitle}</p>
+
+                      <label className={styles.filterField}>
+                        <span className={styles.filterFieldLabel}>{strings.transactionHistory.filterTypeLabel}</span>
+                        <select
+                          className={styles.filterSelect}
+                          value={typeFilter}
+                          onChange={(event) => setTypeFilter(event.target.value as TransactionTypeFilter)}
+                        >
+                          {TYPE_FILTERS.map((filter) => (
+                            <option key={filter} value={filter}>
+                              {filter === 'All' ? strings.transactionHistory.filterTypeAll : filter}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+
+                      <label className={styles.filterField}>
+                        <span className={styles.filterFieldLabel}>{strings.transactionHistory.filterAccountLabel}</span>
+                        <select
+                          className={styles.filterSelect}
+                          value={accountFilter}
+                          onChange={(event) => setAccountFilter(event.target.value)}
+                        >
+                          <option value="All">{strings.transactionHistory.filterAccountAll}</option>
+                          {accounts.map((account) => (
+                            <option key={account.id} value={account.id}>
+                              {account.name}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+
+                      <label className={styles.filterField}>
+                        <span className={styles.filterFieldLabel}>{strings.transactionHistory.filterCategoryLabel}</span>
+                        <select
+                          className={styles.filterSelect}
+                          value={categoryFilter}
+                          onChange={(event) => setCategoryFilter(event.target.value)}
+                        >
+                          <option value="All">{strings.transactionHistory.filterCategoryAll}</option>
+                          {categories.map((category) => (
+                            <option key={category.id} value={category.id}>
+                              {category.name}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+
+                      {/* The timeline selector gets its own full-width row —
+                          two date inputs side by side under one shared
+                          "Date range" label, rather than sharing a row with
+                          the selects above. */}
+                      <div className={styles.filterField}>
+                        <span className={styles.filterFieldLabel}>{strings.transactionHistory.filterDateRangeLabel}</span>
+                        <div className={styles.dateRangeRow}>
+                          <input
+                            type="date"
+                            className={styles.filterDateInput}
+                            value={dateFromValue}
+                            max={dateToValue || undefined}
+                            onChange={(event) => setDateFromValue(event.target.value)}
+                            aria-label={strings.transactionHistory.filterDateFromLabel}
+                          />
+                          <span className={styles.dateRangeSeparator}>–</span>
+                          <input
+                            type="date"
+                            className={styles.filterDateInput}
+                            value={dateToValue}
+                            min={dateFromValue || undefined}
+                            onChange={(event) => setDateToValue(event.target.value)}
+                            aria-label={strings.transactionHistory.filterDateToLabel}
+                          />
+                        </div>
+                      </div>
+
+                      <label className={styles.filterField}>
+                        <span className={styles.filterFieldLabel}>{strings.transactionHistory.sortByLabel}</span>
+                        <select
+                          className={styles.filterSelect}
+                          value={sortBy}
+                          onChange={(event) => setSortBy(event.target.value as SortOption)}
+                        >
+                          <option value="date">{strings.transactionHistory.sortByDate}</option>
+                          <option value="category">{strings.transactionHistory.sortByCategory}</option>
+                        </select>
+                      </label>
+
+                      <label className={styles.filterField}>
+                        <span className={styles.filterFieldLabel}>{strings.transactionHistory.groupByLabel}</span>
+                        <select
+                          className={styles.filterSelect}
+                          value={groupBy}
+                          onChange={(event) => setGroupBy(event.target.value as GroupOption)}
+                        >
+                          {GROUP_OPTIONS.map((option) => (
+                            <option key={option} value={option}>
+                              {GROUP_OPTION_LABEL[option]}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+
+                      {hasActiveFilters && (
+                        <button type="button" className={styles.clearFiltersButton} onClick={clearFilters}>
+                          {strings.transactionHistory.clearFilters}
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </>
@@ -225,94 +377,6 @@ export function TransactionHistoryScreen() {
         </div>
       )}
 
-      {filterOpen && (
-        <div className={styles.filterRow}>
-          <select
-            className={styles.filterSelect}
-            value={typeFilter}
-            onChange={(event) => setTypeFilter(event.target.value as TransactionTypeFilter)}
-            aria-label={strings.transactionHistory.filterTypeLabel}
-          >
-            {TYPE_FILTERS.map((filter) => (
-              <option key={filter} value={filter}>
-                {filter === 'All' ? strings.transactionHistory.filterTypeAll : filter}
-              </option>
-            ))}
-          </select>
-          <select
-            className={styles.filterSelect}
-            value={accountFilter}
-            onChange={(event) => setAccountFilter(event.target.value)}
-            aria-label={strings.transactionHistory.filterAccountLabel}
-          >
-            <option value="All">{strings.transactionHistory.filterAccountAll}</option>
-            {accounts.map((account) => (
-              <option key={account.id} value={account.id}>
-                {account.name}
-              </option>
-            ))}
-          </select>
-          <select
-            className={styles.filterSelect}
-            value={categoryFilter}
-            onChange={(event) => setCategoryFilter(event.target.value)}
-            aria-label={strings.transactionHistory.filterCategoryLabel}
-          >
-            <option value="All">{strings.transactionHistory.filterCategoryAll}</option>
-            {categories.map((category) => (
-              <option key={category.id} value={category.id}>
-                {category.name}
-              </option>
-            ))}
-          </select>
-          <label className={styles.dateFilterField}>
-            <span className={styles.dateFilterLabel}>{strings.transactionHistory.filterDateFromLabel}</span>
-            <input
-              type="date"
-              className={styles.filterDateInput}
-              value={dateFromValue}
-              max={dateToValue || undefined}
-              onChange={(event) => setDateFromValue(event.target.value)}
-              aria-label={strings.transactionHistory.filterDateFromLabel}
-            />
-          </label>
-          <label className={styles.dateFilterField}>
-            <span className={styles.dateFilterLabel}>{strings.transactionHistory.filterDateToLabel}</span>
-            <input
-              type="date"
-              className={styles.filterDateInput}
-              value={dateToValue}
-              min={dateFromValue || undefined}
-              onChange={(event) => setDateToValue(event.target.value)}
-              aria-label={strings.transactionHistory.filterDateToLabel}
-            />
-          </label>
-          <select
-            className={styles.filterSelect}
-            value={sortBy}
-            onChange={(event) => setSortBy(event.target.value as SortOption)}
-            aria-label={strings.transactionHistory.sortByLabel}
-          >
-            <option value="date">{strings.transactionHistory.sortByDate}</option>
-            <option value="category">{strings.transactionHistory.sortByCategory}</option>
-          </select>
-          <label className={styles.groupToggle}>
-            <input
-              type="checkbox"
-              checked={groupByCategory}
-              onChange={(event) => setGroupByCategory(event.target.checked)}
-            />
-            {strings.transactionHistory.groupByCategory}
-          </label>
-        </div>
-      )}
-
-      {hasActiveFilters && (
-        <button type="button" className={styles.clearFiltersButton} onClick={clearFilters}>
-          {strings.transactionHistory.clearFilters}
-        </button>
-      )}
-
       <ScreenState loading={loading} error={error} />
 
       {!loading && !error && transactions.length === 0 && (
@@ -323,23 +387,48 @@ export function TransactionHistoryScreen() {
 
       {groupedTransactions ? (
         <div className={styles.groupedList}>
-          {groupedTransactions.map((group) => (
-            <div key={group.title} className={styles.categoryGroup}>
-              <h2 className={styles.categoryGroupTitle}>{group.title}</h2>
-              <div className={styles.list}>{group.rows.map((transaction) => renderRow(transaction))}</div>
-            </div>
-          ))}
+          {groupedTransactions.map((group) => {
+            const collapsed = collapsedGroupTitles.has(group.title);
+            return (
+              <div key={group.title} className={styles.categoryGroup}>
+                <button
+                  type="button"
+                  className={styles.categoryGroupHeader}
+                  onClick={() => toggleGroupCollapsed(group.title)}
+                  aria-expanded={!collapsed}
+                >
+                  <h2 className={styles.categoryGroupTitle}>
+                    {group.title} <span className={styles.categoryGroupCount}>({group.rows.length})</span>
+                  </h2>
+                  <ChevronDown
+                    size={16}
+                    strokeWidth={2}
+                    className={collapsed ? styles.categoryGroupChevronCollapsed : styles.categoryGroupChevron}
+                  />
+                </button>
+                {!collapsed && (
+                  <div className={styles.list}>{group.rows.map((transaction) => renderRow(transaction))}</div>
+                )}
+              </div>
+            );
+          })}
         </div>
       ) : (
         <div className={styles.list}>{transactions.map((transaction) => renderRow(transaction))}</div>
       )}
 
-      {selectionMode && (
+      {selectionMode ? (
         <div className={styles.selectionBar}>
           <button type="button" className={styles.deleteFab} disabled={selectedIds.size === 0} onClick={openConfirmDelete}>
             <Trash2 size={16} strokeWidth={2} />
             Delete{selectedIds.size > 0 ? ` (${selectedIds.size})` : ''}
           </button>
+        </div>
+      ) : (
+        <div className={styles.fabRow}>
+          <Link href="/add-transaction" className={styles.fab} aria-label={strings.transactionHistory.addTransactionCta}>
+            <Plus size={24} strokeWidth={2.25} />
+          </Link>
         </div>
       )}
 

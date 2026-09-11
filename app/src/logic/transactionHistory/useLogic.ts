@@ -101,9 +101,15 @@ export const TYPE_FILTERS: TransactionTypeFilter[] = ['All', 'Expense', 'Income'
 
 // 'category' sorts the flat list alphabetically by category name (date-desc
 // as the tiebreaker within a category) — 'date' is the screen's original,
-// always-on ordering. Independent of groupByCategory below: grouping already
-// clusters by category regardless of which flat order it's built from.
+// always-on ordering. Independent of groupBy below: grouping already
+// clusters rows regardless of which flat order it's built from.
 export type SortOption = 'date' | 'category';
+
+// 'none' shows the flat list; the other three cluster it into collapsible
+// sections keyed by category/transfer-kind, wallet, or type — see
+// groupKeyFor below for exactly which field each one reads.
+export type GroupOption = 'none' | 'category' | 'wallet' | 'type';
+export const GROUP_OPTIONS: GroupOption[] = ['none', 'category', 'wallet', 'type'];
 
 export function useLogic() {
   const router = useRouter();
@@ -122,7 +128,11 @@ export function useLogic() {
   const [dateFromValue, setDateFromValue] = useState('');
   const [dateToValue, setDateToValue] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('date');
-  const [groupByCategory, setGroupByCategory] = useState(false);
+  const [groupBy, setGroupBy] = useState<GroupOption>('none');
+  // Keyed by group title, not groupBy — switching grouping modes just
+  // leaves stale titles in here that no longer match anything, harmless
+  // since a title from a different mode can't collide with a real one.
+  const [collapsedGroupTitles, setCollapsedGroupTitles] = useState<Set<string>>(new Set());
 
   // Long-press-to-select bulk delete — works on both transactions and
   // transfers (kindById below resolves which delete path each selected id
@@ -253,6 +263,10 @@ export function useLogic() {
       title: categoryNameFallback(transaction.categoryId),
       description: transaction.description,
       account: account?.name ?? transaction.accountId,
+      // Group-by-wallet/type read these two instead of `title` — see
+      // groupKeyFor below.
+      walletGroupKey: account?.name ?? transaction.accountId,
+      typeGroupKey: transaction.type,
       amount: toDisplay(ctx, transaction.amount, account?.currency ?? ctx.base),
       currency: ctx.display,
       date: formatDate(transaction.date),
@@ -284,6 +298,13 @@ export function useLogic() {
       title: transfer.kind || 'Transfer',
       description: transfer.description || transfer.notes || `${fromName} → ${toName}`,
       account: `${fromName} → ${toName}`,
+      // A transfer touches two wallets, not one — grouped under the source
+      // side (the one debited) since that's the wallet whose balance this
+      // entry actually reduces. Type grouping has no real type of its own
+      // (see FirestoreTransfer/TYPE_FILTERS), so every transfer buckets
+      // into one flat 'Transfer' group there.
+      walletGroupKey: fromName,
+      typeGroupKey: 'Transfer',
       // Native currency, same as a transaction row — transfers between two
       // accounts in different currencies aren't a case aggregation.ts's
       // createTransferWithAggregation actually converts (see its own
@@ -328,22 +349,39 @@ export function useLogic() {
       ? [...searchedTransactions].sort((a, b) => a.title.localeCompare(b.title) || b.sortMs - a.sortMs)
       : searchedTransactions;
 
-  // Buckets transactions (already sorted above) by category/transfer-kind
-  // name, then orders the buckets alphabetically — each bucket keeps
+  function groupKeyFor(row: (typeof transactions)[number]) {
+    if (groupBy === 'wallet') return row.walletGroupKey;
+    if (groupBy === 'type') return row.typeGroupKey;
+    return row.title;
+  }
+
+  // Buckets transactions (already sorted above) by whichever key groupBy
+  // picks, then orders the buckets alphabetically — each bucket keeps
   // whichever order `transactions` was already in, so a 'date' sort still
   // shows the most recent entry first within every group.
-  const groupedTransactions = groupByCategory
-    ? Array.from(
-        transactions.reduce((groups, row) => {
-          const bucket = groups.get(row.title) ?? [];
-          bucket.push(row);
-          groups.set(row.title, bucket);
-          return groups;
-        }, new Map<string, typeof transactions>())
-      )
-        .map(([title, rows]) => ({ title, rows }))
-        .sort((a, b) => a.title.localeCompare(b.title))
-    : null;
+  const groupedTransactions =
+    groupBy !== 'none'
+      ? Array.from(
+          transactions.reduce((groups, row) => {
+            const key = groupKeyFor(row);
+            const bucket = groups.get(key) ?? [];
+            bucket.push(row);
+            groups.set(key, bucket);
+            return groups;
+          }, new Map<string, typeof transactions>())
+        )
+          .map(([title, rows]) => ({ title, rows }))
+          .sort((a, b) => a.title.localeCompare(b.title))
+      : null;
+
+  function toggleGroupCollapsed(title: string) {
+    setCollapsedGroupTitles((current) => {
+      const next = new Set(current);
+      if (next.has(title)) next.delete(title);
+      else next.add(title);
+      return next;
+    });
+  }
 
   const hasActiveFilters =
     typeFilter !== 'All' ||
@@ -360,7 +398,7 @@ export function useLogic() {
     setDateFromValue('');
     setDateToValue('');
     setSortBy('date');
-    setGroupByCategory(false);
+    setGroupBy('none');
     setSearchQuery('');
   }
 
@@ -493,6 +531,7 @@ export function useLogic() {
 
     filterOpen,
     toggleFilter,
+    setFilterOpen,
     typeFilter,
     setTypeFilter,
     accountFilter,
@@ -506,8 +545,10 @@ export function useLogic() {
     categories,
     sortBy,
     setSortBy,
-    groupByCategory,
-    setGroupByCategory,
+    groupBy,
+    setGroupBy,
+    collapsedGroupTitles,
+    toggleGroupCollapsed,
     accounts,
     hasActiveFilters,
     clearFilters,
