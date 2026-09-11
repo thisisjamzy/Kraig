@@ -1,9 +1,10 @@
 .card {
+  position: relative;
   display: flex;
-  align-items: flex-start;
-  gap: var(--space-sm);
+  align-items: stretch;
+  gap: var(--space-md);
   width: 100%;
-  padding: var(--space-md);
+  padding: var(--space-md) var(--space-md) var(--space-md) var(--space-lg);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   background: var(--color-background);
@@ -12,16 +13,17 @@
   cursor: pointer;
 }
 
-.iconCircle {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  flex-shrink: 0;
-  border-radius: 50%;
-  background: var(--color-surface);
-  color: var(--color-text-secondary);
+/* The colored strip down the card's left edge (Design/task5.JPG) — one
+   accent per task (taskCardColor's hash), the same way ProjectCard/
+   BucketCard each carry the parent area/project's own color, just as a
+   thin bar instead of the whole card. */
+.accentBar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 4px;
+  border-radius: var(--radius-lg) 0 0 var(--radius-lg);
 }
 
 .body {
@@ -29,12 +31,12 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
 }
 
 .nameRow {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--space-xs);
@@ -53,59 +55,127 @@
   text-decoration: line-through;
 }
 
-.dateTime {
+.statusText {
   margin: 0;
   font-size: 0.75rem;
+  font-weight: 600;
   color: var(--color-text-secondary);
 }
 
-.badgeRow {
+.statusTextDone {
+  color: var(--color-success);
+}
+
+.bottomRow {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-xs);
-  margin-top: 4px;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-top: 6px;
+}
+
+.dateTime {
+  flex-shrink: 0;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+/* Overlapping "avatar group"-style badge stack — collapsed to a small
+   colored circle each by default (like a stack of member-head badges),
+   tap one to expand it in place into a full labeled pill. Only one is
+   ever expanded at a time; expanding a badge does not touch the other. */
+.badgeStack {
+  display: flex;
+  align-items: center;
 }
 
 .badge {
-  padding: 2px var(--space-sm);
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 22px;
+  min-width: 22px;
+  padding: 0;
+  border: 2px solid var(--color-background);
   border-radius: var(--radius-full);
+  font-family: inherit;
+  cursor: pointer;
+  overflow: hidden;
+  transition: min-width 0.15s ease, padding 0.15s ease;
+}
+
+.badge:not(:first-child) {
+  margin-left: -8px;
+}
+
+.badgeExpanded {
+  min-width: 0;
+  padding-right: var(--space-sm);
+  margin-left: 0;
+}
+
+.badgeLetter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  font-size: 0.625rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.badgeLabel {
+  max-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
   font-size: 0.7rem;
   font-weight: 700;
+  opacity: 0;
+  transition: max-width 0.15s ease, opacity 0.1s ease;
+}
+
+.badgeExpanded .badgeLabel {
+  max-width: 90px;
+  margin-left: 2px;
+  opacity: 1;
 }
 
 .priorityHigh {
-  background: color-mix(in srgb, var(--color-danger) 18%, transparent);
+  background: color-mix(in srgb, var(--color-danger) 20%, var(--color-background));
   color: var(--color-danger);
 }
 
 .priorityMedium {
-  background: color-mix(in srgb, #e8a33d 22%, transparent);
+  background: color-mix(in srgb, #e8a33d 24%, var(--color-background));
   color: #e8a33d;
 }
 
 .priorityLow {
-  background: color-mix(in srgb, var(--color-brand) 18%, transparent);
+  background: color-mix(in srgb, var(--color-brand) 20%, var(--color-background));
   color: var(--color-brand);
 }
 
 .statusDone {
-  background: color-mix(in srgb, var(--color-brand) 18%, transparent);
+  background: color-mix(in srgb, var(--color-brand) 20%, var(--color-background));
   color: var(--color-brand);
 }
 
 .statusOverdue {
-  background: color-mix(in srgb, var(--color-danger) 18%, transparent);
+  background: color-mix(in srgb, var(--color-danger) 20%, var(--color-background));
   color: var(--color-danger);
 }
 
 .statusDueToday {
-  background: color-mix(in srgb, #e8a33d 22%, transparent);
+  background: color-mix(in srgb, #e8a33d 24%, var(--color-background));
   color: #e8a33d;
 }
 
 .statusUpcoming,
 .statusNoDate {
-  background: var(--color-surface);
+  background: var(--color-background);
   color: var(--color-text-secondary);
 }
 
@@ -118,19 +188,19 @@
   height: 28px;
   border: none;
   border-radius: 50%;
-  background: var(--color-surface);
+  background: var(--color-background);
   color: var(--color-text-primary);
   cursor: pointer;
 }
 
 /* The expand-in-place panel — a normal block child of .body (flex-column),
-   so it just stacks below the badges and the card grows to fit it, rather
-   than overlaying anything. */
+   so it just stacks below the status line and the card grows to fit it,
+   rather than overlaying anything. */
 .panel {
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
-  margin-top: var(--space-sm);
+  margin-top: var(--space-xs);
   padding-top: var(--space-md);
   border-top: 1px solid var(--color-border);
   cursor: default;
@@ -175,7 +245,7 @@
   gap: var(--space-sm);
   padding: var(--space-sm) var(--space-md);
   border-radius: var(--radius-md);
-  background: var(--color-surface);
+  background: var(--color-background);
   font-size: 0.8125rem;
   font-weight: 600;
   color: var(--color-text-primary);

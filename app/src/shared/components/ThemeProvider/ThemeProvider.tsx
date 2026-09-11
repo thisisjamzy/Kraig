@@ -23,6 +23,18 @@ export function ThemeProvider({ children, defaultScheme = 'light' }: ThemeProvid
     }
   }, []);
 
+  // Mirrored onto <html> itself, not just the wrapping div below — `body`
+  // (styles/base/globals.css) reads `--color-background` too, but body is
+  // an ANCESTOR of that div, and a CSS custom property only ever inherits
+  // downward. Without this, body (and anything painted outside the app
+  // frame — the letterboxed area beyond --app-max-width on a wide
+  // viewport, iOS's rubber-band overscroll) never picked up the scheme:
+  // only the div's own descendants (the app's content box) visibly
+  // "switched" when toggling light/dark.
+  useEffect(() => {
+    document.documentElement.dataset.theme = scheme;
+  }, [scheme]);
+
   const setScheme = useCallback((next: ColorScheme) => {
     setSchemeState(next);
     window.localStorage.setItem(STORAGE_KEY, next);

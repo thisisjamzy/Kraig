@@ -1,22 +1,33 @@
 'use client';
 
 // The one task card every task listing uses (Focus, All Tasks, Project
-// Detail's own task list, the Calendar agenda) — self-contained, like
-// ProjectCard/BucketCard: reads the signed-in uid itself and writes
-// directly via taskWrites.ts, so a parent screen only ever needs to hand it
-// a TaskCardTask, nothing else.
+// Detail's own task list, the Calendar agenda, the Projects hub's Today's
+// tasks list) — self-contained, like ProjectCard/BucketCard: reads the
+// signed-in uid itself and writes directly via taskWrites.ts, so a parent
+// screen only ever needs to hand it a TaskCardTask, nothing else.
 //
-// Two independent interactions:
+// Visual spec is Design/task5.JPG's "Today's tasks" / "Schedule" cards: a
+// colored accent bar down the card's left edge, the task's plain-language
+// status under its name, a small overlapping badge stack bottom-left, and
+// the scheduled time bottom-right.
+//
+// Three independent interactions:
 // - The "⋮" trigger opens a small ActionMenu popover (Edit task / Delete
 //   task) — a separate floating menu, not part of the card's own layout.
 // - Clicking the card itself toggles an inline panel below the badges
 //   (status, the done checkbox, priority, reschedule) — the card visually
 //   grows to reveal it rather than anything overlaying the page. While
 //   open, the "⋮" trigger itself becomes a close ("✕") button.
+// - Clicking one of the two small badges (priority / schedule urgency)
+//   expands just that one in place into a full labeled pill — same
+//   "collapsed stack, tap one to see it fully" idea as an overlapping
+//   avatar-group, applied to badges since this app has no per-task
+//   assignees of its own to show. Stops propagation so it never also
+//   toggles the card's own bigger edit panel.
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Target, MoreVertical, X, Pencil, Trash2 } from 'lucide-react';
+import { MoreVertical, X, Pencil, Trash2 } from 'lucide-react';
 import { ActionMenu } from '@/src/widgets/ActionMenu/ActionMenu';
 import { ConfirmDialog } from '@/src/widgets/ConfirmDialog/ConfirmDialog';
 import { DateField } from '@/src/widgets/DateField/DateField';
@@ -30,8 +41,7 @@ import {
   toDateOnly,
 } from '@/src/shared/firestore/taskWrites';
 import { formatTaskDateRange } from '@/src/shared/formatTaskDateRange';
-import { iconTint } from '@/src/viewmodels/iconTint';
-import { PRIORITY_LEVELS, TASK_STATUSES, resolveTaskStatus } from '@/src/viewmodels/projects';
+import { PRIORITY_LEVELS, TASK_STATUSES, resolveTaskStatus, taskCardColor } from '@/src/viewmodels/projects';
 import type { Priority, TaskStatus } from '@/src/shared/firestore/types';
 import styles from './TaskCard.module.css';
 
@@ -43,6 +53,18 @@ export interface TaskCardTask {
   status?: TaskStatus;
   startTime: Date | null;
   dueDate: Date | null;
+}
+
+// The plain-language status line under the task name — a simpler 3-state
+// read of the workflow status than the Status editor's own 4 options
+// (Pending/Stuck/In Review/Done) below, collapsed the way the mockup shows
+// just "Upcoming" / "In Progress" / "Complete" under each card's title.
+type DisplayStatus = 'Completed' | 'In Progress' | 'Upcoming';
+
+function displayStatusOf(task: TaskCardTask): DisplayStatus {
+  if (task.done) return 'Completed';
+  const status = resolveTaskStatus(task);
+  return status === 'Pending' ? 'Upcoming' : 'In Progress';
 }
 
 type ScheduleStatus = 'Done' | 'Overdue' | 'Due today' | 'Upcoming' | 'No date';
@@ -72,24 +94,28 @@ const PRIORITY_CLASS: Record<Priority, string> = {
   Low: styles.priorityLow,
 };
 
-// Every TaskCard shows the same Target icon — tinting the circle by the
-// task's own priority instead of a fixed index at least varies it
-// meaningfully (and by something the card already surfaces via the
-// priority badge) rather than reading as one flat grey column down the list.
-const PRIORITY_TINT_INDEX: Record<Priority, number> = { High: 7, Medium: 5, Low: 1 };
+type BadgeKey = 'priority' | 'schedule';
 
 export function TaskCard({ task }: { task: TaskCardTask }) {
+  const cardColor = taskCardColor(task.id);
   const router = useRouter();
   const { user } = useFirebaseUser();
   const uid = user?.uid;
   const status = resolveTaskStatus(task);
   const label = formatTaskDateRange(task.startTime, task.dueDate);
   const scheduleStatus = scheduleStatusOf(task);
+  const displayStatus = displayStatusOf(task);
 
   const [expanded, setExpanded] = useState(false);
+  const [expandedBadge, setExpandedBadge] = useState<BadgeKey | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [rescheduleValue, setRescheduleValue] = useState(task.dueDate ? toDateOnly(task.dueDate) : '');
   const [saving, setSaving] = useState(false);
+
+  const badges: { key: BadgeKey; label: string; letter: string; className: string }[] = [
+    { key: 'priority', label: task.priority, letter: task.priority.charAt(0), className: PRIORITY_CLASS[task.priority] },
+    { key: 'schedule', label: scheduleStatus, letter: scheduleStatus.charAt(0), className: SCHEDULE_STATUS_CLASS[scheduleStatus] },
+  ];
 
   function toggleExpanded() {
     setExpanded((current) => {
@@ -147,9 +173,7 @@ export function TaskCard({ task }: { task: TaskCardTask }) {
           }
         }}
       >
-        <span className={styles.iconCircle} style={{ background: iconTint(PRIORITY_TINT_INDEX[task.priority]) }}>
-          <Target size={16} strokeWidth={2} />
-        </span>
+        <span className={styles.accentBar} style={{ background: cardColor }} aria-hidden="true" />
         <div className={styles.body}>
           <div className={styles.nameRow}>
             <p className={`${styles.name} ${task.done ? styles.nameDone : ''}`}>{task.title}</p>
@@ -188,11 +212,10 @@ export function TaskCard({ task }: { task: TaskCardTask }) {
               />
             )}
           </div>
-          {label && <p className={styles.dateTime}>{label}</p>}
-          <div className={styles.badgeRow}>
-            <span className={`${styles.badge} ${PRIORITY_CLASS[task.priority]}`}>{task.priority}</span>
-            <span className={`${styles.badge} ${SCHEDULE_STATUS_CLASS[scheduleStatus]}`}>{scheduleStatus}</span>
-          </div>
+
+          <p className={`${styles.statusText} ${displayStatus === 'Completed' ? styles.statusTextDone : ''}`}>
+            {displayStatus}
+          </p>
 
           {expanded && (
             <div className={styles.panel} onClick={(event) => event.stopPropagation()}>
@@ -244,6 +267,28 @@ export function TaskCard({ task }: { task: TaskCardTask }) {
               {saving && <p className={styles.savingHint}>Saving…</p>}
             </div>
           )}
+
+          <div className={styles.bottomRow}>
+            <div className={styles.badgeStack}>
+              {badges.map((badge, index) => (
+                <button
+                  key={badge.key}
+                  type="button"
+                  className={`${styles.badge} ${badge.className} ${expandedBadge === badge.key ? styles.badgeExpanded : ''}`}
+                  style={{ zIndex: expandedBadge === badge.key ? badges.length + 1 : badges.length - index }}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setExpandedBadge((current) => (current === badge.key ? null : badge.key));
+                  }}
+                  aria-label={badge.label}
+                >
+                  <span className={styles.badgeLetter}>{badge.letter}</span>
+                  <span className={styles.badgeLabel}>{badge.label}</span>
+                </button>
+              ))}
+            </div>
+            {label && <span className={styles.dateTime}>{label}</span>}
+          </div>
         </div>
       </div>
 

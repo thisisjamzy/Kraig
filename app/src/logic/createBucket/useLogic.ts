@@ -6,6 +6,14 @@
 // bucket in this area" link (src/screens/AreaDetail), which always passes
 // ?areaId=, so there's no area picker here the way src/logic/createProject
 // has one; the area is shown read-only instead.
+//
+// areaId is a real prop threaded from the page's own searchParams (see
+// app/(mobile)/buckets/new/page.tsx), not read here off
+// window.location.search the way most other create/edit screens do —
+// this one has no fallback UI for a missing area, so it can't risk the
+// one gap in that convention: a value seeded once via a lazy useState
+// initializer goes stale if this same route is visited twice in a row
+// (a different area's own link each time) without an actual remount.
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -16,18 +24,10 @@ import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { PROJECT_COLORS } from '@/src/viewmodels/projects';
 import type { FirestoreArea } from '@/src/shared/firestore/types';
 
-// Same window.location.search read as src/logic/createProject/useLogic.ts's
-// areaIdFromSearch — no Suspense boundary needed.
-function areaIdFromSearch(): string {
-  if (typeof window === 'undefined') return '';
-  return new URLSearchParams(window.location.search).get('areaId') ?? '';
-}
-
-export function useLogic() {
+export function useLogic(areaId: string) {
   const router = useRouter();
   const { user } = useFirebaseUser();
   const uid = user?.uid;
-  const [areaId] = useState(areaIdFromSearch);
 
   const areaDocRef = useMemo(() => (uid && areaId ? areaRef(uid, areaId) : null), [uid, areaId]);
   const { data: area, loading: areaLoading, error: areaError } = useFirestoreDoc<FirestoreArea>(areaDocRef);

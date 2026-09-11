@@ -74,20 +74,6 @@ export function useLogic() {
     return set;
   }, [tasks, projects, payments]);
 
-  const grid = useMemo(() => {
-    const year = monthCursor.getFullYear();
-    const month = monthCursor.getMonth();
-    const firstOfMonth = new Date(year, month, 1);
-    const startWeekday = firstOfMonth.getDay();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const cells: { date: string | null; day: number | null }[] = [];
-    for (let i = 0; i < startWeekday; i++) cells.push({ date: null, day: null });
-    for (let day = 1; day <= daysInMonth; day++) {
-      cells.push({ date: isoDate(new Date(year, month, day)), day });
-    }
-    return cells;
-  }, [monthCursor]);
-
   const agenda = useMemo(() => {
     const taskItems = tasks
       .filter((t) => t.dueDate && isoDate(t.dueDate.toDate()) === selectedDate)
@@ -130,8 +116,10 @@ export function useLogic() {
     return { taskItems, projectItems, paymentItems };
   }, [tasks, projects, payments, selectedDate]);
 
-  function shiftMonth(delta: number) {
-    setMonthCursor((current) => new Date(current.getFullYear(), current.getMonth() + delta, 1));
+  // For HeroUI Calendar's onFocusChange (arrow-key/nav-button navigation) —
+  // accepts whatever month react-aria's own focus state landed on directly.
+  function goToMonth(date: Date) {
+    setMonthCursor(new Date(date.getFullYear(), date.getMonth(), 1));
   }
   function selectDay(dateIso: string) {
     setSelectedDate(dateIso);
@@ -145,8 +133,7 @@ export function useLogic() {
 
   return {
     monthCursor,
-    shiftMonth,
-    grid,
+    goToMonth,
     daysWithItems,
     selectedDate,
     selectDay,

@@ -3,6 +3,7 @@
 
 export const colors = {
   light: {
+    page: '#fcf7ff',
     background: '#ffffff',
     surface: '#f5f5f7',
     textPrimary: '#111114',
@@ -17,6 +18,7 @@ export const colors = {
     danger: '#dc2626',
   },
   dark: {
+    page: '#111114',
     background: '#111114',
     surface: '#1b1b20',
     textPrimary: '#f5f5f7',
