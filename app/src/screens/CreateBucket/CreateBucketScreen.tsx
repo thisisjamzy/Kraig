@@ -7,7 +7,7 @@ import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { PROJECT_COLORS } from '@/src/viewmodels/projects';
 import styles from './CreateBucketScreen.module.css';
 
-export function CreateBucketScreen() {
+export function CreateBucketScreen({ areaId }: { areaId: string }) {
   const {
     area,
     hasAreaId,
@@ -25,7 +25,7 @@ export function CreateBucketScreen() {
     goBack,
     loading,
     error,
-  } = useLogic();
+  } = useLogic(areaId);
 
   return (
     <div className={styles.page}>
@@ -39,7 +39,7 @@ export function CreateBucketScreen() {
       <ScreenState loading={loading} error={error} />
 
       {!hasAreaId && !loading && (
-        <p className={styles.errorText}>A bucket needs an area — open it from that area's own page.</p>
+        <p className={styles.errorText}>A bucket needs an area — open it from that area&apos;s own page.</p>
       )}
 
       {hasAreaId && !loading && !error && (

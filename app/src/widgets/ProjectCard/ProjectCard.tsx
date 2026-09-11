@@ -17,6 +17,11 @@ export interface ProjectCardData {
   id: string;
   name: string;
   emoji: string | null;
+  // The project's own PROJECT_COLORS pick (viewmodels/projects.ts) — the
+  // card's whole background now runs off this single value (see
+  // Design/task1.jpg, task2.jpg's vivid gradient task/project cards),
+  // rather than the plain bordered-white card this used to be.
+  color: string;
   status: ProjectStatus;
   priority: Priority;
   startDate: Date | null;
@@ -30,7 +35,12 @@ export interface ProjectCardData {
 
 export function ProjectCard({ project, onClick }: { project: ProjectCardData; onClick: () => void }) {
   return (
-    <button type="button" className={styles.card} onClick={onClick}>
+    <button
+      type="button"
+      className={styles.card}
+      onClick={onClick}
+      style={{ background: `linear-gradient(135deg, ${project.color}, color-mix(in srgb, ${project.color} 55%, #000000))` }}
+    >
       <div className={styles.top}>
         <span className={styles.emoji}>{project.emoji ?? '📁'}</span>
         <ChevronRight size={16} strokeWidth={2} className={styles.chevron} />

@@ -44,8 +44,16 @@
   --color-brand: #11d993;
 }
 
-/* Mirrors styles/tokens/colors.ts. If you change one, change the other. */
+/* Mirrors styles/tokens/colors.ts. If you change one, change the other.
+   --color-page is the app's own canvas — html/body, the (mobile) shell,
+   and every screen's fixed/sticky .header and root .page — while
+   --color-background stays the crisp white every card, dialog, popover,
+   and input sits on top of it with (unchanged from before this split, so
+   nothing that already read --color-background needed to change). Kept
+   equal to --color-background in dark mode — this is a light-mode-only
+   distinction (Design request: page background #fcf7ff, cards white). */
 [data-theme='light'] {
+  --color-page: #fcf7ff;
   --color-background: #ffffff;
   --color-surface: #f5f5f7;
   --color-text-primary: #111114;
@@ -60,6 +68,7 @@
 }
 
 [data-theme='dark'] {
+  --color-page: #111114;
   --color-background: #111114;
   --color-surface: #1b1b20;
   --color-text-primary: #f5f5f7;
@@ -76,10 +85,17 @@
   box-sizing: border-box;
 }
 
+/* html itself (not just body) so iOS Safari's rubber-band overscroll past
+   the top/bottom edge — which paints the viewport background, not body's —
+   also switches with the theme instead of flashing white in dark mode. */
+html {
+  background: var(--color-page);
+}
+
 body {
   margin: 0;
   font-family: var(--font-family-body);
-  background: var(--color-background);
+  background: var(--color-page);
   color: var(--color-text-primary);
 }
 

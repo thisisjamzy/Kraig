@@ -9,7 +9,7 @@
   padding: var(--space-lg);
   padding-top: calc(var(--space-lg) + env(safe-area-inset-top));
   padding-bottom: max(var(--space-lg), env(safe-area-inset-bottom));
-  background: var(--color-background);
+  background: var(--color-page);
 }
 
 .logoRow {

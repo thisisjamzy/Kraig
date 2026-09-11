@@ -84,6 +84,7 @@ export function useLogic(areaId: string) {
         id: p.id,
         name: p.name,
         emoji: p.emoji ?? null,
+        color: p.color,
         status: p.status,
         priority: p.priority ?? DEFAULT_PRIORITY,
         startDate: p.startDate ? p.startDate.toDate() : null,

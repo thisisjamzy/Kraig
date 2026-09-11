@@ -15,9 +15,93 @@
   color: var(--color-text-primary);
 }
 
-/* Top row — "TASK Basket" (same font specs as the "Portfolio" heading
-   below, via the shared .portfolioTitle class) top-left, a button to view
-   every pending task top-right. */
+/* "Welcome, {name}" — Design/task5.JPG's home greeting. */
+
+.greeting {
+  margin: 0;
+  font-family: var(--font-family-heading);
+  font-size: var(--font-size-xl);
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+/* "See your performance" card — one box per day of the last 30 days
+   (taskInsights.ts's dailyCompletionActivity), shaded by how busy that
+   day was, laid out as a single row spanning the card's full width. */
+
+.performanceCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  border-radius: var(--radius-lg);
+  background: var(--color-background);
+}
+
+.performanceLeft {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.performanceTitle {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.performanceButton {
+  flex-shrink: 0;
+  padding: var(--space-xs) var(--space-md);
+  border: none;
+  border-radius: var(--radius-full);
+  background: var(--ink-bg);
+  color: var(--ink-text);
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.performanceHeatmapWrap {
+  width: 100%;
+}
+
+.performanceHeatmap {
+  display: flex;
+  align-items: stretch;
+  gap: 3px;
+  width: 100%;
+}
+
+.heatmapCell {
+  flex: 1;
+  min-width: 0;
+  height: 32px;
+  border-radius: 3px;
+  background: var(--color-border);
+}
+
+.heatmapCell[data-level='1'] {
+  background: color-mix(in srgb, var(--ink-bg) 35%, var(--color-border));
+}
+
+.heatmapCell[data-level='2'] {
+  background: color-mix(in srgb, var(--ink-bg) 60%, var(--color-border));
+}
+
+.heatmapCell[data-level='3'] {
+  background: color-mix(in srgb, var(--ink-bg) 82%, var(--color-border));
+}
+
+.heatmapCell[data-level='4'] {
+  background: var(--ink-bg);
+}
+
+/* Top row — a section title left, one or more small text actions right
+   (a page-view link, "See all", "Set priorities", ...). */
 
 .topRow {
   display: flex;
@@ -26,120 +110,85 @@
   gap: var(--space-sm);
 }
 
-.viewAllButton {
+.topRowActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+/* Projects carousel sort — Timeline (start date) vs. Name. */
+
+.sortToggle {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+}
+
+.sortToggleButton {
+  border: none;
+  background: none;
+  font-family: inherit;
+  padding: 4px var(--space-sm);
+  border-radius: var(--radius-full);
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.sortToggleButtonActive {
+  background: var(--ink-bg);
+  color: #ffffff;
+}
+
+/* Today's tasks' own action pair — a black filled pill ("See all") next to
+   a white bordered pill ("Set priorities" / "Edit"), both fully rounded. */
+
+.pillButtonBlack {
+  flex-shrink: 0;
+  padding: var(--space-xs) var(--space-md);
+  border: none;
+  border-radius: var(--radius-full);
+  background: var(--ink-bg);
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--ink-text);
+  cursor: pointer;
+}
+
+.pillButtonWhite {
   flex-shrink: 0;
   padding: var(--space-xs) var(--space-md);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-full);
-  background: none;
+  background: var(--color-background);
   font-family: inherit;
   font-size: 0.75rem;
   font-weight: 700;
-  color: var(--color-brand);
-  cursor: pointer;
-}
-
-/* 2x2 stat-tile grid — screen1's pastel Overview cards, each one a button
-   that drills into the matching filtered task list (src/screens/TasksList). */
-
-.tileGrid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-sm);
-}
-
-.tile {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
-  padding: var(--space-md);
-  border: none;
-  border-radius: var(--radius-lg);
-  background: var(--color-surface);
-  font-family: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.tilePurple {
-  background: color-mix(in srgb, #7b7ef3 16%, var(--color-background));
-}
-
-.tileOrange {
-  background: color-mix(in srgb, #ff9800 16%, var(--color-background));
-}
-
-.tileBlue {
-  background: color-mix(in srgb, #3a81f8 16%, var(--color-background));
-}
-
-.tileGreen {
-  background: color-mix(in srgb, #8bc34a 16%, var(--color-background));
-}
-
-.tileLabel {
-  font-size: 0.6875rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--color-text-secondary);
-}
-
-.tileValue {
-  margin: 0;
-  font-size: var(--font-size-md);
-  font-weight: 800;
   color: var(--color-text-primary);
-}
-
-/* Chip-style tabs (screen1) — auto-width, left-aligned, not stretched to
-   fill the row, black-pill active state. */
-
-.periodTabs {
-  display: flex;
-  gap: var(--space-sm);
-}
-
-.periodTab {
-  border: none;
-  background: var(--color-surface);
-  font-family: inherit;
-  padding: var(--space-sm) var(--space-md);
-  border-radius: var(--radius-md);
-  font-size: var(--font-size-sm);
-  font-weight: 700;
-  color: var(--color-text-secondary);
   cursor: pointer;
 }
 
-.periodTabActive {
-  background: var(--ink-bg);
-  color: #ffffff;
+/* Projects carousel — Design/task5.JPG's home "Projects" row: cover-photo
+   cards (ProjectShowcaseCard) scrolling horizontally, same data-hscroll
+   convention as Home's own wallet cards row. */
+
+.projectCarousel {
+  display: flex;
+  gap: var(--space-md);
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  margin: 0 calc(-1 * var(--space-lg));
+  padding: var(--space-xs) var(--space-lg) var(--space-md) var(--space-xl);
 }
 
 .emptyText {
   margin: 0;
   font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
-}
-
-.list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-md);
-}
-
-.projectGrid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-md);
-}
-
-.bucketGrid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-md);
 }
 
 .areaGrid {
@@ -149,17 +198,25 @@
 }
 
 .areaCard {
+  border-radius: var(--radius-lg);
+  background: var(--color-background);
+  color: var(--color-text-primary);
+}
+
+.areaCardMain {
   display: flex;
+  width: 100%;
   flex-direction: column;
   align-items: flex-start;
   gap: var(--space-xs);
   padding: var(--space-lg);
-  border: 1px solid var(--color-border);
+  border: none;
   border-radius: var(--radius-lg);
   background: none;
   font-family: inherit;
   text-align: left;
   cursor: pointer;
+  color: inherit;
 }
 
 .areaCardEmoji {
@@ -178,59 +235,6 @@
   margin: 0;
   font-size: 0.75rem;
   color: var(--color-text-secondary);
-}
-
-.addButton {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-xs);
-  padding: var(--space-md);
-  border: 1.5px dashed var(--color-border);
-  border-radius: var(--radius-lg);
-  background: none;
-  font-family: inherit;
-  font-size: var(--font-size-sm);
-  font-weight: 700;
-  color: var(--color-text-primary);
-  cursor: pointer;
-}
-
-.sectionTitle {
-  margin: 0;
-  font-size: var(--font-size-sm);
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--color-text-secondary);
-}
-
-.archiveRow {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  padding: var(--space-md);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  color: var(--color-text-secondary);
-}
-
-.archiveRowName {
-  flex: 1;
-  min-width: 0;
-  font-size: var(--font-size-sm);
-}
-
-.restoreButton {
-  padding: var(--space-xs) var(--space-md);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: none;
-  font-family: inherit;
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--color-brand);
-  cursor: pointer;
 }
 
 /* Today's priorities — the picked-task list reuses TaskCard as-is, so this

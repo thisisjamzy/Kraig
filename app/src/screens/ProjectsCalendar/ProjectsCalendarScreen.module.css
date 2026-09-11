@@ -4,98 +4,181 @@
   min-height: 100%;
   padding: var(--space-lg);
   padding-top: calc(var(--space-lg) + env(safe-area-inset-top));
-  gap: var(--space-lg);
+  gap: var(--space-md);
 }
 
-.monthHeader {
+.headerRow {
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
-.monthNavButton {
+/* The date button sits where a page title normally would — tapping it
+   opens the full month-grid popover, anchored right next to the button
+   (not a full-screen sheet), for reaching a date further out than the
+   week strip's own scrollable window. */
+.monthWrap {
+  position: relative;
+}
+
+.monthButton {
   display: flex;
   align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  border: 1px solid var(--color-border);
+  gap: 4px;
+  padding: 0;
+  border: none;
   background: none;
+  font-family: var(--font-family-heading);
+  font-size: var(--font-size-lg);
+  font-weight: 800;
   color: var(--color-text-primary);
   cursor: pointer;
 }
 
-.weekdayRow {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  text-align: center;
+.monthPopover {
+  position: absolute;
+  top: calc(100% + var(--space-sm));
+  left: 0;
+  z-index: 30;
+  display: flex;
+  justify-content: center;
+  min-width: 300px;
+  max-width: calc(100vw - 2 * var(--space-lg));
+  padding: var(--space-md);
+  border-radius: var(--radius-lg);
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.16);
+}
+
+/* The week-strip date picker (Design/task5.JPG's "Schedule" frame) —
+   scrolls horizontally, selected day a filled dark pill, days with
+   something scheduled get a small dot. */
+.dateStrip {
+  display: flex;
+  gap: var(--space-sm);
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  margin: 0 calc(-1 * var(--space-lg));
+  padding: 2px var(--space-lg) 4px;
+}
+
+.stripDay {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  width: 44px;
+  padding: var(--space-sm) 0;
+  border: none;
+  border-radius: var(--radius-lg);
+  background: var(--color-background);
+  font-family: inherit;
+  cursor: pointer;
+  scroll-snap-align: center;
+}
+
+.stripDaySelected {
+  background: var(--ink-bg);
+}
+
+.stripDayLabel {
   font-size: 0.6875rem;
   font-weight: 700;
   color: var(--color-text-secondary);
 }
 
-.dayGrid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 2px;
+.stripDaySelected .stripDayLabel {
+  color: var(--ink-text-secondary);
 }
 
-.dayCell {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  aspect-ratio: 1;
-  border-radius: 50%;
-  border: none;
-  background: none;
-  font-family: inherit;
-  font-size: var(--font-size-sm);
+.stripDateNum {
+  font-size: var(--font-size-md);
+  font-weight: 800;
   color: var(--color-text-primary);
-  cursor: pointer;
 }
 
-.dayCellToday {
-  border: 1px solid var(--color-brand);
+.stripDaySelected .stripDateNum {
+  color: var(--ink-text);
 }
 
-.dayCellSelected {
-  background: var(--ink-bg);
-  color: #ffffff;
-}
-
-.dayDot {
+.stripDot {
+  position: absolute;
+  bottom: 4px;
   width: 4px;
   height: 4px;
   border-radius: 50%;
   background: var(--color-brand);
 }
 
-.agendaGroup {
+/* Empty state — "the basket's empty" when the selected day has nothing on
+   it at all (no tasks, no project milestones, no payments due). */
+.emptyState {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+  padding: var(--space-3xl) var(--space-lg);
+  text-align: center;
+}
+
+.emptyIcon {
+  margin-bottom: var(--space-sm);
+  color: var(--color-text-secondary);
+}
+
+.emptyTitle {
+  margin: 0;
+  font-size: var(--font-size-md);
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.emptyPrompt {
+  margin: 0 0 var(--space-sm);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.emptyCta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: var(--space-sm) var(--space-lg);
+  border-radius: var(--radius-full);
+  background: var(--ink-bg);
+  color: var(--ink-text);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+/* All-day items (project milestones, payments due) — no time slot of
+   their own, so they sit above the hourly timeline rather than in it. */
+.allDayGroup {
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
+  padding-bottom: var(--space-md);
+  margin-bottom: var(--space-sm);
+  border-bottom: 1px solid var(--color-border);
 }
 
-.agendaRow {
+.allDayRow {
   display: flex;
   align-items: flex-start;
   gap: var(--space-sm);
-  padding: var(--space-md) 0;
+  padding: 0;
   border: none;
-  border-radius: 0;
-  border-bottom: 1px solid var(--color-border);
   background: none;
   font-family: inherit;
   text-align: left;
   cursor: pointer;
   width: 100%;
-}
-
-.agendaGroup > .agendaRow:last-child {
-  border-bottom: none;
 }
 
 .agendaIcon {
@@ -107,7 +190,7 @@
   height: 28px;
   margin-top: 1px;
   border-radius: 50%;
-  background: var(--color-surface);
+  background: var(--color-background);
   color: var(--color-text-secondary);
 }
 
@@ -137,328 +220,110 @@
   color: var(--color-text-secondary);
 }
 
-.pageTitle {
-  margin: 0;
-  font-family: var(--font-family-heading);
-  font-size: var(--font-size-xl);
-  font-weight: 800;
-  color: var(--color-text-primary);
+.timeline {
+  display: flex;
+  flex-direction: column;
 }
 
-.sectionTitleRow {
+.taskList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding-bottom: var(--space-lg);
+}
+
+/* The month-picker popover (a Modal) — the same compact HeroUI calendar
+   grid the old month-grid layout used, just reachable via the month label
+   now instead of being the page's main view. */
+.calendarHeader {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  padding: 0 0 var(--space-sm);
 }
 
-.chartCard {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
-  padding: var(--space-lg);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-}
-
-.chartTitle {
-  margin: 0;
-  font-size: var(--font-size-sm);
-  font-weight: 700;
-  color: var(--color-text-primary);
-}
-
-.statGrid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-sm);
-}
-
-.statTile {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: var(--space-md);
-  border-radius: var(--radius-lg);
-  background: var(--color-surface);
-}
-
-.statLabel {
-  font-size: 0.6875rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--color-text-secondary);
-}
-
-.statValue {
-  margin: 0;
-  font-size: var(--font-size-md);
-  font-weight: 800;
-  color: var(--color-text-primary);
-}
-
-.statValueDanger {
-  margin: 0;
-  font-size: var(--font-size-md);
-  font-weight: 800;
-  color: var(--color-danger);
-}
-
-.emojiSmall {
-  font-size: 1.125rem;
-  line-height: 1;
-  flex-shrink: 0;
-}
-
-.taskRow {
+.calendarNavButton {
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
-  padding: var(--space-md);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  background: none;
-  font-family: inherit;
-  text-align: left;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 50%;
+  background: var(--color-background);
+  color: var(--color-text-primary);
   cursor: pointer;
-  width: 100%;
 }
 
-.taskTitle {
-  flex: 1;
-  min-width: 0;
+.calendarHeading {
   margin: 0;
   font-size: var(--font-size-sm);
-  font-weight: 600;
-  color: var(--color-text-primary);
-}
-
-.taskMeta {
-  flex-shrink: 0;
-  font-size: 0.7rem;
-  color: var(--color-text-secondary);
-}
-
-.taskMetaDanger {
-  flex-shrink: 0;
-  font-size: 0.7rem;
-  font-weight: 700;
-  color: var(--color-danger);
-}
-
-.tileGrid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-sm);
-}
-
-.tile {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: var(--space-md);
-  border-radius: var(--radius-lg);
-  background: var(--color-surface);
-}
-
-.tileLabel {
-  font-size: 0.6875rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--color-text-secondary);
-}
-
-.tileValue {
-  margin: 0;
-  font-size: var(--font-size-md);
   font-weight: 800;
   color: var(--color-text-primary);
 }
 
-.periodTabs {
-  display: flex;
-  gap: 2px;
-  padding: 3px;
-  background: var(--color-surface);
-  border-radius: var(--radius-full);
+.calendarGrid {
+  width: 100%;
+  border-collapse: collapse;
 }
 
-.periodTab {
-  flex: 1;
-  border: none;
-  background: none;
-  font-family: inherit;
-  padding: var(--space-sm) var(--space-md);
-  border-radius: var(--radius-full);
-  font-size: var(--font-size-sm);
-  font-weight: 600;
+.weekdayCell {
+  padding-bottom: 4px;
+  font-size: 0.625rem;
+  font-weight: 700;
   color: var(--color-text-secondary);
-  cursor: pointer;
+  text-align: center;
 }
 
-.periodTabActive {
+.dayCell {
+  padding: 1px;
+  text-align: center;
+  cursor: pointer;
+  outline: none;
+}
+
+.dayCellInner {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  margin: 0 auto;
+  border-radius: 50%;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.dayCell[data-outside-month] .dayCellInner {
+  color: var(--color-text-secondary);
+  opacity: 0.4;
+}
+
+.dayCell[data-today] .dayCellInner {
+  background: color-mix(in srgb, var(--color-brand) 20%, transparent);
+  color: var(--color-text-primary);
+}
+
+.dayCell[data-selected] .dayCellInner {
   background: var(--ink-bg);
   color: #ffffff;
 }
 
-.emptyText {
-  margin: 0;
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
+.dayCell[data-disabled] .dayCellInner {
+  opacity: 0.3;
 }
 
-.list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-md);
+.dayCell[data-focus-visible] .dayCellInner {
+  box-shadow: 0 0 0 2px var(--color-brand);
 }
 
-.card {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  padding: var(--space-lg);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  background: none;
-  font-family: inherit;
-  text-align: left;
-  cursor: pointer;
-  width: 100%;
-}
-
-.colorDot {
-  width: 12px;
-  height: 12px;
+.dayDot {
+  position: absolute;
+  bottom: 1px;
+  width: 4px;
+  height: 4px;
   border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.emojiSmall {
-  font-size: 1.125rem;
-  line-height: 1;
-  flex-shrink: 0;
-}
-
-.cardText {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.cardName {
-  margin: 0;
-  font-size: var(--font-size-sm);
-  font-weight: 700;
-  color: var(--color-text-primary);
-}
-
-.cardMeta {
-  margin: 0;
-  font-size: 0.75rem;
-  color: var(--color-text-secondary);
-}
-
-.statusChip {
-  padding: 2px var(--space-sm);
-  border-radius: var(--radius-full);
-  background: color-mix(in srgb, var(--color-brand) 15%, transparent);
-  color: var(--color-brand);
-  font-size: 0.7rem;
-  font-weight: 700;
-  flex-shrink: 0;
-}
-
-.areaGrid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-md);
-}
-
-.areaCard {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--space-xs);
-  padding: var(--space-lg);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  background: none;
-  font-family: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.areaCardEmoji {
-  font-size: 1.75rem;
-  line-height: 1;
-}
-
-.areaCardName {
-  margin: 0;
-  font-size: var(--font-size-sm);
-  font-weight: 700;
-  color: var(--color-text-primary);
-}
-
-.areaCardMeta {
-  margin: 0;
-  font-size: 0.75rem;
-  color: var(--color-text-secondary);
-}
-
-.addButton {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-xs);
-  padding: var(--space-md);
-  border: 1.5px dashed var(--color-border);
-  border-radius: var(--radius-lg);
-  background: none;
-  font-family: inherit;
-  font-size: var(--font-size-sm);
-  font-weight: 700;
-  color: var(--color-text-primary);
-  cursor: pointer;
-}
-
-.sectionTitle {
-  margin: 0;
-  font-size: var(--font-size-sm);
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--color-text-secondary);
-}
-
-.archiveRow {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  padding: var(--space-md);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  color: var(--color-text-secondary);
-}
-
-.archiveRowName {
-  flex: 1;
-  min-width: 0;
-  font-size: var(--font-size-sm);
-}
-
-.restoreButton {
-  padding: var(--space-xs) var(--space-md);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: none;
-  font-family: inherit;
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--color-brand);
-  cursor: pointer;
+  background: currentColor;
 }

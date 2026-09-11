@@ -23,9 +23,13 @@ export interface BucketCardData {
 
 export function BucketCard({ bucket, onClick }: { bucket: BucketCardData; onClick: () => void }) {
   return (
-    <button type="button" className={styles.card} onClick={onClick}>
+    <button
+      type="button"
+      className={styles.card}
+      onClick={onClick}
+      style={{ background: `linear-gradient(135deg, ${bucket.color}, color-mix(in srgb, ${bucket.color} 55%, #000000))` }}
+    >
       <div className={styles.top}>
-        <span className={styles.colorDot} style={{ background: bucket.color }} />
         <span className={styles.emoji}>{bucket.emoji ?? '📦'}</span>
         <ChevronRight size={16} strokeWidth={2} className={styles.chevron} />
       </div>

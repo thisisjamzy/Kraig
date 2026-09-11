@@ -106,6 +106,20 @@ export function completedByWeek(tasks: (FirestoreTask & { id: string })[], weeks
   return buckets.map((b) => ({ label: b.label, value: b.value }));
 }
 
+/** Per-day count of tasks completed (by completedAt) for the last `days` days, oldest first, today last — the Projects hub's own contribution-graph-style activity heatmap (Design/task5.JPG's "See your performance" card). */
+export function dailyCompletionActivity(tasks: (FirestoreTask & { id: string })[], days: number): number[] {
+  const today = startOfDay(new Date());
+  const counts = new Array(days).fill(0);
+  for (const task of tasks) {
+    if (!task.completedAt) continue;
+    const completedDay = startOfDay(task.completedAt.toDate()).getTime();
+    const diffDays = Math.round((today.getTime() - completedDay) / 86400000);
+    const index = days - 1 - diffDays;
+    if (index >= 0 && index < days) counts[index] += 1;
+  }
+  return counts;
+}
+
 /** Among finished (done) tasks, how many hit their original due date vs got rescheduled at least once. */
 export function taskOnTimeVsRescheduled(tasks: (FirestoreTask & { id: string })[]): { onTime: number; rescheduled: number } {
   const done = tasks.filter((t) => t.done);

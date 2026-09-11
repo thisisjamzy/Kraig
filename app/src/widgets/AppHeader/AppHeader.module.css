@@ -12,7 +12,7 @@
   margin-inline: auto;
   padding: var(--space-lg);
   padding-top: calc(var(--space-lg) + env(safe-area-inset-top));
-  background: var(--color-background);
+  background: var(--color-page);
 }
 
 .logo {
