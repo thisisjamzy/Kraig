@@ -38,9 +38,10 @@ export function useLogic(areaId: string) {
   const [description, setDescription] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const isValid = Boolean(name.trim() && description.trim());
 
   async function handleSave() {
-    if (!uid || !areaId || saving || !name.trim() || !description.trim()) return;
+    if (!uid || !areaId || saving || !isValid) return;
     setSaving(true);
     setSaveError(null);
     try {
@@ -77,6 +78,7 @@ export function useLogic(areaId: string) {
     setColor,
     description,
     setDescription,
+    isValid,
     saving,
     saveError,
     handleSave,

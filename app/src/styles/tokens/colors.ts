@@ -3,7 +3,7 @@
 
 export const colors = {
   light: {
-    page: '#fcf7ff',
+    page: 'rgba(247, 251, 255, 0.85)',
     background: '#ffffff',
     surface: '#f5f5f7',
     textPrimary: '#111114',

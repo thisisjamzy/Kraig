@@ -24,6 +24,7 @@ import type {
   FirestoreBudgetRule,
   FirestorePlannedPayment,
   FirestoreSettings,
+  FirestoreTaskTypesSettings,
   FirestoreBudgetPlan,
   FirestoreExchangeRate,
   FirestoreGoal,
@@ -172,6 +173,10 @@ export function taskRef(uid: string, id: string): DocumentReference<Omit<Firesto
 
 export function settingsRef(uid: string): DocumentReference<FirestoreSettings> {
   return subDoc(uid, 'settings', 'app') as DocumentReference<FirestoreSettings>;
+}
+
+export function taskTypesRef(uid: string): DocumentReference<FirestoreTaskTypesSettings> {
+  return subDoc(uid, 'settings', 'taskTypes') as DocumentReference<FirestoreTaskTypesSettings>;
 }
 
 export function budgetPlansRef(uid: string): CollectionReference<FirestoreBudgetPlan> {

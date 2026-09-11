@@ -59,6 +59,10 @@ export function useLogic(areaId: string) {
     [buckets, bucketProjectCounts]
   );
 
+  const bucketName = useMemo(() => new Map(buckets.map((b) => [b.id, b.name])), [buckets]);
+  const knownBucketIds = useMemo(() => new Set(buckets.map((b) => b.id)), [buckets]);
+  const projectName = useMemo(() => new Map(projectDocs.map((p) => [p.id, p.name])), [projectDocs]);
+
   // Single-field query (auto-indexed, no composite index to deploy) —
   // `archived` is filtered client-side instead of as a second `where`.
   const tasksQuery = useMemo(() => (uid ? query(tasksRef(uid), where('areaId', '==', areaId)) : null), [uid, areaId]);
@@ -80,11 +84,15 @@ export function useLogic(areaId: string) {
     .filter((p) => p.status !== 'Archived')
     .map((p) => {
       const stats = taskStatsByProject.get(p.id) ?? { total: 0, done: 0 };
+      const resolvedBucketId = p.bucketId && knownBucketIds.has(p.bucketId) ? p.bucketId : defaultBucketId(areaId);
       return {
         id: p.id,
         name: p.name,
         emoji: p.emoji ?? null,
         color: p.color,
+        description: p.description,
+        areaName: area?.name ?? null,
+        bucketName: bucketName.get(resolvedBucketId) ?? null,
         status: p.status,
         priority: p.priority ?? DEFAULT_PRIORITY,
         startDate: p.startDate ? p.startDate.toDate() : null,
@@ -93,6 +101,33 @@ export function useLogic(areaId: string) {
         completionPercent: stats.total > 0 ? Math.round((stats.done / stats.total) * 100) : 0,
       };
     });
+
+  // Every one of this area's own tasks — areaId is mirrored onto a task
+  // straight from its project (never set directly, see FirestoreTask's own
+  // header), so this already covers every task in every one of this
+  // area's projects, standalone area-level tasks included. areaName is
+  // left off each card — every task here is already in this one area.
+  const tasks = useMemo(
+    () =>
+      taskDocs
+        .filter((t) => !t.archived)
+        .map((t) => {
+          const resolvedBucketId = t.bucketId && knownBucketIds.has(t.bucketId) ? t.bucketId : defaultBucketId(areaId);
+          return {
+            id: t.id,
+            title: t.title,
+            priority: t.priority ?? DEFAULT_PRIORITY,
+            done: t.done,
+            status: t.status,
+            startTime: t.startTime ? t.startTime.toDate() : null,
+            dueDate: t.dueDate ? t.dueDate.toDate() : null,
+            projectName: t.projectId ? projectName.get(t.projectId) ?? null : null,
+            bucketName: bucketName.get(resolvedBucketId) ?? null,
+          };
+        })
+        .sort((a, b) => (a.dueDate?.getTime() ?? Infinity) - (b.dueDate?.getTime() ?? Infinity)),
+    [taskDocs, knownBucketIds, bucketName, projectName, areaId]
+  );
 
   function goBack() {
     router.push('/projects');
@@ -109,16 +144,21 @@ export function useLogic(areaId: string) {
   function openNewBucket() {
     router.push(`/buckets/new?areaId=${areaId}`);
   }
+  function openNewProject() {
+    router.push(`/projects/new?areaId=${areaId}`);
+  }
 
   return {
     area,
     projects,
+    tasks,
     buckets: bucketsWithCounts,
     goBack,
     openProject,
     openEdit,
     openBucket,
     openNewBucket,
+    openNewProject,
     loading: areaLoading || projectsLoading || tasksLoading || bucketsLoading,
     error: areaError,
   };

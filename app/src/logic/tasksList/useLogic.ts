@@ -10,9 +10,14 @@
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { query } from 'firebase/firestore';
+import { useFirestoreCollection } from '@/src/shared/firestore/hooks';
+import { useBuckets } from '@/src/shared/firestore/queries';
+import { areasRef, projectsRef } from '@/src/shared/firestore/refs';
+import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { useAllTasks } from '@/src/shared/hooks/useAllTasks';
 import { PRIORITY_LEVELS, DEFAULT_PRIORITY } from '@/src/viewmodels/projects';
-import type { Priority } from '@/src/shared/firestore/types';
+import type { Priority, FirestoreArea, FirestoreProject } from '@/src/shared/firestore/types';
 import type { TaskCardTask } from '@/src/widgets/TaskCard/TaskCard';
 
 export type TaskListFilter = 'today' | 'week' | 'overdue' | 'all';
@@ -58,7 +63,21 @@ function filterFromSearch(): TaskListFilter {
 
 export function useLogic() {
   const router = useRouter();
+  const { user } = useFirebaseUser();
+  const uid = user?.uid;
   const { data: taskDocs, loading } = useAllTasks();
+
+  const projectsQuery = useMemo(() => (uid ? query(projectsRef(uid)) : null), [uid]);
+  const { data: projectDocs } = useFirestoreCollection<FirestoreProject>(projectsQuery);
+  const projectName = useMemo(() => new Map(projectDocs.map((p) => [p.id, p.name])), [projectDocs]);
+
+  const areasQuery = useMemo(() => (uid ? query(areasRef(uid)) : null), [uid]);
+  const { data: areaDocs } = useFirestoreCollection<FirestoreArea>(areasQuery);
+  const areaName = useMemo(() => new Map(areaDocs.map((a) => [a.id, a.name])), [areaDocs]);
+
+  const { data: bucketDocs } = useBuckets();
+  const bucketName = useMemo(() => new Map(bucketDocs.map((b) => [b.id, b.name])), [bucketDocs]);
+
   const filter = filterFromSearch();
   // Defaults to "not done" so a tile's own count (all of which count only
   // pending tasks — see src/logic/projects/useLogic.ts's overview) still
@@ -99,6 +118,9 @@ export function useLogic() {
         status: task.status,
         startTime: task.startTime ? task.startTime.toDate() : null,
         dueDate: task.dueDate ? task.dueDate.toDate() : null,
+        projectName: task.projectId ? projectName.get(task.projectId) ?? null : null,
+        bucketName: task.bucketId ? bucketName.get(task.bucketId) ?? null : null,
+        areaName: task.areaId ? areaName.get(task.areaId) ?? null : null,
       }))
       .sort((a, b) => {
         if (!a.dueDate && !b.dueDate) return 0;
@@ -106,7 +128,7 @@ export function useLogic() {
         if (!b.dueDate) return -1;
         return a.dueDate.getTime() - b.dueDate.getTime();
       });
-  }, [taskDocs, filter, statusFilter, priorityFilter]);
+  }, [taskDocs, filter, statusFilter, priorityFilter, projectName, bucketName, areaName]);
 
   function goBack() {
     router.back();

@@ -64,8 +64,9 @@ export function useLogic() {
   );
 
   const areaName = useMemo(() => new Map(areaDocs.map((a) => [a.id, a.name])), [areaDocs]);
+  const projectName = useMemo(() => new Map(projectDocs.map((p) => [p.id, p.name])), [projectDocs]);
 
-  // total/done per project — ProjectCard/ProjectShowcaseCard's own
+  // total/done per project — ProjectCard's own
   // completion bar.
   const taskStatsByProject = useMemo(() => {
     const stats = new Map<string, { total: number; done: number }>();
@@ -140,8 +141,11 @@ export function useLogic() {
           status: task.status,
           startTime: task.startTime ? task.startTime.toDate() : null,
           dueDate: task.dueDate ? task.dueDate.toDate() : null,
+          projectName: task.projectId ? projectName.get(task.projectId) ?? null : null,
+          bucketName: task.bucketId ? bucketName.get(task.bucketId) ?? null : null,
+          areaName: task.areaId ? areaName.get(task.areaId) ?? null : null,
         })),
-    [taskDocs, todayIso]
+    [taskDocs, todayIso, projectName, bucketName, areaName]
   );
 
   // The picker's own source list — every not-yet-done task, regardless of

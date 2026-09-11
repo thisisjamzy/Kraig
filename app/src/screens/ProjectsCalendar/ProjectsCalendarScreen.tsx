@@ -233,10 +233,7 @@ export function ProjectsCalendarScreen() {
                     {item.isMilestone ? <Target size={16} strokeWidth={2} /> : <FolderKanban size={16} strokeWidth={2} />}
                   </span>
                   <div className={styles.agendaTaskBody}>
-                    <p className={styles.agendaTitleBlock}>
-                      {item.emoji ? `${item.emoji} ` : ''}
-                      {item.title}
-                    </p>
+                    <p className={styles.agendaTitleBlock}>{item.title}</p>
                     <span className={styles.agendaTypeCaption}>{item.label}</span>
                   </div>
                 </button>

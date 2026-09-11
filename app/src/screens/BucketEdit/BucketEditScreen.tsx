@@ -6,7 +6,7 @@ import { useLogic } from '@/src/logic/bucketEdit/useLogic';
 import { EmojiPicker } from '@/src/widgets/EmojiPicker/EmojiPicker';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { ConfirmDialog } from '@/src/widgets/ConfirmDialog/ConfirmDialog';
-import { PROJECT_COLORS } from '@/src/viewmodels/projects';
+import { PROJECT_COLORS, projectCoverImageUrl } from '@/src/viewmodels/projects';
 import styles from './BucketEditScreen.module.css';
 
 export function BucketEditScreen({ bucketId }: { bucketId: string }) {
@@ -45,14 +45,18 @@ export function BucketEditScreen({ bucketId }: { bucketId: string }) {
 
       {!loading && !error && bucket && (
         <>
+          <div
+            className={styles.cover}
+            style={{ backgroundImage: `url(${projectCoverImageUrl(bucket.id)})` }}
+            role="img"
+            aria-label=""
+          />
+
           <div className={styles.form}>
             {area && (
               <div className={styles.areaField}>
                 <span className={styles.formLabel}>Area</span>
-                <span className={styles.areaChip}>
-                  {area.emoji ? `${area.emoji} ` : ''}
-                  {area.name}
-                </span>
+                <span className={styles.areaChip}>{area.name}</span>
               </div>
             )}
 

@@ -40,10 +40,11 @@ function hashString(id: string): number {
   return Math.abs(hash);
 }
 
-// Projects have no cover image of their own to pick — the Projects home
-// carousel (Design/task5.JPG's "Welcome, Salung" frame) instead hashes the
-// project's own id into a small curated set of real Unsplash photos, same
-// technique as taskCardColor above, so a project keeps the same cover
+// Areas, projects, and buckets have no cover image of their own to pick —
+// every card for the three (ProjectCard, BucketCard,
+// ProjectsScreen's own area cards) instead hashes the record's own id into
+// a small curated set of real Unsplash photos, same technique as
+// taskCardColor above, so a given area/project/bucket keeps the same cover
 // across renders/sessions without storing one. Direct images.unsplash.com
 // CDN hotlinks (Unsplash's own recommended usage for this — no API key or
 // download-tracking call needed just to display a photo), sized/compressed
@@ -81,17 +82,38 @@ export const EMOJI_OPTIONS = [
   '🛠️', '📅', '🧹', '🎓', '💻', '📷', '🎁', '⭐',
 ] as const;
 
+// The built-in presets — always offered, never stored in settings/taskTypes
+// (a household's own custom types are, see FirestoreTaskTypesSettings).
 export const TASK_TYPES: TaskType[] = ['ToDo', 'Meeting', 'Event'];
-export const TASK_TYPE_LABEL: Record<TaskType, string> = {
+export const TASK_TYPE_LABEL: Record<string, string> = {
   ToDo: 'To-do',
   Meeting: 'Meeting',
   Event: 'Event',
 };
-export const TASK_TYPE_ICON: Record<TaskType, LucideIcon> = {
+export const TASK_TYPE_ICON: Record<string, LucideIcon> = {
   ToDo: CircleDot,
   Meeting: Users,
   Event: CalendarDays,
 };
+
+// A custom type has no display label of its own to look up — it IS its own
+// label, one capitalized word (see isValidCustomTaskType), so this only
+// ever needs to translate the three built-ins' own PascalCase storage
+// value ("ToDo") into their nicer display form.
+export function taskTypeLabel(type: TaskType): string {
+  return TASK_TYPE_LABEL[type] ?? type;
+}
+
+export function taskTypeIcon(type: TaskType): LucideIcon {
+  return TASK_TYPE_ICON[type] ?? CircleDot;
+}
+
+// A custom task type (settings/taskTypes) must be exactly one capitalized
+// word — enforced here once so every entry point (the Details page's own
+// "add a type" field) agrees on what's valid.
+export function isValidCustomTaskType(name: string): boolean {
+  return /^[A-Z][a-zA-Z]*$/.test(name);
+}
 
 export const PRIORITY_LEVELS: Priority[] = ['High', 'Medium', 'Low'];
 // Legacy projects/tasks written before priority existed default to Medium

@@ -5,7 +5,7 @@
 // idea as ProjectCard (src/widgets/ProjectCard): one place to change "the
 // bucket card" everywhere it appears.
 
-import { ChevronRight } from 'lucide-react';
+import { projectCoverImageUrl } from '@/src/viewmodels/projects';
 import styles from './BucketCard.module.css';
 
 export interface BucketCardData {
@@ -23,20 +23,19 @@ export interface BucketCardData {
 
 export function BucketCard({ bucket, onClick }: { bucket: BucketCardData; onClick: () => void }) {
   return (
-    <button
-      type="button"
-      className={styles.card}
-      onClick={onClick}
-      style={{ background: `linear-gradient(135deg, ${bucket.color}, color-mix(in srgb, ${bucket.color} 55%, #000000))` }}
-    >
-      <div className={styles.top}>
-        <span className={styles.emoji}>{bucket.emoji ?? '📦'}</span>
-        <ChevronRight size={16} strokeWidth={2} className={styles.chevron} />
+    <button type="button" className={styles.card} onClick={onClick}>
+      <div
+        className={styles.cover}
+        style={{ backgroundImage: `url(${projectCoverImageUrl(bucket.id)})` }}
+        role="img"
+        aria-label=""
+      />
+      <div className={styles.body}>
+        <p className={styles.name}>{bucket.name}</p>
+        <span className={styles.countChip}>{bucket.projectCount} projects</span>
+        {bucket.areaName && <span className={styles.areaChip}>{bucket.areaName}</span>}
+        {bucket.description && <p className={styles.description}>{bucket.description}</p>}
       </div>
-      <p className={styles.name}>{bucket.name}</p>
-      {bucket.areaName && <span className={styles.areaChip}>{bucket.areaName}</span>}
-      {bucket.description && <p className={styles.description}>{bucket.description}</p>}
-      <span className={styles.countChip}>{bucket.projectCount} projects</span>
     </button>
   );
 }

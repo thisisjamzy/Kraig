@@ -62,7 +62,7 @@
   gap: var(--space-sm);
   padding: var(--space-lg);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+  border-radius: 0;
 }
 
 .chartTitle {
@@ -83,7 +83,7 @@
   flex-direction: column;
   gap: 2px;
   padding: var(--space-md);
-  border-radius: var(--radius-lg);
+  border-radius: 0;
   background: var(--color-surface);
 }
 
@@ -142,7 +142,7 @@
   flex-direction: column;
   gap: 4px;
   padding: var(--space-md);
-  border-radius: var(--radius-lg);
+  border-radius: 0;
   background: var(--color-surface);
 }
 
@@ -205,7 +205,7 @@
   gap: var(--space-sm);
   padding: var(--space-lg);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+  border-radius: 0;
   background: none;
   font-family: inherit;
   text-align: left;
@@ -270,7 +270,7 @@
   gap: var(--space-xs);
   padding: var(--space-lg);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+  border-radius: 0;
   background: none;
   font-family: inherit;
   text-align: left;
@@ -326,7 +326,7 @@
   gap: var(--space-sm);
   padding: var(--space-md);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+  border-radius: 0;
   color: var(--color-text-secondary);
 }
 

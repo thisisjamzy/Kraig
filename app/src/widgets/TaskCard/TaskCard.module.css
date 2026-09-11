@@ -6,7 +6,7 @@
   width: 100%;
   padding: var(--space-md) var(--space-md) var(--space-md) var(--space-lg);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+  border-radius: 0;
   background: var(--color-background);
   font-family: inherit;
   text-align: left;
@@ -23,7 +23,6 @@
   left: 0;
   bottom: 0;
   width: 4px;
-  border-radius: var(--radius-lg) 0 0 var(--radius-lg);
 }
 
 .body {
@@ -64,6 +63,33 @@
 
 .statusTextDone {
   color: var(--color-success);
+}
+
+/* Project · Bucket · Area — wraps onto more than one line if it has to,
+   each pair chained by a small dot rather than a literal "·" character
+   (keeps the row's own line-height steady regardless of font). */
+.contextRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.contextItem {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.contextDot {
+  width: 3px;
+  height: 3px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--color-text-secondary);
 }
 
 .bottomRow {

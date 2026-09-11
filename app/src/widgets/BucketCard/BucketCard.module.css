@@ -1,41 +1,44 @@
 .card {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: var(--space-md) var(--space-lg);
+  flex-shrink: 0;
   border: none;
-  border-radius: var(--radius-lg);
+  border-radius: 0;
+  background: var(--color-background);
   font-family: inherit;
   text-align: left;
   cursor: pointer;
+  /* Same width as ProjectCard (src/widgets/ProjectCard) — every bucket
+     list scrolls horizontally now too, same as project lists. */
+  width: 66.6667vw;
+  max-width: calc(var(--app-max-width) * 2 / 3);
+  min-width: 240px;
+  overflow: hidden;
+  color: var(--color-text-primary);
+  scroll-snap-align: start;
+}
+
+.cover {
   width: 100%;
-  min-width: 0;
-  color: #ffffff;
+  height: 96px;
+  flex-shrink: 0;
+  background-color: var(--color-border);
+  background-size: cover;
+  background-position: center;
 }
 
-.top {
+.body {
   display: flex;
-  align-items: center;
-  gap: var(--space-xs);
-}
-
-.emoji {
-  font-size: 1.125rem;
-  line-height: 1;
-  flex-shrink: 0;
-}
-
-.chevron {
-  margin-left: auto;
-  flex-shrink: 0;
-  color: rgba(255, 255, 255, 0.8);
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--space-md);
 }
 
 .name {
   margin: 0;
   font-size: var(--font-size-sm);
   font-weight: 700;
-  color: #ffffff;
+  color: var(--color-text-primary);
   overflow-wrap: break-word;
 }
 
@@ -43,8 +46,8 @@
   align-self: flex-start;
   padding: 2px var(--space-sm);
   border-radius: var(--radius-full);
-  background: rgba(255, 255, 255, 0.22);
-  color: #ffffff;
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
   font-size: 0.7rem;
   font-weight: 600;
 }
@@ -53,16 +56,20 @@
   margin: 0;
   font-size: 0.75rem;
   line-height: 1.4;
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--color-text-secondary);
   overflow-wrap: break-word;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .countChip {
   align-self: flex-start;
   padding: 2px var(--space-sm);
   border-radius: var(--radius-full);
-  background: rgba(255, 255, 255, 0.22);
-  color: #ffffff;
+  background: var(--color-surface);
+  color: var(--color-text-primary);
   font-size: 0.7rem;
   font-weight: 700;
 }

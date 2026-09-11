@@ -1,14 +1,15 @@
 'use client';
 
-import Link from 'next/link';
 import { ChevronLeft, Pencil, Plus } from 'lucide-react';
 import { useLogic } from '@/src/logic/bucketDetail/useLogic';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { ProjectCard } from '@/src/widgets/ProjectCard/ProjectCard';
+import { projectCoverImageUrl } from '@/src/viewmodels/projects';
 import styles from './BucketDetailScreen.module.css';
 
 export function BucketDetailScreen({ bucketId }: { bucketId: string }) {
-  const { bucket, area, projects, goBack, openProject, openEdit, loading, error } = useLogic(bucketId);
+  const { bucket, area, projects, goBack, openProject, openEdit, openNewProject, loading, error } =
+    useLogic(bucketId);
 
   return (
     <div className={styles.page}>
@@ -26,16 +27,14 @@ export function BucketDetailScreen({ bucketId }: { bucketId: string }) {
 
       {bucket && (
         <>
-          <p className={styles.bucketName}>
-            <span className={styles.emoji}>{bucket.emoji ?? '📦'}</span>
-            {bucket.name}
-          </p>
-          {area && (
-            <span className={styles.areaChip}>
-              {area.emoji ? `${area.emoji} ` : ''}
-              {area.name}
-            </span>
-          )}
+          <div
+            className={styles.cover}
+            style={{ backgroundImage: `url(${projectCoverImageUrl(bucket.id)})` }}
+            role="img"
+            aria-label=""
+          />
+          <p className={styles.bucketName}>{bucket.name}</p>
+          {area && <span className={styles.areaChip}>{area.name}</span>}
           {bucket.description && <p className={styles.descriptionText}>{bucket.description}</p>}
         </>
       )}
@@ -46,23 +45,25 @@ export function BucketDetailScreen({ bucketId }: { bucketId: string }) {
         <>
           <div className={styles.sectionTitleRow}>
             <h2 className={styles.sectionTitle}>Projects</h2>
+            <button
+              type="button"
+              className={styles.addIconButton}
+              onClick={openNewProject}
+              aria-label="New project"
+              title="New project"
+            >
+              <Plus size={16} strokeWidth={2.5} />
+            </button>
           </div>
           {projects.length === 0 ? (
             <p className={styles.emptyText}>No projects in this bucket yet.</p>
           ) : (
-            <div className={styles.projectGrid}>
+            <div className={styles.projectCarousel} data-hscroll="true">
               {projects.map((project) => (
                 <ProjectCard key={project.id} project={project} onClick={() => openProject(project.id)} />
               ))}
             </div>
           )}
-          <Link
-            href={`/projects/new?areaId=${bucket.areaId}&bucketId=${bucketId}`}
-            className={styles.addLinkButton}
-          >
-            <Plus size={16} strokeWidth={2.25} />
-            New project in this bucket
-          </Link>
         </>
       )}
     </div>

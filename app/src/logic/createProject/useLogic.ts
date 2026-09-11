@@ -45,6 +45,7 @@ export function useLogic() {
   const [description, setDescription] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const isValid = Boolean(name.trim() && description.trim());
 
   // Every bucket in the chosen area — always includes that area's own
   // default bucket (buckets.ts), since areaDetail/useLogic.ts's self-heal
@@ -66,7 +67,7 @@ export function useLogic() {
   }, [areaId, buckets, uid]);
 
   async function handleSave() {
-    if (!uid || saving || !name.trim() || !description.trim()) return;
+    if (!uid || saving || !isValid) return;
     setSaving(true);
     setSaveError(null);
     try {
@@ -125,6 +126,7 @@ export function useLogic() {
     setEndDate,
     description,
     setDescription,
+    isValid,
     saving,
     saveError,
     handleSave,

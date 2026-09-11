@@ -52,6 +52,18 @@ function formatDate(ts: FirestoreTransaction['date']) {
   return ts.toDate().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
 }
 
+// Both a single-day filter and a range use the same two fields — a single
+// date is just `dateFromValue === dateToValue`. `toValue`'s own day is
+// inclusive (bumped to its exclusive upper bound, the start of the next
+// day), so filtering "just today" or "this week" doesn't quietly drop
+// everything from the last day itself.
+function withinDateRange(date: Timestamp, dateFromValue: string, dateToValue: string): boolean {
+  const ms = date.toMillis();
+  if (dateFromValue && ms < new Date(`${dateFromValue}T00:00:00`).getTime()) return false;
+  if (dateToValue && ms >= new Date(`${dateToValue}T00:00:00`).getTime() + 24 * 60 * 60 * 1000) return false;
+  return true;
+}
+
 // Read directly off window.location.search (not useSearchParams()) so this
 // screen never needs a Suspense boundary — same precedent as
 // src/logic/addTransaction/useLogic.ts's retroTargetFromSearch. `month` is
@@ -105,6 +117,10 @@ export function useLogic() {
   const [typeFilter, setTypeFilter] = useState<TransactionTypeFilter>('All');
   const [accountFilter, setAccountFilter] = useState<string>('All');
   const [categoryFilter, setCategoryFilter] = useState<string>('All');
+  // "YYYY-MM-DD", or '' when unset. A single specific date is just these
+  // two set to the same value — see withinDateRange above.
+  const [dateFromValue, setDateFromValue] = useState('');
+  const [dateToValue, setDateToValue] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('date');
   const [groupByCategory, setGroupByCategory] = useState(false);
 
@@ -215,6 +231,9 @@ export function useLogic() {
   const categoryFilteredTransactions = accountAndTypeFilteredTransactions.filter(
     (transaction) => categoryFilter === 'All' || transaction.categoryId === categoryFilter
   );
+  const dateFilteredTransactions = categoryFilteredTransactions.filter((transaction) =>
+    withinDateRange(transaction.date, dateFromValue, dateToValue)
+  );
 
   const typeFilteredTransfers = typeFilter === 'All' || typeFilter === 'Transfer' ? transferDocs : [];
   const accountAndTypeFilteredTransfers = typeFilteredTransfers.filter(
@@ -222,8 +241,11 @@ export function useLogic() {
       accountFilter === 'All' || transfer.fromAccountId === accountFilter || transfer.toAccountId === accountFilter
   );
   const categoryFilteredTransfers = categoryFilter === 'All' ? accountAndTypeFilteredTransfers : [];
+  const dateFilteredTransfers = categoryFilteredTransfers.filter((transfer) =>
+    withinDateRange(transfer.date, dateFromValue, dateToValue)
+  );
 
-  const mappedTransactions = categoryFilteredTransactions.map((transaction) => {
+  const mappedTransactions = dateFilteredTransactions.map((transaction) => {
     const account = accountById.get(transaction.accountId);
     return {
       id: transaction.id,
@@ -251,7 +273,7 @@ export function useLogic() {
     };
   });
 
-  const mappedTransfers = categoryFilteredTransfers.map((transfer) => {
+  const mappedTransfers = dateFilteredTransfers.map((transfer) => {
     const fromAccount = accountById.get(transfer.fromAccountId);
     const toAccount = accountById.get(transfer.toAccountId);
     const fromName = fromAccount?.name ?? transfer.fromAccountId;
@@ -323,13 +345,20 @@ export function useLogic() {
         .sort((a, b) => a.title.localeCompare(b.title))
     : null;
 
-  const hasActiveFilters = typeFilter !== 'All' || accountFilter !== 'All' || categoryFilter !== 'All';
+  const hasActiveFilters =
+    typeFilter !== 'All' ||
+    accountFilter !== 'All' ||
+    categoryFilter !== 'All' ||
+    dateFromValue !== '' ||
+    dateToValue !== '';
   const isFiltered = hasActiveFilters || normalizedQuery.length > 0;
 
   function clearFilters() {
     setTypeFilter('All');
     setAccountFilter('All');
     setCategoryFilter('All');
+    setDateFromValue('');
+    setDateToValue('');
     setSortBy('date');
     setGroupByCategory(false);
     setSearchQuery('');
@@ -380,15 +409,22 @@ export function useLogic() {
   // Sequential, not concurrent — same reasoning as every other bulk write in
   // this codebase (importCsv, backfill's commitBackfillSpread): a handful of
   // simultaneous writes to the same account/statsMonthly/stats-home docs
-  // would just contend with each other for no benefit. A failure partway
-  // through leaves what's already deleted gone and what's left still
-  // selected, so retrying only re-attempts what didn't succeed.
+  // would just contend with each other for no benefit. Each id is its own
+  // try/catch — one entry failing (a frozen wallet, a locked-amount
+  // conflict, one side of a transfer that's since been deleted, ...)
+  // otherwise aborted the whole remaining batch, which for a mixed
+  // selection meant a single bad transfer could block every ordinary
+  // transaction selected alongside it from ever being deleted. A failure
+  // leaves what's already deleted gone and what's left (including whatever
+  // failed) still selected, so retrying only re-attempts what didn't
+  // succeed.
   async function confirmDeleteSelected() {
     if (!uid || deleting || selectedIds.size === 0) return;
     setDeleting(true);
     setDeleteError(null);
-    try {
-      for (const id of selectedIds) {
+    const failureMessages: string[] = [];
+    for (const id of selectedIds) {
+      try {
         if (kindById.get(id) === 'transfer') {
           await deleteTransferWithAggregation(uid, id);
         } else {
@@ -399,13 +435,23 @@ export function useLogic() {
           next.delete(id);
           return next;
         });
+      } catch (error) {
+        failureMessages.push(error instanceof Error ? error.message : 'Could not delete this entry.');
       }
-      setConfirmDeleteOpen(false);
+    }
+    setDeleting(false);
+    // Always close the confirmation modal — leaving it open on failure hid
+    // deleteError behind its own backdrop, so a batch that failed partway
+    // through looked like the delete button had simply done nothing.
+    setConfirmDeleteOpen(false);
+    if (failureMessages.length === 0) {
       exitSelectionMode();
-    } catch (error) {
-      setDeleteError(error instanceof Error ? error.message : 'Could not delete the selected transactions.');
-    } finally {
-      setDeleting(false);
+    } else {
+      setDeleteError(
+        failureMessages.length === 1
+          ? failureMessages[0]
+          : `${failureMessages.length} of the selected entries couldn't be deleted: ${failureMessages[0]}`
+      );
     }
   }
 
@@ -426,7 +472,7 @@ export function useLogic() {
   }
 
   function editHref(id: string) {
-    return `/edit-transaction/${id}`;
+    return kindById.get(id) === 'transfer' ? `/edit-transfer/${id}` : `/edit-transaction/${id}`;
   }
 
   return {
@@ -453,6 +499,10 @@ export function useLogic() {
     setAccountFilter,
     categoryFilter,
     setCategoryFilter,
+    dateFromValue,
+    setDateFromValue,
+    dateToValue,
+    setDateToValue,
     categories,
     sortBy,
     setSortBy,

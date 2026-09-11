@@ -14,12 +14,12 @@
 // Only covers what the app's write UI actually does today (verified against
 // every setDoc/updateDoc call site in src/logic): create/edit/delete a
 // transaction (including its type, per src/logic/editTransaction/useLogic.ts),
-// create/delete a transfer, create/edit-amount/archive a budget rule.
+// create/edit/delete a transfer (per src/logic/editTransfer/useLogic.ts),
+// create/edit-amount/archive a budget rule.
 // updateTransactionWithAggregation/deleteTransactionWithAggregation and
-// deleteTransferWithAggregation are the reverse-(then-apply) paths (see
-// their own doc comments) — everything else here only ever applies a new
-// contribution, never has to reverse an old one. There is still no edit UI
-// for a transfer's own fields (amount, accounts, ...) — only delete.
+// updateTransferWithAggregation/deleteTransferWithAggregation are the
+// reverse-(then-apply) paths (see their own doc comments) — everything else
+// here only ever applies a new contribution, never has to reverse an old one.
 
 import {
   runTransaction,
@@ -772,6 +772,129 @@ export async function createTransferWithAggregation(input: CreateTransferInput) 
   });
 
   await recomputeBudgetProgressForCategoryMonth(uid, input.kind, month);
+}
+
+export interface UpdateTransferInput {
+  id: string;
+  date: Date;
+  description: string;
+  fromAccountId: string;
+  toAccountId: string;
+  amount: number;
+  charges?: number;
+  kind: string;
+}
+
+/**
+ * Edits an existing transfer — reverses whatever it used to move (old
+ * from/to accounts, amount, charges, kind, and month, read fresh from the
+ * doc itself inside the transaction, never trusted from the caller) and
+ * applies what the edited fields move, netted into one balance write per
+ * account actually touched and one statsMonthly write per month touched.
+ * Same reverse-then-apply shape as updateTransactionWithAggregation, scoped
+ * to what createTransferWithAggregation itself touches — account balances
+ * and perCategorySpend/perCategoryCount only, never stats-home's
+ * income/expense/balance totals (see that function's own header for why).
+ */
+export async function updateTransferWithAggregation(uid: string, input: UpdateTransferInput): Promise<void> {
+  const db = getFirebaseFirestore();
+  const newMonth = monthKey(input.date);
+  const dateTimestamp = Timestamp.fromDate(input.date);
+  const newCharges = input.charges ?? 0;
+
+  let oldKind = '';
+  let oldMonth = '';
+
+  await runTransaction(db, async (tx) => {
+    const beforeSnap = await tx.get(transferRef(uid, input.id));
+    const before = beforeSnap.data();
+    if (!before) throw new Error('This transfer no longer exists.');
+    oldKind = before.kind;
+    oldMonth = monthKey(before.date.toDate());
+    const oldCharges = before.charges ?? 0;
+
+    const accountIds = Array.from(
+      new Set([before.fromAccountId, before.toAccountId, input.fromAccountId, input.toAccountId])
+    );
+    const accountSnaps = new Map(
+      await Promise.all(accountIds.map(async (id) => [id, await tx.get(accountRef(uid, id))] as const))
+    );
+    if (accountIds.some((id) => accountSnaps.get(id)?.data()?.frozen)) {
+      throw new Error('One of these wallets is frozen — unfreeze it before editing this transfer.');
+    }
+
+    tx.update(transferRef(uid, input.id), {
+      date: dateTimestamp,
+      description: input.description,
+      fromAccountId: input.fromAccountId,
+      toAccountId: input.toAccountId,
+      amount: input.amount,
+      charges: newCharges,
+      kind: input.kind,
+      updatedAt: dateTimestamp,
+    });
+
+    // Account balances: reverse the old transfer's effect, then apply the
+    // new one — the same account can land on both sides of this (a
+    // same-account amount/date/kind-only edit, or the from/to pair swapped),
+    // so every delta is netted per account before any write, same as
+    // updateTransactionWithAggregation's own accountDeltas map.
+    const accountDeltas = new Map<string, number>();
+    accountDeltas.set(before.fromAccountId, (accountDeltas.get(before.fromAccountId) ?? 0) + before.amount + oldCharges);
+    accountDeltas.set(before.toAccountId, (accountDeltas.get(before.toAccountId) ?? 0) - before.amount);
+    accountDeltas.set(
+      input.fromAccountId,
+      (accountDeltas.get(input.fromAccountId) ?? 0) - (input.amount + newCharges)
+    );
+    accountDeltas.set(input.toAccountId, (accountDeltas.get(input.toAccountId) ?? 0) + input.amount);
+    for (const [accId, delta] of accountDeltas) {
+      assertNotBelowLocked(accountSnaps.get(accId)?.data(), delta);
+    }
+    for (const [accId, delta] of accountDeltas) {
+      if (delta !== 0) tx.update(accountRef(uid, accId), { currentBalance: increment(delta) });
+    }
+
+    // perCategorySpend/perCategoryCount, keyed by kind (see
+    // createTransferWithAggregation) — reverse the old kind's contribution
+    // and apply the new one, both contributions summed in plain JS per
+    // month first (old and new kind can differ, and can land in the same
+    // month) rather than issuing separate increment() writes to the same
+    // statsMonthly doc within one transaction.
+    type Contribution = { month: string; kind: string; spendDelta: number; countDelta: number };
+    const contributions: Contribution[] = [
+      { month: oldMonth, kind: oldKind, spendDelta: -before.amount, countDelta: -1 },
+      { month: newMonth, kind: input.kind, spendDelta: input.amount, countDelta: 1 },
+    ];
+    const monthGroups = new Map<string, Contribution[]>();
+    for (const c of contributions) {
+      if (!monthGroups.has(c.month)) monthGroups.set(c.month, []);
+      monthGroups.get(c.month)!.push(c);
+    }
+    for (const [month, group] of monthGroups) {
+      const spendByKind = new Map<string, number>();
+      const countByKind = new Map<string, number>();
+      for (const c of group) {
+        spendByKind.set(c.kind, (spendByKind.get(c.kind) ?? 0) + c.spendDelta);
+        countByKind.set(c.kind, (countByKind.get(c.kind) ?? 0) + c.countDelta);
+      }
+      tx.set(
+        statsMonthlyRef(uid, month),
+        {
+          perCategorySpend: Object.fromEntries([...spendByKind].map(([kind, delta]) => [kind, increment(delta)])),
+          perCategoryCount: Object.fromEntries([...countByKind].map(([kind, delta]) => [kind, increment(delta)])),
+          lastUpdated: serverTimestamp(),
+        },
+        { merge: true }
+      );
+    }
+  });
+
+  const pairs = new Map<string, { kind: string; month: string }>();
+  pairs.set(`${oldKind}::${oldMonth}`, { kind: oldKind, month: oldMonth });
+  pairs.set(`${input.kind}::${newMonth}`, { kind: input.kind, month: newMonth });
+  await Promise.all(
+    [...pairs.values()].map(({ kind, month }) => recomputeBudgetProgressForCategoryMonth(uid, kind, month))
+  );
 }
 
 /**

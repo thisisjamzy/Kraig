@@ -5,9 +5,9 @@
   width: 48px;
   height: 48px;
   flex-shrink: 0;
-  border-radius: var(--radius-lg);
-  border: 1px dashed var(--color-border);
-  background: var(--color-surface);
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  background: var(--color-background);
   cursor: pointer;
 }
 

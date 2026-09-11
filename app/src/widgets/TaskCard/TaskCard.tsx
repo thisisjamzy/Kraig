@@ -53,6 +53,14 @@ export interface TaskCardTask {
   status?: TaskStatus;
   startTime: Date | null;
   dueDate: Date | null;
+  // Optional — omitted entirely by a listing already scoped to one of
+  // these (a project's own task list has no reason to repeat that
+  // project's name on every card), shown as a dot-separated row under the
+  // status line wherever a task's context isn't otherwise obvious (Focus,
+  // Today's tasks, the Calendar agenda, All Tasks).
+  projectName?: string | null;
+  bucketName?: string | null;
+  areaName?: string | null;
 }
 
 // The plain-language status line under the task name — a simpler 3-state
@@ -105,6 +113,10 @@ export function TaskCard({ task }: { task: TaskCardTask }) {
   const label = formatTaskDateRange(task.startTime, task.dueDate);
   const scheduleStatus = scheduleStatusOf(task);
   const displayStatus = displayStatusOf(task);
+
+  const contextLabels = [task.projectName, task.bucketName, task.areaName].filter(
+    (label): label is string => Boolean(label)
+  );
 
   const [expanded, setExpanded] = useState(false);
   const [expandedBadge, setExpandedBadge] = useState<BadgeKey | null>(null);
@@ -216,6 +228,17 @@ export function TaskCard({ task }: { task: TaskCardTask }) {
           <p className={`${styles.statusText} ${displayStatus === 'Completed' ? styles.statusTextDone : ''}`}>
             {displayStatus}
           </p>
+
+          {contextLabels.length > 0 && (
+            <div className={styles.contextRow}>
+              {contextLabels.map((label, index) => (
+                <span key={label} className={styles.contextItem}>
+                  {index > 0 && <span className={styles.contextDot} aria-hidden="true" />}
+                  {label}
+                </span>
+              ))}
+            </div>
+          )}
 
           {expanded && (
             <div className={styles.panel} onClick={(event) => event.stopPropagation()}>

@@ -34,7 +34,7 @@
   flex-direction: column;
   gap: var(--space-md);
   padding: var(--space-lg);
-  border-radius: var(--radius-lg);
+  border-radius: 0;
   background: var(--color-background);
 }
 
@@ -172,9 +172,26 @@
   cursor: pointer;
 }
 
-/* Projects carousel — Design/task5.JPG's home "Projects" row: cover-photo
-   cards (ProjectShowcaseCard) scrolling horizontally, same data-hscroll
-   convention as Home's own wallet cards row. */
+/* The rounded "create new" affordance every project/task/bucket list gets
+   next to its own section header. */
+.addIconButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: var(--radius-full);
+  background: var(--ink-bg);
+  color: var(--ink-text);
+  cursor: pointer;
+}
+
+/* Projects carousel — Design/task5.JPG's home "Projects" row: the one
+   ProjectCard (src/widgets/ProjectCard) every project list in the app now
+   uses, scrolling horizontally, same data-hscroll convention as Home's own
+   wallet cards row. */
 
 .projectCarousel {
   display: flex;
@@ -182,7 +199,9 @@
   overflow-x: auto;
   scroll-snap-type: x proximity;
   margin: 0 calc(-1 * var(--space-lg));
-  padding: var(--space-xs) var(--space-lg) var(--space-md) var(--space-xl);
+  /* Left inset matches .page's own padding exactly, so the first card's
+     left edge lines up with the "Projects" heading above it. */
+  padding: var(--space-xs) var(--space-lg) var(--space-md);
 }
 
 .emptyText {
@@ -191,37 +210,50 @@
   color: var(--color-text-secondary);
 }
 
-.areaGrid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+.areaCarousel {
+  display: flex;
   gap: var(--space-md);
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  margin: 0 calc(-1 * var(--space-lg));
+  padding: var(--space-xs) var(--space-lg) var(--space-md);
 }
 
 .areaCard {
-  border-radius: var(--radius-lg);
-  background: var(--color-background);
-  color: var(--color-text-primary);
-}
-
-.areaCardMain {
   display: flex;
-  width: 100%;
   flex-direction: column;
-  align-items: flex-start;
-  gap: var(--space-xs);
-  padding: var(--space-lg);
+  flex-shrink: 0;
+  /* Same width as ProjectCard/BucketCard — every list in the Projects hub
+     scrolls horizontally now. */
+  width: 66.6667vw;
+  max-width: calc(var(--app-max-width) * 2 / 3);
+  min-width: 240px;
   border: none;
-  border-radius: var(--radius-lg);
-  background: none;
+  border-radius: 0;
+  background: var(--color-background);
   font-family: inherit;
   text-align: left;
   cursor: pointer;
-  color: inherit;
+  overflow: hidden;
+  color: var(--color-text-primary);
+  scroll-snap-align: start;
 }
 
-.areaCardEmoji {
-  font-size: 1.75rem;
-  line-height: 1;
+.areaCardCover {
+  width: 100%;
+  height: 80px;
+  flex-shrink: 0;
+  background-color: var(--color-border);
+  background-size: cover;
+  background-position: center;
+}
+
+.areaCardBody {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-xs);
+  padding: var(--space-md);
 }
 
 .areaCardName {

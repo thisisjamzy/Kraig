@@ -2,13 +2,15 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Plus } from 'lucide-react';
 import { useLogic } from '@/src/logic/projects/useLogic';
 import { useSwipeModeSwitch } from '@/src/shared/hooks/useSwipeModeSwitch';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
-import { ProjectShowcaseCard } from '@/src/widgets/ProjectShowcaseCard/ProjectShowcaseCard';
+import { ProjectCard } from '@/src/widgets/ProjectCard/ProjectCard';
 import { TaskCard } from '@/src/widgets/TaskCard/TaskCard';
 import { Modal } from '@/src/widgets/Modal/Modal';
+import { projectCoverImageUrl } from '@/src/viewmodels/projects';
 import styles from './ProjectsScreen.module.css';
 
 export function ProjectsScreen() {
@@ -78,6 +80,15 @@ export function ProjectsScreen() {
           <button type="button" className={styles.pillButtonBlack} onClick={() => openTaskList('today')}>
             {strings.projects.seeAll}
           </button>
+          <button
+            type="button"
+            className={styles.addIconButton}
+            onClick={() => router.push('/tasks/new')}
+            aria-label="New task"
+            title="New task"
+          >
+            <Plus size={16} strokeWidth={2.5} />
+          </button>
         </div>
       </div>
 
@@ -96,24 +107,40 @@ export function ProjectsScreen() {
         </>
       )}
 
-      <h2 className={styles.portfolioTitle}>{strings.projects.tabAreas}</h2>
+      <div className={styles.topRow}>
+        <h2 className={styles.portfolioTitle}>{strings.projects.tabAreas}</h2>
+        <button
+          type="button"
+          className={styles.addIconButton}
+          onClick={() => router.push('/areas/new')}
+          aria-label="New area"
+          title="New area"
+        >
+          <Plus size={16} strokeWidth={2.5} />
+        </button>
+      </div>
 
       {!loading && !error && (
         <>
           {areas.length === 0 ? (
             <p className={styles.emptyText}>{strings.projects.emptyAreas}</p>
           ) : (
-            <div className={styles.areaGrid}>
+            <div className={styles.areaCarousel} data-hscroll="true">
               {areas.map((area) => (
-                <div key={area.id} className={styles.areaCard}>
-                  <button type="button" className={styles.areaCardMain} onClick={() => openArea(area.id)}>
-                    <span className={styles.areaCardEmoji}>{area.emoji ?? '📁'}</span>
+                <button key={area.id} type="button" className={styles.areaCard} onClick={() => openArea(area.id)}>
+                  <div
+                    className={styles.areaCardCover}
+                    style={{ backgroundImage: `url(${projectCoverImageUrl(area.id)})` }}
+                    role="img"
+                    aria-label=""
+                  />
+                  <div className={styles.areaCardBody}>
                     <p className={styles.areaCardName}>{area.name}</p>
                     <p className={styles.areaCardMeta}>
                       {area.projectCount} {strings.projects.projectCountSuffix}
                     </p>
-                  </button>
-                </div>
+                  </div>
+                </button>
               ))}
             </div>
           )}
@@ -122,20 +149,31 @@ export function ProjectsScreen() {
 
       <div className={styles.topRow}>
         <h2 className={styles.portfolioTitle}>{strings.projects.projectsSectionTitle}</h2>
-        <div className={styles.sortToggle}>
+        <div className={styles.topRowActions}>
+          <div className={styles.sortToggle}>
+            <button
+              type="button"
+              className={`${styles.sortToggleButton} ${projectSort === 'timeline' ? styles.sortToggleButtonActive : ''}`}
+              onClick={() => setProjectSort('timeline')}
+            >
+              Timeline
+            </button>
+            <button
+              type="button"
+              className={`${styles.sortToggleButton} ${projectSort === 'name' ? styles.sortToggleButtonActive : ''}`}
+              onClick={() => setProjectSort('name')}
+            >
+              Name
+            </button>
+          </div>
           <button
             type="button"
-            className={`${styles.sortToggleButton} ${projectSort === 'timeline' ? styles.sortToggleButtonActive : ''}`}
-            onClick={() => setProjectSort('timeline')}
+            className={styles.addIconButton}
+            onClick={() => router.push('/projects/new')}
+            aria-label="New project"
+            title="New project"
           >
-            Timeline
-          </button>
-          <button
-            type="button"
-            className={`${styles.sortToggleButton} ${projectSort === 'name' ? styles.sortToggleButtonActive : ''}`}
-            onClick={() => setProjectSort('name')}
-          >
-            Name
+            <Plus size={16} strokeWidth={2.5} />
           </button>
         </div>
       </div>
@@ -145,11 +183,7 @@ export function ProjectsScreen() {
       ) : (
         <div className={styles.projectCarousel} data-hscroll="true">
           {activeProjects.map((project) => (
-            <ProjectShowcaseCard
-              key={project.id}
-              project={project}
-              onClick={() => openProject(project.id)}
-            />
+            <ProjectCard key={project.id} project={project} onClick={() => openProject(project.id)} />
           ))}
         </div>
       )}

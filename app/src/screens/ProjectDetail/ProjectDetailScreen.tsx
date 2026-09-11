@@ -7,6 +7,7 @@ import { DonutChart } from '@/src/widgets/DonutChart/DonutChart';
 import { Modal } from '@/src/widgets/Modal/Modal';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { TaskCard } from '@/src/widgets/TaskCard/TaskCard';
+import { projectCoverImageUrl } from '@/src/viewmodels/projects';
 import type { ProjectStatus } from '@/src/shared/firestore/types';
 import styles from './ProjectDetailScreen.module.css';
 
@@ -80,17 +81,21 @@ export function ProjectDetailScreen({ projectId }: { projectId: string }) {
 
       {!loading && !error && project && (
         <>
-          <p className={styles.projectName}>
-            {project.emoji && <span className={styles.emoji}>{project.emoji}</span>}
-            {project.name}
-          </p>
+          <div
+            className={styles.cover}
+            style={{ backgroundImage: `url(${projectCoverImageUrl(project.id)})` }}
+            role="img"
+            aria-label=""
+          />
+
+          <p className={styles.projectName}>{project.name}</p>
 
           <div className={styles.badgeRow}>
             <button type="button" className={styles.statusPill} onClick={() => setStatusPickerOpen(true)}>
               {STATUS_LABEL[project.status]}
             </button>
             <button type="button" className={styles.areaChip} onClick={() => setAreaPickerOpen(true)}>
-              {area ? `${area.emoji ? `${area.emoji} ` : ''}${area.name}` : 'No area'}
+              {area ? area.name : 'No area'}
             </button>
             {atRisk && <span className={styles.riskBadge}>At risk · {overdueCount} overdue</span>}
             {rescheduleFlag.rescheduled && (
@@ -141,7 +146,6 @@ export function ProjectDetailScreen({ projectId }: { projectId: string }) {
                       setAreaPickerOpen(false);
                     }}
                   >
-                    {a.emoji ? `${a.emoji} ` : ''}
                     {a.name}
                   </button>
                 ))}

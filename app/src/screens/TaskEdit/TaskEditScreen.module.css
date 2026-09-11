@@ -7,10 +7,14 @@
   gap: var(--space-lg);
 }
 
+/* X — "New task" — check, a true 3-column grid so the title stays
+   centered regardless of how wide the two side buttons are (Design/
+   Newtask2.PNG, Newtask 4.PNG). The emoji picker sits on its own row
+   below, not in this header. */
 .header {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  gap: var(--space-md);
   position: sticky;
   top: 0;
   z-index: 15;
@@ -20,58 +24,97 @@
   padding-top: calc(var(--space-lg) + env(safe-area-inset-top));
   padding-left: var(--space-lg);
   padding-right: var(--space-lg);
+  padding-bottom: var(--space-md);
   background: var(--color-page);
 }
 
-.backButton {
+.emojiRow {
+  display: flex;
+  justify-content: center;
+}
+
+.headerTitle {
+  grid-column: 2;
+  justify-self: center;
+  margin: 0;
+  font-family: var(--font-family-heading);
+  font-size: var(--font-size-lg);
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.iconButton {
   display: flex;
   align-items: center;
   justify-content: center;
+  justify-self: start;
   width: 36px;
   height: 36px;
   flex-shrink: 0;
   border-radius: 50%;
   border: 1px solid var(--color-border);
-  background: none;
+  background: var(--color-background);
   color: var(--color-text-primary);
   cursor: pointer;
 }
 
-.title {
-  margin: 0;
-  font-family: var(--font-family-heading);
-  font-size: var(--font-size-xl);
-  font-weight: 800;
-  color: var(--color-text-primary);
+/* Grey/muted until every required field is filled, then turns solid
+   black — same "not ready yet" -> "ready" convention as iOS's own
+   Reminders checkmark. */
+.saveIconButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  justify-self: end;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  cursor: not-allowed;
+}
+
+.saveIconButtonActive {
+  background: var(--ink-bg);
+  color: var(--ink-text);
+  cursor: pointer;
 }
 
 .form {
   display: flex;
   flex-direction: column;
-  gap: var(--space-lg);
+  gap: var(--space-md);
 }
 
-.formField {
+/* Every input/row group is its own flat white card, rounded (unlike the
+   rest of the Projects module's cards), on the page's own tinted
+   background — Design/Newtask2.PNG's grouped Title/Notes/URL card and its
+   own white Date/Time/List/Details rows. */
+.card,
+.listGroup {
   display: flex;
   flex-direction: column;
-  gap: var(--space-xs);
-  min-width: 0;
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: 20px;
+  overflow: hidden;
 }
 
-.formLabel {
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  color: var(--color-text-primary);
+.cardDivider {
+  height: 1px;
+  margin: 0 var(--space-md);
+  background: var(--color-border);
 }
 
-.formInput,
-.formTextarea {
+.titleInput,
+.notesInput {
   width: 100%;
   min-width: 0;
   padding: var(--space-md);
   border: none;
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
+  background: none;
   color: var(--color-text-primary);
   font-family: inherit;
   font-size: var(--font-size-sm);
@@ -79,15 +122,83 @@
   resize: none;
 }
 
-.titleRow {
-  display: flex;
-  align-items: flex-end;
-  gap: var(--space-sm);
+.titleInput {
+  font-weight: 700;
 }
 
-.titleField {
+.listRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+  padding: var(--space-md);
+  border: none;
+  background: none;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.listRowIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+}
+
+.listRowLabel {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.listRowValue {
   flex: 1;
   min-width: 0;
+  text-align: right;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.listRowChevron {
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+}
+
+.expandPanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: 0 var(--space-md) var(--space-md);
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-md);
+}
+
+.optionRow {
+  padding: var(--space-sm) var(--space-md);
+  border: none;
+  border-radius: 0;
+  background: var(--color-surface);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  text-align: left;
+  cursor: pointer;
+}
+
+.optionRowActive {
+  background: var(--ink-bg);
+  color: var(--ink-text);
 }
 
 .chipGroup {
@@ -114,13 +225,47 @@
   color: #ffffff;
 }
 
+.newTypeRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.newTypeInput {
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: 0;
+  background: var(--color-background);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  outline: none;
+}
+
+.newTypeAddButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: var(--radius-full);
+  background: var(--ink-bg);
+  color: var(--ink-text);
+  cursor: pointer;
+}
+
 .checkboxRow {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
   padding: var(--space-md);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 20px;
+  background: var(--color-background);
   font-size: var(--font-size-sm);
   font-weight: 600;
   color: var(--color-text-primary);
@@ -149,7 +294,7 @@
 
 .hintText {
   margin: 0;
-  font-size: var(--font-size-sm);
+  font-size: 0.75rem;
   color: var(--color-text-secondary);
 }
 
@@ -159,20 +304,88 @@
   color: var(--color-danger);
 }
 
-.saveButton {
-  padding: var(--space-md) var(--space-lg);
+/* The Date row's own expanded panel — HeroUI's Calendar, same convention
+   as ProjectsCalendarScreen's own month popover. */
+.calendarHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 0 var(--space-sm);
+}
+
+.calendarNavButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
   border: none;
-  border-radius: var(--radius-lg);
-  background: var(--ink-bg);
-  color: var(--color-brand);
-  font-family: inherit;
-  font-size: var(--font-size-md);
-  font-weight: 700;
+  border-radius: 50%;
+  background: var(--color-surface);
+  color: var(--color-text-primary);
   cursor: pointer;
 }
 
-.saveButton:disabled {
-  background: #6b7380;
-  color: rgba(255, 255, 255, 0.85);
-  cursor: not-allowed;
+.calendarHeading {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.calendarGrid {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.weekdayCell {
+  padding-bottom: 4px;
+  font-size: 0.625rem;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+.dayCell {
+  padding: 1px;
+  text-align: center;
+  cursor: pointer;
+  outline: none;
+}
+
+.dayCellInner {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  margin: 0 auto;
+  border-radius: 50%;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.dayCell[data-outside-month] .dayCellInner {
+  color: var(--color-text-secondary);
+  opacity: 0.4;
+}
+
+.dayCell[data-today] .dayCellInner {
+  background: color-mix(in srgb, var(--color-brand) 20%, transparent);
+  color: var(--color-text-primary);
+}
+
+.dayCell[data-selected] .dayCellInner {
+  background: var(--ink-bg);
+  color: #ffffff;
+}
+
+.dayCell[data-disabled] .dayCellInner {
+  opacity: 0.3;
+}
+
+.dayCell[data-focus-visible] .dayCellInner {
+  box-shadow: 0 0 0 2px var(--color-brand);
 }

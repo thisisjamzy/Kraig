@@ -73,9 +73,13 @@
   overflow-wrap: break-word;
 }
 
-.emoji {
-  font-size: 1.5rem;
-  line-height: 1;
+.cover {
+  height: 140px;
+  flex-shrink: 0;
+  margin: 0 calc(-1 * var(--space-lg));
+  background-color: var(--color-border);
+  background-size: cover;
+  background-position: center;
 }
 
 .areaChip {
@@ -93,12 +97,6 @@
   font-size: var(--font-size-sm);
   line-height: 1.5;
   color: var(--color-text-secondary);
-}
-
-.emojiSmall {
-  font-size: 1.125rem;
-  line-height: 1;
-  flex-shrink: 0;
 }
 
 .sectionTitleRow {
@@ -120,25 +118,25 @@
   color: var(--color-text-secondary);
 }
 
-.projectGrid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+.projectCarousel {
+  display: flex;
   gap: var(--space-md);
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  margin: 0 calc(-1 * var(--space-lg));
+  padding: var(--space-xs) var(--space-lg) var(--space-md);
 }
 
-.addLinkButton {
+.addIconButton {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-xs);
-  padding: var(--space-md);
-  border: 1.5px dashed var(--color-border);
-  border-radius: var(--radius-lg);
-  background: none;
-  font-family: inherit;
-  font-size: var(--font-size-sm);
-  font-weight: 700;
-  color: var(--color-text-primary);
-  text-decoration: none;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: var(--radius-full);
+  background: var(--ink-bg);
+  color: var(--ink-text);
   cursor: pointer;
 }

@@ -10,13 +10,14 @@ import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { query } from 'firebase/firestore';
 import { useFirestoreCollection } from '@/src/shared/firestore/hooks';
-import { projectsRef, plannedPaymentsRef } from '@/src/shared/firestore/refs';
+import { useBuckets } from '@/src/shared/firestore/queries';
+import { projectsRef, areasRef, plannedPaymentsRef } from '@/src/shared/firestore/refs';
 import { useAllTasks } from '@/src/shared/hooks/useAllTasks';
 import { useAccounts, useCategories, useCurrencyContext } from '@/src/shared/firestore/queries';
 import { computeUpcomingPayments } from '@/src/shared/firestore/upcomingPayments';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { DEFAULT_PRIORITY } from '@/src/viewmodels/projects';
-import type { FirestoreProject, FirestorePlannedPayment } from '@/src/shared/firestore/types';
+import type { FirestoreProject, FirestoreArea, FirestorePlannedPayment } from '@/src/shared/firestore/types';
 
 // Payments are "upcoming from today," not tied to the month being browsed
 // (see upcomingPayments.ts's own header — same forward-looking model the
@@ -41,6 +42,14 @@ export function useLogic() {
   const projectsQuery = useMemo(() => (uid ? query(projectsRef(uid)) : null), [uid]);
   const { data: projectDocs, loading: projectsLoading } = useFirestoreCollection<FirestoreProject>(projectsQuery);
   const projects = projectDocs.filter((p) => p.status !== 'Archived');
+  const projectName = useMemo(() => new Map(projectDocs.map((p) => [p.id, p.name])), [projectDocs]);
+
+  const areasQuery = useMemo(() => (uid ? query(areasRef(uid)) : null), [uid]);
+  const { data: areaDocs } = useFirestoreCollection<FirestoreArea>(areasQuery);
+  const areaName = useMemo(() => new Map(areaDocs.map((a) => [a.id, a.name])), [areaDocs]);
+
+  const { data: bucketDocs } = useBuckets();
+  const bucketName = useMemo(() => new Map(bucketDocs.map((b) => [b.id, b.name])), [bucketDocs]);
 
   const paymentsQuery = useMemo(() => (uid ? query(plannedPaymentsRef(uid)) : null), [uid]);
   const { data: paymentDocs, loading: paymentsLoading } = useFirestoreCollection<FirestorePlannedPayment>(paymentsQuery);
@@ -88,6 +97,9 @@ export function useLogic() {
         dueDate: t.dueDate!.toDate(),
         done: t.done,
         status: t.status,
+        projectName: t.projectId ? projectName.get(t.projectId) ?? null : null,
+        bucketName: t.bucketId ? bucketName.get(t.bucketId) ?? null : null,
+        areaName: t.areaId ? areaName.get(t.areaId) ?? null : null,
       }))
       .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
     const projectItems = projects
@@ -114,7 +126,7 @@ export function useLogic() {
       });
     const paymentItems = payments.filter((payment) => payment.dueDate === selectedDate);
     return { taskItems, projectItems, paymentItems };
-  }, [tasks, projects, payments, selectedDate]);
+  }, [tasks, projects, payments, selectedDate, projectName, bucketName, areaName]);
 
   // For HeroUI Calendar's onFocusChange (arrow-key/nav-button navigation) —
   // accepts whatever month react-aria's own focus state landed on directly.
