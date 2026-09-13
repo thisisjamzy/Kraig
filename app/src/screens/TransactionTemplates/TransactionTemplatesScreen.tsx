@@ -5,6 +5,7 @@ import { useLogic } from '@/src/logic/transactionTemplates/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { ConfirmDialog } from '@/src/widgets/ConfirmDialog/ConfirmDialog';
+import { ActionMenu } from '@/src/widgets/ActionMenu/ActionMenu';
 import styles from './TransactionTemplatesScreen.module.css';
 
 const TYPE_LABEL: Record<string, string> = {
@@ -54,35 +55,74 @@ export function TransactionTemplatesScreen() {
 
       {!loading && !error && templates.length > 0 && (
         <div className={styles.templateList}>
-          {templates.map((template) => (
-            <div key={template.id} className={styles.templateRow}>
-              <button type="button" className={styles.templateApply} onClick={() => applyTemplate(template.id)}>
-                <span className={styles.templateName}>{template.name}</span>
-                <span className={styles.templateMeta}>
-                  <span className={styles.typeTag}>{TYPE_LABEL[template.type]}</span>
-                  {categoryLabel(template)}
-                  {accountLabel(template) && ` · ${accountLabel(template)}`}
-                  {template.amount != null && ` · ${template.amount.toLocaleString('en-US')}`}
-                </span>
-              </button>
-              <button
-                type="button"
-                className={styles.iconButton}
-                onClick={() => openEditTemplate(template.id)}
-                aria-label={strings.transactionTemplates.editCta}
+          {templates.map((template) => {
+            const account = accountLabel(template);
+            return (
+              // A plain div, not a button — the ActionMenu trigger below is
+              // a real, separately-clickable descendant (its own onClick
+              // already stops propagation), and a <button> can't legally
+              // contain another <button>. Keyboard/AT users still get the
+              // same "apply" action via role="button" + tabIndex.
+              <div
+                key={template.id}
+                className={styles.templateCard}
+                role="button"
+                tabIndex={0}
+                onClick={() => applyTemplate(template.id)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    applyTemplate(template.id);
+                  }
+                }}
               >
-                <Pencil size={14} strokeWidth={2} />
-              </button>
-              <button
-                type="button"
-                className={styles.iconButtonDanger}
-                onClick={() => requestDelete(template.id)}
-                aria-label={strings.transactionTemplates.deleteCta}
-              >
-                <Trash2 size={14} strokeWidth={2} />
-              </button>
-            </div>
-          ))}
+                <div className={styles.templateCardHeader}>
+                  <span className={styles.templateName}>{template.name}</span>
+                  {/* ActionMenu's own trigger stops propagation, but its
+                      popover items don't — wrapped here so picking Edit or
+                      Delete can't also bubble up into this card's own
+                      onClick and apply the template on top of it. */}
+                  <div onClick={(event) => event.stopPropagation()}>
+                    <ActionMenu
+                      ariaLabel={strings.transactionTemplates.actionsCta}
+                      triggerClassName={styles.iconButton}
+                      items={[
+                        {
+                          key: 'edit',
+                          label: strings.transactionTemplates.editCta,
+                          icon: <Pencil size={14} strokeWidth={2} />,
+                          onSelect: () => openEditTemplate(template.id),
+                        },
+                        {
+                          key: 'delete',
+                          label: strings.transactionTemplates.deleteCta,
+                          icon: <Trash2 size={14} strokeWidth={2} />,
+                          onSelect: () => requestDelete(template.id),
+                          danger: true,
+                        },
+                      ]}
+                    />
+                  </div>
+                </div>
+
+                <div className={styles.templateTagRow}>
+                  <div className={styles.templateLeft}>
+                    {template.description && (
+                      <span className={styles.templateDescription}>{template.description}</span>
+                    )}
+                    <div className={styles.templateBadges}>
+                      <span className={styles.typeTag}>{TYPE_LABEL[template.type]}</span>
+                      <span className={styles.categoryTag}>{categoryLabel(template)}</span>
+                      {account && <span className={styles.accountTag}>{account}</span>}
+                    </div>
+                  </div>
+                  {template.amount != null && (
+                    <span className={styles.templateAmount}>{template.amount.toLocaleString('en-US')}</span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
