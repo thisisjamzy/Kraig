@@ -8,16 +8,19 @@
 
 import { useMemo, useState } from 'react';
 import { query, where } from 'firebase/firestore';
+import { ruleAppliesToMonth } from '@dreda/shared-recurrence';
 import { useFirestoreCollection } from '@/src/shared/firestore/hooks';
-import { goalsRef } from '@/src/shared/firestore/refs';
+import { goalsRef, budgetRulesRef } from '@/src/shared/firestore/refs';
 import { useAccounts, useCategories, useCurrencyContext } from '@/src/shared/firestore/queries';
 import { toDisplay, convert, round2 } from '@/src/shared/firestore/currency';
-import { archiveGoal as archiveGoalWrite, deleteGoalLineItem } from '@/src/shared/firestore/aggregation';
+import { toRecurrenceRule } from '@/src/shared/firestore/recurrence';
 import { useGoalLineItemsByGoal } from '@/src/shared/hooks/useGoalLineItemsByGoal';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
+import { useGoalsRange } from '@/src/shared/hooks/useGoalsRange';
+import { currentMonthIndex, currentYear } from '@/src/viewmodels/budget';
 import { DEFAULT_PRIORITY, DEFAULT_NECESSITY } from '@/src/viewmodels/projects';
 import { categoryAccentColor } from '@/src/viewmodels/categories';
-import type { FirestoreGoal } from '@/src/shared/firestore/types';
+import type { FirestoreGoal, FirestoreBudgetRule } from '@/src/shared/firestore/types';
 
 export type GoalKindFilter = 'All' | 'Fixed' | 'Variable';
 export type ProportionsMode = 'priority' | 'type' | 'category';
@@ -31,6 +34,10 @@ export function useLogic() {
   const { data: goalDocs, loading: goalsLoading, error: goalsError } = useFirestoreCollection<FirestoreGoal>(goalsQuery);
 
   const currency = ctx.display;
+
+  // The Goals app's own Month/All-time toggle (GoalsHeader) — shared by
+  // every one of its three tabs via the same localStorage key.
+  const { range, setRange } = useGoalsRange();
 
   const [kindFilter, setKindFilter] = useState<GoalKindFilter>('All');
   const [searchQuery, setSearchQuery] = useState('');
@@ -93,6 +100,33 @@ export function useLogic() {
   const { data: allCategories } = useCategories();
   const categoryById = useMemo(() => new Map(allCategories.map((cat) => [cat.id, cat])), [allCategories]);
   const goalById = useMemo(() => new Map(goalDocs.map((goal) => [goal.id, goal])), [goalDocs]);
+  const accountCurrency = useMemo(() => new Map(accounts.map((a) => [a.id, a.currency])), [accounts]);
+
+  // "This month's total budget" — the real current month, not a browsable
+  // one the way Budget's own screen has (Goals has no month picker of its
+  // own) — same Expense-only definition Budget's own headline "Total
+  // budget" figure uses (src/logic/budget/useLogic.ts's totalExpenseBudgeted),
+  // so the dashboard card's "% of this month's budget" means the same thing
+  // in both places.
+  const activeBudgetRulesQuery = useMemo(
+    () => (uid ? query(budgetRulesRef(uid), where('archived', '==', false)) : null),
+    [uid]
+  );
+  const { data: budgetRules } = useFirestoreCollection<FirestoreBudgetRule>(activeBudgetRulesQuery);
+  const monthTotalBudget = useMemo(() => {
+    const year = currentYear();
+    const month = currentMonthIndex() + 1;
+    const monthStr = `${year}-${String(month).padStart(2, '0')}`;
+    const base = budgetRules
+      .filter((rule) => (rule.type ?? 'Expense') === 'Expense')
+      .reduce((sum, rule) => {
+        const occurrence = ruleAppliesToMonth(toRecurrenceRule(rule), year, month);
+        if (!occurrence || rule.excludedMonths?.includes(monthStr)) return sum;
+        const native = rule.accountId ? accountCurrency.get(rule.accountId) ?? ctx.base : ctx.base;
+        return sum + toDisplay(ctx, rule.budgetedAmount * occurrence.multiplier, native);
+      }, 0);
+    return round2(base);
+  }, [budgetRules, accountCurrency, ctx]);
 
   // Same frozen-funds-availability check goalDetail/useLogic.ts runs for one
   // goal's own currency, generalized to every currency actually in use here
@@ -142,6 +176,7 @@ export function useLogic() {
               categoryColor: categoryAccentColor(categoryName),
               categoryType: category?.transactionType ?? 'Expense',
               completed: item.completed,
+              completedAt: item.completedAt ? item.completedAt.toDate() : null,
               hasFunds: availableFrozen >= item.amount,
               dueDate: item.dueDate ? item.dueDate.toDate() : null,
               addedToBudget: Boolean(item.addedToBudget),
@@ -153,18 +188,58 @@ export function useLogic() {
     [itemsByGoal, goalById, availableFrozenByCurrency, categoryById]
   );
 
-  const lineItems = useMemo(
-    () =>
-      allLineItems
-        .filter((item) => kindFilter === 'All' || item.goalKind === kindFilter)
-        .filter(
-          (item) =>
-            !normalizedQuery ||
-            item.name.toLowerCase().includes(normalizedQuery) ||
-            item.goalName.toLowerCase().includes(normalizedQuery)
-        ),
-    [allLineItems, kindFilter, normalizedQuery]
-  );
+  // The Goals app's own dashboard card — "dedicated spend" is every
+  // completed line item's own amount (exactly what got recorded as a real
+  // transaction when it was marked complete, see aggregation.ts's
+  // markGoalLineItemComplete), split by the item's parent goal kind. Month
+  // mode narrows to items completed in the real current month; All-time
+  // sums every completed item ever, regardless of kindFilter/search below
+  // (same "global summary" reasoning as totalGoalAmount above).
+  const dedicatedTotals = useMemo(() => {
+    const now = new Date();
+    let fixed = 0;
+    let variable = 0;
+    for (const item of allLineItems) {
+      if (!item.completed) continue;
+      if (
+        range === 'month' &&
+        !(item.completedAt && item.completedAt.getFullYear() === now.getFullYear() && item.completedAt.getMonth() === now.getMonth())
+      ) {
+        continue;
+      }
+      const amount = toDisplay(ctx, item.amount, item.currency);
+      if (item.goalKind === 'Fixed') fixed += amount;
+      else variable += amount;
+    }
+    const dedicated = round2(fixed + variable);
+    return {
+      dedicated,
+      fixed: round2(fixed),
+      variable: round2(variable),
+      percentOfMonthBudget: monthTotalBudget > 0 ? Math.round((dedicated / monthTotalBudget) * 100) : 0,
+    };
+  }, [allLineItems, range, ctx, monthTotalBudget]);
+
+  // Analytics' own trend chart — always the last 6 real calendar months
+  // regardless of the Month/All-time toggle (same "a trend needs more than
+  // one bucket to mean anything" reasoning src/screens/CategoryTransactions
+  // uses for its own always-full-year chart) — every completed item's
+  // amount, bucketed by the month it was actually completed in.
+  const dedicatedTrend = useMemo(() => {
+    const now = new Date();
+    const months = Array.from({ length: 6 }, (_, i) => {
+      const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
+      return { year: d.getFullYear(), month: d.getMonth(), label: d.toLocaleDateString('en-US', { month: 'short' }) };
+    });
+    return months.map(({ year, month, label }) => {
+      const value = allLineItems.reduce((sum, item) => {
+        if (!item.completed || !item.completedAt) return sum;
+        if (item.completedAt.getFullYear() !== year || item.completedAt.getMonth() !== month) return sum;
+        return sum + toDisplay(ctx, item.amount, item.currency);
+      }, 0);
+      return { label, value: round2(value) };
+    });
+  }, [allLineItems, ctx]);
 
   const [proportionsMode, setProportionsMode] = useState<ProportionsMode>('priority');
 
@@ -201,19 +276,10 @@ export function useLogic() {
       .sort((a, b) => b.amount - a.amount);
   }, [allLineItems, proportionsMode, ctx]);
 
-  async function archiveGoal(id: string) {
-    if (!uid) return;
-    await archiveGoalWrite(uid, id);
-  }
-
-  async function deleteLineItem(goalId: string, itemId: string, budgetRuleId?: string | null) {
-    if (!uid) return;
-    await deleteGoalLineItem(uid, goalId, itemId, budgetRuleId);
-  }
-
   return {
     currency,
     goals,
+    allGoalsCount: allGoals.length,
     kindFilter,
     setKindFilter,
     searchQuery,
@@ -224,9 +290,11 @@ export function useLogic() {
     proportionsMode,
     setProportionsMode,
     proportionsBreakdown,
-    lineItems,
-    archiveGoal,
-    deleteLineItem,
+    range,
+    setRange,
+    dedicatedTotals,
+    dedicatedTrend,
+    monthTotalBudget,
     loading: ctxLoading || goalsLoading,
     lineItemsLoading,
     error: goalsError,

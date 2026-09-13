@@ -352,10 +352,12 @@ export interface FirestoreGoal {
 }
 
 /**
- * users/{uid}/goals/{goalId}/lineItems/{lineItemId} — one sub-cost of a
- * goal. Marking it complete (aggregation.ts's markGoalLineItemComplete)
- * records a real Expense transaction and links back to it via
- * `expenseId`; the transaction never needs to know about the goal.
+ * users/{uid}/goals/{goalId}/lineItems/{lineItemId} — one sub-cost (or, for
+ * an Income-category item, one expected inflow) of a goal. Marking it
+ * complete (aggregation.ts's markGoalLineItemComplete) records a real
+ * Expense/Income/Savings transaction and links back to it via `expenseId`
+ * (named for the original Expense-only case; the field itself is generic);
+ * the transaction never needs to know about the goal.
  */
 export interface FirestoreGoalLineItem {
   id: string;
@@ -364,15 +366,15 @@ export interface FirestoreGoalLineItem {
   description: string;
   amount: number;
   // What this item actually is, budget-wise — every line item is
-  // budgetable now, not just a wish-list entry. Its category's own
-  // transactionType ('Expense' | 'Savings', Income excluded — a goal item
-  // is never money coming in) is what decides which accountId below is
-  // even selectable: a Savings-category item may only point at a Savings
-  // Account, an Expense-category item may only point at a spendable one
-  // (see src/logic/goalDetail/useLogic.ts's validation). Optional only for
-  // back-compat with a line item written before this field existed — the
-  // add/edit form always requires it going forward, same convention as
-  // priority/necessity below.
+  // budgetable now, not just a wish-list entry, and Income is a valid goal
+  // item type too (an expected income source, not just Expense/Savings
+  // plans). Its category's own transactionType decides which accountId
+  // below is even selectable: a Savings-category item may only point at a
+  // Savings Account, an Expense- or Income-category item may only point at
+  // a spendable one (see src/logic/goalDetail/useLogic.ts's validation).
+  // Optional only for back-compat with a line item written before this
+  // field existed — the add/edit form always requires it going forward,
+  // same convention as priority/necessity below.
   categoryId?: string;
   // The wallet this item is earmarked against, if any — lets Home compute
   // "how much of what's required for this wallet is actually there yet"
@@ -384,10 +386,11 @@ export interface FirestoreGoalLineItem {
   // FirestoreBudgetRule's own frequency/interval; irrelevant (and unset)
   // for a Variable goal's items, which are one-off by nature.
   recurrence?: { frequency: Frequency; interval: number } | null;
-  // The budget rule createGoalLineItem auto-created for this item (Fixed
-  // goals only) — looked up directly by id rather than queried by
-  // FirestoreBudgetRule.sourceGoalLineItemId, so an edit/delete here can
-  // update/archive that rule without a round-trip query.
+  // Legacy only — a goal line item no longer auto-creates or maintains a
+  // budget rule (see aggregation.ts's createGoalLineItem). Only ever
+  // non-null on an item created before that change; deleteGoalLineItem
+  // still uses it to archive that old rule when one of those items is
+  // removed, but nothing writes a new value here any more.
   budgetRuleId?: string | null;
   // When this cost is actually due — replaces the old separate
   // plannedPayments-based "Upcoming Payments" feature entirely (Home and

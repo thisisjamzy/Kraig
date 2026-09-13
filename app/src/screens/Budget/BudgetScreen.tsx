@@ -42,10 +42,10 @@ export function BudgetScreen() {
     plannedIncome,
     plannedSavings,
     actualIncome,
-    actualSavings,
-    incomeProgressPercent,
-    savingsProgressPercent,
-    expenseProgressPercent,
+    actualSavingsThisMonth,
+    cumulativeSavings,
+    incomeVariance,
+    expenseOverBudget,
     totalExpenseBudgeted,
     totalExpenseSpent,
     leftToBudget,
@@ -61,39 +61,36 @@ export function BudgetScreen() {
   const monthNames = strings.months;
   const monthLabel = `${monthNames[monthIndex]} ${year}`;
 
-  // 0% (nothing logged yet) is neutral — there's no judgment to make yet.
-  // 100%+ (target met or exceeded) is positive. Anything logged but still
-  // short of the target is negative.
-  function percentClass(percent: number) {
-    if (percent === 0) return styles.percentNeutral;
-    return percent >= 100 ? styles.percentPositive : styles.percentNegative;
+  // A signed gap amount, not a raw total — always show the sign so "+120"
+  // (received/spent more than planned) can't be misread as "120" (a plain
+  // total). formatAmount already renders negative numbers with their own
+  // "-", so only the positive case needs a prefix added.
+  function formatSigned(value: number) {
+    return value > 0 ? `+${formatAmount(value)}` : formatAmount(value);
   }
 
-  // Expenses read the opposite way — 0% (nothing spent yet) is still
-  // neutral, but staying under 100% of budget is the good outcome here and
-  // crossing it (overspent) is the bad one.
-  function expensePercentClass(percent: number) {
-    if (percent === 0) return styles.percentNeutral;
-    return percent > 100 ? styles.percentNegative : styles.percentPositive;
+  // Nothing received yet this month is neutral — there's no judgment to
+  // make yet. Received at least as much as planned is positive. Short of
+  // the plan is negative.
+  function incomeVarianceClass(variance: number, actual: number) {
+    if (actual === 0) return styles.percentNeutral;
+    return variance >= 0 ? styles.percentPositive : styles.percentNegative;
   }
 
-  function recurrenceCaption(entry: {
-    recurrence: 'once' | 'monthly' | 'limited' | 'until';
-    recurrenceMonths?: number;
-    endMonthIndex?: number;
-    endYear?: number;
-  }) {
-    if (entry.recurrence === 'monthly') return strings.budget.recurrenceMonthly;
-    if (entry.recurrence === 'limited') {
-      const months = entry.recurrenceMonths ?? 1;
-      const suffix =
-        months === 1 ? strings.budget.recurrenceLimitedSuffixOne : strings.budget.recurrenceLimitedSuffixMany;
-      return `${strings.budget.recurrenceLimitedPrefix} ${months} ${suffix}`;
-    }
-    if (entry.recurrence === 'until' && entry.endMonthIndex !== undefined && entry.endYear !== undefined) {
-      return `${strings.budget.recurrenceMonthly} · ${strings.addBudgetCategory.endMonthLabel.toLowerCase()} ${monthNames[entry.endMonthIndex]} ${entry.endYear}`;
-    }
-    return strings.budget.recurrenceOnce;
+  // Expenses read the opposite way — nothing spent yet is still neutral,
+  // but staying at or under budget is the good outcome here and going over
+  // it is the bad one.
+  function expenseVarianceClass(overBudget: number, spent: number) {
+    if (spent === 0) return styles.percentNeutral;
+    return overBudget > 0 ? styles.percentNegative : styles.percentPositive;
+  }
+
+  // One word, not the full "repeats for 3 more months" sentence the
+  // category's own edit form still uses elsewhere — 'limited' and 'until'
+  // are both still a monthly cadence underneath (just with an end
+  // condition), so the badge only needs to say whether this recurs at all.
+  function recurrenceBadgeLabel(recurrence: 'once' | 'monthly' | 'limited' | 'until') {
+    return recurrence === 'once' ? strings.budget.recurrenceBadgeOnce : strings.budget.recurrenceBadgeMonthly;
   }
 
   function goToCategory(categoryId: string) {
@@ -167,17 +164,17 @@ export function BudgetScreen() {
         <span className={styles.trackingRowLabel}>{strings.budget.incomeRowLabel}</span>
         <span className={styles.trackingTableValue}>{formatAmount(plannedIncome)}</span>
         <span className={styles.trackingTableValue}>{formatAmount(actualIncome)}</span>
-        <span className={`${styles.trackingPercentBadge} ${percentClass(incomeProgressPercent)}`}>
-          {incomeProgressPercent}%
+        <span className={`${styles.trackingPercentBadge} ${incomeVarianceClass(incomeVariance, actualIncome)}`}>
+          {formatSigned(incomeVariance)}
         </span>
 
         <div className={styles.trackingTableDivider} />
 
         <span className={styles.trackingRowLabel}>{strings.budget.savingsRowLabel}</span>
         <span className={styles.trackingTableValue}>{formatAmount(plannedSavings)}</span>
-        <span className={styles.trackingTableValue}>{formatAmount(actualSavings)}</span>
-        <span className={`${styles.trackingPercentBadge} ${percentClass(savingsProgressPercent)}`}>
-          {savingsProgressPercent}%
+        <span className={styles.trackingTableValue}>{formatAmount(actualSavingsThisMonth)}</span>
+        <span className={styles.trackingCumulativeBadge}>
+          {strings.budget.savingsCumulativeLabel} {formatAmount(cumulativeSavings)}
         </span>
 
         <div className={styles.trackingTableDivider} />
@@ -185,8 +182,8 @@ export function BudgetScreen() {
         <span className={styles.trackingRowLabel}>{strings.budget.expenseRowLabel}</span>
         <span className={styles.trackingTableValue}>{formatAmount(totalExpenseBudgeted)}</span>
         <span className={styles.trackingTableValue}>{formatAmount(totalExpenseSpent)}</span>
-        <span className={`${styles.trackingPercentBadge} ${expensePercentClass(expenseProgressPercent)}`}>
-          {expenseProgressPercent}%
+        <span className={`${styles.trackingPercentBadge} ${expenseVarianceClass(expenseOverBudget, totalExpenseSpent)}`}>
+          {formatSigned(expenseOverBudget)}
         </span>
       </div>
 
@@ -221,10 +218,7 @@ export function BudgetScreen() {
               }}
             >
               <div className={styles.cardTopRow}>
-                <div className={styles.cardHeading}>
-                  <p className={styles.cardCategoryName}>{entry.category}</p>
-                  <p className={styles.cardFrequency}>{recurrenceCaption(entry)}</p>
-                </div>
+                <p className={styles.cardCategoryName}>{entry.category}</p>
                 <div className={styles.cardMenu} onClick={(event) => event.stopPropagation()}>
                   <ActionMenu
                     title={entry.category}
@@ -248,18 +242,34 @@ export function BudgetScreen() {
                   />
                 </div>
               </div>
-              <div className={styles.cardBottom}>
-                <div className={styles.cardAmounts}>
-                  <p className={styles.cardSpentLabel}>
-                    {formatAmount(entry.spent)} {strings.budget.spentOfLabels[entry.type]}
-                  </p>
-                  <p className={styles.cardBudgetedAmount}>
-                    {formatAmount(entry.budgeted)} {currency}
-                  </p>
-                </div>
+
+              <div className={styles.cardBadgeRow}>
                 <span className={styles.typeBadge} data-type={entry.type}>
                   {strings.budget.typeLabels[entry.type]}
                 </span>
+                <span className={styles.recurrenceBadge}>{recurrenceBadgeLabel(entry.recurrence)}</span>
+              </div>
+
+              <div className={styles.cardBudgetedBlock}>
+                <span className={styles.cardBudgetedLabel}>{strings.budget.budgetedLabel}</span>
+                <span className={styles.cardBudgetedAmount}>
+                  {formatAmount(entry.budgeted)} {currency}
+                </span>
+              </div>
+
+              <div className={styles.cardStatsRow}>
+                <div className={styles.cardStat}>
+                  <span className={styles.cardStatLabel}>{strings.budget.spentActionLabels[entry.type]}</span>
+                  <span className={styles.cardStatValue}>{formatAmount(entry.spent)}</span>
+                </div>
+                <div className={styles.cardStat}>
+                  <span className={styles.cardStatLabel}>{strings.budget.dedicatedLabel}</span>
+                  <span className={styles.cardStatValue}>{formatAmount(entry.dedicated)}</span>
+                </div>
+                <div className={styles.cardStat}>
+                  <span className={styles.cardStatLabel}>{strings.budget.unplannedLabel}</span>
+                  <span className={styles.cardStatValue}>{formatAmount(entry.unplanned)}</span>
+                </div>
               </div>
             </div>
           ))}

@@ -3,6 +3,7 @@ import { AppHeader } from '@/src/widgets/AppHeader/AppHeader';
 import { AppContent } from '@/src/widgets/AppContent/AppContent';
 import { BottomNav } from '@/src/widgets/BottomNav/BottomNav';
 import { ProjectsBottomNav } from '@/src/widgets/ProjectsBottomNav/ProjectsBottomNav';
+import { GoalsBottomNav } from '@/src/widgets/GoalsBottomNav/GoalsBottomNav';
 import { AuthGuard } from '@/src/widgets/AuthGuard/AuthGuard';
 import styles from './layout.module.css';
 
@@ -14,6 +15,7 @@ export default function AppShellLayout({ children }: { children: ReactNode }) {
         <AppContent>{children}</AppContent>
         <BottomNav />
         <ProjectsBottomNav />
+        <GoalsBottomNav />
       </AuthGuard>
     </div>
   );

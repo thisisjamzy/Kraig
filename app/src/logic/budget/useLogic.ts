@@ -1,21 +1,38 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { query, where, orderBy, limit, updateDoc, arrayUnion } from 'firebase/firestore';
+import { query, where, orderBy, limit, updateDoc, arrayUnion, Timestamp } from 'firebase/firestore';
 import { ruleAppliesToMonth, effectiveBudgetedAmount } from '@dreda/shared-recurrence';
 import { ArrowUpRight, ArrowDownLeft, PiggyBank, type LucideIcon } from 'lucide-react';
 import { useFirestoreCollection, useFirestoreDoc } from '@/src/shared/firestore/hooks';
-import { budgetRulesRef, budgetRuleRef, statsMonthlyRef, transactionsRef, settingsRef } from '@/src/shared/firestore/refs';
+import {
+  budgetRulesRef,
+  budgetRuleRef,
+  statsMonthlyRef,
+  transactionsRef,
+  transfersRef,
+  settingsRef,
+  goalsRef,
+} from '@/src/shared/firestore/refs';
 import { useAccounts, useCategories, useCurrencyContext, useExchangeRates } from '@/src/shared/firestore/queries';
 import { toDisplay, convert, round2 } from '@/src/shared/firestore/currency';
 import { toRecurrenceRule } from '@/src/shared/firestore/recurrence';
 import { recomputeBudgetProgressForRuleCurrentMonth } from '@/src/shared/firestore/aggregation';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
+import { useGoalLineItemsByGoal } from '@/src/shared/hooks/useGoalLineItemsByGoal';
 import { currentMonthIndex, currentYear, toAppRecurrence } from '@/src/viewmodels/budget';
 import { currencyName } from '@/src/viewmodels/currencies';
 import { isSavingsAccount } from '@/src/viewmodels/wallets';
+import { savingsTransactionFlow, savingsTransferFlow } from '@/src/viewmodels/savingsTransfers';
 import { categoryAccentColor } from '@/src/viewmodels/categories';
-import type { FirestoreBudgetRule, StatsMonthly, FirestoreTransaction, BudgetLineType } from '@/src/shared/firestore/types';
+import type {
+  FirestoreBudgetRule,
+  StatsMonthly,
+  FirestoreTransaction,
+  FirestoreTransfer,
+  FirestoreGoal,
+  BudgetLineType,
+} from '@/src/shared/firestore/types';
 
 // Same set src/logic/transactionHistory/useLogic.ts's own card list uses —
 // this panel now renders with that same card, so the icon needs to match.
@@ -114,11 +131,65 @@ export function useLogic() {
   );
   const { data: monthAllTransactionDocs, loading: monthAllTransactionsLoading } =
     useFirestoreCollection<FirestoreTransaction>(monthAllTransactionsQuery);
+  // Savings can also move via a transfer (wallet -> savings, or any transfer
+  // that happens to touch a Savings Account) — FirestoreTransfer has no
+  // `month` field to filter on directly, so this is a plain date-range query
+  // over this viewed month's own bounds instead.
+  const monthTransfersQuery = useMemo(() => {
+    if (!uid) return null;
+    const start = new Date(year, monthIndex, 1);
+    const end = new Date(year, monthIndex + 1, 0, 23, 59, 59, 999);
+    return query(transfersRef(uid), where('date', '>=', Timestamp.fromDate(start)), where('date', '<=', Timestamp.fromDate(end)));
+  }, [uid, year, monthIndex]);
+  const { data: monthTransferDocs, loading: monthTransfersLoading } =
+    useFirestoreCollection<FirestoreTransfer>(monthTransfersQuery);
+  // A Savings Account's currentBalance is always TODAY's live total, never a
+  // snapshot — so browsing a past month can't just read it directly, that
+  // would show today's balance labeled as January's. Reconstructing what it
+  // was at the end of that past month instead: today's live total minus
+  // every savings flow (transaction + transfer) that happened strictly
+  // after that month closed. For the current/a future month there's nothing
+  // "after" it yet, so the live total already IS the right answer and these
+  // two queries stay off.
+  const isPastMonth = year < currentYear() || (year === currentYear() && monthIndex < currentMonthIndex());
+  const sinceMonthEndTransactionsQuery = useMemo(() => {
+    if (!uid || !isPastMonth) return null;
+    const end = new Date(year, monthIndex + 1, 0, 23, 59, 59, 999);
+    return query(transactionsRef(uid), where('date', '>', Timestamp.fromDate(end)));
+  }, [uid, isPastMonth, year, monthIndex]);
+  const { data: sinceMonthEndTransactionDocs, loading: sinceMonthEndTransactionsLoading } =
+    useFirestoreCollection<FirestoreTransaction>(sinceMonthEndTransactionsQuery);
+  const sinceMonthEndTransfersQuery = useMemo(() => {
+    if (!uid || !isPastMonth) return null;
+    const end = new Date(year, monthIndex + 1, 0, 23, 59, 59, 999);
+    return query(transfersRef(uid), where('date', '>', Timestamp.fromDate(end)));
+  }, [uid, isPastMonth, year, monthIndex]);
+  const { data: sinceMonthEndTransferDocs, loading: sinceMonthEndTransfersLoading } =
+    useFirestoreCollection<FirestoreTransfer>(sinceMonthEndTransfersQuery);
   const { data: accounts, loading: accountsLoading } = useAccounts();
   const { data: allCategories, loading: categoriesLoading } = useCategories();
   const { ctx, loading: ctxLoading } = useCurrencyContext();
+  // Reconciling the app's two budgeting methods: a category's own spend can
+  // be "dedicated" (a real transaction that completed one of a goal's line
+  // items — see aggregation.ts's markGoalLineItemComplete, which links the
+  // two via that item's own `expenseId`) or "unplanned" (spent with no goal
+  // behind it). Every active goal's line items, same fetch shape Home/
+  // Statistics already use for their own goal-derived figures.
+  const goalsQuery = useMemo(() => (uid ? query(goalsRef(uid), where('archived', '==', false)) : null), [uid]);
+  const { data: goalDocs, loading: goalsLoading } = useFirestoreCollection<FirestoreGoal>(goalsQuery);
+  const { itemsByGoal, loading: goalItemsLoading } = useGoalLineItemsByGoal(goalDocs);
+  const dedicatedExpenseIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const items of Object.values(itemsByGoal)) {
+      for (const item of items) {
+        if (item.expenseId) ids.add(item.expenseId);
+      }
+    }
+    return ids;
+  }, [itemsByGoal]);
 
   const accountCurrency = useMemo(() => new Map(accounts.map((a) => [a.id, a.currency])), [accounts]);
+  const accountType = useMemo(() => new Map(accounts.map((a) => [a.id, a.type])), [accounts]);
   const accountName = useMemo(() => new Map(accounts.map((a) => [a.id, a.name])), [accounts]);
   const categoryName = useMemo(() => new Map(allCategories.map((c) => [c.id, c.name])), [allCategories]);
   const categoryTransactionType = useMemo(
@@ -151,6 +222,23 @@ export function useLogic() {
     return totals;
   }, [monthAllTransactionDocs, accountCurrency, ctx]);
 
+  // Same sign convention and same transaction set as perCategoryActualBase
+  // above, just restricted to the subset that's a goal's own dedicated
+  // spend (dedicatedExpenseIds) — always a subset of a category's total
+  // spend, never counted twice or on top of it.
+  const perCategoryDedicatedBase = useMemo(() => {
+    const totals = new Map<string, number>();
+    for (const t of monthAllTransactionDocs) {
+      if (!t.categoryId || !dedicatedExpenseIds.has(t.id)) continue;
+      const native = accountCurrency.get(t.accountId) ?? ctx.base;
+      const signedAmount = t.direction === 'Inflow' ? t.amount : -t.amount;
+      const contribution = t.type === 'Income' ? signedAmount : -signedAmount;
+      const contributionBase = convert(contribution, native, ctx.base, ctx.rates);
+      totals.set(t.categoryId, (totals.get(t.categoryId) ?? 0) + contributionBase);
+    }
+    return totals;
+  }, [monthAllTransactionDocs, accountCurrency, ctx, dedicatedExpenseIds]);
+
   const categories = useMemo(() => {
     const [y, m] = monthStr.split('-').map(Number);
     return rules
@@ -164,6 +252,9 @@ export function useLogic() {
         const hasMonthOverride = Boolean(rule.monthOverrides?.[monthStr]);
         const spentBase = perCategoryActualBase.get(rule.categoryId) ?? 0;
         const spent = round2(toDisplay(ctx, spentBase, ctx.base));
+        const dedicatedBase = perCategoryDedicatedBase.get(rule.categoryId) ?? 0;
+        const dedicated = round2(toDisplay(ctx, dedicatedBase, ctx.base));
+        const unplanned = round2(spent - dedicated);
         const bucket = toAppRecurrence(rule);
         return {
           id: rule.id,
@@ -173,6 +264,8 @@ export function useLogic() {
           description: rule.description,
           budgeted,
           spent,
+          dedicated,
+          unplanned,
           recurrence: bucket.recurrence,
           recurrenceMonths: bucket.recurrenceMonths,
           endMonthIndex: bucket.endMonthIndex,
@@ -186,7 +279,7 @@ export function useLogic() {
       // is capped (PRD-BUDGET-TRANSACTIONS.md section 8, decision 2).
       .sort((a, b) => b.spent - a.spent);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rules, monthStr, accountCurrency, categoryName, categoryTransactionType, ctx, perCategoryActualBase]);
+  }, [rules, monthStr, accountCurrency, categoryName, categoryTransactionType, ctx, perCategoryActualBase, perCategoryDedicatedBase]);
 
   const currency = ctx.display;
   // Currency badge on the total card — same switch-and-persist write
@@ -258,25 +351,54 @@ export function useLogic() {
   // would only confuse the summary card, so it never displays as such.
   const actualIncome = Math.max(0, round2(toDisplay(ctx, sumPerCategory(incomeCategoryIds), ctx.base)));
   // Savings is account-type based now, not category based (see
-  // src/viewmodels/savingsTransfers.ts) — "actual" here is the live
-  // compounding total across every Savings Account, not this month's flow.
-  // A Savings Account's own currentBalance already bakes in every
-  // transaction/transfer that ever touched it, so this needs no query of
-  // its own.
-  const actualSavings = round2(
+  // src/viewmodels/savingsTransfers.ts). The tracking table's Savings row
+  // carries two different "actual" figures side by side: this month's real
+  // flow into/out of Savings Accounts (actualSavingsThisMonth, so it reads
+  // the same way as Income/Expenses' own actual-this-month figure), and the
+  // live compounding total across every Savings Account regardless of when
+  // it was saved (cumulativeSavings) — a Savings Account's own
+  // currentBalance already bakes in every transaction/transfer that ever
+  // touched it, so the cumulative figure needs no query of its own.
+  const actualSavingsThisMonth = round2(
+    monthAllTransactionDocs.reduce(
+      (sum, t) => sum + toDisplay(ctx, savingsTransactionFlow(t, accountType), accountCurrency.get(t.accountId) ?? ctx.base),
+      0
+    ) +
+      monthTransferDocs.reduce(
+        (sum, t) => sum + toDisplay(ctx, savingsTransferFlow(t, accountType), accountCurrency.get(t.fromAccountId) ?? ctx.base),
+        0
+      )
+  );
+  const liveCumulativeSavings = round2(
     accounts
       .filter(isSavingsAccount)
       .reduce((sum, account) => sum + toDisplay(ctx, account.currentBalance, account.currency), 0)
   );
-  const incomeProgressPercent = plannedIncome > 0 ? Math.round((actualIncome / plannedIncome) * 100) : 0;
-  const savingsProgressPercent = plannedSavings > 0 ? Math.round((actualSavings / plannedSavings) * 100) : 0;
-  // Expenses row of the same tracking table — projected is just
-  // totalExpenseBudgeted (already summed above), actual is
-  // totalExpenseSpent. Unlike Income/Savings, going over 100% here is the
-  // bad outcome (overspent), not the good one — see percentClass vs.
-  // expensePercentClass in BudgetScreen.tsx.
-  const expenseProgressPercent =
-    totalExpenseBudgeted > 0 ? Math.round((totalExpenseSpent / totalExpenseBudgeted) * 100) : 0;
+  // Undo every savings flow that happened after the viewed month closed,
+  // landing back on what the cumulative total actually was at that month's
+  // end rather than today's.
+  const savingsFlowSinceMonthEnd = isPastMonth
+    ? round2(
+        sinceMonthEndTransactionDocs.reduce(
+          (sum, t) => sum + toDisplay(ctx, savingsTransactionFlow(t, accountType), accountCurrency.get(t.accountId) ?? ctx.base),
+          0
+        ) +
+          sinceMonthEndTransferDocs.reduce(
+            (sum, t) => sum + toDisplay(ctx, savingsTransferFlow(t, accountType), accountCurrency.get(t.fromAccountId) ?? ctx.base),
+            0
+          )
+      )
+    : 0;
+  const cumulativeSavings = isPastMonth ? round2(liveCumulativeSavings - savingsFlowSinceMonthEnd) : liveCumulativeSavings;
+  // A percent-of-target badge doesn't say anything useful on its own ("85%"
+  // of what, in which direction?) — the tracking table's Income/Expenses
+  // rows now carry the actual gap amount instead. Income: how much more or
+  // less came in than was planned (positive = received more than planned).
+  // Expenses: how far over the budgeted amount spending actually went
+  // (positive = overspent by that much; zero or negative = at or under
+  // budget).
+  const incomeVariance = round2(actualIncome - plannedIncome);
+  const expenseOverBudget = round2(totalExpenseSpent - totalExpenseBudgeted);
 
   function openMonthPicker() {
     setPickerYear(year);
@@ -391,10 +513,10 @@ export function useLogic() {
     plannedIncome,
     plannedSavings,
     actualIncome,
-    actualSavings,
-    incomeProgressPercent,
-    savingsProgressPercent,
-    expenseProgressPercent,
+    actualSavingsThisMonth,
+    cumulativeSavings,
+    incomeVariance,
+    expenseOverBudget,
     availableToSpend,
     overspendAmount,
     isOverspending,
@@ -403,6 +525,11 @@ export function useLogic() {
       rulesLoading ||
       statsLoading ||
       monthAllTransactionsLoading ||
+      monthTransfersLoading ||
+      sinceMonthEndTransactionsLoading ||
+      sinceMonthEndTransfersLoading ||
+      goalsLoading ||
+      goalItemsLoading ||
       accountsLoading ||
       categoriesLoading ||
       ctxLoading,

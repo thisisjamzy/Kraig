@@ -28,13 +28,14 @@ import { query, where, orderBy, limit } from 'firebase/firestore';
 import { ruleAppliesToMonth } from '@dreda/shared-recurrence';
 import { ArrowUpRight, ArrowDownLeft, PiggyBank, type LucideIcon } from 'lucide-react';
 import { useFirestoreCollection, useFirestoreDoc } from '@/src/shared/firestore/hooks';
-import { transactionsRef, budgetRulesRef, statsMonthlyRef, categoryRef } from '@/src/shared/firestore/refs';
+import { transactionsRef, budgetRulesRef, categoryRef, goalsRef } from '@/src/shared/firestore/refs';
 import { useAccounts, useCategories, useCurrencyContext } from '@/src/shared/firestore/queries';
 import { toDisplay, round2 } from '@/src/shared/firestore/currency';
 import { toRecurrenceRule } from '@/src/shared/firestore/recurrence';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
+import { useGoalLineItemsByGoal } from '@/src/shared/hooks/useGoalLineItemsByGoal';
 import { categoryAccentColor } from '@/src/viewmodels/categories';
-import type { FirestoreTransaction, FirestoreBudgetRule, StatsMonthly, FirestoreCategory } from '@/src/shared/firestore/types';
+import type { FirestoreTransaction, FirestoreBudgetRule, FirestoreGoal, FirestoreCategory } from '@/src/shared/firestore/types';
 
 const TYPE_ICONS: Record<string, LucideIcon> = {
   Expense: ArrowUpRight,
@@ -120,6 +121,12 @@ export function useLogic(categoryId: string) {
   const [returnTo] = useState(returnToFromSearch);
   const hasMonth = monthIndex !== null && year !== null;
   const monthStr = hasMonth ? `${year}-${pad2(monthIndex + 1)}` : null;
+  // Opened from a Budget category row (hasMonth): locked to that single
+  // month — no range picker, no multi-month trend — so the numbers shown
+  // can never drift from the exact month the person tapped into. Opened
+  // from Settings > Categories (no month in the URL): the original
+  // free-ranging browse-by-time-range view, since there's no specific
+  // month to lock to.
   const [timeRange, setTimeRange] = useState<TimeRange>('month');
 
   const categoryQuery = useMemo(
@@ -195,9 +202,47 @@ export function useLogic(categoryId: string) {
   );
   const { data: budgetRules, loading: budgetRulesLoading } =
     useFirestoreCollection<FirestoreBudgetRule>(activeBudgetRulesQuery);
-  const { data: statsMonthly, loading: statsMonthlyLoading } = useFirestoreDoc<StatsMonthly>(
-    useMemo(() => (uid && showSummaryCard && monthStr ? statsMonthlyRef(uid, monthStr) : null), [uid, showSummaryCard, monthStr])
+  // Reconciling the app's two budgeting methods, same as Budget's own
+  // screen: a category's spend can be "dedicated" (a real transaction that
+  // completed one of a goal's line items — linked via that item's own
+  // expenseId) or "unplanned" (spent with no goal behind it).
+  const goalsQuery = useMemo(
+    () => (uid && showSummaryCard ? query(goalsRef(uid), where('archived', '==', false)) : null),
+    [uid, showSummaryCard]
   );
+  const { data: goalDocs, loading: goalsLoading } = useFirestoreCollection<FirestoreGoal>(goalsQuery);
+  const { itemsByGoal, loading: goalItemsLoading } = useGoalLineItemsByGoal(goalDocs);
+  const dedicatedExpenseIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const items of Object.values(itemsByGoal)) {
+      for (const item of items) {
+        if (item.expenseId) ids.add(item.expenseId);
+      }
+    }
+    return ids;
+  }, [itemsByGoal]);
+
+  // categoryDocs is this whole category's history (capped, all months) —
+  // narrowed down to just the exact month this screen was opened for, same
+  // set the dedicated/spent split below both draw from so they can never
+  // disagree with each other.
+  const monthCategoryDocs = useMemo(() => {
+    if (!hasMonth) return [];
+    return categoryDocs.filter((t) => {
+      const d = t.date.toDate();
+      return d.getFullYear() === year && d.getMonth() === monthIndex;
+    });
+  }, [categoryDocs, hasMonth, year, monthIndex]);
+
+  // Same Income-vs-Expense sign convention as budget/useLogic.ts's own
+  // perCategoryActualBase — an Expense/Savings Outflow counts as positive
+  // "spent", the opposite of an Income category's Inflow.
+  function contributionFor(t: FirestoreTransaction) {
+    const native = accountById.get(t.accountId)?.currency ?? ctx.base;
+    const signedAmount = t.direction === 'Inflow' ? t.amount : -t.amount;
+    const contribution = t.type === 'Income' ? signedAmount : -signedAmount;
+    return toDisplay(ctx, contribution, native);
+  }
 
   const summary = useMemo(() => {
     if (!showSummaryCard || !monthStr) return null;
@@ -209,13 +254,19 @@ export function useLogic(categoryId: string) {
         const ruleNative = rule.accountId ? accountCurrency.get(rule.accountId) ?? ctx.base : ctx.base;
         return sum + toDisplay(ctx, rule.budgetedAmount * occurrence.multiplier, ruleNative);
       }, 0);
-    const spentBase = statsMonthly?.perCategorySpend?.[categoryId] ?? 0;
     const budgeted = round2(budgetedBase);
-    const spent = round2(toDisplay(ctx, spentBase, ctx.base));
-    return { budgeted, spent, remaining: round2(budgeted - spent) };
-  }, [showSummaryCard, monthStr, budgetRules, categoryId, year, monthIndex, accountCurrency, ctx, statsMonthly]);
+    const spent = round2(monthCategoryDocs.reduce((sum, t) => sum + contributionFor(t), 0));
+    const dedicated = round2(
+      monthCategoryDocs.filter((t) => dedicatedExpenseIds.has(t.id)).reduce((sum, t) => sum + contributionFor(t), 0)
+    );
+    return { budgeted, spent, dedicated, unplanned: round2(spent - dedicated), remaining: round2(budgeted - spent) };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showSummaryCard, monthStr, budgetRules, categoryId, year, monthIndex, accountCurrency, ctx, monthCategoryDocs, dedicatedExpenseIds]);
 
-  // Budget-vs-spend chart — always the full calendar year this screen was
+  // Budget-vs-spend chart — only for the free-ranging Settings entry point
+  // (no month in the URL). Opened from a Budget category row, this screen
+  // is locked to that one month, so a multi-month trend has no place here.
+  // When shown, it always covers the full calendar year this screen was
   // opened for (the URL's own `year`, falling back to the current year),
   // Jan through Dec, independent of the time-range filter — the filter only
   // scopes the transaction list. Needs every rule ever written for this
@@ -224,12 +275,13 @@ export function useLogic(categoryId: string) {
   // computed synchronously from data already fetched above
   // (allRulesForCategory, categoryDocs) — no extra reads needed.
   const allRulesForCategoryQuery = useMemo(
-    () => (uid ? query(budgetRulesRef(uid), where('categoryId', '==', categoryId)) : null),
-    [uid, categoryId]
+    () => (uid && !hasMonth ? query(budgetRulesRef(uid), where('categoryId', '==', categoryId)) : null),
+    [uid, categoryId, hasMonth]
   );
   const { data: allRulesForCategory } = useFirestoreCollection<FirestoreBudgetRule>(allRulesForCategoryQuery);
 
   const chart = useMemo<ChartMonth[]>(() => {
+    if (hasMonth) return [];
     return Array.from({ length: 12 }, (_, i) => i + 1).map((m) => {
       const ms = `${refYear}-${pad2(m)}`;
       let budgetedBase = 0;
@@ -259,7 +311,7 @@ export function useLogic(categoryId: string) {
         spent: round2(spentBase),
       };
     });
-  }, [refYear, allRulesForCategory, categoryDocs, accountCurrency, ctx]);
+  }, [hasMonth, refYear, allRulesForCategory, categoryDocs, accountCurrency, ctx]);
 
   // Add Transaction — pre-fills this category, and lands in the month this
   // screen was opened for when there is one.
@@ -282,6 +334,7 @@ export function useLogic(categoryId: string) {
     categoryName,
     categoryArchived: category?.archived ?? false,
     summary,
+    lockedToMonth: hasMonth,
     timeRange,
     setTimeRange,
     chart,
@@ -294,7 +347,7 @@ export function useLogic(categoryId: string) {
       categoriesLoading ||
       ctxLoading ||
       categoryLoading ||
-      (showSummaryCard && (budgetRulesLoading || statsMonthlyLoading)),
+      (showSummaryCard && (budgetRulesLoading || goalsLoading || goalItemsLoading)),
     error: transactionsError,
     editHref,
     goBack,

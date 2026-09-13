@@ -1116,6 +1116,12 @@ export async function archiveGoal(uid: string, goalId: string): Promise<void> {
   await updateDoc(goalRef(uid, goalId), { archived: true, updatedAt: serverTimestamp() });
 }
 
+// Archiving a goal never deletes it — Settings' own Archived goals screen
+// lists everything archived==true and can bring one back with this.
+export async function restoreGoal(uid: string, goalId: string): Promise<void> {
+  await updateDoc(goalRef(uid, goalId), { archived: false, updatedAt: serverTimestamp() });
+}
+
 export interface UpdateGoalInput {
   name: string;
   description: string;
@@ -1184,13 +1190,22 @@ export interface CreateGoalLineItemInput {
 }
 
 /**
- * A Fixed goal's line item auto-creates its own recurring FirestoreBudgetRule
- * right away — no manual "Add to budget" step, and no monthly generation job
- * anywhere (this app has none, Spark plan). The rule just anchors to the
- * start of the CURRENT month, so @dreda/shared-recurrence's own
- * ruleAppliesToMonth naturally covers this month forward and refuses every
- * month before it — "non-retroactive" falls out of the recurrence engine's
- * existing rule, nothing new to enforce.
+ * A goal line item is a DEDICATION of future spend, not a budget plan — it
+ * never touches FirestoreBudgetRule (that stays the household's own direct,
+ * manually-entered "estimated basket" per category/month, PRD-BUDGET's
+ * original mechanism). Used to be that a Fixed goal's item auto-created its
+ * own recurring budget rule right here, silently inflating that category's
+ * planned amount the moment the item was created; that's exactly the
+ * double-accounting this app now avoids. Instead, once this item is later
+ * completed (markGoalLineItemComplete), the real transaction it records
+ * shows up in the Budget screen's per-category breakdown as "dedicated"
+ * spend — tied to a goal — versus "unplanned" for everything else, so both
+ * budgeting methods (a direct per-category estimate, and a goal's own line
+ * items) reconcile against the same real spend instead of each claiming
+ * their own separate planned figure. A Fixed item's `recurrence` is kept
+ * purely for its own due-date scheduling (Payments Calendar/Home's upcoming
+ * payments read it directly off the item, see upcomingPayments.ts) — it no
+ * longer drives any budget rule.
  */
 export async function createGoalLineItem(
   uid: string,
@@ -1199,30 +1214,6 @@ export async function createGoalLineItem(
   input: CreateGoalLineItemInput
 ): Promise<string> {
   const id = crypto.randomUUID();
-  let budgetRuleId: string | null = null;
-  if (goalKind === 'Fixed') {
-    budgetRuleId = `rule_${crypto.randomUUID().slice(0, 8)}`;
-    const now = new Date();
-    await setDoc(budgetRuleRef(uid, budgetRuleId), {
-      categoryId: input.categoryId,
-      type: input.categoryType,
-      description: input.description,
-      budgetedAmount: round2(input.amount),
-      frequency: input.recurrence?.frequency ?? 'Monthly',
-      interval: input.recurrence?.interval ?? 1,
-      anchorDate: Timestamp.fromDate(new Date(now.getFullYear(), now.getMonth(), 1)),
-      endCondition: 'Never',
-      endOccurrences: null,
-      endDate: null,
-      accountId: null,
-      tag: null,
-      archived: false,
-      sourceGoalLineItemId: id,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
-    await recomputeBudgetProgressForRuleCurrentMonth(uid, budgetRuleId);
-  }
   await setDoc(goalLineItemRef(uid, goalId, id), {
     goalId,
     name: input.name,
@@ -1234,7 +1225,7 @@ export async function createGoalLineItem(
     accountId: input.accountId,
     dueDate: input.dueDate ? Timestamp.fromDate(input.dueDate) : null,
     recurrence: goalKind === 'Fixed' ? (input.recurrence ?? null) : null,
-    budgetRuleId,
+    budgetRuleId: null,
     addedToBudget: false,
     // A new item always lands at the end of the cross-goal to-do list's
     // custom order — Date.now() is always greater than any earlier item's
@@ -1269,17 +1260,17 @@ export async function setGoalLineItemRanks(
 }
 
 /**
- * `existingBudgetRuleId` is the line item's own already-known
- * FirestoreGoalLineItem.budgetRuleId (the caller already has the full doc
- * loaded, so this avoids a redundant read here) — present only for a Fixed
- * goal's item, and when present its auto-created rule's category/amount/
- * recurrence are kept in sync with whatever changed here.
+ * Editing a line item never touches a budget rule any more — see
+ * createGoalLineItem's own header for why. A pre-existing item from before
+ * this change may still carry a `budgetRuleId` from back when one was
+ * auto-created for it; that old rule is left exactly as it is (now just an
+ * ordinary manually-editable budget line as far as the Budget screen is
+ * concerned) rather than kept in sync with edits made here.
  */
 export async function updateGoalLineItem(
   uid: string,
   goalId: string,
   lineItemId: string,
-  existingBudgetRuleId: string | null | undefined,
   input: CreateGoalLineItemInput
 ): Promise<void> {
   await updateDoc(goalLineItemRef(uid, goalId, lineItemId), {
@@ -1294,18 +1285,6 @@ export async function updateGoalLineItem(
     recurrence: input.recurrence ?? null,
     updatedAt: serverTimestamp(),
   });
-  if (existingBudgetRuleId) {
-    await updateDoc(budgetRuleRef(uid, existingBudgetRuleId), {
-      categoryId: input.categoryId,
-      type: input.categoryType,
-      description: input.description,
-      budgetedAmount: round2(input.amount),
-      frequency: input.recurrence?.frequency ?? 'Monthly',
-      interval: input.recurrence?.interval ?? 1,
-      updatedAt: serverTimestamp(),
-    });
-    await recomputeBudgetProgressForRuleCurrentMonth(uid, existingBudgetRuleId);
-  }
   await recalcGoalTotals(uid, goalId);
 }
 
@@ -1377,9 +1356,12 @@ export async function addGoalLineItemToBudget(
 /**
  * Only a not-yet-completed line item — deleting one that already paid for
  * something real would silently orphan the reasoning behind that expense.
- * `budgetRuleId` (the item's own already-known FirestoreGoalLineItem field)
- * archives that Fixed-goal item's auto-created rule too, rather than
- * leaving it behind still budgeting for a cost that no longer exists.
+ * `budgetRuleId` only ever has a value on a line item created before goal
+ * items stopped auto-creating budget rules (see createGoalLineItem's own
+ * header) — kept here purely so deleting one of those older items still
+ * archives its old auto-created rule instead of leaving it behind still
+ * budgeting for a cost that no longer exists. A line item created going
+ * forward never has one, so this branch is a no-op for it.
  */
 export async function deleteGoalLineItem(
   uid: string,
@@ -1405,14 +1387,16 @@ export interface MarkGoalLineItemCompleteInput {
   // accountId, which the goal form already restricts to a real Savings
   // Account wallet (viewmodels/wallets.ts's SAVINGS_ACCOUNT_TYPE), so this
   // is a deposit into it (Inflow), not a frozen-lock like Add Transaction's
-  // "frozen savings" mode. Defaults to 'Expense' — the only behavior this
-  // function had before Savings-category goal items existed.
-  categoryType?: 'Expense' | 'Savings';
+  // "frozen savings" mode; an Income-category item also credits accountId
+  // (Inflow) — the expected income actually arriving. Defaults to 'Expense'
+  // — the only behavior this function had before Savings/Income-category
+  // goal items existed.
+  categoryType?: 'Expense' | 'Savings' | 'Income';
 }
 
 /**
- * Marking a line item complete records a real Expense or Savings transaction
- * (via writeTransactionContribution, the same write
+ * Marking a line item complete records a real Expense, Income, or Savings
+ * transaction (via writeTransactionContribution, the same write
  * createTransactionWithAggregation uses) and links the two — both inside one
  * runTransaction() so a line item can never end up "complete" without the
  * transaction actually existing, or vice versa. The line item's own `amount`
@@ -1429,7 +1413,7 @@ export async function markGoalLineItemComplete(
   const db = getFirebaseFirestore();
   const clientId = crypto.randomUUID();
   const categoryType = input.categoryType ?? 'Expense';
-  const direction = categoryType === 'Savings' ? 'Inflow' : 'Outflow';
+  const direction = categoryType === 'Expense' ? 'Outflow' : 'Inflow';
 
   await runTransaction(db, async (tx) => {
     const accountSnap = await tx.get(accountRef(uid, input.accountId));

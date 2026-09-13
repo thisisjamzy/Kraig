@@ -162,9 +162,6 @@ export function useLogic() {
   function openGoal(goalId: string) {
     router.push(`/goals/${goalId}`);
   }
-  function goBack() {
-    router.push('/goals');
-  }
 
   return {
     items,
@@ -178,7 +175,6 @@ export function useLogic() {
     handleDragEnd,
     currency: ctx.display,
     openGoal,
-    goBack,
     loading: ctxLoading || goalsLoading || itemsLoading || categoriesLoading,
   };
 }

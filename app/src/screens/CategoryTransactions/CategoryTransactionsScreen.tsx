@@ -18,6 +18,7 @@ export function CategoryTransactionsScreen({ categoryId }: { categoryId: string 
     categoryName,
     categoryArchived,
     summary,
+    lockedToMonth,
     timeRange,
     setTimeRange,
     chart,
@@ -81,10 +82,16 @@ export function CategoryTransactionsScreen({ categoryId }: { categoryId: string 
               style={{ width: `${summary.budgeted > 0 ? Math.min(100, Math.round((summary.spent / summary.budgeted) * 100)) : 0}%` }}
             />
           </div>
+          {summary.dedicated > 0 && (
+            <p className={styles.summaryDedicatedLine}>
+              {strings.transactionHistory.dedicatedLabel} {formatAmount(summary.dedicated)} {currency} ·{' '}
+              {strings.transactionHistory.unplannedLabel} {formatAmount(summary.unplanned)} {currency}
+            </p>
+          )}
         </div>
       )}
 
-      {!loading && !error && chart.length > 0 && (
+      {!loading && !error && !lockedToMonth && chart.length > 0 && (
         <div className={styles.trendCard}>
           <div className={styles.trendHeader}>
             <span className={styles.trendTitle}>{strings.transactionHistory.trendTitle}</span>
@@ -129,26 +136,28 @@ export function CategoryTransactionsScreen({ categoryId }: { categoryId: string 
         <div className={styles.sectionTitleRow}>
           <h2 className={styles.sectionTitle}>{strings.transactionHistory.recordsTitle}</h2>
           <div className={styles.sectionActions}>
-            <Select
-              selectedKey={timeRange}
-              onSelectionChange={(key) => key && setTimeRange(key as TimeRange)}
-              aria-label={strings.transactionHistory.timeRangeFilterLabel}
-            >
-              <Select.Trigger className={styles.timeRangeTrigger}>
-                <Select.Value />
-                <Select.Indicator />
-              </Select.Trigger>
-              <Select.Popover>
-                <ListBox>
-                  {TIME_RANGES.map((range) => (
-                    <ListBox.Item key={range} id={range} textValue={timeRangeLabel[range]}>
-                      {timeRangeLabel[range]}
-                      <ListBox.ItemIndicator />
-                    </ListBox.Item>
-                  ))}
-                </ListBox>
-              </Select.Popover>
-            </Select>
+            {!lockedToMonth && (
+              <Select
+                selectedKey={timeRange}
+                onSelectionChange={(key) => key && setTimeRange(key as TimeRange)}
+                aria-label={strings.transactionHistory.timeRangeFilterLabel}
+              >
+                <Select.Trigger className={styles.timeRangeTrigger}>
+                  <Select.Value />
+                  <Select.Indicator />
+                </Select.Trigger>
+                <Select.Popover>
+                  <ListBox>
+                    {TIME_RANGES.map((range) => (
+                      <ListBox.Item key={range} id={range} textValue={timeRangeLabel[range]}>
+                        {timeRangeLabel[range]}
+                        <ListBox.ItemIndicator />
+                      </ListBox.Item>
+                    ))}
+                  </ListBox>
+                </Select.Popover>
+              </Select>
+            )}
             <Link href={addTransactionHref} className={styles.addIconButton} aria-label="Add transaction">
               <Plus size={16} strokeWidth={2.25} />
             </Link>

@@ -5,21 +5,14 @@
   padding: var(--space-lg);
 }
 
-/* Sticks just below the fixed AppHeader (top offset matches AppContent's
-   own .withHeader clearance) rather than at the viewport's very top —
-   pinning it to top: 0 here previously made it float over the
-   total-budget card instead of sitting under the app header. */
+/* A plain flex row, first item in .page's own flex column — no sticky
+   positioning and no full-bleed negative-margin trick. Those made this
+   bar float over the total-budget card below it instead of simply taking
+   its place in the page's normal top-to-bottom flow. */
 .header {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
-  position: sticky;
-  top: calc(84px + env(safe-area-inset-top));
-  z-index: 15;
-  margin-left: calc(-1 * var(--space-lg));
-  margin-right: calc(-1 * var(--space-lg));
-  padding: var(--space-sm) var(--space-lg);
-  background: var(--color-page);
 }
 
 .headerText {
@@ -40,7 +33,7 @@
 .subtitle {
   margin: 0;
   font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
+  color: var(--color-text-primary);
 }
 
 .dateButton {
@@ -147,7 +140,7 @@
 .leftToBudgetValueWarning {
   font-size: var(--font-size-sm);
   font-weight: 700;
-  color: var(--color-danger);
+  color: #ffffff;
 }
 
 .addBudgetButton {
@@ -231,6 +224,19 @@
   white-space: nowrap;
 }
 
+/* Savings row's own 4th cell — a real cumulative amount rather than a
+   percent, so it gets a neutral pill instead of percentPositive/
+   percentNegative/percentNeutral's judgment colors. */
+.trackingCumulativeBadge {
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
 .percentPositive {
   background: color-mix(in srgb, var(--color-brand) 15%, transparent);
   color: var(--color-brand);
@@ -273,15 +279,20 @@
   -webkit-overflow-scrolling: touch;
 }
 
+/* Taller and roomier than before, same "spacious card" feel as Home's own
+   wallet cards (HomeScreen.module.css's .walletCard) — height is left to
+   the content (now three rows: name, badges, budgeted amount, values)
+   rather than a cramped fixed min-height. No gap on the container itself —
+   each row below the first sets its own margin-top so the name-to-badges
+   gap can stay tight while the rest of the card gets more room. */
 .categoryCard {
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
   flex: 0 0 auto;
   scroll-snap-align: start;
   width: 70%;
-  min-height: 150px;
-  padding: var(--space-md);
+  min-height: 240px;
+  padding: var(--space-lg);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   background: var(--color-background);
@@ -297,15 +308,9 @@
   gap: var(--space-xs);
 }
 
-.cardHeading {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
 .cardCategoryName {
   margin: 0;
+  min-width: 0;
   font-size: var(--font-size-sm);
   font-weight: 700;
   color: var(--color-text-primary);
@@ -314,14 +319,20 @@
   white-space: nowrap;
 }
 
-.cardFrequency {
-  margin: 0;
-  font-size: 0.6875rem;
-  color: var(--color-text-secondary);
-}
-
 .cardMenu {
   flex-shrink: 0;
+}
+
+/* Both badges now sit directly below the category name, left-aligned —
+   the recurrence badge used to be a plain caption on its own line next to
+   the name; now it's a one-word badge alongside the type badge instead.
+   Kept tight to the name on purpose — only the gaps further down the card
+   got the extra breathing room. */
+.cardBadgeRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  margin-top: 3px;
 }
 
 .typeBadge {
@@ -351,31 +362,72 @@
   color: var(--color-brand);
 }
 
-.cardBottom {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: var(--space-xs);
+.recurrenceBadge {
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
 }
 
-.cardAmounts {
+.cardBudgetedBlock {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
   min-width: 0;
+  margin-top: 48px;
 }
 
-.cardSpentLabel {
-  margin: 0;
+.cardBudgetedLabel {
   font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
   color: var(--color-text-secondary);
 }
 
 .cardBudgetedAmount {
-  margin: 0;
   font-family: var(--font-family-heading);
   font-size: var(--font-size-lg);
   font-weight: 800;
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Always three columns — Spent/Received, Dedicated, Unplanned — even when
+   a category has no goal dedicating any of its spend yet (Dedicated then
+   just reads 0, Unplanned equals Spent). Each its own label above its own
+   value, with room to breathe between columns and a clear gap from the
+   budgeted amount above. */
+.cardStatsRow {
+  display: flex;
+  gap: var(--space-lg);
+  margin-top: 48px;
+}
+
+.cardStat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cardStatLabel {
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
+.cardStatValue {
+  font-size: var(--font-size-sm);
+  font-weight: 700;
   color: var(--color-text-primary);
 }
 
