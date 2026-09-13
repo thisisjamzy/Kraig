@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { ChevronRight, Plus, Repeat, Search, Shuffle, X } from 'lucide-react';
+import { ArrowLeftRight, ChevronRight, Plus, Repeat, Search, Shuffle, X } from 'lucide-react';
 import { useLogic, type GoalKindFilter } from '@/src/logic/goals/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
@@ -46,6 +46,19 @@ export function GoalsScreen() {
   const hasSearch = searchQuery.trim().length > 0;
   const searchEnabled = allGoalsCount > SEARCH_ENABLED_ABOVE;
 
+  const typeBadgeLabel: Record<'Expense' | 'Income' | 'Savings' | 'Transfer', string> = {
+    Expense: strings.goals.typeBadgeExpense,
+    Income: strings.goals.typeBadgeIncome,
+    Savings: strings.goals.typeBadgeSavings,
+    Transfer: strings.goals.typeBadgeTransfer,
+  };
+  const typeBadgeClass: Record<'Expense' | 'Income' | 'Savings' | 'Transfer', string> = {
+    Expense: styles.typeBadgeExpense,
+    Income: styles.typeBadgeIncome,
+    Savings: styles.typeBadgeSavings,
+    Transfer: styles.typeBadgeTransfer,
+  };
+
   return (
     <div className={styles.page}>
       <GoalsHeader range={range} onChangeRange={setRange} />
@@ -83,6 +96,15 @@ export function GoalsScreen() {
               <span className={styles.expenseCardLabel}>{strings.goals.filterVariable}</span>
               <span className={styles.expenseCardValue}>
                 {formatAmount(dedicatedTotals.variable)} {currency}
+              </span>
+            </div>
+            <div className={styles.expenseCard}>
+              <span className={styles.expenseCardIcon}>
+                <ArrowLeftRight size={16} strokeWidth={2} />
+              </span>
+              <span className={styles.expenseCardLabel}>{strings.goals.filterTransfers}</span>
+              <span className={styles.expenseCardValue}>
+                {formatAmount(dedicatedTotals.transfers)} {currency}
               </span>
             </div>
           </div>
@@ -159,20 +181,24 @@ export function GoalsScreen() {
                     }
                   }}
                 >
-                  <span className={styles.exploreRowIcon} style={{ background: goalIconTint(goal.name) }}>
-                    {goalInitial(goal.name)}
-                  </span>
-                  <div className={styles.exploreRowText}>
+                  <div className={styles.exploreRowTop}>
+                    <span className={styles.exploreRowIcon} style={{ background: goalIconTint(goal.name) }}>
+                      {goalInitial(goal.name)}
+                    </span>
                     <span className={styles.exploreRowName}>{goal.name}</span>
+                    <span className={`${styles.typeBadge} ${typeBadgeClass[goal.type]}`}>{typeBadgeLabel[goal.type]}</span>
+                    <ChevronRight size={18} strokeWidth={2} className={styles.exploreRowChevron} />
+                  </div>
+                  <div className={styles.exploreRowBottom}>
                     <span className={styles.exploreRowAmount}>
                       {formatAmount(goal.completed)} {strings.goals.completedOfSuffix} {formatAmount(goal.total)} {currency}
                     </span>
-                  </div>
-                  <div className={styles.exploreRowEnd}>
-                    <div className={styles.exploreRowProgressTrack}>
-                      <div className={styles.exploreRowProgressFill} style={{ width: `${goal.percent}%` }} />
+                    <div className={styles.exploreRowProgress}>
+                      <div className={styles.exploreRowProgressTrack}>
+                        <div className={styles.exploreRowProgressFill} style={{ width: `${goal.percent}%` }} />
+                      </div>
+                      <span className={styles.exploreRowPercent}>{goal.percent}%</span>
                     </div>
-                    <ChevronRight size={18} strokeWidth={2} className={styles.exploreRowChevron} />
                   </div>
                 </div>
               ))}

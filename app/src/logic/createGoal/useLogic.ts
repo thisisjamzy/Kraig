@@ -22,6 +22,11 @@ export function useLogic() {
   const [deadline, setDeadline] = useState('');
   const [currency, setCurrency] = useState(ctx.base);
   const [kind, setKind] = useState<'Fixed' | 'Variable'>('Variable');
+  // What this goal is planning for — decides which categories (or, for
+  // Transfer, which account-to-account moves) its line items may use. Not
+  // editable after creation (same as kind) — changing it would leave
+  // already-created items pointed at categories the new type disallows.
+  const [type, setType] = useState<'Expense' | 'Income' | 'Savings' | 'Transfer'>('Expense');
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -36,6 +41,7 @@ export function useLogic() {
         deadline: deadline ? new Date(`${deadline}T00:00:00`) : null,
         currency: currency || ctx.base,
         kind,
+        type,
       });
       router.push(`/goals/${id}`);
     } catch (error) {
@@ -60,6 +66,8 @@ export function useLogic() {
     currencyOptions,
     kind,
     setKind,
+    type,
+    setType,
     saving,
     saveError,
     handleSave,

@@ -329,6 +329,7 @@ export function useLogic() {
           deadline: null,
           currency: (hint.currency as string) || ctx.base,
           kind: 'Variable',
+          type: 'Expense',
         });
       }
       default:
@@ -596,15 +597,16 @@ export function useLogic() {
         }
         case 'goals': {
           const d = draft as unknown as GoalDraft;
-          // The import spreadsheet has no Fixed/Variable column yet —
-          // every bulk-imported goal lands Variable, same as any goal
-          // created before this field existed.
+          // The import spreadsheet has no Fixed/Variable or goal-type
+          // column yet — every bulk-imported goal lands Variable/Expense,
+          // same as any goal created before either field existed.
           const id = await createGoal(uid!, {
             name: d.name,
             description: d.description,
             deadline: d.deadline,
             currency: d.currency,
             kind: 'Variable',
+            type: 'Expense',
           });
           maps.goals.set(nameKey(d.name), id);
           return;

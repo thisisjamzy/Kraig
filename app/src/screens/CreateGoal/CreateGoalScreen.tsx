@@ -7,7 +7,7 @@
 // stacked-label form this used to be.
 
 import { useState } from 'react';
-import { X, Check, ChevronRight, Tag, Coins, CalendarDays } from 'lucide-react';
+import { X, Check, ChevronRight, Tag, Layers, Coins, CalendarDays } from 'lucide-react';
 import { Calendar as HeroCalendar } from '@heroui/react';
 import { parseDate } from '@internationalized/date';
 import { useLogic } from '@/src/logic/createGoal/useLogic';
@@ -38,6 +38,8 @@ export function CreateGoalScreen() {
     currencyOptions,
     kind,
     setKind,
+    type,
+    setType,
     saving,
     saveError,
     handleSave,
@@ -45,6 +47,7 @@ export function CreateGoalScreen() {
     loading,
   } = useLogic();
 
+  const [typePickerOpen, setTypePickerOpen] = useState(false);
   const [kindPickerOpen, setKindPickerOpen] = useState(false);
   const [currencyPickerOpen, setCurrencyPickerOpen] = useState(false);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
@@ -52,6 +55,20 @@ export function CreateGoalScreen() {
 
   const canSave = name.trim().length > 0 && !saving;
   const selectedCurrency = currencyOptions.find((option) => option.code === currency) ?? null;
+
+  const typeLabel: Record<typeof type, string> = {
+    Expense: strings.createGoal.typeExpense,
+    Income: strings.createGoal.typeIncome,
+    Savings: strings.createGoal.typeSavings,
+    Transfer: strings.createGoal.typeTransfer,
+  };
+  const typeHint: Record<typeof type, string> = {
+    Expense: strings.createGoal.typeExpenseHint,
+    Income: strings.createGoal.typeIncomeHint,
+    Savings: strings.createGoal.typeSavingsHint,
+    Transfer: strings.createGoal.typeTransferHint,
+  };
+  const typeOptions: (typeof type)[] = ['Expense', 'Income', 'Savings', 'Transfer'];
 
   return (
     <div className={styles.page}>
@@ -90,6 +107,37 @@ export function CreateGoalScreen() {
               onChange={(event) => setDescription(event.target.value)}
               placeholder={strings.createGoal.descriptionLabel}
             />
+          </div>
+
+          <div className={styles.listGroup}>
+            <button type="button" className={styles.listRow} onClick={() => setTypePickerOpen((c) => !c)}>
+              <span className={styles.listRowIcon}>
+                <Layers size={16} strokeWidth={2} />
+              </span>
+              <span className={styles.listRowLabel}>{strings.createGoal.typeLabel}</span>
+              <span className={styles.listRowValue}>{typeLabel[type]}</span>
+              <ChevronRight size={16} strokeWidth={2} className={styles.listRowChevron} />
+            </button>
+            {typePickerOpen && (
+              <div className={styles.expandPanel}>
+                <div className={styles.chipGroup}>
+                  {typeOptions.map((option) => (
+                    <button
+                      key={option}
+                      type="button"
+                      className={`${styles.chip} ${type === option ? styles.chipActive : ''}`}
+                      onClick={() => {
+                        setType(option);
+                        setTypePickerOpen(false);
+                      }}
+                    >
+                      {typeLabel[option]}
+                    </button>
+                  ))}
+                </div>
+                <p className={styles.hintText}>{typeHint[type]}</p>
+              </div>
+            )}
           </div>
 
           <div className={styles.listGroup}>

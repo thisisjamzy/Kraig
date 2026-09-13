@@ -342,22 +342,34 @@ export interface FirestoreGoal {
   // to budget" (aggregation.ts's addGoalLineItemToBudget) when the
   // household is ready to commit one to a month's plan. Fixed: a basket of
   // recurring costs (rent, subscriptions, a recurring savings transfer) —
-  // every line item added to it automatically gets its own recurring
-  // budget rule (createGoalLineItem's Fixed-goal branch), no manual step.
-  // Optional for back-compat with a goal written before this field
-  // existed; every read defaults it to 'Variable'.
+  // its line items carry their own recurrence/due-date instead (see
+  // FirestoreGoalLineItem.recurrence), no budget rule involved either way
+  // any more. Optional for back-compat with a goal written before this
+  // field existed; every read defaults it to 'Variable'.
   kind?: 'Fixed' | 'Variable';
+  // What kind of money this goal is about — decides which categories (or,
+  // for Transfer, which TRANSFER_CATEGORIES kind) its own line items may
+  // use: an Expense goal's items only ever pick an Expense category, an
+  // Income goal's only an Income category, and so on. A Transfer goal has
+  // no category at all — its items move money between two of the
+  // household's own accounts (fromAccountId/toAccountId on the line item)
+  // and exist to track the cost of doing so (see
+  // FirestoreGoalLineItem.charges), not a category-based spend. Optional
+  // for back-compat with a goal written before this field existed; every
+  // read defaults it to 'Expense'.
+  type?: 'Expense' | 'Income' | 'Savings' | 'Transfer';
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 }
 
 /**
  * users/{uid}/goals/{goalId}/lineItems/{lineItemId} — one sub-cost (or, for
- * an Income-category item, one expected inflow) of a goal. Marking it
- * complete (aggregation.ts's markGoalLineItemComplete) records a real
- * Expense/Income/Savings transaction and links back to it via `expenseId`
- * (named for the original Expense-only case; the field itself is generic);
- * the transaction never needs to know about the goal.
+ * an Income-category item, one expected inflow; or, for a Transfer goal,
+ * one planned account-to-account move) of a goal. Marking it complete
+ * (aggregation.ts's markGoalLineItemComplete) records a real transaction
+ * (Expense/Income/Savings, linked back via `expenseId`) or, for a Transfer
+ * goal, a real transfer (linked back via `transferId`) — either way the
+ * transaction/transfer itself never needs to know about the goal.
  */
 export interface FirestoreGoalLineItem {
   id: string;
@@ -372,15 +384,32 @@ export interface FirestoreGoalLineItem {
   // below is even selectable: a Savings-category item may only point at a
   // Savings Account, an Expense- or Income-category item may only point at
   // a spendable one (see src/logic/goalDetail/useLogic.ts's validation).
-  // Optional only for back-compat with a line item written before this
-  // field existed — the add/edit form always requires it going forward,
-  // same convention as priority/necessity below.
+  // For a Transfer goal (FirestoreGoal.type), this holds a
+  // TRANSFER_CATEGORIES kind string instead of a real categories/{id} —
+  // same pseudo-category convention src/logic/addBudgetCategory/useLogic.ts
+  // already uses for a Transfer-type budget rule. Optional only for
+  // back-compat with a line item written before this field existed — the
+  // add/edit form always requires it going forward, same convention as
+  // priority/necessity below.
   categoryId?: string;
   // The wallet this item is earmarked against, if any — lets Home compute
   // "how much of what's required for this wallet is actually there yet"
-  // (src/logic/home/useLogic.ts's wallet chart). Optional: a goal item
-  // doesn't have to target a specific account.
+  // (src/logic/home/useLogic.ts's wallet chart). For a Transfer goal's
+  // item, this is specifically the FROM account — the source the amount
+  // (and any charges) leaves. Optional: a goal item doesn't have to target
+  // a specific account.
   accountId: string | null;
+  // Transfer goal items only — the account the amount lands in. Unset for
+  // every other goal type.
+  toAccountId?: string | null;
+  // Transfer goal items only — the planned cost of making this transfer
+  // (a wire fee, a mobile-money charge, etc.), same field
+  // createTransferWithAggregation already writes onto the real transfer
+  // once this item is completed. This is what Goals' own dashboard
+  // "Transfers" card sums — moving your own money between your own
+  // accounts isn't spend, but what it costs to do so is. Unset (or 0) for
+  // a free transfer, and for every non-Transfer goal type.
+  charges?: number | null;
   // Fixed-goal items only — how often this recurring cost repeats.
   // createGoalLineItem uses this to build the auto-generated
   // FirestoreBudgetRule's own frequency/interval; irrelevant (and unset)
@@ -417,6 +446,10 @@ export interface FirestoreGoalLineItem {
   completed: boolean;
   completedAt: Timestamp | null;
   expenseId: string | null;
+  // Set instead of expenseId when this is a Transfer goal's item —
+  // completing it records a real transfers/{id} (aggregation.ts's
+  // markGoalLineItemComplete) rather than a transactions/{id}.
+  transferId?: string | null;
   // Set once this (Variable-goal) item's amount has been folded into a
   // month's budget via the "Add to budget" action (aggregation.ts's
   // addGoalLineItemToBudget) — hides that action afterward so the same

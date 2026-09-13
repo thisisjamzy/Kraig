@@ -21,6 +21,7 @@ import {
   addGoalLineItemToBudget,
   archiveGoal as archiveGoalWrite,
   updateGoal,
+  deleteGoal as deleteGoalWrite,
 } from '@/src/shared/firestore/aggregation';
 import { useExchangeRates } from '@/src/shared/firestore/queries';
 import { currencyName } from '@/src/viewmodels/currencies';
@@ -28,7 +29,15 @@ import { categoryAccentColor } from '@/src/viewmodels/categories';
 import { DEFAULT_PRIORITY, DEFAULT_NECESSITY } from '@/src/viewmodels/projects';
 import { isSavingsAccount } from '@/src/viewmodels/wallets';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
-import type { FirestoreGoal, FirestoreGoalLineItem, Priority, GoalItemNecessity, Frequency } from '@/src/shared/firestore/types';
+import { TRANSFER_CATEGORIES } from '@/src/viewmodels/categories';
+import type {
+  FirestoreGoal,
+  FirestoreGoalLineItem,
+  Priority,
+  GoalItemNecessity,
+  Frequency,
+  BudgetLineType,
+} from '@/src/shared/firestore/types';
 
 // Recurring bills/subscriptions/savings transfers don't make sense as
 // Once/Daily/Weekly — a Fixed goal's own recurrence picker only offers the
@@ -53,13 +62,22 @@ export function useLogic(goalId: string) {
     useFirestoreCollection<FirestoreGoalLineItem>(lineItemsQuery);
 
   const { data: accounts, loading: accountsLoading } = useAccounts();
-  // Every category type is fair game for a goal item now, Income included —
-  // "dedicated" for an Income category means the household knows exactly
-  // where that money is expected to come from (a specific client, employer,
-  // etc.), the same way it means "knows exactly what it's for" for an
-  // Expense category and "knows exactly where it's going and when" for a
-  // Savings one.
-  const { data: categories, loading: categoriesLoading } = useCategories();
+  // A goal has a type now (FirestoreGoal.type) — Expense, Income, or
+  // Savings — that constrains which categories its own line items may
+  // ever use: an Expense goal only ever offers Expense categories, and so
+  // on. "Dedicated" for an Income category means the household knows
+  // exactly where that money is expected to come from, the same way it
+  // means "knows exactly what it's for" for an Expense category and
+  // "knows exactly where it's going and when" for a Savings one. Optional
+  // for back-compat with a goal written before this field existed —
+  // defaults to 'Expense', same convention as `kind`.
+  const goalType = goal?.type ?? 'Expense';
+  const isTransferGoal = goalType === 'Transfer';
+  const { data: allCategories, loading: categoriesLoading } = useCategories();
+  const categories = useMemo(
+    () => allCategories.filter((category) => category.transactionType === goalType),
+    [allCategories, goalType]
+  );
   const categoryTransactionType = useMemo(
     () => new Map(categories.map((category) => [category.id, category.transactionType])),
     [categories]
@@ -68,12 +86,25 @@ export function useLogic(goalId: string) {
     const map = new Map(categories.map((category) => [category.id, category.name]));
     return (id: string | undefined | null) => (id && map.get(id)) || id || 'No category';
   }, [categories]);
+  // A Transfer goal has no real category at all — its "category" picker
+  // offers the same fixed TRANSFER_CATEGORIES kind strings a Transfer
+  // budget rule already uses (src/logic/addBudgetCategory/useLogic.ts),
+  // not a categories/{id} — reused as-is here rather than inventing a
+  // second pseudo-category convention.
+  const transferKindOptions = useMemo(() => TRANSFER_CATEGORIES.map((kind) => ({ id: kind, name: kind })), []);
+  // What the line item form's own "category" row actually iterates —
+  // real categories for every goal type except Transfer, which shows the
+  // kind list instead.
+  const categoryOptions = isTransferGoal ? transferKindOptions : categories;
   // A Savings-category item can only earmark a Savings Account (that's the
   // only place "savings" actually lives); an Expense- or Income-category
   // item can only earmark a spendable, non-frozen wallet — same split
   // addTransaction's own spendableAccounts already enforces for a direct
   // Expense (an expected Income deposit lands in a spendable wallet the
-  // same way a real one would).
+  // same way a real one would). A Transfer item's own two account pickers
+  // don't get this treatment — same as addTransaction's own transfer flow,
+  // either side can be any non-frozen account; only "not the same account
+  // on both sides" is enforced (see canSaveLineItem).
   const nonFrozenAccounts = useMemo(() => accounts.filter((account) => !account.frozen), [accounts]);
   const spendableAccounts = useMemo(
     () => nonFrozenAccounts.filter((account) => !isSavingsAccount(account)),
@@ -81,6 +112,7 @@ export function useLogic(goalId: string) {
   );
   const savingsAccounts = useMemo(() => nonFrozenAccounts.filter(isSavingsAccount), [nonFrozenAccounts]);
   function accountOptionsForCategory(categoryId: string) {
+    if (isTransferGoal) return nonFrozenAccounts;
     return categoryTransactionType.get(categoryId) === 'Savings' ? savingsAccounts : spendableAccounts;
   }
 
@@ -129,6 +161,10 @@ export function useLogic(goalId: string) {
   const [itemNecessity, setItemNecessity] = useState<GoalItemNecessity>(DEFAULT_NECESSITY);
   const [itemCategoryId, setItemCategoryIdState] = useState('');
   const [itemAccountId, setItemAccountId] = useState('');
+  // Transfer goal items only — the account the amount lands in, and the
+  // planned cost of the move.
+  const [itemToAccountId, setItemToAccountId] = useState('');
+  const [itemCharges, setItemCharges] = useState('');
   const [itemDueDate, setItemDueDate] = useState('');
   const [itemRecurrenceFrequency, setItemRecurrenceFrequency] = useState<Frequency>('Monthly');
   const [savingItem, setSavingItem] = useState(false);
@@ -137,9 +173,12 @@ export function useLogic(goalId: string) {
   // Picking a new category can invalidate the already-picked account (a
   // Savings-category item can't keep an Expense wallet selected, and vice
   // versa) — same "clear it rather than silently keep an invalid pick"
-  // convention src/logic/addTransaction/useLogic.ts's chooseDate uses.
+  // convention src/logic/addTransaction/useLogic.ts's chooseDate uses. A
+  // Transfer item's kind pick never gates its accounts (see
+  // accountOptionsForCategory), so there's nothing to invalidate there.
   function setItemCategoryId(categoryId: string) {
     setItemCategoryIdState(categoryId);
+    if (isTransferGoal) return;
     const validAccountIds = new Set(accountOptionsForCategory(categoryId).map((account) => account.id));
     setItemAccountId((current) => (validAccountIds.has(current) ? current : ''));
   }
@@ -151,8 +190,10 @@ export function useLogic(goalId: string) {
     setItemAmount('');
     setItemPriority(DEFAULT_PRIORITY);
     setItemNecessity(DEFAULT_NECESSITY);
-    setItemCategoryIdState(categories[0]?.id ?? '');
+    setItemCategoryIdState(categoryOptions[0]?.id ?? '');
     setItemAccountId('');
+    setItemToAccountId('');
+    setItemCharges('');
     setItemDueDate('');
     setItemRecurrenceFrequency('Monthly');
     setItemError(null);
@@ -166,8 +207,10 @@ export function useLogic(goalId: string) {
     setItemAmount(String(lineItem.amount));
     setItemPriority(lineItem.priority ?? DEFAULT_PRIORITY);
     setItemNecessity(lineItem.necessity ?? DEFAULT_NECESSITY);
-    setItemCategoryIdState(lineItem.categoryId ?? categories[0]?.id ?? '');
+    setItemCategoryIdState(lineItem.categoryId ?? categoryOptions[0]?.id ?? '');
     setItemAccountId(lineItem.accountId ?? '');
+    setItemToAccountId(lineItem.toAccountId ?? '');
+    setItemCharges(lineItem.charges ? String(lineItem.charges) : '');
     setItemDueDate(lineItem.dueDate ? lineItem.dueDate.toDate().toISOString().slice(0, 10) : '');
     setItemRecurrenceFrequency(lineItem.recurrence?.frequency ?? 'Monthly');
     setItemError(null);
@@ -185,7 +228,8 @@ export function useLogic(goalId: string) {
     itemName.trim().length > 0 &&
     Number(itemAmount) > 0 &&
     itemCategoryId.length > 0 &&
-    (!isFixedGoal || itemDueDate.length > 0);
+    (!isFixedGoal || itemDueDate.length > 0) &&
+    (!isTransferGoal || (itemAccountId.length > 0 && itemToAccountId.length > 0 && itemAccountId !== itemToAccountId));
 
   async function handleAddLineItem() {
     if (!uid || savingItem || !canSaveLineItem) return;
@@ -200,8 +244,10 @@ export function useLogic(goalId: string) {
         priority: itemPriority,
         necessity: itemNecessity,
         categoryId: itemCategoryId,
-        categoryType: categoryTransactionType.get(itemCategoryId) ?? 'Expense',
+        categoryType: (isTransferGoal ? 'Transfer' : categoryTransactionType.get(itemCategoryId) ?? 'Expense') as BudgetLineType,
         accountId: itemAccountId || null,
+        toAccountId: isTransferGoal ? itemToAccountId || null : null,
+        charges: isTransferGoal ? Number(itemCharges) || 0 : null,
         dueDate: itemDueDate ? new Date(`${itemDueDate}T00:00:00`) : null,
         recurrence: isFixedGoal ? { frequency: itemRecurrenceFrequency, interval: 1 } : null,
       };
@@ -244,7 +290,7 @@ export function useLogic(goalId: string) {
         lineItemId,
         lineItem.categoryId,
         lineItem.amount,
-        categoryTransactionType.get(lineItem.categoryId) ?? 'Expense'
+        isTransferGoal ? 'Transfer' : categoryTransactionType.get(lineItem.categoryId) ?? 'Expense'
       );
     } catch (error) {
       setAddToBudgetError(error instanceof Error ? error.message : 'Could not add this item to the budget.');
@@ -256,6 +302,8 @@ export function useLogic(goalId: string) {
   const [completeItemId, setCompleteItemId] = useState<string | null>(null);
   const [completeAccountId, setCompleteAccountId] = useState('');
   const [completeCategoryId, setCompleteCategoryId] = useState('');
+  const [completeToAccountId, setCompleteToAccountId] = useState('');
+  const [completeCharges, setCompleteCharges] = useState('');
   const [completeDate, setCompleteDate] = useState(todayIso());
   const [completeDescription, setCompleteDescription] = useState('');
   const [completing, setCompleting] = useState(false);
@@ -264,7 +312,9 @@ export function useLogic(goalId: string) {
   function openMarkComplete(lineItem: FirestoreGoalLineItem) {
     setCompleteItemId(lineItem.id);
     setCompleteAccountId(lineItem.accountId ?? accounts[0]?.id ?? '');
-    setCompleteCategoryId(lineItem.categoryId ?? categories[0]?.id ?? '');
+    setCompleteCategoryId(lineItem.categoryId ?? categoryOptions[0]?.id ?? '');
+    setCompleteToAccountId(lineItem.toAccountId ?? '');
+    setCompleteCharges(lineItem.charges ? String(lineItem.charges) : '');
     setCompleteDate(todayIso());
     setCompleteDescription(`${goal?.name ?? 'Goal'}: ${lineItem.name}`);
     setCompleteError(null);
@@ -274,6 +324,7 @@ export function useLogic(goalId: string) {
     if (!uid || completing || !completeItemId) return;
     const lineItem = lineItemDocs.find((item) => item.id === completeItemId);
     if (!lineItem || !completeAccountId) return;
+    if (isTransferGoal && (!completeToAccountId || completeToAccountId === completeAccountId)) return;
     setCompleting(true);
     setCompleteError(null);
     try {
@@ -287,7 +338,9 @@ export function useLogic(goalId: string) {
           categoryId: completeCategoryId || null,
           date: new Date(`${completeDate}T00:00:00`),
           description: completeDescription,
-          categoryType: categoryTransactionType.get(completeCategoryId) ?? 'Expense',
+          categoryType: (isTransferGoal ? 'Transfer' : categoryTransactionType.get(completeCategoryId) ?? 'Expense') as BudgetLineType,
+          toAccountId: isTransferGoal ? completeToAccountId : null,
+          charges: isTransferGoal ? Number(completeCharges) || 0 : null,
         },
         ctx
       );
@@ -310,6 +363,8 @@ export function useLogic(goalId: string) {
   const [goalDescription, setGoalDescription] = useState('');
   const [goalDeadline, setGoalDeadline] = useState('');
   const [goalCurrency, setGoalCurrency] = useState('');
+  const [goalKind, setGoalKind] = useState<'Fixed' | 'Variable'>('Variable');
+  const [goalTypeEdit, setGoalTypeEdit] = useState<'Expense' | 'Income' | 'Savings' | 'Transfer'>('Expense');
   const [savingGoal, setSavingGoal] = useState(false);
   const [goalSaveError, setGoalSaveError] = useState<string | null>(null);
 
@@ -319,6 +374,8 @@ export function useLogic(goalId: string) {
     setGoalDescription(goal.description);
     setGoalDeadline(goal.deadline ? goal.deadline.toDate().toISOString().slice(0, 10) : '');
     setGoalCurrency(goal.currency);
+    setGoalKind(goal.kind ?? 'Variable');
+    setGoalTypeEdit(goal.type ?? 'Expense');
     setGoalSaveError(null);
     setGoalEditOpen(true);
   }
@@ -333,6 +390,8 @@ export function useLogic(goalId: string) {
         description: goalDescription.trim(),
         deadline: goalDeadline ? new Date(`${goalDeadline}T00:00:00`) : null,
         currency: goalCurrency || ctx.base,
+        kind: goalKind,
+        type: goalTypeEdit,
       });
       setGoalEditOpen(false);
     } catch (error) {
@@ -345,6 +404,12 @@ export function useLogic(goalId: string) {
   async function archiveGoal() {
     if (!uid) return;
     await archiveGoalWrite(uid, goalId);
+    router.push('/goals');
+  }
+
+  async function deleteGoal() {
+    if (!uid) return;
+    await deleteGoalWrite(uid, goalId);
     router.push('/goals');
   }
 
@@ -366,6 +431,8 @@ export function useLogic(goalId: string) {
 
     accounts,
     categories,
+    categoryOptions,
+    isTransferGoal,
 
     addOpen,
     setAddOpen,
@@ -386,6 +453,10 @@ export function useLogic(goalId: string) {
     setItemCategoryId,
     itemAccountId,
     setItemAccountId,
+    itemToAccountId,
+    setItemToAccountId,
+    itemCharges,
+    setItemCharges,
     itemDueDate,
     setItemDueDate,
     itemRecurrenceFrequency,
@@ -412,6 +483,10 @@ export function useLogic(goalId: string) {
     setGoalDeadline,
     goalCurrency,
     setGoalCurrency,
+    goalKind,
+    setGoalKind,
+    goalTypeEdit,
+    setGoalTypeEdit,
     savingGoal,
     goalSaveError,
     handleSaveGoal,
@@ -423,6 +498,10 @@ export function useLogic(goalId: string) {
     setCompleteAccountId,
     completeCategoryId,
     setCompleteCategoryId,
+    completeToAccountId,
+    setCompleteToAccountId,
+    completeCharges,
+    setCompleteCharges,
     completeDate,
     setCompleteDate,
     completeDescription,
@@ -432,6 +511,7 @@ export function useLogic(goalId: string) {
     handleMarkComplete,
 
     archiveGoal,
+    deleteGoal,
     goBack,
     loading: ctxLoading || goalLoading || lineItemsLoading || accountsLoading || categoriesLoading,
     error: goalError || lineItemsError,
