@@ -19,6 +19,7 @@ import {
   FileBarChart,
   Scale,
   CalendarClock,
+  LayoutTemplate,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Modal } from '@/src/widgets/Modal/Modal';
@@ -107,6 +108,17 @@ export function SettingsScreen() {
         <span className={styles.actionRowText}>
           <span className={styles.actionRowLabel}>{strings.settings.createCategory}</span>
           <span className={styles.actionRowMeta}>{strings.settings.createCategoryMeta}</span>
+        </span>
+        <ChevronRight size={16} strokeWidth={2} className={styles.actionRowChevron} />
+      </Link>
+
+      <Link href="/transaction-templates" className={styles.actionRow}>
+        <span className={styles.actionRowIcon} style={{ background: iconTint(6) }}>
+          <LayoutTemplate size={18} strokeWidth={1.75} />
+        </span>
+        <span className={styles.actionRowText}>
+          <span className={styles.actionRowLabel}>{strings.settings.transactionTemplates}</span>
+          <span className={styles.actionRowMeta}>{strings.settings.transactionTemplatesMeta}</span>
         </span>
         <ChevronRight size={16} strokeWidth={2} className={styles.actionRowChevron} />
       </Link>

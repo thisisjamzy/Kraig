@@ -174,7 +174,17 @@ export function useLogic(goalId: string) {
   }
 
   const isFixedGoal = goal?.kind === 'Fixed';
-  const canSaveLineItem = itemName.trim().length > 0 && Number(itemAmount) > 0 && itemCategoryId.length > 0;
+  // A Fixed item always repeats (see handleAddLineItem's own recurrence
+  // write below) — its due date IS the recurrence anchor
+  // (src/shared/firestore/upcomingPayments.ts reads item.dueDate directly
+  // as the RecurrenceRule's anchorDate), so without one it would never
+  // appear on the Payments Calendar at all despite recurring in the
+  // budget. A Variable item's due date stays optional.
+  const canSaveLineItem =
+    itemName.trim().length > 0 &&
+    Number(itemAmount) > 0 &&
+    itemCategoryId.length > 0 &&
+    (!isFixedGoal || itemDueDate.length > 0);
 
   async function handleAddLineItem() {
     if (!uid || savingItem || !canSaveLineItem) return;

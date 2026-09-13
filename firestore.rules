@@ -108,6 +108,19 @@ service cloud.firestore {
         allow delete: if activeUser() && request.auth.uid == uid;
       }
 
+      // A prefilled shortcut for a recurring transaction/transfer — never
+      // itself part of the ledger, so unlike transactions/transfers above
+      // it's freely deletable (a household discarding a template loses
+      // nothing but the shortcut). See FirestoreTransactionTemplate's own
+      // header (types.ts).
+      match /transactionTemplates/{templateId} {
+        allow read: if activeUser() && request.auth.uid == uid;
+        allow create, update: if activeUser() && request.auth.uid == uid
+          && request.resource.data.name is string
+          && request.resource.data.type in ['expense', 'income', 'transfer', 'savings'];
+        allow delete: if activeUser() && request.auth.uid == uid;
+      }
+
       match /budgetRules/{ruleId} {
         allow read: if activeUser() && request.auth.uid == uid;
         allow create, update: if activeUser() && request.auth.uid == uid
