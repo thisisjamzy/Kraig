@@ -2,12 +2,12 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { query, where } from 'firebase/firestore';
+import { orderBy, query, where } from 'firebase/firestore';
 import { ruleAppliesToMonth } from '@dreda/shared-recurrence';
 import { getFirebaseAuth } from '@/src/shared/config/firebaseClient';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { useFirestoreCollection, useFirestoreDoc } from '@/src/shared/firestore/hooks';
-import { budgetRulesRef, categoryRef, goalsRef, unjustifiedWalletRef } from '@/src/shared/firestore/refs';
+import { budgetRulesRef, categoryRef, goalsRef, transactionTemplatesRef, unjustifiedWalletRef } from '@/src/shared/firestore/refs';
 import { toRecurrenceRule } from '@/src/shared/firestore/recurrence';
 import { useAccounts, useCategories, useCurrencyContext } from '@/src/shared/firestore/queries';
 import { createTransferWithAggregation, markGoalLineItemComplete } from '@/src/shared/firestore/aggregation';
@@ -15,7 +15,13 @@ import { recordHistoricEntry } from '@/src/shared/firestore/unaccountedBalance';
 import { useGoalLineItemsByGoal } from '@/src/shared/hooks/useGoalLineItemsByGoal';
 import { TRANSFER_CATEGORIES } from '@/src/viewmodels/categories';
 import { isSavingsAccount } from '@/src/viewmodels/wallets';
-import type { FirestoreBudgetRule, FirestoreCategory, FirestoreAccount, FirestoreGoal } from '@/src/shared/firestore/types';
+import type {
+  FirestoreBudgetRule,
+  FirestoreCategory,
+  FirestoreAccount,
+  FirestoreGoal,
+  FirestoreTransactionTemplate,
+} from '@/src/shared/firestore/types';
 
 export type TransactionType = 'expense' | 'income' | 'transfer' | 'savings';
 export type Step = 'type' | 'category' | 'details' | 'review';
@@ -98,13 +104,25 @@ function categoryIdFromSearch(): string {
   return new URLSearchParams(window.location.search).get('categoryId') ?? '';
 }
 
+// src/screens/TransactionTemplates's own "apply" action deep-links here with
+// ?templateId=... — same shape as categoryIdFromSearch above, jumping
+// straight to the 'details' step with every one of the template's fields
+// already applied (see the prefill effect below) rather than making the
+// person re-pick a type/category they already chose once when they saved
+// the template.
+function templateIdFromSearch(): string {
+  if (typeof window === 'undefined') return '';
+  return new URLSearchParams(window.location.search).get('templateId') ?? '';
+}
+
 export function useLogic() {
   const router = useRouter();
   const { user } = useFirebaseUser();
   const uid = user?.uid;
   const [retroTarget] = useState(retroTargetFromSearch);
   const [prefillCategoryId] = useState(categoryIdFromSearch);
-  const [step, setStep] = useState<Step>(() => (prefillCategoryId ? 'details' : 'type'));
+  const [prefillTemplateId] = useState(templateIdFromSearch);
+  const [step, setStep] = useState<Step>(() => (prefillCategoryId || prefillTemplateId ? 'details' : 'type'));
   const [type, setType] = useState<TransactionType>('expense');
   const [savingsMode, setSavingsModeState] = useState<SavingsMode>('moved');
   const [category, setCategory] = useState(''); // categoryId, or a TRANSFER_CATEGORIES value for transfers
@@ -153,6 +171,54 @@ export function useLogic() {
     setCategory(prefillCategoryId);
     setPrefillApplied(true);
   }, [prefillCategoryId, prefillApplied, prefillCategory]);
+
+  // Every saved template, live — feeds both the ?templateId= deep link
+  // below AND the inline "Choose a template" shortcut on the type step
+  // (src/screens/AddTransaction), so applying one never needs a second,
+  // separate single-doc fetch.
+  const templatesQuery = useMemo(
+    () => (uid ? query(transactionTemplatesRef(uid), orderBy('name')) : null),
+    [uid]
+  );
+  const { data: templates, loading: templatesLoading } =
+    useFirestoreCollection<FirestoreTransactionTemplate>(templatesQuery);
+  const [templateApplied, setTemplateApplied] = useState(false);
+
+  // Applies every field a saved template carries, straight into this
+  // screen's own state — deliberately NOT going through selectType/
+  // chooseSavingsMode (those reset category/charges/etc. right back out
+  // again, since they're built for a person actively switching type by
+  // hand, not a one-shot prefill). savingsMode only matters when the
+  // template itself is type 'savings'; harmless to set unconditionally.
+  function applyTemplateFields(template: FirestoreTransactionTemplate) {
+    setType(template.type);
+    setSavingsModeState(template.savingsMode ?? 'moved');
+    setCategory(template.categoryId);
+    setDescription(template.description);
+    if (template.amount != null) setAmountString(String(template.amount));
+    if (template.accountId) setFromAccountId(template.accountId);
+    if (template.toAccountId) setToAccountId(template.toAccountId);
+    if (template.charges != null) setChargesString(String(template.charges));
+  }
+
+  useEffect(() => {
+    if (!prefillTemplateId || templateApplied || templatesLoading) return;
+    const template = templates.find((entry) => entry.id === prefillTemplateId);
+    if (template) applyTemplateFields(template);
+    setTemplateApplied(true);
+  }, [prefillTemplateId, templateApplied, templates, templatesLoading]);
+
+  // The type step's own "Choose a template" shortcut — applies a template
+  // without leaving this screen (unlike the ?templateId= deep link above,
+  // reached from src/screens/TransactionTemplates, this is a direct pick
+  // from a list already rendered right here) and jumps straight to
+  // 'details' the same way that deep link's prefill effect does.
+  function chooseTemplate(templateId: string) {
+    const template = templates.find((entry) => entry.id === templateId);
+    if (!template) return;
+    applyTemplateFields(template);
+    setStep('details');
+  }
 
   const { data: allAccounts, loading: accountsLoading, error: accountsError } = useAccounts();
   // Frozen wallets can't be a source or destination for anything until
@@ -281,6 +347,60 @@ export function useLogic() {
   // still defaults to 'moved' — never treat it as transfer-shaped once
   // linked, or the details step would wrongly show a from/to account pair.
   const isEffectivelyTransferLike = !linkedGoalItem && isTransferLike;
+
+  // Every active category, unfiltered by type — only needed to resolve
+  // which TransactionType tab an arbitrary goal item's own category
+  // belongs under (allActiveGoalItems below spans every type at once,
+  // unlike linkableGoalItems above which only ever lists items matching
+  // whatever type is ALREADY selected).
+  const { data: allCategoriesForGoalItems } = useCategories();
+  const allCategoryTypeById = useMemo(
+    () => new Map(allCategoriesForGoalItems.map((cat) => [cat.id, cat.transactionType])),
+    [allCategoriesForGoalItems]
+  );
+
+  // The type step's own "Select a line item" shortcut (src/screens/
+  // AddTransaction) — every active, not-yet-completed goal line item
+  // across every goal, so a person can jump straight into settling one
+  // without first picking a type by hand (picking the item decides the
+  // type itself, same as it decides category/description/amount/account
+  // in chooseGoalItemFromTypeStep below).
+  const allActiveGoalItems = useMemo(() => {
+    return Object.values(itemsByGoal)
+      .flat()
+      .filter((item) => !item.completed && item.categoryId)
+      .map((item) => {
+        const categoryType = allCategoryTypeById.get(item.categoryId!);
+        return {
+          id: item.id,
+          goalId: item.goalId,
+          goalName: goalNameById.get(item.goalId) ?? 'Goal',
+          name: item.name,
+          amount: item.amount,
+          categoryId: item.categoryId!,
+          accountId: item.accountId,
+          // A goal item is never Income-flavored (see linkableGoalItems'
+          // own comment above) — 'expense' is just a safe fallback for the
+          // rare case its category was since deleted/retyped.
+          type:
+            categoryType && categoryType !== 'Income'
+              ? TRANSACTION_TYPE_FOR_CATEGORY[categoryType]
+              : ('expense' as TransactionType),
+        };
+      });
+  }, [itemsByGoal, allCategoryTypeById, goalNameById]);
+
+  function chooseGoalItemFromTypeStep(id: string) {
+    const item = allActiveGoalItems.find((entry) => entry.id === id);
+    if (!item) return;
+    setType(item.type);
+    setLinkedGoalItemId(id);
+    setCategory(item.categoryId);
+    setDescription(`${item.goalName}: ${item.name}`);
+    setAmountString(String(item.amount));
+    if (item.accountId) setFromAccountId(item.accountId);
+    setStep('details');
+  }
 
   function selectLinkedGoalItem(id: string) {
     const item = linkableGoalItems.find((entry) => entry.id === id);
@@ -521,6 +641,10 @@ export function useLogic() {
     linkedGoalItem,
     selectLinkedGoalItem,
     clearLinkedGoalItem,
+    templates,
+    chooseTemplate,
+    allActiveGoalItems,
+    chooseGoalItemFromTypeStep,
     description,
     setDescription,
     amountString,
@@ -558,7 +682,8 @@ export function useLogic() {
       accountsLoading ||
       categoriesLoading ||
       budgetRulesLoading ||
-      (Boolean(prefillCategoryId) && (prefillCategoryLoading || !prefillApplied)),
+      (Boolean(prefillCategoryId) && (prefillCategoryLoading || !prefillApplied)) ||
+      (Boolean(prefillTemplateId) && (templatesLoading || !templateApplied)),
     error: accountsError || categoriesError,
     submitting,
     submitError,

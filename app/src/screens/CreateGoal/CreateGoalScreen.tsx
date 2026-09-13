@@ -1,10 +1,22 @@
 'use client';
 
-import { ChevronLeft } from 'lucide-react';
+import { useState } from 'react';
+import { ChevronLeft, X } from 'lucide-react';
+import { Calendar as HeroCalendar } from '@heroui/react';
+import { parseDate } from '@internationalized/date';
 import { useLogic } from '@/src/logic/createGoal/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
+import { toDateOnly } from '@/src/shared/firestore/taskWrites';
 import styles from './CreateGoalScreen.module.css';
+
+function formatDateOnly(value: string): string {
+  return new Date(`${value}T00:00:00`).toLocaleDateString('en-US', {
+    month: 'short',
+    day: '2-digit',
+    year: 'numeric',
+  });
+}
 
 export function CreateGoalScreen() {
   const strings = useStrings();
@@ -26,6 +38,11 @@ export function CreateGoalScreen() {
     goBack,
     loading,
   } = useLogic();
+
+  const [deadlinePickerOpen, setDeadlinePickerOpen] = useState(false);
+  const [deadlineMonthCursor, setDeadlineMonthCursor] = useState(() =>
+    deadline ? new Date(`${deadline}T00:00:00`) : new Date()
+  );
 
   return (
     <div className={styles.page}>
@@ -108,16 +125,61 @@ export function CreateGoalScreen() {
           </div>
 
           <div className={styles.formField}>
-            <label className={styles.formLabel} htmlFor="goal-deadline">
-              {strings.createGoal.deadlineLabel}
-            </label>
-            <input
-              id="goal-deadline"
-              type="date"
-              className={styles.formInput}
-              value={deadline}
-              onChange={(event) => setDeadline(event.target.value)}
-            />
+            <span className={styles.formLabel}>{strings.createGoal.deadlineLabel}</span>
+            <div className={styles.dateCard}>
+              <div className={styles.dateTriggerRow}>
+                <button
+                  type="button"
+                  className={styles.dateTrigger}
+                  onClick={() => setDeadlinePickerOpen((c) => !c)}
+                >
+                  {deadline ? formatDateOnly(deadline) : strings.createGoal.deadlinePlaceholder}
+                </button>
+                {deadline && (
+                  <button
+                    type="button"
+                    className={styles.clearDateButton}
+                    onClick={() => setDeadline('')}
+                    aria-label="Clear target date"
+                  >
+                    <X size={14} strokeWidth={2} />
+                  </button>
+                )}
+              </div>
+              {deadlinePickerOpen && (
+                <div className={styles.calendarPanel}>
+                  <HeroCalendar.Root
+                    focusedValue={parseDate(toDateOnly(deadlineMonthCursor))}
+                    onFocusChange={(next) => setDeadlineMonthCursor(new Date(next.year, next.month - 1, next.day))}
+                    value={deadline ? parseDate(deadline) : undefined}
+                    onChange={(next) => {
+                      if (next) {
+                        setDeadline(next.toString());
+                        setDeadlinePickerOpen(false);
+                      }
+                    }}
+                  >
+                    <HeroCalendar.Header className={styles.calendarHeader}>
+                      <HeroCalendar.NavButton slot="previous" className={styles.calendarNavButton} />
+                      <HeroCalendar.Heading className={styles.calendarHeading} />
+                      <HeroCalendar.NavButton slot="next" className={styles.calendarNavButton} />
+                    </HeroCalendar.Header>
+                    <HeroCalendar.Grid className={styles.calendarGrid}>
+                      <HeroCalendar.GridHeader>
+                        {(day) => <HeroCalendar.HeaderCell className={styles.weekdayCell}>{day}</HeroCalendar.HeaderCell>}
+                      </HeroCalendar.GridHeader>
+                      <HeroCalendar.GridBody>
+                        {(cellDate) => (
+                          <HeroCalendar.Cell date={cellDate} className={styles.dayCell}>
+                            {({ formattedDate }) => <span className={styles.dayCellInner}>{formattedDate}</span>}
+                          </HeroCalendar.Cell>
+                        )}
+                      </HeroCalendar.GridBody>
+                    </HeroCalendar.Grid>
+                  </HeroCalendar.Root>
+                </div>
+              )}
+            </div>
           </div>
 
           <p className={styles.hintText}>{strings.createGoal.addLineItemsHint}</p>

@@ -21,6 +21,7 @@ import type {
   FirestoreCategory,
   FirestoreTransaction,
   FirestoreTransfer,
+  FirestoreTransactionTemplate,
   FirestoreBudgetRule,
   FirestorePlannedPayment,
   FirestoreSettings,
@@ -89,6 +90,13 @@ export function transfersRef(uid: string): CollectionReference<FirestoreTransfer
 }
 export function transferRef(uid: string, id: string): DocumentReference<Omit<FirestoreTransfer, 'id'>> {
   return subDoc(uid, 'transfers', id) as DocumentReference<Omit<FirestoreTransfer, 'id'>>;
+}
+
+export function transactionTemplatesRef(uid: string): CollectionReference<FirestoreTransactionTemplate> {
+  return sub(uid, 'transactionTemplates') as CollectionReference<FirestoreTransactionTemplate>;
+}
+export function transactionTemplateRef(uid: string, id: string): DocumentReference<Omit<FirestoreTransactionTemplate, 'id'>> {
+  return subDoc(uid, 'transactionTemplates', id) as DocumentReference<Omit<FirestoreTransactionTemplate, 'id'>>;
 }
 
 export function budgetRulesRef(uid: string): CollectionReference<FirestoreBudgetRule> {

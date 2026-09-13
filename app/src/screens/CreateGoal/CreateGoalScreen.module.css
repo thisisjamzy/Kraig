@@ -102,6 +102,146 @@
   resize: none;
 }
 
+/* The target-date field's own card — a plain native <input type="date">
+   used to trigger the browser/OS's own date picker here, which on a PWA
+   could render anchored to the top of the screen instead of under this
+   field. An inline HeroUI calendar, same convention as TaskEdit's own Date
+   row, sizes itself to this card's full width instead. */
+.dateCard {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  overflow: hidden;
+}
+
+.dateTriggerRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 2px;
+}
+
+.dateTrigger {
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-md);
+  border: none;
+  background: none;
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.clearDateButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  margin-right: var(--space-sm);
+  border: none;
+  border-radius: 50%;
+  background: var(--color-background);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.calendarPanel {
+  width: 100%;
+  padding: var(--space-md);
+  border-top: 1px solid var(--color-border);
+  background: var(--color-background);
+}
+
+.calendarHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 0 var(--space-sm);
+}
+
+.calendarNavButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 50%;
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.calendarHeading {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.calendarGrid {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.weekdayCell {
+  padding-bottom: 4px;
+  font-size: 0.625rem;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+.dayCell {
+  padding: 1px;
+  text-align: center;
+  cursor: pointer;
+  outline: none;
+}
+
+.dayCellInner {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  margin: 0 auto;
+  border-radius: 50%;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.dayCell[data-outside-month] .dayCellInner {
+  color: var(--color-text-secondary);
+  opacity: 0.4;
+}
+
+.dayCell[data-today] .dayCellInner {
+  background: color-mix(in srgb, var(--color-brand) 20%, transparent);
+  color: var(--color-text-primary);
+}
+
+.dayCell[data-selected] .dayCellInner {
+  background: var(--ink-bg);
+  color: #ffffff;
+}
+
+.dayCell[data-disabled] .dayCellInner {
+  opacity: 0.3;
+}
+
+.dayCell[data-focus-visible] .dayCellInner {
+  box-shadow: 0 0 0 2px var(--color-brand);
+}
+
 .hintText {
   margin: 0;
   font-size: var(--font-size-sm);

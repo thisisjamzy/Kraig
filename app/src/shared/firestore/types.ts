@@ -142,6 +142,43 @@ export interface FirestoreTransfer {
   backfillBatchId?: string | null;
 }
 
+// A prefilled shortcut for a transaction/transfer a household records often
+// (a daily commute expense, a weekly savings sweep, ...) — src/logic/
+// addTransaction/useLogic.ts reads one via ?templateId= on /add-transaction,
+// applies every field below, and jumps straight to the 'details' step so
+// the person only has to confirm or tweak it before submitting through the
+// exact same write path (createTransactionWithAggregation/
+// createTransferWithAggregation) an ordinary entry uses — a template is
+// never written to the ledger directly. `type` mirrors src/logic/
+// addTransaction/useLogic.ts's own lowercase TransactionType rather than
+// FirestoreCategory's Title-Case transactionType, since that's the
+// vocabulary this collection actually gets read back into.
+export type TransactionTemplateType = 'expense' | 'income' | 'transfer' | 'savings';
+
+export interface FirestoreTransactionTemplate {
+  id: string;
+  name: string; // the template's own label in the template list — never sent to the ledger
+  type: TransactionTemplateType;
+  // A real categories/{id} for expense/income/savings — for transfer (and
+  // savings type with savingsMode 'moved') one of viewmodels/categories.ts's
+  // TRANSFER_CATEGORIES strings instead, same dual-purpose "category" shape
+  // Add Transaction's own transfer step already uses.
+  categoryId: string;
+  description: string;
+  // null means "leave it blank" — a variable-amount recurring entry (e.g. a
+  // fuel top-up) still wants a template for its category/account, just not
+  // a fixed amount applied every time.
+  amount: number | null;
+  // The single account for expense/income/savings(frozen); the source
+  // (debited) account for transfer/savings(moved).
+  accountId: string | null;
+  toAccountId: string | null; // transfer and savings(moved) only
+  charges: number | null; // transfer only — see FirestoreTransfer.charges
+  savingsMode: 'moved' | 'frozen' | null; // type 'savings' only
+  createdAt?: Timestamp;
+  updatedAt?: Timestamp;
+}
+
 export type Frequency = 'Once' | 'Daily' | 'Weekly' | 'Monthly' | 'Quarterly' | 'Yearly';
 export type EndCondition = 'Never' | 'After Occurrences' | 'On Date';
 

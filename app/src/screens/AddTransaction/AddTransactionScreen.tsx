@@ -1,7 +1,9 @@
 'use client';
 
+import { useState } from 'react';
 import {
   ChevronLeft,
+  ChevronRight,
   ArrowUpRight,
   ArrowDownLeft,
   ArrowLeftRight,
@@ -9,6 +11,8 @@ import {
   PiggyBank,
   Delete,
   Check,
+  LayoutTemplate,
+  Target,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Modal } from '@/src/widgets/Modal/Modal';
@@ -40,6 +44,10 @@ export function AddTransactionScreen() {
     linkedGoalItem,
     selectLinkedGoalItem,
     clearLinkedGoalItem,
+    templates,
+    chooseTemplate,
+    allActiveGoalItems,
+    chooseGoalItemFromTypeStep,
     description,
     setDescription,
     amountString,
@@ -98,6 +106,9 @@ export function AddTransactionScreen() {
       ? strings.addTransaction.chooseTransactionPrefix
       : strings.addTransaction.provideTransactionPrefix;
 
+  const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
+  const [lineItemPickerOpen, setLineItemPickerOpen] = useState(false);
+
   return (
     <div className={styles.page}>
       <header className={styles.header}>
@@ -105,6 +116,15 @@ export function AddTransactionScreen() {
           <ChevronLeft size={18} strokeWidth={2} />
         </button>
         <h1 className={styles.title}>{strings.addTransaction.title}</h1>
+        {step === 'type' && (
+          <Link
+            href="/transaction-templates"
+            className={styles.templatesButton}
+            aria-label={strings.addTransaction.useTemplateCta}
+          >
+            <LayoutTemplate size={18} strokeWidth={1.75} />
+          </Link>
+        )}
       </header>
 
       <p className={styles.subheading}>
@@ -134,6 +154,71 @@ export function AddTransactionScreen() {
               </button>
             );
           })}
+        </div>
+      )}
+
+      {/* Two alternative starting points to picking a type by hand — apply
+          a saved template, or settle an existing goal line item — each
+          decides type/category/amount/etc. on its own and jumps straight
+          to the 'details' step, same as the ?templateId= deep link from
+          src/screens/TransactionTemplates already does. */}
+      {step === 'type' && (
+        <div className={styles.shortcutSection}>
+          <div className={styles.listGroup}>
+            <button type="button" className={styles.listRow} onClick={() => setTemplatePickerOpen((c) => !c)}>
+              <span className={styles.listRowIcon}>
+                <LayoutTemplate size={16} strokeWidth={2} />
+              </span>
+              <span className={styles.listRowLabel}>{strings.addTransaction.chooseTemplateLabel}</span>
+              <ChevronRight size={16} strokeWidth={2} className={styles.listRowChevron} />
+            </button>
+            {templatePickerOpen && (
+              <div className={styles.expandPanel}>
+                {templates.length === 0 ? (
+                  <p className={styles.shortcutEmptyText}>{strings.addTransaction.noTemplatesHint}</p>
+                ) : (
+                  templates.map((template) => (
+                    <button
+                      key={template.id}
+                      type="button"
+                      className={styles.optionRow}
+                      onClick={() => chooseTemplate(template.id)}
+                    >
+                      {template.name}
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className={styles.listGroup}>
+            <button type="button" className={styles.listRow} onClick={() => setLineItemPickerOpen((c) => !c)}>
+              <span className={styles.listRowIcon}>
+                <Target size={16} strokeWidth={2} />
+              </span>
+              <span className={styles.listRowLabel}>{strings.addTransaction.selectLineItemLabel}</span>
+              <ChevronRight size={16} strokeWidth={2} className={styles.listRowChevron} />
+            </button>
+            {lineItemPickerOpen && (
+              <div className={styles.expandPanel}>
+                {allActiveGoalItems.length === 0 ? (
+                  <p className={styles.shortcutEmptyText}>{strings.addTransaction.noLineItemsHint}</p>
+                ) : (
+                  allActiveGoalItems.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      className={styles.optionRow}
+                      onClick={() => chooseGoalItemFromTypeStep(item.id)}
+                    >
+                      {item.goalName}: {item.name}
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
