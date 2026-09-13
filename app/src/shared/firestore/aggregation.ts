@@ -1091,6 +1091,7 @@ export interface CreateGoalInput {
   deadline: Date | null;
   currency: string;
   kind: 'Fixed' | 'Variable';
+  type: 'Expense' | 'Income' | 'Savings' | 'Transfer';
 }
 
 export async function createGoal(uid: string, input: CreateGoalInput): Promise<string> {
@@ -1106,6 +1107,7 @@ export async function createGoal(uid: string, input: CreateGoalInput): Promise<s
     deadline: input.deadline ? Timestamp.fromDate(input.deadline) : null,
     archived: false,
     kind: input.kind,
+    type: input.type,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
@@ -1127,14 +1129,17 @@ export interface UpdateGoalInput {
   description: string;
   deadline: Date | null;
   currency: string;
+  kind: 'Fixed' | 'Variable';
+  type: 'Expense' | 'Income' | 'Savings' | 'Transfer';
 }
 
 /**
  * Goal-level fields only — totalAmount/lineItemCount/etc. stay owned by
- * recalcGoalTotals. `kind` is deliberately not editable here — it's a
- * creation-time choice (see CreateGoalInput); changing it after the fact
- * would leave already-created line items' budget rules (or lack thereof)
- * inconsistent with the new kind.
+ * recalcGoalTotals. `kind`/`type` are editable here same as every other
+ * field on the edit form — changing either one only affects which
+ * categories/recurrence options new line items see going forward; any
+ * line item already created keeps its own categoryId/recurrence exactly as
+ * it was, even if that no longer matches the goal's new kind/type.
  */
 export async function updateGoal(uid: string, goalId: string, input: UpdateGoalInput): Promise<void> {
   await updateDoc(goalRef(uid, goalId), {
@@ -1142,8 +1147,37 @@ export async function updateGoal(uid: string, goalId: string, input: UpdateGoalI
     description: input.description,
     deadline: input.deadline ? Timestamp.fromDate(input.deadline) : null,
     currency: input.currency,
+    kind: input.kind,
+    type: input.type,
     updatedAt: serverTimestamp(),
   });
+}
+
+// Permanently removes a goal and every one of its line items — unlike
+// archiveGoal (which only flips archived: true so Settings' own Archived
+// goals screen can always bring it back), this leaves no record behind and
+// can't be undone. A line item's own linked budget rule is archived (not
+// deleted), same as deleteGoalLineItem does for a single item — a budget
+// rule is its own real entity independent of the goal that created it.
+export async function deleteGoal(uid: string, goalId: string): Promise<void> {
+  const itemsSnap = await getDocs(goalLineItemsRef(uid, goalId));
+  const budgetRuleIds = new Set<string>();
+  for (const docSnap of itemsSnap.docs) {
+    const budgetRuleId = docSnap.data().budgetRuleId;
+    if (budgetRuleId) budgetRuleIds.add(budgetRuleId);
+  }
+  const batch = writeBatch(getFirebaseFirestore());
+  for (const docSnap of itemsSnap.docs) {
+    batch.delete(docSnap.ref);
+  }
+  for (const budgetRuleId of budgetRuleIds) {
+    batch.update(budgetRuleRef(uid, budgetRuleId), { archived: true, updatedAt: serverTimestamp() });
+  }
+  batch.delete(goalRef(uid, goalId));
+  await batch.commit();
+  for (const budgetRuleId of budgetRuleIds) {
+    await recomputeBudgetProgressForRuleCurrentMonth(uid, budgetRuleId);
+  }
 }
 
 /**
@@ -1176,6 +1210,8 @@ export interface CreateGoalLineItemInput {
   amount: number;
   priority: Priority;
   necessity: GoalItemNecessity;
+  // For a Transfer goal, a TRANSFER_CATEGORIES kind string rather than a
+  // real categories/{id} — see FirestoreGoalLineItem.categoryId's header.
   categoryId: string;
   // The category's own transactionType — the caller (goalDetail/useLogic.ts)
   // already has this from its own categoryTransactionType map, so this
@@ -1183,7 +1219,12 @@ export interface CreateGoalLineItemInput {
   // auto-created budget rule (or a later addGoalLineItemToBudget call)
   // with the right BudgetLineType.
   categoryType: BudgetLineType;
+  // The FROM account for a Transfer goal's item, same field for every
+  // other goal type.
   accountId: string | null;
+  // Transfer goal items only.
+  toAccountId?: string | null;
+  charges?: number | null;
   dueDate: Date | null;
   // Fixed-goal items only — see FirestoreGoalLineItem.recurrence's header.
   recurrence?: { frequency: Frequency; interval: number } | null;
@@ -1223,6 +1264,8 @@ export async function createGoalLineItem(
     necessity: input.necessity,
     categoryId: input.categoryId,
     accountId: input.accountId,
+    toAccountId: input.toAccountId ?? null,
+    charges: input.charges ?? null,
     dueDate: input.dueDate ? Timestamp.fromDate(input.dueDate) : null,
     recurrence: goalKind === 'Fixed' ? (input.recurrence ?? null) : null,
     budgetRuleId: null,
@@ -1234,6 +1277,7 @@ export async function createGoalLineItem(
     completed: false,
     completedAt: null,
     expenseId: null,
+    transferId: null,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
@@ -1281,6 +1325,8 @@ export async function updateGoalLineItem(
     necessity: input.necessity,
     categoryId: input.categoryId,
     accountId: input.accountId,
+    toAccountId: input.toAccountId ?? null,
+    charges: input.charges ?? null,
     dueDate: input.dueDate ? Timestamp.fromDate(input.dueDate) : null,
     recurrence: input.recurrence ?? null,
     updatedAt: serverTimestamp(),
@@ -1388,10 +1434,16 @@ export interface MarkGoalLineItemCompleteInput {
   // Account wallet (viewmodels/wallets.ts's SAVINGS_ACCOUNT_TYPE), so this
   // is a deposit into it (Inflow), not a frozen-lock like Add Transaction's
   // "frozen savings" mode; an Income-category item also credits accountId
-  // (Inflow) — the expected income actually arriving. Defaults to 'Expense'
-  // — the only behavior this function had before Savings/Income-category
-  // goal items existed.
-  categoryType?: 'Expense' | 'Savings' | 'Income';
+  // (Inflow) — the expected income actually arriving. 'Transfer' takes the
+  // separate branch below entirely (accountId is the FROM side, see
+  // toAccountId/charges). Defaults to 'Expense' — the only behavior this
+  // function had before Savings/Income/Transfer goal items existed.
+  categoryType?: 'Expense' | 'Savings' | 'Income' | 'Transfer';
+  // Transfer goal items only — the account the amount lands in, and the
+  // planned cost of moving it (mirrors createTransferWithAggregation's own
+  // CreateTransferInput).
+  toAccountId?: string | null;
+  charges?: number | null;
 }
 
 /**
@@ -1401,6 +1453,14 @@ export interface MarkGoalLineItemCompleteInput {
  * runTransaction() so a line item can never end up "complete" without the
  * transaction actually existing, or vice versa. The line item's own `amount`
  * is what moves; there's no separate amount to type in here.
+ *
+ * A Transfer goal's item takes a wholly different branch: it moves money
+ * between two of the household's own accounts (categoryId here is a
+ * TRANSFER_CATEGORIES kind string, not a real category) rather than
+ * spending/receiving against one, so it records a real transfer the same
+ * way createTransferWithAggregation does — just inlined into this same
+ * transaction so the line item can't end up "complete" without the transfer
+ * existing either. Linked back via `transferId`, not `expenseId`.
  */
 export async function markGoalLineItemComplete(
   uid: string,
@@ -1413,6 +1473,57 @@ export async function markGoalLineItemComplete(
   const db = getFirebaseFirestore();
   const clientId = crypto.randomUUID();
   const categoryType = input.categoryType ?? 'Expense';
+
+  if (categoryType === 'Transfer') {
+    if (!input.toAccountId) throw new Error('Choose which account this transfer moves money into.');
+    const toAccountId = input.toAccountId;
+    const charges = input.charges ?? 0;
+    const dateTimestamp = Timestamp.fromDate(input.date);
+    const kind = input.categoryId ?? 'Wallet to wallet';
+
+    await runTransaction(db, async (tx) => {
+      const [fromSnap, toSnap] = await Promise.all([tx.get(accountRef(uid, input.accountId)), tx.get(accountRef(uid, toAccountId))]);
+      if (fromSnap.data()?.frozen || toSnap.data()?.frozen) {
+        throw new Error('One of these wallets is frozen — unfreeze it before transferring.');
+      }
+      assertNotBelowLocked(fromSnap.data(), -(lineItemAmount + charges));
+
+      tx.set(transferRef(uid, clientId), {
+        date: dateTimestamp,
+        description: input.description,
+        fromAccountId: input.accountId,
+        toAccountId,
+        amount: lineItemAmount,
+        charges,
+        kind,
+        notes: '',
+        createdBy: uid,
+        createdAt: dateTimestamp,
+      });
+      tx.update(accountRef(uid, input.accountId), { currentBalance: increment(-(lineItemAmount + charges)) });
+      tx.update(accountRef(uid, toAccountId), { currentBalance: increment(lineItemAmount) });
+      tx.set(
+        statsMonthlyRef(uid, monthKey(input.date)),
+        {
+          perCategorySpend: { [kind]: increment(lineItemAmount) },
+          perCategoryCount: { [kind]: increment(1) },
+          lastUpdated: serverTimestamp(),
+        },
+        { merge: true }
+      );
+      tx.update(goalLineItemRef(uid, goalId, lineItemId), {
+        completed: true,
+        completedAt: serverTimestamp(),
+        transferId: clientId,
+        updatedAt: serverTimestamp(),
+      });
+    });
+
+    await recomputeBudgetProgressForCategoryMonth(uid, kind, monthKey(input.date));
+    await recalcGoalTotals(uid, goalId);
+    return;
+  }
+
   const direction = categoryType === 'Expense' ? 'Outflow' : 'Inflow';
 
   await runTransaction(db, async (tx) => {

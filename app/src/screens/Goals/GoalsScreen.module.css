@@ -211,8 +211,8 @@
 
 .exploreRow {
   display: flex;
-  align-items: center;
-  gap: var(--space-sm);
+  flex-direction: column;
+  gap: 6px;
   width: 100%;
   padding: var(--space-md);
   border: none;
@@ -225,6 +225,24 @@
 
 .exploreRow:last-child {
   border-bottom: none;
+}
+
+/* Top line — avatar, name, then the goal's type badge sitting right next
+   to the chevron (name's own flex:1 pushes both flush to the row's right
+   edge, same as the amount/progress line below). */
+.exploreRowTop {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+/* Bottom line — the amount text and the progress bar + percentage share
+   this row, progress flush to the right same as the badge/chevron above. */
+.exploreRowBottom {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding-left: calc(36px + var(--space-sm));
 }
 
 /* One colorful circle per goal (src/viewmodels/goalIcons.ts) — a stable
@@ -244,15 +262,9 @@
   color: var(--color-text-primary);
 }
 
-.exploreRowText {
+.exploreRowName {
   flex: 1;
   min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.exploreRowName {
   font-size: var(--font-size-sm);
   font-weight: 700;
   color: var(--color-text-primary);
@@ -261,7 +273,41 @@
   white-space: nowrap;
 }
 
+/* Tiny badge naming the goal's type — sits right next to the chevron on
+   the row's top line. */
+.typeBadge {
+  flex-shrink: 0;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  font-size: 0.625rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.typeBadgeExpense {
+  background: color-mix(in srgb, var(--color-danger) 14%, transparent);
+  color: var(--color-danger);
+}
+
+.typeBadgeIncome {
+  background: color-mix(in srgb, var(--color-brand) 14%, transparent);
+  color: var(--color-brand);
+}
+
+.typeBadgeSavings {
+  background: color-mix(in srgb, #e8a33d 18%, transparent);
+  color: #b6791f;
+}
+
+.typeBadgeTransfer {
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+}
+
 .exploreRowAmount {
+  flex: 1;
+  min-width: 0;
   font-size: 0.75rem;
   color: var(--color-text-secondary);
   overflow: hidden;
@@ -269,12 +315,12 @@
   white-space: nowrap;
 }
 
-/* The progress bar sits right next to the chevron, both flush to the
-   row's right edge — not tucked against the amount text above. */
-.exploreRowEnd {
+/* Progress bar + its own percentage, flush to the row's right edge on the
+   bottom line — mirrors the badge/chevron pairing on the top line. */
+.exploreRowProgress {
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
+  gap: 6px;
   flex-shrink: 0;
 }
 
@@ -291,6 +337,16 @@
   height: 100%;
   border-radius: inherit;
   background: var(--color-brand);
+}
+
+.exploreRowPercent {
+  flex-shrink: 0;
+  min-width: 2.25em;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-secondary);
+  text-align: right;
 }
 
 .exploreRowChevron {

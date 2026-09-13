@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, Pencil, Trash2, CheckCircle2, Wallet, Plus } from 'lucide-react';
+import { ChevronLeft, Pencil, Archive, Trash2, CheckCircle2, Wallet, Plus } from 'lucide-react';
 import { Modal } from '@/src/widgets/Modal/Modal';
 import { ConfirmDialog } from '@/src/widgets/ConfirmDialog/ConfirmDialog';
 import { ActionMenu } from '@/src/widgets/ActionMenu/ActionMenu';
@@ -18,6 +18,7 @@ export function GoalDetailScreen({ goalId }: { goalId: string }) {
   const strings = useStrings();
   const router = useRouter();
   const [confirmArchive, setConfirmArchive] = useState(false);
+  const [confirmDeleteGoal, setConfirmDeleteGoal] = useState(false);
   const [confirmDeleteItemId, setConfirmDeleteItemId] = useState<string | null>(null);
   const {
     goal,
@@ -29,7 +30,8 @@ export function GoalDetailScreen({ goalId }: { goalId: string }) {
     percent,
     deadline,
     accounts,
-    categories,
+    categoryOptions,
+    isTransferGoal,
 
     handleDeleteLineItem,
     addToBudgetError,
@@ -47,6 +49,10 @@ export function GoalDetailScreen({ goalId }: { goalId: string }) {
     setGoalDeadline,
     goalCurrency,
     setGoalCurrency,
+    goalKind,
+    setGoalKind,
+    goalTypeEdit,
+    setGoalTypeEdit,
     savingGoal,
     goalSaveError,
     handleSaveGoal,
@@ -56,6 +62,10 @@ export function GoalDetailScreen({ goalId }: { goalId: string }) {
     closeMarkComplete,
     completeAccountId,
     setCompleteAccountId,
+    completeToAccountId,
+    setCompleteToAccountId,
+    completeCharges,
+    setCompleteCharges,
     completeCategoryId,
     setCompleteCategoryId,
     completeDate,
@@ -67,6 +77,7 @@ export function GoalDetailScreen({ goalId }: { goalId: string }) {
     handleMarkComplete,
 
     archiveGoal,
+    deleteGoal,
     goBack,
     loading,
     error,
@@ -102,8 +113,15 @@ export function GoalDetailScreen({ goalId }: { goalId: string }) {
               {
                 key: 'archive',
                 label: strings.goalDetail.archiveGoal,
-                icon: <Trash2 size={16} strokeWidth={1.75} />,
+                icon: <Archive size={16} strokeWidth={1.75} />,
                 onSelect: () => setConfirmArchive(true),
+                danger: true,
+              },
+              {
+                key: 'delete',
+                label: strings.goalDetail.deleteGoal,
+                icon: <Trash2 size={16} strokeWidth={1.75} />,
+                onSelect: () => setConfirmDeleteGoal(true),
                 danger: true,
               },
             ]}
@@ -242,7 +260,7 @@ export function GoalDetailScreen({ goalId }: { goalId: string }) {
         <Modal title={strings.markLineItemComplete.title} onClose={closeMarkComplete}>
           <div className={styles.formField}>
             <label className={styles.formLabel} htmlFor="complete-account">
-              {strings.markLineItemComplete.accountLabel}
+              {isTransferGoal ? strings.markLineItemComplete.fromAccountLabel : strings.markLineItemComplete.accountLabel}
             </label>
             <select
               id="complete-account"
@@ -257,9 +275,30 @@ export function GoalDetailScreen({ goalId }: { goalId: string }) {
               ))}
             </select>
           </div>
+          {isTransferGoal && (
+            <div className={styles.formField}>
+              <label className={styles.formLabel} htmlFor="complete-to-account">
+                {strings.markLineItemComplete.toAccountLabel}
+              </label>
+              <select
+                id="complete-to-account"
+                className={styles.formInput}
+                value={completeToAccountId}
+                onChange={(event) => setCompleteToAccountId(event.target.value)}
+              >
+                {accounts
+                  .filter((account) => account.id !== completeAccountId)
+                  .map((account) => (
+                    <option key={account.id} value={account.id}>
+                      {account.name}
+                    </option>
+                  ))}
+              </select>
+            </div>
+          )}
           <div className={styles.formField}>
             <label className={styles.formLabel} htmlFor="complete-category">
-              {strings.markLineItemComplete.categoryLabel}
+              {isTransferGoal ? strings.markLineItemComplete.transferTypeLabel : strings.markLineItemComplete.categoryLabel}
             </label>
             <select
               id="complete-category"
@@ -267,13 +306,27 @@ export function GoalDetailScreen({ goalId }: { goalId: string }) {
               value={completeCategoryId}
               onChange={(event) => setCompleteCategoryId(event.target.value)}
             >
-              {categories.map((category) => (
+              {categoryOptions.map((category) => (
                 <option key={category.id} value={category.id}>
                   {category.name}
                 </option>
               ))}
             </select>
           </div>
+          {isTransferGoal && (
+            <div className={styles.formField}>
+              <label className={styles.formLabel} htmlFor="complete-charges">
+                {strings.markLineItemComplete.chargesLabel}
+              </label>
+              <input
+                id="complete-charges"
+                inputMode="numeric"
+                className={styles.formInput}
+                value={completeCharges}
+                onChange={(event) => setCompleteCharges(event.target.value.replace(/[^0-9.]/g, ''))}
+              />
+            </div>
+          )}
           <div className={styles.formField}>
             <label className={styles.formLabel} htmlFor="complete-date">
               {strings.markLineItemComplete.dateLabel}
@@ -304,7 +357,11 @@ export function GoalDetailScreen({ goalId }: { goalId: string }) {
           <button
             type="button"
             className={styles.modalSaveButton}
-            disabled={!completeAccountId || completing}
+            disabled={
+              !completeAccountId ||
+              completing ||
+              (isTransferGoal && (!completeToAccountId || completeToAccountId === completeAccountId))
+            }
             onClick={handleMarkComplete}
           >
             {completing ? strings.markLineItemComplete.saving : strings.markLineItemComplete.save}
@@ -366,6 +423,37 @@ export function GoalDetailScreen({ goalId }: { goalId: string }) {
               ))}
             </select>
           </div>
+          <div className={styles.formField}>
+            <label className={styles.formLabel} htmlFor="goal-type">
+              {strings.createGoal.typeLabel}
+            </label>
+            <select
+              id="goal-type"
+              className={styles.formInput}
+              value={goalTypeEdit}
+              onChange={(event) => setGoalTypeEdit(event.target.value as typeof goalTypeEdit)}
+            >
+              <option value="Expense">{strings.createGoal.typeExpense}</option>
+              <option value="Income">{strings.createGoal.typeIncome}</option>
+              <option value="Savings">{strings.createGoal.typeSavings}</option>
+              <option value="Transfer">{strings.createGoal.typeTransfer}</option>
+            </select>
+          </div>
+          <div className={styles.formField}>
+            <label className={styles.formLabel} htmlFor="goal-kind">
+              {strings.createGoal.kindLabel}
+            </label>
+            <select
+              id="goal-kind"
+              className={styles.formInput}
+              value={goalKind}
+              onChange={(event) => setGoalKind(event.target.value as typeof goalKind)}
+            >
+              <option value="Variable">{strings.createGoal.kindVariable}</option>
+              <option value="Fixed">{strings.createGoal.kindFixed}</option>
+            </select>
+          </div>
+          <p className={styles.hintText}>{strings.goalDetail.editKindTypeHint}</p>
           {goalSaveError && <p className={styles.errorText}>{goalSaveError}</p>}
           <button
             type="button"
@@ -389,6 +477,20 @@ export function GoalDetailScreen({ goalId }: { goalId: string }) {
             archiveGoal();
           }}
           onCancel={() => setConfirmArchive(false)}
+        />
+      )}
+
+      {confirmDeleteGoal && (
+        <ConfirmDialog
+          title={strings.goals.deleteGoalConfirmTitle}
+          message={strings.goals.deleteGoalConfirmMessage}
+          confirmLabel={strings.goals.deleteGoalAction}
+          cancelLabel={strings.common.cancel}
+          onConfirm={() => {
+            setConfirmDeleteGoal(false);
+            deleteGoal();
+          }}
+          onCancel={() => setConfirmDeleteGoal(false)}
         />
       )}
 

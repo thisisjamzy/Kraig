@@ -100,6 +100,12 @@
   color: var(--color-text-secondary);
 }
 
+.rowActions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 6px;
+}
+
 .restoreButton {
   display: flex;
   align-items: center;
@@ -113,6 +119,23 @@
   font-size: 0.75rem;
   font-weight: 700;
   color: var(--color-text-primary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.deleteButton {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  padding: 6px var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: none;
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color-danger);
   cursor: pointer;
   white-space: nowrap;
 }

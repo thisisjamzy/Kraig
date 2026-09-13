@@ -11,7 +11,7 @@ import { useFirestoreCollection } from '@/src/shared/firestore/hooks';
 import { goalsRef } from '@/src/shared/firestore/refs';
 import { useCurrencyContext } from '@/src/shared/firestore/queries';
 import { toDisplay, round2 } from '@/src/shared/firestore/currency';
-import { restoreGoal as restoreGoalWrite } from '@/src/shared/firestore/aggregation';
+import { restoreGoal as restoreGoalWrite, deleteGoal as deleteGoalWrite } from '@/src/shared/firestore/aggregation';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import type { FirestoreGoal } from '@/src/shared/firestore/types';
 
@@ -46,6 +46,11 @@ export function useLogic() {
     await restoreGoalWrite(uid, id);
   }
 
+  async function deleteGoal(id: string) {
+    if (!uid) return;
+    await deleteGoalWrite(uid, id);
+  }
+
   function goBack() {
     router.push('/settings');
   }
@@ -53,6 +58,7 @@ export function useLogic() {
   return {
     goals,
     restoreGoal,
+    deleteGoal,
     goBack,
     loading: ctxLoading || goalsLoading,
     error,

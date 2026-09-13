@@ -62,8 +62,9 @@ export function GoalLineItemFormScreen({ goalId, itemId }: { goalId: string; ite
   const {
     goal,
     isFixedGoal,
+    isTransferGoal,
     lineItems,
-    categories,
+    categoryOptions,
 
     openAdd,
     editingItemId,
@@ -82,6 +83,10 @@ export function GoalLineItemFormScreen({ goalId, itemId }: { goalId: string; ite
     setItemCategoryId,
     itemAccountId,
     setItemAccountId,
+    itemToAccountId,
+    setItemToAccountId,
+    itemCharges,
+    setItemCharges,
     itemDueDate,
     setItemDueDate,
     itemRecurrenceFrequency,
@@ -116,6 +121,7 @@ export function GoalLineItemFormScreen({ goalId, itemId }: { goalId: string; ite
   const [priorityPickerOpen, setPriorityPickerOpen] = useState(false);
   const [necessityPickerOpen, setNecessityPickerOpen] = useState(false);
   const [accountPickerOpen, setAccountPickerOpen] = useState(false);
+  const [toAccountPickerOpen, setToAccountPickerOpen] = useState(false);
   const [recurrencePickerOpen, setRecurrencePickerOpen] = useState(false);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [dateMonthCursor, setDateMonthCursor] = useState(() =>
@@ -123,8 +129,10 @@ export function GoalLineItemFormScreen({ goalId, itemId }: { goalId: string; ite
   );
 
   const isEditing = Boolean(editingItemId);
-  const selectedCategory = categories.find((category) => category.id === itemCategoryId) ?? null;
-  const selectedAccount = accountOptionsForCategory(itemCategoryId).find((account) => account.id === itemAccountId) ?? null;
+  const selectedCategory = categoryOptions.find((category) => category.id === itemCategoryId) ?? null;
+  const accountOptions = accountOptionsForCategory(itemCategoryId);
+  const selectedAccount = accountOptions.find((account) => account.id === itemAccountId) ?? null;
+  const selectedToAccount = accountOptions.find((account) => account.id === itemToAccountId) ?? null;
 
   // A Fixed item's due date IS its recurrence anchor (see the .listGroup
   // comment above) — what "day" actually means depends on which frequency
@@ -232,6 +240,18 @@ export function GoalLineItemFormScreen({ goalId, itemId }: { goalId: string; ite
               onChange={(event) => setItemAmount(event.target.value.replace(/[^0-9.]/g, ''))}
               placeholder={strings.goalDetail.amountLabel}
             />
+            {isTransferGoal && (
+              <>
+                <div className={styles.cardDivider} />
+                <input
+                  className={styles.amountInput}
+                  inputMode="numeric"
+                  value={itemCharges}
+                  onChange={(event) => setItemCharges(event.target.value.replace(/[^0-9.]/g, ''))}
+                  placeholder={strings.goalDetail.chargesLabel}
+                />
+              </>
+            )}
             <div className={styles.cardDivider} />
             <textarea
               className={styles.notesInput}
@@ -247,13 +267,15 @@ export function GoalLineItemFormScreen({ goalId, itemId }: { goalId: string; ite
               <span className={styles.listRowIcon}>
                 <Tag size={16} strokeWidth={2} />
               </span>
-              <span className={styles.listRowLabel}>{strings.goalDetail.categoryLabel}</span>
+              <span className={styles.listRowLabel}>
+                {isTransferGoal ? strings.goalDetail.transferTypeLabel : strings.goalDetail.categoryLabel}
+              </span>
               <span className={styles.listRowValue}>{selectedCategory ? selectedCategory.name : strings.goalDetail.noCategory}</span>
               <ChevronRight size={16} strokeWidth={2} className={styles.listRowChevron} />
             </button>
             {categoryPickerOpen && (
               <div className={styles.expandPanel}>
-                {categories.map((category) => (
+                {categoryOptions.map((category) => (
                   <button
                     key={category.id}
                     type="button"
@@ -335,23 +357,27 @@ export function GoalLineItemFormScreen({ goalId, itemId }: { goalId: string; ite
               <span className={styles.listRowIcon}>
                 <Wallet size={16} strokeWidth={2} />
               </span>
-              <span className={styles.listRowLabel}>{strings.goalDetail.accountLabel}</span>
+              <span className={styles.listRowLabel}>
+                {isTransferGoal ? strings.goalDetail.fromAccountLabel : strings.goalDetail.accountLabel}
+              </span>
               <span className={styles.listRowValue}>{selectedAccount ? selectedAccount.name : strings.goalDetail.accountNone}</span>
               <ChevronRight size={16} strokeWidth={2} className={styles.listRowChevron} />
             </button>
             {accountPickerOpen && (
               <div className={styles.expandPanel}>
-                <button
-                  type="button"
-                  className={`${styles.optionRow} ${!itemAccountId ? styles.optionRowActive : ''}`}
-                  onClick={() => {
-                    setItemAccountId('');
-                    setAccountPickerOpen(false);
-                  }}
-                >
-                  {strings.goalDetail.accountNone}
-                </button>
-                {accountOptionsForCategory(itemCategoryId).map((account) => (
+                {!isTransferGoal && (
+                  <button
+                    type="button"
+                    className={`${styles.optionRow} ${!itemAccountId ? styles.optionRowActive : ''}`}
+                    onClick={() => {
+                      setItemAccountId('');
+                      setAccountPickerOpen(false);
+                    }}
+                  >
+                    {strings.goalDetail.accountNone}
+                  </button>
+                )}
+                {accountOptions.map((account) => (
                   <button
                     key={account.id}
                     type="button"
@@ -367,6 +393,40 @@ export function GoalLineItemFormScreen({ goalId, itemId }: { goalId: string; ite
               </div>
             )}
           </div>
+
+          {isTransferGoal && (
+            <div className={styles.listGroup}>
+              <button type="button" className={styles.listRow} onClick={() => setToAccountPickerOpen((c) => !c)}>
+                <span className={styles.listRowIcon}>
+                  <Wallet size={16} strokeWidth={2} />
+                </span>
+                <span className={styles.listRowLabel}>{strings.goalDetail.toAccountLabel}</span>
+                <span className={styles.listRowValue}>
+                  {selectedToAccount ? selectedToAccount.name : strings.goalDetail.accountNone}
+                </span>
+                <ChevronRight size={16} strokeWidth={2} className={styles.listRowChevron} />
+              </button>
+              {toAccountPickerOpen && (
+                <div className={styles.expandPanel}>
+                  {accountOptions
+                    .filter((account) => account.id !== itemAccountId)
+                    .map((account) => (
+                      <button
+                        key={account.id}
+                        type="button"
+                        className={`${styles.optionRow} ${itemToAccountId === account.id ? styles.optionRowActive : ''}`}
+                        onClick={() => {
+                          setItemToAccountId(account.id);
+                          setToAccountPickerOpen(false);
+                        }}
+                      >
+                        {account.name}
+                      </button>
+                    ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Repeats comes before Due date for a Fixed item — the due date
               picked below is read directly as this recurrence's own anchor

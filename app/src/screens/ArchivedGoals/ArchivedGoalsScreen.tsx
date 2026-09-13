@@ -1,15 +1,18 @@
 'use client';
 
-import { ChevronLeft, RotateCcw } from 'lucide-react';
+import { useState } from 'react';
+import { ChevronLeft, RotateCcw, Trash2 } from 'lucide-react';
 import { useLogic } from '@/src/logic/archivedGoals/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
+import { ConfirmDialog } from '@/src/widgets/ConfirmDialog/ConfirmDialog';
 import { formatAmount } from '@/src/screens/Goals/GoalsScreen';
 import styles from './ArchivedGoalsScreen.module.css';
 
 export function ArchivedGoalsScreen() {
   const strings = useStrings();
-  const { goals, restoreGoal, goBack, loading, error } = useLogic();
+  const { goals, restoreGoal, deleteGoal, goBack, loading, error } = useLogic();
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   return (
     <div className={styles.page}>
@@ -36,18 +39,43 @@ export function ArchivedGoalsScreen() {
                   {formatAmount(goal.total)} {goal.currency}
                 </span>
               </div>
-              <button
-                type="button"
-                className={styles.restoreButton}
-                onClick={() => restoreGoal(goal.id)}
-                aria-label={strings.archivedGoals.restoreAction}
-              >
-                <RotateCcw size={14} strokeWidth={2} />
-                {strings.archivedGoals.restoreAction}
-              </button>
+              <div className={styles.rowActions}>
+                <button
+                  type="button"
+                  className={styles.restoreButton}
+                  onClick={() => restoreGoal(goal.id)}
+                  aria-label={strings.archivedGoals.restoreAction}
+                >
+                  <RotateCcw size={14} strokeWidth={2} />
+                  {strings.archivedGoals.restoreAction}
+                </button>
+                <button
+                  type="button"
+                  className={styles.deleteButton}
+                  onClick={() => setConfirmDeleteId(goal.id)}
+                  aria-label={strings.archivedGoals.deleteAction}
+                >
+                  <Trash2 size={14} strokeWidth={2} />
+                  {strings.archivedGoals.deleteAction}
+                </button>
+              </div>
             </div>
           ))}
         </div>
+      )}
+
+      {confirmDeleteId && (
+        <ConfirmDialog
+          title={strings.archivedGoals.deleteConfirmTitle}
+          message={strings.archivedGoals.deleteConfirmMessage}
+          confirmLabel={strings.archivedGoals.deleteAction}
+          cancelLabel={strings.common.cancel}
+          onConfirm={() => {
+            deleteGoal(confirmDeleteId);
+            setConfirmDeleteId(null);
+          }}
+          onCancel={() => setConfirmDeleteId(null)}
+        />
       )}
     </div>
   );

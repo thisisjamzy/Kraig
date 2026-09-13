@@ -60,6 +60,7 @@ export function useLogic() {
             id: goal.id,
             name: goal.name,
             kind: goal.kind ?? 'Variable',
+            type: goal.type ?? 'Expense',
             total,
             completed,
             remaining: round2(Math.max(total - completed, 0)),
@@ -167,8 +168,10 @@ export function useLogic() {
               // instead of silently defaulting to Variable like the filter
               // above does.
               goalKindRaw: goal.kind,
+              goalType: goal.type ?? 'Expense',
               name: item.name,
               amount: item.amount,
+              charges: item.charges ?? 0,
               currency: goal.currency,
               priority: item.priority ?? DEFAULT_PRIORITY,
               necessity: item.necessity ?? DEFAULT_NECESSITY,
@@ -199,12 +202,21 @@ export function useLogic() {
     const now = new Date();
     let fixed = 0;
     let variable = 0;
+    // What a Transfer goal "spends" is its charges — the fee to move money
+    // between the user's own accounts, not the amount moved itself (moving
+    // your own money isn't spend). Kept out of fixed/variable entirely
+    // rather than folded into either, hence its own card on the dashboard.
+    let transfers = 0;
     for (const item of allLineItems) {
       if (!item.completed) continue;
       if (
         range === 'month' &&
         !(item.completedAt && item.completedAt.getFullYear() === now.getFullYear() && item.completedAt.getMonth() === now.getMonth())
       ) {
+        continue;
+      }
+      if (item.goalType === 'Transfer') {
+        transfers += toDisplay(ctx, item.charges, item.currency);
         continue;
       }
       const amount = toDisplay(ctx, item.amount, item.currency);
@@ -216,6 +228,7 @@ export function useLogic() {
       dedicated,
       fixed: round2(fixed),
       variable: round2(variable),
+      transfers: round2(transfers),
       percentOfMonthBudget: monthTotalBudget > 0 ? Math.round((dedicated / monthTotalBudget) * 100) : 0,
     };
   }, [allLineItems, range, ctx, monthTotalBudget]);
