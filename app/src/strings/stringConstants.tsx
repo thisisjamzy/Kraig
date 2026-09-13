@@ -404,11 +404,7 @@ export const stringConstants = {
 
   addTransaction: {
     title: 'Add transaction',
-    useTemplateCta: 'Use a template',
     chooseTemplateLabel: 'Choose a template',
-    noTemplatesHint: 'No templates yet — save one from Settings, or from the template icon above.',
-    selectLineItemLabel: 'Select a line item',
-    noLineItemsHint: 'No open goal line items to settle right now.',
     chooseTransactionPrefix: 'Choose transaction',
     provideTransactionPrefix: 'Provide transaction',
     stepType: 'type',
@@ -478,6 +474,7 @@ export const stringConstants = {
     hint: 'Tap a template to prefill a new transaction — you can still confirm or edit it before saving.',
     empty: 'No templates yet — save one from here, or from Settings.',
     createCta: 'New template',
+    actionsCta: 'Template actions',
     editCta: 'Edit',
     deleteCta: 'Delete',
     deleting: 'Deleting…',

@@ -52,54 +52,82 @@
   color: var(--color-text-secondary);
 }
 
+/* One bordered, rounded card per template (not a single container with
+   dividers) — each carries its own name, type/category/account tags, and
+   amount, the same "proper card with details" shape src/screens/GoalItems
+   and src/screens/SelectLineItem use for their own list items. */
 .templateList {
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
+  gap: var(--space-sm);
   margin-bottom: 72px;
 }
 
-.templateRow {
+.templateCard {
   display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  padding: var(--space-md) var(--space-lg);
-  border-bottom: 1px solid var(--color-border);
-  background: var(--color-background);
-}
-
-.templateRow:last-child {
-  border-bottom: none;
-}
-
-.templateApply {
-  display: flex;
-  flex: 1;
-  min-width: 0;
   flex-direction: column;
-  gap: 2px;
-  border: none;
-  background: none;
-  font-family: inherit;
-  text-align: left;
+  gap: var(--space-xs);
+  padding: var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-background);
   cursor: pointer;
 }
 
-.templateName {
-  font-size: var(--font-size-sm);
-  font-weight: 700;
-  color: var(--color-text-primary);
+.templateCardHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-sm);
 }
 
-.templateMeta {
+.templateName {
+  min-width: 0;
+  font-size: var(--font-size-md);
+  font-weight: 700;
+  color: var(--color-text-primary);
+  overflow-wrap: break-word;
+}
+
+/* Badges + description stacked on the left, amount on the right of that
+   same row — align-items: flex-end so the amount lines up with the
+   description (the bottom line of the left stack) rather than floating
+   above it. */
+.templateTagRow {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.templateLeft {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.templateBadges {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 4px;
+}
+
+.templateDescription {
   font-size: 0.75rem;
   color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.templateAmount {
+  flex-shrink: 0;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  white-space: nowrap;
 }
 
 .typeTag {
@@ -111,6 +139,24 @@
   color: var(--color-text-primary);
 }
 
+.categoryTag {
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--color-brand) 16%, transparent);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: var(--color-brand);
+}
+
+.accountTag {
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+}
+
 .iconButton {
   display: flex;
   align-items: center;
@@ -118,24 +164,9 @@
   width: 28px;
   height: 28px;
   flex-shrink: 0;
-  border-radius: 50%;
-  border: 1px solid var(--color-border);
+  border: none;
   background: none;
   color: var(--color-text-secondary);
-  cursor: pointer;
-}
-
-.iconButtonDanger {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  flex-shrink: 0;
-  border-radius: 50%;
-  border: 1px solid color-mix(in srgb, var(--color-danger) 40%, transparent);
-  background: none;
-  color: var(--color-danger);
   cursor: pointer;
 }
 
