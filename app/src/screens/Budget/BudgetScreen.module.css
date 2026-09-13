@@ -5,14 +5,21 @@
   padding: var(--space-lg);
 }
 
-/* A plain flex row, first item in .page's own flex column — no sticky
-   positioning and no full-bleed negative-margin trick. Those made this
-   bar float over the total-budget card below it instead of simply taking
-   its place in the page's normal top-to-bottom flow. */
+/* Sticks just below the fixed AppHeader (top offset matches AppContent's
+   own .withHeader clearance) rather than at the viewport's very top —
+   pinning it to top: 0 here previously made it float over the
+   total-budget card instead of sitting under the app header. */
 .header {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
+  position: sticky;
+  top: calc(84px + env(safe-area-inset-top));
+  z-index: 15;
+  margin-left: calc(-1 * var(--space-lg));
+  margin-right: calc(-1 * var(--space-lg));
+  padding: var(--space-sm) var(--space-lg);
+  background: var(--color-page);
 }
 
 .headerText {
