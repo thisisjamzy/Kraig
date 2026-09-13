@@ -53,14 +53,13 @@ export function useLogic(goalId: string) {
     useFirestoreCollection<FirestoreGoalLineItem>(lineItemsQuery);
 
   const { data: accounts, loading: accountsLoading } = useAccounts();
-  // A goal item is never money coming in — only Expense/Savings categories
-  // are ever relevant here, so Income is dropped even though useCategories()
-  // itself returns every non-archived category.
-  const { data: allCategories, loading: categoriesLoading } = useCategories();
-  const categories = useMemo(
-    () => allCategories.filter((category) => category.transactionType !== 'Income'),
-    [allCategories]
-  );
+  // Every category type is fair game for a goal item now, Income included —
+  // "dedicated" for an Income category means the household knows exactly
+  // where that money is expected to come from (a specific client, employer,
+  // etc.), the same way it means "knows exactly what it's for" for an
+  // Expense category and "knows exactly where it's going and when" for a
+  // Savings one.
+  const { data: categories, loading: categoriesLoading } = useCategories();
   const categoryTransactionType = useMemo(
     () => new Map(categories.map((category) => [category.id, category.transactionType])),
     [categories]
@@ -70,9 +69,11 @@ export function useLogic(goalId: string) {
     return (id: string | undefined | null) => (id && map.get(id)) || id || 'No category';
   }, [categories]);
   // A Savings-category item can only earmark a Savings Account (that's the
-  // only place "savings" actually lives); an Expense-category item can only
-  // earmark a spendable, non-frozen wallet — same split addTransaction's own
-  // spendableAccounts already enforces for a direct Expense.
+  // only place "savings" actually lives); an Expense- or Income-category
+  // item can only earmark a spendable, non-frozen wallet — same split
+  // addTransaction's own spendableAccounts already enforces for a direct
+  // Expense (an expected Income deposit lands in a spendable wallet the
+  // same way a real one would).
   const nonFrozenAccounts = useMemo(() => accounts.filter((account) => !account.frozen), [accounts]);
   const spendableAccounts = useMemo(
     () => nonFrozenAccounts.filter((account) => !isSavingsAccount(account)),
@@ -205,8 +206,7 @@ export function useLogic(goalId: string) {
         recurrence: isFixedGoal ? { frequency: itemRecurrenceFrequency, interval: 1 } : null,
       };
       if (editingItemId) {
-        const existing = lineItemDocs.find((item) => item.id === editingItemId);
-        await updateGoalLineItem(uid, goalId, editingItemId, existing?.budgetRuleId, input);
+        await updateGoalLineItem(uid, goalId, editingItemId, input);
       } else {
         await createGoalLineItem(uid, goalId, goal?.kind ?? 'Variable', input);
       }
@@ -287,7 +287,7 @@ export function useLogic(goalId: string) {
           categoryId: completeCategoryId || null,
           date: new Date(`${completeDate}T00:00:00`),
           description: completeDescription,
-          categoryType: categoryTransactionType.get(completeCategoryId) === 'Savings' ? 'Savings' : 'Expense',
+          categoryType: categoryTransactionType.get(completeCategoryId) ?? 'Expense',
         },
         ctx
       );

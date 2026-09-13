@@ -289,15 +289,15 @@ export function useLogic() {
   const categoryName = categoriesForType.find((option) => option.id === category)?.name ?? category;
   const budgetedCategoriesForType = categoriesForType.filter((option) => budgetedCategoryIds.has(option.id));
 
-  // Recording an Expense or Savings can be linked to an incomplete goal
-  // line item instead of a plain transaction — submitting then calls
+  // Recording an Expense, Income, or Savings can be linked to an incomplete
+  // goal line item instead of a plain transaction — submitting then calls
   // markGoalLineItemComplete (goalDetail's own "mark complete" write) so
   // the item's payment status updates too, rather than creating an
-  // unlinked transaction. Only offered for expense/savings (a goal item is
-  // never Income-flavored) and only against items whose own category is
-  // one of THIS type's categories (fetchedCategories is already filtered
-  // to CATEGORY_TYPE[type]), so a Savings pick never lists an Expense item
-  // or vice versa.
+  // unlinked transaction. Not offered for a transfer (a goal item is never
+  // Transfer-flavored) and only against items whose own category is one of
+  // THIS type's categories (fetchedCategories is already filtered to
+  // CATEGORY_TYPE[type]), so a Savings pick never lists an Expense item or
+  // vice versa.
   const { data: activeGoals } = useFirestoreCollection<FirestoreGoal>(
     useMemo(() => (uid ? query(goalsRef(uid), where('archived', '==', false)) : null), [uid])
   );
@@ -305,7 +305,7 @@ export function useLogic() {
   const [linkedGoalItemId, setLinkedGoalItemId] = useState('');
   const goalNameById = useMemo(() => new Map(activeGoals.map((goal) => [goal.id, goal.name])), [activeGoals]);
   const linkableGoalItems = useMemo(() => {
-    if (type !== 'expense' && type !== 'savings') return [];
+    if (type === 'transfer') return [];
     const fetchedCategoryIds = new Set(fetchedCategories.map((cat) => cat.id));
     return Object.values(itemsByGoal)
       .flat()
@@ -491,7 +491,7 @@ export function useLogic() {
             categoryId: category || linkedGoalItem.categoryId,
             date,
             description,
-            categoryType: type === 'savings' ? 'Savings' : 'Expense',
+            categoryType: type === 'savings' ? 'Savings' : type === 'income' ? 'Income' : 'Expense',
           },
           ctx
         );

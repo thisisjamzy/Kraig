@@ -1,0 +1,58 @@
+/* No padding-bottom here for the fixed GoalsBottomNav — AppContent's own
+   .withBottomNav already reserves that space for every Goals-app route
+   (chromeVisibility.ts's navMode). */
+.page {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  padding: var(--space-lg);
+  padding-top: calc(var(--space-lg) + env(safe-area-inset-top));
+  gap: var(--space-lg);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-background);
+}
+
+.cardHeaderRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.cardTitle {
+  margin: 0;
+  font-size: var(--font-size-md);
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.proportionsFilterButton {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  padding: 6px var(--space-md);
+  border: none;
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.emptyText {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}

@@ -1,8 +1,28 @@
+/* `clip`, not `hidden` — this is the actual fix, not a cosmetic swap.
+   `overflow-x: hidden` alone silently coerces the computed overflow-y to
+   `auto` (CSS Overflow spec: if one axis isn't "visible", the other axis's
+   "visible" is forced to "auto" — and this coercion fires on the COMPUTED
+   value, so explicitly writing `overflow-y: visible` here does nothing,
+   it still gets coerced). An auto/hidden/scroll value on either axis makes
+   this element a scroll container, and every drill-down screen's own
+   `position: sticky` header lives inside it — a sticky element sticks
+   relative to its NEAREST scroll container, so every one of those headers
+   was sticking relative to THIS element's scroll offset (which never
+   changes; this box's height is unconstrained so the real scrolling always
+   happens on body) instead of the page's real scroll, and just scrolled
+   away instead of pinning. `overflow: clip` (both axes, explicitly, so
+   neither is left "visible" for the coercion to grab) still clips content
+   past this box exactly like `hidden` did, but per spec does NOT create a
+   scroll container — so position: sticky correctly skips past this element
+   and sticks against the real page scroll on body/html instead. Requires
+   Safari 16+; this codebase already requires that for color-mix(), used
+   throughout Budget's own CSS. */
 .content {
   width: 100%;
   max-width: var(--app-max-width);
   flex: 1;
-  overflow-x: hidden;
+  overflow-x: clip;
+  overflow-y: clip;
 }
 
 .withHeader {
@@ -15,13 +35,14 @@
 
 /* Printing (window.print(), e.g. a report's "Export as PDF" button)
    should fill the actual paper/PDF page width — this mobile-frame
-   max-width and its overflow-x: hidden exist for the on-screen app shell
+   max-width and its overflow: clip exist for the on-screen app shell
    only, and would otherwise clip anything wider than a phone's viewport
    right at the printed page's edge with no way to scroll to see it. */
 @media print {
   .content {
     max-width: none;
     overflow-x: visible;
+    overflow-y: visible;
     padding-top: 0;
     padding-bottom: 0;
   }

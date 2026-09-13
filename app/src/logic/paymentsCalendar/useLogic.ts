@@ -166,9 +166,7 @@ export function useLogic() {
           categoryId: payment.categoryId || null,
           date: now,
           description: payment.title,
-          categoryType: categories.find((category) => category.id === payment.categoryId)?.transactionType === 'Savings'
-            ? 'Savings'
-            : 'Expense',
+          categoryType: categories.find((category) => category.id === payment.categoryId)?.transactionType ?? 'Expense',
         },
         ctx
       );

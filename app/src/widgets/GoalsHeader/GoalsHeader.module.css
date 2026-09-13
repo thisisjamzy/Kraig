@@ -1,0 +1,74 @@
+/* Same sticky-header pattern every drill-down screen's own .header uses
+   (full-bleed via negative margins, flush against the very top, pinned on
+   scroll) — see e.g. src/screens/WalletDetail/WalletDetailScreen.module.css.
+   Each Goals tab's own .page still owns the padding this cancels out. */
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  position: sticky;
+  top: 0;
+  z-index: 15;
+  margin-top: calc(-1 * (var(--space-lg) + env(safe-area-inset-top)));
+  margin-left: calc(-1 * var(--space-lg));
+  margin-right: calc(-1 * var(--space-lg));
+  padding-top: calc(var(--space-lg) + env(safe-area-inset-top));
+  padding-left: var(--space-lg);
+  padding-right: var(--space-lg);
+  padding-bottom: var(--space-sm);
+  background: var(--color-page);
+}
+
+.backButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  background: none;
+  color: var(--color-text-primary);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.title {
+  margin: 0;
+  min-width: 0;
+  flex: 1;
+  font-family: var(--font-family-heading);
+  font-size: var(--font-size-xl);
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+/* Same size/shape as AppHeader's own ModeSwitch (Money/Time) — a compact
+   pill, not a full-width segmented control. */
+.rangeToggle {
+  display: flex;
+  flex-shrink: 0;
+  gap: 2px;
+  padding: 2px;
+  background: var(--color-surface);
+  border-radius: var(--radius-full);
+}
+
+.rangeSegment {
+  border: none;
+  background: none;
+  font-family: inherit;
+  padding: 6px var(--space-md);
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.rangeSegmentActive {
+  background: var(--ink-bg);
+  color: #ffffff;
+}

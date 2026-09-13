@@ -8,52 +8,77 @@
   gap: var(--space-lg);
 }
 
-/* Now a drill-down page (no more AppHeader/BottomNav — see
-   chromeVisibility.ts), so it carries its own back button and top inset,
-   same pattern as src/screens/Categories/CategoriesScreen.module.css. */
-.header {
+/* Dark hero card — Goals' own dashboard headline, same neutral "always
+   dark" tokens the bottom-nav pills use (not a brand-colored gradient like
+   Budget's own total card) — reads as this mini-app's own visual identity.
+   dedicatedTotals.dedicated (src/logic/goals/useLogic.ts) already respects
+   the Month/All-time toggle. */
+.heroCard {
   display: flex;
-  align-items: center;
-  gap: var(--space-md);
-  position: sticky;
-  top: 0;
-  z-index: 15;
-  margin-top: calc(-1 * (var(--space-lg) + env(safe-area-inset-top)));
-  margin-left: calc(-1 * var(--space-lg));
-  margin-right: calc(-1 * var(--space-lg));
-  padding-top: calc(var(--space-lg) + env(safe-area-inset-top));
-  padding-left: var(--space-lg);
-  padding-right: var(--space-lg);
-  background: var(--color-page);
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-lg);
+  border-radius: var(--radius-lg);
+  background: var(--ink-bg);
 }
 
-.backButton {
+.heroLabel {
+  font-size: var(--font-size-sm);
+  color: var(--ink-text-secondary);
+}
+
+.heroValue {
+  font-family: var(--font-family-heading);
+  font-size: var(--font-size-2xl);
+  font-weight: 800;
+  color: var(--ink-text);
+}
+
+.heroSubtitle {
+  font-size: var(--font-size-sm);
+  color: var(--ink-text-secondary);
+}
+
+/* Fixed vs Variable — the two white cards below the hero, same shape as
+   Design/Goals App's own Assets/Liabilities row. */
+.expenseCardsRow {
+  display: flex;
+  gap: var(--space-md);
+}
+
+.expenseCard {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-background);
+}
+
+.expenseCardIcon {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
-  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  margin-bottom: 2px;
   border-radius: 50%;
-  border: 1px solid var(--color-border);
-  background: none;
+  background: var(--color-surface);
   color: var(--color-text-primary);
-  cursor: pointer;
 }
 
-.title {
-  margin: 0;
-  min-width: 0;
-  flex: 1;
+.expenseCardLabel {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.expenseCardValue {
   font-family: var(--font-family-heading);
-  font-size: var(--font-size-xl);
+  font-size: var(--font-size-lg);
   font-weight: 800;
   color: var(--color-text-primary);
-}
-
-.headerActions {
-  display: flex;
-  gap: var(--space-sm);
 }
 
 .iconButton {
@@ -77,6 +102,13 @@
   background: color-mix(in srgb, var(--color-brand) 12%, transparent);
 }
 
+/* Search only turns on above SEARCH_ENABLED_ABOVE goals (GoalsScreen.tsx)
+   — below that a short list is faster to scan by eye than to search. */
+.iconButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .emptyText {
   margin: 0;
   font-size: var(--font-size-sm);
@@ -85,6 +117,8 @@
 
 .searchRow {
   display: flex;
+  flex: 1;
+  min-width: 0;
   align-items: center;
   gap: var(--space-sm);
 }
@@ -116,406 +150,32 @@
   cursor: pointer;
 }
 
-/* Overview card — Design/goal1.jpg's "frame two" Activity screen layout
-   (total figure top-left, a filter that switches what the donut visualizes
-   top-right, the donut below spanning the card), on a plain white card
-   rather than that reference's purple gradient. */
-.overviewCard {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-md);
-  padding: var(--space-lg);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  background: var(--color-background);
-}
-
-.overviewHeaderRow {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-sm);
-}
-
-.overviewTotal {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.overviewTotalLabel {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
-}
-
-.overviewTotalValue {
-  font-family: var(--font-family-heading);
-  font-size: var(--font-size-xl);
-  font-weight: 800;
-  color: var(--color-text-primary);
-}
-
-.proportionsFilterButton {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex-shrink: 0;
-  padding: 6px var(--space-md);
-  border: none;
-  border-radius: var(--radius-full);
-  background: var(--color-surface);
-  font-family: inherit;
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--color-text-primary);
-  cursor: pointer;
-}
-
+/* Title, the kind-filter chips (or the search input once it's open), and
+   the search trigger all share this one row — clicking search swaps the
+   chips out for the input in that same slot rather than adding a row.
+   space-between pins the title to the left and pushes everything else
+   (filters/search input + the search trigger) flush to the far right. */
 .sectionHeaderRow {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-sm);
-  flex-wrap: wrap;
 }
 
 .sectionTitle {
+  flex-shrink: 0;
   margin: 0;
   font-size: var(--font-size-md);
   font-weight: 800;
   color: var(--color-text-primary);
 }
 
-.rankedButton {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex-shrink: 0;
-  padding: 6px var(--space-md);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-full);
-  background: none;
-  font-family: inherit;
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--color-text-primary);
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-/* Goal cards scroll horizontally — each card gets a fixed width instead of
-   stretching to a grid column. */
-.hScrollList {
-  display: flex;
-  gap: var(--space-sm);
-  overflow-x: auto;
-  padding-bottom: var(--space-xs);
-  margin: 0 calc(-1 * var(--space-lg));
-  padding-left: var(--space-lg);
-  padding-right: var(--space-lg);
-}
-
-.card {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-xs);
-  flex: 0 0 auto;
-  width: 68%;
-  min-width: 0;
-  padding: var(--space-md);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  background: none;
-  font-family: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-/* Line items feed scrolls vertically within a capped height, below the
-   goal cards. */
-.vScrollList {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
-  max-height: 360px;
-  overflow-y: auto;
-}
-
-/* Horizontally-optimized card: row 1 is the parent goal's name (left,
-   needed here since this feed mixes items from every goal — contrast
-   GoalDetailScreen's own list, which has no goal label and puts the due
-   date in this same left slot instead) with the due date and the action
-   trigger grouped together at the row's right end, row 2 is the item name
-   and amount, row 3 is the category as plain text, row 4 wraps every
-   badge together. */
-.lineItem {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: var(--space-md);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-}
-
-.lineItemHeaderRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-sm);
-  min-height: 20px;
-}
-
-.lineItemHeaderRight {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-}
-
-.lineItemGoalName {
-  margin: 0;
-  min-width: 0;
-  font-size: 0.75rem;
-  color: var(--color-text-secondary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.lineItemNameRow {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-sm);
-}
-
-.lineItemName {
-  margin: 0;
-  min-width: 0;
-  flex: 1;
-  font-size: var(--font-size-sm);
-  font-weight: 700;
-  color: var(--color-text-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.lineItemCategoryRow {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.lineItemCategoryText {
-  margin: 0;
-  min-width: 0;
-  font-size: 0.75rem;
-  color: var(--color-text-secondary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.addedToBudgetTag {
-  flex-shrink: 0;
-  padding: 2px var(--space-sm);
-  border-radius: var(--radius-full);
-  background: color-mix(in srgb, var(--color-brand) 18%, transparent);
-  color: var(--color-brand);
-  font-size: 0.7rem;
-  font-weight: 700;
-}
-
-.lineItemAmount {
-  margin: 0;
-  flex-shrink: 0;
-  font-size: var(--font-size-sm);
-  font-weight: 800;
-  color: var(--color-text-primary);
-}
-
-.doneTag {
-  flex-shrink: 0;
-  padding: 2px var(--space-sm);
-  border-radius: var(--radius-full);
-  background: color-mix(in srgb, var(--color-brand) 18%, transparent);
-  color: var(--color-brand);
-  font-size: 0.7rem;
-  font-weight: 700;
-}
-
-.kindBadgeFixed {
-  flex-shrink: 0;
-  padding: 2px var(--space-sm);
-  border-radius: var(--radius-full);
-  background: color-mix(in srgb, #4b6bfb 18%, transparent);
-  color: #3049c4;
-  font-size: 0.7rem;
-  font-weight: 700;
-}
-
-.kindBadgeVariable {
-  flex-shrink: 0;
-  padding: 2px var(--space-sm);
-  border-radius: var(--radius-full);
-  background: var(--color-surface);
-  color: var(--color-text-secondary);
-  font-size: 0.7rem;
-  font-weight: 700;
-}
-
-.kindBadgeUnclassified {
-  flex-shrink: 0;
-  padding: 2px var(--space-sm);
-  border-radius: var(--radius-full);
-  border: 1px dashed var(--color-border);
-  color: var(--color-text-secondary);
-  font-size: 0.7rem;
-  font-weight: 700;
-}
-
-.necessityTagMust {
-  padding: 2px var(--space-sm);
-  border-radius: var(--radius-full);
-  background: color-mix(in srgb, #e8a33d 22%, transparent);
-  color: #a3671c;
-  font-size: 0.7rem;
-  font-weight: 700;
-}
-
-.necessityTagNice {
-  padding: 2px var(--space-sm);
-  border-radius: var(--radius-full);
-  background: var(--color-surface);
-  color: var(--color-text-secondary);
-  font-size: 0.7rem;
-  font-weight: 700;
-}
-
-.dueDateText {
-  margin: 0;
-  flex-shrink: 0;
-  font-size: 0.75rem;
-  color: var(--color-text-secondary);
-}
-
-.dueDateTextPlaceholder {
-  margin: 0;
-  flex-shrink: 0;
-  font-size: 0.75rem;
-  font-style: italic;
-  color: var(--color-text-secondary);
-  opacity: 0.7;
-}
-
-.fundsBadgeOk {
-  display: inline-block;
-  padding: 2px var(--space-sm);
-  border-radius: var(--radius-full);
-  background: color-mix(in srgb, #2e9e5b 18%, transparent);
-  color: #2e9e5b;
-  font-size: 0.7rem;
-  font-weight: 700;
-}
-
-.fundsBadgeShort {
-  display: inline-block;
-  padding: 2px var(--space-sm);
-  border-radius: var(--radius-full);
-  background: color-mix(in srgb, var(--color-danger) 18%, transparent);
-  color: var(--color-danger);
-  font-size: 0.7rem;
-  font-weight: 700;
-}
-
-.lineItemTagRow {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-xs);
-}
-
-.priorityTag {
-  padding: 2px var(--space-sm);
-  border-radius: var(--radius-full);
-  background: var(--color-surface);
-  color: var(--color-text-primary);
-  font-size: 0.7rem;
-  font-weight: 700;
-}
-
-.cardHeaderRow {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-xs);
-}
-
-.cardText {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.cardName {
-  margin: 0;
-  font-size: var(--font-size-sm);
-  font-weight: 700;
-  color: var(--color-text-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.cardCategory {
-  margin: 0;
-  font-size: 0.6875rem;
-  color: var(--color-brand);
-}
-
-.track {
-  height: 8px;
-  border-radius: var(--radius-full);
-  background: var(--color-surface);
-  overflow: hidden;
-}
-
-.fill {
-  height: 100%;
-  border-radius: inherit;
-  background: var(--color-brand);
-}
-
-.amountRow {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  font-size: 0.75rem;
-}
-
-.amountValue {
-  font-weight: 700;
-  color: var(--color-text-primary);
-}
-
-.amountMuted {
-  color: var(--color-text-secondary);
-}
-
-.metaRow {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-xs);
-  font-size: 0.6875rem;
-  color: var(--color-text-secondary);
-}
-
 /* All/Fixed/Variable filter — separate bordered chips, not chips sharing
    one pill-shaped background. */
 .kindFilterRow {
   display: flex;
-  flex-shrink: 0;
+  min-width: 0;
+  justify-content: flex-end;
   gap: 6px;
 }
 
@@ -536,6 +196,106 @@
   border-color: var(--ink-bg);
   background: var(--ink-bg);
   color: #ffffff;
+}
+
+/* Explore — a plain vertical list, one row per goal (Design/Goals App's
+   own Explore section: label, sublabel, chevron), not the old horizontally
+   scrolling progress-bar cards. */
+.exploreList {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.exploreRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+  padding: var(--space-md);
+  border: none;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-background);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.exploreRow:last-child {
+  border-bottom: none;
+}
+
+/* One colorful circle per goal (src/viewmodels/goalIcons.ts) — a stable
+   tint (same "icon on a colored circle" language iconTint already
+   establishes elsewhere in the app) with the goal name's first letter
+   centered in it, monogram-avatar style. */
+.exploreRowIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  font-size: 0.875rem;
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.exploreRowText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.exploreRowName {
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.exploreRowAmount {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The progress bar sits right next to the chevron, both flush to the
+   row's right edge — not tucked against the amount text above. */
+.exploreRowEnd {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-shrink: 0;
+}
+
+.exploreRowProgressTrack {
+  flex-shrink: 0;
+  width: 40px;
+  height: 5px;
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  overflow: hidden;
+}
+
+.exploreRowProgressFill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-brand);
+}
+
+.exploreRowChevron {
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
 }
 
 .addButton {

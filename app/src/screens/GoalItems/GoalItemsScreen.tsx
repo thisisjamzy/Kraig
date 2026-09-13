@@ -1,12 +1,14 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { ChevronLeft, GripVertical, SlidersHorizontal } from 'lucide-react';
+import { GripVertical, SlidersHorizontal } from 'lucide-react';
 import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useLogic, type GoalItemSort } from '@/src/logic/goalItems/useLogic';
+import { useGoalsRange } from '@/src/shared/hooks/useGoalsRange';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
+import { GoalsHeader } from '@/src/widgets/GoalsHeader/GoalsHeader';
 import { formatAmount } from '@/src/screens/Goals/GoalsScreen';
 import { PRIORITY_LEVELS, NECESSITY_OPTIONS, NECESSITY_LABEL } from '@/src/viewmodels/projects';
 import type { Priority, GoalItemNecessity } from '@/src/shared/firestore/types';
@@ -176,9 +178,9 @@ export function GoalItemsScreen() {
     handleDragEnd,
     currency,
     openGoal,
-    goBack,
     loading,
   } = useLogic();
+  const { range, setRange } = useGoalsRange();
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
@@ -188,18 +190,16 @@ export function GoalItemsScreen() {
 
   return (
     <div className={styles.page}>
-      <header className={styles.header}>
-        <button type="button" className={styles.backButton} onClick={goBack} aria-label="Back">
-          <ChevronLeft size={18} strokeWidth={2} />
-        </button>
-        <h1 className={styles.title}>All goal items</h1>
+      <GoalsHeader range={range} onChangeRange={setRange} />
+
+      <div className={styles.boardToolbarRow}>
         <FilterMenu
           priorityFilter={priorityFilter}
           togglePriorityFilter={togglePriorityFilter}
           necessityFilter={necessityFilter}
           toggleNecessityFilter={toggleNecessityFilter}
         />
-      </header>
+      </div>
 
       <p className={styles.hintText}>
         Everything left to do across every goal. Sort by priority (nearest deadline first) or ease (smallest cost

@@ -109,6 +109,15 @@
   overflow: hidden;
 }
 
+/* Only rendered when a goal has actually dedicated some of this month's
+   spend in this category — the split of summary.spent between spend a
+   goal accounts for and spend that doesn't. */
+.summaryDedicatedLine {
+  margin: 0;
+  font-size: 0.6875rem;
+  color: var(--color-text-secondary);
+}
+
 .summaryFill {
   height: 100%;
   border-radius: inherit;
