@@ -6,7 +6,9 @@ import { useLogic, formatAmount, type StatsPeriod, type HabitPeriod } from '@/sr
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { barHeightPercent, axisValueAt } from '@/src/shared/charts/scale';
+import { useIsWeb } from '@/src/shared/hooks/useViewportMode';
 import styles from './StatisticsScreen.module.css';
+import webStyles from './StatisticsScreen.web.module.css';
 
 const PERIOD_ORDER: StatsPeriod[] = ['Quarter', 'Year'];
 const HABIT_PERIOD_ORDER: HabitPeriod[] = ['Daily', 'Monthly', 'Yearly'];
@@ -23,6 +25,7 @@ const PLACEHOLDER_COMPARISON_LABELS = ['Spending', 'Income', 'Net savings'];
 
 export function StatisticsScreen() {
   const strings = useStrings();
+  const isWeb = useIsWeb();
   const {
     summary,
     topCategories,
@@ -96,7 +99,7 @@ export function StatisticsScreen() {
   }
 
   return (
-    <div className={styles.page}>
+    <div className={`${styles.page} ${isWeb ? webStyles.page : ''}`}>
       <ScreenState loading={loading} error={error} />
 
       <section className={styles.summarySection}>
@@ -115,7 +118,7 @@ export function StatisticsScreen() {
           <span className={styles.summaryCurrency}>{summary.currency}</span>
         </p>
 
-        <div className={styles.tileGrid}>
+        <div className={`${styles.tileGrid} ${isWeb ? webStyles.tileGrid : ''}`}>
           <div className={`${styles.tile} ${styles.tileOrange}`}>
             <span className={styles.tileLabel}>{strings.statistics.spending}</span>
             <p className={styles.tileValueNegative}>-{formatAmount(summary.spending)}</p>
@@ -134,14 +137,17 @@ export function StatisticsScreen() {
             <span className={styles.tileLabel}>{strings.statistics.savingsRate}</span>
             <p className={styles.tileValue}>{summary.savingsRate}%</p>
           </div>
-          <div className={`${styles.tile} ${styles.tilePurple} ${styles.tileWide}`}>
+          <div className={`${styles.tile} ${styles.tilePurple} ${styles.tileWide} ${isWeb ? webStyles.tileWide : ''}`}>
             <span className={styles.tileLabel}>{strings.statistics.minimumRequired}</span>
             <p className={styles.tileValue}>
               {formatAmount(minimumRequiredThisMonth)} {summary.currency}
             </p>
             <span className={styles.tileCaption}>{strings.statistics.minimumRequiredCaption}</span>
           </div>
-          <Link href="/settings/reconciliation" className={`${styles.tile} ${styles.tileGray} ${styles.tileWide}`}>
+          <Link
+            href="/settings/reconciliation"
+            className={`${styles.tile} ${styles.tileGray} ${styles.tileWide} ${isWeb ? webStyles.tileWide : ''}`}
+          >
             <span className={styles.tileLabel}>{strings.statistics.unaccountedFor}</span>
             <p className={summary.unaccountedFor < 0 ? styles.tileValueNegative : styles.tileValue}>
               {summary.unaccountedFor > 0 ? '+' : summary.unaccountedFor < 0 ? '-' : ''}
@@ -162,7 +168,7 @@ export function StatisticsScreen() {
         </div>
 
         <div className={styles.donutRow}>
-          <svg className={styles.donut} viewBox="0 0 140 140">
+          <svg className={`${styles.donut} ${isWeb ? webStyles.donut : ''}`} viewBox="0 0 140 140">
             <g transform="rotate(-90 70 70)">
               {donutSlices.length > 0 ? (
                 donutSlices.map((slice) => (
@@ -186,7 +192,7 @@ export function StatisticsScreen() {
         </div>
 
         {donutSlices.length > 0 ? (
-          <div className={styles.legendGrid}>
+          <div className={`${styles.legendGrid} ${isWeb ? webStyles.legendGrid : ''}`}>
             {donutSlices.map((slice) => (
               <span key={slice.label} className={styles.legendItem}>
                 <span className={styles.legendDot} style={{ background: slice.color }} />

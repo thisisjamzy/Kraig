@@ -1,0 +1,92 @@
+/* Brand-new file — never shared with BottomNav.module.css/ProjectsBottomNav
+   .module.css/GoalsBottomNav.module.css/AppHeader.module.css, so nothing
+   here can affect the mobile bars those style. Uses the same always-dark
+   --ink-* tokens the mobile bottom-nav pills and Goals hero card already
+   use, so the web sidebar reads as the same visual identity, not a new
+   one. Width is plain px (240 desktop / 72 tablet-icon-only), deliberately
+   NOT var(--app-max-width) — that token stays 480px everywhere it's read
+   today; the web shell's own widths live only here and in WebTopBar/the
+   layout's own webShell/webMain classes. */
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  width: 240px;
+  flex-shrink: 0;
+  height: 100dvh;
+  position: sticky;
+  top: 0;
+  padding: var(--space-lg) var(--space-md);
+  background: var(--ink-bg);
+  overflow-y: auto;
+}
+
+.sidebarCompact {
+  width: 72px;
+  align-items: center;
+  padding-inline: var(--space-sm);
+}
+
+.logoRow {
+  display: flex;
+  align-items: center;
+  padding: 0 var(--space-sm);
+  min-height: 22px;
+}
+
+.groups {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  flex: 1;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.groupLabel {
+  padding: 0 var(--space-sm);
+  margin-bottom: var(--space-xs);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-text-secondary);
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm);
+  border-radius: var(--radius-md);
+  color: var(--ink-text-secondary);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.sidebarCompact .item {
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+}
+
+.itemActive {
+  background: var(--color-brand);
+  color: #ffffff;
+}
+
+.itemLabel {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.settingsItem {
+  margin-top: auto;
+}

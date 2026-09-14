@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   Plus,
   SlidersHorizontal,
@@ -25,7 +26,9 @@ import { useSwipeModeSwitch } from '@/src/shared/hooks/useSwipeModeSwitch';
 import { iconTint } from '@/src/viewmodels/iconTint';
 import { CATEGORY_ICON_COLOR } from '@/src/viewmodels/categories';
 import { barHeightPercent, axisValueAt } from '@/src/shared/charts/scale';
+import { useIsWeb } from '@/src/shared/hooks/useViewportMode';
 import styles from './HomeScreen.module.css';
+import webStyles from './HomeScreen.web.module.css';
 // The Recent Transactions panel uses this exact same card component style
 // as the all-transactions list, so it reuses that module's classes
 // directly rather than duplicating them (same convention Budget's own
@@ -49,6 +52,8 @@ const AXIS_SCALE = [1, 0.5, 0];
 
 export function HomeScreen() {
   const strings = useStrings();
+  const router = useRouter();
+  const isWeb = useIsWeb();
   const {
     balance,
     wallets,
@@ -120,10 +125,10 @@ export function HomeScreen() {
   }, [currencyPickerOpen, setCurrencyPickerOpen]);
 
   return (
-    <div className={styles.page} ref={swipeRef}>
+    <div className={`${styles.page} ${isWeb ? webStyles.page : ''}`} ref={swipeRef}>
       <ScreenState loading={loading} error={error} />
 
-      <section className={styles.balanceCard}>
+      <section className={`${styles.balanceCard} ${isWeb ? webStyles.areaHero : ''}`}>
         <div className={styles.balanceCardTop}>
           <div>
             <div className={styles.balanceAmountRow}>
@@ -209,7 +214,7 @@ export function HomeScreen() {
         </Link>
       </section>
 
-      <div className={styles.summaryRow}>
+      <div className={`${styles.summaryRow} ${isWeb ? webStyles.areaMetrics : ''}`}>
         <div className={styles.summaryCard}>
           <span className={styles.summaryIcon}>
             <PiggyBank size={16} strokeWidth={2} />
@@ -230,7 +235,7 @@ export function HomeScreen() {
         </div>
       </div>
 
-      <section className={styles.section}>
+      <section className={`${styles.section} ${isWeb ? webStyles.areaQuick : ''}`}>
         <h2 className={styles.sectionTitle}>{strings.home.quickActionsTitle}</h2>
         <div className={styles.quickActions}>
           {quickActions.map(({ label, icon: Icon, href }, index) => (
@@ -244,7 +249,7 @@ export function HomeScreen() {
         </div>
       </section>
 
-      <section className={styles.section}>
+      <section className={`${styles.section} ${isWeb ? webStyles.areaWallets : ''}`}>
         <div className={styles.sectionHeader}>
           <h2 className={styles.sectionTitle}>{strings.home.wallets}</h2>
           <div className={styles.headerControls}>
@@ -299,7 +304,7 @@ export function HomeScreen() {
         )}
       </section>
 
-      <section className={styles.section}>
+      <section className={`${styles.section} ${isWeb ? webStyles.areaPayments : ''}`}>
         <div className={styles.sectionHeader}>
           <h2 className={styles.sectionTitle}>{strings.home.upcomingPayments}</h2>
           <Link href="/payments" className={styles.viewAllButton} aria-label="View payments calendar">
@@ -327,7 +332,7 @@ export function HomeScreen() {
         )}
       </section>
 
-      <section className={styles.section}>
+      <section className={`${styles.section} ${isWeb ? webStyles.areaChart : ''}`}>
         <div className={styles.sectionHeader}>
           <h2 className={styles.sectionTitle}>{strings.home.spendingBreakdown}</h2>
           <div className={styles.headerControls}>
@@ -422,7 +427,7 @@ export function HomeScreen() {
         </div>
       </section>
 
-      <section className={styles.section}>
+      <section className={`${styles.section} ${isWeb ? webStyles.areaTrans : ''}`}>
         <div className={styles.sectionHeader}>
           <h2 className={styles.sectionTitle}>{strings.home.recentTransactionsTitle}</h2>
           <Link href="/transactions" className={styles.viewAllButton} aria-label="View all transactions">
@@ -432,6 +437,42 @@ export function HomeScreen() {
 
         {recentTransactions.length === 0 ? (
           !loading && <p className={styles.emptyText}>{strings.home.noRecentTransactions}</p>
+        ) : isWeb ? (
+          <table className={webStyles.table}>
+            <thead>
+              <tr>
+                <th>{strings.home.recentTransactionsTitle}</th>
+                <th>Account</th>
+                <th>Date</th>
+                <th className={webStyles.tableAmount}>Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              {recentTransactions.map((transaction) => {
+                const Icon = transaction.icon;
+                return (
+                  <tr key={transaction.id} onClick={() => router.push(transaction.editHref)}>
+                    <td>
+                      <div className={webStyles.tableTitleCell}>
+                        <span className={webStyles.tableIcon} style={{ background: transaction.iconColor }}>
+                          <Icon size={16} strokeWidth={2} color={CATEGORY_ICON_COLOR} />
+                        </span>
+                        <div>
+                          <p>{transaction.title}</p>
+                          <p className={styles.emptyText}>{transaction.description}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td>{transaction.account}</td>
+                    <td>{transaction.date}</td>
+                    <td className={webStyles.tableAmount}>
+                      {formatAmount(transaction.amount)} {transaction.currency}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         ) : (
           <div className={cardStyles.list}>
             {recentTransactions.map((transaction) => {
