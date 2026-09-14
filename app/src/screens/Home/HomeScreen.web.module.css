@@ -1,0 +1,118 @@
+/* Web-only layout for HomeScreen — applied ONLY when useIsWeb() is true
+   (HomeScreen.tsx appends these classes alongside the existing
+   HomeScreen.module.css ones; that file is never edited). Every override
+   rule below is written as ".page .areaX" (not just ".areaX") so it wins
+   the cascade on specificity regardless of which CSS module happens to
+   load later in the bundle — never relying on JSX class-order or import
+   order for correctness.
+   Reflows the same 7 sections HomeScreen.module.css already renders (hero
+   balance card, savings/spendable pair, quick actions, wallets, upcoming
+   payments, cashflow chart, recent transactions) into a 2-column dashboard
+   grid, matching Design/web/web1.jpg's density — no section's own internal
+   markup changes except recent transactions, which gets a real desktop
+   table (see the isWeb branch in HomeScreen.tsx). */
+.page {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  grid-template-areas:
+    'hero    metrics'
+    'quick   metrics'
+    'chart   wallets'
+    'chart   payments'
+    'trans   trans';
+  align-items: start;
+  gap: var(--space-lg);
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+  padding: var(--space-xl);
+}
+
+.areaHero {
+  grid-area: hero;
+}
+
+.page .areaMetrics {
+  grid-area: metrics;
+  flex-direction: column;
+}
+
+.areaQuick {
+  grid-area: quick;
+}
+
+.areaChart {
+  grid-area: chart;
+}
+
+.areaWallets {
+  grid-area: wallets;
+}
+
+.areaPayments {
+  grid-area: payments;
+}
+
+.areaTrans {
+  grid-area: trans;
+}
+
+/* Desktop data table replacing the mobile card-list for Recent
+   Transactions (Design/web/web1.jpg, web6.jpg) — brand-new markup, only
+   ever rendered in the isWeb branch. */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th {
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: 1px solid var(--color-border);
+  text-align: left;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-text-secondary);
+}
+
+.table td {
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: 1px solid var(--color-border);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+}
+
+.table tr:last-child td {
+  border-bottom: none;
+}
+
+.table tr {
+  cursor: pointer;
+}
+
+.table tr:hover td {
+  background: var(--color-surface);
+}
+
+.tableTitleCell {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.tableIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 50%;
+}
+
+.tableAmount {
+  text-align: right;
+  font-weight: 700;
+  white-space: nowrap;
+}

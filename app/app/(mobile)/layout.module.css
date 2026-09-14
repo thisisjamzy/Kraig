@@ -5,3 +5,32 @@
   align-items: center;
   background: var(--color-page);
 }
+
+/* Web shell only (useIsWeb() true — see AppShellLayout's own comment) —
+   .shell above is completely untouched and still governs every mobile
+   render exactly as before. Row layout: WebSidebar (its own fixed width)
+   beside a flexible main column, rather than .shell's centered single
+   column. */
+.webShell {
+  min-height: 100dvh;
+  display: flex;
+  align-items: stretch;
+  background: var(--color-page);
+}
+
+.webMain {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Until the hub screens get their own wider desktop layouts (later phase),
+   AppContent keeps its existing var(--app-max-width) cap unchanged — this
+   just centers that same narrow column in the remaining space next to the
+   sidebar instead of leaving it flush against it. */
+.webContentCenterer {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}

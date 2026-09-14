@@ -1,0 +1,73 @@
+/* Web-only layout for BudgetScreen — applied ONLY when useIsWeb() is true;
+   BudgetScreen.module.css is never edited. Every override rule is written
+   as ".page .areaX" so it wins the cascade on specificity regardless of
+   CSS bundle/import order, never relying on JSX class-order for
+   correctness (see HomeScreen.web.module.css's header comment for the
+   full rationale — same pattern here). */
+.page {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-areas:
+    'header    header'
+    'total     tracking'
+    'catsHead  catsHead'
+    'cats      cats'
+    'transHead transHead'
+    'trans     trans'
+    'footer    footer';
+  align-items: start;
+  gap: var(--space-lg);
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+  padding: var(--space-xl);
+}
+
+.areaHeader {
+  grid-area: header;
+}
+
+.areaTotal {
+  grid-area: total;
+}
+
+.areaTracking {
+  grid-area: tracking;
+}
+
+.areaCatsHead {
+  grid-area: catsHead;
+}
+
+.areaTransHead {
+  grid-area: transHead;
+}
+
+.areaTrans {
+  grid-area: trans;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.areaFooter {
+  grid-area: footer;
+}
+
+/* Category cards: a grid instead of the mobile horizontal scroll strip. */
+.page .areaCats {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--space-md);
+  overflow-x: visible;
+  margin: 0;
+  padding: 0;
+}
+
+/* .categoryCard's mobile width:70% assumed a ~480px horizontal scroll
+   strip (see the audit that fed this file's plan) — pinned to the grid
+   cell's own width here instead, not a viewport/container fraction. */
+.page .categoryCardWeb {
+  width: 100%;
+  scroll-snap-align: none;
+}

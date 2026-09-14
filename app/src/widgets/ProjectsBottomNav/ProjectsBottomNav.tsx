@@ -11,7 +11,9 @@ import { overdueTasks, dueTodayTasks } from '@/src/shared/firestore/taskInsights
 import { iconTint } from '@/src/viewmodels/iconTint';
 import styles from './ProjectsBottomNav.module.css';
 
-const NAV_ITEMS = [
+// Exported for WebSidebar (src/widgets/WebSidebar) — reused verbatim so
+// mobile and web can never drift apart on what Projects mode contains.
+export const NAV_ITEMS = [
   { href: '/projects', label: 'Home', icon: Home },
   { href: '/projects/calendar', label: 'Calendar', icon: CalendarDays },
   { href: '/projects/focus', label: 'Focus', icon: Target },

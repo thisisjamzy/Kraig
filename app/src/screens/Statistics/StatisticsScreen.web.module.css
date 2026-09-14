@@ -1,0 +1,34 @@
+/* Web-only layout for StatisticsScreen — applied ONLY when useIsWeb() is
+   true; StatisticsScreen.module.css is never edited. Override rules use
+   the ".page .areaX" compound-selector pattern (see HomeScreen.web.module
+   .css's header comment for the full rationale) so they win the cascade
+   regardless of CSS bundle order.
+   Scope deliberately modest, matching the plan: widen the page and reflow
+   the 2-col tile/legend grids to more columns; the chart sections below
+   (habit breakdown, trends, etc.) stay full-width stacked blocks inside
+   the wider page rather than being forced into a multi-column masonry —
+   each is its own dense chart+axis+legend structure, and widening the
+   page already gives every one of them much more room to breathe. */
+.page {
+  max-width: 1100px;
+  width: 100%;
+  margin: 0 auto;
+  padding: var(--space-xl);
+}
+
+.page .tileGrid {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.page .tileWide {
+  grid-column: 1 / -1;
+}
+
+.page .legendGrid {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.page .donut {
+  width: 220px;
+  height: 220px;
+}
