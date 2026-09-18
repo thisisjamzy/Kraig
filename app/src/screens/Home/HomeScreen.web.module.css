@@ -1,68 +1,339 @@
 /* Web-only layout for HomeScreen — applied ONLY when useIsWeb() is true
-   (HomeScreen.tsx appends these classes alongside the existing
-   HomeScreen.module.css ones; that file is never edited). Every override
-   rule below is written as ".page .areaX" (not just ".areaX") so it wins
-   the cascade on specificity regardless of which CSS module happens to
-   load later in the bundle — never relying on JSX class-order or import
-   order for correctness.
-   Reflows the same 7 sections HomeScreen.module.css already renders (hero
-   balance card, savings/spendable pair, quick actions, wallets, upcoming
-   payments, cashflow chart, recent transactions) into a 2-column dashboard
-   grid, matching Design/web/web1.jpg's density — no section's own internal
-   markup changes except recent transactions, which gets a real desktop
-   table (see the isWeb branch in HomeScreen.tsx). */
-.page {
+   (HomeScreen.tsx branches its entire return on isWeb; the mobile JSX tree
+   below that branch is completely untouched, and HomeScreen.module.css is
+   never edited). Every class here is brand-new — nothing is shared with a
+   mobile selector except the hero balance card and the cashflow chart,
+   which intentionally reuse HomeScreen.module.css's own classes verbatim
+   (via the shared renderBalanceCard()/renderCashflowSection() helpers in
+   HomeScreen.tsx) since the user asked for identical content/design there,
+   just repositioned.
+
+   Three-column dashboard (Design/web/web1.jpg's own density): the top row
+   (hero + the three metric cards) spans the first two columns, matching
+   the user's own "the page has three columns and the top row spans two"
+   instruction; the third column is a single tall aside running the full
+   height beside it (Statistics, then Upcoming Payments). One spacing unit
+   (--space-lg) is used for every gap in this file — between grid cells,
+   inside .topRow, inside .areaMetrics, inside .aside — so any two cards
+   sit the same distance apart everywhere on the page, per web1.jpg's own
+   consistent rhythm.
+
+   Named .dashboard, not .page — HomeScreen.tsx applies this class ALONGSIDE
+   HomeScreen.module.css's own .page (`${styles.page} ${webStyles.page}`
+   would be two same-specificity classes on one element, so whichever
+   stylesheet happens to land later in the bundle wins the display:flex vs.
+   display:grid fight; a different name sidesteps that race entirely rather
+   than gambling on import order, same reasoning as this file's own
+   ".dashboard .summaryX" convention below).
+   Every fr track below is written as minmax(0, Nfr), not bare Nfr — a bare
+   fr track's minimum width is its content's min-content size (CSS Grid
+   spec default), so a wide child silently grows that whole column past its
+   fr share and overflows the grid container itself; since the parent chain
+   includes AppContent's own overflow: clip (see AppContent.module.css),
+   that overflow doesn't scroll into view, it just clips. minmax(0, Nfr)
+   lets every track shrink to 0 and pushes any remaining overflow inside
+   that track's own children instead (each of which gets its own
+   min-width: 0 below). */
+.dashboard {
   display: grid;
-  grid-template-columns: 2fr 1fr;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.35fr) minmax(0, 0.95fr);
   grid-template-areas:
-    'hero    metrics'
-    'quick   metrics'
-    'chart   wallets'
-    'chart   payments'
-    'trans   trans';
+    'top     top      aside'
+    'budget  chart    aside'
+    'wallets trans    aside';
   align-items: start;
   gap: var(--space-lg);
-  max-width: 1200px;
   width: 100%;
-  margin: 0 auto;
   padding: var(--space-xl);
 }
 
+.topRow {
+  grid-area: top;
+  display: flex;
+  gap: var(--space-lg);
+  align-items: stretch;
+  min-width: 0;
+}
+
+/* The hero card itself keeps HomeScreen.module.css's own .balanceCard
+   styling untouched (dark gradient, progress bar, unjustified block) — the
+   only non-white card on the page, matching web1.jpg's own dark hero
+   sitting alongside its white metric cards — this override only controls
+   how much of .topRow it claims. */
 .areaHero {
-  grid-area: hero;
+  flex: 1.3;
+  min-width: 0;
 }
 
-.page .areaMetrics {
-  grid-area: metrics;
-  flex-direction: column;
+.dashboard .areaMetrics {
+  flex: 1.5;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-lg);
 }
 
-.areaQuick {
-  grid-area: quick;
+/* Reused mobile classes stretched onto a much wider desktop card read as
+   undersized (small type truncated by an ellipsis that had no room to
+   trigger on a 480px phone row) and off-white (--color-surface is a light
+   surface tint, not the flat white every other card here uses) — resized
+   and recolored here instead of overriding HomeScreen.module.css itself,
+   which stays exactly as mobile needs it. Font size is tuned down (not
+   left to wrap/truncate) so the value always reads on one line. */
+.dashboard .summaryCard {
+  padding: var(--space-lg);
+  gap: var(--space-sm);
+  background: var(--color-background);
 }
 
-.areaChart {
-  grid-area: chart;
+.dashboard .summaryIcon {
+  width: 36px;
+  height: 36px;
+}
+
+.dashboard .summaryValue {
+  font-size: var(--font-size-md);
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.areaBudget {
+  grid-area: budget;
+  min-width: 0;
 }
 
 .areaWallets {
   grid-area: wallets;
+  min-width: 0;
 }
 
-.areaPayments {
-  grid-area: payments;
+.areaChart {
+  grid-area: chart;
+  min-width: 0;
 }
 
 .areaTrans {
   grid-area: trans;
+  min-width: 0;
+}
+
+.aside {
+  grid-area: aside;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  min-width: 0;
+}
+
+/* Every card in this layout shares one flat white card treatment —
+   HomeScreen.module.css's own .section has no background at all (mobile
+   relies on page-level grouping instead), so this is a new, web-only card
+   shell rather than an override of that class. var(--color-background) —
+   the same flat white every dialog/popover/input already sits on
+   (globals.css's own convention) — not var(--color-surface), which reads
+   too close to the page's own light tint to look like a distinct card. */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  border-radius: var(--radius-lg);
+  background: var(--color-background);
+  min-width: 0;
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.cardHeaderLeft {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+
+.cardIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--ink-bg);
+  color: #ffffff;
+}
+
+.cardTitle {
+  margin: 0;
+  font-size: var(--font-size-md);
+  font-weight: 800;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+}
+
+/* A light-background progress bar — HomeScreen.module.css's own
+   .progressTrack/.progressFill are styled white-on-translucent-white for
+   the dark hero card only; reusing them here (on a white card) would
+   render an invisible bar, so these are their light-card equivalents. */
+.trackLight {
+  width: 100%;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--color-border);
+  overflow: hidden;
+}
+
+.fillLight {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-brand);
+}
+
+/* Monthly Budget card (Design/web/web1.jpg's own "Daily Limit" card) — no
+   header icon (per the user's own "statistics and monthly budget cards do
+   not need to have icons" note), just the title. */
+.budgetAmountRow {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-xs);
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+
+.budgetAmountSpent {
+  font-size: var(--font-size-lg);
+  font-weight: 800;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+}
+
+.budgetAmountOf {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.budgetPercent {
+  align-self: flex-end;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.textButton {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px var(--space-sm);
+  border: none;
+  border-radius: var(--radius-full);
+  background: var(--ink-bg);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Wallets, restyled as a grid of smaller cards inside the Wallets card
+   (Design/web/web1.jpg's own Saving Plans entries — each its own bordered
+   tile, not a divider-separated row) rather than mobile's
+   horizontally-scrolled full-size card. */
+.planList {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--space-md);
+}
+
+.planRow {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  min-width: 0;
+}
+
+.planRowTop {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.planName {
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.planAmount {
+  font-size: var(--font-size-md);
+  font-weight: 800;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.planTarget {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Desktop data table replacing the mobile card-list for Recent
    Transactions (Design/web/web1.jpg, web6.jpg) — brand-new markup, only
-   ever rendered in the isWeb branch. */
+   ever rendered in the isWeb branch. Fixed layout (not auto) so the 4
+   columns split the card's own width by the percentages below instead of
+   growing to each cell's content — the reason a plain auto-layout table
+   needed a min-width and its own horizontal scrollbar to stay readable. */
 .table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
+}
+
+.table th:nth-child(1),
+.table td:nth-child(1) {
+  width: 46%;
+}
+
+.table th:nth-child(2),
+.table td:nth-child(2) {
+  width: 20%;
+}
+
+.table th:nth-child(3),
+.table td:nth-child(3) {
+  width: 18%;
+}
+
+.table th:nth-child(4),
+.table td:nth-child(4) {
+  width: 16%;
 }
 
 .table th {
@@ -74,6 +345,9 @@
   text-transform: uppercase;
   letter-spacing: 0.03em;
   color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .table td {
@@ -81,6 +355,9 @@
   border-bottom: 1px solid var(--color-border);
   font-size: var(--font-size-sm);
   color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .table tr:last-child td {
@@ -92,13 +369,25 @@
 }
 
 .table tr:hover td {
-  background: var(--color-surface);
+  background: var(--color-page);
 }
 
 .tableTitleCell {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
+  min-width: 0;
+}
+
+.tableTitleCell > div {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.tableTitleCell p {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .tableIcon {
@@ -114,5 +403,53 @@
 .tableAmount {
   text-align: right;
   font-weight: 700;
+}
+
+.accountPill {
+  display: inline-flex;
+  max-width: 100%;
+  padding: 4px var(--space-sm);
+  border-radius: var(--radius-full);
+  background: var(--color-page);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Statistics card (Design/web/web1.jpg's own Income/Expense pill tabs +
+   donut) — lives in .aside above Upcoming Payments. No header icon (per
+   the user's own note), just the title. */
+.statsTabs {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--radius-full);
+  background: var(--color-page);
+}
+
+.statsTab {
+  flex: 1;
+  padding: 6px var(--space-sm);
+  border: none;
+  border-radius: var(--radius-full);
+  background: none;
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.statsTabActive {
+  background: var(--color-brand);
+  color: #ffffff;
+}
+
+.statsDonut {
+  display: flex;
+  justify-content: center;
 }

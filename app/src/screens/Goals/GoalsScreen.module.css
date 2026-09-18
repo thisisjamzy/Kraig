@@ -8,11 +8,34 @@
   gap: var(--space-lg);
 }
 
+/* The month/date picker's own row — its own line in the page's normal
+   content flow, between GoalsHeader and the hero card, only in "month"
+   mode (see GoalsScreen.tsx's own comment for why it isn't in either of
+   those two). */
+.dateRow {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.dateButton {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px var(--space-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: var(--color-background);
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
 /* Dark hero card — Goals' own dashboard headline, same neutral "always
    dark" tokens the bottom-nav pills use (not a brand-colored gradient like
-   Budget's own total card) — reads as this mini-app's own visual identity.
-   dedicatedTotals.dedicated (src/logic/goals/useLogic.ts) already respects
-   the Month/All-time toggle. */
+   Budget's own total card) — reads as this mini-app's own visual identity. */
 .heroCard {
   display: flex;
   flex-direction: column;
@@ -20,6 +43,38 @@
   padding: var(--space-lg);
   border-radius: var(--radius-lg);
   background: var(--ink-bg);
+}
+
+/* Expense/Income — which dedicated figure (and which of its own two
+   percentage denominators, budget vs. projected income) the card below
+   shows. Same compact-pill shape GoalsHeader's own Month/All-time toggle
+   uses, recolored for this always-dark card. */
+.heroToggle {
+  display: flex;
+  align-self: flex-start;
+  gap: 2px;
+  padding: 2px;
+  margin-bottom: var(--space-xs);
+  background: var(--ink-surface);
+  border-radius: var(--radius-full);
+}
+
+.heroToggleSegment {
+  border: none;
+  background: none;
+  font-family: inherit;
+  padding: 4px var(--space-md);
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--ink-text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.heroToggleSegmentActive {
+  background: var(--color-brand);
+  color: #ffffff;
 }
 
 .heroLabel {
@@ -39,22 +94,89 @@
   color: var(--ink-text-secondary);
 }
 
-/* Fixed vs Variable — the two white cards below the hero, same shape as
-   Design/Goals App's own Assets/Liabilities row. */
+/* Fixed/Variable x Expense/Income/Savings, plus Transfers — 7 cards now
+   that they're split by the parent goal's own type instead of one mixed
+   Fixed/Variable pair, so this scrolls horizontally instead of trying to
+   grid them (same pattern Budget's own .cardScroll uses). */
 .expenseCardsRow {
   display: flex;
   gap: var(--space-md);
+  overflow-x: auto;
+  padding: 2px 2px var(--space-xs);
+  margin: 0 calc(-1 * var(--space-lg));
+  padding-left: var(--space-lg);
+  padding-right: var(--space-lg);
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
 }
 
 .expenseCard {
-  flex: 1;
   display: flex;
   flex-direction: column;
+  flex: 0 0 auto;
   gap: 4px;
+  width: 150px;
   padding: var(--space-md);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   background: var(--color-background);
+  scroll-snap-align: start;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* Drill-down modal opened by tapping one of the cards above (see
+   GoalsScreen.tsx's openBucketModal) — every line item summed into that
+   card's own figure, each linking through to its own goal. */
+.bucketModalList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.bucketModalRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  min-width: 0;
+}
+
+.bucketModalItemInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.bucketModalItemName {
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bucketModalGoalName {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bucketModalAmount {
+  flex-shrink: 0;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: var(--color-text-primary);
+  white-space: nowrap;
 }
 
 .expenseCardIcon {
@@ -76,9 +198,14 @@
 
 .expenseCardValue {
   font-family: var(--font-family-heading);
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-md);
   font-weight: 800;
   color: var(--color-text-primary);
+}
+
+.expenseCardCaption {
+  font-size: 0.6875rem;
+  color: var(--color-text-secondary);
 }
 
 .iconButton {
@@ -368,4 +495,61 @@
   font-weight: 700;
   color: var(--color-text-primary);
   cursor: pointer;
+}
+
+/* The Home tab's own month picker (GoalsHeader's calendar button) — same
+   year-stepper + month-grid shape Budget's own month picker already uses
+   (src/screens/Budget/BudgetScreen.module.css's yearStepper/monthGrid/
+   monthButton), named monthOption/monthOptionActive here only so nothing
+   is ever confused with GoalsHeader's own unrelated .monthButton class. */
+.yearStepper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-lg);
+}
+
+.yearStepButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  background: none;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.yearStepValue {
+  font-family: var(--font-family-heading);
+  font-size: var(--font-size-lg);
+  font-weight: 800;
+  color: var(--color-text-primary);
+  min-width: 4ch;
+  text-align: center;
+}
+
+.monthGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-sm);
+}
+
+.monthOption {
+  padding: var(--space-sm);
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.monthOptionActive {
+  background: var(--ink-bg);
+  color: #ffffff;
 }

@@ -152,6 +152,34 @@
   line-height: 1.35;
 }
 
+/* Goals / Category — used to be two lists stacked on this same screen;
+   now a tab switcher so only one shows at a time. */
+.categoryTabRow {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+}
+
+.categoryTabButton {
+  flex: 1;
+  padding: var(--space-sm) var(--space-md);
+  border: none;
+  border-radius: var(--radius-full);
+  background: none;
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.categoryTabButtonActive {
+  background: var(--ink-bg);
+  color: #ffffff;
+}
+
 .categoryList {
   display: flex;
   flex-direction: column;
@@ -528,17 +556,24 @@
 }
 
 .reviewValue {
+  min-width: 0;
   font-size: var(--font-size-sm);
   font-weight: 600;
   color: var(--color-text-primary);
   text-align: right;
+  overflow-wrap: break-word;
 }
 
+/* No flex-shrink: 0 here — a long account name (or "X to Y" on a transfer)
+   needs to be able to shrink and wrap onto a second line instead of
+   pushing .reviewRow wider than its card and overflowing the screen; the
+   Change button (.reviewChangeButton) keeps its own flex-shrink: 0 so it
+   never gets squeezed. */
 .reviewValueWithAction {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
-  flex-shrink: 0;
+  min-width: 0;
 }
 
 .reviewChangeButton {

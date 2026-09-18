@@ -69,9 +69,22 @@ export interface ProjectCardData {
   atRisk?: boolean;
 }
 
-export function ProjectCard({ project, onClick }: { project: ProjectCardData; onClick: () => void }) {
+export function ProjectCard({
+  project,
+  onClick,
+  className,
+}: {
+  project: ProjectCardData;
+  onClick: () => void;
+  // Optional, additive — every existing call site (Area Detail, Bucket
+  // Detail, the Projects hub's own mobile carousel) omits it and keeps
+  // rendering exactly styles.card alone. Only the Projects hub's web-mode
+  // grid (ProjectsScreen.web.module.css) passes one, to cap this card's
+  // otherwise vw-based width to its grid cell instead.
+  className?: string;
+}) {
   return (
-    <button type="button" className={styles.card} onClick={onClick}>
+    <button type="button" className={`${styles.card} ${className ?? ''}`} onClick={onClick}>
       <div
         className={styles.cover}
         style={{ backgroundImage: `url(${projectCoverImageUrl(project.id)})` }}

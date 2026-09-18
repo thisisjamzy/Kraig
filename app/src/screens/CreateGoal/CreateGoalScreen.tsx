@@ -169,6 +169,10 @@ export function CreateGoalScreen() {
                     className={`${styles.chip} ${kind === 'Fixed' ? styles.chipActive : ''}`}
                     onClick={() => {
                       setKind('Fixed');
+                      // A Fixed goal repeats — a one-off target date doesn't
+                      // apply to it, so drop any date already picked rather
+                      // than leaving a stale value saved behind a hidden field.
+                      setDeadline('');
                       setKindPickerOpen(false);
                     }}
                   >
@@ -210,85 +214,91 @@ export function CreateGoalScreen() {
             )}
           </div>
 
-          <div className={styles.listGroup}>
-            <div
-              className={styles.listRow}
-              role="button"
-              tabIndex={0}
-              onClick={() => setDatePickerOpen((c) => !c)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' || event.key === ' ') {
-                  event.preventDefault();
-                  setDatePickerOpen((c) => !c);
-                }
-              }}
-            >
-              <span className={styles.listRowIcon}>
-                <CalendarDays size={16} strokeWidth={2} />
-              </span>
-              <span className={styles.listRowLabel}>{strings.createGoal.deadlineLabel}</span>
-              <span className={styles.listRowValue}>
-                {deadline ? formatDateOnly(deadline) : strings.createGoal.deadlinePlaceholder}
-              </span>
-              {deadline && (
-                <button
-                  type="button"
-                  className={styles.clearRowButton}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    setDeadline('');
-                  }}
-                  aria-label="Clear target date"
-                >
-                  <X size={12} strokeWidth={2.5} />
-                </button>
-              )}
-              <ChevronRight size={16} strokeWidth={2} className={styles.listRowChevron} />
-            </div>
-            {datePickerOpen && (
-              <div className={styles.expandPanel}>
-                <button
-                  type="button"
-                  className={`${styles.optionRow} ${!deadline ? styles.optionRowActive : ''}`}
-                  onClick={() => {
-                    setDeadline('');
-                    setDatePickerOpen(false);
-                  }}
-                >
-                  {strings.createGoal.deadlinePlaceholder}
-                </button>
-                <HeroCalendar.Root
-                  focusedValue={parseDate(toDateOnly(dateMonthCursor))}
-                  onFocusChange={(next) => setDateMonthCursor(new Date(next.year, next.month - 1, next.day))}
-                  value={deadline ? parseDate(deadline) : undefined}
-                  onChange={(next) => {
-                    if (next) {
-                      setDeadline(next.toString());
-                      setDatePickerOpen(false);
-                    }
-                  }}
-                >
-                  <HeroCalendar.Header className={styles.calendarHeader}>
-                    <HeroCalendar.NavButton slot="previous" className={styles.calendarNavButton} />
-                    <HeroCalendar.Heading className={styles.calendarHeading} />
-                    <HeroCalendar.NavButton slot="next" className={styles.calendarNavButton} />
-                  </HeroCalendar.Header>
-                  <HeroCalendar.Grid className={styles.calendarGrid}>
-                    <HeroCalendar.GridHeader>
-                      {(day) => <HeroCalendar.HeaderCell className={styles.weekdayCell}>{day}</HeroCalendar.HeaderCell>}
-                    </HeroCalendar.GridHeader>
-                    <HeroCalendar.GridBody>
-                      {(cellDate) => (
-                        <HeroCalendar.Cell date={cellDate} className={styles.dayCell}>
-                          {({ formattedDate }) => <span className={styles.dayCellInner}>{formattedDate}</span>}
-                        </HeroCalendar.Cell>
-                      )}
-                    </HeroCalendar.GridBody>
-                  </HeroCalendar.Grid>
-                </HeroCalendar.Root>
+          {/* A Fixed goal repeats indefinitely — a one-off target date is a
+              Variable-goal concept only (see kindFixedHint/kindVariableHint
+              above), so this row doesn't apply to Fixed at all rather than
+              just being disabled. */}
+          {kind !== 'Fixed' && (
+            <div className={styles.listGroup}>
+              <div
+                className={styles.listRow}
+                role="button"
+                tabIndex={0}
+                onClick={() => setDatePickerOpen((c) => !c)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    setDatePickerOpen((c) => !c);
+                  }
+                }}
+              >
+                <span className={styles.listRowIcon}>
+                  <CalendarDays size={16} strokeWidth={2} />
+                </span>
+                <span className={styles.listRowLabel}>{strings.createGoal.deadlineLabel}</span>
+                <span className={styles.listRowValue}>
+                  {deadline ? formatDateOnly(deadline) : strings.createGoal.deadlinePlaceholder}
+                </span>
+                {deadline && (
+                  <button
+                    type="button"
+                    className={styles.clearRowButton}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setDeadline('');
+                    }}
+                    aria-label="Clear target date"
+                  >
+                    <X size={12} strokeWidth={2.5} />
+                  </button>
+                )}
+                <ChevronRight size={16} strokeWidth={2} className={styles.listRowChevron} />
               </div>
-            )}
-          </div>
+              {datePickerOpen && (
+                <div className={styles.expandPanel}>
+                  <button
+                    type="button"
+                    className={`${styles.optionRow} ${!deadline ? styles.optionRowActive : ''}`}
+                    onClick={() => {
+                      setDeadline('');
+                      setDatePickerOpen(false);
+                    }}
+                  >
+                    {strings.createGoal.deadlinePlaceholder}
+                  </button>
+                  <HeroCalendar.Root
+                    focusedValue={parseDate(toDateOnly(dateMonthCursor))}
+                    onFocusChange={(next) => setDateMonthCursor(new Date(next.year, next.month - 1, next.day))}
+                    value={deadline ? parseDate(deadline) : undefined}
+                    onChange={(next) => {
+                      if (next) {
+                        setDeadline(next.toString());
+                        setDatePickerOpen(false);
+                      }
+                    }}
+                  >
+                    <HeroCalendar.Header className={styles.calendarHeader}>
+                      <HeroCalendar.NavButton slot="previous" className={styles.calendarNavButton} />
+                      <HeroCalendar.Heading className={styles.calendarHeading} />
+                      <HeroCalendar.NavButton slot="next" className={styles.calendarNavButton} />
+                    </HeroCalendar.Header>
+                    <HeroCalendar.Grid className={styles.calendarGrid}>
+                      <HeroCalendar.GridHeader>
+                        {(day) => <HeroCalendar.HeaderCell className={styles.weekdayCell}>{day}</HeroCalendar.HeaderCell>}
+                      </HeroCalendar.GridHeader>
+                      <HeroCalendar.GridBody>
+                        {(cellDate) => (
+                          <HeroCalendar.Cell date={cellDate} className={styles.dayCell}>
+                            {({ formattedDate }) => <span className={styles.dayCellInner}>{formattedDate}</span>}
+                          </HeroCalendar.Cell>
+                        )}
+                      </HeroCalendar.GridBody>
+                    </HeroCalendar.Grid>
+                  </HeroCalendar.Root>
+                </div>
+              )}
+            </div>
+          )}
 
           <p className={styles.hintText}>{strings.createGoal.addLineItemsHint}</p>
 

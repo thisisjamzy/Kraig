@@ -83,9 +83,14 @@ export function useLogic() {
     return set;
   }, [tasks, projects, payments]);
 
-  const agenda = useMemo(() => {
+  // Pulled out of the `agenda` useMemo below so the same computation can
+  // also serve the web week-grid (ProjectsCalendarScreen.web.module.css's
+  // JS counterpart), which needs this for 7 days at once, not just
+  // `selectedDate` — all off the same already-loaded tasks/projects/
+  // payments arrays, no extra Firestore reads either way.
+  function buildAgendaForDate(dateIso: string) {
     const taskItems = tasks
-      .filter((t) => t.dueDate && isoDate(t.dueDate.toDate()) === selectedDate)
+      .filter((t) => t.dueDate && isoDate(t.dueDate.toDate()) === dateIso)
       .map((t) => ({
         kind: 'task' as const,
         id: t.id,
@@ -105,8 +110,8 @@ export function useLogic() {
     const projectItems = projects
       .filter(
         (p) =>
-          (p.startDate && isoDate(p.startDate.toDate()) === selectedDate) ||
-          (p.endDate && isoDate(p.endDate.toDate()) === selectedDate)
+          (p.startDate && isoDate(p.startDate.toDate()) === dateIso) ||
+          (p.endDate && isoDate(p.endDate.toDate()) === dateIso)
       )
       .map((p) => {
         // A project's end date is its milestone (screen1's "Milestone: ..."
@@ -114,7 +119,7 @@ export function useLogic() {
         // label says what the milestone actually is (project name shown
         // above it, this describes what's happening to it), not just the
         // word "Milestone" on its own.
-        const isMilestone = !(p.startDate && isoDate(p.startDate.toDate()) === selectedDate);
+        const isMilestone = !(p.startDate && isoDate(p.startDate.toDate()) === dateIso);
         return {
           kind: 'project' as const,
           id: p.id,
@@ -124,9 +129,15 @@ export function useLogic() {
           isMilestone,
         };
       });
-    const paymentItems = payments.filter((payment) => payment.dueDate === selectedDate);
+    const paymentItems = payments.filter((payment) => payment.dueDate === dateIso);
     return { taskItems, projectItems, paymentItems };
-  }, [tasks, projects, payments, selectedDate, projectName, bucketName, areaName]);
+  }
+
+  const agenda = useMemo(
+    () => buildAgendaForDate(selectedDate),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [tasks, projects, payments, selectedDate, projectName, bucketName, areaName]
+  );
 
   // For HeroUI Calendar's onFocusChange (arrow-key/nav-button navigation) —
   // accepts whatever month react-aria's own focus state landed on directly.
@@ -150,6 +161,9 @@ export function useLogic() {
     selectedDate,
     selectDay,
     agenda,
+    // Only consumed by the web week-grid (ProjectsCalendarScreen.tsx's
+    // isWeb branch) — the mobile single-day agenda above is unaffected.
+    agendaForDate: buildAgendaForDate,
     todayIso: isoDate(today),
     openProject,
     openPayment,

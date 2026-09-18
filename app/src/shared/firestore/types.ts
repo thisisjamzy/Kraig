@@ -315,7 +315,7 @@ export interface FirestoreBudgetPlan {
  * on its own. `totalAmount` is denormalized, the sum of every lineItem's
  * `amount`, recalculated inside the same `runTransaction()` as any
  * lineItems write (aggregation.ts's createGoalLineItem/
- * markGoalLineItemComplete) — never trust a stale client copy of it
+ * recordGoalLineItemPayment) — never trust a stale client copy of it
  * without re-deriving. No frozen-balance field lives here on purpose: "how
  * much of this line item is covered by locked wallet money" is computed
  * live from FirestoreAccount.lockedAmount at render time (section 1.3,
@@ -366,7 +366,7 @@ export interface FirestoreGoal {
  * users/{uid}/goals/{goalId}/lineItems/{lineItemId} — one sub-cost (or, for
  * an Income-category item, one expected inflow; or, for a Transfer goal,
  * one planned account-to-account move) of a goal. Marking it complete
- * (aggregation.ts's markGoalLineItemComplete) records a real transaction
+ * (aggregation.ts's recordGoalLineItemPayment) records a real transaction
  * (Expense/Income/Savings, linked back via `expenseId`) or, for a Transfer
  * goal, a real transfer (linked back via `transferId`) — either way the
  * transaction/transfer itself never needs to know about the goal.
@@ -443,13 +443,42 @@ export interface FirestoreGoalLineItem {
   // urgent it is — a "Must have" item might be low priority (not due soon)
   // while a "Nice to have" item is high priority (due soon but skippable).
   necessity: GoalItemNecessity;
+  // `completed` means fully closed — no more spend is expected against
+  // this item. An item with one or more `payments` but `completed: false`
+  // is "partial": some real money has already gone toward it (covers the
+  // case where an expense/transfer isn't settled in a single payment),
+  // and Goal Detail's own "Record payment" action stays available on it
+  // to log another one.
   completed: boolean;
   completedAt: Timestamp | null;
+  // The MOST RECENT payment's own transaction id — kept for back-compat
+  // with a line item completed before `payments` existed (see its own
+  // header below); every reader should prefer `payments` when present.
   expenseId: string | null;
-  // Set instead of expenseId when this is a Transfer goal's item —
-  // completing it records a real transfers/{id} (aggregation.ts's
-  // markGoalLineItemComplete) rather than a transactions/{id}.
+  // Set instead of expenseId when the most recent payment was a Transfer
+  // goal's item — recording one creates a real transfers/{id}
+  // (aggregation.ts's recordGoalLineItemPayment) rather than a
+  // transactions/{id}.
   transferId?: string | null;
+  // Running total of every payment recorded so far (sum of `payments`
+  // below) — real spend against a planned `amount`, which the Record
+  // Payment form (src/logic/goalDetail/useLogic.ts's handleRecordPayment)
+  // lets differ from the plan since actual cost is very often more or
+  // less than budgeted. Unset (or absent, on a line item completed
+  // before this field existed) means no payment has ever been recorded
+  // separately from the plan, and every reader should fall back to
+  // `amount`.
+  actualAmount?: number | null;
+  // Every payment recorded against this item so far, oldest first — an
+  // expense that isn't settled in one shot (the item's real cost turns
+  // out higher than planned, or it's paid off across several
+  // transactions) accumulates more than one entry here rather than
+  // overwriting expenseId/transferId. Absent (or empty) on a line item
+  // completed before this feature existed, or one never yet paid at all
+  // — GoalDetailScreen synthesizes a single legacy entry from
+  // expenseId/transferId + actualAmount/amount when this is empty but the
+  // item is already completed, so an old item still links through.
+  payments?: FirestoreGoalLineItemPayment[];
   // Set once this (Variable-goal) item's amount has been folded into a
   // month's budget via the "Add to budget" action (aggregation.ts's
   // addGoalLineItemToBudget) — hides that action afterward so the same
@@ -458,8 +487,36 @@ export interface FirestoreGoalLineItem {
   // Fixed goal's items never set this — they get a real recurring budget
   // rule automatically instead (see createGoalLineItem).
   addedToBudget?: boolean;
+  // A checklist within this one line item — e.g. a "Groceries" item's own
+  // shopping list, each entry with its own planned amount. Purely a
+  // planning/tracking aid: ticking one off never writes a transaction or
+  // touches this item's own `completed`/`amount` — see
+  // src/logic/goalDetail/useLogic.ts's subItemsConsumed/subItemsRemaining
+  // for the rollup against this item's own `amount` as the budget cap.
+  // Embedded array, not a subcollection — always small, always read
+  // together with the item itself, and every other write to a line item
+  // already goes through one whole-document update/transaction. Absent
+  // (or empty) on every line item created before this feature existed.
+  subItems?: GoalLineItemSubItem[] | null;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
+}
+
+export interface GoalLineItemSubItem {
+  id: string;
+  name: string;
+  amount: number;
+  completed: boolean;
+}
+
+// See FirestoreGoalLineItem.payments's own header — one entry per real
+// transaction/transfer recorded against a line item, in case it takes more
+// than one to cover it.
+export interface FirestoreGoalLineItemPayment {
+  id: string; // the transaction's or transfer's own client id
+  kind: 'expense' | 'transfer';
+  amount: number;
+  date: Timestamp;
 }
 
 export type GoalItemNecessity = 'MustHave' | 'NiceToHave';

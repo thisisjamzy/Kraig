@@ -374,6 +374,21 @@
   white-space: nowrap;
 }
 
+/* Shown instead of .recurrenceBadge for a category with no real budget
+   rule behind it — see src/logic/budget/useLogic.ts's isAutoIncluded
+   header comment. */
+.autoIncludedBadge {
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--color-brand) 16%, transparent);
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--color-brand);
+  white-space: nowrap;
+}
+
 .cardBudgetedBlock {
   display: flex;
   flex-direction: column;

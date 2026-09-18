@@ -222,35 +222,45 @@ export function BudgetScreen() {
             >
               <div className={styles.cardTopRow}>
                 <p className={styles.cardCategoryName}>{entry.category}</p>
-                <div className={styles.cardMenu} onClick={(event) => event.stopPropagation()}>
-                  <ActionMenu
-                    title={entry.category}
-                    ariaLabel={`Actions for ${entry.category}`}
-                    items={[
-                      {
-                        key: 'edit',
-                        label: strings.budget.editAction,
-                        icon: <Pencil size={16} strokeWidth={1.75} />,
-                        onSelect: () =>
-                          router.push(`/edit-budget-category/${entry.id}?month=${monthIndex}&year=${year}`),
-                      },
-                      {
-                        key: 'delete',
-                        label: strings.budget.deleteAction,
-                        icon: <Trash2 size={16} strokeWidth={1.75} />,
-                        onSelect: () => setConfirmDeleteId(entry.id),
-                        danger: true,
-                      },
-                    ]}
-                  />
-                </div>
+                {/* An auto-included category has no real budget rule doc
+                    behind it (src/logic/budget/useLogic.ts's own
+                    isAutoIncluded header comment) — nothing to edit or
+                    delete here; change the goal itself instead. */}
+                {!entry.isAutoIncluded && (
+                  <div className={styles.cardMenu} onClick={(event) => event.stopPropagation()}>
+                    <ActionMenu
+                      title={entry.category}
+                      ariaLabel={`Actions for ${entry.category}`}
+                      items={[
+                        {
+                          key: 'edit',
+                          label: strings.budget.editAction,
+                          icon: <Pencil size={16} strokeWidth={1.75} />,
+                          onSelect: () =>
+                            router.push(`/edit-budget-category/${entry.id}?month=${monthIndex}&year=${year}`),
+                        },
+                        {
+                          key: 'delete',
+                          label: strings.budget.deleteAction,
+                          icon: <Trash2 size={16} strokeWidth={1.75} />,
+                          onSelect: () => setConfirmDeleteId(entry.id),
+                          danger: true,
+                        },
+                      ]}
+                    />
+                  </div>
+                )}
               </div>
 
               <div className={styles.cardBadgeRow}>
                 <span className={styles.typeBadge} data-type={entry.type}>
                   {strings.budget.typeLabels[entry.type]}
                 </span>
-                <span className={styles.recurrenceBadge}>{recurrenceBadgeLabel(entry.recurrence)}</span>
+                {entry.isAutoIncluded ? (
+                  <span className={styles.autoIncludedBadge}>{strings.budget.autoIncludedBadge}</span>
+                ) : (
+                  <span className={styles.recurrenceBadge}>{recurrenceBadgeLabel(entry.recurrence)}</span>
+                )}
               </div>
 
               <div className={styles.cardBudgetedBlock}>

@@ -25,6 +25,28 @@ import type { FirestoreGoal, FirestoreBudgetRule } from '@/src/shared/firestore/
 export type GoalKindFilter = 'All' | 'Fixed' | 'Variable';
 export type ProportionsMode = 'priority' | 'type' | 'category';
 
+// One of the Goals dashboard's own horizontally-scrolled cards (Design/web
+// reference aside — this is the mobile hero row) — matches dedicatedTotals'
+// own fixedExpense/variableExpense/etc. keys below, and is what
+// openBucketModal takes to say which card was tapped.
+export type DedicatedBucketKey =
+  | 'fixedExpense'
+  | 'variableExpense'
+  | 'fixedIncome'
+  | 'variableIncome'
+  | 'fixedSavings'
+  | 'variableSavings'
+  | 'transfers';
+
+export interface DedicatedBucketItem {
+  id: string;
+  goalId: string;
+  goalName: string;
+  name: string;
+  amount: number;
+  currency: string;
+}
+
 export function useLogic() {
   const { user } = useFirebaseUser();
   const uid = user?.uid;
@@ -38,6 +60,27 @@ export function useLogic() {
   // The Goals app's own Month/All-time toggle (GoalsHeader) — shared by
   // every one of its three tabs via the same localStorage key.
   const { range, setRange } = useGoalsRange();
+
+  // Which specific month "month" mode shows — same shape as Budget's own
+  // month picker (src/logic/budget/useLogic.ts's monthIndex/year/
+  // pickerYear/openMonthPicker/chooseMonth), so Fixed/Variable can be
+  // browsed to any month instead of being pinned to whichever one is
+  // real right now.
+  const [monthIndex, setMonthIndex] = useState(currentMonthIndex());
+  const [year, setYear] = useState(currentYear());
+  const [monthPickerOpen, setMonthPickerOpen] = useState(false);
+  const [pickerYear, setPickerYear] = useState(year);
+
+  function openMonthPicker() {
+    setPickerYear(year);
+    setMonthPickerOpen(true);
+  }
+
+  function chooseMonth(index: number) {
+    setMonthIndex(index);
+    setYear(pickerYear);
+    setMonthPickerOpen(false);
+  }
 
   const [kindFilter, setKindFilter] = useState<GoalKindFilter>('All');
   const [searchQuery, setSearchQuery] = useState('');
@@ -103,23 +146,22 @@ export function useLogic() {
   const goalById = useMemo(() => new Map(goalDocs.map((goal) => [goal.id, goal])), [goalDocs]);
   const accountCurrency = useMemo(() => new Map(accounts.map((a) => [a.id, a.currency])), [accounts]);
 
-  // "This month's total budget" — the real current month, not a browsable
-  // one the way Budget's own screen has (Goals has no month picker of its
-  // own) — same Expense-only definition Budget's own headline "Total
-  // budget" figure uses (src/logic/budget/useLogic.ts's totalExpenseBudgeted),
-  // so the dashboard card's "% of this month's budget" means the same thing
-  // in both places.
+  // "This month's total budget" — now the BROWSED month (year/monthIndex
+  // above), not always the real current one, so the dashboard card's "% of
+  // this month's budget" stays a coherent comparison against whichever
+  // month's Fixed/Variable totals are actually showing. Same Expense-only
+  // definition Budget's own headline "Total budget" figure uses
+  // (src/logic/budget/useLogic.ts's totalExpenseBudgeted).
   const activeBudgetRulesQuery = useMemo(
     () => (uid ? query(budgetRulesRef(uid), where('archived', '==', false)) : null),
     [uid]
   );
   const { data: budgetRules } = useFirestoreCollection<FirestoreBudgetRule>(activeBudgetRulesQuery);
-  const monthTotalBudget = useMemo(() => {
-    const year = currentYear();
-    const month = currentMonthIndex() + 1;
+  function sumBudgetRulesOfType(type: 'Expense' | 'Income') {
+    const month = monthIndex + 1;
     const monthStr = `${year}-${String(month).padStart(2, '0')}`;
     const base = budgetRules
-      .filter((rule) => (rule.type ?? 'Expense') === 'Expense')
+      .filter((rule) => (rule.type ?? 'Expense') === type)
       .reduce((sum, rule) => {
         const occurrence = ruleAppliesToMonth(toRecurrenceRule(rule), year, month);
         if (!occurrence || rule.excludedMonths?.includes(monthStr)) return sum;
@@ -127,7 +169,20 @@ export function useLogic() {
         return sum + toDisplay(ctx, rule.budgetedAmount * occurrence.multiplier, native);
       }, 0);
     return round2(base);
-  }, [budgetRules, accountCurrency, ctx]);
+  }
+  const monthTotalBudget = useMemo(
+    () => sumBudgetRulesOfType('Expense'),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [budgetRules, accountCurrency, ctx, year, monthIndex]
+  );
+  // The hero card's Income-mode denominator — "% of projected income" —
+  // same recurring-rule-applies-to-month math as monthTotalBudget above,
+  // just over Income-type budget rules instead of Expense.
+  const monthPlannedIncome = useMemo(
+    () => sumBudgetRulesOfType('Income'),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [budgetRules, accountCurrency, ctx, year, monthIndex]
+  );
 
   // Same frozen-funds-availability check goalDetail/useLogic.ts runs for one
   // goal's own currency, generalized to every currency actually in use here
@@ -182,6 +237,7 @@ export function useLogic() {
               completedAt: item.completedAt ? item.completedAt.toDate() : null,
               hasFunds: availableFrozen >= item.amount,
               dueDate: item.dueDate ? item.dueDate.toDate() : null,
+              recurrence: item.recurrence ?? null,
               addedToBudget: Boolean(item.addedToBudget),
               budgetRuleId: item.budgetRuleId ?? null,
             };
@@ -191,47 +247,158 @@ export function useLogic() {
     [itemsByGoal, goalById, availableFrozenByCurrency, categoryById]
   );
 
-  // The Goals app's own dashboard card — "dedicated spend" is every
-  // completed line item's own amount (exactly what got recorded as a real
-  // transaction when it was marked complete, see aggregation.ts's
-  // markGoalLineItemComplete), split by the item's parent goal kind. Month
-  // mode narrows to items completed in the real current month; All-time
-  // sums every completed item ever, regardless of kindFilter/search below
-  // (same "global summary" reasoning as totalGoalAmount above).
+  // The Goals app's own dashboard cards. In "month" mode every bucket is a
+  // PLANNED/committed total for the browsed month (year/monthIndex above)
+  // — every relevant line item whose own recurrence (Fixed) or due date
+  // (Variable, or a Fixed item with none set) lands in that month, counted
+  // regardless of whether it's actually been marked complete yet, same
+  // "does this recurring thing land in this month" check Budget's own
+  // monthTotalBudget already runs for budget rules (ruleAppliesToMonth).
+  // Split by BOTH kind (Fixed/Variable) AND the parent goal's own type
+  // (Expense/Income/Savings) — these used to only split by kind, silently
+  // adding an Income goal's items into the same bucket as an Expense
+  // goal's, which is exactly the "everything is mixed up" complaint.
+  // Transfers keeps its own "cost of transferring" meaning (charges, not
+  // the amount moved — moving your own money isn't spend), now alongside
+  // the average charge per applicable transfer this month. "All-time" mode
+  // is unchanged: a plain sum of every completed item's own amount/
+  // charges, no month filtering at all.
   const dedicatedTotals = useMemo(() => {
-    const now = new Date();
-    let fixed = 0;
-    let variable = 0;
-    // What a Transfer goal "spends" is its charges — the fee to move money
-    // between the user's own accounts, not the amount moved itself (moving
-    // your own money isn't spend). Kept out of fixed/variable entirely
-    // rather than folded into either, hence its own card on the dashboard.
-    let transfers = 0;
-    for (const item of allLineItems) {
-      if (!item.completed) continue;
-      if (
-        range === 'month' &&
-        !(item.completedAt && item.completedAt.getFullYear() === now.getFullYear() && item.completedAt.getMonth() === now.getMonth())
-      ) {
-        continue;
-      }
-      if (item.goalType === 'Transfer') {
-        transfers += toDisplay(ctx, item.charges, item.currency);
-        continue;
-      }
-      const amount = toDisplay(ctx, item.amount, item.currency);
-      if (item.goalKind === 'Fixed') fixed += amount;
-      else variable += amount;
-    }
-    const dedicated = round2(fixed + variable);
-    return {
-      dedicated,
-      fixed: round2(fixed),
-      variable: round2(variable),
-      transfers: round2(transfers),
-      percentOfMonthBudget: monthTotalBudget > 0 ? Math.round((dedicated / monthTotalBudget) * 100) : 0,
+    let fixedExpense = 0;
+    let variableExpense = 0;
+    let fixedIncome = 0;
+    let variableIncome = 0;
+    let fixedSavings = 0;
+    let variableSavings = 0;
+    let transfersCost = 0;
+    let transfersOccurrences = 0;
+    // Every real line item behind each of the 6 numbers above, in the same
+    // display currency/amount already scaled for the browsed month — so
+    // tapping a dashboard card (GoalsScreen.tsx's openBucketModal) can list
+    // exactly what's summed into it, not just the total.
+    const itemsByBucket: Record<DedicatedBucketKey, DedicatedBucketItem[]> = {
+      fixedExpense: [],
+      variableExpense: [],
+      fixedIncome: [],
+      variableIncome: [],
+      fixedSavings: [],
+      variableSavings: [],
+      transfers: [],
     };
-  }, [allLineItems, range, ctx, monthTotalBudget]);
+
+    function bucketFor(kind: 'Fixed' | 'Variable', type: string): Exclude<DedicatedBucketKey, 'transfers'> {
+      if (type === 'Income') return kind === 'Fixed' ? 'fixedIncome' : 'variableIncome';
+      if (type === 'Savings') return kind === 'Fixed' ? 'fixedSavings' : 'variableSavings';
+      // Expense, and the Fixed/Variable-only fallback for a goal written
+      // before FirestoreGoal.type existed (allLineItems already defaults
+      // goalType to 'Expense' for those).
+      return kind === 'Fixed' ? 'fixedExpense' : 'variableExpense';
+    }
+
+    function addByKindAndType(
+      kind: 'Fixed' | 'Variable',
+      type: string,
+      amount: number,
+      item: { id: string; goalId: string; goalName: string; name: string }
+    ) {
+      const bucket = bucketFor(kind, type);
+      if (bucket === 'fixedIncome') fixedIncome += amount;
+      else if (bucket === 'variableIncome') variableIncome += amount;
+      else if (bucket === 'fixedSavings') fixedSavings += amount;
+      else if (bucket === 'variableSavings') variableSavings += amount;
+      else if (bucket === 'fixedExpense') fixedExpense += amount;
+      else variableExpense += amount;
+      itemsByBucket[bucket].push({ ...item, amount: round2(amount), currency });
+    }
+
+    if (range === 'month') {
+      const targetMonth = monthIndex + 1;
+      for (const item of allLineItems) {
+        if (!item.dueDate) continue;
+        const occurrence = ruleAppliesToMonth(
+          {
+            frequency: item.recurrence?.frequency ?? 'Once',
+            interval: item.recurrence?.interval ?? 1,
+            anchorDate: item.dueDate,
+            endCondition: 'Never',
+          },
+          year,
+          targetMonth
+        );
+        if (!occurrence) continue;
+        if (item.goalType === 'Transfer') {
+          const chargeAmount = toDisplay(ctx, item.charges * occurrence.multiplier, item.currency);
+          transfersCost += chargeAmount;
+          transfersOccurrences += occurrence.multiplier;
+          itemsByBucket.transfers.push({
+            id: item.id,
+            goalId: item.goalId,
+            goalName: item.goalName,
+            name: item.name,
+            amount: round2(chargeAmount),
+            currency,
+          });
+          continue;
+        }
+        const amount = toDisplay(ctx, item.amount * occurrence.multiplier, item.currency);
+        addByKindAndType(item.goalKind, item.goalType, amount, item);
+      }
+    } else {
+      for (const item of allLineItems) {
+        if (!item.completed) continue;
+        if (item.goalType === 'Transfer') {
+          const chargeAmount = toDisplay(ctx, item.charges, item.currency);
+          transfersCost += chargeAmount;
+          transfersOccurrences += 1;
+          itemsByBucket.transfers.push({
+            id: item.id,
+            goalId: item.goalId,
+            goalName: item.goalName,
+            name: item.name,
+            amount: round2(chargeAmount),
+            currency,
+          });
+          continue;
+        }
+        const amount = toDisplay(ctx, item.amount, item.currency);
+        addByKindAndType(item.goalKind, item.goalType, amount, item);
+      }
+    }
+
+    const fixed = round2(fixedExpense + fixedIncome + fixedSavings);
+    const variable = round2(variableExpense + variableIncome + variableSavings);
+    const dedicatedExpense = round2(fixedExpense + variableExpense);
+    const dedicatedIncome = round2(fixedIncome + variableIncome);
+    return {
+      // Kept for GoalsAnalyticsScreen's own Fixed-vs-Variable donut, which
+      // deliberately sums across every type — unchanged meaning.
+      dedicated: round2(fixed + variable),
+      fixed,
+      variable,
+      fixedExpense: round2(fixedExpense),
+      variableExpense: round2(variableExpense),
+      fixedIncome: round2(fixedIncome),
+      variableIncome: round2(variableIncome),
+      fixedSavings: round2(fixedSavings),
+      variableSavings: round2(variableSavings),
+      dedicatedExpense,
+      dedicatedIncome,
+      transfersCost: round2(transfersCost),
+      transfersAverageCharge: transfersOccurrences > 0 ? round2(transfersCost / transfersOccurrences) : 0,
+      percentOfMonthBudget: monthTotalBudget > 0 ? Math.round((dedicatedExpense / monthTotalBudget) * 100) : 0,
+      percentOfProjectedIncome: monthPlannedIncome > 0 ? Math.round((dedicatedIncome / monthPlannedIncome) * 100) : 0,
+      itemsByBucket,
+    };
+  }, [allLineItems, range, ctx, monthTotalBudget, monthPlannedIncome, year, monthIndex, currency]);
+
+  const [openBucketKey, setOpenBucketKey] = useState<DedicatedBucketKey | null>(null);
+  function openBucketModal(bucket: DedicatedBucketKey) {
+    setOpenBucketKey(bucket);
+  }
+  function closeBucketModal() {
+    setOpenBucketKey(null);
+  }
+  const openBucketItems = openBucketKey ? dedicatedTotals.itemsByBucket[openBucketKey] : [];
 
   // Analytics' own trend chart — always the last 6 real calendar months
   // regardless of the Month/All-time toggle (same "a trend needs more than
@@ -305,9 +472,22 @@ export function useLogic() {
     proportionsBreakdown,
     range,
     setRange,
+    monthIndex,
+    year,
+    pickerYear,
+    setPickerYear,
+    monthPickerOpen,
+    setMonthPickerOpen,
+    openMonthPicker,
+    chooseMonth,
     dedicatedTotals,
     dedicatedTrend,
+    openBucketKey,
+    openBucketModal,
+    closeBucketModal,
+    openBucketItems,
     monthTotalBudget,
+    monthPlannedIncome,
     loading: ctxLoading || goalsLoading,
     lineItemsLoading,
     error: goalsError,

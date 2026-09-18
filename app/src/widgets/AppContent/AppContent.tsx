@@ -23,6 +23,7 @@ export function AppContent({ children }: { children: ReactNode }) {
 
   const className = [
     styles.content,
+    isWeb ? styles.contentWeb : '',
     !isWeb && hasAppHeader(pathname) ? styles.withHeader : '',
     !isWeb && hasBottomNav(pathname) ? styles.withBottomNav : '',
   ]

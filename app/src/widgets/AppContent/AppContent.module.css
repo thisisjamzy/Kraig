@@ -25,6 +25,19 @@
   overflow-y: clip;
 }
 
+/* Web shell only (isWeb — see AppContent.tsx's own comment). The 480px
+   mobile-frame cap above exists for the phone-width app; the web shell
+   already governs its own width via layout.module.css's .webMain, so this
+   just lets each screen's own *.web.module.css .page decide its real
+   width (Home's is 1200px, see HomeScreen.web.module.css) instead of
+   being clipped down to the mobile frame first. overflow: clip stays —
+   per the comment above it doesn't create a scroll container, so
+   WebTopBar's own position: sticky still resolves against the real page
+   scroll straight through this element. */
+.contentWeb {
+  max-width: none;
+}
+
 .withHeader {
   padding-top: calc(84px + env(safe-area-inset-top));
 }

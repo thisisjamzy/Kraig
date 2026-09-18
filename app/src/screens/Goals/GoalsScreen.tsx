@@ -1,13 +1,28 @@
 'use client';
 
+import { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeftRight, ChevronRight, Plus, Repeat, Search, Shuffle, X } from 'lucide-react';
-import { useLogic, type GoalKindFilter } from '@/src/logic/goals/useLogic';
+import {
+  ArrowLeftRight,
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+  Repeat,
+  Search,
+  Shuffle,
+  X,
+} from 'lucide-react';
+import { useLogic, type GoalKindFilter, type DedicatedBucketKey } from '@/src/logic/goals/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { GoalsHeader } from '@/src/widgets/GoalsHeader/GoalsHeader';
+import { Modal } from '@/src/widgets/Modal/Modal';
 import { goalIconTint, goalInitial } from '@/src/viewmodels/goalIcons';
+import { useIsWeb } from '@/src/shared/hooks/useViewportMode';
 import styles from './GoalsScreen.module.css';
+import webStyles from './GoalsScreen.web.module.css';
 
 export function formatAmount(value: number) {
   return new Intl.NumberFormat('en-US').format(value);
@@ -20,6 +35,7 @@ const SEARCH_ENABLED_ABOVE = 20;
 export function GoalsScreen() {
   const router = useRouter();
   const strings = useStrings();
+  const isWeb = useIsWeb();
   const {
     currency,
     goals,
@@ -32,16 +48,50 @@ export function GoalsScreen() {
     toggleSearch,
     range,
     setRange,
+    monthIndex,
+    year,
+    pickerYear,
+    setPickerYear,
+    monthPickerOpen,
+    setMonthPickerOpen,
+    openMonthPicker,
+    chooseMonth,
     dedicatedTotals,
+    openBucketKey,
+    openBucketModal,
+    closeBucketModal,
+    openBucketItems,
     loading,
     error,
   } = useLogic();
+
+  const monthNames = strings.months;
+  const monthLabel = `${monthNames[monthIndex].slice(0, 3)} ${year}`;
+
+  // The hero card's own Expense/Income toggle — Expense compares dedicated
+  // spend against this month's Expense budget; Income compares dedicated
+  // income against this month's projected (budgeted) income. Purely a
+  // display choice, doesn't affect the cards row below at all.
+  const [heroMode, setHeroMode] = useState<'expense' | 'income'>('expense');
 
   const kindFilters: { key: GoalKindFilter; label: string }[] = [
     { key: 'All', label: strings.goals.filterAll },
     { key: 'Fixed', label: strings.goals.filterFixed },
     { key: 'Variable', label: strings.goals.filterVariable },
   ];
+
+  // The dashboard card labels reused as the drill-down modal's own title —
+  // GoalsScreen.web.module.css/mobile classes already own the card copy
+  // itself, this just maps each bucket key back to the same string.
+  const bucketLabel: Record<DedicatedBucketKey, string> = {
+    fixedExpense: strings.goals.fixedExpenseLabel,
+    variableExpense: strings.goals.variableExpenseLabel,
+    fixedIncome: strings.goals.fixedIncomeLabel,
+    variableIncome: strings.goals.variableIncomeLabel,
+    fixedSavings: strings.goals.fixedSavingsLabel,
+    variableSavings: strings.goals.variableSavingsLabel,
+    transfers: strings.goals.transfersEstimatedCostLabel,
+  };
 
   const hasSearch = searchQuery.trim().length > 0;
   const searchEnabled = allGoalsCount > SEARCH_ENABLED_ABOVE;
@@ -60,54 +110,169 @@ export function GoalsScreen() {
   };
 
   return (
-    <div className={styles.page}>
+    <div className={`${styles.page} ${isWeb ? webStyles.page : ''}`}>
       <GoalsHeader range={range} onChangeRange={setRange} />
+
+      {/* The month/date picker's own row — deliberately not in GoalsHeader
+          (that's this mini-app's shared "app bar", used by all three tabs)
+          and not floating on top of the hero card either; its own row in
+          the page's normal content flow, only shown in "month" mode. */}
+      {range === 'month' && (
+        <div className={styles.dateRow}>
+          <button type="button" className={styles.dateButton} onClick={openMonthPicker} aria-label={strings.goals.changeMonthLabel}>
+            <CalendarDays size={14} strokeWidth={2} />
+            {monthLabel}
+          </button>
+        </div>
+      )}
 
       <ScreenState loading={loading} error={error} />
 
       {!loading && !error && (
         <>
           <div className={styles.heroCard}>
-            <span className={styles.heroLabel}>{strings.goals.dedicatedSpendLabel}</span>
-            <span className={styles.heroValue}>
-              {formatAmount(dedicatedTotals.dedicated)} {currency}
-            </span>
-            {range === 'month' && (
-              <span className={styles.heroSubtitle}>
-                {dedicatedTotals.percentOfMonthBudget}% {strings.goals.ofMonthBudgetSuffix}
-              </span>
+            <div className={styles.heroToggle}>
+              <button
+                type="button"
+                className={`${styles.heroToggleSegment} ${heroMode === 'expense' ? styles.heroToggleSegmentActive : ''}`}
+                onClick={() => setHeroMode('expense')}
+              >
+                {strings.goals.heroToggleExpense}
+              </button>
+              <button
+                type="button"
+                className={`${styles.heroToggleSegment} ${heroMode === 'income' ? styles.heroToggleSegmentActive : ''}`}
+                onClick={() => setHeroMode('income')}
+              >
+                {strings.goals.heroToggleIncome}
+              </button>
+            </div>
+            {heroMode === 'expense' ? (
+              <>
+                <span className={styles.heroLabel}>{strings.goals.dedicatedSpendLabel}</span>
+                <span className={styles.heroValue}>
+                  {formatAmount(dedicatedTotals.dedicatedExpense)} {currency}
+                </span>
+                {range === 'month' && (
+                  <span className={styles.heroSubtitle}>
+                    {dedicatedTotals.percentOfMonthBudget}% {strings.goals.ofMonthBudgetSuffix}
+                  </span>
+                )}
+              </>
+            ) : (
+              <>
+                <span className={styles.heroLabel}>{strings.goals.dedicatedIncomeLabel}</span>
+                <span className={styles.heroValue}>
+                  {formatAmount(dedicatedTotals.dedicatedIncome)} {currency}
+                </span>
+                {range === 'month' && (
+                  <span className={styles.heroSubtitle}>
+                    {dedicatedTotals.percentOfProjectedIncome}% {strings.goals.ofProjectedIncomeSuffix}
+                  </span>
+                )}
+              </>
             )}
           </div>
 
-          <div className={styles.expenseCardsRow}>
-            <div className={styles.expenseCard}>
+          {/* Fixed/Variable split by the parent goal's own type — no
+              longer one mixed Fixed/Variable pair (that silently combined
+              Expense/Income/Savings goals together). Horizontally
+              scrolling since there are now 7 cards, not 3. */}
+          <div className={styles.expenseCardsRow} data-hscroll="true">
+            <button type="button" className={styles.expenseCard} onClick={() => openBucketModal('fixedExpense')}>
               <span className={styles.expenseCardIcon}>
                 <Repeat size={16} strokeWidth={2} />
               </span>
-              <span className={styles.expenseCardLabel}>{strings.goals.filterFixed}</span>
+              <span className={styles.expenseCardLabel}>{strings.goals.fixedExpenseLabel}</span>
               <span className={styles.expenseCardValue}>
-                {formatAmount(dedicatedTotals.fixed)} {currency}
+                {formatAmount(dedicatedTotals.fixedExpense)} {currency}
               </span>
-            </div>
-            <div className={styles.expenseCard}>
+            </button>
+            <button type="button" className={styles.expenseCard} onClick={() => openBucketModal('variableExpense')}>
               <span className={styles.expenseCardIcon}>
                 <Shuffle size={16} strokeWidth={2} />
               </span>
-              <span className={styles.expenseCardLabel}>{strings.goals.filterVariable}</span>
+              <span className={styles.expenseCardLabel}>{strings.goals.variableExpenseLabel}</span>
               <span className={styles.expenseCardValue}>
-                {formatAmount(dedicatedTotals.variable)} {currency}
+                {formatAmount(dedicatedTotals.variableExpense)} {currency}
               </span>
-            </div>
-            <div className={styles.expenseCard}>
+            </button>
+            <button type="button" className={styles.expenseCard} onClick={() => openBucketModal('fixedIncome')}>
+              <span className={styles.expenseCardIcon}>
+                <Repeat size={16} strokeWidth={2} />
+              </span>
+              <span className={styles.expenseCardLabel}>{strings.goals.fixedIncomeLabel}</span>
+              <span className={styles.expenseCardValue}>
+                {formatAmount(dedicatedTotals.fixedIncome)} {currency}
+              </span>
+            </button>
+            <button type="button" className={styles.expenseCard} onClick={() => openBucketModal('variableIncome')}>
+              <span className={styles.expenseCardIcon}>
+                <Shuffle size={16} strokeWidth={2} />
+              </span>
+              <span className={styles.expenseCardLabel}>{strings.goals.variableIncomeLabel}</span>
+              <span className={styles.expenseCardValue}>
+                {formatAmount(dedicatedTotals.variableIncome)} {currency}
+              </span>
+            </button>
+            <button type="button" className={styles.expenseCard} onClick={() => openBucketModal('fixedSavings')}>
+              <span className={styles.expenseCardIcon}>
+                <Repeat size={16} strokeWidth={2} />
+              </span>
+              <span className={styles.expenseCardLabel}>{strings.goals.fixedSavingsLabel}</span>
+              <span className={styles.expenseCardValue}>
+                {formatAmount(dedicatedTotals.fixedSavings)} {currency}
+              </span>
+            </button>
+            <button type="button" className={styles.expenseCard} onClick={() => openBucketModal('variableSavings')}>
+              <span className={styles.expenseCardIcon}>
+                <Shuffle size={16} strokeWidth={2} />
+              </span>
+              <span className={styles.expenseCardLabel}>{strings.goals.variableSavingsLabel}</span>
+              <span className={styles.expenseCardValue}>
+                {formatAmount(dedicatedTotals.variableSavings)} {currency}
+              </span>
+            </button>
+            <button type="button" className={styles.expenseCard} onClick={() => openBucketModal('transfers')}>
               <span className={styles.expenseCardIcon}>
                 <ArrowLeftRight size={16} strokeWidth={2} />
               </span>
-              <span className={styles.expenseCardLabel}>{strings.goals.filterTransfers}</span>
+              <span className={styles.expenseCardLabel}>{strings.goals.transfersEstimatedCostLabel}</span>
               <span className={styles.expenseCardValue}>
-                {formatAmount(dedicatedTotals.transfers)} {currency}
+                {formatAmount(dedicatedTotals.transfersCost)} {currency}
               </span>
-            </div>
+              <span className={styles.expenseCardCaption}>
+                {strings.goals.transfersAverageChargeLabel}: {formatAmount(dedicatedTotals.transfersAverageCharge)} {currency}
+              </span>
+            </button>
           </div>
+
+          {openBucketKey && (
+            <Modal title={bucketLabel[openBucketKey]} onClose={closeBucketModal}>
+              {openBucketItems.length === 0 ? (
+                <p className={styles.emptyText}>{strings.goals.bucketModalEmpty}</p>
+              ) : (
+                <div className={styles.bucketModalList}>
+                  {openBucketItems.map((item) => (
+                    <Link
+                      key={item.id}
+                      href={`/goals/${item.goalId}`}
+                      className={styles.bucketModalRow}
+                      onClick={closeBucketModal}
+                    >
+                      <span className={styles.bucketModalItemInfo}>
+                        <span className={styles.bucketModalItemName}>{item.name}</span>
+                        <span className={styles.bucketModalGoalName}>{item.goalName}</span>
+                      </span>
+                      <span className={styles.bucketModalAmount}>
+                        {formatAmount(item.amount)} {item.currency}
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </Modal>
+          )}
 
           {/* Title, the kind filter (or the search input once it's open),
               and the search trigger all share this one row. */}
@@ -166,13 +331,13 @@ export function GoalsScreen() {
           {goals.length === 0 ? (
             <p className={styles.emptyText}>{hasSearch ? strings.goals.emptySearch : strings.goals.emptyGoals}</p>
           ) : (
-            <div className={styles.exploreList}>
+            <div className={`${styles.exploreList} ${isWeb ? webStyles.exploreList : ''}`}>
               {goals.map((goal) => (
                 <div
                   key={goal.id}
                   role="button"
                   tabIndex={0}
-                  className={styles.exploreRow}
+                  className={`${styles.exploreRow} ${isWeb ? webStyles.exploreRow : ''}`}
                   onClick={() => router.push(`/goals/${goal.id}`)}
                   onKeyDown={(event) => {
                     if (event.key === 'Enter' || event.key === ' ') {
@@ -210,6 +375,44 @@ export function GoalsScreen() {
             {strings.goals.addGoal}
           </button>
         </>
+      )}
+
+      {monthPickerOpen && (
+        <Modal title={strings.budget.chooseMonth} onClose={() => setMonthPickerOpen(false)}>
+          <div className={styles.yearStepper}>
+            <button
+              type="button"
+              className={styles.yearStepButton}
+              onClick={() => setPickerYear((value) => value - 1)}
+              aria-label="Previous year"
+            >
+              <ChevronLeft size={16} strokeWidth={2} />
+            </button>
+            <span className={styles.yearStepValue}>{pickerYear}</span>
+            <button
+              type="button"
+              className={styles.yearStepButton}
+              onClick={() => setPickerYear((value) => value + 1)}
+              aria-label="Next year"
+            >
+              <ChevronRight size={16} strokeWidth={2} />
+            </button>
+          </div>
+          <div className={styles.monthGrid}>
+            {monthNames.map((name, index) => (
+              <button
+                key={name}
+                type="button"
+                className={`${styles.monthOption} ${
+                  index === monthIndex && pickerYear === year ? styles.monthOptionActive : ''
+                }`}
+                onClick={() => chooseMonth(index)}
+              >
+                {name.slice(0, 3)}
+              </button>
+            ))}
+          </div>
+        </Modal>
       )}
     </div>
   );

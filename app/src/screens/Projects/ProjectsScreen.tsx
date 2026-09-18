@@ -11,7 +11,9 @@ import { ProjectCard } from '@/src/widgets/ProjectCard/ProjectCard';
 import { TaskCard } from '@/src/widgets/TaskCard/TaskCard';
 import { Modal } from '@/src/widgets/Modal/Modal';
 import { projectCoverImageUrl } from '@/src/viewmodels/projects';
+import { useIsWeb } from '@/src/shared/hooks/useViewportMode';
 import styles from './ProjectsScreen.module.css';
+import webStyles from './ProjectsScreen.web.module.css';
 
 export function ProjectsScreen() {
   const strings = useStrings();
@@ -35,6 +37,7 @@ export function ProjectsScreen() {
 
   const swipeRef = useSwipeModeSwitch('projects');
   const router = useRouter();
+  const isWeb = useIsWeb();
   const [projectSort, setProjectSort] = useState<'timeline' | 'name'>('timeline');
   const activeProjects = projects
     .filter((project) => project.status === 'Active')
@@ -45,7 +48,7 @@ export function ProjectsScreen() {
     );
 
   return (
-    <div className={styles.page} ref={swipeRef}>
+    <div className={`${styles.page} ${isWeb ? webStyles.page : ''}`} ref={swipeRef}>
       <h1 className={styles.greeting}>{strings.projects.heroTagline}</h1>
 
       <div className={styles.performanceCard}>
@@ -99,7 +102,7 @@ export function ProjectsScreen() {
           {todayPriorityTasks.length < 3 && (
             <p className={styles.priorityHint}>{strings.projects.todayPrioritiesHint}</p>
           )}
-          <div className={styles.priorityList}>
+          <div className={`${styles.priorityList} ${isWeb ? webStyles.priorityList : ''}`}>
             {todayPriorityTasks.map((task) => (
               <TaskCard key={task.id} task={task} />
             ))}
@@ -125,9 +128,14 @@ export function ProjectsScreen() {
           {areas.length === 0 ? (
             <p className={styles.emptyText}>{strings.projects.emptyAreas}</p>
           ) : (
-            <div className={styles.areaCarousel} data-hscroll="true">
+            <div className={`${styles.areaCarousel} ${isWeb ? webStyles.areaCarousel : ''}`} data-hscroll="true">
               {areas.map((area) => (
-                <button key={area.id} type="button" className={styles.areaCard} onClick={() => openArea(area.id)}>
+                <button
+                  key={area.id}
+                  type="button"
+                  className={`${styles.areaCard} ${isWeb ? webStyles.areaCard : ''}`}
+                  onClick={() => openArea(area.id)}
+                >
                   <div
                     className={styles.areaCardCover}
                     style={{ backgroundImage: `url(${projectCoverImageUrl(area.id)})` }}
@@ -181,9 +189,14 @@ export function ProjectsScreen() {
       {activeProjects.length === 0 ? (
         <p className={styles.emptyText}>{strings.projects.emptyProjectsCarousel}</p>
       ) : (
-        <div className={styles.projectCarousel} data-hscroll="true">
+        <div className={`${styles.projectCarousel} ${isWeb ? webStyles.projectCarousel : ''}`} data-hscroll="true">
           {activeProjects.map((project) => (
-            <ProjectCard key={project.id} project={project} onClick={() => openProject(project.id)} />
+            <ProjectCard
+              key={project.id}
+              project={project}
+              onClick={() => openProject(project.id)}
+              className={isWeb ? webStyles.projectCardWeb : undefined}
+            />
           ))}
         </div>
       )}

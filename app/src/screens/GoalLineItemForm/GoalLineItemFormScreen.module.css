@@ -365,3 +365,121 @@
 .dayCell[data-focus-visible] .dayCellInner {
   box-shadow: 0 0 0 2px var(--color-brand);
 }
+
+/* Sub-items — a checklist within this one line item (e.g. this item's own
+   shopping list), each row its own amount rolling up into how much of
+   this item's own amount has been consumed so far. */
+.subItemsHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-md) var(--space-md) 0;
+}
+
+.subItemsRollup {
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: var(--color-text-secondary);
+}
+
+.subItemsProgressTrack {
+  height: 5px;
+  margin: var(--space-sm) var(--space-md) 0;
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  overflow: hidden;
+}
+
+.subItemsProgressFill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-brand);
+}
+
+.subItemsList {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-sm) var(--space-md) 0;
+}
+
+.subItemRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-xs) 0;
+}
+
+.subItemName {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.subItemNameDone {
+  color: var(--color-text-secondary);
+  text-decoration: line-through;
+}
+
+.subItemAmount {
+  flex-shrink: 0;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.subItemAddRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+}
+
+.subItemNameInput {
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-sm) var(--space-md);
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  outline: none;
+}
+
+.subItemAmountInput {
+  width: 90px;
+  flex-shrink: 0;
+  padding: var(--space-sm) var(--space-md);
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  outline: none;
+}
+
+.subItemAddButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--ink-bg);
+  color: var(--ink-text);
+  cursor: pointer;
+}
+
+.subItemAddButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}

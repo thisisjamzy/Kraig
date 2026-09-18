@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import {
   ChevronLeft,
   ArrowUpRight,
@@ -77,6 +78,13 @@ export function AddTransactionScreen() {
     submitting,
     submitError,
   } = useLogic();
+
+  // Goals vs Category used to be two lists stacked on the same screen —
+  // now two tabs, so only one shows at a time. Only worth showing the tab
+  // switcher at all when there's actually a Goals option to switch to;
+  // otherwise this step is just the category list, same as always.
+  const hasGoalOption = linkableGoalItems.length > 0 || Boolean(linkedGoalItem);
+  const [categoryTab, setCategoryTab] = useState<'goals' | 'category'>(hasGoalOption ? 'goals' : 'category');
 
   const transactionTypes = (Object.keys(TYPE_ICONS) as TransactionType[]).map((key) => ({
     key,
@@ -166,7 +174,26 @@ export function AddTransactionScreen() {
             </div>
           )}
 
-          {(linkedGoalItem || linkableGoalItems.length > 0) && (
+          {hasGoalOption && (
+            <div className={styles.categoryTabRow}>
+              <button
+                type="button"
+                className={`${styles.categoryTabButton} ${categoryTab === 'goals' ? styles.categoryTabButtonActive : ''}`}
+                onClick={() => setCategoryTab('goals')}
+              >
+                {strings.addTransaction.tabGoals}
+              </button>
+              <button
+                type="button"
+                className={`${styles.categoryTabButton} ${categoryTab === 'category' ? styles.categoryTabButtonActive : ''}`}
+                onClick={() => setCategoryTab('category')}
+              >
+                {strings.addTransaction.tabCategory}
+              </button>
+            </div>
+          )}
+
+          {hasGoalOption && categoryTab === 'goals' && (
             <div className={styles.goalLinkSection}>
               <div className={styles.goalLinkHeaderRow}>
                 <span className={styles.descriptionLabel}>{strings.addTransaction.linkGoalTitle}</span>
@@ -206,57 +233,61 @@ export function AddTransactionScreen() {
             </div>
           )}
 
-          {!linkedGoalItem && !hasBudgetedCategories && (
-            <div className={styles.noBudgetCard}>
-              <p className={styles.noBudgetTitle}>{strings.addTransaction.noBudgetTitle}</p>
-              <p className={styles.helperText}>{strings.addTransaction.noBudgetBody}</p>
-              <div className={styles.noBudgetActions}>
-                <Link href={budgetHref} className={styles.pillButtonInteractive}>
-                  {strings.addTransaction.addBudgetCta}
-                </Link>
-                {!showUnplanned && (
-                  <button
-                    type="button"
-                    className={styles.pillButtonInteractive}
-                    onClick={() => setShowUnplanned(true)}
-                  >
-                    {strings.addTransaction.recordUnplannedCta}
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
+          {(!hasGoalOption || categoryTab === 'category') && (
+            <>
+              {!linkedGoalItem && !hasBudgetedCategories && (
+                <div className={styles.noBudgetCard}>
+                  <p className={styles.noBudgetTitle}>{strings.addTransaction.noBudgetTitle}</p>
+                  <p className={styles.helperText}>{strings.addTransaction.noBudgetBody}</p>
+                  <div className={styles.noBudgetActions}>
+                    <Link href={budgetHref} className={styles.pillButtonInteractive}>
+                      {strings.addTransaction.addBudgetCta}
+                    </Link>
+                    {!showUnplanned && (
+                      <button
+                        type="button"
+                        className={styles.pillButtonInteractive}
+                        onClick={() => setShowUnplanned(true)}
+                      >
+                        {strings.addTransaction.recordUnplannedCta}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
 
-          {!linkedGoalItem && showUnplanned && (
-            <p className={styles.helperText}>{strings.addTransaction.unplannedNotice}</p>
-          )}
+              {!linkedGoalItem && showUnplanned && (
+                <p className={styles.helperText}>{strings.addTransaction.unplannedNotice}</p>
+              )}
 
-          {!linkedGoalItem && categoriesForType.length > 0 && (
-            <div className={styles.categoryList}>
-              {categoriesForType.map((option) => (
+              {!linkedGoalItem && categoriesForType.length > 0 && (
+                <div className={styles.categoryList}>
+                  {categoriesForType.map((option) => (
+                    <button
+                      key={option.id}
+                      type="button"
+                      className={styles.categoryRow}
+                      onClick={() => setCategory(option.id)}
+                    >
+                      {option.name}
+                      <span
+                        className={`${styles.radio} ${category === option.id ? styles.radioActive : ''}`}
+                      />
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {!linkedGoalItem && !(type === 'savings' && savingsMode === 'moved') && (hasBudgetedCategories || showUnplanned) && (
                 <button
-                  key={option.id}
                   type="button"
-                  className={styles.categoryRow}
-                  onClick={() => setCategory(option.id)}
+                  className={styles.unplannedLink}
+                  onClick={() => setShowUnplanned((current) => !current)}
                 >
-                  {option.name}
-                  <span
-                    className={`${styles.radio} ${category === option.id ? styles.radioActive : ''}`}
-                  />
+                  {showUnplanned ? strings.addTransaction.showBudgetedOnlyCta : strings.addTransaction.recordUnplannedCta}
                 </button>
-              ))}
-            </div>
-          )}
-
-          {!linkedGoalItem && !(type === 'savings' && savingsMode === 'moved') && (hasBudgetedCategories || showUnplanned) && (
-            <button
-              type="button"
-              className={styles.unplannedLink}
-              onClick={() => setShowUnplanned((current) => !current)}
-            >
-              {showUnplanned ? strings.addTransaction.showBudgetedOnlyCta : strings.addTransaction.recordUnplannedCta}
-            </button>
+              )}
+            </>
           )}
 
           <div className={styles.descriptionCard}>

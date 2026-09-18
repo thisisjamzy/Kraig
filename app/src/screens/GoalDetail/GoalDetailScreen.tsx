@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, Pencil, Archive, Trash2, CheckCircle2, Wallet, Plus } from 'lucide-react';
+import { ChevronLeft, Pencil, Archive, Trash2, CheckCircle2, Wallet, Plus, ChevronDown, ChevronUp } from 'lucide-react';
 import { Modal } from '@/src/widgets/Modal/Modal';
 import { ConfirmDialog } from '@/src/widgets/ConfirmDialog/ConfirmDialog';
 import { ActionMenu } from '@/src/widgets/ActionMenu/ActionMenu';
@@ -20,6 +20,7 @@ export function GoalDetailScreen({ goalId }: { goalId: string }) {
   const [confirmArchive, setConfirmArchive] = useState(false);
   const [confirmDeleteGoal, setConfirmDeleteGoal] = useState(false);
   const [confirmDeleteItemId, setConfirmDeleteItemId] = useState<string | null>(null);
+  const [expandedSubItemsId, setExpandedSubItemsId] = useState<string | null>(null);
   const {
     goal,
     isFixedGoal,
@@ -36,6 +37,7 @@ export function GoalDetailScreen({ goalId }: { goalId: string }) {
     handleDeleteLineItem,
     addToBudgetError,
     handleAddToBudget,
+    toggleSubItemLive,
 
     currencyOptions,
     goalEditOpen,
@@ -58,14 +60,18 @@ export function GoalDetailScreen({ goalId }: { goalId: string }) {
     handleSaveGoal,
 
     completeItemId,
-    openMarkComplete,
-    closeMarkComplete,
+    openRecordPayment,
+    closeRecordPayment,
     completeAccountId,
     setCompleteAccountId,
     completeToAccountId,
     setCompleteToAccountId,
     completeCharges,
     setCompleteCharges,
+    completeAmount,
+    setCompleteAmount,
+    completeFullyPaid,
+    setCompleteFullyPaid,
     completeCategoryId,
     setCompleteCategoryId,
     completeDate,
@@ -74,7 +80,7 @@ export function GoalDetailScreen({ goalId }: { goalId: string }) {
     setCompleteDescription,
     completing,
     completeError,
-    handleMarkComplete,
+    handleRecordPayment,
 
     archiveGoal,
     deleteGoal,
@@ -204,9 +210,9 @@ export function GoalDetailScreen({ goalId }: { goalId: string }) {
                             ? [
                                 {
                                   key: 'complete',
-                                  label: strings.goalDetail.markComplete,
+                                  label: item.isPartial ? strings.goalDetail.recordAnotherPayment : strings.goalDetail.recordPayment,
                                   icon: <CheckCircle2 size={16} strokeWidth={1.75} />,
-                                  onSelect: () => openMarkComplete(item),
+                                  onSelect: () => openRecordPayment(item),
                                 },
                               ]
                             : []),
@@ -235,6 +241,36 @@ export function GoalDetailScreen({ goalId }: { goalId: string }) {
                     </p>
                   </div>
 
+                  {(item.completed || item.spentAmount > 0) && (
+                    <div className={styles.lineItemProgressSection}>
+                      <div className={styles.lineItemProgressTrack}>
+                        <div
+                          className={styles.lineItemProgressFill}
+                          style={{ width: `${Math.min(100, Math.round((item.displaySpentAmount / item.amount) * 100))}%` }}
+                        />
+                      </div>
+                      <div className={styles.lineItemProgressRow}>
+                        <span className={styles.lineItemProgressLabel}>
+                          {strings.goalDetail.spentSoFarPrefix} {formatAmount(item.displaySpentAmount)} {strings.goalDetail.ofSuffix}{' '}
+                          {formatAmount(item.amount)} {currency}
+                        </span>
+                        <div className={styles.lineItemPaymentsRow}>
+                          {item.displayPayments.map((payment, index) => (
+                            <Link
+                              key={payment.id}
+                              href={payment.kind === 'transfer' ? `/edit-transfer/${payment.id}` : `/edit-transaction/${payment.id}`}
+                              className={styles.paymentChip}
+                            >
+                              {item.displayPayments.length > 1
+                                ? `${strings.goalDetail.paymentChipPrefix} ${index + 1}`
+                                : formatAmount(payment.amount)}
+                            </Link>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   <div className={styles.lineItemTagRow}>
                     <span className={kindBadgeClass}>{kindBadgeLabel}</span>
                     <span className={styles.priorityTag}>{item.priority}</span>
@@ -243,12 +279,54 @@ export function GoalDetailScreen({ goalId }: { goalId: string }) {
                     </span>
                     {item.completed ? (
                       <span className={styles.doneTag}>{strings.goalDetail.completedTag}</span>
+                    ) : item.isPartial ? (
+                      <span className={styles.partialTag}>{strings.goalDetail.partialTag}</span>
                     ) : (
                       <span className={item.hasFunds ? styles.fundsBadgeOk : styles.fundsBadgeShort}>
                         {item.hasFunds ? 'Possible' : 'Not possible'}
                       </span>
                     )}
                   </div>
+
+                  {item.subItems.length > 0 && (
+                    <div className={styles.subItemsSection}>
+                      <button
+                        type="button"
+                        className={styles.subItemsSummaryRow}
+                        onClick={() => setExpandedSubItemsId((current) => (current === item.id ? null : item.id))}
+                      >
+                        <span className={styles.subItemsSummaryText}>
+                          {item.subItems.filter((s) => s.completed).length}/{item.subItems.length}{' '}
+                          {strings.goalDetail.subItemsLabel.toLowerCase()} &bull; {formatAmount(item.subItemsConsumed)}{' '}
+                          {strings.goalDetail.subItemsOfSuffix} {formatAmount(item.amount)}
+                        </span>
+                        {expandedSubItemsId === item.id ? (
+                          <ChevronUp size={14} strokeWidth={2} />
+                        ) : (
+                          <ChevronDown size={14} strokeWidth={2} />
+                        )}
+                      </button>
+                      {expandedSubItemsId === item.id && (
+                        <div className={styles.subItemsExpandedList}>
+                          {item.subItems.map((subItem) => (
+                            <label key={subItem.id} className={styles.subItemsExpandedRow}>
+                              <input
+                                type="checkbox"
+                                checked={subItem.completed}
+                                onChange={() => toggleSubItemLive(item.id, subItem.id)}
+                              />
+                              <span
+                                className={`${styles.subItemsExpandedName} ${subItem.completed ? styles.subItemsExpandedNameDone : ''}`}
+                              >
+                                {subItem.name}
+                              </span>
+                              <span className={styles.subItemsExpandedAmount}>{formatAmount(subItem.amount)}</span>
+                            </label>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -257,7 +335,16 @@ export function GoalDetailScreen({ goalId }: { goalId: string }) {
       )}
 
       {completingItem && (
-        <Modal title={strings.markLineItemComplete.title} onClose={closeMarkComplete}>
+        <Modal
+          title={completingItem.isPartial ? strings.markLineItemComplete.titleAnother : strings.markLineItemComplete.title}
+          onClose={closeRecordPayment}
+        >
+          {completingItem.spentAmount > 0 && (
+            <p className={styles.formHint}>
+              {strings.goalDetail.spentSoFarPrefix} {formatAmount(completingItem.spentAmount)} {strings.goalDetail.ofSuffix}{' '}
+              {formatAmount(completingItem.amount)} {currency}
+            </p>
+          )}
           <div className={styles.formField}>
             <label className={styles.formLabel} htmlFor="complete-account">
               {isTransferGoal ? strings.markLineItemComplete.fromAccountLabel : strings.markLineItemComplete.accountLabel}
@@ -296,6 +383,37 @@ export function GoalDetailScreen({ goalId }: { goalId: string }) {
               </select>
             </div>
           )}
+          <div className={styles.formField}>
+            <label className={styles.formLabel} htmlFor="complete-amount">
+              {strings.markLineItemComplete.amountLabel}
+            </label>
+            <input
+              id="complete-amount"
+              inputMode="numeric"
+              className={styles.formInput}
+              value={completeAmount}
+              onChange={(event) => setCompleteAmount(event.target.value.replace(/[^0-9.]/g, ''))}
+            />
+          </div>
+          <div className={styles.formField}>
+            <span className={styles.formLabel}>{strings.markLineItemComplete.statusLabel}</span>
+            <div className={styles.statusToggle}>
+              <button
+                type="button"
+                className={`${styles.statusToggleOption} ${completeFullyPaid ? styles.statusToggleOptionActive : ''}`}
+                onClick={() => setCompleteFullyPaid(true)}
+              >
+                {strings.markLineItemComplete.fullyPaidLabel}
+              </button>
+              <button
+                type="button"
+                className={`${styles.statusToggleOption} ${!completeFullyPaid ? styles.statusToggleOptionActive : ''}`}
+                onClick={() => setCompleteFullyPaid(false)}
+              >
+                {strings.markLineItemComplete.partiallyPaidLabel}
+              </button>
+            </div>
+          </div>
           <div className={styles.formField}>
             <label className={styles.formLabel} htmlFor="complete-category">
               {isTransferGoal ? strings.markLineItemComplete.transferTypeLabel : strings.markLineItemComplete.categoryLabel}
@@ -359,10 +477,11 @@ export function GoalDetailScreen({ goalId }: { goalId: string }) {
             className={styles.modalSaveButton}
             disabled={
               !completeAccountId ||
+              !(Number(completeAmount) > 0) ||
               completing ||
               (isTransferGoal && (!completeToAccountId || completeToAccountId === completeAccountId))
             }
-            onClick={handleMarkComplete}
+            onClick={handleRecordPayment}
           >
             {completing ? strings.markLineItemComplete.saving : strings.markLineItemComplete.save}
           </button>
@@ -394,18 +513,20 @@ export function GoalDetailScreen({ goalId }: { goalId: string }) {
               onChange={(event) => setGoalDescription(event.target.value)}
             />
           </div>
-          <div className={styles.formField}>
-            <label className={styles.formLabel} htmlFor="goal-deadline">
-              {strings.createGoal.deadlineLabel}
-            </label>
-            <input
-              id="goal-deadline"
-              type="date"
-              className={styles.formInput}
-              value={goalDeadline}
-              onChange={(event) => setGoalDeadline(event.target.value)}
-            />
-          </div>
+          {goalKind !== 'Fixed' && (
+            <div className={styles.formField}>
+              <label className={styles.formLabel} htmlFor="goal-deadline">
+                {strings.createGoal.deadlineLabel}
+              </label>
+              <input
+                id="goal-deadline"
+                type="date"
+                className={styles.formInput}
+                value={goalDeadline}
+                onChange={(event) => setGoalDeadline(event.target.value)}
+              />
+            </div>
+          )}
           <div className={styles.formField}>
             <label className={styles.formLabel} htmlFor="goal-currency">
               {strings.createGoal.currencyLabel}
@@ -447,7 +568,14 @@ export function GoalDetailScreen({ goalId }: { goalId: string }) {
               id="goal-kind"
               className={styles.formInput}
               value={goalKind}
-              onChange={(event) => setGoalKind(event.target.value as typeof goalKind)}
+              onChange={(event) => {
+                const next = event.target.value as typeof goalKind;
+                setGoalKind(next);
+                // A Fixed goal repeats — its one-off target date field is
+                // hidden above, so drop any value it held rather than
+                // saving a stale deadline behind a hidden field.
+                if (next === 'Fixed') setGoalDeadline('');
+              }}
             >
               <option value="Variable">{strings.createGoal.kindVariable}</option>
               <option value="Fixed">{strings.createGoal.kindFixed}</option>

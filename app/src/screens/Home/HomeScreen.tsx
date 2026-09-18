@@ -19,9 +19,11 @@ import {
   EyeOff,
 } from 'lucide-react';
 import { useLogic, formatAmount, formatCompact, HIDDEN_AMOUNT_PLACEHOLDER, type SpendingPeriod } from '@/src/logic/home/useLogic';
+import { round2 } from '@/src/shared/firestore/currency';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { Logo } from '@/src/widgets/Logo/Logo';
+import { DonutChart } from '@/src/widgets/DonutChart/DonutChart';
 import { useSwipeModeSwitch } from '@/src/shared/hooks/useSwipeModeSwitch';
 import { iconTint } from '@/src/viewmodels/iconTint';
 import { CATEGORY_ICON_COLOR } from '@/src/viewmodels/categories';
@@ -50,6 +52,39 @@ const PLACEHOLDER_BREAKDOWN_COLUMNS = 6;
 // src/screens/Statistics/StatisticsScreen.tsx's own AXIS_SCALE).
 const AXIS_SCALE = [1, 0.5, 0];
 
+// Web dashboard's own Statistics donut — a household with a dozen
+// categories turns the legend into unreadable clutter, so only the
+// biggest few get their own slice; everything past that rolls into one
+// "Other" segment rather than being dropped (the donut's total always
+// still matches the real month total this way).
+const MAX_STATS_SEGMENTS = 4;
+
+// categoryAccentColor()'s own palette is deliberately pale — it's built for
+// an icon chip with a dark glyph sitting on top, not a chart segment read
+// on its own — so it renders too washed-out on the donut. This is its own
+// small, solid ramp instead, assigned by rank (biggest slice first) so the
+// most prominent category always gets the strongest color, not whatever a
+// category-name hash happens to land on.
+const STATS_CHART_COLORS = ['#2748d6', '#3965fa', '#99b7fc', '#5c5f82'];
+
+function capStatsSegments(
+  segments: { label: string; value: number; color: string }[],
+  otherLabel: string
+) {
+  const capped =
+    segments.length <= MAX_STATS_SEGMENTS
+      ? segments
+      : [
+          ...segments.slice(0, MAX_STATS_SEGMENTS - 1),
+          {
+            label: otherLabel,
+            value: round2(segments.slice(MAX_STATS_SEGMENTS - 1).reduce((sum, entry) => sum + entry.value, 0)),
+            color: '',
+          },
+        ];
+  return capped.map((entry, index) => ({ ...entry, color: STATS_CHART_COLORS[index % STATS_CHART_COLORS.length] }));
+}
+
 export function HomeScreen() {
   const strings = useStrings();
   const router = useRouter();
@@ -75,6 +110,11 @@ export function HomeScreen() {
     currencySaving,
     currencyError,
     switchCurrency,
+    monthBudgeted,
+    monthExpenseTotal,
+    budgetSpentPercent,
+    expenseCategoryBreakdown,
+    incomeCategoryBreakdown,
   } = useLogic();
 
   const quickActions: {
@@ -92,6 +132,10 @@ export function HomeScreen() {
   // Cashflow's own log-scale toggle — a big outlier week/month otherwise
   // flattens every smaller bar to a sliver against a linear axis.
   const [cashflowLogScale, setCashflowLogScale] = useState(false);
+
+  // Web dashboard only — which side of the Statistics donut (Design/web/
+  // web1.jpg's own Income/Expense pill tabs) is showing.
+  const [statsMode, setStatsMode] = useState<'expense' | 'income'>('expense');
 
   const periods: { key: SpendingPeriod; label: string }[] = [
     { key: 'week', label: strings.home.periodWeek },
@@ -124,10 +168,13 @@ export function HomeScreen() {
     };
   }, [currencyPickerOpen, setCurrencyPickerOpen]);
 
-  return (
-    <div className={`${styles.page} ${isWeb ? webStyles.page : ''}`} ref={swipeRef}>
-      <ScreenState loading={loading} error={error} />
-
+  // Shared between mobile and the web dashboard — identical content/design
+  // on both (per the web redesign's own instructions), just repositioned by
+  // whichever wrapper renders it. A plain function returning JSX (not a
+  // nested component) so re-renders don't remount it and drop the currency
+  // popover's own focus/scroll state.
+  function renderBalanceCard() {
+    return (
       <section className={`${styles.balanceCard} ${isWeb ? webStyles.areaHero : ''}`}>
         <div className={styles.balanceCardTop}>
           <div>
@@ -213,125 +260,14 @@ export function HomeScreen() {
           </div>
         </Link>
       </section>
+    );
+  }
 
-      <div className={`${styles.summaryRow} ${isWeb ? webStyles.areaMetrics : ''}`}>
-        <div className={styles.summaryCard}>
-          <span className={styles.summaryIcon}>
-            <PiggyBank size={16} strokeWidth={2} />
-          </span>
-          <span className={styles.summaryLabel}>{strings.home.savingsLabel}</span>
-          <span className={styles.summaryValue}>
-            {balancesHidden ? HIDDEN_AMOUNT_PLACEHOLDER : `${formatAmount(balance.savings)} ${balance.currency}`}
-          </span>
-        </div>
-        <div className={styles.summaryCard}>
-          <span className={styles.summaryIcon}>
-            <Wallet size={16} strokeWidth={2} />
-          </span>
-          <span className={styles.summaryLabel}>{strings.home.spendableLabel}</span>
-          <span className={styles.summaryValue}>
-            {balancesHidden ? HIDDEN_AMOUNT_PLACEHOLDER : `${formatAmount(balance.spendable)} ${balance.currency}`}
-          </span>
-        </div>
-      </div>
-
-      <section className={`${styles.section} ${isWeb ? webStyles.areaQuick : ''}`}>
-        <h2 className={styles.sectionTitle}>{strings.home.quickActionsTitle}</h2>
-        <div className={styles.quickActions}>
-          {quickActions.map(({ label, icon: Icon, href }, index) => (
-            <Link key={label} href={href} className={styles.quickAction}>
-              <span className={styles.quickActionIcon} style={{ background: iconTint(index) }}>
-                <Icon size={18} strokeWidth={1.75} />
-              </span>
-              {label}
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      <section className={`${styles.section} ${isWeb ? webStyles.areaWallets : ''}`}>
-        <div className={styles.sectionHeader}>
-          <h2 className={styles.sectionTitle}>{strings.home.wallets}</h2>
-          <div className={styles.headerControls}>
-            <Link href="/wallets" className={styles.viewAllButton} aria-label="View all wallets">
-              <ArrowUpRight size={16} strokeWidth={2.25} />
-            </Link>
-          </div>
-        </div>
-
-        {wallets.length > 0 ? (
-          <div className={styles.walletCardsRow} data-hscroll="true">
-            {wallets.map((wallet) => (
-              <Link
-                key={wallet.id}
-                href={`/wallets/${wallet.id}`}
-                className={styles.walletCard}
-                style={{ background: wallet.color }}
-              >
-                <div className={styles.walletCardTop}>
-                  <p className={styles.walletCardType}>{wallet.type}</p>
-                  <p className={styles.walletCardName}>{wallet.name}</p>
-                </div>
-
-                <div className={styles.walletCardNumberBlock}>
-                  <p className={styles.walletCardLabel}>{strings.home.walletNumberLabel}</p>
-                  <p className={styles.walletCardNumber}>{wallet.cardNumber}</p>
-                </div>
-
-                <div className={styles.walletCardBottomRow}>
-                  <div className={styles.walletCardStat}>
-                    <p className={styles.walletCardLabel}>{strings.home.walletsAvailable}</p>
-                    <p className={styles.walletCardStatValue}>
-                      {balancesHidden ? HIDDEN_AMOUNT_PLACEHOLDER : `${formatCompact(wallet.amount)} ${wallet.currency}`}
-                    </p>
-                  </div>
-                  <div className={styles.walletCardStat}>
-                    <p className={styles.walletCardLabel}>{strings.home.walletsRequired}</p>
-                    <p className={styles.walletCardStatValue}>
-                      {balancesHidden ? HIDDEN_AMOUNT_PLACEHOLDER : wallet.required > 0 ? formatCompact(wallet.required) : '*****'}
-                    </p>
-                  </div>
-                </div>
-
-                <div className={styles.walletCardLogoRow}>
-                  <Logo height={14} variant="light" className={styles.walletCardLogo} />
-                </div>
-              </Link>
-            ))}
-          </div>
-        ) : (
-          !loading && <p className={styles.emptyText}>{strings.home.noWallets}</p>
-        )}
-      </section>
-
-      <section className={`${styles.section} ${isWeb ? webStyles.areaPayments : ''}`}>
-        <div className={styles.sectionHeader}>
-          <h2 className={styles.sectionTitle}>{strings.home.upcomingPayments}</h2>
-          <Link href="/payments" className={styles.viewAllButton} aria-label="View payments calendar">
-            <ArrowUpRight size={16} strokeWidth={2.25} />
-          </Link>
-        </div>
-
-        {upcomingPayments.length === 0 ? (
-          <p className={styles.emptyText}>{strings.home.noUpcomingPayments}</p>
-        ) : (
-          <div className={styles.paymentsList}>
-            {upcomingPayments.map((payment) => (
-              <Link key={payment.id} href="/payments" className={styles.paymentRow}>
-                <div className={styles.paymentInfo}>
-                  <span className={styles.paymentTitle}>{payment.title}</span>
-                  <span className={styles.paymentMeta}>{payment.dueInLabel}</span>
-                </div>
-                <div className={styles.paymentRight}>
-                  <span className={styles.paymentAmount}>{formatAmount(payment.amount)}</span>
-                  <span className={styles.paymentDate}>{payment.dueDateLabel}</span>
-                </div>
-              </Link>
-            ))}
-          </div>
-        )}
-      </section>
-
+  // Shared between mobile and the web dashboard, same reasoning as
+  // renderBalanceCard() above — cashflow's own chart isn't part of what the
+  // user asked to redesign, just reposition.
+  function renderCashflowSection() {
+    return (
       <section className={`${styles.section} ${isWeb ? webStyles.areaChart : ''}`}>
         <div className={styles.sectionHeader}>
           <h2 className={styles.sectionTitle}>{strings.home.spendingBreakdown}</h2>
@@ -426,8 +362,352 @@ export function HomeScreen() {
           </span>
         </div>
       </section>
+    );
+  }
 
-      <section className={`${styles.section} ${isWeb ? webStyles.areaTrans : ''}`}>
+  // Shared between mobile and the web dashboard, same reasoning as above —
+  // not part of what the user asked to redesign, just reposition.
+  function renderUpcomingPaymentsSection() {
+    return (
+      <section className={styles.section}>
+        <div className={styles.sectionHeader}>
+          <h2 className={styles.sectionTitle}>{strings.home.upcomingPayments}</h2>
+          <Link href="/payments" className={styles.viewAllButton} aria-label="View payments calendar">
+            <ArrowUpRight size={16} strokeWidth={2.25} />
+          </Link>
+        </div>
+
+        {upcomingPayments.length === 0 ? (
+          <p className={styles.emptyText}>{strings.home.noUpcomingPayments}</p>
+        ) : (
+          <div className={styles.paymentsList}>
+            {upcomingPayments.map((payment) => (
+              <Link key={payment.id} href="/payments" className={styles.paymentRow}>
+                <div className={styles.paymentInfo}>
+                  <span className={styles.paymentTitle}>{payment.title}</span>
+                  <span className={styles.paymentMeta}>{payment.dueInLabel}</span>
+                </div>
+                <div className={styles.paymentRight}>
+                  <span className={styles.paymentAmount}>{formatAmount(payment.amount)}</span>
+                  <span className={styles.paymentDate}>{payment.dueDateLabel}</span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </section>
+    );
+  }
+
+  if (isWeb) {
+    const statsSegments = capStatsSegments(
+      statsMode === 'expense' ? expenseCategoryBreakdown : incomeCategoryBreakdown,
+      strings.home.otherCategoryLabel
+    );
+    const statsTotal = round2(statsSegments.reduce((sum, entry) => sum + entry.value, 0));
+
+    return (
+      <div className={webStyles.dashboard} ref={swipeRef}>
+        <ScreenState loading={loading} error={error} />
+
+        {!loading && !error && (
+          <>
+            <div className={webStyles.topRow}>
+              {renderBalanceCard()}
+              <div className={`${styles.summaryRow} ${webStyles.areaMetrics}`}>
+                <div className={styles.summaryCard}>
+                  <span className={styles.summaryIcon}>
+                    <PiggyBank size={16} strokeWidth={2} />
+                  </span>
+                  <span className={styles.summaryLabel}>{strings.home.savingsLabel}</span>
+                  <span className={styles.summaryValue}>
+                    {balancesHidden ? HIDDEN_AMOUNT_PLACEHOLDER : `${formatAmount(balance.savings)} ${balance.currency}`}
+                  </span>
+                </div>
+                <div className={styles.summaryCard}>
+                  <span className={styles.summaryIcon}>
+                    <Wallet size={16} strokeWidth={2} />
+                  </span>
+                  <span className={styles.summaryLabel}>{strings.home.spendableLabel}</span>
+                  <span className={styles.summaryValue}>
+                    {balancesHidden ? HIDDEN_AMOUNT_PLACEHOLDER : `${formatAmount(balance.spendable)} ${balance.currency}`}
+                  </span>
+                </div>
+                <div className={styles.summaryCard}>
+                  <span className={styles.summaryIcon}>
+                    <ArrowUpRight size={16} strokeWidth={2} />
+                  </span>
+                  <span className={styles.summaryLabel}>{strings.home.monthExpensesLabel}</span>
+                  <span className={styles.summaryValue}>
+                    {balancesHidden ? HIDDEN_AMOUNT_PLACEHOLDER : `${formatAmount(monthExpenseTotal)} ${balance.currency}`}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className={`${webStyles.card} ${webStyles.areaBudget}`}>
+              <div className={webStyles.cardHeader}>
+                <h2 className={webStyles.cardTitle}>{strings.home.budgetSpentTitle}</h2>
+                <span className={webStyles.budgetPercent}>{Math.min(999, budgetSpentPercent)}%</span>
+              </div>
+              <p className={webStyles.budgetAmountRow}>
+                <span className={webStyles.budgetAmountSpent}>
+                  {balancesHidden ? HIDDEN_AMOUNT_PLACEHOLDER : `${formatAmount(monthExpenseTotal)} ${balance.currency}`}
+                </span>
+                <span className={webStyles.budgetAmountOf}>
+                  {strings.home.budgetSpentOf}{' '}
+                  {balancesHidden ? HIDDEN_AMOUNT_PLACEHOLDER : `${formatAmount(monthBudgeted)} ${balance.currency}`}
+                </span>
+              </p>
+              <div className={webStyles.trackLight}>
+                <div className={webStyles.fillLight} style={{ width: `${Math.min(100, budgetSpentPercent)}%` }} />
+              </div>
+            </div>
+
+            {renderCashflowSection()}
+
+            <div className={`${webStyles.card} ${webStyles.areaWallets}`}>
+              <div className={webStyles.cardHeader}>
+                <div className={webStyles.cardHeaderLeft}>
+                  <span className={webStyles.cardIcon}>
+                    <Wallet size={16} strokeWidth={2} />
+                  </span>
+                  <h2 className={webStyles.cardTitle}>{strings.home.wallets}</h2>
+                </div>
+                <Link href="/wallets" className={webStyles.textButton}>
+                  {strings.home.seeWalletsButton}
+                </Link>
+              </div>
+
+              {wallets.length > 0 ? (
+                <div className={webStyles.planList}>
+                  {wallets.map((wallet) => (
+                    <Link key={wallet.id} href={`/wallets/${wallet.id}`} className={webStyles.planRow}>
+                      <div className={webStyles.planRowTop}>
+                        <span className={webStyles.planName}>{wallet.name}</span>
+                        <span className={webStyles.planAmount}>
+                          {balancesHidden ? HIDDEN_AMOUNT_PLACEHOLDER : `${formatCompact(wallet.amount)} ${wallet.currency}`}
+                        </span>
+                      </div>
+                      {wallet.required > 0 && (
+                        <>
+                          <div className={webStyles.trackLight}>
+                            <div
+                              className={webStyles.fillLight}
+                              style={{ width: `${Math.min(100, Math.round((wallet.amount / wallet.required) * 100))}%` }}
+                            />
+                          </div>
+                          <span className={webStyles.planTarget}>
+                            {strings.home.walletsRequired}: {formatCompact(wallet.required)} {wallet.currency}
+                          </span>
+                        </>
+                      )}
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                !loading && <p className={styles.emptyText}>{strings.home.noWallets}</p>
+              )}
+            </div>
+
+            <section className={`${styles.section} ${webStyles.areaTrans}`}>
+              <div className={styles.sectionHeader}>
+                <h2 className={styles.sectionTitle}>{strings.home.recentTransactionsTitle}</h2>
+                <Link href="/transactions" className={styles.viewAllButton} aria-label="View all transactions">
+                  <ArrowUpRight size={16} strokeWidth={2.25} />
+                </Link>
+              </div>
+
+              {recentTransactions.length === 0 ? (
+                !loading && <p className={styles.emptyText}>{strings.home.noRecentTransactions}</p>
+              ) : (
+                <table className={webStyles.table}>
+                  <thead>
+                    <tr>
+                      <th>{strings.home.recentTransactionsTitle}</th>
+                      <th>Account</th>
+                      <th>Date</th>
+                      <th className={webStyles.tableAmount}>Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recentTransactions.map((transaction) => {
+                      const Icon = transaction.icon;
+                      return (
+                        <tr key={transaction.id} onClick={() => router.push(transaction.editHref)}>
+                          <td>
+                            <div className={webStyles.tableTitleCell}>
+                              <span className={webStyles.tableIcon} style={{ background: transaction.iconColor }}>
+                                <Icon size={16} strokeWidth={2} color={CATEGORY_ICON_COLOR} />
+                              </span>
+                              <div>
+                                <p>{transaction.title}</p>
+                                <p className={styles.emptyText}>{transaction.description}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td>
+                            <span className={webStyles.accountPill}>{transaction.account}</span>
+                          </td>
+                          <td>{transaction.date}</td>
+                          <td className={webStyles.tableAmount}>
+                            {formatAmount(transaction.amount)} {transaction.currency}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </section>
+
+            <div className={webStyles.aside}>
+              <div className={webStyles.card}>
+                <div className={webStyles.cardHeader}>
+                  <h2 className={webStyles.cardTitle}>{strings.home.statisticsTitle}</h2>
+                </div>
+                <div className={webStyles.statsTabs}>
+                  <button
+                    type="button"
+                    className={`${webStyles.statsTab} ${statsMode === 'expense' ? webStyles.statsTabActive : ''}`}
+                    onClick={() => setStatsMode('expense')}
+                  >
+                    {strings.home.statisticsExpenseTab}
+                  </button>
+                  <button
+                    type="button"
+                    className={`${webStyles.statsTab} ${statsMode === 'income' ? webStyles.statsTabActive : ''}`}
+                    onClick={() => setStatsMode('income')}
+                  >
+                    {strings.home.statisticsIncomeTab}
+                  </button>
+                </div>
+                {statsSegments.length > 0 ? (
+                  <div className={webStyles.statsDonut}>
+                    <DonutChart
+                      segments={statsSegments}
+                      size={140}
+                      thickness={18}
+                      legendPosition="bottom"
+                      legendWrap
+                      centerValue={balancesHidden ? HIDDEN_AMOUNT_PLACEHOLDER : formatCompact(statsTotal)}
+                      centerLabel={statsMode === 'expense' ? strings.home.monthExpensesLabel : strings.statistics.income}
+                    />
+                  </div>
+                ) : (
+                  !loading && <p className={styles.emptyText}>{strings.home.noCategoryData}</p>
+                )}
+              </div>
+
+              <div className={webStyles.card}>{renderUpcomingPaymentsSection()}</div>
+            </div>
+          </>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles.page} ref={swipeRef}>
+      <ScreenState loading={loading} error={error} />
+
+      {renderBalanceCard()}
+
+      <div className={styles.summaryRow}>
+        <div className={styles.summaryCard}>
+          <span className={styles.summaryIcon}>
+            <PiggyBank size={16} strokeWidth={2} />
+          </span>
+          <span className={styles.summaryLabel}>{strings.home.savingsLabel}</span>
+          <span className={styles.summaryValue}>
+            {balancesHidden ? HIDDEN_AMOUNT_PLACEHOLDER : `${formatAmount(balance.savings)} ${balance.currency}`}
+          </span>
+        </div>
+        <div className={styles.summaryCard}>
+          <span className={styles.summaryIcon}>
+            <Wallet size={16} strokeWidth={2} />
+          </span>
+          <span className={styles.summaryLabel}>{strings.home.spendableLabel}</span>
+          <span className={styles.summaryValue}>
+            {balancesHidden ? HIDDEN_AMOUNT_PLACEHOLDER : `${formatAmount(balance.spendable)} ${balance.currency}`}
+          </span>
+        </div>
+      </div>
+
+      <section className={styles.section}>
+        <h2 className={styles.sectionTitle}>{strings.home.quickActionsTitle}</h2>
+        <div className={styles.quickActions}>
+          {quickActions.map(({ label, icon: Icon, href }, index) => (
+            <Link key={label} href={href} className={styles.quickAction}>
+              <span className={styles.quickActionIcon} style={{ background: iconTint(index) }}>
+                <Icon size={18} strokeWidth={1.75} />
+              </span>
+              {label}
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      <section className={styles.section}>
+        <div className={styles.sectionHeader}>
+          <h2 className={styles.sectionTitle}>{strings.home.wallets}</h2>
+          <div className={styles.headerControls}>
+            <Link href="/wallets" className={styles.viewAllButton} aria-label="View all wallets">
+              <ArrowUpRight size={16} strokeWidth={2.25} />
+            </Link>
+          </div>
+        </div>
+
+        {wallets.length > 0 ? (
+          <div className={styles.walletCardsRow} data-hscroll="true">
+            {wallets.map((wallet) => (
+              <Link
+                key={wallet.id}
+                href={`/wallets/${wallet.id}`}
+                className={styles.walletCard}
+                style={{ background: wallet.color }}
+              >
+                <div className={styles.walletCardTop}>
+                  <p className={styles.walletCardType}>{wallet.type}</p>
+                  <p className={styles.walletCardName}>{wallet.name}</p>
+                </div>
+
+                <div className={styles.walletCardNumberBlock}>
+                  <p className={styles.walletCardLabel}>{strings.home.walletNumberLabel}</p>
+                  <p className={styles.walletCardNumber}>{wallet.cardNumber}</p>
+                </div>
+
+                <div className={styles.walletCardBottomRow}>
+                  <div className={styles.walletCardStat}>
+                    <p className={styles.walletCardLabel}>{strings.home.walletsAvailable}</p>
+                    <p className={styles.walletCardStatValue}>
+                      {balancesHidden ? HIDDEN_AMOUNT_PLACEHOLDER : `${formatCompact(wallet.amount)} ${wallet.currency}`}
+                    </p>
+                  </div>
+                  <div className={styles.walletCardStat}>
+                    <p className={styles.walletCardLabel}>{strings.home.walletsRequired}</p>
+                    <p className={styles.walletCardStatValue}>
+                      {balancesHidden ? HIDDEN_AMOUNT_PLACEHOLDER : wallet.required > 0 ? formatCompact(wallet.required) : '*****'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className={styles.walletCardLogoRow}>
+                  <Logo height={14} variant="light" className={styles.walletCardLogo} />
+                </div>
+              </Link>
+            ))}
+          </div>
+        ) : (
+          !loading && <p className={styles.emptyText}>{strings.home.noWallets}</p>
+        )}
+      </section>
+
+      {renderUpcomingPaymentsSection()}
+
+      {renderCashflowSection()}
+
+      <section className={styles.section}>
         <div className={styles.sectionHeader}>
           <h2 className={styles.sectionTitle}>{strings.home.recentTransactionsTitle}</h2>
           <Link href="/transactions" className={styles.viewAllButton} aria-label="View all transactions">
@@ -437,42 +717,6 @@ export function HomeScreen() {
 
         {recentTransactions.length === 0 ? (
           !loading && <p className={styles.emptyText}>{strings.home.noRecentTransactions}</p>
-        ) : isWeb ? (
-          <table className={webStyles.table}>
-            <thead>
-              <tr>
-                <th>{strings.home.recentTransactionsTitle}</th>
-                <th>Account</th>
-                <th>Date</th>
-                <th className={webStyles.tableAmount}>Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recentTransactions.map((transaction) => {
-                const Icon = transaction.icon;
-                return (
-                  <tr key={transaction.id} onClick={() => router.push(transaction.editHref)}>
-                    <td>
-                      <div className={webStyles.tableTitleCell}>
-                        <span className={webStyles.tableIcon} style={{ background: transaction.iconColor }}>
-                          <Icon size={16} strokeWidth={2} color={CATEGORY_ICON_COLOR} />
-                        </span>
-                        <div>
-                          <p>{transaction.title}</p>
-                          <p className={styles.emptyText}>{transaction.description}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td>{transaction.account}</td>
-                    <td>{transaction.date}</td>
-                    <td className={webStyles.tableAmount}>
-                      {formatAmount(transaction.amount)} {transaction.currency}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
         ) : (
           <div className={cardStyles.list}>
             {recentTransactions.map((transaction) => {
