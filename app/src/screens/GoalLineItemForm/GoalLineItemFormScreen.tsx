@@ -20,13 +20,14 @@
 import { useEffect, useState } from 'react';
 import { Calendar as HeroCalendar } from '@heroui/react';
 import { parseDate } from '@internationalized/date';
-import { X, Check, ChevronRight, Tag, AlertTriangle, Star, Wallet, CalendarDays, Repeat } from 'lucide-react';
+import { X, Check, ChevronRight, Tag, AlertTriangle, Star, Wallet, CalendarDays, Repeat, Plus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useLogic, FIXED_ITEM_FREQUENCIES } from '@/src/logic/goalDetail/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { toDateOnly } from '@/src/shared/firestore/taskWrites';
 import { PRIORITY_LEVELS, NECESSITY_OPTIONS, NECESSITY_LABEL } from '@/src/viewmodels/projects';
+import { formatAmount } from '@/src/screens/Goals/GoalsScreen';
 import styles from './GoalLineItemFormScreen.module.css';
 
 function formatDateOnly(value: string): string {
@@ -91,6 +92,10 @@ export function GoalLineItemFormScreen({ goalId, itemId }: { goalId: string; ite
     setItemDueDate,
     itemRecurrenceFrequency,
     setItemRecurrenceFrequency,
+    itemSubItems,
+    addSubItem,
+    removeSubItem,
+    toggleSubItemDraft,
     accountOptionsForCategory,
     canSaveLineItem,
     savingItem,
@@ -127,6 +132,16 @@ export function GoalLineItemFormScreen({ goalId, itemId }: { goalId: string; ite
   const [dateMonthCursor, setDateMonthCursor] = useState(() =>
     itemDueDate ? new Date(`${itemDueDate}T00:00:00`) : new Date()
   );
+  const [subItemNameDraft, setSubItemNameDraft] = useState('');
+  const [subItemAmountDraft, setSubItemAmountDraft] = useState('');
+
+  function handleAddSubItem() {
+    addSubItem(subItemNameDraft, Number(subItemAmountDraft));
+    setSubItemNameDraft('');
+    setSubItemAmountDraft('');
+  }
+
+  const subItemsConsumed = itemSubItems.filter((s) => s.completed).reduce((sum, s) => sum + s.amount, 0);
 
   const isEditing = Boolean(editingItemId);
   const selectedCategory = categoryOptions.find((category) => category.id === itemCategoryId) ?? null;
@@ -579,6 +594,87 @@ export function GoalLineItemFormScreen({ goalId, itemId }: { goalId: string; ite
                 </HeroCalendar.Root>
               </div>
             )}
+          </div>
+
+          {/* A checklist within this one item — e.g. this item's own
+              shopping list — each entry with its own amount, rolling up
+              into how much of this item's own amount (the budget) has
+              been consumed so far. Purely local draft state until the
+              whole form is saved (see goalDetail/useLogic.ts's
+              addSubItem/removeSubItem/toggleSubItemDraft). */}
+          <div className={styles.listGroup}>
+            <div className={styles.subItemsHeader}>
+              <span className={styles.listRowLabel}>{strings.goalDetail.subItemsLabel}</span>
+              {itemSubItems.length > 0 && (
+                <span className={styles.subItemsRollup}>
+                  {formatAmount(subItemsConsumed)} / {formatAmount(Number(itemAmount) || 0)}
+                </span>
+              )}
+            </div>
+            {itemSubItems.length > 0 && (
+              <div className={styles.subItemsProgressTrack}>
+                <div
+                  className={styles.subItemsProgressFill}
+                  style={{
+                    width: `${Number(itemAmount) > 0 ? Math.min(100, (subItemsConsumed / Number(itemAmount)) * 100) : 0}%`,
+                  }}
+                />
+              </div>
+            )}
+
+            {itemSubItems.length === 0 ? (
+              <p className={styles.dueDateHint}>{strings.goalDetail.noSubItems}</p>
+            ) : (
+              <div className={styles.subItemsList}>
+                {itemSubItems.map((subItem) => (
+                  <div key={subItem.id} className={styles.subItemRow}>
+                    <input
+                      type="checkbox"
+                      checked={subItem.completed}
+                      onChange={() => toggleSubItemDraft(subItem.id)}
+                      aria-label={`Mark ${subItem.name} consumed`}
+                    />
+                    <span className={`${styles.subItemName} ${subItem.completed ? styles.subItemNameDone : ''}`}>
+                      {subItem.name}
+                    </span>
+                    <span className={styles.subItemAmount}>{formatAmount(subItem.amount)}</span>
+                    <button
+                      type="button"
+                      className={styles.clearRowButton}
+                      onClick={() => removeSubItem(subItem.id)}
+                      aria-label={`Remove ${subItem.name}`}
+                    >
+                      <X size={12} strokeWidth={2.5} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className={styles.subItemAddRow}>
+              <input
+                className={styles.subItemNameInput}
+                value={subItemNameDraft}
+                onChange={(event) => setSubItemNameDraft(event.target.value)}
+                placeholder={strings.goalDetail.subItemNamePlaceholder}
+              />
+              <input
+                className={styles.subItemAmountInput}
+                inputMode="numeric"
+                value={subItemAmountDraft}
+                onChange={(event) => setSubItemAmountDraft(event.target.value.replace(/[^0-9.]/g, ''))}
+                placeholder={strings.goalDetail.subItemAmountPlaceholder}
+              />
+              <button
+                type="button"
+                className={styles.subItemAddButton}
+                disabled={!subItemNameDraft.trim() || !(Number(subItemAmountDraft) > 0)}
+                onClick={handleAddSubItem}
+                aria-label={strings.goalDetail.addSubItem}
+              >
+                <Plus size={16} strokeWidth={2.25} />
+              </button>
+            </div>
           </div>
 
           {itemError && <p className={styles.errorText}>{itemError}</p>}

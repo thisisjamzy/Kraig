@@ -11,7 +11,9 @@ import { useLogic, formatAmount } from '@/src/logic/budget/useLogic';
 import { CATEGORY_ICON_COLOR } from '@/src/viewmodels/categories';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
+import { useIsWeb } from '@/src/shared/hooks/useViewportMode';
 import styles from './BudgetScreen.module.css';
+import webStyles from './BudgetScreen.web.module.css';
 // The month transactions panel uses this exact same card component style as
 // the all-transactions list, so it reuses that module's classes directly
 // rather than duplicating them.
@@ -20,6 +22,7 @@ import cardStyles from '@/src/screens/TransactionHistory/TransactionHistoryScree
 export function BudgetScreen() {
   const strings = useStrings();
   const router = useRouter();
+  const isWeb = useIsWeb();
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const {
     monthIndex,
@@ -98,8 +101,8 @@ export function BudgetScreen() {
   }
 
   return (
-    <div className={styles.page}>
-      <header className={styles.header}>
+    <div className={`${styles.page} ${isWeb ? webStyles.page : ''}`}>
+      <header className={`${styles.header} ${isWeb ? webStyles.areaHeader : ''}`}>
         <div className={styles.headerText}>
           <h1 className={styles.title}>{monthLabel}</h1>
           {daysLeftInMonth !== null && (
@@ -120,7 +123,7 @@ export function BudgetScreen() {
         </button>
       </header>
 
-      <div className={styles.totalCard}>
+      <div className={`${styles.totalCard} ${isWeb ? webStyles.areaTotal : ''}`}>
         <div className={styles.totalCardTopRow}>
           <span className={styles.totalLabel}>{strings.budget.totalBudgetLabel}</span>
           <ActionMenu
@@ -155,7 +158,7 @@ export function BudgetScreen() {
         </div>
       </div>
 
-      <div className={styles.trackingTable}>
+      <div className={`${styles.trackingTable} ${isWeb ? webStyles.areaTracking : ''}`}>
         <span className={styles.trackingCorner} />
         <span className={styles.trackingTableHeaderLabel}>{strings.budget.projectedColumnLabel}</span>
         <span className={styles.trackingTableHeaderLabel}>{strings.budget.actualColumnLabel}</span>
@@ -187,7 +190,7 @@ export function BudgetScreen() {
         </span>
       </div>
 
-      <div className={styles.sectionTitleRow}>
+      <div className={`${styles.sectionTitleRow} ${isWeb ? webStyles.areaCatsHead : ''}`}>
         <h2 className={styles.sectionTitle}>{strings.budget.sectionTitle}</h2>
         <Link href={addBudgetCategoryHref} className={styles.addIconButton} aria-label={strings.budget.addCategory}>
           <Plus size={16} strokeWidth={2.25} />
@@ -201,13 +204,13 @@ export function BudgetScreen() {
           {strings.budget.noCategoriesPrefix} {monthLabel} {strings.budget.noCategoriesSuffix}
         </p>
       ) : (
-        <div className={styles.cardScroll}>
+        <div className={`${styles.cardScroll} ${isWeb ? webStyles.areaCats : ''}`}>
           {categories.map((entry) => (
             <div
               key={entry.id}
               role="button"
               tabIndex={0}
-              className={styles.categoryCard}
+              className={`${styles.categoryCard} ${isWeb ? webStyles.categoryCardWeb : ''}`}
               data-type={entry.type}
               onClick={() => goToCategory(entry.categoryId)}
               onKeyDown={(event) => {
@@ -219,35 +222,45 @@ export function BudgetScreen() {
             >
               <div className={styles.cardTopRow}>
                 <p className={styles.cardCategoryName}>{entry.category}</p>
-                <div className={styles.cardMenu} onClick={(event) => event.stopPropagation()}>
-                  <ActionMenu
-                    title={entry.category}
-                    ariaLabel={`Actions for ${entry.category}`}
-                    items={[
-                      {
-                        key: 'edit',
-                        label: strings.budget.editAction,
-                        icon: <Pencil size={16} strokeWidth={1.75} />,
-                        onSelect: () =>
-                          router.push(`/edit-budget-category/${entry.id}?month=${monthIndex}&year=${year}`),
-                      },
-                      {
-                        key: 'delete',
-                        label: strings.budget.deleteAction,
-                        icon: <Trash2 size={16} strokeWidth={1.75} />,
-                        onSelect: () => setConfirmDeleteId(entry.id),
-                        danger: true,
-                      },
-                    ]}
-                  />
-                </div>
+                {/* An auto-included category has no real budget rule doc
+                    behind it (src/logic/budget/useLogic.ts's own
+                    isAutoIncluded header comment) — nothing to edit or
+                    delete here; change the goal itself instead. */}
+                {!entry.isAutoIncluded && (
+                  <div className={styles.cardMenu} onClick={(event) => event.stopPropagation()}>
+                    <ActionMenu
+                      title={entry.category}
+                      ariaLabel={`Actions for ${entry.category}`}
+                      items={[
+                        {
+                          key: 'edit',
+                          label: strings.budget.editAction,
+                          icon: <Pencil size={16} strokeWidth={1.75} />,
+                          onSelect: () =>
+                            router.push(`/edit-budget-category/${entry.id}?month=${monthIndex}&year=${year}`),
+                        },
+                        {
+                          key: 'delete',
+                          label: strings.budget.deleteAction,
+                          icon: <Trash2 size={16} strokeWidth={1.75} />,
+                          onSelect: () => setConfirmDeleteId(entry.id),
+                          danger: true,
+                        },
+                      ]}
+                    />
+                  </div>
+                )}
               </div>
 
               <div className={styles.cardBadgeRow}>
                 <span className={styles.typeBadge} data-type={entry.type}>
                   {strings.budget.typeLabels[entry.type]}
                 </span>
-                <span className={styles.recurrenceBadge}>{recurrenceBadgeLabel(entry.recurrence)}</span>
+                {entry.isAutoIncluded ? (
+                  <span className={styles.autoIncludedBadge}>{strings.budget.autoIncludedBadge}</span>
+                ) : (
+                  <span className={styles.recurrenceBadge}>{recurrenceBadgeLabel(entry.recurrence)}</span>
+                )}
               </div>
 
               <div className={styles.cardBudgetedBlock}>
@@ -294,7 +307,7 @@ export function BudgetScreen() {
         />
       )}
 
-      <div className={styles.sectionTitleRow}>
+      <div className={`${styles.sectionTitleRow} ${isWeb ? webStyles.areaTransHead : ''}`}>
         <h2 className={styles.sectionTitle}>{strings.budget.monthTransactionsTitle}</h2>
         <Link href={retroTransactionHref} className={styles.recordTransactionButton}>
           <Plus size={16} strokeWidth={2.25} />
@@ -308,6 +321,39 @@ export function BudgetScreen() {
         <p className={styles.emptyText}>
           {strings.budget.noMonthTransactionsPrefix} {monthLabel} {strings.budget.noMonthTransactionsSuffix}
         </p>
+      ) : isWeb ? (
+        <div className={webStyles.areaTrans}>
+          <div className={cardStyles.list}>
+            {monthTransactions.map((transaction) => {
+              const Icon = transaction.icon;
+              return (
+                <Link key={transaction.id} href={transaction.editHref} className={cardStyles.card}>
+                  <span className={cardStyles.icon} style={{ background: transaction.iconColor }}>
+                    <Icon size={20} strokeWidth={2} color={CATEGORY_ICON_COLOR} />
+                  </span>
+                  <div className={cardStyles.info}>
+                    <p className={cardStyles.transactionTitle}>{transaction.title}</p>
+                    <p className={cardStyles.description}>{transaction.description}</p>
+                    <p className={cardStyles.account}>{transaction.account}</p>
+                  </div>
+                  <div className={cardStyles.amountRow}>
+                    <span className={cardStyles.amount}>
+                      {formatAmount(transaction.amount)} {transaction.currency}
+                    </span>
+                    <span className={cardStyles.date}>{transaction.date}</span>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+
+          {monthTransactionCount > monthTransactions.length && (
+            <Link href={viewAllMonthTransactionsHref} className={styles.viewAllLink}>
+              {strings.budget.viewAllMonthTransactionsPrefix} {monthTransactionCount}{' '}
+              {strings.budget.viewAllMonthTransactionsSuffix}
+            </Link>
+          )}
+        </div>
       ) : (
         <>
           <div className={cardStyles.list}>
@@ -343,7 +389,7 @@ export function BudgetScreen() {
         </>
       )}
 
-      <p className={styles.footerNote}>{strings.budget.footerNote}</p>
+      <p className={`${styles.footerNote} ${isWeb ? webStyles.areaFooter : ''}`}>{strings.budget.footerNote}</p>
 
       {monthPickerOpen && (
         <Modal title={strings.budget.chooseMonth} onClose={() => setMonthPickerOpen(false)}>

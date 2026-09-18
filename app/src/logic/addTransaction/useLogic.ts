@@ -10,7 +10,7 @@ import { useFirestoreCollection, useFirestoreDoc } from '@/src/shared/firestore/
 import { budgetRulesRef, categoryRef, goalsRef, transactionTemplateRef, unjustifiedWalletRef } from '@/src/shared/firestore/refs';
 import { toRecurrenceRule } from '@/src/shared/firestore/recurrence';
 import { useAccounts, useCategories, useCurrencyContext } from '@/src/shared/firestore/queries';
-import { createTransferWithAggregation, markGoalLineItemComplete } from '@/src/shared/firestore/aggregation';
+import { createTransferWithAggregation, recordGoalLineItemPayment } from '@/src/shared/firestore/aggregation';
 import { recordHistoricEntry } from '@/src/shared/firestore/unaccountedBalance';
 import { useGoalLineItemsByGoal } from '@/src/shared/hooks/useGoalLineItemsByGoal';
 import { TRANSFER_CATEGORIES } from '@/src/viewmodels/categories';
@@ -291,7 +291,7 @@ export function useLogic() {
 
   // Recording an Expense, Income, or Savings can be linked to an incomplete
   // goal line item instead of a plain transaction — submitting then calls
-  // markGoalLineItemComplete (goalDetail's own "mark complete" write) so
+  // recordGoalLineItemPayment (goalDetail's own "record payment" write) so
   // the item's payment status updates too, rather than creating an
   // unlinked transaction. Not offered for a transfer (a goal item is never
   // Transfer-flavored) and only against items whose own category is one of
@@ -481,11 +481,16 @@ export function useLogic() {
 
     try {
       if (linkedGoalItem) {
-        await markGoalLineItemComplete(
+        // No partial-payment choice here either — same reasoning as
+        // paymentsCalendar's own quick-confirm above: linking an item from
+        // this flow always closes it in full. Goal Detail's own "Record
+        // payment" action is the one place that offers Partial.
+        await recordGoalLineItemPayment(
           uid,
           linkedGoalItem.goalId,
           linkedGoalItem.id,
           Number(amountString),
+          true,
           {
             accountId: fromAccountId,
             categoryId: category || linkedGoalItem.categoryId,

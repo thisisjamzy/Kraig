@@ -68,6 +68,7 @@ import type {
   Priority,
   GoalItemNecessity,
   Frequency,
+  GoalLineItemSubItem,
 } from './types';
 
 function monthKey(date: Date) {
@@ -124,7 +125,7 @@ export interface CreateTransactionInput {
  * The write half of "record a transaction" — account currentBalance,
  * statsMonthly, stats-home, the same fields onTransactionWrite's
  * applyDelta() used to maintain via a trigger — factored out so
- * markGoalLineItemComplete and recordRepaymentWithAggregation (both of
+ * recordGoalLineItemPayment and recordRepaymentWithAggregation (both of
  * which also need to write a real transaction, inside their OWN
  * runTransaction() alongside a goal/debt write) can reuse the exact same
  * math instead of re-deriving it. Every read this needs (the account snap,
@@ -1190,7 +1191,13 @@ export async function deleteGoal(uid: string, goalId: string): Promise<void> {
  * Query — see that function's own header for the same constraint on
  * statsBudgetProgress). Called after every lineItems write.
  */
-async function recalcGoalTotals(uid: string, goalId: string) {
+// Exported so a caller outside this file can force a recompute — used by
+// src/logic/goalDetail/useLogic.ts's actualAmount backfill effect, which
+// patches a line item's own actualAmount directly (not through one of this
+// file's own recordGoalLineItemPayment/etc. writes, which already call this
+// themselves) and would otherwise leave the goal's own amountCompleted
+// stale against the now-corrected line item.
+export async function recalcGoalTotals(uid: string, goalId: string) {
   const snap = await getDocs(goalLineItemsRef(uid, goalId));
   const lineItems = snap.docs.map((d) => d.data());
   const totalAmount = lineItems.reduce((sum, li) => sum + (Number(li.amount) || 0), 0);
@@ -1199,7 +1206,11 @@ async function recalcGoalTotals(uid: string, goalId: string) {
     totalAmount,
     lineItemCount: lineItems.length,
     completedLineItemCount: completed.length,
-    amountCompleted: completed.reduce((sum, li) => sum + (Number(li.amount) || 0), 0),
+    // Actual spend, not the plan — a completed item's actualAmount (what
+    // the Mark Complete form actually recorded) reflects real money moved,
+    // which is very often more or less than what was budgeted; falls back
+    // to `amount` only for an item completed before actualAmount existed.
+    amountCompleted: completed.reduce((sum, li) => sum + (Number(li.actualAmount ?? li.amount) || 0), 0),
     updatedAt: serverTimestamp(),
   });
 }
@@ -1228,6 +1239,11 @@ export interface CreateGoalLineItemInput {
   dueDate: Date | null;
   // Fixed-goal items only — see FirestoreGoalLineItem.recurrence's header.
   recurrence?: { frequency: Frequency; interval: number } | null;
+  // The item's own shopping-list checklist, edited as a batch alongside
+  // every other field on this same form (see FirestoreGoalLineItem
+  // .subItems's header) — ticking one off afterward from Goal Detail goes
+  // through toggleGoalLineItemSubItem instead, not this.
+  subItems?: GoalLineItemSubItem[];
 }
 
 /**
@@ -1238,7 +1254,7 @@ export interface CreateGoalLineItemInput {
  * own recurring budget rule right here, silently inflating that category's
  * planned amount the moment the item was created; that's exactly the
  * double-accounting this app now avoids. Instead, once this item is later
- * completed (markGoalLineItemComplete), the real transaction it records
+ * completed (recordGoalLineItemPayment), the real transaction it records
  * shows up in the Budget screen's per-category breakdown as "dedicated"
  * spend — tied to a goal — versus "unplanned" for everything else, so both
  * budgeting methods (a direct per-category estimate, and a goal's own line
@@ -1268,6 +1284,7 @@ export async function createGoalLineItem(
     charges: input.charges ?? null,
     dueDate: input.dueDate ? Timestamp.fromDate(input.dueDate) : null,
     recurrence: goalKind === 'Fixed' ? (input.recurrence ?? null) : null,
+    subItems: input.subItems ?? [],
     budgetRuleId: null,
     addedToBudget: false,
     // A new item always lands at the end of the cross-goal to-do list's
@@ -1329,9 +1346,33 @@ export async function updateGoalLineItem(
     charges: input.charges ?? null,
     dueDate: input.dueDate ? Timestamp.fromDate(input.dueDate) : null,
     recurrence: input.recurrence ?? null,
+    subItems: input.subItems ?? [],
     updatedAt: serverTimestamp(),
   });
   await recalcGoalTotals(uid, goalId);
+}
+
+// Adding/removing a sub-item happens as part of this same form's batched
+// Save (CreateGoalLineItemInput.subItems above, via createGoalLineItem/
+// updateGoalLineItem) — this is only for ticking one off live from Goal
+// Detail's own line item row, without opening the edit form. A plain
+// read-modify-write on the embedded array (see FirestoreGoalLineItem
+// .subItems's header); never touches money/balances/budget, so no
+// transaction, and never calls recalcGoalTotals since a line item's own
+// `amount` (what that sums) never changes here.
+export async function toggleGoalLineItemSubItem(
+  uid: string,
+  goalId: string,
+  lineItemId: string,
+  subItemId: string
+): Promise<void> {
+  const ref = goalLineItemRef(uid, goalId, lineItemId);
+  const snap = await getDoc(ref);
+  const current = (snap.data()?.subItems ?? []) as GoalLineItemSubItem[];
+  const next = current.map((subItem) =>
+    subItem.id === subItemId ? { ...subItem, completed: !subItem.completed } : subItem
+  );
+  await updateDoc(ref, { subItems: next, updatedAt: serverTimestamp() });
 }
 
 /**
@@ -1447,26 +1488,32 @@ export interface MarkGoalLineItemCompleteInput {
 }
 
 /**
- * Marking a line item complete records a real Expense, Income, or Savings
- * transaction (via writeTransactionContribution, the same write
- * createTransactionWithAggregation uses) and links the two — both inside one
- * runTransaction() so a line item can never end up "complete" without the
- * transaction actually existing, or vice versa. The line item's own `amount`
- * is what moves; there's no separate amount to type in here.
+ * Recording a payment against a line item writes a real Expense, Income, or
+ * Savings transaction (via writeTransactionContribution, the same write
+ * createTransactionWithAggregation uses) and appends it to the item's own
+ * `payments` — both inside one runTransaction() so a payment can never end
+ * up recorded on the item without the transaction actually existing, or
+ * vice versa. `fullyPaid` decides whether this closes the item
+ * (`completed: true`, same as this function's old always-complete
+ * behavior) or leaves it open as "partial" — some real money recorded, but
+ * more payments still expected — for an expense that isn't settled in one
+ * shot. `paymentAmount` is this ONE payment's amount, not necessarily the
+ * item's full planned `amount`.
  *
  * A Transfer goal's item takes a wholly different branch: it moves money
  * between two of the household's own accounts (categoryId here is a
  * TRANSFER_CATEGORIES kind string, not a real category) rather than
  * spending/receiving against one, so it records a real transfer the same
  * way createTransferWithAggregation does — just inlined into this same
- * transaction so the line item can't end up "complete" without the transfer
- * existing either. Linked back via `transferId`, not `expenseId`.
+ * transaction so a payment can't end up recorded without the transfer
+ * existing either.
  */
-export async function markGoalLineItemComplete(
+export async function recordGoalLineItemPayment(
   uid: string,
   goalId: string,
   lineItemId: string,
-  lineItemAmount: number,
+  paymentAmount: number,
+  fullyPaid: boolean,
   input: MarkGoalLineItemCompleteInput,
   ctx: CurrencyContext
 ): Promise<void> {
@@ -1482,39 +1529,49 @@ export async function markGoalLineItemComplete(
     const kind = input.categoryId ?? 'Wallet to wallet';
 
     await runTransaction(db, async (tx) => {
-      const [fromSnap, toSnap] = await Promise.all([tx.get(accountRef(uid, input.accountId)), tx.get(accountRef(uid, toAccountId))]);
+      const [fromSnap, toSnap, lineItemSnap] = await Promise.all([
+        tx.get(accountRef(uid, input.accountId)),
+        tx.get(accountRef(uid, toAccountId)),
+        tx.get(goalLineItemRef(uid, goalId, lineItemId)),
+      ]);
       if (fromSnap.data()?.frozen || toSnap.data()?.frozen) {
         throw new Error('One of these wallets is frozen — unfreeze it before transferring.');
       }
-      assertNotBelowLocked(fromSnap.data(), -(lineItemAmount + charges));
+      assertNotBelowLocked(fromSnap.data(), -(paymentAmount + charges));
 
       tx.set(transferRef(uid, clientId), {
         date: dateTimestamp,
         description: input.description,
         fromAccountId: input.accountId,
         toAccountId,
-        amount: lineItemAmount,
+        amount: paymentAmount,
         charges,
         kind,
         notes: '',
         createdBy: uid,
         createdAt: dateTimestamp,
       });
-      tx.update(accountRef(uid, input.accountId), { currentBalance: increment(-(lineItemAmount + charges)) });
-      tx.update(accountRef(uid, toAccountId), { currentBalance: increment(lineItemAmount) });
+      tx.update(accountRef(uid, input.accountId), { currentBalance: increment(-(paymentAmount + charges)) });
+      tx.update(accountRef(uid, toAccountId), { currentBalance: increment(paymentAmount) });
       tx.set(
         statsMonthlyRef(uid, monthKey(input.date)),
         {
-          perCategorySpend: { [kind]: increment(lineItemAmount) },
+          perCategorySpend: { [kind]: increment(paymentAmount) },
           perCategoryCount: { [kind]: increment(1) },
           lastUpdated: serverTimestamp(),
         },
         { merge: true }
       );
+      const payments = [
+        ...(lineItemSnap.data()?.payments ?? []),
+        { id: clientId, kind: 'transfer' as const, amount: paymentAmount, date: dateTimestamp },
+      ];
       tx.update(goalLineItemRef(uid, goalId, lineItemId), {
-        completed: true,
-        completedAt: serverTimestamp(),
+        completed: fullyPaid,
+        completedAt: fullyPaid ? serverTimestamp() : null,
         transferId: clientId,
+        payments,
+        actualAmount: round2(payments.reduce((sum, payment) => sum + payment.amount, 0)),
         updatedAt: serverTimestamp(),
       });
     });
@@ -1527,7 +1584,10 @@ export async function markGoalLineItemComplete(
   const direction = categoryType === 'Expense' ? 'Outflow' : 'Inflow';
 
   await runTransaction(db, async (tx) => {
-    const accountSnap = await tx.get(accountRef(uid, input.accountId));
+    const [accountSnap, lineItemSnap] = await Promise.all([
+      tx.get(accountRef(uid, input.accountId)),
+      tx.get(goalLineItemRef(uid, goalId, lineItemId)),
+    ]);
     writeTransactionContribution(
       tx,
       uid,
@@ -1538,17 +1598,23 @@ export async function markGoalLineItemComplete(
         description: input.description,
         accountId: input.accountId,
         categoryId: input.categoryId,
-        amount: lineItemAmount,
+        amount: paymentAmount,
         direction,
         createdBy: uid,
       },
       accountSnap.data(),
       ctx
     );
+    const payments = [
+      ...(lineItemSnap.data()?.payments ?? []),
+      { id: clientId, kind: 'expense' as const, amount: paymentAmount, date: Timestamp.fromDate(input.date) },
+    ];
     tx.update(goalLineItemRef(uid, goalId, lineItemId), {
-      completed: true,
-      completedAt: serverTimestamp(),
+      completed: fullyPaid,
+      completedAt: fullyPaid ? serverTimestamp() : null,
       expenseId: clientId,
+      payments,
+      actualAmount: round2(payments.reduce((sum, payment) => sum + payment.amount, 0)),
       updatedAt: serverTimestamp(),
     });
   });

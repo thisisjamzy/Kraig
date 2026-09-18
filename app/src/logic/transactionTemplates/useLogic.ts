@@ -49,8 +49,19 @@ export function useLogic() {
     return from ?? '';
   }
 
+  // A hard navigation (not router.push) is deliberate: Add Transaction is
+  // where "Use a template" is reached FROM, so its own page component is
+  // already mounted underneath this screen — the App Router does not
+  // remount a page purely because its search params changed, so a
+  // router.push here would land back on that same still-mounted instance,
+  // whose step/prefillTemplateId state was already computed once (as
+  // 'type', no template) and never recomputes itself just because the URL
+  // changed under it. A full navigation guarantees a fresh mount, so
+  // addTransaction/useLogic.ts's own step-from-templateId logic actually
+  // runs against the new templateId instead of being skipped.
   function applyTemplate(id: string) {
-    router.push(`/add-transaction?templateId=${id}`);
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+    window.location.href = `/add-transaction?templateId=${id}`;
   }
 
   function openNewTemplate() {

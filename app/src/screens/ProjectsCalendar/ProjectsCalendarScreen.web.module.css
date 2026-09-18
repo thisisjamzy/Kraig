@@ -1,0 +1,128 @@
+/* Web-only week-grid calendar for ProjectsCalendarScreen — applied ONLY
+   when useIsWeb() is true; ProjectsCalendarScreen.module.css is never
+   edited, and none of its markup/classes are reused here except where the
+   isWeb branch in the .tsx explicitly imports this file's own classes.
+   Mobile's date-strip + single-selected-day agenda stays exactly as it
+   was; this is a parallel, brand-new view (Design/web/web7.jpg, web8.jpg)
+   over the same already-loaded tasks/projects/payments data (see
+   src/logic/projectsCalendar/useLogic.ts's agendaForDate). TaskCard itself
+   is a rich inline-expanding widget (status/priority/reschedule controls)
+   too wide for a 7-column week cell, so each item here is its own compact
+   chip instead — clicking it takes the same real action TaskCard's own
+   "Edit task" menu item / the mobile agenda's project-and-payment rows
+   already use, not a shrunk copy of TaskCard's UI. */
+.page {
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+  padding: var(--space-xl);
+}
+
+.weekGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: var(--space-sm);
+  align-items: start;
+}
+
+.weekColumn {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  min-height: 320px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-background);
+  overflow: hidden;
+}
+
+.weekColumnSelected {
+  border-color: var(--color-brand);
+}
+
+.weekColumnHeader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: var(--space-sm);
+  border: none;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.weekColumnWeekday {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-text-secondary);
+}
+
+.weekColumnDate {
+  font-size: var(--font-size-sm);
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.weekColumnDateToday {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--color-brand);
+  color: #ffffff;
+}
+
+.weekColumnBody {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px;
+  flex: 1;
+}
+
+.eventChip {
+  padding: 4px 6px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  font-family: inherit;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--color-text-primary);
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.eventChipTask {
+  background: color-mix(in srgb, var(--color-brand) 14%, transparent);
+  color: var(--color-brand);
+}
+
+.eventChipProject {
+  background: color-mix(in srgb, #e8a33d 18%, transparent);
+  color: #a3671c;
+}
+
+.eventChipPayment {
+  background: color-mix(in srgb, var(--color-danger) 14%, transparent);
+  color: var(--color-danger);
+}
+
+.emptyDay {
+  padding: var(--space-sm);
+  font-size: 0.6875rem;
+  color: var(--color-text-secondary);
+  text-align: center;
+}

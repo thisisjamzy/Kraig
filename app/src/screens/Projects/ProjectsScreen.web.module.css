@@ -1,0 +1,57 @@
+/* Web-only layout for ProjectsScreen — applied ONLY when useIsWeb() is
+   true; ProjectsScreen.module.css is never edited. Override rules use the
+   ".page .areaX" pattern for specificity safety (see HomeScreen.web.module
+   .css's header comment for the full rationale).
+   Dreda's Projects hub has no kanban/status-column data model (Areas >
+   Projects > Tasks, no per-task board column) — rather than fabricating a
+   kanban board that doesn't map onto any real field, this reflows the
+   screen's own existing sections (today's priority tasks, areas, active
+   projects) from horizontal-scroll carousels into responsive grids, same
+   density goal, using the real data model instead of a borrowed one. */
+.page {
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+  padding: var(--space-xl);
+}
+
+.page .priorityList {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: var(--space-sm);
+}
+
+.page .areaCarousel {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  overflow-x: visible;
+  margin: 0;
+  padding: 0;
+}
+
+/* .areaCard's mobile width assumed a horizontal scroll strip (66.6667vw,
+   see the audit that fed this file's plan) — pinned to the grid cell's
+   own width here instead. */
+.page .areaCarousel .areaCard {
+  width: 100%;
+  max-width: none;
+}
+
+.page .projectCarousel {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  overflow-x: visible;
+  margin: 0;
+  padding: 0;
+}
+
+/* Passed into ProjectCard's own optional className prop (ProjectCard.tsx),
+   landing on the same element as ProjectCard.module.css's own ".card"
+   class — a single-class selector here would tie with ".card" on
+   specificity and the winner would depend on CSS bundle order, so this
+   repeats the class to double its specificity instead (a standard,
+   dependency-free way to guarantee the override without !important). */
+.projectCardWeb.projectCardWeb {
+  width: 100%;
+  max-width: none;
+}

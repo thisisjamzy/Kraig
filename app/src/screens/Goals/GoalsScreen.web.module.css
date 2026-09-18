@@ -1,0 +1,33 @@
+/* Web-only layout for GoalsScreen — applied ONLY when useIsWeb() is true;
+   GoalsScreen.module.css is never edited. Override rules use the
+   ".page .exploreList .exploreRow" 3-level compound-selector pattern
+   (rather than just ".page .exploreRow") specifically because the mobile
+   file's own ".exploreRow:last-child" rule already reaches 2-class
+   specificity — matching it exactly would leave the winner dependent on
+   CSS bundle/import order, so every override here goes one level deeper
+   to keep a safe specificity margin (see HomeScreen.web.module.css's
+   header comment for the general rationale).
+   The dashboard cards row (.expenseCardsRow) is a horizontal scroller on
+   mobile and stays exactly that on web too (a wider viewport just shows
+   more of the 7 cards at once) — needs no override here; only Explore's
+   bordered list becomes a card grid. */
+.page {
+  max-width: 1100px;
+  width: 100%;
+  margin: 0 auto;
+  padding: var(--space-xl);
+}
+
+.page .exploreList {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--space-md);
+  border: none;
+  border-radius: 0;
+  overflow: visible;
+}
+
+.page .exploreList .exploreRow {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}

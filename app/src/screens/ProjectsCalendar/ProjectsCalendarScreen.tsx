@@ -20,7 +20,23 @@ import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { TaskCard } from '@/src/widgets/TaskCard/TaskCard';
 import { toDateOnly } from '@/src/shared/firestore/taskWrites';
 import { iconTint } from '@/src/viewmodels/iconTint';
+import { useIsWeb } from '@/src/shared/hooks/useViewportMode';
 import styles from './ProjectsCalendarScreen.module.css';
+import webStyles from './ProjectsCalendarScreen.web.module.css';
+
+// Sunday-start week containing dateIso — matches the mobile date strip's
+// own US-locale weekday labels (date.toLocaleDateString('en-US', {weekday
+// :'short'})) so "Sun...Sat" reads the same way in both views.
+function buildWeekDays(dateIso: string): string[] {
+  const anchor = new Date(`${dateIso}T00:00:00`);
+  const start = new Date(anchor);
+  start.setDate(start.getDate() - start.getDay());
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(start);
+    d.setDate(d.getDate() + i);
+    return toDateOnly(d);
+  });
+}
 
 // The date strip's own scrollable window — wide enough either side of
 // "today" that picking any day within about three weeks never needs the
@@ -48,12 +64,14 @@ export function ProjectsCalendarScreen() {
     selectedDate,
     selectDay,
     agenda,
+    agendaForDate,
     todayIso,
     openProject,
     openPayment,
     loading,
   } = useLogic();
   const router = useRouter();
+  const isWeb = useIsWeb();
 
   const [monthPickerOpen, setMonthPickerOpen] = useState(false);
 
@@ -107,7 +125,7 @@ export function ProjectsCalendarScreen() {
   const monthLabel = monthCursor.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
   return (
-    <div className={styles.page}>
+    <div className={`${styles.page} ${isWeb ? webStyles.page : ''}`}>
       <div className={styles.headerRow}>
         <div className={styles.monthWrap} ref={monthMenuRef}>
           <button
@@ -182,87 +200,160 @@ export function ProjectsCalendarScreen() {
         />
       </div>
 
-      <div className={styles.dateStrip} ref={stripRef} data-hscroll="true">
-        {strip.map((date) => {
-          const iso = toDateOnly(date);
-          const isSelected = iso === selectedDate;
-          return (
-            <button
-              key={iso}
-              ref={isSelected ? selectedDayRef : undefined}
-              type="button"
-              className={`${styles.stripDay} ${isSelected ? styles.stripDaySelected : ''}`}
-              onClick={() => selectDay(iso)}
-            >
-              <span className={styles.stripDayLabel}>
-                {date.toLocaleDateString('en-US', { weekday: 'short' })}
-              </span>
-              <span className={styles.stripDateNum}>{date.getDate()}</span>
-              {daysWithItems.has(iso) && !isSelected && <span className={styles.stripDot} />}
-            </button>
-          );
-        })}
-      </div>
-
-      <ScreenState loading={loading} />
-
-      {!loading && !hasAnything && (
-        <div className={styles.emptyState}>
-          <ShoppingBasket size={40} strokeWidth={1.5} className={styles.emptyIcon} />
-          <p className={styles.emptyTitle}>{isToday ? 'All done for today!' : 'Nothing scheduled'}</p>
-          <p className={styles.emptyPrompt}>Want to add a task for this day?</p>
-          <Link href="/tasks/new" className={styles.emptyCta}>
-            <ListPlus size={16} strokeWidth={2.25} />
-            Add task
-          </Link>
-        </div>
-      )}
-
-      {!loading && hasAnything && (
-        <div className={styles.timeline}>
-          {hasAllDayItems && (
-            <div className={styles.allDayGroup}>
-              {agenda.projectItems.map((item) => (
+      {isWeb ? (
+        <>
+          <ScreenState loading={loading} />
+          {!loading && (
+            <div className={webStyles.weekGrid}>
+              {buildWeekDays(selectedDate).map((iso) => {
+                const date = new Date(`${iso}T00:00:00`);
+                const dayAgenda = agendaForDate(iso);
+                const isSelected = iso === selectedDate;
+                const isToday = iso === todayIso;
+                const isEmpty =
+                  dayAgenda.taskItems.length === 0 &&
+                  dayAgenda.projectItems.length === 0 &&
+                  dayAgenda.paymentItems.length === 0;
+                return (
+                  <div
+                    key={iso}
+                    className={`${webStyles.weekColumn} ${isSelected ? webStyles.weekColumnSelected : ''}`}
+                  >
+                    <button type="button" className={webStyles.weekColumnHeader} onClick={() => selectDay(iso)}>
+                      <span className={webStyles.weekColumnWeekday}>
+                        {date.toLocaleDateString('en-US', { weekday: 'short' })}
+                      </span>
+                      <span className={isToday ? webStyles.weekColumnDateToday : webStyles.weekColumnDate}>
+                        {date.getDate()}
+                      </span>
+                    </button>
+                    <div className={webStyles.weekColumnBody}>
+                      {dayAgenda.projectItems.map((item) => (
+                        <button
+                          key={`${item.id}-${item.label}`}
+                          type="button"
+                          className={`${webStyles.eventChip} ${webStyles.eventChipProject}`}
+                          onClick={() => openProject(item.id)}
+                          title={`${item.label}: ${item.title}`}
+                        >
+                          {item.title}
+                        </button>
+                      ))}
+                      {dayAgenda.paymentItems.map((payment) => (
+                        <button
+                          key={payment.id}
+                          type="button"
+                          className={`${webStyles.eventChip} ${webStyles.eventChipPayment}`}
+                          onClick={openPayment}
+                          title={`Payment due: ${payment.title}`}
+                        >
+                          {payment.title}
+                        </button>
+                      ))}
+                      {dayAgenda.taskItems.map((task) => (
+                        <button
+                          key={task.id}
+                          type="button"
+                          className={`${webStyles.eventChip} ${webStyles.eventChipTask}`}
+                          onClick={() => router.push(`/tasks/${task.id}/edit`)}
+                          title={task.title}
+                        >
+                          {task.title}
+                        </button>
+                      ))}
+                      {isEmpty && <span className={webStyles.emptyDay}>—</span>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </>
+      ) : (
+        <>
+          <div className={styles.dateStrip} ref={stripRef} data-hscroll="true">
+            {strip.map((date) => {
+              const iso = toDateOnly(date);
+              const isSelected = iso === selectedDate;
+              return (
                 <button
-                  key={`${item.id}-${item.label}`}
+                  key={iso}
+                  ref={isSelected ? selectedDayRef : undefined}
                   type="button"
-                  className={styles.allDayRow}
-                  onClick={() => openProject(item.id)}
+                  className={`${styles.stripDay} ${isSelected ? styles.stripDaySelected : ''}`}
+                  onClick={() => selectDay(iso)}
                 >
-                  <span className={styles.agendaIcon} style={{ background: iconTint(item.isMilestone ? 3 : 4) }}>
-                    {item.isMilestone ? <Target size={16} strokeWidth={2} /> : <FolderKanban size={16} strokeWidth={2} />}
+                  <span className={styles.stripDayLabel}>
+                    {date.toLocaleDateString('en-US', { weekday: 'short' })}
                   </span>
-                  <div className={styles.agendaTaskBody}>
-                    <p className={styles.agendaTitleBlock}>{item.title}</p>
-                    <span className={styles.agendaTypeCaption}>{item.label}</span>
-                  </div>
+                  <span className={styles.stripDateNum}>{date.getDate()}</span>
+                  {daysWithItems.has(iso) && !isSelected && <span className={styles.stripDot} />}
                 </button>
-              ))}
-              {agenda.paymentItems.map((payment) => (
-                <button key={payment.id} type="button" className={styles.allDayRow} onClick={openPayment}>
-                  <span className={styles.agendaIcon} style={{ background: iconTint(5) }}>
-                    <Wallet size={16} strokeWidth={2} />
-                  </span>
-                  <div className={styles.agendaTaskBody}>
-                    <span className={styles.agendaTypeCaption}>Payment due</span>
-                    <p className={styles.agendaTitleBlock}>{payment.title}</p>
-                    <span className={styles.agendaTime}>
-                      {payment.amount.toLocaleString()} {payment.currency}
-                    </span>
-                  </div>
-                </button>
-              ))}
+              );
+            })}
+          </div>
+
+          <ScreenState loading={loading} />
+
+          {!loading && !hasAnything && (
+            <div className={styles.emptyState}>
+              <ShoppingBasket size={40} strokeWidth={1.5} className={styles.emptyIcon} />
+              <p className={styles.emptyTitle}>{isToday ? 'All done for today!' : 'Nothing scheduled'}</p>
+              <p className={styles.emptyPrompt}>Want to add a task for this day?</p>
+              <Link href="/tasks/new" className={styles.emptyCta}>
+                <ListPlus size={16} strokeWidth={2.25} />
+                Add task
+              </Link>
             </div>
           )}
 
-          {agenda.taskItems.length > 0 && (
-            <div className={styles.taskList}>
-              {agenda.taskItems.map((item) => (
-                <TaskCard key={item.id} task={item} />
-              ))}
+          {!loading && hasAnything && (
+            <div className={styles.timeline}>
+              {hasAllDayItems && (
+                <div className={styles.allDayGroup}>
+                  {agenda.projectItems.map((item) => (
+                    <button
+                      key={`${item.id}-${item.label}`}
+                      type="button"
+                      className={styles.allDayRow}
+                      onClick={() => openProject(item.id)}
+                    >
+                      <span className={styles.agendaIcon} style={{ background: iconTint(item.isMilestone ? 3 : 4) }}>
+                        {item.isMilestone ? <Target size={16} strokeWidth={2} /> : <FolderKanban size={16} strokeWidth={2} />}
+                      </span>
+                      <div className={styles.agendaTaskBody}>
+                        <p className={styles.agendaTitleBlock}>{item.title}</p>
+                        <span className={styles.agendaTypeCaption}>{item.label}</span>
+                      </div>
+                    </button>
+                  ))}
+                  {agenda.paymentItems.map((payment) => (
+                    <button key={payment.id} type="button" className={styles.allDayRow} onClick={openPayment}>
+                      <span className={styles.agendaIcon} style={{ background: iconTint(5) }}>
+                        <Wallet size={16} strokeWidth={2} />
+                      </span>
+                      <div className={styles.agendaTaskBody}>
+                        <span className={styles.agendaTypeCaption}>Payment due</span>
+                        <p className={styles.agendaTitleBlock}>{payment.title}</p>
+                        <span className={styles.agendaTime}>
+                          {payment.amount.toLocaleString()} {payment.currency}
+                        </span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {agenda.taskItems.length > 0 && (
+                <div className={styles.taskList}>
+                  {agenda.taskItems.map((item) => (
+                    <TaskCard key={item.id} task={item} />
+                  ))}
+                </div>
+              )}
             </div>
           )}
-        </div>
+        </>
       )}
     </div>
   );

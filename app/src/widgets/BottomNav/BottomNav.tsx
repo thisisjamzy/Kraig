@@ -10,7 +10,10 @@ import styles from './BottomNav.module.css';
 // (src/screens/Home/HomeScreen.tsx) — /goals stays a MONEY_HUB_ROUTE
 // (chromeVisibility.ts) so this bar still shows there, just with no tab of
 // its own highlighted, same as /debts already works.
-const NAV_ITEMS = [
+// Exported for WebSidebar (src/widgets/WebSidebar) — the web shell's nav
+// rail reuses this exact list rather than re-declaring Money mode's routes,
+// so mobile and web can never drift apart on what Money mode contains.
+export const NAV_ITEMS = [
   { href: '/home', label: 'Home', icon: Home },
   { href: '/statistics', label: 'Statistics', icon: PieChart },
   { href: '/budget', label: 'Budget', icon: SlidersHorizontal },

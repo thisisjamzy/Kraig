@@ -6,7 +6,9 @@ import { Home, ChartNoAxesCombined, ListOrdered, Plus } from 'lucide-react';
 import { navMode } from '@/src/shared/config/chromeVisibility';
 import styles from './GoalsBottomNav.module.css';
 
-const NAV_ITEMS = [
+// Exported for WebSidebar (src/widgets/WebSidebar) — reused verbatim so
+// mobile and web can never drift apart on what Goals mode contains.
+export const NAV_ITEMS = [
   { href: '/goals', label: 'Home', icon: Home },
   { href: '/goals/analytics', label: 'Analytics', icon: ChartNoAxesCombined },
   { href: '/goals/items', label: 'Board', icon: ListOrdered },

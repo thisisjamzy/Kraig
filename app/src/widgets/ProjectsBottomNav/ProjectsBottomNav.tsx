@@ -11,14 +11,19 @@ import { overdueTasks, dueTodayTasks } from '@/src/shared/firestore/taskInsights
 import { iconTint } from '@/src/viewmodels/iconTint';
 import styles from './ProjectsBottomNav.module.css';
 
-const NAV_ITEMS = [
+// Exported for WebSidebar (src/widgets/WebSidebar) — reused verbatim so
+// mobile and web can never drift apart on what Projects mode contains.
+export const NAV_ITEMS = [
   { href: '/projects', label: 'Home', icon: Home },
   { href: '/projects/calendar', label: 'Calendar', icon: CalendarDays },
   { href: '/projects/focus', label: 'Focus', icon: Target },
   { href: '/projects/analytics', label: 'Analytics', icon: ChartNoAxesCombined },
 ];
 
-const CREATE_OPTIONS = [
+// Exported for WebTopBar (src/widgets/WebTopBar) — its own "+" button reuses
+// this exact sheet in Projects mode rather than re-declaring the three PARA
+// creation routes.
+export const CREATE_OPTIONS = [
   { href: '/areas/new', label: 'New area', icon: Layers },
   { href: '/projects/new', label: 'New project', icon: FolderKanban },
   { href: '/tasks/new', label: 'New task', icon: ListChecks },

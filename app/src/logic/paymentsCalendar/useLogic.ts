@@ -16,7 +16,7 @@ import { useFirestoreCollection } from '@/src/shared/firestore/hooks';
 import { goalsRef } from '@/src/shared/firestore/refs';
 import { useAccounts, useCategories, useCurrencyContext } from '@/src/shared/firestore/queries';
 import { computeUpcomingPaymentsFromGoalItems, type UpcomingGoalPayment } from '@/src/shared/firestore/upcomingPayments';
-import { markGoalLineItemComplete } from '@/src/shared/firestore/aggregation';
+import { recordGoalLineItemPayment } from '@/src/shared/firestore/aggregation';
 import { useGoalLineItemsByGoal } from '@/src/shared/hooks/useGoalLineItemsByGoal';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import type { FirestoreGoal } from '@/src/shared/firestore/types';
@@ -156,11 +156,18 @@ export function useLogic() {
     setConfirmError(null);
     try {
       const now = new Date();
-      await markGoalLineItemComplete(
+      // This checkmark is a quick "yes, I paid this" confirmation with no
+      // partial-payment UI of its own — always closes the item in full,
+      // same behavior this had before recordGoalLineItemPayment could
+      // leave an item open. A partial payment (or one that turned out to
+      // cost more/less than planned) still goes through Goal Detail's own
+      // "Record payment" action, which does offer that choice.
+      await recordGoalLineItemPayment(
         uid,
         payment.goalId,
         payment.id,
         payment.amount,
+        true,
         {
           accountId: confirmAccountId,
           categoryId: payment.categoryId || null,

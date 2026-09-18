@@ -30,8 +30,8 @@ import { ArrowUpRight, ArrowDownLeft, PiggyBank, type LucideIcon } from 'lucide-
 import { useFirestoreCollection, useFirestoreDoc } from '@/src/shared/firestore/hooks';
 import { transactionsRef, budgetRulesRef, categoryRef, goalsRef } from '@/src/shared/firestore/refs';
 import { useAccounts, useCategories, useCurrencyContext } from '@/src/shared/firestore/queries';
-import { toDisplay, round2 } from '@/src/shared/firestore/currency';
-import { toRecurrenceRule } from '@/src/shared/firestore/recurrence';
+import { toDisplay, convert, round2 } from '@/src/shared/firestore/currency';
+import { toRecurrenceRule, goalLineItemAppliesToMonth } from '@/src/shared/firestore/recurrence';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { useGoalLineItemsByGoal } from '@/src/shared/hooks/useGoalLineItemsByGoal';
 import { categoryAccentColor } from '@/src/viewmodels/categories';
@@ -203,24 +203,39 @@ export function useLogic(categoryId: string) {
   const { data: budgetRules, loading: budgetRulesLoading } =
     useFirestoreCollection<FirestoreBudgetRule>(activeBudgetRulesQuery);
   // Reconciling the app's two budgeting methods, same as Budget's own
-  // screen: a category's spend can be "dedicated" (a real transaction that
-  // completed one of a goal's line items — linked via that item's own
-  // expenseId) or "unplanned" (spent with no goal behind it).
+  // screen (src/logic/budget/useLogic.ts's own header comment carries the
+  // full reasoning): this category's budgeted estimate is "unplanned"
+  // until a goal's line item claims part of it — "dedicated" is how much
+  // of the estimate a goal item already claims for this month, regardless
+  // of whether it's been completed/paid yet.
   const goalsQuery = useMemo(
     () => (uid && showSummaryCard ? query(goalsRef(uid), where('archived', '==', false)) : null),
     [uid, showSummaryCard]
   );
   const { data: goalDocs, loading: goalsLoading } = useFirestoreCollection<FirestoreGoal>(goalsQuery);
   const { itemsByGoal, loading: goalItemsLoading } = useGoalLineItemsByGoal(goalDocs);
-  const dedicatedExpenseIds = useMemo(() => {
-    const ids = new Set<string>();
-    for (const items of Object.values(itemsByGoal)) {
+  const goalCurrency = useMemo(() => new Map(goalDocs.map((g) => [g.id, g.currency])), [goalDocs]);
+  const goalType = useMemo(() => new Map(goalDocs.map((g) => [g.id, g.type ?? 'Expense'])), [goalDocs]);
+  // Same computation as budget/useLogic.ts's own dedicatedByCategory,
+  // scoped down to this one categoryId since that's all this screen ever
+  // needs — a scalar, not a Map.
+  const dedicatedBase = useMemo(() => {
+    if (!hasMonth) return 0;
+    const targetMonth = monthIndex! + 1;
+    let sum = 0;
+    for (const [goalId, items] of Object.entries(itemsByGoal)) {
+      const nativeCurrency = goalCurrency.get(goalId) ?? ctx.base;
+      const isTransferGoal = goalType.get(goalId) === 'Transfer';
       for (const item of items) {
-        if (item.expenseId) ids.add(item.expenseId);
+        if (item.categoryId !== categoryId) continue;
+        const occurrence = goalLineItemAppliesToMonth(item, year!, targetMonth);
+        if (!occurrence) continue;
+        const amount = (isTransferGoal ? (item.charges ?? 0) : item.amount) * occurrence.multiplier;
+        sum += convert(amount, nativeCurrency, ctx.base, ctx.rates);
       }
     }
-    return ids;
-  }, [itemsByGoal]);
+    return sum;
+  }, [hasMonth, itemsByGoal, goalCurrency, goalType, categoryId, year, monthIndex, ctx]);
 
   // categoryDocs is this whole category's history (capped, all months) —
   // narrowed down to just the exact month this screen was opened for, same
@@ -254,14 +269,20 @@ export function useLogic(categoryId: string) {
         const ruleNative = rule.accountId ? accountCurrency.get(rule.accountId) ?? ctx.base : ctx.base;
         return sum + toDisplay(ctx, rule.budgetedAmount * occurrence.multiplier, ruleNative);
       }, 0);
-    const budgeted = round2(budgetedBase);
     const spent = round2(monthCategoryDocs.reduce((sum, t) => sum + contributionFor(t), 0));
-    const dedicated = round2(
-      monthCategoryDocs.filter((t) => dedicatedExpenseIds.has(t.id)).reduce((sum, t) => sum + contributionFor(t), 0)
-    );
-    return { budgeted, spent, dedicated, unplanned: round2(spent - dedicated), remaining: round2(budgeted - spent) };
+    // dedicated/unplanned are a breakdown of BUDGETED (the estimate), not
+    // of spent — see dedicatedBase's own header comment.
+    const dedicated = round2(toDisplay(ctx, dedicatedBase, ctx.base));
+    // No budget rule at all for this category this month (budgetedBase is
+    // 0) but a goal still dedicates money to it — same auto-include
+    // src/logic/budget/useLogic.ts's own `categories` list applies, so
+    // this screen's own summary agrees with what the Budget list shows
+    // instead of reading "$0 budgeted" for a category that's actually
+    // fully planned via a goal.
+    const budgeted = budgetedBase > 0 ? round2(budgetedBase) : dedicated;
+    return { budgeted, spent, dedicated, unplanned: round2(budgeted - dedicated), remaining: round2(budgeted - spent) };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showSummaryCard, monthStr, budgetRules, categoryId, year, monthIndex, accountCurrency, ctx, monthCategoryDocs, dedicatedExpenseIds]);
+  }, [showSummaryCard, monthStr, budgetRules, categoryId, year, monthIndex, accountCurrency, ctx, monthCategoryDocs, dedicatedBase]);
 
   // Budget-vs-spend chart — only for the free-ranging Settings entry point
   // (no month in the URL). Opened from a Budget category row, this screen

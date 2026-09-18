@@ -3,18 +3,21 @@
 import { useEffect, useMemo, useState } from 'react';
 import { query, where, orderBy, limit, updateDoc, Timestamp } from 'firebase/firestore';
 import { ArrowUpRight, ArrowDownLeft, PiggyBank, type LucideIcon } from 'lucide-react';
+import { ruleAppliesToMonth, effectiveBudgetedAmount } from '@dreda/shared-recurrence';
 import { useFirestoreCollection, useFirestoreDoc } from '@/src/shared/firestore/hooks';
-import { transactionsRef, settingsRef, unjustifiedWalletRef, goalsRef } from '@/src/shared/firestore/refs';
+import { transactionsRef, settingsRef, unjustifiedWalletRef, goalsRef, budgetRulesRef } from '@/src/shared/firestore/refs';
 import { useAccounts, useCategories, useCurrencyContext, useExchangeRates } from '@/src/shared/firestore/queries';
 import { toDisplay, round2 } from '@/src/shared/firestore/currency';
+import { toRecurrenceRule } from '@/src/shared/firestore/recurrence';
 import { computeUpcomingPaymentsFromGoalItems } from '@/src/shared/firestore/upcomingPayments';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { useGoalLineItemsByGoal } from '@/src/shared/hooks/useGoalLineItemsByGoal';
+import { useIsWeb } from '@/src/shared/hooks/useViewportMode';
 import { walletCardColor, walletCardNumber, isSavingsAccount } from '@/src/viewmodels/wallets';
 import { currencyName } from '@/src/viewmodels/currencies';
 import { categoryAccentColor } from '@/src/viewmodels/categories';
 import { dueLabel, formatDueDate } from '@/src/logic/paymentsCalendar/useLogic';
-import type { FirestoreAccount, FirestoreTransaction, FirestoreGoal } from '@/src/shared/firestore/types';
+import type { FirestoreAccount, FirestoreTransaction, FirestoreGoal, FirestoreBudgetRule } from '@/src/shared/firestore/types';
 
 // Analytics now owns Quarter/Year (src/logic/statistics/useLogic.ts) — Home
 // keeps the shorter-range Week/Month views instead, since those are the
@@ -187,6 +190,99 @@ export function useLogic() {
   const accountName = useMemo(() => new Map(accounts.map((a) => [a.id, a.name])), [accounts]);
   const categoryName = useMemo(() => new Map(categories.map((c) => [c.id, c.name])), [categories]);
 
+  // The web dashboard's own extra cards (this month's budget-spent, the
+  // Income/Expense statistics donut) need data mobile's Home never reads
+  // at all — gated behind isWeb so a mobile visitor never pays for these
+  // extra Firestore reads; useIsWeb() itself guarantees isWeb is always
+  // false server-side and on a real phone (see useViewportMode's own
+  // header comment), so this can only ever ADD reads for a web viewer.
+  const isWeb = useIsWeb();
+  const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const monthTransactionsQuery = useMemo(
+    () => (uid && isWeb ? query(transactionsRef(uid), where('month', '==', monthStr)) : null),
+    [uid, isWeb, monthStr]
+  );
+  const { data: monthTransactionDocs, loading: monthTransactionsLoading } =
+    useFirestoreCollection<FirestoreTransaction>(monthTransactionsQuery);
+  const activeBudgetRulesQuery = useMemo(
+    () => (uid && isWeb ? query(budgetRulesRef(uid), where('archived', '==', false)) : null),
+    [uid, isWeb]
+  );
+  const { data: budgetRuleDocs, loading: budgetRulesLoading } =
+    useFirestoreCollection<FirestoreBudgetRule>(activeBudgetRulesQuery);
+
+  // Same ruleAppliesToMonth/effectiveBudgetedAmount math src/logic/budget/
+  // useLogic.ts's own totalExpenseBudgeted uses — just the one headline
+  // total, no per-category breakdown (that's Budget's own screen's job).
+  const monthBudgeted = useMemo(() => {
+    const [y, m] = monthStr.split('-').map(Number);
+    return round2(
+      budgetRuleDocs
+        .filter((rule) => (rule.type ?? 'Expense') === 'Expense')
+        .reduce((sum, rule) => {
+          const occurrence = ruleAppliesToMonth(toRecurrenceRule(rule), y, m);
+          if (!occurrence || rule.excludedMonths?.includes(monthStr)) return sum;
+          const native = rule.accountId ? accountCurrency.get(rule.accountId) ?? ctx.base : ctx.base;
+          return (
+            sum +
+            toDisplay(ctx, effectiveBudgetedAmount(rule.budgetedAmount, occurrence.multiplier, rule.monthOverrides, monthStr), native)
+          );
+        }, 0)
+    );
+  }, [budgetRuleDocs, monthStr, accountCurrency, ctx]);
+
+  const monthExpenseTotal = useMemo(
+    () =>
+      round2(
+        monthTransactionDocs
+          .filter((t) => t.type === 'Expense')
+          .reduce((sum, t) => sum + toDisplay(ctx, t.amount, accountCurrency.get(t.accountId) ?? ctx.base), 0)
+      ),
+    [monthTransactionDocs, accountCurrency, ctx]
+  );
+  const monthIncomeTotal = useMemo(
+    () =>
+      round2(
+        monthTransactionDocs
+          .filter((t) => t.type === 'Income')
+          .reduce((sum, t) => sum + toDisplay(ctx, t.amount, accountCurrency.get(t.accountId) ?? ctx.base), 0)
+      ),
+    [monthTransactionDocs, accountCurrency, ctx]
+  );
+  const budgetSpentPercent = monthBudgeted > 0 ? Math.round((monthExpenseTotal / monthBudgeted) * 100) : 0;
+
+  // This month's category breakdown, one map per type — feeds the web
+  // dashboard's own Statistics donut (DonutChart widget), Expense/Income
+  // tabs.
+  const expenseCategoryBreakdown = useMemo(() => {
+    const totals = new Map<string, number>();
+    for (const t of monthTransactionDocs) {
+      if (t.type !== 'Expense' || !t.categoryId) continue;
+      const amount = toDisplay(ctx, t.amount, accountCurrency.get(t.accountId) ?? ctx.base);
+      totals.set(t.categoryId, (totals.get(t.categoryId) ?? 0) + amount);
+    }
+    return Array.from(totals.entries())
+      .map(([categoryId, value]) => {
+        const name = categoryName.get(categoryId) ?? categoryId;
+        return { label: name, value: round2(value), color: categoryAccentColor(name) };
+      })
+      .sort((a, b) => b.value - a.value);
+  }, [monthTransactionDocs, accountCurrency, ctx, categoryName]);
+  const incomeCategoryBreakdown = useMemo(() => {
+    const totals = new Map<string, number>();
+    for (const t of monthTransactionDocs) {
+      if (t.type !== 'Income' || !t.categoryId) continue;
+      const amount = toDisplay(ctx, t.amount, accountCurrency.get(t.accountId) ?? ctx.base);
+      totals.set(t.categoryId, (totals.get(t.categoryId) ?? 0) + amount);
+    }
+    return Array.from(totals.entries())
+      .map(([categoryId, value]) => {
+        const name = categoryName.get(categoryId) ?? categoryId;
+        return { label: name, value: round2(value), color: categoryAccentColor(name) };
+      })
+      .sort((a, b) => b.value - a.value);
+  }, [monthTransactionDocs, accountCurrency, ctx, categoryName]);
+
   const totalBalance = round2(
     accounts.reduce((sum, account) => sum + toDisplay(ctx, account.currentBalance, account.currency), 0)
   );
@@ -344,6 +440,14 @@ export function useLogic() {
     currencySaving,
     currencyError,
     switchCurrency,
+    // Web dashboard only (see this file's own isWeb comment above) — 0/
+    // empty for mobile, where the underlying queries never even fire.
+    monthBudgeted,
+    monthExpenseTotal,
+    monthIncomeTotal,
+    budgetSpentPercent,
+    expenseCategoryBreakdown,
+    incomeCategoryBreakdown,
     loading:
       authLoading ||
       accountsLoading ||
@@ -352,7 +456,9 @@ export function useLogic() {
       ctxLoading ||
       breakdownLoading ||
       goalsLoading ||
-      goalItemsLoading,
+      goalItemsLoading ||
+      monthTransactionsLoading ||
+      budgetRulesLoading,
     error: accountsError,
   };
 }

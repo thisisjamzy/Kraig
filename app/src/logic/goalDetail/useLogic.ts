@@ -7,21 +7,25 @@
 // converted to a single currency via CurrencyContext since wallets can hold
 // different native currencies.
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { getDoc, updateDoc } from 'firebase/firestore';
+import { nextOccurrenceOnOrAfter } from '@dreda/shared-recurrence';
 import { useFirestoreDoc, useFirestoreCollection } from '@/src/shared/firestore/hooks';
-import { goalRef, goalLineItemsRef } from '@/src/shared/firestore/refs';
+import { goalRef, goalLineItemsRef, goalLineItemRef, transactionRef, transferRef } from '@/src/shared/firestore/refs';
 import { useAccounts, useCategories, useCurrencyContext } from '@/src/shared/firestore/queries';
 import { convert, round2 } from '@/src/shared/firestore/currency';
 import {
   createGoalLineItem,
   updateGoalLineItem,
   deleteGoalLineItem,
-  markGoalLineItemComplete,
+  recordGoalLineItemPayment,
   addGoalLineItemToBudget,
   archiveGoal as archiveGoalWrite,
   updateGoal,
   deleteGoal as deleteGoalWrite,
+  toggleGoalLineItemSubItem,
+  recalcGoalTotals,
 } from '@/src/shared/firestore/aggregation';
 import { useExchangeRates } from '@/src/shared/firestore/queries';
 import { currencyName } from '@/src/viewmodels/currencies';
@@ -37,6 +41,7 @@ import type {
   GoalItemNecessity,
   Frequency,
   BudgetLineType,
+  GoalLineItemSubItem,
 } from '@/src/shared/firestore/types';
 
 // Recurring bills/subscriptions/savings transfers don't make sense as
@@ -47,6 +52,11 @@ export const FIXED_ITEM_FREQUENCIES: Frequency[] = ['Monthly', 'Quarterly', 'Yea
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
 }
+
+// Generous enough that nextOccurrenceOnOrAfter always finds a real
+// occurrence even for a Yearly item (same reasoning as
+// src/shared/firestore/upcomingPayments.ts's own `until` horizon).
+const NEXT_OCCURRENCE_HORIZON = new Date(Date.now() + 3 * 365 * 24 * 3600 * 1000);
 
 export function useLogic(goalId: string) {
   const router = useRouter();
@@ -60,6 +70,54 @@ export function useLogic(goalId: string) {
   const lineItemsQuery = useMemo(() => (uid ? goalLineItemsRef(uid, goalId) : null), [uid, goalId]);
   const { data: lineItemDocs, loading: lineItemsLoading, error: lineItemsError } =
     useFirestoreCollection<FirestoreGoalLineItem>(lineItemsQuery);
+
+  // A line item completed before `actualAmount` existed (or before this
+  // feature at all) has no real spend figure stored on it — but its
+  // expenseId/transferId already points at the real transaction/transfer
+  // that WAS recorded, so the actual amount is knowable, not just
+  // assumable. This fetches that linked doc's own `amount` for exactly
+  // those items and writes it back onto the line item as `actualAmount`
+  // (a one-time, idempotent self-heal). No local state to track "already
+  // fetched" — writing actualAmount makes the live lineItemDocs listener
+  // deliver a new snapshot with it already set, which is what actually
+  // drops that item out of `needsBackfill` on the next run; this effect
+  // otherwise only reruns when lineItemDocs itself changes, so it can't
+  // double-fire against the same stale snapshot in the meantime.
+  useEffect(() => {
+    if (!uid) return;
+    const needsBackfill = lineItemDocs.filter(
+      (item) => item.completed && item.actualAmount == null && (item.expenseId || item.transferId)
+    );
+    if (needsBackfill.length === 0) return;
+    (async () => {
+      const results = await Promise.all(
+        needsBackfill.map(async (item) => {
+          try {
+            const realAmount = item.transferId
+              ? (await getDoc(transferRef(uid, item.transferId))).data()?.amount
+              : (await getDoc(transactionRef(uid, item.expenseId!))).data()?.amount;
+            if (realAmount == null) return false;
+            await updateDoc(goalLineItemRef(uid, goalId, item.id), { actualAmount: realAmount });
+            return true;
+          } catch {
+            // Best-effort — a failed lookup just leaves this item without
+            // a backed-up actualAmount; the display still falls back to
+            // the plan same as before this ran.
+            return false;
+          }
+        })
+      );
+      // The goal's own amountCompleted was last computed against whatever
+      // actualAmount each line item had at the time (see
+      // recordGoalLineItemPayment) — a backfill patches actualAmount
+      // directly, bypassing that recompute, so without this the goal-level
+      // total and the line item's own now-correct figure fall out of sync
+      // (exactly the "line item says 70k, main card says 100k" mismatch).
+      if (results.some(Boolean)) {
+        await recalcGoalTotals(uid, goalId);
+      }
+    })();
+  }, [uid, lineItemDocs, goalId]);
 
   const { data: accounts, loading: accountsLoading } = useAccounts();
   // A goal has a type now (FirestoreGoal.type) — Expense, Income, or
@@ -140,7 +198,75 @@ export function useLogic(goalId: string) {
           hasFunds: availableFrozen >= item.amount,
           categoryName: categoryNameFallback(item.categoryId),
           categoryColor: categoryAccentColor(categoryNameFallback(item.categoryId)),
-          dueDateObj: item.dueDate ? item.dueDate.toDate() : null,
+          // A recurring (Fixed) item's own dueDate is just its recurrence
+          // ANCHOR (day-of-month/quarter/year), not a real date to show —
+          // once that anchor slips into the past (which it does almost
+          // immediately after creation) this rolls it forward to the next
+          // real occurrence on or after today, same
+          // nextOccurrenceOnOrAfter call src/shared/firestore/
+          // upcomingPayments.ts already uses for Home/Payments Calendar.
+          // A completed item keeps showing its plain stored date (that IS
+          // the date it was paid) rather than a confusing future date next
+          // to its own "Done" badge.
+          dueDateObj:
+            item.dueDate && !item.completed
+              ? nextOccurrenceOnOrAfter(
+                  {
+                    frequency: item.recurrence?.frequency ?? 'Once',
+                    interval: item.recurrence?.interval ?? 1,
+                    anchorDate: item.dueDate.toDate(),
+                    endCondition: 'Never',
+                  },
+                  new Date(),
+                  NEXT_OCCURRENCE_HORIZON
+                ) ?? item.dueDate.toDate()
+              : (item.dueDate?.toDate() ?? null),
+          // Sub-item rollup — consumed is what's actually been ticked off
+          // the shopping list so far, against this item's own `amount` as
+          // the budget cap (can go negative once over it). Absent entirely
+          // when there's no checklist, so Goal Detail can tell "no
+          // sub-items" apart from "sub-items, none ticked yet."
+          subItems: item.subItems ?? [],
+          subItemsConsumed: round2((item.subItems ?? []).filter((s) => s.completed).reduce((sum, s) => sum + s.amount, 0)),
+          subItemsRemaining: round2(
+            item.amount - (item.subItems ?? []).filter((s) => s.completed).reduce((sum, s) => sum + s.amount, 0)
+          ),
+          // Every payment recorded against this item, for the progress bar
+          // and "go to the transaction" links (GoalDetailScreen.tsx). A
+          // line item completed before `payments` existed has none stored
+          // — synthesize its one legacy payment from expenseId/transferId
+          // + actualAmount so it still shows a working link and a correct
+          // spent figure instead of looking untouched.
+          displayPayments:
+            item.payments && item.payments.length > 0
+              ? item.payments
+              : item.completed && (item.expenseId || item.transferId)
+                ? [
+                    {
+                      id: (item.transferId || item.expenseId) as string,
+                      kind: (item.transferId ? 'transfer' : 'expense') as 'expense' | 'transfer',
+                      amount: item.actualAmount ?? item.amount,
+                    },
+                  ]
+                : [],
+          // How much has actually been paid toward this item so far —
+          // 0 for one with no payments at all yet (never falls back to the
+          // planned `amount`, unlike displaySpentAmount below), so
+          // isPartial and the "is there anything to show at all" check
+          // below both stay honest about whether any real money has been
+          // recorded.
+          spentAmount: round2(item.actualAmount ?? 0),
+          // What the progress bar itself fills/labels against — a
+          // completed item that predates actualAmount (or was completed
+          // before this feature existed at all) has no real figure to
+          // show, so this falls back to the planned `amount` (a full,
+          // 100% bar) rather than rendering a bar that looks like nothing
+          // was ever paid on an item that's actually done.
+          displaySpentAmount: round2(item.completed ? (item.actualAmount ?? item.amount) : (item.actualAmount ?? 0)),
+          remainingAmount: Math.max(0, round2(item.amount - (item.actualAmount ?? 0))),
+          // Some real money recorded, but the item isn't closed yet — an
+          // expense being paid off across more than one transaction.
+          isPartial: !item.completed && (item.actualAmount ?? 0) > 0,
         }))
         .sort((a, b) => Number(a.completed) - Number(b.completed)),
     [lineItemDocs, availableFrozen, categoryNameFallback]
@@ -167,8 +293,40 @@ export function useLogic(goalId: string) {
   const [itemCharges, setItemCharges] = useState('');
   const [itemDueDate, setItemDueDate] = useState('');
   const [itemRecurrenceFrequency, setItemRecurrenceFrequency] = useState<Frequency>('Monthly');
+  // The item's own shopping-list checklist — edited locally here and only
+  // ever written to Firestore as part of this whole form's Save (see
+  // CreateGoalLineItemInput.subItems's header), same as every other field
+  // on this form. Ticking one off afterward from Goal Detail instead goes
+  // through toggleSubItemLive below, a live write independent of this form.
+  const [itemSubItems, setItemSubItems] = useState<GoalLineItemSubItem[]>([]);
   const [savingItem, setSavingItem] = useState(false);
   const [itemError, setItemError] = useState<string | null>(null);
+
+  function addSubItem(name: string, amount: number) {
+    if (!name.trim() || !(amount > 0)) return;
+    setItemSubItems((current) => [
+      ...current,
+      { id: crypto.randomUUID(), name: name.trim(), amount, completed: false },
+    ]);
+  }
+
+  function removeSubItem(subItemId: string) {
+    setItemSubItems((current) => current.filter((subItem) => subItem.id !== subItemId));
+  }
+
+  function toggleSubItemDraft(subItemId: string) {
+    setItemSubItems((current) =>
+      current.map((subItem) => (subItem.id === subItemId ? { ...subItem, completed: !subItem.completed } : subItem))
+    );
+  }
+
+  // Ticking a sub-item off directly from Goal Detail's own line item row
+  // (no need to open the edit form for that) — a live write via
+  // toggleGoalLineItemSubItem, independent of this form's own draft state.
+  async function toggleSubItemLive(lineItemId: string, subItemId: string) {
+    if (!uid) return;
+    await toggleGoalLineItemSubItem(uid, goalId, lineItemId, subItemId);
+  }
 
   // Picking a new category can invalidate the already-picked account (a
   // Savings-category item can't keep an Expense wallet selected, and vice
@@ -196,6 +354,7 @@ export function useLogic(goalId: string) {
     setItemCharges('');
     setItemDueDate('');
     setItemRecurrenceFrequency('Monthly');
+    setItemSubItems([]);
     setItemError(null);
     setAddOpen(true);
   }
@@ -213,6 +372,7 @@ export function useLogic(goalId: string) {
     setItemCharges(lineItem.charges ? String(lineItem.charges) : '');
     setItemDueDate(lineItem.dueDate ? lineItem.dueDate.toDate().toISOString().slice(0, 10) : '');
     setItemRecurrenceFrequency(lineItem.recurrence?.frequency ?? 'Monthly');
+    setItemSubItems(lineItem.subItems ?? []);
     setItemError(null);
     setAddOpen(true);
   }
@@ -250,6 +410,7 @@ export function useLogic(goalId: string) {
         charges: isTransferGoal ? Number(itemCharges) || 0 : null,
         dueDate: itemDueDate ? new Date(`${itemDueDate}T00:00:00`) : null,
         recurrence: isFixedGoal ? { frequency: itemRecurrenceFrequency, interval: 1 } : null,
+        subItems: itemSubItems,
       };
       if (editingItemId) {
         await updateGoalLineItem(uid, goalId, editingItemId, input);
@@ -304,35 +465,51 @@ export function useLogic(goalId: string) {
   const [completeCategoryId, setCompleteCategoryId] = useState('');
   const [completeToAccountId, setCompleteToAccountId] = useState('');
   const [completeCharges, setCompleteCharges] = useState('');
+  // Defaults to whatever's still owed on the item (its full planned
+  // amount, minus any earlier partial payments) but is independently
+  // editable — real spend is very often more or less than what was
+  // budgeted, and this ONE payment's amount is what actually gets written
+  // to the ledger (recordGoalLineItemPayment's paymentAmount) and folded
+  // into the line item's own running actualAmount, not the plan itself.
+  const [completeAmount, setCompleteAmount] = useState('');
+  // Whether THIS payment closes the item — false leaves it "partial" (see
+  // FirestoreGoalLineItem.completed's own header) so another payment can
+  // still be recorded against it later, for an expense that isn't settled
+  // in one shot.
+  const [completeFullyPaid, setCompleteFullyPaid] = useState(true);
   const [completeDate, setCompleteDate] = useState(todayIso());
   const [completeDescription, setCompleteDescription] = useState('');
   const [completing, setCompleting] = useState(false);
   const [completeError, setCompleteError] = useState<string | null>(null);
 
-  function openMarkComplete(lineItem: FirestoreGoalLineItem) {
+  function openRecordPayment(lineItem: FirestoreGoalLineItem) {
     setCompleteItemId(lineItem.id);
     setCompleteAccountId(lineItem.accountId ?? accounts[0]?.id ?? '');
     setCompleteCategoryId(lineItem.categoryId ?? categoryOptions[0]?.id ?? '');
     setCompleteToAccountId(lineItem.toAccountId ?? '');
     setCompleteCharges(lineItem.charges ? String(lineItem.charges) : '');
+    setCompleteAmount(String(Math.max(0, round2(lineItem.amount - (lineItem.actualAmount ?? 0)))));
+    setCompleteFullyPaid(true);
     setCompleteDate(todayIso());
     setCompleteDescription(`${goal?.name ?? 'Goal'}: ${lineItem.name}`);
     setCompleteError(null);
   }
 
-  async function handleMarkComplete() {
+  async function handleRecordPayment() {
     if (!uid || completing || !completeItemId) return;
     const lineItem = lineItemDocs.find((item) => item.id === completeItemId);
-    if (!lineItem || !completeAccountId) return;
+    const paymentAmount = Number(completeAmount);
+    if (!lineItem || !completeAccountId || !(paymentAmount > 0)) return;
     if (isTransferGoal && (!completeToAccountId || completeToAccountId === completeAccountId)) return;
     setCompleting(true);
     setCompleteError(null);
     try {
-      await markGoalLineItemComplete(
+      await recordGoalLineItemPayment(
         uid,
         goalId,
         completeItemId,
-        lineItem.amount,
+        paymentAmount,
+        completeFullyPaid,
         {
           accountId: completeAccountId,
           categoryId: completeCategoryId || null,
@@ -461,6 +638,11 @@ export function useLogic(goalId: string) {
     setItemDueDate,
     itemRecurrenceFrequency,
     setItemRecurrenceFrequency,
+    itemSubItems,
+    addSubItem,
+    removeSubItem,
+    toggleSubItemDraft,
+    toggleSubItemLive,
     accountOptionsForCategory,
     canSaveLineItem,
     savingItem,
@@ -492,8 +674,8 @@ export function useLogic(goalId: string) {
     handleSaveGoal,
 
     completeItemId,
-    openMarkComplete,
-    closeMarkComplete: () => setCompleteItemId(null),
+    openRecordPayment,
+    closeRecordPayment: () => setCompleteItemId(null),
     completeAccountId,
     setCompleteAccountId,
     completeCategoryId,
@@ -502,13 +684,17 @@ export function useLogic(goalId: string) {
     setCompleteToAccountId,
     completeCharges,
     setCompleteCharges,
+    completeAmount,
+    setCompleteAmount,
+    completeFullyPaid,
+    setCompleteFullyPaid,
     completeDate,
     setCompleteDate,
     completeDescription,
     setCompleteDescription,
     completing,
     completeError,
-    handleMarkComplete,
+    handleRecordPayment,
 
     archiveGoal,
     deleteGoal,
