@@ -63,7 +63,7 @@
   border: 0;
 }
 
-.addButton {
+.fabButton {
   pointer-events: auto;
   flex-shrink: 0;
   display: flex;
@@ -79,10 +79,10 @@
   transition: transform 0.15s ease;
 }
 
-.addButton:hover {
+.fabButton:hover {
   transform: scale(1.05);
 }
 
-.addButton:active {
+.fabButton:active {
   transform: scale(0.96);
 }

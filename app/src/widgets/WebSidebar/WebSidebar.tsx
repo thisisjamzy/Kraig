@@ -59,7 +59,7 @@ export function WebSidebar() {
   const mode = useViewportMode();
   const compact = mode === 'tablet';
   const { user } = useFirebaseUser();
-  // Same "money" vs "projects" fallback AppHeader's own ModeSwitch usage
+  // Same "money" vs "projects" fallback mobile's own mode-switch FAB
   // already accepts — a Goals route falls into "money" too (Goals is a
   // single link inside Money's own menu, not its own mode), so being
   // anywhere in Goals keeps Money's menu showing rather than blanking out.
@@ -114,10 +114,10 @@ export function WebSidebar() {
 
         {/* The Money/Time mode switch — a plain click alternative to the
             swipe gesture (useSwipeModeSwitch) both hub screens already
-            support, restyled as a bottom-of-drawer toggle (Design/web/
-            web3.jpg's own Light/Dark switch) rather than reusing
-            ModeSwitch's component as-is, since that one's CSS assumes a
-            light AppHeader background, not this always-dark sidebar. */}
+            support, styled as a bottom-of-drawer toggle (Design/web/
+            web3.jpg's own Light/Dark switch) rather than reusing mobile's
+            own FAB-based switch, since this always-dark sidebar has no
+            FAB slot to fold it into. */}
         <div className={styles.modeToggle}>
           <button
             type="button"

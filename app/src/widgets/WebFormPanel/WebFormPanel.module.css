@@ -1,0 +1,39 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  justify-content: flex-end;
+  background: rgba(10, 12, 24, 0.45);
+  animation: backdropIn 0.15s ease;
+}
+
+.panel {
+  width: min(560px, 92vw);
+  height: 100%;
+  overflow-y: auto;
+  /* Solid, not --color-page (that token carries alpha for the page-scroll
+     blur effect) — a panel floating over a dimmed backdrop needs a fully
+     opaque background of its own. */
+  background: var(--color-background);
+  box-shadow: -16px 0 40px rgba(0, 0, 0, 0.25);
+  animation: panelIn 0.2s ease;
+}
+
+@keyframes backdropIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes panelIn {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}

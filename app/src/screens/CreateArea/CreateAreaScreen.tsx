@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { X, Check, ChevronRight, Palette } from 'lucide-react';
 import { useLogic } from '@/src/logic/createArea/useLogic';
 import { EmojiPicker } from '@/src/widgets/EmojiPicker/EmojiPicker';
+import { WebFormPanel } from '@/src/widgets/WebFormPanel/WebFormPanel';
+import { useIsWeb } from '@/src/shared/hooks/useViewportMode';
 import { PROJECT_COLORS } from '@/src/viewmodels/projects';
 import styles from './CreateAreaScreen.module.css';
 
@@ -11,8 +13,9 @@ export function CreateAreaScreen() {
   const { name, setName, emoji, setEmoji, color, setColor, description, setDescription, isValid, saving, saveError, handleSave, goBack } =
     useLogic();
   const [colorPickerOpen, setColorPickerOpen] = useState(false);
+  const isWeb = useIsWeb();
 
-  return (
+  const content = (
     <div className={styles.page}>
       <header className={styles.header}>
         <button type="button" className={styles.iconButton} onClick={goBack} aria-label="Close">
@@ -86,4 +89,6 @@ export function CreateAreaScreen() {
       </div>
     </div>
   );
+
+  return isWeb ? <WebFormPanel onClose={goBack}>{content}</WebFormPanel> : content;
 }

@@ -1,8 +1,9 @@
 'use client';
 
 // Swipe between Money mode (Home) and Projects/Time mode (Projects hub) —
-// the gesture counterpart to widgets/ModeSwitch's tap toggle. Only ever
-// attached to the two hub screens themselves (not any drill-down route).
+// the gesture counterpart to the bottom nav's own FAB tap toggle
+// (BottomNav/ProjectsBottomNav). Only ever attached to the two hub screens
+// themselves (not any drill-down route).
 //
 // The two modes are the only two stops on a loop, so ANY horizontal swipe
 // past the threshold — left-to-right or right-to-left — flips to the other

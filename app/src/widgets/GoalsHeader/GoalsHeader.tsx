@@ -6,10 +6,9 @@
 // identically across three screens instead of written once each. The title
 // always reads "Goals" — it doesn't rename itself per tab, the bottom nav
 // already says which tab you're on. Carries the Month/All-time toggle
-// every tab shares (src/shared/hooks/useGoalsRange.ts), sized and placed
-// exactly like AppHeader's own ModeSwitch (Money/Time), and a back-chevron
-// to Money mode's own Home, since Goals has no ModeSwitch slot of its own
-// to get back out with.
+// every tab shares (src/shared/hooks/useGoalsRange.ts), and a back-chevron
+// to Money mode's own Home, since Goals has no mode-switch FAB of its own
+// (BottomNav/ProjectsBottomNav's own end button) to get back out with.
 //
 // The month/date picker used to live here too, but that put it in this
 // mini-app's own "app bar" — moved to its own row above the hero card on
