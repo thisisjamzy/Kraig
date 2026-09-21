@@ -1,14 +1,11 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, CalendarDays, Target, ChartNoAxesCombined, Plus, Layers, FolderKanban, ListChecks } from 'lucide-react';
+import { Home, CalendarDays, Target, ChartNoAxesCombined, Wallet, Layers, FolderKanban, ListChecks } from 'lucide-react';
 import { navMode } from '@/src/shared/config/chromeVisibility';
-import { Modal } from '@/src/widgets/Modal/Modal';
 import { useAllTasks } from '@/src/shared/hooks/useAllTasks';
 import { overdueTasks, dueTodayTasks } from '@/src/shared/firestore/taskInsights';
-import { iconTint } from '@/src/viewmodels/iconTint';
 import styles from './ProjectsBottomNav.module.css';
 
 // Exported for WebSidebar (src/widgets/WebSidebar) — reused verbatim so
@@ -20,9 +17,10 @@ export const NAV_ITEMS = [
   { href: '/projects/analytics', label: 'Analytics', icon: ChartNoAxesCombined },
 ];
 
-// Exported for WebTopBar (src/widgets/WebTopBar) — its own "+" button reuses
-// this exact sheet in Projects mode rather than re-declaring the three PARA
-// creation routes.
+// Still exported for WebTopBar (src/widgets/WebTopBar) — its own "+" button
+// still opens this exact three-way creation sheet in Projects mode. Mobile
+// no longer has an equivalent entry point now that this bar's own end
+// button is the mode switch instead (see ProjectsBottomNav below).
 export const CREATE_OPTIONS = [
   { href: '/areas/new', label: 'New area', icon: Layers },
   { href: '/projects/new', label: 'New project', icon: FolderKanban },
@@ -30,13 +28,13 @@ export const CREATE_OPTIONS = [
 ];
 
 // Projects mode's own bottom nav — BottomNav is Money mode's equivalent.
-// The center Add button opens a sheet picking which of the three PARA
-// creation flows to start, rather than jumping straight to one the way
-// Money mode's Add button goes straight to Add Transaction (there, there's
-// only one thing to add; here there are three).
+// The end button used to open the three-way create sheet above; it's now
+// the Money<->Time mode switch instead (the old AppHeader ModeSwitch
+// pill's job, folded in here), same spot the swipe gesture
+// (useSwipeModeSwitch) already lands on. Its icon is the mode it jumps TO,
+// not the one you're in — mirrors BottomNav's own switch button.
 export function ProjectsBottomNav() {
   const pathname = usePathname();
-  const [sheetOpen, setSheetOpen] = useState(false);
   const { data: tasks } = useAllTasks();
   const hasNotifications = overdueTasks(tasks).length > 0 || dueTodayTasks(tasks).length > 0;
 
@@ -45,44 +43,27 @@ export function ProjectsBottomNav() {
   }
 
   return (
-    <>
-      <nav className={styles.bar} aria-label="Primary">
-        <div className={styles.pill}>
-          {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
-            const isActive = pathname === href;
-            return (
-              <Link
-                key={href}
-                href={href}
-                className={`${styles.item} ${isActive ? styles.itemActive : ''}`}
-                aria-current={isActive ? 'page' : undefined}
-              >
-                <Icon size={20} strokeWidth={2} />
-                {href === '/projects/analytics' && hasNotifications && <span className={styles.badge} />}
-                <span className={styles.srLabel}>{label}</span>
-              </Link>
-            );
-          })}
-        </div>
-        <button type="button" className={styles.addButton} aria-label="Create" onClick={() => setSheetOpen(true)}>
-          <Plus size={24} strokeWidth={2.25} />
-        </button>
-      </nav>
-
-      {sheetOpen && (
-        <Modal title="Create" onClose={() => setSheetOpen(false)}>
-          <div className={styles.sheetList}>
-            {CREATE_OPTIONS.map(({ href, label, icon: Icon }, index) => (
-              <Link key={href} href={href} className={styles.sheetOption} onClick={() => setSheetOpen(false)}>
-                <span className={styles.sheetOptionIcon} style={{ background: iconTint(index) }}>
-                  <Icon size={18} strokeWidth={1.75} />
-                </span>
-                <span className={styles.sheetOptionLabel}>{label}</span>
-              </Link>
-            ))}
-          </div>
-        </Modal>
-      )}
-    </>
+    <nav className={styles.bar} aria-label="Primary">
+      <div className={styles.pill}>
+        {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+          const isActive = pathname === href;
+          return (
+            <Link
+              key={href}
+              href={href}
+              className={`${styles.item} ${isActive ? styles.itemActive : ''}`}
+              aria-current={isActive ? 'page' : undefined}
+            >
+              <Icon size={20} strokeWidth={2} />
+              {href === '/projects/analytics' && hasNotifications && <span className={styles.badge} />}
+              <span className={styles.srLabel}>{label}</span>
+            </Link>
+          );
+        })}
+      </div>
+      <Link href="/home" className={styles.fabButton} aria-label="Switch to Money mode">
+        <Wallet size={22} strokeWidth={2.25} />
+      </Link>
+    </nav>
   );
 }

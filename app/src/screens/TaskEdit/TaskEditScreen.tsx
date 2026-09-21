@@ -20,6 +20,8 @@ import { useLogic } from '@/src/logic/taskEdit/useLogic';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { ConfirmDialog } from '@/src/widgets/ConfirmDialog/ConfirmDialog';
 import { TimeField } from '@/src/widgets/TimeField/TimeField';
+import { WebFormPanel } from '@/src/widgets/WebFormPanel/WebFormPanel';
+import { useIsWeb } from '@/src/shared/hooks/useViewportMode';
 import { toDateOnly } from '@/src/shared/firestore/taskWrites';
 import { PRIORITY_LEVELS, TASK_TYPE_ICON, taskTypeLabel } from '@/src/viewmodels/projects';
 import styles from './TaskEditScreen.module.css';
@@ -84,8 +86,9 @@ export function TaskEditScreen({ taskId }: { taskId: string | null }) {
 
   const selectedProject = projects.find((p) => p.id === projectId) ?? null;
   const TypeIcon = TASK_TYPE_ICON[type] ?? CircleDot;
+  const isWeb = useIsWeb();
 
-  return (
+  const content = (
     <div className={styles.page}>
       {view === 'form' ? (
         <>
@@ -368,4 +371,6 @@ export function TaskEditScreen({ taskId }: { taskId: string | null }) {
       )}
     </div>
   );
+
+  return isWeb ? <WebFormPanel onClose={goBack}>{content}</WebFormPanel> : content;
 }

@@ -9,6 +9,8 @@ import { EmojiPicker } from '@/src/widgets/EmojiPicker/EmojiPicker';
 import { toDateOnly } from '@/src/shared/firestore/taskWrites';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
+import { WebFormPanel } from '@/src/widgets/WebFormPanel/WebFormPanel';
+import { useIsWeb } from '@/src/shared/hooks/useViewportMode';
 import { PROJECT_COLORS, PRIORITY_LEVELS } from '@/src/viewmodels/projects';
 import styles from './CreateProjectScreen.module.css';
 
@@ -60,8 +62,9 @@ export function CreateProjectScreen() {
 
   const selectedArea = areas.find((a) => a.id === areaId) ?? null;
   const selectedBucket = buckets.find((b) => b.id === bucketId) ?? null;
+  const isWeb = useIsWeb();
 
-  return (
+  const content = (
     <div className={styles.page}>
       <header className={styles.header}>
         <button type="button" className={styles.iconButton} onClick={goBack} aria-label={strings.projectDetail.backLabel}>
@@ -288,4 +291,6 @@ export function CreateProjectScreen() {
       )}
     </div>
   );
+
+  return isWeb ? <WebFormPanel onClose={goBack}>{content}</WebFormPanel> : content;
 }

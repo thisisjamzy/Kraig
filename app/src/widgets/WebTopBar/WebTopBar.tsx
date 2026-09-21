@@ -7,10 +7,10 @@
 // already links to rather than re-deciding what belongs here. Sticky
 // (position: sticky, see WebTopBar.module.css) so it stays visible while a
 // tall dashboard page scrolls beneath it, and carries a "+" create button —
-// desktop/tablet's own equivalent of mobile's floating action button,
-// pointing at whichever create flow the active mode's own FAB points at
-// (BottomNav's plain link to /add-transaction for Money, ProjectsBottomNav's
-// three-way sheet, reused via its exported CREATE_OPTIONS, for Projects).
+// desktop/tablet's own create entry point now that mobile's own bottom-nav
+// FAB switches Money<->Time mode instead of creating anything (Money mode
+// still links straight to /add-transaction; Projects mode opens the
+// three-way sheet via ProjectsBottomNav's exported CREATE_OPTIONS).
 
 import { useState } from 'react';
 import Link from 'next/link';

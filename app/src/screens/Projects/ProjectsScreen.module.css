@@ -188,6 +188,22 @@
   cursor: pointer;
 }
 
+/* "See all" — a round 45°-arrow button next to a section header, same
+   affordance/style Home's own viewAllButton uses (HomeScreen.module.css),
+   linking to that section's own full list page instead of a create flow. */
+.viewAllButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--ink-bg);
+  color: #ffffff;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
 /* Projects carousel — Design/task5.JPG's home "Projects" row: the one
    ProjectCard (src/widgets/ProjectCard) every project list in the app now
    uses, scrolling horizontally, same data-hscroll convention as Home's own

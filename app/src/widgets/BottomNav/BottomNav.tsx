@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, PieChart, SlidersHorizontal, Plus } from 'lucide-react';
+import { Home, PieChart, SlidersHorizontal, Clock } from 'lucide-react';
 import { navMode } from '@/src/shared/config/chromeVisibility';
 import styles from './BottomNav.module.css';
 
@@ -22,6 +22,14 @@ export const NAV_ITEMS = [
 // Money mode's own bottom nav — ProjectsBottomNav is Projects mode's
 // equivalent, rendered instead of this one on that mode's own hub routes
 // (see chromeVisibility.ts's navMode).
+//
+// The end button used to be an "Add transaction" FAB; it's now the
+// Money<->Time mode switch instead (the old AppHeader ModeSwitch pill's
+// job, folded in here) — same spot the swipe gesture
+// (useSwipeModeSwitch) already lands on. Its icon is the mode it jumps
+// TO, not the one you're in, same convention ProjectsBottomNav's own
+// switch button uses. Adding a transaction is still reachable from Home's
+// own Quick Actions.
 export function BottomNav() {
   const pathname = usePathname();
 
@@ -47,13 +55,8 @@ export function BottomNav() {
           );
         })}
       </div>
-      <Link
-        href="/add-transaction"
-        className={styles.addButton}
-        aria-label="Add transaction"
-        aria-current={pathname?.startsWith('/add-transaction') ? 'page' : undefined}
-      >
-        <Plus size={24} strokeWidth={2.25} />
+      <Link href="/projects" className={styles.fabButton} aria-label="Switch to Time mode">
+        <Clock size={22} strokeWidth={2.25} />
       </Link>
     </nav>
   );

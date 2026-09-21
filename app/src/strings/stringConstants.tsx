@@ -10,6 +10,7 @@ export const stringConstants = {
     continueLabel: 'Continue',
     confirm: 'Confirm',
     cancel: 'Cancel',
+    delete: 'Delete',
     back: 'Back',
     add: 'Add',
     scaleLinear: 'Linear',

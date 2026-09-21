@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Plus } from 'lucide-react';
+import { Plus, ArrowUpRight } from 'lucide-react';
 import { useLogic } from '@/src/logic/projects/useLogic';
 import { useSwipeModeSwitch } from '@/src/shared/hooks/useSwipeModeSwitch';
 import { useStrings } from '@/src/strings/useStrings';
@@ -112,15 +113,9 @@ export function ProjectsScreen() {
 
       <div className={styles.topRow}>
         <h2 className={styles.portfolioTitle}>{strings.projects.tabAreas}</h2>
-        <button
-          type="button"
-          className={styles.addIconButton}
-          onClick={() => router.push('/areas/new')}
-          aria-label="New area"
-          title="New area"
-        >
-          <Plus size={16} strokeWidth={2.5} />
-        </button>
+        <Link href="/areas" className={styles.viewAllButton} aria-label="See all areas" title="See all areas">
+          <ArrowUpRight size={16} strokeWidth={2.25} />
+        </Link>
       </div>
 
       {!loading && !error && (
@@ -174,15 +169,9 @@ export function ProjectsScreen() {
               Name
             </button>
           </div>
-          <button
-            type="button"
-            className={styles.addIconButton}
-            onClick={() => router.push('/projects/new')}
-            aria-label="New project"
-            title="New project"
-          >
-            <Plus size={16} strokeWidth={2.5} />
-          </button>
+          <Link href="/projects/all" className={styles.viewAllButton} aria-label="See all projects" title="See all projects">
+            <ArrowUpRight size={16} strokeWidth={2.25} />
+          </Link>
         </div>
       </div>
 

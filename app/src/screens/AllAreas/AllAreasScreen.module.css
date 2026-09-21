@@ -1,0 +1,129 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  padding: var(--space-lg);
+  padding-top: calc(var(--space-lg) + env(safe-area-inset-top));
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  position: sticky;
+  top: 0;
+  z-index: 15;
+  margin-top: calc(-1 * (var(--space-lg) + env(safe-area-inset-top)));
+  margin-left: calc(-1 * var(--space-lg));
+  margin-right: calc(-1 * var(--space-lg));
+  padding-top: calc(var(--space-lg) + env(safe-area-inset-top));
+  padding-left: var(--space-lg);
+  padding-right: var(--space-lg);
+  background: var(--color-page);
+}
+
+.backButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  background: none;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-family-heading);
+  font-size: var(--font-size-xl);
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.emptyText {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+/* Vertically scrolling list — each entry is its own rounded card, wrapped
+   in a SwipeableListItem whose swipe reveal needs that same rounding +
+   full-bleed opaque background, or the red delete action shows
+   through/around the corners even at rest. */
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.listItem {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-md) var(--space-lg);
+  /* Solid, not --color-page (that token carries alpha for the page-scroll
+     blur effect) — this has to fully occlude the red delete button
+     sitting behind it until swiped. */
+  background: var(--color-background);
+  text-decoration: none;
+  color: inherit;
+}
+
+.cardTop {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.name {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* "Shrunk" description — one line, ellipsized. */
+.description {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.metaRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}
+
+.metaChip {
+  padding: 2px var(--space-sm);
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
