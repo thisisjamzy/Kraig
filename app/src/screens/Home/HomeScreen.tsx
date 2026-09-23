@@ -8,6 +8,7 @@ import {
   SlidersHorizontal,
   History,
   ArrowUpRight,
+  ArrowDownLeft,
   Check,
   ChevronDown,
   Search,
@@ -17,6 +18,8 @@ import {
   Target,
   Eye,
   EyeOff,
+  Bell,
+  type LucideIcon,
 } from 'lucide-react';
 import { useLogic, formatAmount, formatCompact, HIDDEN_AMOUNT_PLACEHOLDER, type SpendingPeriod } from '@/src/logic/home/useLogic';
 import { round2 } from '@/src/shared/firestore/currency';
@@ -25,7 +28,6 @@ import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { Logo } from '@/src/widgets/Logo/Logo';
 import { DonutChart } from '@/src/widgets/DonutChart/DonutChart';
 import { useSwipeModeSwitch } from '@/src/shared/hooks/useSwipeModeSwitch';
-import { iconTint } from '@/src/viewmodels/iconTint';
 import { CATEGORY_ICON_COLOR } from '@/src/viewmodels/categories';
 import { barHeightPercent, axisValueAt } from '@/src/shared/charts/scale';
 import { useIsWeb } from '@/src/shared/hooks/useViewportMode';
@@ -64,8 +66,34 @@ const MAX_STATS_SEGMENTS = 4;
 // on its own — so it renders too washed-out on the donut. This is its own
 // small, solid ramp instead, assigned by rank (biggest slice first) so the
 // most prominent category always gets the strongest color, not whatever a
-// category-name hash happens to land on.
-const STATS_CHART_COLORS = ['#2748d6', '#3965fa', '#99b7fc', '#5c5f82'];
+// category-name hash happens to land on. Pulled from the Money redesign's
+// own accent palette (Lunacy/Images/colors.png) rather than the generic
+// brand ramp, so the donut reads as part of this page's own color story.
+const STATS_CHART_COLORS = ['#0052ff', '#80b1ed', '#ed3e5a', '#5c5f82'];
+
+// Quick Actions' own icon-chip tints — a small local ramp built from the
+// Money redesign's palette (Lunacy/Images/colors.png), replacing the
+// generic app-wide iconTint() rotation so this page's icon chips read as
+// part of its own color story rather than the shared hue set every other
+// screen's badges cycle through.
+const QUICK_ACTION_TINTS = [
+  'var(--money-tint-blue)',
+  'color-mix(in srgb, var(--money-lime) 45%, transparent)',
+  'var(--money-tint-yellow)',
+  'color-mix(in srgb, var(--money-blue-soft) 30%, transparent)',
+  'color-mix(in srgb, var(--money-red) 14%, transparent)',
+];
+
+// Recent Transactions' own status dot (Lunacy/Images' own "Current
+// Priorities" colored-dot rows) — reads the icon useLogic/home already
+// picked from TYPE_ICONS by transaction.type, rather than threading the raw
+// type string through as a second field, since the icon identity already
+// encodes it 1:1.
+function transactionDotColor(icon: LucideIcon) {
+  if (icon === ArrowDownLeft) return 'var(--money-blue-soft)';
+  if (icon === PiggyBank) return 'var(--money-lime)';
+  return 'var(--money-red)';
+}
 
 function capStatsSegments(
   segments: { label: string; value: number; color: string }[],
@@ -168,14 +196,15 @@ export function HomeScreen() {
     };
   }, [currencyPickerOpen, setCurrencyPickerOpen]);
 
-  // Shared between mobile and the web dashboard — identical content/design
-  // on both (per the web redesign's own instructions), just repositioned by
-  // whichever wrapper renders it. A plain function returning JSX (not a
-  // nested component) so re-renders don't remount it and drop the currency
-  // popover's own focus/scroll state.
+  // Mobile only now — the web dashboard replaced this dark gradient hero
+  // with its own plain-white Balance stat card (see .statsRow below; that
+  // card's currency switcher/hide-toggle/unaccounted-link markup is its own
+  // copy, not a call into this function). A plain function returning JSX
+  // (not a nested component) so re-renders don't remount it and drop the
+  // currency popover's own focus/scroll state.
   function renderBalanceCard() {
     return (
-      <section className={`${styles.balanceCard} ${isWeb ? webStyles.areaHero : ''}`}>
+      <section className={styles.balanceCard}>
         <div className={styles.balanceCardTop}>
           <div>
             <div className={styles.balanceAmountRow}>
@@ -267,11 +296,35 @@ export function HomeScreen() {
   // renderBalanceCard() above — cashflow's own chart isn't part of what the
   // user asked to redesign, just reposition.
   function renderCashflowSection() {
+    // Web only (Lunacy/Images' own "Current Sprint Progress" date-range
+    // subtitle) — a real, computed range, not a placeholder: the exact 7
+    // calendar days rangeStartFor('week') in useLogic queries, or the
+    // current month name for 'month'.
+    const rangeLabel =
+      period === 'week' ? 'The last 7 days' : new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
     return (
       <section className={`${styles.section} ${isWeb ? webStyles.areaChart : ''}`}>
         <div className={styles.sectionHeader}>
-          <h2 className={styles.sectionTitle}>{strings.home.spendingBreakdown}</h2>
+          <div>
+            <h2 className={`${styles.sectionTitle} ${isWeb ? webStyles.sectionTitleRich : ''}`}>
+              {strings.home.spendingBreakdown}
+            </h2>
+            {isWeb && <p className={webStyles.sectionSubtitle}>{rangeLabel}</p>}
+          </div>
           <div className={styles.headerControls}>
+            {isWeb && (
+              <div className={webStyles.legendPills}>
+                <span className={webStyles.legendPill}>
+                  <span className={`${styles.legendDot} ${styles.legendDotIncome}`} />
+                  {strings.home.legendIncome}
+                </span>
+                <span className={webStyles.legendPill}>
+                  <span className={`${styles.legendDot} ${styles.legendDotExpense}`} />
+                  {strings.home.legendExpense}
+                </span>
+              </div>
+            )}
             <div className={styles.periodTabs}>
               {periods.map(({ key, label }) => (
                 <button
@@ -351,16 +404,18 @@ export function HomeScreen() {
           </div>
         </div>
 
-        <div className={styles.legend}>
-          <span className={styles.legendItem}>
-            <span className={`${styles.legendDot} ${styles.legendDotIncome}`} />
-            {strings.home.legendIncome}
-          </span>
-          <span className={styles.legendItem}>
-            <span className={`${styles.legendDot} ${styles.legendDotExpense}`} />
-            {strings.home.legendExpense}
-          </span>
-        </div>
+        {!isWeb && (
+          <div className={styles.legend}>
+            <span className={styles.legendItem}>
+              <span className={`${styles.legendDot} ${styles.legendDotIncome}`} />
+              {strings.home.legendIncome}
+            </span>
+            <span className={styles.legendItem}>
+              <span className={`${styles.legendDot} ${styles.legendDotExpense}`} />
+              {strings.home.legendExpense}
+            </span>
+          </div>
+        )}
       </section>
     );
   }
@@ -371,7 +426,7 @@ export function HomeScreen() {
     return (
       <section className={styles.section}>
         <div className={styles.sectionHeader}>
-          <h2 className={styles.sectionTitle}>{strings.home.upcomingPayments}</h2>
+          <h2 className={`${styles.sectionTitle} ${isWeb ? webStyles.sectionTitleRich : ''}`}>{strings.home.upcomingPayments}</h2>
           <Link href="/payments" className={styles.viewAllButton} aria-label="View payments calendar">
             <ArrowUpRight size={16} strokeWidth={2.25} />
           </Link>
@@ -412,36 +467,191 @@ export function HomeScreen() {
 
         {!loading && !error && (
           <>
-            <div className={webStyles.topRow}>
-              {renderBalanceCard()}
-              <div className={`${styles.summaryRow} ${webStyles.areaMetrics}`}>
-                <div className={styles.summaryCard}>
-                  <span className={styles.summaryIcon}>
-                    <PiggyBank size={16} strokeWidth={2} />
-                  </span>
-                  <span className={styles.summaryLabel}>{strings.home.savingsLabel}</span>
-                  <span className={styles.summaryValue}>
-                    {balancesHidden ? HIDDEN_AMOUNT_PLACEHOLDER : `${formatAmount(balance.savings)} ${balance.currency}`}
-                  </span>
+            {/* Four equal stat cards (Lunacy/Images' own "Active Areas/
+                Ongoing Projects/Pending Task/Overdue Task" row) — a big bold
+                figure, a pastel rounded-square icon badge, a title and a
+                real one-line description, no card given special dark/hero
+                treatment over the others. Balance keeps its currency
+                switcher, hide-balances toggle and unaccounted-for link
+                (mobile's own hero card still carries all three in full) —
+                tucked into a compact meta row under its description instead
+                of a full gradient hero, since the reference gives every
+                stat card the same plain-white shape. */}
+            <div className={webStyles.statsRow}>
+              <div className={webStyles.statCard}>
+                <span className={webStyles.statIcon} style={{ background: 'var(--money-tint-blue)', color: 'var(--money-blue)' }}>
+                  <Wallet size={20} strokeWidth={2} />
+                </span>
+                <p className={webStyles.statValue}>
+                  {balancesHidden ? HIDDEN_AMOUNT_PLACEHOLDER : formatAmount(balance.total)}
+                </p>
+                <p className={webStyles.statTitle}>{strings.home.balanceLabel}</p>
+                <p className={webStyles.statDescription}>{strings.home.statBalanceDescription}</p>
+
+                <div className={webStyles.statMetaRow}>
+                  <div className={styles.currencyMenuWrap} ref={currencyMenuRef}>
+                    <button
+                      type="button"
+                      className={webStyles.statCurrencyChip}
+                      onClick={() => setCurrencyPickerOpen((current) => !current)}
+                      aria-expanded={currencyPickerOpen}
+                    >
+                      {balance.currency}
+                      <ChevronDown size={12} strokeWidth={2.5} />
+                    </button>
+
+                    {currencyPickerOpen && (
+                      <div className={styles.currencyPopover} onClick={(event) => event.stopPropagation()}>
+                        <div className={styles.searchRow}>
+                          <Search size={16} strokeWidth={2} className={styles.searchIcon} />
+                          <input
+                            className={styles.searchInput}
+                            placeholder={strings.home.searchCurrenciesPlaceholder}
+                            value={currencySearch}
+                            onChange={(event) => setCurrencySearch(event.target.value)}
+                            autoFocus
+                          />
+                        </div>
+                        {currencyError && (
+                          <p className={styles.currencyErrorText} role="alert">
+                            {currencyError}
+                          </p>
+                        )}
+                        <div className={styles.currencyList}>
+                          {currencyOptions.map((entry) => (
+                            <button
+                              key={entry.code}
+                              type="button"
+                              className={styles.currencyRow}
+                              disabled={currencySaving}
+                              onClick={() => switchCurrency(entry.code)}
+                            >
+                              <span className={styles.currencyLabelGroup}>
+                                <span className={styles.currencyCode}>{entry.code}</span>
+                                <span className={styles.currencyName}>{entry.name}</span>
+                              </span>
+                              {balance.currency === entry.code && <Check size={16} strokeWidth={2.25} />}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    className={webStyles.statEyeToggle}
+                    onClick={toggleBalancesHidden}
+                    aria-label={balancesHidden ? strings.home.showBalances : strings.home.hideBalances}
+                    aria-pressed={balancesHidden}
+                  >
+                    {balancesHidden ? <EyeOff size={14} strokeWidth={2} /> : <Eye size={14} strokeWidth={2} />}
+                  </button>
                 </div>
-                <div className={styles.summaryCard}>
-                  <span className={styles.summaryIcon}>
-                    <Wallet size={16} strokeWidth={2} />
+                <Link href="/settings/reconciliation" className={webStyles.statSubLink}>
+                  {strings.home.unjustifiedLabel}:{' '}
+                  {balance.unjustified === 0
+                    ? UNJUSTIFIED_PLACEHOLDER
+                    : `${balance.unjustified > 0 ? '+' : ''}${formatAmount(balance.unjustified)} ${balance.currency}`}
+                </Link>
+              </div>
+
+              <div className={webStyles.statCard}>
+                <span className={webStyles.statIcon} style={{ background: 'var(--money-tint-yellow)', color: 'var(--money-ink)' }}>
+                  <PiggyBank size={20} strokeWidth={2} />
+                </span>
+                <p className={webStyles.statValue}>
+                  {balancesHidden ? HIDDEN_AMOUNT_PLACEHOLDER : formatAmount(balance.savings)}
+                </p>
+                <p className={webStyles.statTitle}>{strings.home.savingsLabel}</p>
+                <p className={webStyles.statDescription}>{strings.home.statSavingsDescription}</p>
+              </div>
+
+              <div className={webStyles.statCard}>
+                <span
+                  className={webStyles.statIcon}
+                  style={{ background: 'color-mix(in srgb, var(--money-lime) 45%, transparent)', color: 'var(--money-ink)' }}
+                >
+                  <CreditCard size={20} strokeWidth={2} />
+                </span>
+                <p className={webStyles.statValue}>
+                  {balancesHidden ? HIDDEN_AMOUNT_PLACEHOLDER : formatAmount(balance.spendable)}
+                </p>
+                <p className={webStyles.statTitle}>{strings.home.spendableLabel}</p>
+                <p className={webStyles.statDescription}>{strings.home.statSpendableDescription}</p>
+              </div>
+
+              <div className={webStyles.statCard}>
+                <span
+                  className={webStyles.statIcon}
+                  style={{ background: 'color-mix(in srgb, var(--money-red) 14%, transparent)', color: 'var(--money-red)' }}
+                >
+                  <ArrowUpRight size={20} strokeWidth={2} />
+                </span>
+                <p className={webStyles.statValue}>
+                  {balancesHidden ? HIDDEN_AMOUNT_PLACEHOLDER : formatAmount(monthExpenseTotal)}
+                </p>
+                <p className={webStyles.statTitle}>{strings.home.monthExpensesLabel}</p>
+                <p className={webStyles.statDescription}>{strings.home.statExpensesDescription}</p>
+              </div>
+            </div>
+
+            {/* Colorful highlight row (Lunacy/Images' own lime "Areas" +
+                blue "Network" + red "Next Milestone" cards) — reinterpreted
+                for Money as three real, live figures rather than filler
+                copy: net savings, a wallet count, and the single soonest
+                upcoming payment. */}
+            <div className={webStyles.highlightRow}>
+              <div className={`${webStyles.highlightCard} ${webStyles.highlightLime}`}>
+                <span className={webStyles.highlightIcon}>
+                  <PiggyBank size={20} strokeWidth={2} />
+                </span>
+                <p className={webStyles.highlightTitle}>{strings.home.savingsLabel}</p>
+                <p className={webStyles.highlightBody}>
+                  {balancesHidden ? HIDDEN_AMOUNT_PLACEHOLDER : `${formatAmount(balance.savings)} ${balance.currency}`} tucked away
+                  across your savings accounts.
+                </p>
+                <Link href="/wallets" className={webStyles.highlightButton}>
+                  {strings.home.seeWalletsButton}
+                  <span className={webStyles.highlightButtonBadge}>
+                    <ArrowUpRight size={12} strokeWidth={2.5} />
                   </span>
-                  <span className={styles.summaryLabel}>{strings.home.spendableLabel}</span>
-                  <span className={styles.summaryValue}>
-                    {balancesHidden ? HIDDEN_AMOUNT_PLACEHOLDER : `${formatAmount(balance.spendable)} ${balance.currency}`}
+                </Link>
+              </div>
+
+              <div className={`${webStyles.highlightCard} ${webStyles.highlightBlue}`}>
+                <span className={webStyles.highlightIcon}>
+                  <Wallet size={20} strokeWidth={2} />
+                </span>
+                <p className={webStyles.highlightTitle}>{strings.home.wallets}</p>
+                <p className={webStyles.highlightBody}>
+                  {wallets.length > 0
+                    ? `${wallets.length} wallet${wallets.length === 1 ? '' : 's'} holding your money right now.`
+                    : strings.home.noWallets}
+                </p>
+                <Link href="/wallets" className={webStyles.highlightButton}>
+                  {strings.home.seeWalletsButton}
+                  <span className={webStyles.highlightButtonBadge}>
+                    <ArrowUpRight size={12} strokeWidth={2.5} />
                   </span>
-                </div>
-                <div className={styles.summaryCard}>
-                  <span className={styles.summaryIcon}>
-                    <ArrowUpRight size={16} strokeWidth={2} />
+                </Link>
+              </div>
+
+              <div className={`${webStyles.highlightCard} ${webStyles.highlightRed} ${webStyles.highlightWide}`}>
+                <span className={webStyles.highlightIcon}>
+                  <Bell size={20} strokeWidth={2} />
+                </span>
+                <p className={webStyles.highlightTitle}>{strings.home.upcomingPayments}</p>
+                <p className={webStyles.highlightBody}>
+                  {upcomingPayments[0]
+                    ? `${upcomingPayments[0].title} · ${formatAmount(upcomingPayments[0].amount)} ${balance.currency} due ${upcomingPayments[0].dueInLabel}`
+                    : strings.home.noUpcomingPayments}
+                </p>
+                <Link href="/payments" className={webStyles.highlightButton}>
+                  {upcomingPayments[0] ? 'Update' : strings.home.upcomingPayments}
+                  <span className={webStyles.highlightButtonBadge}>
+                    <ArrowUpRight size={12} strokeWidth={2.5} />
                   </span>
-                  <span className={styles.summaryLabel}>{strings.home.monthExpensesLabel}</span>
-                  <span className={styles.summaryValue}>
-                    {balancesHidden ? HIDDEN_AMOUNT_PLACEHOLDER : `${formatAmount(monthExpenseTotal)} ${balance.currency}`}
-                  </span>
-                </div>
+                </Link>
               </div>
             </div>
 
@@ -476,13 +686,21 @@ export function HomeScreen() {
                 </div>
                 <Link href="/wallets" className={webStyles.textButton}>
                   {strings.home.seeWalletsButton}
+                  <span className={webStyles.textButtonBadge}>
+                    <ArrowUpRight size={12} strokeWidth={2.5} />
+                  </span>
                 </Link>
               </div>
 
               {wallets.length > 0 ? (
                 <div className={webStyles.planList}>
                   {wallets.map((wallet) => (
-                    <Link key={wallet.id} href={`/wallets/${wallet.id}`} className={webStyles.planRow}>
+                    <Link
+                      key={wallet.id}
+                      href={`/wallets/${wallet.id}`}
+                      className={webStyles.planRow}
+                      style={{ borderLeftColor: wallet.accentColor }}
+                    >
                       <div className={webStyles.planRowTop}>
                         <span className={webStyles.planName}>{wallet.name}</span>
                         <span className={webStyles.planAmount}>
@@ -512,7 +730,7 @@ export function HomeScreen() {
 
             <section className={`${styles.section} ${webStyles.areaTrans}`}>
               <div className={styles.sectionHeader}>
-                <h2 className={styles.sectionTitle}>{strings.home.recentTransactionsTitle}</h2>
+                <h2 className={`${styles.sectionTitle} ${webStyles.sectionTitleRich}`}>{strings.home.recentTransactionsTitle}</h2>
                 <Link href="/transactions" className={styles.viewAllButton} aria-label="View all transactions">
                   <ArrowUpRight size={16} strokeWidth={2.25} />
                 </Link>
@@ -537,6 +755,7 @@ export function HomeScreen() {
                         <tr key={transaction.id} onClick={() => router.push(transaction.editHref)}>
                           <td>
                             <div className={webStyles.tableTitleCell}>
+                              <span className={webStyles.tableDot} style={{ background: transactionDotColor(Icon) }} />
                               <span className={webStyles.tableIcon} style={{ background: transaction.iconColor }}>
                                 <Icon size={16} strokeWidth={2} color={CATEGORY_ICON_COLOR} />
                               </span>
@@ -639,7 +858,10 @@ export function HomeScreen() {
         <div className={styles.quickActions}>
           {quickActions.map(({ label, icon: Icon, href }, index) => (
             <Link key={label} href={href} className={styles.quickAction}>
-              <span className={styles.quickActionIcon} style={{ background: iconTint(index) }}>
+              <span
+                className={styles.quickActionIcon}
+                style={{ background: QUICK_ACTION_TINTS[index % QUICK_ACTION_TINTS.length] }}
+              >
                 <Icon size={18} strokeWidth={1.75} />
               </span>
               {label}

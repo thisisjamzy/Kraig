@@ -1,30 +1,33 @@
 /* Web-only layout for HomeScreen — applied ONLY when useIsWeb() is true
    (HomeScreen.tsx branches its entire return on isWeb; the mobile JSX tree
    below that branch is completely untouched, and HomeScreen.module.css is
-   never edited). Every class here is brand-new — nothing is shared with a
-   mobile selector except the hero balance card and the cashflow chart,
-   which intentionally reuse HomeScreen.module.css's own classes verbatim
-   (via the shared renderBalanceCard()/renderCashflowSection() helpers in
-   HomeScreen.tsx) since the user asked for identical content/design there,
-   just repositioned.
+   never edited). Nearly every class here is brand-new; the two exceptions
+   are the cashflow chart (via the shared renderCashflowSection() helper —
+   its own content/design is reused verbatim, just repositioned) and the
+   currency-switcher popover markup inside the Balance stat card below
+   (styles.currencyPopover/searchRow/searchInput/currencyList/currencyRow/
+   currencyErrorText/currencyMenuWrap), which are plain theme-driven chrome
+   with nothing gradient- or mobile-specific about them, so this file reuses
+   them rather than re-declaring the same ~40 lines. (An earlier version of
+   this page also reused HomeScreen.module.css's own dark gradient hero
+   balance card on web — replaced below by the plain 4-up stat row Lunacy/
+   Images' own reference dashboard actually uses; mobile's own hero card
+   is untouched.)
 
-   Three-column dashboard (Design/web/web1.jpg's own density): the top row
-   (hero + the three metric cards) spans the first two columns, matching
-   the user's own "the page has three columns and the top row spans two"
-   instruction; the third column is a single tall aside running the full
-   height beside it (Statistics, then Upcoming Payments). One spacing unit
-   (--space-lg) is used for every gap in this file — between grid cells,
-   inside .topRow, inside .areaMetrics, inside .aside — so any two cards
-   sit the same distance apart everywhere on the page, per web1.jpg's own
-   consistent rhythm.
+   Three-column dashboard: the stat row and the colorful highlight row each
+   span the first two columns, matching Budget/Cashflow/Wallets/
+   Transactions below them; the third column is a single tall aside running
+   the full height beside it (Statistics, then Upcoming Payments). One
+   spacing unit (--space-lg) is used for every gap in this file — between
+   grid cells, inside .statsRow, inside .highlightRow, inside .aside — so
+   any two cards sit the same distance apart everywhere on the page.
 
    Named .dashboard, not .page — HomeScreen.tsx applies this class ALONGSIDE
    HomeScreen.module.css's own .page (`${styles.page} ${webStyles.page}`
    would be two same-specificity classes on one element, so whichever
    stylesheet happens to land later in the bundle wins the display:flex vs.
    display:grid fight; a different name sidesteps that race entirely rather
-   than gambling on import order, same reasoning as this file's own
-   ".dashboard .summaryX" convention below).
+   than gambling on import order).
    Every fr track below is written as minmax(0, Nfr), not bare Nfr — a bare
    fr track's minimum width is its content's min-content size (CSS Grid
    spec default), so a wide child silently grows that whole column past its
@@ -38,65 +41,128 @@
   display: grid;
   grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.35fr) minmax(0, 0.95fr);
   grid-template-areas:
-    'top     top      aside'
-    'budget  chart    aside'
-    'wallets trans    aside';
+    'stats     stats     aside'
+    'highlight highlight aside'
+    'budget    chart     aside'
+    'wallets   trans     aside';
   align-items: start;
   gap: var(--space-lg);
   width: 100%;
   padding: var(--space-xl);
+  background: var(--color-page);
 }
 
-.topRow {
-  grid-area: top;
-  display: flex;
-  gap: var(--space-lg);
-  align-items: stretch;
-  min-width: 0;
-}
-
-/* The hero card itself keeps HomeScreen.module.css's own .balanceCard
-   styling untouched (dark gradient, progress bar, unjustified block) — the
-   only non-white card on the page, matching web1.jpg's own dark hero
-   sitting alongside its white metric cards — this override only controls
-   how much of .topRow it claims. */
-.areaHero {
-  flex: 1.3;
-  min-width: 0;
-}
-
-.dashboard .areaMetrics {
-  flex: 1.5;
-  min-width: 0;
+/* Four equal stat cards (Lunacy/Images/Time Dashboaard.png's own "Active
+   Areas/Ongoing Projects/Pending Task/Overdue Task" row) — a big bold
+   figure, a pastel rounded-square icon badge pinned to the top-right
+   corner, a bold title, and a real one-line description. `position:
+   relative` + the icon's `position: absolute` is the same "pull the icon
+   out of flow so it can sit in a corner independent of the text stack"
+   technique the highlight cards below use. */
+.statsRow {
+  grid-area: stats;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--space-lg);
 }
 
-/* Reused mobile classes stretched onto a much wider desktop card read as
-   undersized (small type truncated by an ellipsis that had no room to
-   trigger on a 480px phone row) and off-white (--color-surface is a light
-   surface tint, not the flat white every other card here uses) — resized
-   and recolored here instead of overriding HomeScreen.module.css itself,
-   which stays exactly as mobile needs it. Font size is tuned down (not
-   left to wrap/truncate) so the value always reads on one line. */
-.dashboard .summaryCard {
-  padding: var(--space-lg);
-  gap: var(--space-sm);
+.statCard {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: var(--space-xl) var(--space-lg) var(--space-lg);
+  border-radius: var(--radius-lg);
   background: var(--color-background);
+  box-shadow: 0 1px 2px rgba(20, 20, 43, 0.04), 0 12px 28px rgba(20, 20, 43, 0.06);
 }
 
-.dashboard .summaryIcon {
-  width: 36px;
-  height: 36px;
+.statIcon {
+  position: absolute;
+  top: var(--space-lg);
+  right: var(--space-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
 }
 
-.dashboard .summaryValue {
-  font-size: var(--font-size-md);
+.statValue {
+  margin: 0;
+  padding-right: 52px;
+  font-family: var(--font-family-heading);
+  font-size: 2.75rem;
   font-weight: 800;
+  line-height: 1.1;
+  color: var(--color-text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.statTitle {
+  margin: var(--space-sm) 0 0;
+  font-size: var(--font-size-md);
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.statDescription {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--color-text-secondary);
+}
+
+/* Balance card only — its currency switcher + hide-balances toggle, tucked
+   into a compact row under the description rather than mobile's own full
+   gradient-hero treatment (see .statCard's own header comment above). */
+.statMetaRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+}
+
+.statCurrencyChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: none;
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.statEyeToggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  background: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.statSubLink {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--money-blue);
+  text-decoration: none;
 }
 
 .areaBudget {
@@ -141,6 +207,10 @@
   padding: var(--space-lg);
   border-radius: var(--radius-lg);
   background: var(--color-background);
+  /* A soft lift instead of the old flat/borderless card — Lunacy/Images'
+     own white cards read as raised above the page rather than just a
+     different fill color. */
+  box-shadow: 0 1px 2px rgba(20, 20, 43, 0.04), 0 12px 28px rgba(20, 20, 43, 0.06);
   min-width: 0;
 }
 
@@ -166,15 +236,56 @@
   height: 32px;
   flex-shrink: 0;
   border-radius: 50%;
-  background: var(--ink-bg);
+  background: var(--money-blue);
   color: #ffffff;
 }
 
 .cardTitle {
   margin: 0;
-  font-size: var(--font-size-md);
+  font-family: var(--font-family-heading);
+  font-size: 1.25rem;
   font-weight: 800;
   color: var(--color-text-primary);
+  white-space: nowrap;
+}
+
+/* Applied alongside HomeScreen.module.css's own .sectionTitle (which stays
+   a small uppercase label on mobile) — bumps Cashflow/Recent Transactions/
+   Upcoming Payments up to the same bold, non-uppercase heading weight as
+   .cardTitle above, matching Lunacy/Images' own "Current Sprint Progress"/
+   "My Projects" headings. */
+.sectionTitleRich {
+  font-family: var(--font-family-heading);
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--color-text-primary);
+}
+
+.sectionSubtitle {
+  margin: 2px 0 0;
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+}
+
+/* Legend pills (Lunacy/Images' own Planned/Completed/Cancelled chips, top
+   right of the chart's own header) — replaces the bottom legend row on
+   web; renderCashflowSection() in HomeScreen.tsx hides that bottom row
+   when isWeb and renders these instead. */
+.legendPills {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.legendPill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
   white-space: nowrap;
 }
 
@@ -193,7 +304,7 @@
 .fillLight {
   height: 100%;
   border-radius: inherit;
-  background: var(--color-brand);
+  background: var(--money-blue);
 }
 
 /* Monthly Budget card (Design/web/web1.jpg's own "Daily Limit" card) — no
@@ -231,14 +342,17 @@
   white-space: nowrap;
 }
 
+/* The pill-with-trailing-badge shape from Lunacy/Images/colors.png's own
+   "Buttons" section — a colored fill, a bold white label, and a smaller
+   circular badge at the trailing edge carrying the direction icon. */
 .textButton {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 6px var(--space-sm);
+  gap: var(--space-sm);
+  padding: 4px 4px 4px var(--space-md);
   border: none;
   border-radius: var(--radius-full);
-  background: var(--ink-bg);
+  background: var(--money-blue);
   color: #ffffff;
   font-family: inherit;
   font-size: 0.75rem;
@@ -247,6 +361,18 @@
   cursor: pointer;
   white-space: nowrap;
   flex-shrink: 0;
+}
+
+.textButtonBadge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #ffffff;
+  color: var(--money-blue);
 }
 
 /* Wallets, restyled as a grid of smaller cards inside the Wallets card
@@ -259,12 +385,18 @@
   gap: var(--space-md);
 }
 
+/* A left accent bar in that wallet's own existing color (walletCardColor,
+   the same hue its mobile card and Wallets screen already use) — the tile's
+   own quiet identifier, replacing the plain neutral border every tile used
+   to share regardless of which wallet it was. */
 .planRow {
   display: flex;
   flex-direction: column;
   gap: 8px;
   padding: var(--space-md);
   border: 1px solid var(--color-border);
+  border-left-width: 3px;
+  border-left-color: var(--money-blue);
   border-radius: var(--radius-md);
   text-decoration: none;
   min-width: 0;
@@ -336,9 +468,26 @@
   width: 16%;
 }
 
+/* A shaded header band (Lunacy/Images' own "Current Priorities" table) —
+   every header cell shares one flat fill rather than each th painting its
+   own, so rounding the outer two corners reads as one continuous bar. */
+.table thead tr {
+  background: var(--color-page);
+}
+
+.table thead tr th:first-child {
+  border-top-left-radius: var(--radius-md);
+  border-bottom-left-radius: var(--radius-md);
+}
+
+.table thead tr th:last-child {
+  border-top-right-radius: var(--radius-md);
+  border-bottom-right-radius: var(--radius-md);
+}
+
 .table th {
-  padding: var(--space-sm) var(--space-md);
-  border-bottom: 1px solid var(--color-border);
+  padding: var(--space-md);
+  border-bottom: none;
   text-align: left;
   font-size: 0.75rem;
   font-weight: 700;
@@ -377,6 +526,16 @@
   align-items: center;
   gap: var(--space-sm);
   min-width: 0;
+}
+
+/* Row status dot (Lunacy/Images' own "Current Priorities" colored-dot
+   rows) — color set inline per row by transactionDotColor() in
+   HomeScreen.tsx, keyed off the transaction's own type. */
+.tableDot {
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  border-radius: 50%;
 }
 
 .tableTitleCell > div {
@@ -445,11 +604,109 @@
 }
 
 .statsTabActive {
-  background: var(--color-brand);
+  background: var(--money-blue);
   color: #ffffff;
 }
 
 .statsDonut {
   display: flex;
   justify-content: center;
+}
+
+/* Colorful highlight row (Lunacy/Images/Time Dashboaard.png's own lime
+   "Areas" + blue "Network" + red "Next Milestone" cards) — a 2-column grid
+   with the third card spanning both, same sub-layout that reference row
+   uses. Each card keeps the same white icon chip + bold heading + one-line
+   body + dark pill button shape regardless of its own accent color. */
+.highlightRow {
+  grid-area: highlight;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-lg);
+}
+
+.highlightCard {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: var(--space-xl);
+  border-radius: var(--radius-lg);
+  min-width: 0;
+}
+
+.highlightWide {
+  grid-column: 1 / -1;
+}
+
+.highlightLime {
+  background: var(--money-lime);
+  color: var(--money-ink);
+}
+
+.highlightBlue {
+  background: var(--money-blue);
+  color: #ffffff;
+}
+
+.highlightRed {
+  background: var(--money-red);
+  color: #ffffff;
+}
+
+.highlightIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: var(--radius-md);
+  background: #ffffff;
+  color: var(--money-ink);
+}
+
+.highlightTitle {
+  margin: var(--space-sm) 0 0;
+  font-family: var(--font-family-heading);
+  font-size: 1.625rem;
+  font-weight: 800;
+}
+
+.highlightBody {
+  margin: 0;
+  max-width: 46ch;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  opacity: 0.9;
+}
+
+.highlightButton {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-top: 4px;
+  padding: 4px 4px 4px var(--space-md);
+  border: none;
+  border-radius: var(--radius-full);
+  background: var(--money-ink);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.highlightButtonBadge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--money-ink);
 }

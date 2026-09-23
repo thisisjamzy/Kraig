@@ -87,6 +87,13 @@ export const stringConstants = {
     statisticsExpenseTab: 'Expense',
     noCategoryData: 'Nothing recorded yet this month.',
     otherCategoryLabel: 'Other',
+    // The web dashboard's own 4-up stat row (src/screens/Home/HomeScreen
+    // .tsx's isWeb branch) — one real, honest line per figure, not filler
+    // copy.
+    statBalanceDescription: 'Combined balance across every account.',
+    statSavingsDescription: 'Balance held in your savings accounts.',
+    statSpendableDescription: 'Available now, after frozen and locked funds.',
+    statExpensesDescription: 'Total spent so far this calendar month.',
   },
 
   statistics: {

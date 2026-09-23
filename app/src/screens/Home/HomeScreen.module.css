@@ -10,14 +10,16 @@
    unaccounted figure below it, and the wordmark bottom-left. Gradient
    background is hardcoded dark regardless of app theme, so its own text/logo
    always render in their light-on-dark variants rather than following
-   data-theme. */
+   data-theme. Recolored onto the Money redesign's own brand blue (Lunacy/
+   Images/colors.png's #0052FF/#80B1ED pairing) in place of the older
+   indigo-to-violet gradient. */
 .balanceCard {
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
   border-radius: var(--radius-lg);
   padding: var(--space-lg);
-  background: linear-gradient(135deg, #2b2f77 0%, #4b3f9e 55%, #7b4fa0 100%);
+  background: linear-gradient(135deg, var(--money-ink) 0%, var(--money-blue) 65%, var(--money-blue-soft) 100%);
   color: #ffffff;
 }
 
@@ -178,7 +180,7 @@
   height: 28px;
   margin-bottom: 2px;
   border-radius: 50%;
-  background: var(--ink-bg);
+  background: var(--money-blue);
   color: #ffffff;
 }
 
@@ -268,7 +270,7 @@
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: var(--ink-bg);
+  background: var(--money-blue);
   color: #ffffff;
   text-decoration: none;
   flex-shrink: 0;
@@ -482,7 +484,7 @@
 }
 
 .periodTabActive {
-  background: var(--ink-bg);
+  background: var(--money-blue);
   color: #ffffff;
 }
 
@@ -562,11 +564,11 @@
 }
 
 .breakdownBarIncome {
-  background: #ff9800;
+  background: var(--money-blue-soft);
 }
 
 .breakdownBarExpense {
-  background: #7b7ef3;
+  background: var(--money-blue);
 }
 
 /* A period with no transactions at all — shown as a flat grey line rather
@@ -605,11 +607,11 @@
 }
 
 .legendDotIncome {
-  background: #ff9800;
+  background: var(--money-blue-soft);
 }
 
 .legendDotExpense {
-  background: #7b7ef3;
+  background: var(--money-blue);
 }
 
 /* Savings trend chart */
