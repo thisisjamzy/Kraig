@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, Plus } from 'lucide-react';
 import { useLogic } from '@/src/logic/allProjects/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
@@ -31,6 +31,9 @@ export function AllProjectsScreen() {
           <ChevronLeft size={18} strokeWidth={2} />
         </button>
         <h1 className={styles.title}>{strings.projects.projectsSectionTitle}</h1>
+        <Link href="/projects/new" className={styles.addIconButton} aria-label="New project" title="New project">
+          <Plus size={16} strokeWidth={2.5} />
+        </Link>
       </header>
 
       <div className={styles.topRow}>

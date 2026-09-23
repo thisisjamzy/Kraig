@@ -52,6 +52,20 @@
   --color-brand-strong: #2748d6;
   --color-brand-soft: #99b7fc;
   --color-brand-tint: #e9ebff;
+
+  /* Money home page redesign (Lunacy/Images/colors.png + Time Dashboaard.png)
+     — a punchier, standalone accent palette layered on top of the tokens
+     above rather than replacing them, so it stays scoped to the screens
+     that actually opt into it (currently: Home's own module CSS files and
+     WebSidebar, the drawer) instead of reskinning every screen at once.
+     Fixed, not theme-dependent, same reasoning as --color-brand. */
+  --money-blue: #0052ff;
+  --money-blue-soft: #80b1ed;
+  --money-red: #ed3e5a;
+  --money-lime: #d9fa70;
+  --money-tint-blue: #f2f8fc;
+  --money-tint-yellow: #fffff0;
+  --money-ink: #14142b;
 }
 
 /* Mirrors styles/tokens/colors.ts. If you change one, change the other.

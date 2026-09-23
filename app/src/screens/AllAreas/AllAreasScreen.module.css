@@ -38,10 +38,30 @@
 
 .title {
   margin: 0;
+  min-width: 0;
+  flex: 1;
   font-family: var(--font-family-heading);
   font-size: var(--font-size-xl);
   font-weight: 800;
   color: var(--color-text-primary);
+}
+
+/* Same shape as TasksListScreen's own header "+" (that screen's own
+   .addIconButton) — a small dark circle at the trailing edge of the
+   header, next to /areas/new. */
+.addIconButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: var(--radius-full);
+  background: var(--ink-bg);
+  color: var(--ink-text);
+  cursor: pointer;
+  text-decoration: none;
 }
 
 .emptyText {

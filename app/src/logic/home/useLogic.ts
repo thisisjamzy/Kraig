@@ -13,7 +13,7 @@ import { computeUpcomingPaymentsFromGoalItems } from '@/src/shared/firestore/upc
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { useGoalLineItemsByGoal } from '@/src/shared/hooks/useGoalLineItemsByGoal';
 import { useIsWeb } from '@/src/shared/hooks/useViewportMode';
-import { walletCardColor, walletCardNumber, isSavingsAccount } from '@/src/viewmodels/wallets';
+import { walletCardColor, walletColor, walletCardNumber, isSavingsAccount } from '@/src/viewmodels/wallets';
 import { currencyName } from '@/src/viewmodels/currencies';
 import { categoryAccentColor } from '@/src/viewmodels/categories';
 import { dueLabel, formatDueDate } from '@/src/logic/paymentsCalendar/useLogic';
@@ -348,6 +348,10 @@ export function useLogic() {
       amount: toDisplay(ctx, account.currentBalance, account.currency),
       currency: ctx.display,
       color: walletCardColor(index),
+      // Solid variant of the same index-to-hue mapping `color` (the
+      // gradient) uses — the web dashboard's own plan-row accent bar needs
+      // a flat color, not a gradient, to render as a border.
+      accentColor: walletColor(index),
       // How much of what a goal is targeting for this specific wallet is
       // still outstanding (unpaid/uncompleted line items) — 0 renders as
       // "*****" on the card rather than a real figure (Design/card

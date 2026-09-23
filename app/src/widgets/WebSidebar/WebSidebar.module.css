@@ -1,15 +1,23 @@
-/* Brand-new file — never shared with BottomNav.module.css/ProjectsBottomNav
-   .module.css/GoalsBottomNav.module.css/AppHeader.module.css, so nothing
-   here can affect the mobile bars those style. Built on the same always-
-   dark --ink-* token FAMILY the mobile bottom-nav pills and Goals hero
-   card use, so the web sidebar reads as the same visual identity, just a
-   step lighter (--ink-surface, not --ink-bg) — profileCard/modeToggle
-   below step up again to --ink-border so they still read as raised
-   elements sitting on top of this lighter background. Width is plain px
-   (240 desktop / 72 tablet-icon-only), deliberately NOT
-   var(--app-max-width) — that token stays 480px everywhere it's read
-   today; the web shell's own widths live only here and in WebTopBar/the
-   layout's own webShell/webMain classes. */
+/* Redesigned onto Lunacy/Images' light dashboard palette — see
+   src/styles/base/globals.css's own --money-* tokens for the source
+   values. Brand-new file, never shared with BottomNav.module.css/
+   ProjectsBottomNav.module.css/GoalsBottomNav.module.css/AppHeader
+   .module.css, so nothing here can affect the mobile bars those style.
+
+   The rail itself is now a plain white/near-white surface (var(--color-
+   background), not var(--ink-surface)) with near-black ink text — the
+   always-dark identity the mobile bottom-nav pills and Goals hero card
+   still use is untouched, this is a deliberate departure for the web
+   drawer only. Width is plain px (240 desktop / 72 tablet-icon-only),
+   deliberately NOT var(--app-max-width) — that token stays 480px
+   everywhere it's read today; the web shell's own widths live only here
+   and in WebTopBar/the layout's own webShell/webMain classes.
+
+   Never scrolls (no overflow-y here, unlike an earlier version of this
+   file) — every spacing value in this file was deliberately tightened
+   (groups/item/switchCard padding and gaps, the illustration's own size)
+   so the full 7-item, two-group menu plus the switch card fits inside a
+   real 100dvh without needing its own inner scrollbar. */
 .sidebar {
   display: flex;
   flex-direction: column;
@@ -19,9 +27,9 @@
   height: 100dvh;
   position: sticky;
   top: 0;
-  padding: var(--space-lg) var(--space-md);
-  background: var(--ink-surface);
-  overflow-y: auto;
+  padding: var(--space-md);
+  background: var(--color-background);
+  overflow: hidden;
 }
 
 .sidebarCompact {
@@ -47,18 +55,32 @@
 .group {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
 }
 
+/* Small uppercase group heading — both "Main" and "System" in the
+   palette's red accent (not the earlier blue/red alternation). */
+.groupLabel {
+  padding: 0 var(--space-sm) 2px;
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--money-red);
+}
+
+/* Regular weight + the muted secondary color by default — reasonably
+   light, so the one active destination (below) is the only thing that
+   reads as emphasized rather than every item competing for attention. */
 .item {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
-  padding: var(--space-sm);
-  border-left: 3px solid transparent;
+  padding: 6px var(--space-sm);
   border-radius: var(--radius-md);
-  color: var(--ink-text-secondary);
+  color: var(--color-text-secondary);
   text-decoration: none;
+  font-weight: 400;
   white-space: nowrap;
 }
 
@@ -74,130 +96,133 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  width: 26px;
-  height: 26px;
-  border-radius: var(--radius-sm);
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
 }
 
-/* A left accent bar + a tinted icon chip + brighter text, not a solid
-   filled pill (Design/web/web2.jpg's own "Overview" selected state, not
-   web3/web4/web8's solid-pill style — each reference dashboard does this
-   differently, and this one was the one asked for here). */
+/* The ONLY item styling that ever reads as emphasized: brand-blue text at
+   bold weight, plus a solid brand-blue icon chip (Lunacy/Images' own
+   "Home" selected state — a filled rounded-square chip behind the active
+   icon, every other item left plain and light per .item above). */
 .itemActive {
-  border-left-color: var(--color-brand);
-  background: color-mix(in srgb, var(--color-brand) 16%, transparent);
-  color: #ffffff;
+  color: var(--money-blue);
+  font-weight: 700;
 }
 
 .itemActive .itemIcon {
-  background: color-mix(in srgb, var(--color-brand) 30%, transparent);
-  color: var(--color-brand);
+  background: var(--money-blue);
+  color: #ffffff;
 }
 
 .itemLabel {
   font-size: var(--font-size-sm);
-  font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-/* Profile card + Money/Time toggle, pinned to the very bottom of the
-   drawer (Design/web/web3.jpg's own profile-card-then-Light/Dark-toggle
-   stack) — margin-top: auto on this whole group, not just one row inside
-   it, so both pieces move down together as a unit. */
+/* The Money/Time switch card, pinned to the very bottom of the drawer —
+   margin-top: auto so it stays put regardless of how tall the nav groups
+   above it are. (No profile card above it anymore — removed entirely,
+   including its avatar, per an explicit request.) */
 .bottomGroup {
   display: flex;
   flex-direction: column;
-  gap: var(--space-lg);
+  gap: var(--space-sm);
   margin-top: auto;
 }
 
-.profileCard {
+/* Bottom-of-drawer promo card (Lunacy/Images' own "Switch to Money" card)
+   — a solid brand-blue card offering only the OTHER mode. */
+.switchCard {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-start;
   gap: var(--space-sm);
-  padding: var(--space-sm);
-  border-radius: var(--radius-md);
-  background: var(--ink-border);
-  text-decoration: none;
-  min-width: 0;
+  padding: var(--space-md);
+  border-radius: var(--radius-lg);
+  background: var(--money-blue);
+  color: #ffffff;
 }
 
-.sidebarCompact .profileCard {
-  justify-content: center;
-  padding: var(--space-xs);
-}
-
-.profileAvatar {
+/* "Switch to" + the mode tag share one row (WebSidebar.tsx's
+   switchHeadingRow) — not a standalone tag pill above a second, redundant
+   "Switch to X" sentence like an earlier version of this card had. */
+.switchHeadingRow {
   display: flex;
   align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: var(--color-brand);
-  color: #ffffff;
-  font-size: var(--font-size-sm);
+  gap: var(--space-xs);
+}
+
+.switchHeadingText {
+  font-family: var(--font-family-heading);
+  font-size: var(--font-size-md);
   font-weight: 800;
 }
 
-.profileText {
+.switchTag {
+  padding: 2px 10px;
+  border-radius: var(--radius-full);
+  background: var(--money-red);
+  font-size: 0.625rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.switchBody {
+  margin: 0 0 var(--space-xs);
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* Light weight, small text, label-then-badge with the arrow TRAILING
+   (right edge) — not the bold/larger, badge-leading shape an earlier
+   version of this button used. */
+/* width: auto, not 100% — the button hugs its own label + badge instead
+   of stretching across the full card like an earlier version did. */
+.switchButton {
   display: flex;
-  flex-direction: column;
-  min-width: 0;
-  flex: 1;
+  align-self: flex-start;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  padding: 4px 4px 4px var(--space-md);
+  border: none;
+  border-radius: var(--radius-full);
+  background: var(--money-ink);
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #ffffff;
+  cursor: pointer;
 }
 
-.profileName {
-  font-size: var(--font-size-sm);
-  font-weight: 700;
-  color: var(--ink-text);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.profileMeta {
-  font-size: 0.6875rem;
-  color: var(--ink-text-secondary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.profileChevron {
-  flex-shrink: 0;
-  color: var(--ink-text-secondary);
-}
-
-.modeToggle {
-  display: flex;
-  gap: 2px;
-  padding: 2px;
-  border-radius: 10px;
-  background: var(--ink-border);
-}
-
-.modeToggleSegment {
-  flex: 1;
+.switchButtonBadge {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: var(--space-sm);
-  border: none;
-  border-radius: 10px;
-  background: none;
-  font-family: inherit;
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--ink-text-secondary);
-  cursor: pointer;
-  white-space: nowrap;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #ffffff;
+  color: var(--money-ink);
 }
 
-.modeToggleSegmentActive {
-  background: var(--color-brand);
+/* Tablet/compact width has no room for the card's copy — collapses to a
+   single circular CTA carrying just the direction icon. */
+.switchCardCompact {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 50%;
+  background: var(--money-blue);
   color: #ffffff;
+  cursor: pointer;
 }

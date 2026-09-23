@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, Plus } from 'lucide-react';
 import { useLogic } from '@/src/logic/allAreas/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
@@ -23,6 +23,9 @@ export function AllAreasScreen() {
           <ChevronLeft size={18} strokeWidth={2} />
         </button>
         <h1 className={styles.title}>{strings.projects.tabAreas}</h1>
+        <Link href="/areas/new" className={styles.addIconButton} aria-label="New area" title="New area">
+          <Plus size={16} strokeWidth={2.5} />
+        </Link>
       </header>
 
       <ScreenState loading={loading} error={error} />
