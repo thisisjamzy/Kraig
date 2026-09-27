@@ -670,6 +670,27 @@ export type ProjectStatus = 'Active' | 'Completed' | 'Archived';
 // needs no migration.
 export type Priority = 'Low' | 'Medium' | 'High' | 'Urgent';
 
+export interface ProjectMilestone {
+  id: string;
+  name: string;
+  dueDate: Timestamp;
+  taskIds: string[];
+  status: 'pending' | 'done';
+}
+
+/** settings/insights — the Insights screen's capacity, alert thresholds and
+ * notification switches. Absent fields fall back to INSIGHTS_DEFAULTS
+ * (src/viewmodels/insights/settings.ts). */
+export interface FirestoreInsightsSettings {
+  capacityHours?: number;
+  workStart?: string; // "HH:mm"
+  workEnd?: string;
+  thresholds?: Partial<Record<string, number>>;
+  notifyMorning?: boolean;
+  notifyProjectRed?: boolean;
+  notifyEvening?: boolean;
+}
+
 export interface FirestoreProject {
   id: string;
   name: string;
@@ -697,6 +718,9 @@ export interface FirestoreProject {
   // non-null value — the Analytics screen's on-time-vs-rescheduled stat.
   rescheduleCount: number;
   status: ProjectStatus;
+  // Checkpoints on the way to endDate (the deadline) — Insights forecasts
+  // each from its linked tasks. Absent on projects written before them.
+  milestones?: ProjectMilestone[];
   description: string; // required
   // No separate `archived: boolean` — deliberately, so there's only ever
   // one source of truth for whether a project is active: `status`. A
@@ -821,10 +845,28 @@ export interface FirestoreTask {
   // doc's own done/status stay 'Pending' — each date has its own, below.
   // Absent/null = an ordinary one-off task, exactly as before.
   rrule?: string | null;
+  // ---- Insights (src/viewmodels/insights) ----
+  // The start as first planned — set once at creation (originalDueDate is
+  // its end counterpart).
+  originalStartTime?: Timestamp | null;
+  // Set when the task is cancelled, cleared if it's reopened.
+  cancelledAt?: Timestamp | null;
+  // Minutes it really took — the optional prompt after ticking it done.
+  // Absent = assume the estimate (dueDate − startTime).
+  actualMinutes?: number | null;
+  // Every status change, oldest first, so trends can be rebuilt for any
+  // range. `key` names the date of a recurring series it applies to.
+  statusLog?: TaskStatusChange[];
   // Per-date changes to a series, keyed by the date the rule generated
   // ("YYYY-MM-DD", local) — even when that date's task was moved to another
   // day.
   exceptions?: Record<string, TaskException>;
+}
+
+export interface TaskStatusChange {
+  at: Timestamp;
+  status: TaskStatus;
+  key?: string;
 }
 
 /** One date of a recurring series, changed on its own. */
@@ -835,6 +877,8 @@ export interface TaskException {
   // Done or cancelled on this date only; absent = pending.
   status?: 'Done' | 'Cancelled';
   completedAt?: Timestamp | null;
+  cancelledAt?: Timestamp | null;
+  actualMinutes?: number | null;
   // "This task" edits — only the fields that differ from the series.
   title?: string;
   notes?: string;

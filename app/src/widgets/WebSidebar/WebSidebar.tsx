@@ -115,7 +115,7 @@ const PROJECTS_MENU_GROUPS: NavGroup[] = [
       { href: '/projects/calendar', label: 'Calendar', icon: CalendarDays },
       { href: '/projects/all', label: 'Projects', icon: FolderKanban },
       { href: '/areas', label: 'Areas', icon: Layers },
-      { href: '/projects/analytics', label: 'Analytics', icon: ChartNoAxesCombined },
+      { href: '/projects/insights', label: 'Insights', icon: ChartNoAxesCombined },
     ],
   },
   {

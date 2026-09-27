@@ -1,0 +1,127 @@
+/* A small card above the bottom nav — never blocks the list behind it. */
+.prompt {
+  position: fixed;
+  left: 50%;
+  bottom: calc(96px + env(safe-area-inset-bottom));
+  z-index: 70;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: min(420px, calc(100% - 24px));
+  padding: 12px 10px 12px 14px;
+  border-radius: 18px;
+  background: var(--color-background);
+  box-shadow: 0 12px 32px rgba(27, 27, 57, 0.18);
+  color: var(--color-text-primary);
+  font-family: var(--font-family-body);
+  transform: translateX(-50%);
+  animation: rise 220ms var(--ease-out);
+}
+
+:global([data-theme='dark']) .prompt {
+  background: var(--color-surface);
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 12px);
+  }
+}
+
+.icon {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: var(--color-brand-tint);
+  color: var(--color-brand);
+}
+
+:global([data-theme='dark']) .icon {
+  background: color-mix(in srgb, var(--color-brand) 20%, transparent);
+}
+
+.body {
+  flex: 1;
+  min-width: 0;
+}
+
+.question {
+  margin: 0 0 8px;
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  color: var(--color-text-secondary);
+}
+
+.question strong {
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.step {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 50%;
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.value {
+  min-width: 64px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.save {
+  height: 30px;
+  margin-left: auto;
+  padding: 0 14px;
+  border: none;
+  border-radius: 999px;
+  background: var(--color-brand);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.close {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.step:focus-visible,
+.save:focus-visible,
+.close:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .prompt {
+    animation: none;
+  }
+}

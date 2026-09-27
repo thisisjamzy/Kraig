@@ -20,8 +20,7 @@ import {
   Scale,
   CalendarClock,
   LayoutTemplate,
-  Archive,
-} from 'lucide-react';
+  Archive, ChartNoAxesCombined } from 'lucide-react';
 import Link from 'next/link';
 import { Modal } from '@/src/widgets/Modal/Modal';
 import { useLogic } from '@/src/logic/settings/useLogic';
@@ -120,6 +119,17 @@ export function SettingsScreen() {
         <span className={styles.actionRowText}>
           <span className={styles.actionRowLabel}>{strings.settings.transactionTemplates}</span>
           <span className={styles.actionRowMeta}>{strings.settings.transactionTemplatesMeta}</span>
+        </span>
+        <ChevronRight size={16} strokeWidth={2} className={styles.actionRowChevron} />
+      </Link>
+
+      <Link href="/settings/insights" className={styles.actionRow}>
+        <span className={styles.actionRowIcon} style={{ background: iconTint(3) }}>
+          <ChartNoAxesCombined size={18} strokeWidth={1.75} />
+        </span>
+        <span className={styles.actionRowText}>
+          <span className={styles.actionRowLabel}>Insights</span>
+          <span className={styles.actionRowMeta}>Daily capacity, working hours, alerts and notifications</span>
         </span>
         <ChevronRight size={16} strokeWidth={2} className={styles.actionRowChevron} />
       </Link>

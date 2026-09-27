@@ -7,8 +7,15 @@
 // tile you tapped) narrows WHEN a task is due; the status and priority
 // filters below narrow WHAT it looks like, and apply on top regardless of
 // which tile got you here.
+//
+// Insights drills in here too: ?from=&to= (or ?date=) with optional
+// status (done/pending/cancelled), quadrant, hour (completed in that hour)
+// and projectId — the tasks behind a chart bar or point.
 
 import { useMemo, useState } from 'react';
+import { rescheduleTask, toDateOnly } from '@/src/shared/firestore/taskWrites';
+import { taskQuadrant, isQuadrant } from '@/src/viewmodels/eisenhower';
+import type { Quadrant } from '@/src/shared/firestore/types';
 import { query } from 'firebase/firestore';
 import { useFirestoreCollection } from '@/src/shared/firestore/hooks';
 import { useSections } from '@/src/shared/firestore/queries';
@@ -64,6 +71,48 @@ function filterFromSearch(): TaskListFilter {
   return raw === 'today' || raw === 'week' || raw === 'overdue' ? raw : 'all';
 }
 
+export interface DrillDown {
+  from: Date;
+  to: Date;
+  status: 'done' | 'pending' | 'cancelled' | null;
+  quadrant: Quadrant | null;
+  hour: number | null;
+  projectId: string | null;
+  title: string;
+}
+
+function dayFrom(value: string | null): Date | null {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const [y, m, d] = value.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+/** Insights' drill-down parameters, or null for the plain list. */
+function drillFromSearch(): DrillDown | null {
+  if (typeof window === 'undefined') return null;
+  const params = new URLSearchParams(window.location.search);
+  const date = dayFrom(params.get('date'));
+  const from = date ?? dayFrom(params.get('from'));
+  const toDay = date ?? dayFrom(params.get('to'));
+  if (!from || !toDay) return null;
+  const to = new Date(toDay.getFullYear(), toDay.getMonth(), toDay.getDate(), 23, 59, 59, 999);
+  const rawStatus = params.get('status');
+  const status = rawStatus === 'done' || rawStatus === 'pending' || rawStatus === 'cancelled' ? rawStatus : null;
+  const rawQuadrant = params.get('quadrant');
+  const rawHour = params.get('hour');
+  const hour = rawHour !== null && /^\d{1,2}$/.test(rawHour) ? Number(rawHour) : null;
+  const label = (d: Date) => d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+  return {
+    from,
+    to,
+    status,
+    quadrant: isQuadrant(rawQuadrant) ? rawQuadrant : null,
+    hour,
+    projectId: params.get('projectId'),
+    title: params.get('title') ?? (toDateOnly(from) === toDateOnly(toDay) ? label(from) : `${label(from)} to ${label(toDay)}`),
+  };
+}
+
 export function useLogic() {
   const { user } = useFirebaseUser();
   const uid = user?.uid;
@@ -81,10 +130,12 @@ export function useLogic() {
   const bucketName = useMemo(() => new Map(bucketDocs.map((b) => [b.id, b.name])), [bucketDocs]);
 
   const filter = filterFromSearch();
+  const [drill] = useState<DrillDown | null>(drillFromSearch);
   // Defaults to "not done" so a tile's own count (all of which count only
   // pending tasks — see src/logic/projects/useLogic.ts's overview) still
   // matches what this list shows before the user touches the filter.
-  const [statusFilter, setStatusFilter] = useState<TaskStatusFilter>('notDone');
+  // (A drill-down brings its own status, so it starts on "any status".)
+  const [statusFilter, setStatusFilter] = useState<TaskStatusFilter>(() => (drillFromSearch() ? 'all' : 'notDone'));
   const [priorityFilter, setPriorityFilter] = useState<TaskPriorityFilter>('All');
 
   const tasks = useMemo<TaskCheckRowTask[]>(() => {
@@ -99,16 +150,41 @@ export function useLogic() {
 
     // Recurring tasks: every date in a day/week list; otherwise what's
     // actionable (today's, overdue, and — for All — the next date).
-    const base =
-      filter === 'today' || filter === 'week'
+    const base = drill
+      ? expandTasks(taskDocs, drill.from, drill.to)
+      : filter === 'today' || filter === 'week'
         ? expandTasks(taskDocs, today, new Date(weekEnd.getTime() - 1))
         : actionableTasks(taskDocs, now, { includeUpcoming: filter === 'all' });
+    const inDrill = (task: (typeof base)[number]) => {
+      if (!drill) return true;
+      const cancelled = task.status === 'Cancelled';
+      if (drill.status === 'done' && !task.done) return false;
+      if (drill.status === 'cancelled' && !cancelled) return false;
+      if (drill.status === 'pending' && (task.done || cancelled)) return false;
+      if (drill.projectId && task.projectId !== drill.projectId) return false;
+      if (drill.hour !== null) {
+        const completed = task.completedAt?.toDate();
+        return Boolean(task.done && completed && completed >= drill.from && completed <= drill.to && completed.getHours() === drill.hour);
+      }
+      const anchor = (task.dueDate ?? task.startTime)?.toDate();
+      if (!anchor || anchor < drill.from || anchor > drill.to) return false;
+      if (drill.quadrant) {
+        const q = taskQuadrant(
+          { quadrant: task.quadrant, priority: task.priority ?? DEFAULT_PRIORITY, dueDate: task.dueDate?.toDate() ?? null, startTime: task.startTime?.toDate() ?? null },
+          now
+        );
+        if (q !== drill.quadrant) return false;
+      }
+      return true;
+    };
     return base
       .filter((task) => {
+        if (!inDrill(task)) return false;
+        if (drill && drill.hour !== null) return true;
         if (statusFilter === 'notDone' && task.done) return false;
         if (statusFilter === 'done' && !task.done) return false;
         if (priorityFilter !== 'All' && (task.priority ?? DEFAULT_PRIORITY) !== priorityFilter) return false;
-        if (filter === 'all') return true;
+        if (drill || filter === 'all') return true;
         if (!task.dueDate) return false;
         const due = task.dueDate.toDate();
         if (filter === 'today') return due >= today && due < tomorrow;
@@ -147,7 +223,23 @@ export function useLogic() {
         if (!b.dueDate) return -1;
         return a.dueDate.getTime() - b.dueDate.getTime();
       });
-  }, [taskDocs, filter, statusFilter, priorityFilter, projectName, bucketName, areaName]);
+  }, [taskDocs, filter, drill, statusFilter, priorityFilter, projectName, bucketName, areaName]);
+
+  // The evening nudge's "reschedule leftovers": today's unfinished tasks
+  // move to tomorrow, same times of day.
+  const leftovers = filter === 'today' && !drill ? tasks.filter((t) => !t.done) : [];
+  const [movingLeftovers, setMovingLeftovers] = useState(false);
+  async function moveLeftoversToTomorrow() {
+    if (!uid || movingLeftovers) return;
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    setMovingLeftovers(true);
+    try {
+      for (const task of leftovers) await rescheduleTask(uid, task.id, toDateOnly(tomorrow));
+    } finally {
+      setMovingLeftovers(false);
+    }
+  }
 
   const navigateBack = useGoBack();
   function goBack() {
@@ -155,7 +247,10 @@ export function useLogic() {
   }
 
   return {
-    title: FILTER_TITLES[filter],
+    title: drill ? drill.title : FILTER_TITLES[filter],
+    leftoverCount: leftovers.length,
+    movingLeftovers,
+    moveLeftoversToTomorrow,
     tasks,
     statusFilter,
     setStatusFilter,

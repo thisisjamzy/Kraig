@@ -130,14 +130,27 @@ export function isoDate(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+function dateFromSearch(): Date | null {
+  if (typeof window === 'undefined') return null;
+  const value = new URLSearchParams(window.location.search).get('date');
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const [y, m, d] = value.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
 export function useLogic() {
   const router = useRouter();
   const { user } = useFirebaseUser();
   const uid = user?.uid;
 
   const today = useMemo(() => new Date(), []);
-  const [monthCursor, setMonthCursor] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1));
-  const [selectedDate, setSelectedDate] = useState(() => isoDate(today));
+  // ?date=YYYY-MM-DD opens on that day (Insights' day alerts link here).
+  const [initialDay] = useState(dateFromSearch);
+  const [monthCursor, setMonthCursor] = useState(() => {
+    const d = initialDay ?? today;
+    return new Date(d.getFullYear(), d.getMonth(), 1);
+  });
+  const [selectedDate, setSelectedDate] = useState(() => isoDate(initialDay ?? today));
 
   const { data: taskDocs, loading: tasksLoading } = useAllTasks();
   // Recurring tasks as their dates, for the month on screen and one either

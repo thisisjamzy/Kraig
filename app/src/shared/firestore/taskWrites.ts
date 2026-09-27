@@ -11,7 +11,7 @@
 // originalDueDate bookkeeping right, rather than every call site
 // re-deriving it.
 
-import { deleteField, FieldPath, getDoc, setDoc, updateDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { arrayUnion, deleteField, FieldPath, getDoc, setDoc, updateDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { taskRef } from './refs';
 import type { TaskException, TaskType, Priority, TaskStatus, Quadrant, TimeMode } from './types';
 import { parseOccurrenceId } from '@/src/shared/tasks/recurringTasks';
@@ -50,16 +50,23 @@ export function combineDateAndTime(dateStr: string, timeStr: string): Date {
   return new Date(year, month - 1, day, hours, minutes);
 }
 
+/** One entry for FirestoreTask.statusLog (Insights rebuilds trends from it). */
+function logEntry(status: TaskStatus, key?: string) {
+  return arrayUnion({ at: Timestamp.now(), status, ...(key ? { key } : {}) });
+}
+
 /** Sets (or, with deleteField(), clears) fields of one date's exception on
  * a series — a nested write, so the rest of the exceptions map stays. */
 export async function writeOccurrence(
   uid: string,
   seriesId: string,
   key: string,
-  fields: Record<string, unknown>
+  fields: Record<string, unknown>,
+  seriesFields: Record<string, unknown> = {}
 ): Promise<void> {
   const pairs: unknown[] = [];
   for (const [field, value] of Object.entries(fields)) pairs.push(new FieldPath('exceptions', key, field), value);
+  for (const [field, value] of Object.entries(seriesFields)) pairs.push(field, value);
   pairs.push('updatedAt', serverTimestamp());
   const [first, firstValue, ...rest] = pairs;
   await updateDoc(taskRef(uid, seriesId), first as FieldPath, firstValue, ...rest);
@@ -123,6 +130,7 @@ export async function createTask(uid: string, input: CreateTaskInput): Promise<s
     ...(input.timeMode ? { timeMode: input.timeMode } : {}),
     ...(input.rrule ? { rrule: input.rrule, exceptions: input.exceptions ?? {} } : {}),
     originalDueDate: Timestamp.fromDate(input.dueDate),
+    originalStartTime: Timestamp.fromDate(input.startTime),
     rescheduleCount: 0,
     completedAt: null,
     calendarEventId: null,
@@ -164,8 +172,12 @@ export async function updateTask(uid: string, taskId: string, input: UpdateTaskI
   const before = beforeSnap.data();
 
   const beforeDueMs = before?.dueDate ? before.dueDate.toMillis() : null;
+  const beforeStartMs = before?.startTime ? before.startTime.toMillis() : null;
   const newDueMs = input.dueDate.getTime();
-  const dueDateChanged = newDueMs !== beforeDueMs;
+  // Insights counts a reschedule only when the date or time moves later.
+  const movedLater =
+    (beforeDueMs !== null && newDueMs > beforeDueMs) ||
+    (beforeStartMs !== null && input.startTime.getTime() > beforeStartMs);
 
   const update: Record<string, unknown> = {
     title: input.title,
@@ -194,9 +206,13 @@ export async function updateTask(uid: string, taskId: string, input: UpdateTaskI
   // against (see types.ts's FirestoreTask header).
   if (!before?.originalDueDate) {
     update.originalDueDate = Timestamp.fromDate(input.dueDate);
-  } else if (dueDateChanged && beforeDueMs !== null) {
+  } else if (movedLater) {
     update.rescheduleCount = (before?.rescheduleCount ?? 0) + 1;
   }
+  if (!before?.originalStartTime) {
+    update.originalStartTime = before?.startTime ?? Timestamp.fromDate(input.startTime);
+  }
+  if (input.done !== Boolean(before?.done)) update.statusLog = logEntry(input.done ? 'Done' : 'Pending');
   if (input.done && !before?.done) update.completedAt = serverTimestamp();
   else if (!input.done && before?.done) update.completedAt = null;
   // Keep status in sync with the done checkbox here too, same rule as
@@ -217,10 +233,17 @@ export async function updateTask(uid: string, taskId: string, input: UpdateTaskI
 export async function updateTaskDone(uid: string, taskId: string, done: boolean): Promise<void> {
   const occurrence = parseOccurrenceId(taskId);
   if (occurrence) {
-    await writeOccurrence(uid, occurrence.seriesId, occurrence.key, {
-      status: done ? 'Done' : deleteField(),
-      completedAt: done ? serverTimestamp() : deleteField(),
-    });
+    await writeOccurrence(
+      uid,
+      occurrence.seriesId,
+      occurrence.key,
+      {
+        status: done ? 'Done' : deleteField(),
+        completedAt: done ? serverTimestamp() : deleteField(),
+        cancelledAt: deleteField(),
+      },
+      { statusLog: logEntry(done ? 'Done' : 'Pending', occurrence.key) }
+    );
     return;
   }
   const beforeSnap = await getDoc(taskRef(uid, taskId));
@@ -228,6 +251,8 @@ export async function updateTaskDone(uid: string, taskId: string, done: boolean)
   const update: Record<string, unknown> = {
     done,
     status: done ? 'Done' : 'Pending',
+    cancelledAt: null,
+    statusLog: logEntry(done ? 'Done' : 'Pending'),
     updatedAt: serverTimestamp(),
   };
   if (done && !wasDone) update.completedAt = serverTimestamp();
@@ -243,16 +268,29 @@ export async function updateTaskStatus(uid: string, taskId: string, status: Task
   if (occurrence) {
     // A date is pending, done or cancelled — nothing in between.
     const kept = status === 'Done' || status === 'Cancelled';
-    await writeOccurrence(uid, occurrence.seriesId, occurrence.key, {
-      status: kept ? status : deleteField(),
-      completedAt: status === 'Done' ? serverTimestamp() : deleteField(),
-    });
+    await writeOccurrence(
+      uid,
+      occurrence.seriesId,
+      occurrence.key,
+      {
+        status: kept ? status : deleteField(),
+        completedAt: status === 'Done' ? serverTimestamp() : deleteField(),
+        cancelledAt: status === 'Cancelled' ? serverTimestamp() : deleteField(),
+      },
+      { statusLog: logEntry(status, occurrence.key) }
+    );
     return;
   }
   const beforeSnap = await getDoc(taskRef(uid, taskId));
   const wasDone = beforeSnap.exists() ? Boolean(beforeSnap.data().done) : false;
   const done = status === 'Done';
-  const update: Record<string, unknown> = { status, done, updatedAt: serverTimestamp() };
+  const update: Record<string, unknown> = {
+    status,
+    done,
+    cancelledAt: status === 'Cancelled' ? serverTimestamp() : null,
+    statusLog: logEntry(status),
+    updatedAt: serverTimestamp(),
+  };
   if (done && !wasDone) update.completedAt = serverTimestamp();
   else if (!done && wasDone) update.completedAt = null;
   await updateDoc(taskRef(uid, taskId), update);
@@ -337,7 +375,8 @@ export async function rescheduleTask(uid: string, taskId: string, dateStr: strin
   const newDueDate = onNewDate(before?.dueDate);
 
   const beforeDueMs = before?.dueDate ? before.dueDate.toMillis() : null;
-  const dueDateChanged = newDueDate !== null && newDueDate.toMillis() !== beforeDueMs;
+  // Only a move later counts as a reschedule (Insights).
+  const dueDateChanged = newDueDate !== null && beforeDueMs !== null && newDueDate.toMillis() > beforeDueMs;
 
   const update: Record<string, unknown> = { updatedAt: serverTimestamp() };
   if (newStartTime) update.startTime = newStartTime;
@@ -358,4 +397,16 @@ export async function archiveTask(uid: string, taskId: string): Promise<void> {
     return;
   }
   await updateDoc(taskRef(uid, taskId), { archived: true, updatedAt: serverTimestamp() });
+}
+
+/** The optional "how long did it take?" after ticking a task done —
+ * minutes, on the task or (for an occurrence id) on that date only. */
+export async function setActualMinutes(uid: string, taskId: string, minutes: number): Promise<void> {
+  const value = Math.max(1, Math.round(minutes));
+  const occurrence = parseOccurrenceId(taskId);
+  if (occurrence) {
+    await writeOccurrence(uid, occurrence.seriesId, occurrence.key, { actualMinutes: value });
+    return;
+  }
+  await updateDoc(taskRef(uid, taskId), { actualMinutes: value, updatedAt: serverTimestamp() });
 }

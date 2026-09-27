@@ -11,6 +11,8 @@ import { BucketsBottomNav } from '@/src/widgets/BucketsBottomNav/BucketsBottomNa
 import { AuthGuard } from '@/src/widgets/AuthGuard/AuthGuard';
 import { NavigationTracker } from '@/src/shared/navigation/NavigationTracker';
 import { ToastHost } from '@/src/widgets/Toast/Toast';
+import { ActualTimePrompt } from '@/src/widgets/ActualTimePrompt/ActualTimePrompt';
+import { InsightsNotifier } from '@/src/shared/insights/InsightsNotifier';
 import { useIsWeb } from '@/src/shared/hooks/useViewportMode';
 import { WebSidebar } from '@/src/widgets/WebSidebar/WebSidebar';
 import { WebTopBar } from '@/src/widgets/WebTopBar/WebTopBar';
@@ -43,6 +45,8 @@ export default function AppShellLayout({ children }: { children: ReactNode }) {
     <div className={isWeb ? styles.webShell : styles.shell}>
       <NavigationTracker />
       <ToastHost />
+      <ActualTimePrompt />
+      <InsightsNotifier />
       <AuthGuard>
         {isWeb ? (
           <>

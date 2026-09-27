@@ -25,6 +25,7 @@ import type {
   FirestorePlannedPayment,
   FirestoreSettings,
   FirestoreTaskTypesSettings,
+  FirestoreInsightsSettings,
   FirestoreExchangeRate,
   FirestoreBucket,
   FirestoreBucketLineItem,
@@ -181,6 +182,10 @@ export function taskRef(uid: string, id: string): DocumentReference<Omit<Firesto
 
 export function settingsRef(uid: string): DocumentReference<FirestoreSettings> {
   return subDoc(uid, 'settings', 'app') as DocumentReference<FirestoreSettings>;
+}
+
+export function insightsSettingsRef(uid: string): DocumentReference<FirestoreInsightsSettings> {
+  return subDoc(uid, 'settings', 'insights') as DocumentReference<FirestoreInsightsSettings>;
 }
 
 export function taskTypesRef(uid: string): DocumentReference<FirestoreTaskTypesSettings> {

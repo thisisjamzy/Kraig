@@ -15,7 +15,7 @@ export const NAV_ITEMS = [
   { href: '/projects', label: 'Home', icon: Home },
   { href: '/projects/calendar', label: 'Calendar', icon: CalendarDays },
   { href: '/projects/focus', label: 'Focus', icon: Target },
-  { href: '/projects/analytics', label: 'Analytics', icon: ChartNoAxesCombined },
+  { href: '/projects/insights', label: 'Insights', icon: ChartNoAxesCombined },
 ];
 
 // Still exported for WebTopBar (src/widgets/WebTopBar) — its own "+" button
@@ -58,7 +58,7 @@ export function ProjectsBottomNav() {
               aria-current={isActive ? 'page' : undefined}
             >
               <Icon size={20} strokeWidth={2} />
-              {href === '/projects/analytics' && hasNotifications && <span className={styles.badge} />}
+              {href === '/projects/insights' && hasNotifications && <span className={styles.badge} />}
               <span className={styles.srLabel}>{label}</span>
             </Link>
           );

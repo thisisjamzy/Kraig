@@ -20,7 +20,7 @@
 // are still plain drill-downs (their own back-arrow header), same as
 // before — only the three tab destinations count as the Buckets hub.
 const MONEY_HUB_ROUTES = ['/home', '/statistics', '/budget'];
-const PROJECTS_HUB_ROUTES = ['/projects', '/projects/calendar', '/projects/focus', '/projects/analytics'];
+const PROJECTS_HUB_ROUTES = ['/projects', '/projects/calendar', '/projects/focus', '/projects/insights', '/projects/analytics'];
 const BUCKETS_HUB_ROUTES = ['/buckets', '/buckets/analytics', '/buckets/items'];
 
 export type NavMode = 'money' | 'projects' | 'buckets' | 'none';
@@ -38,7 +38,7 @@ export function navMode(pathname: string | null): NavMode {
 // The Projects calendar and Focus page are hubs too, but draw their own
 // headers (src/screens/ProjectsCalendar, src/screens/Focus), so the
 // generic AppHeader stays off there to avoid two stacked headers.
-const OWN_HEADER_ROUTES = ['/projects/calendar', '/projects/focus'];
+const OWN_HEADER_ROUTES = ['/projects/calendar', '/projects/focus', '/projects/insights'];
 
 export function hasAppHeader(pathname: string | null): boolean {
   if (pathname && OWN_HEADER_ROUTES.includes(pathname)) return false;

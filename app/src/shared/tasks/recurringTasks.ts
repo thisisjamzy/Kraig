@@ -99,6 +99,14 @@ function buildOccurrence(series: FirestoreTask, generated: Date, exception: Task
     done: status === 'Done',
     status: status ?? 'Pending',
     completedAt: status === 'Done' ? exception?.completedAt ?? null : null,
+    cancelledAt: status === 'Cancelled' ? exception?.cancelledAt ?? null : null,
+    actualMinutes: exception?.actualMinutes ?? null,
+    // As generated — a "this task" time change is a move (Insights counts
+    // a later one as a reschedule).
+    originalStartTime: hasStart ? Timestamp.fromDate(generated) : null,
+    originalDueDate: series.dueDate
+      ? Timestamp.fromDate(new Date(generated.getTime() + (hasStart ? duration : 0)))
+      : null,
     // A pin (priorityDate) belongs to one-off tasks.
     priorityDate: null,
   };

@@ -19,6 +19,7 @@ import Link from 'next/link';
 import { Check, Clock3, Layers, Lock, Repeat } from 'lucide-react';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { updateTaskDone } from '@/src/shared/firestore/taskWrites';
+import { askActualTime } from '@/src/widgets/ActualTimePrompt/ActualTimePrompt';
 import { priorityLabel } from '@/src/viewmodels/projects';
 import type { Priority, TimeMode } from '@/src/shared/firestore/types';
 import styles from './TaskCheckRow.module.css';
@@ -109,6 +110,11 @@ export function TaskCheckRow({
     setSaving(true);
     try {
       await updateTaskDone(uid, task.id, !task.done);
+      // Just finished a timed task: offer to log how long it really took.
+      if (!task.done && !task.allDay && task.startTime && task.dueDate) {
+        const estimate = (task.dueDate.getTime() - task.startTime.getTime()) / 60000;
+        if (estimate > 0) askActualTime({ taskId: task.id, title: task.title, estimateMinutes: estimate });
+      }
     } finally {
       setSaving(false);
     }

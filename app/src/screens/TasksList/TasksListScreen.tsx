@@ -15,8 +15,19 @@ import { TaskCheckRow } from '@/src/widgets/TaskCheckRow/TaskCheckRow';
 import styles from './TasksListScreen.module.css';
 
 export function TasksListScreen() {
-  const { title, tasks, statusFilter, setStatusFilter, priorityFilter, setPriorityFilter, goBack, loading } =
-    useLogic();
+  const {
+    title,
+    tasks,
+    statusFilter,
+    setStatusFilter,
+    priorityFilter,
+    setPriorityFilter,
+    goBack,
+    loading,
+    leftoverCount,
+    movingLeftovers,
+    moveLeftoversToTomorrow,
+  } = useLogic();
   const router = useRouter();
 
   return (
@@ -65,6 +76,14 @@ export function TasksListScreen() {
       </div>
 
       <ScreenState loading={loading} />
+
+      {!loading && leftoverCount > 0 && (
+        <button type="button" className={styles.leftovers} onClick={moveLeftoversToTomorrow} disabled={movingLeftovers}>
+          {movingLeftovers
+            ? 'Moving…'
+            : `Move ${leftoverCount} unfinished ${leftoverCount === 1 ? 'task' : 'tasks'} to tomorrow`}
+        </button>
+      )}
 
       {!loading && (
         <>
