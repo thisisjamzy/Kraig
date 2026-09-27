@@ -122,16 +122,35 @@ service cloud.firestore {
       }
 
       // PRD-BUDGETS-V2.md section 4.4 — budget moves between bucket items,
-      // the month's unallocated pool, and savings. Deletable: removing one
-      // just reverses the move (aggregation's deleteAllocation also removes
-      // a savings-sourced allocation's own transfer, reversing its balances).
+      // the month's unallocated pool, and savings. Never deleted — the audit
+      // trail keeps every move: undo sets revertedAt (and a savings-funded
+      // move gets a reversing transfer), see src/shared/firestore/overspend.ts.
       match /allocations/{allocationId} {
         allow read: if activeUser() && request.auth.uid == uid;
         allow create, update: if activeUser() && request.auth.uid == uid
           && request.resource.data.amount is number && request.resource.data.amount > 0
           && request.resource.data.months is list
           && request.resource.data.createdBy == request.auth.uid;
-        allow delete: if activeUser() && request.auth.uid == uid;
+        allow delete: if false;
+      }
+
+      // Overspend settlements (Cover or justify) — the record of how an
+      // overspend was paid for and why. Never deleted: undoing one marks it
+      // status 'reverted' (and its allocations revertedAt), so the audit
+      // trail keeps every settlement.
+      match /overspendJustifications/{justificationId} {
+        allow read: if activeUser() && request.auth.uid == uid;
+        allow create, update: if activeUser() && request.auth.uid == uid
+          && request.resource.data.createdBy == request.auth.uid
+          && request.resource.data.month is string
+          && request.resource.data.overspendAmount is number
+          && request.resource.data.overspendAmount > 0
+          && request.resource.data.items is list
+          && request.resource.data.status in ['settled', 'partially_settled', 'reverted']
+          && request.resource.data.reason in ['unexpected_cost', 'price_increase', 'emergency', 'plan_too_low', 'impulse', 'other']
+          && request.resource.data.awareness in ['conscious', 'discovered_later']
+          && request.resource.data.avoidability in ['avoidable', 'partly', 'unavoidable'];
+        allow delete: if false;
       }
 
       // Legacy (PRD-BUDGETS-V2.md): budgets are derived from bucket items
@@ -230,7 +249,9 @@ service cloud.firestore {
       }
       match /projects/{projectId} {
         allow read, create, update: if activeUser() && request.auth.uid == uid;
-        allow delete: if false; // status moves to 'Archived' instead
+        // Archiving (status 'Archived') is the reversible option; deleting
+        // for good is allowed too (src/shared/firestore/projectWrites.ts).
+        allow delete: if activeUser() && request.auth.uid == uid;
       }
       match /tasks/{taskId} {
         allow read: if activeUser() && request.auth.uid == uid;

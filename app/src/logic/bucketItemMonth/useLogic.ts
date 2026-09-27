@@ -16,12 +16,12 @@ import { useAccounts, useCurrencyContext } from '@/src/shared/firestore/queries'
 import { convert, round2, toDisplay } from '@/src/shared/firestore/currency';
 import {
   createAllocation,
-  deleteAllocation,
   setItemMonthOverride,
   skipItemMonth,
 } from '@/src/shared/firestore/bucketBudget';
 import { addMonths, itemOccurrence, itemMonthKey, monthLabel, type ItemMonth, type MonthBudget } from '@/src/shared/budget/monthBudget';
 import { isSavingsAccount } from '@/src/viewmodels/wallets';
+import { revertAllocation, revertJustification } from '@/src/shared/firestore/overspend';
 import type {
   AllocationEndpoint,
   AllocationReason,
@@ -292,7 +292,11 @@ export function useLogic({ entry, month, budget, buckets, itemsByBucket, allocat
     if (!uid) return;
     setBusy(true);
     try {
-      await deleteAllocation(uid, allocationId);
+      // Never deleted: a move that was part of an overspend settlement
+      // undoes that whole settlement; any other move is just reverted.
+      const allocation = allocations.find((a) => a.id === allocationId);
+      if (allocation?.justificationId) await revertJustification(uid, allocation.justificationId);
+      else await revertAllocation(uid, allocationId);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not undo that move.');
     } finally {

@@ -1,10 +1,10 @@
 import type { Metadata } from 'next';
-import { CreateProjectScreen } from '@/src/screens/CreateProject/CreateProjectScreen';
+import { ProjectFormScreen } from '@/src/screens/ProjectForm/ProjectFormScreen';
 
 export const metadata: Metadata = {
   title: 'New project · Dreda',
 };
 
 export default function CreateProjectPage() {
-  return <CreateProjectScreen />;
+  return <ProjectFormScreen />;
 }

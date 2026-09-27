@@ -58,7 +58,10 @@ function SummaryRow({
 }
 
 function BucketCardView({ card, currency, month }: { card: BucketCard; currency: string; month: string }) {
-  const over = card.overflow > 0;
+  // Red only while it still needs action — a settled overspend reads as a
+  // grey "justified" tag instead.
+  const flagged = card.prompt?.kind === 'over' || card.prompt?.kind === 'uncovered';
+  const over = card.overflow > 0 && flagged;
   const plannedMark = over && card.spent > 0 ? (card.planned / card.spent) * 100 : null;
   return (
     <article className={tab.bucketCard}>
@@ -77,7 +80,7 @@ function BucketCardView({ card, currency, month }: { card: BucketCard; currency:
           <Bar spent={card.spent} planned={card.planned} over={over} />
           {plannedMark !== null && <span className={tab.planMark} style={{ left: `${plannedMark}%` }} aria-hidden />}
         </div>
-        {!over && (
+        {card.overflow <= 0 && (
           <span className={tab.bucketAvailable}>
             {card.income
               ? card.available > 0

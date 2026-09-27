@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { ProjectEditScreen } from '@/src/screens/ProjectEdit/ProjectEditScreen';
+import { ProjectFormScreen } from '@/src/screens/ProjectForm/ProjectFormScreen';
 
 export const metadata: Metadata = {
   title: 'Edit project · Dreda',
@@ -7,5 +7,6 @@ export const metadata: Metadata = {
 
 export default async function ProjectEditPage({ params }: PageProps<'/projects/[project]/edit'>) {
   const { project } = await params;
-  return <ProjectEditScreen projectId={decodeURIComponent(project)} />;
+  // The same form as New project, in edit mode.
+  return <ProjectFormScreen projectId={decodeURIComponent(project)} />;
 }

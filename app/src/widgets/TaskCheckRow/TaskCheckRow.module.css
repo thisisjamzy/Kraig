@@ -211,6 +211,53 @@
 }
 
 
+/* ---- Timeline cards (density): a fixed height, content never wraps ---- */
+.row[data-density] {
+  box-sizing: border-box;
+  overflow: hidden;
+  gap: 10px;
+  padding: 6px 10px;
+}
+
+.row[data-density] .body {
+  gap: 2px;
+}
+
+.row[data-density] .title {
+  overflow: hidden;
+  font-size: 0.8125rem;
+  line-height: 1.3;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Under 30 minutes: one line, a smaller ring, centred in the slot. */
+.row[data-density='line'] {
+  align-items: center;
+  padding-block: 2px;
+}
+
+.row[data-density='line'] .check {
+  width: 18px;
+  height: 18px;
+  margin: -13px;
+  padding: 13px;
+}
+
+.row[data-density='line'] .check::before {
+  inset: 13px;
+}
+
+/* An hour or more: the title may take two lines, then ellipsis. */
+.row[data-density='full'] .title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 /* ---- Done ---- */
 .row[data-done] {
   opacity: 0.6;

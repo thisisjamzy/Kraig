@@ -4,18 +4,7 @@
 
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import {
-  AlertCircle,
-  ArrowDownLeft,
-  ArrowLeftRight,
-  ArrowRight,
-  ArrowUpRight,
-  Check,
-  PiggyBank,
-  ShoppingBag,
-  Sparkles,
-  Tag,
-} from 'lucide-react';
+import { AlertCircle, ArrowDownLeft, ArrowLeftRight, ArrowRight, ArrowUpRight, Check, PiggyBank, Repeat, ShoppingBag, Sparkles, Tag } from 'lucide-react';
 import { fillOf, money, type Prompt, dayMonth } from '@/src/viewmodels/planning';
 import type { HistoryRow } from '@/src/logic/planning/rows';
 import styles from './Planning.module.css';
@@ -78,8 +67,22 @@ export function PromptStrip({
       <div className={styles.stripJustified}>
         <span className={styles.tag}>
           <Check size={11} strokeWidth={3} aria-hidden />
-          Justified · {prompt.reason}
+          justified · {prompt.reason}
         </span>
+      </div>
+    );
+  }
+  if (prompt.kind === 'uncovered') {
+    // Settled, but part was left "not covered yet" — a smaller red strip.
+    return (
+      <div className={styles.strip} data-tone="over" data-size="small">
+        <span className={styles.stripText}>
+          {money(prompt.amount)} {currency} still uncovered
+        </span>
+        <Link href={coverHref(month, bucketId)} className={styles.stripAction} onClick={(e) => e.stopPropagation()}>
+          Resolve
+          <ArrowRight size={13} strokeWidth={2.5} aria-hidden />
+        </Link>
       </div>
     );
   }
@@ -107,8 +110,8 @@ function when(d: Date) {
 }
 
 export function HistoryRowView({ row, currency, showDate = false }: { row: HistoryRow; currency: string; showDate?: boolean }) {
-  const Icon = row.flow === 'in' ? ArrowDownLeft : row.flow === 'out' ? ArrowUpRight : ArrowLeftRight;
-  const sign = row.kind === 'transfer' ? '' : row.amount > 0 ? '+' : '-';
+  const Icon = row.flow === 'in' ? ArrowDownLeft : row.flow === 'out' ? ArrowUpRight : row.flow === 'adjust' ? Repeat : ArrowLeftRight;
+  const sign = row.kind !== 'transaction' ? '' : row.amount > 0 ? '+' : '-';
   return (
     <Link href={row.href} className={styles.row}>
       <span className={styles.rowIcon} data-flow={row.flow} aria-hidden>

@@ -1,7 +1,7 @@
 'use client';
 
 // Planning > History: "where did my money go?" — every transaction and
-// transfer recorded in the month, in the shared transactions list (its
+// transfer recorded in the month, plus its budget moves, in the shared transactions list (its
 // filters and sorts are saved per user; a bucket passed in the URL — from
 // a bucket's "See all" — starts it filtered to that bucket).
 
@@ -10,6 +10,7 @@ import { useCategories } from '@/src/shared/firestore/queries';
 import { monthKeyOf } from '@/src/shared/budget/monthBudget';
 import { useListQuery } from '@/src/shared/listQuery/useListQuery';
 import { buildRows, type HistoryRow } from './rows';
+import { adjustmentRows, buildAdjustments } from './adjustments';
 import { TRANSACTION_DEFAULTS, transactionFields } from './transactionFields';
 import type { PlanningData } from './useLogic';
 import type { ListQuery } from '@/src/shared/listQuery/engine';
@@ -21,8 +22,15 @@ export function useHistoryTab(month: string, data: PlanningData, bucket: string 
   const rows = useMemo<HistoryRow[]>(() => {
     const transactions = [...transactionsById.values()].filter((t) => (t.month ?? monthKeyOf(t.date.toDate())) === month);
     const transfers = [...transfersById.values()].filter((t) => monthKeyOf(t.date.toDate()) === month);
-    return buildRows(transactions, transfers, { accounts, categories, budget, bucketName, ctx });
-  }, [transactionsById, transfersById, month, accounts, categories, budget, bucketName, ctx]);
+    // Budget moves and overspend settlements made for this month, as their
+    // own row type (excluded from the money in / out totals).
+    const moves = buildAdjustments(
+      data.allocations.filter((a) => a.month === month),
+      data.justifications,
+      { itemsByBucket: data.itemsByBucket, accounts, ctx }
+    );
+    return [...buildRows(transactions, transfers, { accounts, categories, budget, bucketName, ctx }), ...adjustmentRows(moves, month, bucketName)];
+  }, [transactionsById, transfersById, month, accounts, categories, budget, bucketName, ctx, data.allocations, data.justifications, data.itemsByBucket]);
 
   const fields = useMemo(
     () =>

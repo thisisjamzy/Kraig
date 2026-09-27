@@ -12,6 +12,11 @@ import { useGoBack } from '@/src/shared/navigation/useGoBack';
 import { bucketCard, monthOf, promptFor, unexplained } from '@/src/viewmodels/planning';
 import { buildRows } from '@/src/logic/planning/rows';
 import { monthPayments } from '@/src/logic/planning/usePaymentsTab';
+import { buildAdjustments, type AdjustmentEntry } from '@/src/logic/planning/adjustments';
+import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
+import { revertAllocation, revertJustification, updateJustification } from '@/src/shared/firestore/overspend';
+import { showToast } from '@/src/widgets/Toast/Toast';
+import type { OverspendAvoidability, OverspendAwareness, OverspendReason } from '@/src/shared/firestore/types';
 
 function monthFromSearch(): string {
   if (typeof window === 'undefined') return monthOf(new Date());
@@ -33,8 +38,12 @@ export function useLogic(bucketId: string) {
   const items = (group?.items ?? []).map((item) => ({
     item,
     prompt: promptFor([item], { month, today }),
-    over: item.type !== 'Income' && item.remaining < 0,
+    // Red only while part of the overspend is still unexplained.
+    over: item.type !== 'Income' && unexplained(item) > 0,
+    justified: item.type !== 'Income' && item.remaining < 0 && unexplained(item) === 0,
     needs: unexplained(item),
+    // Net budget this item gave to others this month ("−8,000 moved").
+    movedOut: Math.max(0, Math.round((item.allocatedOut - item.allocatedIn) * 100) / 100),
   }));
 
   // The bucket's category: its items' own, the most common one.
@@ -52,6 +61,44 @@ export function useLogic(bucketId: string) {
   );
 
   const payments = monthPayments(month, data, categories).filter((p) => p.bucketId === bucketId);
+
+  // Adjustments timeline — settlements and moves touching this bucket.
+  const { user } = useFirebaseUser();
+  const adjustments = buildAdjustments(data.allocations, data.justifications, { itemsByBucket: data.itemsByBucket, accounts, ctx }, bucketId);
+  const [openAdjustment, setOpenAdjustment] = useState<string | null>(null);
+  const [adjustmentBusy, setAdjustmentBusy] = useState(false);
+  const [adjustmentError, setAdjustmentError] = useState<string | null>(null);
+
+  async function run(action: () => Promise<void>, done: string) {
+    setAdjustmentBusy(true);
+    setAdjustmentError(null);
+    try {
+      await action();
+      showToast(done);
+      setOpenAdjustment(null);
+    } catch (caught) {
+      setAdjustmentError(caught instanceof Error ? caught.message : 'Could not save that.');
+    } finally {
+      setAdjustmentBusy(false);
+    }
+  }
+  /** Undo: a settlement (or a move that was part of one) reverts as a whole. */
+  function undoAdjustment(entry: AdjustmentEntry) {
+    const uid = user?.uid;
+    if (!uid) return;
+    return run(
+      () => (entry.justification ? revertJustification(uid, entry.justification.id) : revertAllocation(uid, entry.allocationId!)),
+      'Undone — kept in the history as reverted.'
+    );
+  }
+  function editJustification(
+    id: string,
+    fields: { reason: OverspendReason; awareness: OverspendAwareness; noticedOn: Date | null; avoidability: OverspendAvoidability; note: string }
+  ) {
+    const uid = user?.uid;
+    if (!uid) return;
+    return run(() => updateJustification(uid, id, fields), 'Explanation updated.');
+  }
 
   // Where "Add expense" records to: the item with the most left.
   const target =
@@ -75,6 +122,16 @@ export function useLogic(bucketId: string) {
     addExpenseHref: target
       ? `/add-transaction?bucketItem=${encodeURIComponent(`${target.bucketId}:${target.itemId}:${month}`)}`
       : `/add-transaction?month=${Number(month.slice(5)) - 1}&year=${month.slice(0, 4)}`,
+    adjustments,
+    openAdjustment: adjustments.find((a) => a.id === openAdjustment) ?? null,
+    setOpenAdjustment: (id: string | null) => {
+      setAdjustmentError(null);
+      setOpenAdjustment(id);
+    },
+    undoAdjustment,
+    editJustification,
+    adjustmentBusy,
+    adjustmentError,
     goBack: () => navigateBack(`/budget?month=${month}`),
     loading: data.loading,
   };

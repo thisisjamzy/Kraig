@@ -5,7 +5,7 @@
 import type { FieldDef, ListQuery } from '@/src/shared/listQuery/engine';
 import type { HistoryRow } from './rows';
 
-const DIRECTION = { Income: 'income', Expense: 'expense', Savings: 'savings', Transfer: 'transfer' } as const;
+const DIRECTION = { Income: 'income', Expense: 'expense', Savings: 'savings', Transfer: 'transfer', Adjustment: 'budget_move' } as const;
 
 export function transactionFields({
   buckets,
@@ -31,6 +31,7 @@ export function transactionFields({
         { value: 'expense', label: 'Expense', color: '#e04b5a' },
         { value: 'savings', label: 'Savings', color: '#d98a1c' },
         { value: 'transfer', label: 'Transfer', color: '#3b63f0' },
+        { value: 'budget_move', label: 'Budget move', color: '#6b7085' },
       ],
     },
     {

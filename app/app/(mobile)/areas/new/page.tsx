@@ -1,10 +1,10 @@
 import type { Metadata } from 'next';
-import { CreateAreaScreen } from '@/src/screens/CreateArea/CreateAreaScreen';
+import { AreaFormScreen } from '@/src/screens/AreaForm/AreaFormScreen';
 
 export const metadata: Metadata = {
   title: 'New area · Dreda',
 };
 
 export default function CreateAreaPage() {
-  return <CreateAreaScreen />;
+  return <AreaFormScreen />;
 }

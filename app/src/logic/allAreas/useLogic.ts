@@ -2,7 +2,7 @@
 
 // "See all areas" — reached from the Projects hub's Areas section (see
 // src/screens/Projects/ProjectsScreen.tsx). Same archive semantics as
-// areaEdit/useLogic.ts's own archiveArea, just without that hook's
+// areaForm/useLogic.ts's own archiveArea, just without that hook's
 // redirect-after-archive (this list stays put and the live query drops the
 // row the instant it archives).
 

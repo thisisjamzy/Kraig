@@ -279,6 +279,11 @@
   --tint: var(--p-red-tint);
 }
 
+.strip[data-size='small'] {
+  padding-block: 6px;
+  font-size: 0.75rem;
+}
+
 .stripText {
   display: inline-flex;
   align-items: center;
@@ -386,6 +391,11 @@
 .rowIcon[data-flow='move'] {
   --t: var(--p-blue-tint);
   --c: var(--p-blue);
+}
+
+.rowIcon[data-flow='adjust'] {
+  background: var(--p-item);
+  color: var(--p-muted);
 }
 
 .rowMain {

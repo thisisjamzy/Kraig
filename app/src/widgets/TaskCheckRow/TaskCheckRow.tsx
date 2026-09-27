@@ -90,12 +90,18 @@ export function ModeIcon({ mode }: { mode: TimeMode }) {
 export function TaskCheckRow({
   task,
   timeOnly = false,
+  density,
   className,
   style,
 }: {
   task: TaskCheckRowTask;
   // Show just the time, not the day — the listing is already one day.
   timeOnly?: boolean;
+  // A fixed-height card on a timeline (the Calendar's day): what fits,
+  // never wrapping — 'line' just the title, 'short' title + time, 'full'
+  // up to two lines of title, time and one line of context. Leave out
+  // for an ordinary list row.
+  density?: 'line' | 'short' | 'full';
   className?: string;
   style?: React.CSSProperties;
 }) {
@@ -124,6 +130,7 @@ export function TaskCheckRow({
     <div
       className={`${styles.row} ${className ?? ''}`}
       data-done={task.done || undefined}
+      data-density={density}
       style={style}
     >
       <button
@@ -139,14 +146,16 @@ export function TaskCheckRow({
         <Check size={14} strokeWidth={3} className={styles.checkIcon} />
       </button>
       <Link href={`/tasks/${task.id}/edit`} className={styles.body}>
-        <span className={styles.badges}>
-          <span className={styles.priority} data-priority={task.priority}>
-            {priorityLabel(task.priority)}
+        {!density && (
+          <span className={styles.badges}>
+            <span className={styles.priority} data-priority={task.priority}>
+              {priorityLabel(task.priority)}
+            </span>
+            {overdue && <span className={styles.overdue}>Overdue</span>}
           </span>
-          {overdue && <span className={styles.overdue}>Overdue</span>}
-        </span>
+        )}
         <span className={styles.title}>{task.title}</span>
-        {when && (
+        {when && density !== 'line' && (
           <span className={styles.when} data-overdue={overdue || undefined}>
             <Clock3 size={12} strokeWidth={2.25} aria-hidden />
             {when}
@@ -154,7 +163,7 @@ export function TaskCheckRow({
             {task.recurring && <Repeat size={11} strokeWidth={2.5} aria-label="repeats" role="img" />}
           </span>
         )}
-        {task.context && <span className={styles.context}>{task.context}</span>}
+        {task.context && (!density || density === 'full') && <span className={styles.context}>{task.context}</span>}
       </Link>
     </div>
   );

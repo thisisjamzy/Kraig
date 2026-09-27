@@ -378,6 +378,15 @@ input:focus-visible + .switch {
   cursor: not-allowed;
 }
 
+/* A destructive confirm (deleting a project). */
+.primary[data-tone='danger'] {
+  background: var(--color-danger);
+}
+
+.primary[data-tone='danger']:disabled {
+  background: color-mix(in srgb, var(--color-danger) 45%, var(--tf-bg));
+}
+
 .primary:focus-visible {
   outline: 2px solid var(--tf-text);
   outline-offset: 3px;
@@ -450,7 +459,8 @@ input:focus-visible + .switch {
   cursor: pointer;
 }
 
-.sheetOption[aria-pressed='true'] {
+.sheetOption[aria-pressed='true'],
+.sheetOption[aria-checked='true'] {
   background: var(--tf-track);
 }
 

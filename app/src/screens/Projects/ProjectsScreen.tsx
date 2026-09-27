@@ -51,14 +51,24 @@ export function ProjectsScreen() {
       <section className={styles.hubSection}>
         <div className={styles.hubHeader}>
           <h2 className={styles.hubTitle}>{strings.projects.projectsSectionTitle}</h2>
-          <Link
-            href="/projects/all"
-            className={styles.viewAllButton}
-            aria-label={strings.projects.seeAllProjects}
-            title={strings.projects.seeAllProjects}
-          >
-            <ArrowUpRight size={16} strokeWidth={2.25} />
-          </Link>
+          <div className={styles.hubActions}>
+            <Link
+              href="/projects/new"
+              className={styles.iconButtonSoft}
+              aria-label={strings.createProject.title}
+              title={strings.createProject.title}
+            >
+              <Plus size={16} strokeWidth={2.5} />
+            </Link>
+            <Link
+              href="/projects/all"
+              className={styles.viewAllButton}
+              aria-label={strings.projects.seeAllProjects}
+              title={strings.projects.seeAllProjects}
+            >
+              <ArrowUpRight size={16} strokeWidth={2.25} />
+            </Link>
+          </div>
         </div>
 
         {!loading && activeProjects.length === 0 ? (

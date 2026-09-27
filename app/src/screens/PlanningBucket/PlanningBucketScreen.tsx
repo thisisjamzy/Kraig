@@ -21,6 +21,8 @@ import { dayMonth, fillOf, money, monthTitle } from '@/src/viewmodels/planning';
 import { HistoryRowView, coverHref, reallocateHref } from '@/src/screens/Planning/PlanningParts';
 import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import p from '@/src/screens/Planning/Planning.module.css';
+import { AdjustmentRow, AdjustmentSheet } from './Adjustments';
+import adj from './Adjustments.module.css';
 import styles from './PlanningBucketScreen.module.css';
 
 // Distinct brand-blue shades, one per item (segment and legend dot).
@@ -72,7 +74,8 @@ export function PlanningBucketView({ bucketId, b }: { bucketId: string; b: Retur
   }
 
   const prompt = card.prompt;
-  const over = prompt?.kind === 'over';
+  // Still needs action: never settled, or settled with part left open.
+  const over = prompt?.kind === 'over' || prompt?.kind === 'uncovered';
   const leftover = prompt?.kind === 'leftover';
   const actionCard = over || leftover;
   const left = card.planned - card.spent;
@@ -229,7 +232,7 @@ export function PlanningBucketView({ bucketId, b }: { bucketId: string; b: Retur
           <span className={p.promptCardText}>
             <span className={p.promptCardTitle}>
               {over ? <AlertCircle size={16} strokeWidth={2.5} aria-hidden /> : <Sparkles size={16} strokeWidth={2.5} aria-hidden />}
-              {over ? 'Over budget' : 'Money left over'}
+              {over ? (prompt?.kind === 'uncovered' ? 'Still uncovered' : 'Over budget') : 'Money left over'}
             </span>
             <span className={p.promptCardSub}>
               {over
@@ -256,7 +259,7 @@ export function PlanningBucketView({ bucketId, b }: { bucketId: string; b: Retur
         </Link>
       </div>
       <div className={styles.itemGrid}>
-        {b.items.map(({ item, over: itemOver }) => (
+        {b.items.map(({ item, over: itemOver, justified: itemJustified, movedOut }) => (
           <Link
             key={item.key}
             id={`item-${item.itemId}`}
@@ -267,25 +270,51 @@ export function PlanningBucketView({ bucketId, b }: { bucketId: string; b: Retur
             <span className={styles.itemLeft} data-tone={itemOver ? 'over' : undefined}>
               {item.type === 'Income'
                 ? `${money(item.actual)} in`
-                : itemOver
+                : item.remaining < 0
                   ? `${money(-item.remaining)} over`
                   : `${money(item.remaining)} left`}
             </span>
             <span className={styles.itemOf}>
               {money(item.actual)} / {money(item.available)} {currency}
+              {movedOut > 0 && <span className={styles.itemMoved}> · −{money(movedOut)} moved</span>}
             </span>
             <span className={styles.itemBar} role="presentation">
               <span data-tone={itemOver ? 'over' : undefined} style={{ width: `${fillOf(item.actual, item.available) * 100}%` }} />
             </span>
             <span className={styles.itemChips}>
               <span className={styles.statusChip} data-tone={itemOver ? 'over' : undefined}>
-                {itemOver ? 'OVER' : item.kind === 'Fixed' ? 'FIXED' : 'PLANNED'}
+                {itemOver ? 'OVER' : itemJustified ? 'JUSTIFIED' : item.kind === 'Fixed' ? 'FIXED' : 'PLANNED'}
               </span>
               <span className={styles.categoryChip}>{item.categoryName}</span>
             </span>
           </Link>
         ))}
       </div>
+
+      {b.adjustments.length > 0 && (
+        <>
+          <div className={p.sectionHead}>
+            <h2>Adjustments</h2>
+          </div>
+          <div className={adj.list}>
+            {b.adjustments.map((entry) => (
+              <AdjustmentRow key={entry.id} entry={entry} currency={currency} onOpen={() => b.setOpenAdjustment(entry.id)} />
+            ))}
+          </div>
+        </>
+      )}
+      {b.openAdjustment && (
+        <AdjustmentSheet
+          key={b.openAdjustment.id}
+          entry={b.openAdjustment}
+          currency={currency}
+          busy={b.adjustmentBusy}
+          error={b.adjustmentError}
+          onClose={() => b.setOpenAdjustment(null)}
+          onUndo={() => b.undoAdjustment(b.openAdjustment!)}
+          onSave={(fields) => b.editJustification(b.openAdjustment!.justification!.id, fields)}
+        />
+      )}
 
       <div className={p.sectionHead}>
         <h2>Transactions</h2>

@@ -264,12 +264,13 @@ describe('allocations (PRD-BUDGETS-V2.md section 4.4)', () => {
     createdBy: ACTIVE_UID,
   };
 
-  it('lets an active user create, read and delete their own', async () => {
+  it('lets an active user create, read and revert their own, but never delete', async () => {
     const db = testEnv.authenticatedContext(ACTIVE_UID).firestore();
     const ref = doc(db, 'users', ACTIVE_UID, 'allocations', 'a1');
     await assertSucceeds(setDoc(ref, valid));
     await assertSucceeds(getDoc(ref));
-    await assertSucceeds(deleteDoc(ref));
+    await assertSucceeds(setDoc(ref, { ...valid, revertedAt: new Date() }));
+    await assertFails(deleteDoc(ref));
   });
 
   it('rejects a non-positive amount or a missing months list', async () => {
@@ -282,6 +283,79 @@ describe('allocations (PRD-BUDGETS-V2.md section 4.4)', () => {
   it('denies another user', async () => {
     const db = testEnv.authenticatedContext(OTHER_UID).firestore();
     await assertFails(setDoc(doc(db, 'users', ACTIVE_UID, 'allocations', 'a4'), { ...valid, createdBy: OTHER_UID }));
+  });
+});
+
+describe('projects', () => {
+  beforeEach(async () => {
+    await seedActiveUser(ACTIVE_UID);
+  });
+
+  it('lets an active user delete their own project for good', async () => {
+    const db = testEnv.authenticatedContext(ACTIVE_UID).firestore();
+    const ref = doc(db, 'users', ACTIVE_UID, 'projects', 'p1');
+    await assertSucceeds(setDoc(ref, { name: 'Trip', status: 'Active', description: 'x' }));
+    await assertSucceeds(deleteDoc(ref));
+  });
+
+  it('denies another user deleting it', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'users', ACTIVE_UID, 'projects', 'p2'), { name: 'Trip', status: 'Active', description: 'x' });
+    });
+    const db = testEnv.authenticatedContext(OTHER_UID).firestore();
+    await assertFails(deleteDoc(doc(db, 'users', ACTIVE_UID, 'projects', 'p2')));
+  });
+});
+
+describe('overspendJustifications (Cover or justify)', () => {
+  beforeEach(async () => {
+    await seedActiveUser(ACTIVE_UID);
+  });
+
+  const valid = {
+    month: '2026-09',
+    bucketId: 'b1',
+    itemId: 'i1',
+    currency: 'XAF',
+    overspendAmount: 12000,
+    coveredByAdjustments: 8000,
+    externalSources: [{ source: 'savings_outside_plan', amount: 4000 }],
+    uncoveredAmount: 0,
+    items: [{ itemId: 'i1', overspend: 12000, covered: 8000, external: 4000, uncovered: 0 }],
+    adjustmentIds: ['a1'],
+    reason: 'price_increase',
+    awareness: 'discovered_later',
+    noticedOn: new Date(),
+    avoidability: 'partly',
+    note: '',
+    attachments: [],
+    status: 'settled',
+    followsUp: [],
+    createdBy: ACTIVE_UID,
+  };
+
+  it('lets an active user create, read and revert their own, but never delete', async () => {
+    const db = testEnv.authenticatedContext(ACTIVE_UID).firestore();
+    const ref = doc(db, 'users', ACTIVE_UID, 'overspendJustifications', 'j1');
+    await assertSucceeds(setDoc(ref, valid));
+    await assertSucceeds(getDoc(ref));
+    await assertSucceeds(setDoc(ref, { ...valid, status: 'reverted', revertedAt: new Date() }));
+    await assertFails(deleteDoc(ref));
+  });
+
+  it('rejects an unknown reason, awareness, avoidability or status', async () => {
+    const db = testEnv.authenticatedContext(ACTIVE_UID).firestore();
+    const ref = (id: string) => doc(db, 'users', ACTIVE_UID, 'overspendJustifications', id);
+    await assertFails(setDoc(ref('j2'), { ...valid, reason: 'because' }));
+    await assertFails(setDoc(ref('j3'), { ...valid, awareness: 'never' }));
+    await assertFails(setDoc(ref('j4'), { ...valid, avoidability: 'maybe' }));
+    await assertFails(setDoc(ref('j5'), { ...valid, status: 'deleted' }));
+    await assertFails(setDoc(ref('j6'), { ...valid, overspendAmount: 0 }));
+  });
+
+  it('denies another user', async () => {
+    const db = testEnv.authenticatedContext(OTHER_UID).firestore();
+    await assertFails(setDoc(doc(db, 'users', ACTIVE_UID, 'overspendJustifications', 'j7'), { ...valid, createdBy: OTHER_UID }));
   });
 });
 

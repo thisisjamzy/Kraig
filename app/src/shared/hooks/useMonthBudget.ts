@@ -14,7 +14,7 @@
 import { useMemo } from 'react';
 import { query, where, limit, Timestamp } from 'firebase/firestore';
 import { useFirestoreCollection } from '@/src/shared/firestore/hooks';
-import { allocationsRef, bucketsRef, transactionsRef, transfersRef } from '@/src/shared/firestore/refs';
+import { allocationsRef, bucketsRef, overspendJustificationsRef, transactionsRef, transfersRef } from '@/src/shared/firestore/refs';
 import { useAccounts, useCategories, useCurrencyContext } from '@/src/shared/firestore/queries';
 import { toDisplay } from '@/src/shared/firestore/currency';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
@@ -23,6 +23,7 @@ import { buildMonthBudget, monthKeyOf } from '@/src/shared/budget/monthBudget';
 import type {
   FirestoreAllocation,
   FirestoreBucket,
+  FirestoreOverspendJustification,
   FirestoreTransaction,
   FirestoreTransfer,
 } from '@/src/shared/firestore/types';
@@ -70,6 +71,10 @@ export function useMonthBudget(monthOrNull: string | null) {
     useMemo(() => (uid ? query(allocationsRef(uid), where('months', 'array-contains', month)) : null), [uid, month])
   );
 
+  const { data: justifications, loading: justificationsLoading } = useFirestoreCollection<FirestoreOverspendJustification>(
+    useMemo(() => (uid ? query(overspendJustificationsRef(uid), where('month', '==', month)) : null), [uid, month])
+  );
+
   const { data: accounts, loading: accountsLoading } = useAccounts();
   const { data: categoryDocs, loading: categoriesLoading } = useCategories();
   const { ctx, loading: ctxLoading } = useCurrencyContext();
@@ -90,12 +95,13 @@ export function useMonthBudget(monthOrNull: string | null) {
       })),
       transfers: [...linkedTransfers, ...datedTransfers].map(toMonthed),
       allocations,
+      justifications,
       accountCurrency,
       categories,
       baseCurrency: ctx.base,
       toDisplay: (amount, currency) => toDisplay(ctx, amount, currency),
     });
-  }, [month, buckets, itemsByBucket, linkedTransactions, datedTransactions, linkedTransfers, datedTransfers, allocations, accounts, categoryDocs, ctx]);
+  }, [month, buckets, itemsByBucket, linkedTransactions, datedTransactions, linkedTransfers, datedTransfers, allocations, justifications, accounts, categoryDocs, ctx]);
 
   // For the item sheet's own payment list — ItemMonth only carries ids.
   const transactionsById = useMemo(
@@ -114,6 +120,7 @@ export function useMonthBudget(monthOrNull: string | null) {
     buckets,
     itemsByBucket: itemsByBucket,
     allocations,
+    justifications,
     accounts,
     ctx,
     loading:
@@ -125,6 +132,7 @@ export function useMonthBudget(monthOrNull: string | null) {
       datedTransfersLoading ||
       linkedTransfersLoading ||
       allocationsLoading ||
+      justificationsLoading ||
       accountsLoading ||
       categoriesLoading ||
       ctxLoading,

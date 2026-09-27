@@ -1,0 +1,226 @@
+/* Bucket details — the Adjustments timeline and its sheet. Planning tokens
+   (--p-*) come from the page; the sheet (Modal) uses the app's own. */
+
+.list {
+  overflow: hidden;
+  border-radius: 20px;
+  background: var(--p-card);
+  box-shadow: var(--p-shadow);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 60px;
+  padding: 12px 14px;
+  border: none;
+  background: none;
+  color: inherit;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.row + .row {
+  border-top: 1px solid var(--p-divider);
+}
+
+.row:focus-visible {
+  outline: 2px solid var(--p-blue);
+  outline-offset: -2px;
+}
+
+.row[data-reverted] .main,
+.row[data-reverted] .amount {
+  opacity: 0.55;
+}
+
+.row[data-reverted] .amount {
+  text-decoration: line-through;
+}
+
+.icon {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--p-blue-tint);
+  color: var(--p-blue);
+}
+
+.main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.title {
+  overflow: hidden;
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  font-size: 0.75rem;
+  color: var(--p-muted);
+}
+
+.amount {
+  flex-shrink: 0;
+  font-size: 0.875rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.amount small {
+  font-size: 0.6875rem;
+  color: var(--p-light);
+}
+
+/* ---- Sheet ---- */
+.detail,
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.big {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-family: var(--font-family-heading);
+  font-size: 1.75rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.big small {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+}
+
+.lines {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: var(--color-surface);
+  list-style: none;
+}
+
+.lines li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 0;
+  font-size: 0.875rem;
+}
+
+.lines li[data-tone='over'] {
+  color: var(--color-danger);
+}
+
+.lines strong {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.why {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.note {
+  margin: 0;
+  font-size: 0.875rem;
+  font-style: italic;
+  color: var(--color-text-secondary);
+}
+
+.hint {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+}
+
+.error {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--color-danger);
+}
+
+.confirm p {
+  margin: 0 0 10px;
+  font-size: 0.875rem;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.label {
+  margin: 6px 0 0;
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chips button {
+  min-height: 36px;
+  padding: 6px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-background);
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.chips button[aria-checked='true'] {
+  border-color: var(--ink-bg);
+  background: var(--ink-bg);
+  color: var(--ink-text);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+}
+
+.field input,
+.field textarea {
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-background);
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: 16px;
+}

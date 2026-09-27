@@ -21,6 +21,7 @@ import { DEFAULT_PRIORITY } from '@/src/viewmodels/projects';
 import type { FirestoreProject, FirestoreArea, FirestorePlannedPayment } from '@/src/shared/firestore/types';
 import { effectiveTimeMode } from '@/src/viewmodels/scheduling';
 import { expandTasks } from '@/src/shared/tasks/recurringTasks';
+import { layoutDay } from '@/src/viewmodels/dayLayout';
 
 // Payments are "upcoming from today," not tied to the month being browsed
 // (see upcomingPayments.ts's own header — same forward-looking model the
@@ -28,13 +29,15 @@ import { expandTasks } from '@/src/shared/tasks/recurringTasks';
 // months ahead still surfaces them, rather than recomputing per month.
 const PAYMENT_HORIZON_DAYS = 400;
 
-// Pixels per hour on the schedule timeline — tall enough that a one-hour
-// slot holds the full task card (the same TaskCheckRow as the Time hub:
-// badges, title, date · time) without clipping.
+// Pixels per hour on the schedule timeline — a 15-minute card is 28px
+// (one line), an hour 112px (the full card).
 export const HOUR_HEIGHT = 112;
-// Every task gets at least a one-hour slot on the timeline, so its card
-// always has room and lanes never let two cards overlap.
-const MIN_SLOT_MINUTES = 60;
+// Cards shorter than this still get this much room, so a 5-minute task is
+// tappable — and it's what overlap grouping sees too, so no two cards ever
+// cover each other.
+const MIN_CARD_MINUTES = 15;
+// A legacy task with only a due time: an hour's slot ending at it.
+const DUE_ONLY_MINUTES = 60;
 
 export interface MonthCell {
   iso: string;
@@ -56,74 +59,34 @@ export function buildMonthGrid(monthCursor: Date): MonthCell[] {
   });
 }
 
-interface TimedItem {
-  id: string;
-  startMin: number; // minutes from midnight
-  endMin: number;
-}
-
-/** Side-by-side lanes for overlapping tasks: each item gets its lane and the
- * number of lanes its overlap cluster needs. */
-export function assignLanes<T extends TimedItem>(items: T[]): (T & { lane: number; lanes: number })[] {
-  const sorted = [...items].sort((a, b) => a.startMin - b.startMin || b.endMin - a.endMin);
-  const out: (T & { lane: number; lanes: number })[] = [];
-  let cluster: (T & { lane: number; lanes: number })[] = [];
-  let clusterEnd = -1;
-  let laneEnds: number[] = [];
-  function closeCluster() {
-    const lanes = Math.max(1, laneEnds.length);
-    for (const item of cluster) item.lanes = lanes;
-    out.push(...cluster);
-    cluster = [];
-    laneEnds = [];
-  }
-  for (const item of sorted) {
-    if (cluster.length > 0 && item.startMin >= clusterEnd) closeCluster();
-    let lane = laneEnds.findIndex((end) => end <= item.startMin);
-    if (lane === -1) {
-      lane = laneEnds.length;
-      laneEnds.push(item.endMin);
-    } else {
-      laneEnds[lane] = item.endMin;
-    }
-    cluster.push({ ...item, lane, lanes: 1 });
-    clusterEnd = Math.max(clusterEnd, item.endMin);
-  }
-  if (cluster.length > 0) closeCluster();
-  return out;
-}
-
 export interface ScheduleTask {
   id: string;
   startTime: Date | null;
   dueDate: Date | null;
 }
 
-/** The selected day's timeline: every task placed by its start and sized by
- * its duration (a legacy task with only a due time gets a MIN_SLOT_MINUTES
- * slot ending at it); the visible hour range always covers 08.00 onward and
- * stretches to fit the day's tasks. Pure, so it can be tested and previewed. */
+/** The selected day's timeline: every task placed by its start and sized
+ * by its real duration (at least MIN_CARD_MINUTES; a legacy task with only
+ * a due time gets a DUE_ONLY_MINUTES slot ending at it), overlapping ones
+ * grouped into side-by-side columns (viewmodels/dayLayout.ts). The visible
+ * hour range always covers 08.00 onward and stretches to fit the day.
+ * Pure, so it can be tested and previewed. */
 export function buildSchedule<T extends ScheduleTask>(taskItems: T[], selectedDate: string) {
   const minutes = (d: Date) => d.getHours() * 60 + d.getMinutes();
   const timed = taskItems.map((task) => {
-    const start = task.startTime ?? new Date((task.dueDate as Date).getTime() - MIN_SLOT_MINUTES * 60000);
-    const end = task.dueDate && task.dueDate > start ? task.dueDate : new Date(start.getTime() + MIN_SLOT_MINUTES * 60000);
+    const start = task.startTime ?? new Date((task.dueDate as Date).getTime() - DUE_ONLY_MINUTES * 60000);
+    const end = task.dueDate && task.dueDate > start ? task.dueDate : new Date(start.getTime() + DUE_ONLY_MINUTES * 60000);
     const startMin = minutes(start);
     // A task running past midnight is drawn to the end of this day.
     const endMin = isoDate(end) === selectedDate ? minutes(end) : 24 * 60;
-    return { ...task, startMin, endMin: Math.max(endMin, startMin + MIN_SLOT_MINUTES) };
+    return { ...task, startMin, endMin: Math.min(24 * 60, Math.max(endMin, startMin + MIN_CARD_MINUTES)) };
   });
   const firstHour = Math.min(8, ...timed.map((t) => Math.floor(t.startMin / 60)));
   const lastHour = Math.min(24, Math.max(firstHour + 7, ...timed.map((t) => Math.ceil(t.endMin / 60))));
   const hours = Array.from({ length: lastHour - firstHour + 1 }, (_, i) => firstHour + i);
-  const items = assignLanes(timed).map((item) => ({
-    ...item,
-    top: ((item.startMin - firstHour * 60) / 60) * HOUR_HEIGHT,
-    // A minimum, not a fixed height: the card grows with its duration but
-    // is never cut short of its own content.
-    height: ((item.endMin - item.startMin) / 60) * HOUR_HEIGHT - 8,
-  }));
-  return { hours, firstHour, items, height: (lastHour - firstHour) * HOUR_HEIGHT };
+  const layout = layoutDay(timed, firstHour, HOUR_HEIGHT);
+  const items = timed.map((item) => ({ ...item, ...layout.byId.get(item.id)!, minutes: item.endMin - item.startMin }));
+  return { hours, firstHour, items, groups: layout.groups, height: (lastHour - firstHour) * HOUR_HEIGHT };
 }
 
 export function isoDate(d: Date) {
@@ -277,10 +240,8 @@ export function useLogic() {
     [tasks, projects, payments, selectedDate, projectName, bucketName, areaName]
   );
 
-  // The selected day's timeline: every task with a time is placed by its
-  // start and sized by its duration (a legacy task with only a due time
-  // gets a MIN_SLOT_MINUTES slot ending at it); the visible hour range
-  // always covers 08.00 onward and stretches to fit the day's tasks.
+  // The selected day's timeline (buildSchedule above) — recomputed only
+  // when the day or its activities change.
   // Date-only tasks (FirestoreTask.allDay) sit with the day's all-day items,
   // not on the hour timeline.
   const allDayTasks = useMemo(() => agenda.taskItems.filter((task) => task.allDay), [agenda]);

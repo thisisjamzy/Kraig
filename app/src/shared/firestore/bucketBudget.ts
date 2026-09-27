@@ -13,7 +13,6 @@
 import {
   arrayRemove,
   arrayUnion,
-  deleteDoc,
   deleteField,
   getDoc,
   runTransaction,
@@ -25,7 +24,7 @@ import {
 import { getFirebaseFirestore } from '@/src/shared/config/firebaseClient';
 import { accountRef, allocationRef, bucketLineItemRef } from './refs';
 import { convert, round2, type CurrencyContext } from './currency';
-import { deleteTransferWithAggregation, writeTransferContribution } from './aggregation';
+import { writeTransferContribution } from './aggregation';
 import type { AllocationEndpoint, AllocationReason, JustificationReason } from './types';
 
 export async function skipItemMonth(uid: string, bucketId: string, itemId: string, month: string) {
@@ -89,6 +88,8 @@ export interface CreateAllocationInput {
   // into savings (a real "Wallet to savings" transfer).
   savingsFromAccountId?: string;
   date?: Date; // the savings withdrawal's own date, defaults to now
+  // The overspend settlement this move belongs to (Cover or justify).
+  justificationId?: string | null;
 }
 
 function monthsTouched(input: CreateAllocationInput): string[] {
@@ -110,6 +111,8 @@ export async function createAllocation(uid: string, input: CreateAllocationInput
     currency: input.currency,
     reason: input.reason,
     note: input.note,
+    justificationId: input.justificationId ?? null,
+    revertedAt: null,
     createdBy: uid,
     createdAt: serverTimestamp(),
   };
@@ -190,14 +193,6 @@ export async function createAllocation(uid: string, input: CreateAllocationInput
     tx.set(allocationRef(uid, id), { ...doc, transferId });
   });
   return id;
-}
-
-/** Reverses a move. A savings-funded one also reverses its real transfer. */
-export async function deleteAllocation(uid: string, allocationId: string): Promise<void> {
-  const snap = await getDoc(allocationRef(uid, allocationId));
-  const transferId = snap.data()?.transferId;
-  if (transferId) await deleteTransferWithAggregation(uid, transferId);
-  await deleteDoc(allocationRef(uid, allocationId));
 }
 
 /**

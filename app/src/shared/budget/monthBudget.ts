@@ -18,6 +18,7 @@ import type {
   FirestoreAllocation,
   FirestoreBucket,
   FirestoreBucketLineItem,
+  FirestoreOverspendJustification,
   FirestoreTransaction,
   FirestoreTransfer,
 } from '../firestore/types';
@@ -133,6 +134,10 @@ export interface ItemMonth {
   // FirestoreBucketLineItem.monthJustifications. unfunded − justified.amount
   // is what still needs action.
   justified: { reason: string; note: string; amount: number } | null;
+  // Cover-or-justify settlements recorded for this item-month (not
+  // reverted): their ids, and how much of the overspend each left open
+  // ("not covered yet") — still counted in unfunded − justified.amount.
+  settlement: { ids: string[]; reason: string; open: number; discoveredLater: boolean } | null;
   // Planned items only — the household marked it closed. Leftover on a
   // closed item is money that can be reallocated right now.
   closed: boolean;
@@ -193,6 +198,9 @@ export interface MonthBudgetInput {
   })[];
   transfers: (Pick<FirestoreTransfer, 'id' | 'fromAccountId' | 'amount' | 'charges' | 'kind' | 'bucketItem'> & { month: string })[];
   allocations: FirestoreAllocation[];
+  // This month's overspend settlements (FirestoreOverspendJustification);
+  // reverted ones are ignored. Optional so older callers/tests still work.
+  justifications?: FirestoreOverspendJustification[];
   accountCurrency: Map<string, string>;
   categories: Map<string, { name: string; transactionType: 'Expense' | 'Income' | 'Savings' }>;
   baseCurrency: string;
@@ -257,6 +265,7 @@ export function buildMonthBudget(input: MonthBudgetInput): MonthBudget {
         status: 'on',
         unfunded: 0,
         justified: null,
+        settlement: null,
         closed: kind === 'Planned' && item.completed,
         transactionIds: [],
         transferIds: [],
@@ -315,6 +324,8 @@ export function buildMonthBudget(input: MonthBudgetInput): MonthBudget {
   // Allocations. Pool endpoints only count toward the allocation's own month.
   let poolDelta = 0;
   for (const allocation of input.allocations) {
+    // Undone moves stay stored (the audit trail) but no longer count.
+    if (allocation.revertedAt) continue;
     const amount = toDisplay(allocation.amount, allocation.currency);
     if (allocation.from.kind === 'item') {
       const entry = itemsByKey.get(itemMonthKey(allocation.from.itemId, allocation.from.month));
@@ -336,6 +347,26 @@ export function buildMonthBudget(input: MonthBudgetInput): MonthBudget {
     }
   }
 
+  // Settlements: the part of an overspend paid for outside the plan
+  // (savings, a loan, extra income, ...) is explained; a "not covered yet"
+  // part stays open.
+  const settled = new Map<string, { ids: string[]; reason: string; note: string; explained: number; open: number; later: boolean }>();
+  for (const j of input.justifications ?? []) {
+    if (j.status === 'reverted' || j.month !== month) continue;
+    for (const share of j.items) {
+      const key = itemMonthKey(share.itemId, month);
+      if (!itemsByKey.has(key)) continue;
+      const current = settled.get(key) ?? { ids: [], reason: j.reason, note: j.note, explained: 0, open: 0, later: false };
+      current.ids.push(j.id);
+      current.reason = j.reason; // the latest settlement's reason wins
+      current.note = j.note || current.note;
+      current.explained += toDisplay(share.external, j.currency);
+      current.open += toDisplay(share.uncovered, j.currency);
+      current.later ||= j.awareness === 'discovered_later';
+      settled.set(key, current);
+    }
+  }
+
   for (const entry of items) {
     entry.allocatedIn = round2(entry.allocatedIn);
     entry.allocatedOut = round2(entry.allocatedOut);
@@ -350,11 +381,22 @@ export function buildMonthBudget(input: MonthBudgetInput): MonthBudget {
     } else {
       entry.status = entry.remaining > 0 ? 'under' : entry.remaining === 0 ? 'on' : 'over';
       entry.unfunded = round2(Math.max(0, -entry.remaining));
+      // Legacy per-item justification (monthJustifications) plus any
+      // settlement's explained part — together, never more than unfunded.
       const note = rawItems.get(entry.key)?.monthJustifications?.[month];
+      const settlement = settled.get(entry.key);
+      const explained = (note ? input.toDisplay(note.amount, note.currency) : 0) + (settlement?.explained ?? 0);
       entry.justified =
-        note && entry.unfunded > 0
-          ? { reason: note.reason, note: note.note, amount: round2(Math.min(entry.unfunded, input.toDisplay(note.amount, note.currency))) }
+        (note || settlement) && entry.unfunded > 0
+          ? {
+              reason: settlement?.reason ?? note!.reason,
+              note: settlement?.note || note?.note || '',
+              amount: round2(Math.min(entry.unfunded, explained)),
+            }
           : null;
+      entry.settlement = settlement
+        ? { ids: settlement.ids, reason: settlement.reason, open: round2(settlement.open), discoveredLater: settlement.later }
+        : null;
     }
   }
 

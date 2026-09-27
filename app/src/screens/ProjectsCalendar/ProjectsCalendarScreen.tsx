@@ -16,6 +16,7 @@ import { useLogic, HOUR_HEIGHT } from '@/src/logic/projectsCalendar/useLogic';
 import { ActionMenu } from '@/src/widgets/ActionMenu/ActionMenu';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { TaskCheckRow } from '@/src/widgets/TaskCheckRow/TaskCheckRow';
+import { DayTimeline } from './DayTimeline';
 import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import { useIsWeb } from '@/src/shared/hooks/useViewportMode';
 import styles from './ProjectsCalendarScreen.module.css';
@@ -241,22 +242,7 @@ export function ProjectsCalendarView({
                     <span className={styles.hourLine} />
                   </div>
                 ))}
-                <div className={styles.events}>
-                  {schedule.items.map((item) => (
-                    <TaskCheckRow
-                      key={item.id}
-                      task={item}
-                      timeOnly
-                      className={styles.event}
-                      style={{
-                        top: item.top,
-                        minHeight: item.height,
-                        left: `calc(${item.lane} * (100% / ${item.lanes}))`,
-                        width: `calc(100% / ${item.lanes} - ${item.lanes > 1 ? 6 : 0}px)`,
-                      }}
-                    />
-                  ))}
-                </div>
+                <DayTimeline items={schedule.items} groups={schedule.groups} />
                 {schedule.items.length === 0 && (
                   <p className={styles.emptyDay}>
                     Nothing scheduled.{' '}

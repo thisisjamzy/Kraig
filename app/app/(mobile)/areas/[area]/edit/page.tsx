@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { AreaEditScreen } from '@/src/screens/AreaEdit/AreaEditScreen';
+import { AreaFormScreen } from '@/src/screens/AreaForm/AreaFormScreen';
 
 export const metadata: Metadata = {
   title: 'Edit area · Dreda',
@@ -7,5 +7,6 @@ export const metadata: Metadata = {
 
 export default async function AreaEditPage({ params }: PageProps<'/areas/[area]/edit'>) {
   const { area } = await params;
-  return <AreaEditScreen areaId={decodeURIComponent(area)} />;
+  // The same form as New area, in edit mode.
+  return <AreaFormScreen areaId={decodeURIComponent(area)} />;
 }

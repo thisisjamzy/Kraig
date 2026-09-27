@@ -15,7 +15,7 @@ import { updateTaskQuadrant } from '@/src/shared/firestore/taskWrites';
 import { DEFAULT_PRIORITY } from '@/src/viewmodels/projects';
 import { QUADRANTS, priorityForQuadrant, taskQuadrant } from '@/src/viewmodels/eisenhower';
 import { effectiveTimeMode } from '@/src/viewmodels/scheduling';
-import { actionableTasks } from '@/src/shared/tasks/recurringTasks';
+import { actionableTasks, handledToday } from '@/src/shared/tasks/recurringTasks';
 import type { FirestoreProject, Priority, Quadrant, TimeMode } from '@/src/shared/firestore/types';
 
 export interface FocusTask {
@@ -30,6 +30,8 @@ export interface FocusTask {
   projectName: string | null;
   quadrant: Quadrant;
   overdue: boolean;
+  /** Ticked today — stays on the board, shown done, until tomorrow. */
+  done: boolean;
   sortKey: number;
 }
 
@@ -44,14 +46,17 @@ export function useLogic() {
 
   const [search, setSearch] = useState('');
 
-  // Pending tasks only — done and cancelled ones are off the board. A
-  // recurring task shows only today's and overdue dates, so a daily task
+  // Pending tasks, plus ones ticked done today — those stay on the board
+  // (shown done, and can be unticked) until tomorrow, rather than
+  // vanishing the moment they're ticked. Cancelled ones are off the board.
+  // A recurring task shows only today's and missed dates, so a daily task
   // doesn't fill a column.
   const tasks = useMemo(() => {
     const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const project = new Map(projectDocs.map((p) => [p.id, p]));
     return actionableTasks(taskDocs, now)
-      .filter((t) => !t.done && t.status !== 'Cancelled')
+      .filter((t) => (t.done ? handledToday(t, todayStart) : t.status !== 'Cancelled'))
       .map((t): FocusTask => {
         const startTime = t.startTime ? t.startTime.toDate() : null;
         const dueDate = t.dueDate ? t.dueDate.toDate() : null;
@@ -70,7 +75,8 @@ export function useLogic() {
           recurring: Boolean(t.seriesId),
           projectName: p?.name ?? null,
           quadrant: taskQuadrant({ quadrant: t.quadrant, priority, dueDate, startTime }, now),
-          overdue: end !== null && end < now,
+          overdue: !t.done && end !== null && end < now,
+          done: t.done,
           // Soonest first, undated last.
           sortKey: anchor?.getTime() ?? Number.MAX_SAFE_INTEGER,
         };
@@ -81,7 +87,8 @@ export function useLogic() {
     const q = search.trim().toLowerCase();
     const pending = tasks
       .filter((t) => !q || t.title.toLowerCase().includes(q) || (t.projectName ?? '').toLowerCase().includes(q))
-      .sort((a, b) => a.sortKey - b.sortKey);
+      // Done ones sink to the bottom of their column.
+      .sort((a, b) => Number(a.done) - Number(b.done) || a.sortKey - b.sortKey);
     return QUADRANTS.map((quadrant) => ({ ...quadrant, tasks: pending.filter((t) => t.quadrant === quadrant.id) }));
   }, [tasks, search]);
 

@@ -146,6 +146,16 @@ export function ReallocateScreen() {
             })}
           </div>
 
+          <p className={f.label}>Note (optional)</p>
+          <textarea
+            className={f.note}
+            rows={2}
+            value={r.note}
+            onChange={(e) => r.setNote(e.target.value)}
+            placeholder="Why you're moving it"
+            aria-label="Note"
+          />
+
           {r.summary && <p className={f.summary}>{r.summary}</p>}
           {(r.error || (r.problem && r.amountString)) && <p className={f.problem}>{r.error ?? r.problem}</p>}
 
