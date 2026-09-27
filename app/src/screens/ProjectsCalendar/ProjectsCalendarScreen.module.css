@@ -297,8 +297,6 @@
   transform: translateY(-50%);
 }
 
-/* Cards start just below their hour's guide line. */
-
 .hourLabel {
   flex-shrink: 0;
   width: 42px;
@@ -314,20 +312,7 @@
   background: color-mix(in srgb, var(--color-text-secondary) 16%, transparent);
 }
 
-.events {
-  position: absolute;
-  inset: 0 0 0 52px;
-}
 
-.event {
-  position: absolute;
-  z-index: 1;
-  margin-top: 4px;
-  /* A long task's card is taller than its content: hang the content from
-     the top (its start time), not float it in the middle. Same card,
-     only its alignment within the taller slot differs. */
-  align-items: flex-start;
-}
 
 .emptyDay {
   position: absolute;
