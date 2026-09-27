@@ -15,7 +15,7 @@ import { TRANSACTION_DEFAULTS, transactionFields } from './transactionFields';
 import type { PlanningData } from './useLogic';
 import type { ListQuery } from '@/src/shared/listQuery/engine';
 
-export function useHistoryTab(month: string, data: PlanningData, bucket: string | null) {
+export function useHistoryTab(month: string, data: PlanningData, bucket: string | null, category: string | null = null) {
   const { budget, transactionsById, transfersById, buckets, accounts, ctx } = data;
   const { data: categories } = useCategories();
   const bucketName = useMemo(() => new Map(buckets.map((b) => [b.id, b.name])), [buckets]);
@@ -41,10 +41,14 @@ export function useHistoryTab(month: string, data: PlanningData, bucket: string 
       }),
     [buckets, categories, accounts]
   );
-  const override = useMemo<ListQuery | null>(
-    () => (bucket ? { ...TRANSACTION_DEFAULTS, filters: [{ id: 'url-bucket', kind: 'rule', field: 'bucket', op: 'is', value: [bucket] }] } : null),
-    [bucket]
-  );
+  // A bucket or category in the URL (a bucket's "See all", an Insights
+  // tap) starts the list filtered to it.
+  const override = useMemo<ListQuery | null>(() => {
+    const filters: ListQuery['filters'] = [];
+    if (bucket) filters.push({ id: 'url-bucket', kind: 'rule', field: 'bucket', op: 'is', value: [bucket] });
+    if (category) filters.push({ id: 'url-category', kind: 'rule', field: 'category', op: 'is', value: [category] });
+    return filters.length ? { ...TRANSACTION_DEFAULTS, filters } : null;
+  }, [bucket, category]);
   const list = useListQuery<HistoryRow>({ listId: 'transactions-month', fields, defaults: TRANSACTION_DEFAULTS, override });
 
   return { rows, currency: ctx.display, fields, list };

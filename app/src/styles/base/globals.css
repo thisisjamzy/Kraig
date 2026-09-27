@@ -169,3 +169,12 @@ body {
   width: 0;
   height: 0;
 }
+
+/* Insights' "Share summary" prints just the page — not the app's fixed
+   header and bottom nav around it. */
+@media print {
+  body:has([data-print-page='insights']) nav,
+  body:has([data-print-page='insights']) header {
+    display: none !important;
+  }
+}

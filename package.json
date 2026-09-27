@@ -18,6 +18,7 @@
     "test:functions": "npm run build --prefix functions && firebase emulators:exec --only functions,firestore,auth --project dreda-emu-test \"node --test functions/lib/integration/*.test.js\"",
     "test:budget": "tsx --test test/monthBudget.test.ts",
     "test:calendar": "tsx --test test/dayLayout.test.ts",
+    "test:insights": "tsx --test test/financeInsights.test.ts test/keyCharts.test.ts",
     "migrate:budgets-v2": "tsx scripts/migrate-budgets-v2.ts"
   },
   "devDependencies": {

@@ -15,7 +15,7 @@ import styles from './BottomNav.module.css';
 // so mobile and web can never drift apart on what Money mode contains.
 export const NAV_ITEMS = [
   { href: '/home', label: 'Home', icon: Home },
-  { href: '/statistics', label: 'Statistics', icon: PieChart },
+  { href: '/statistics', label: 'Insights', icon: PieChart },
   { href: '/budget', label: 'Budget', icon: SlidersHorizontal },
 ];
 

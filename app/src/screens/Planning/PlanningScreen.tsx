@@ -28,7 +28,8 @@ const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Se
 
 export function PlanningScreen({ defaultTab = 'budget' }: { defaultTab?: PlanningTab }) {
   const router = useRouter();
-  const { tab, setTab, month, setMonth, previousMonth, nextMonth, bucketFilter, setBucketFilter, data } = useLogic(defaultTab);
+  const { tab, setTab, month, setMonth, previousMonth, nextMonth, bucketFilter, setBucketFilter, categoryFilter, clearFilters, data } =
+    useLogic(defaultTab);
   const [pickerYear, setPickerYear] = useState<number | null>(null);
   const [planPicker, setPlanPicker] = useState(false);
   const [year, monthNum] = month.split('-').map(Number);
@@ -76,7 +77,7 @@ export function PlanningScreen({ defaultTab = 'budget' }: { defaultTab?: Plannin
         <div key={tab} className={tabStyles.fade}>
           {tab === 'budget' && <BudgetTab month={month} data={data} />}
           {tab === 'payments' && <PaymentsTab month={month} data={data} onMonth={setMonth} bucket={bucketFilter} setBucket={setBucketFilter} />}
-          {tab === 'history' && <HistoryTab month={month} data={data} bucket={bucketFilter} setBucket={setBucketFilter} />}
+          {tab === 'history' && <HistoryTab month={month} data={data} bucket={bucketFilter} category={categoryFilter} onClearFilters={clearFilters} />}
         </div>
       )}
 
