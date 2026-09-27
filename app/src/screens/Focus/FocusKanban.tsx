@@ -32,7 +32,7 @@ function rowTask(task: FocusTask): TaskCheckRowTask {
     id: task.id,
     title: task.title,
     priority: task.priority,
-    done: false,
+    done: task.done,
     startTime: task.startTime,
     dueDate: task.dueDate,
     allDay: task.allDay,

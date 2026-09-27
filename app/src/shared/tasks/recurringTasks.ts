@@ -160,11 +160,29 @@ function endOfDay(d: Date) {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
 }
 
+/** Ticked done (or cancelled) today — or just now, before the server's
+ * timestamp has come back (a pending serverTimestamp reads as null). */
+export function handledToday(task: Pick<TaskItem, 'done' | 'status' | 'completedAt' | 'cancelledAt'>, todayStart: Date): boolean {
+  const at = task.done ? task.completedAt : task.status === 'Cancelled' ? task.cancelledAt : undefined;
+  if (at === undefined) return false;
+  return !at || at.toDate() >= todayStart;
+}
+
+function isHandled(o: TaskItem) {
+  return o.done || o.status === 'Cancelled';
+}
+
 /**
- * For undated lists: one-off tasks untouched; each series as today's
- * occurrences (any status — a ticked one stays listed, like one-off tasks
- * do) plus pending ones from the last OVERDUE_DAYS, and — with
- * includeUpcoming — its next date when nothing is due today.
+ * For undated lists: one-off tasks untouched; each series as:
+ *   - today's occurrences, whatever their status (a ticked one stays
+ *     listed, like one-off tasks do);
+ *   - missed (pending) ones from the last OVERDUE_DAYS — only those after
+ *     the latest date already done or cancelled: completing a later date
+ *     means you're caught up, so older misses stop resurfacing one by one
+ *     (they stay pending in the data, so Insights still counts them);
+ *   - past dates ticked today, shown done, so a tick never makes the row
+ *     vanish and can be undone;
+ *   - with includeUpcoming, its next date when nothing is due today.
  */
 export function actionableTasks(
   tasks: FirestoreTask[],
@@ -179,9 +197,14 @@ export function actionableTasks(
       out.push(task);
       continue;
     }
-    const recent = occurrencesInRange(task, addDays(todayStart, -OVERDUE_DAYS), todayEnd).filter((o) => {
+    const window = occurrencesInRange(task, addDays(todayStart, -OVERDUE_DAYS), todayEnd);
+    // The latest date (today's included) already done or cancelled.
+    const caughtUpTo = Math.max(-Infinity, ...window.filter(isHandled).map((o) => anchorMs(o) ?? -Infinity));
+    const recent = window.filter((o) => {
       const at = anchorMs(o) ?? 0;
-      return at >= todayStart.getTime() || (!o.done && o.status !== 'Cancelled');
+      if (at >= todayStart.getTime()) return true;
+      if (isHandled(o)) return handledToday(o, todayStart);
+      return at > caughtUpTo;
     });
     out.push(...recent);
     const hasToday = recent.some((o) => (anchorMs(o) ?? 0) >= todayStart.getTime());
