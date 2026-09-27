@@ -10,8 +10,10 @@ const KEY = 'dreda.navHistory';
 const MAX = 50;
 
 // Create/edit flows: /tasks/new, /projects/x/edit, /add-transaction,
-// /edit-transaction/x, /create-category, /add-bucket-item/x, …
-const FORM_PAGE = /(^|\/)(new|edit)(\/|$)|^\/(add|edit|create)-/;
+// /edit-transaction/x, /create-category, /add-bucket-item/x, and the
+// action forms /budget/cover, /budget/reallocate, /debts/x/plan and
+// /debts/x/repay.
+const FORM_PAGE = /(^|\/)(new|edit)(\/|$)|^\/(add|edit|create)-|^\/budget\/(cover|reallocate)(\/|$)|^\/debts\/[^/]+\/(plan|repay)(\/|$)/;
 
 export function isFormPage(url: string): boolean {
   return FORM_PAGE.test(url.split('?')[0]);
@@ -40,14 +42,25 @@ function getStack(): string[] {
   return stack;
 }
 
-export function recordVisit(url: string) {
+/**
+ * `traversal` is true when the browser moved through its own history (its
+ * back button, a back gesture, router.back()). Only then is arriving at the
+ * entry below the top a "back" that pops. A push to that same page — saving
+ * a form and going to the page it edits — is a new visit: the form is still
+ * in the browser's history behind it, so treating it as a back would later
+ * send a real browser back into the form.
+ */
+export function recordVisit(url: string, traversal = false) {
   const s = getStack();
   if (s[s.length - 1] === url) return;
-  // Arriving at the entry just below the top is a "back" (the browser's own
-  // back button, or router.back()) — pop instead of pushing a duplicate.
-  if (s[s.length - 2] === url) s.pop();
+  if (traversal && s[s.length - 2] === url) s.pop();
   else s.push(url);
   save(s);
+}
+
+/** Tests only: forget everything. */
+export function resetNavHistory() {
+  stack = [];
 }
 
 /**
