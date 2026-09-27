@@ -10,8 +10,9 @@ import { Check, Layers, Plus } from 'lucide-react';
 import { useBudgetTab } from '@/src/logic/planning/useBudgetTab';
 import type { PlanningData } from '@/src/logic/planning/useLogic';
 import { ActionMenu } from '@/src/widgets/ActionMenu/ActionMenu';
-import { money, signedMoney, type BucketCard } from '@/src/viewmodels/planning';
-import { Bar, IconCircle, Pair, PromptStrip } from './PlanningParts';
+import { money, signedMoney } from '@/src/viewmodels/planning';
+import { Bar, IconCircle, Pair } from './PlanningParts';
+import { BucketCardView } from './BucketCardView';
 import styles from './Planning.module.css';
 import tab from './PlanningTabs.module.css';
 
@@ -54,44 +55,6 @@ function SummaryRow({
         </div>
       )}
     </div>
-  );
-}
-
-function BucketCardView({ card, currency, month }: { card: BucketCard; currency: string; month: string }) {
-  // Red only while it still needs action — a settled overspend reads as a
-  // grey "justified" tag instead.
-  const flagged = card.prompt?.kind === 'over' || card.prompt?.kind === 'uncovered';
-  const over = card.overflow > 0 && flagged;
-  const plannedMark = over && card.spent > 0 ? (card.planned / card.spent) * 100 : null;
-  return (
-    <article className={tab.bucketCard}>
-      <Link href={`/budget/bucket/${card.id}?month=${month}`} className={tab.bucketBody}>
-        <div className={tab.bucketTop}>
-          <IconCircle type={card.income ? 'Income' : undefined} />
-          <span className={tab.bucketName}>
-            <span>{card.name}</span>
-            <span className={tab.bucketMeta}>
-              {card.itemCount} {card.itemCount === 1 ? 'item' : 'items'}
-            </span>
-          </span>
-          <Pair spent={card.spent} planned={card.planned} />
-        </div>
-        <div className={tab.bucketBar}>
-          <Bar spent={card.spent} planned={card.planned} over={over} />
-          {plannedMark !== null && <span className={tab.planMark} style={{ left: `${plannedMark}%` }} aria-hidden />}
-        </div>
-        {card.overflow <= 0 && (
-          <span className={tab.bucketAvailable}>
-            {card.income
-              ? card.available > 0
-                ? `${money(card.available)} ${currency} still expected`
-                : 'All received'
-              : `Available ${money(card.available)} ${currency}`}
-          </span>
-        )}
-      </Link>
-      {card.prompt && <PromptStrip prompt={card.prompt} currency={currency} month={month} bucketId={card.id} />}
-    </article>
   );
 }
 

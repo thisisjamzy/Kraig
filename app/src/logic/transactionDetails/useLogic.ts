@@ -5,8 +5,9 @@
 // toward, the note — and, for a transaction not tied to any bucket, the
 // "Assign to bucket" picker (?assign=1 opens straight on it).
 
+import { recordedAt } from '@/src/shared/time/recordedAt';
 import { useMemo, useState } from 'react';
-import { query, where } from 'firebase/firestore';
+import { query } from 'firebase/firestore';
 import { useFirestoreCollection, useFirestoreDoc } from '@/src/shared/firestore/hooks';
 import { bucketsRef, transactionRef, transferRef } from '@/src/shared/firestore/refs';
 import { useAccounts, useCategories, useCurrencyContext } from '@/src/shared/firestore/queries';
@@ -43,7 +44,8 @@ export function useLogic(id: string) {
   const { data: categories } = useCategories();
   const { ctx } = useCurrencyContext();
   const { data: buckets } = useFirestoreCollection<FirestoreBucket>(
-    useMemo(() => (uid ? query(bucketsRef(uid), where('archived', '==', false)) : null), [uid])
+    // Archived ones too, so a payment still shows the bucket it paid.
+    useMemo(() => (uid ? query(bucketsRef(uid)) : null), [uid])
   );
   const { itemsByBucket } = useBucketLineItemsByBucket(buckets);
 
@@ -81,6 +83,8 @@ export function useLogic(id: string) {
     flow: 'in' | 'out' | 'move';
     amount: number;
     date: Date;
+    /** False when only the day is known (no time recorded). */
+    timeKnown: boolean;
     type: string;
     category: string;
     method: string;
@@ -94,7 +98,7 @@ export function useLogic(id: string) {
       note: transaction.description,
       flow: transaction.direction === 'Inflow' ? 'in' : 'out',
       amount: toDisplay(ctx, transaction.amount, currency),
-      date: transaction.date.toDate(),
+      ...recordedAt(transaction.date, transaction.createdAt),
       type: transaction.type,
       category,
       method: account.get(transaction.accountId)?.name ?? '—',
@@ -107,7 +111,7 @@ export function useLogic(id: string) {
       note: transferDoc.description || transferDoc.notes || '',
       flow: 'move',
       amount: toDisplay(ctx, transferDoc.amount, currency),
-      date: transferDoc.date.toDate(),
+      ...recordedAt(transferDoc.date, transferDoc.createdAt),
       type: 'Transfer',
       category: transferDoc.kind,
       method: `${account.get(transferDoc.fromAccountId)?.name ?? ''} → ${account.get(transferDoc.toAccountId)?.name ?? ''}`,

@@ -124,7 +124,8 @@ export interface PromptContext {
  * LEFTOVER_DAYS days, or when every item in it is closed.
  */
 export function promptFor(items: ItemMonth[], ctx: PromptContext): Prompt | null {
-  const spending = items.filter((i) => i.type !== 'Income');
+  // Archived: history only, nothing to act on.
+  const spending = items.filter((i) => i.type !== 'Income' && !i.archived);
   if (!spending.length) return null;
   const open = spending.filter((i) => unexplained(i) > 0);
   const over = round2(open.reduce((s, i) => s + unexplained(i), 0));
@@ -138,7 +139,8 @@ export function promptFor(items: ItemMonth[], ctx: PromptContext): Prompt | null
       reason: reasonLabel(justified[0].settlement?.reason ?? justified[0].justified!.reason).toLowerCase(),
     };
   }
-  const leftover = round2(spending.reduce((s, i) => s + Math.max(0, i.remaining), 0));
+  // Net: an item over its estimate uses up a sibling's leftover first.
+  const leftover = round2(Math.max(0, spending.reduce((s, i) => s + i.remaining, 0)));
   if (leftover <= 0) return null;
   const phase = monthPhase(ctx.month, ctx.today);
   const late = phase === 'past' || (phase === 'current' && (daysLeftIn(ctx.month, ctx.today) ?? 99) < LEFTOVER_DAYS);
@@ -149,6 +151,7 @@ export function promptFor(items: ItemMonth[], ctx: PromptContext): Prompt | null
 export interface BucketCard {
   id: string;
   name: string;
+  archived: boolean;
   /** Income buckets read "received / planned" and never prompt. */
   income: boolean;
   itemCount: number;
@@ -171,6 +174,7 @@ export function bucketCard(group: BucketGroup, ctx: PromptContext): BucketCard {
   return {
     id: group.bucketId,
     name: group.name,
+    archived: group.archived,
     income,
     itemCount: group.items.length,
     spent: round2(group.actual),

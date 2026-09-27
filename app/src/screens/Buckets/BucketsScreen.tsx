@@ -19,10 +19,11 @@ import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { BucketsHeader } from '@/src/widgets/BucketsHeader/BucketsHeader';
 import { Modal } from '@/src/widgets/Modal/Modal';
-import { bucketIconTint, bucketInitial } from '@/src/viewmodels/bucketIcons';
 import { useIsWeb } from '@/src/shared/hooks/useViewportMode';
 import styles from './BucketsScreen.module.css';
 import webStyles from './BucketsScreen.web.module.css';
+import { BucketCardView } from '@/src/screens/Planning/BucketCardView';
+import p from '@/src/screens/Planning/Planning.module.css';
 
 export function formatAmount(value: number) {
   return new Intl.NumberFormat('en-US').format(value);
@@ -39,6 +40,8 @@ export function BucketsScreen() {
   const {
     currency,
     buckets,
+    cards,
+    viewedMonth,
     allBucketsCount,
     kindFilter,
     setKindFilter,
@@ -95,19 +98,6 @@ export function BucketsScreen() {
 
   const hasSearch = searchQuery.trim().length > 0;
   const searchEnabled = allBucketsCount > SEARCH_ENABLED_ABOVE;
-
-  const typeBadgeLabel: Record<'Expense' | 'Income' | 'Savings' | 'Transfer', string> = {
-    Expense: strings.buckets.typeBadgeExpense,
-    Income: strings.buckets.typeBadgeIncome,
-    Savings: strings.buckets.typeBadgeSavings,
-    Transfer: strings.buckets.typeBadgeTransfer,
-  };
-  const typeBadgeClass: Record<'Expense' | 'Income' | 'Savings' | 'Transfer', string> = {
-    Expense: styles.typeBadgeExpense,
-    Income: styles.typeBadgeIncome,
-    Savings: styles.typeBadgeSavings,
-    Transfer: styles.typeBadgeTransfer,
-  };
 
   return (
     <div className={`${styles.page} ${isWeb ? webStyles.page : ''}`}>
@@ -247,6 +237,10 @@ export function BucketsScreen() {
             </button>
           </div>
 
+          <Link href="/settings/archived-buckets" className={styles.archivedLink}>
+            Archived buckets
+          </Link>
+
           {openGroupKey && (
             <Modal title={groupLabel[openGroupKey]} onClose={closeGroupModal}>
               {openGroupItems.length === 0 ? (
@@ -256,7 +250,7 @@ export function BucketsScreen() {
                   {openGroupItems.map((item) => (
                     <Link
                       key={item.id}
-                      href={`/buckets/${item.goalId}`}
+                      href={`/budget/bucket/${item.goalId}?month=${viewedMonth}`}
                       className={styles.groupModalRow}
                       onClick={closeGroupModal}
                     >
@@ -331,42 +325,11 @@ export function BucketsScreen() {
           {buckets.length === 0 ? (
             <p className={styles.emptyText}>{hasSearch ? strings.buckets.emptySearch : strings.buckets.emptyBuckets}</p>
           ) : (
-            <div className={`${styles.exploreList} ${isWeb ? webStyles.exploreList : ''}`}>
-              {buckets.map((bucket) => (
-                <div
-                  key={bucket.id}
-                  role="button"
-                  tabIndex={0}
-                  className={`${styles.exploreRow} ${isWeb ? webStyles.exploreRow : ''}`}
-                  onClick={() => router.push(`/buckets/${bucket.id}`)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
-                      event.preventDefault();
-                      router.push(`/buckets/${bucket.id}`);
-                    }
-                  }}
-                >
-                  <div className={styles.exploreRowTop}>
-                    <span className={styles.exploreRowIcon} style={{ background: bucketIconTint(bucket.name) }}>
-                      {bucketInitial(bucket.name)}
-                    </span>
-                    <span className={styles.exploreRowName}>{bucket.name}</span>
-                    <span className={`${styles.typeBadge} ${typeBadgeClass[bucket.type]}`}>{typeBadgeLabel[bucket.type]}</span>
-                    <ChevronRight size={18} strokeWidth={2} className={styles.exploreRowChevron} />
-                  </div>
-                  <div className={styles.exploreRowBottom}>
-                    <span className={styles.exploreRowAmount}>
-                      {formatAmount(bucket.completed)} {strings.buckets.completedOfSuffix} {formatAmount(bucket.total)} {currency}
-                      {bucket.scope === 'month' && ` · ${strings.buckets.thisMonthSuffix}`}
-                    </span>
-                    <div className={styles.exploreRowProgress}>
-                      <div className={styles.exploreRowProgressTrack}>
-                        <div className={styles.exploreRowProgressFill} style={{ width: `${bucket.percent}%` }} />
-                      </div>
-                      <span className={styles.exploreRowPercent}>{bucket.percent}%</span>
-                    </div>
-                  </div>
-                </div>
+            // The same bucket card as Planning's Budget tab — opens the same
+            // bucket details page, for the month browsed above.
+            <div className={`${p.tokens} ${styles.cardList} ${isWeb ? webStyles.exploreList : ''}`}>
+              {cards.map((card) => (
+                <BucketCardView key={card.id} card={card} currency={currency} month={viewedMonth} />
               ))}
             </div>
           )}

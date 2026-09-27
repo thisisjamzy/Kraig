@@ -751,3 +751,31 @@
   font-weight: 700;
   opacity: 0.8;
 }
+
+/* Shown on an archived bucket, with the way back. */
+.archivedBanner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.archivedBanner span {
+  flex: 1;
+}
+
+.archivedBanner button {
+  min-height: 36px;
+  padding: 0 var(--space-md);
+  border: none;
+  border-radius: var(--radius-full);
+  background: var(--color-brand);
+  color: #ffffff;
+  font-family: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}

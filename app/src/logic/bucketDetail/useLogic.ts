@@ -20,6 +20,7 @@ import {
   deleteBucketLineItem,
   recordBucketLineItemPayment,
   archiveBucket as archiveBucketWrite,
+  restoreBucket as restoreBucketWrite,
   updateBucket,
   deleteBucket as deleteBucketWrite,
   toggleBucketLineItemSubItem,
@@ -529,6 +530,11 @@ export function useLogic(goalId: string) {
     }
   }
 
+  async function unarchiveBucket() {
+    if (!uid) return;
+    await restoreBucketWrite(uid, goalId);
+  }
+
   async function archiveBucket() {
     if (!uid) return;
     await archiveBucketWrite(uid, goalId);
@@ -554,6 +560,8 @@ export function useLogic(goalId: string) {
   }
 
   return {
+    archived: Boolean(bucket?.archived),
+    unarchiveBucket,
     bucket,
     isFixedBucket,
     currency,

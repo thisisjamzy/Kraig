@@ -38,7 +38,16 @@ export function useLogic() {
 
   const group = budget.buckets.find((g) => g.bucketId === bucketId) ?? null;
   const sourceItems = (group?.items ?? []).filter((i) => (!itemId || i.itemId === itemId) && i.type !== 'Income' && i.remaining > 0);
-  const pots: Need[] = sourceItems.sort((a, b) => b.remaining - a.remaining).map((i) => ({ key: i.key, amount: i.remaining }));
+  // Only the bucket's NET leftover can leave it: an item's spare money
+  // first covers a sibling that went over its estimate.
+  const netLeftover = Math.max(
+    0,
+    Math.round((group?.items ?? []).filter((i) => i.type !== 'Income').reduce((s, i) => s + i.remaining, 0) * 100) / 100
+  );
+  const pots: Need[] = takeFrom(
+    sourceItems.sort((a, b) => b.remaining - a.remaining).map((i) => ({ key: i.key, amount: i.remaining })),
+    netLeftover
+  );
   const total = Math.round(pots.reduce((s, p) => s + p.amount, 0) * 100) / 100;
   const nextMonth = addMonths(month, 1);
   // Only items that recur next month can roll over.

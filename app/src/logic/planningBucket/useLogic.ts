@@ -15,6 +15,8 @@ import { monthPayments } from '@/src/logic/planning/usePaymentsTab';
 import { buildAdjustments, type AdjustmentEntry } from '@/src/logic/planning/adjustments';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { revertAllocation, revertJustification, updateJustification } from '@/src/shared/firestore/overspend';
+import { closeBucketMonth, reopenBucketMonth } from '@/src/shared/firestore/bucketBudget';
+import { restoreBucket } from '@/src/shared/firestore/aggregation';
 import { showToast } from '@/src/widgets/Toast/Toast';
 import type { OverspendAvoidability, OverspendAwareness, OverspendReason } from '@/src/shared/firestore/types';
 
@@ -40,7 +42,11 @@ export function useLogic(bucketId: string) {
     prompt: promptFor([item], { month, today }),
     // Red only while part of the overspend is still unexplained.
     over: item.type !== 'Income' && unexplained(item) > 0,
-    justified: item.type !== 'Income' && item.remaining < 0 && unexplained(item) === 0,
+    // Its share of a real bucket overspend, since explained or covered.
+    justified: item.type !== 'Income' && item.unfunded > 0 && unexplained(item) === 0,
+    // Past its own amount, but the bucket's other items make up for it:
+    // a mis-estimate, not an overspend.
+    aboveEstimate: item.type !== 'Income' && item.remaining < 0 && item.unfunded === 0,
     needs: unexplained(item),
     // Net budget this item gave to others this month ("−8,000 moved").
     movedOut: Math.max(0, Math.round((item.allocatedOut - item.allocatedIn) * 100) / 100),
@@ -107,10 +113,36 @@ export function useLogic(bucketId: string) {
       .sort((a, b) => b.item.remaining - a.item.remaining)[0]?.item ?? group?.items[0] ?? null;
 
   const navigateBack = useGoBack();
+  // Closing the bucket for this month (with a note), or reopening it.
+  const spendingItems = (group?.items ?? []).filter((i) => i.type !== 'Income');
+  const net = Math.round(spendingItems.reduce((s, i) => s + i.remaining, 0) * 100) / 100;
+  async function closeBucket(note: string) {
+    const uid = user?.uid;
+    if (!uid) return;
+    await run(() => closeBucketMonth(uid, bucketId, month, note), 'Bucket closed.');
+  }
+  async function unarchiveBucket() {
+    const uid = user?.uid;
+    if (!uid) return;
+    await run(() => restoreBucket(uid, bucketId), 'Bucket unarchived.');
+  }
+  async function reopenBucket() {
+    const uid = user?.uid;
+    if (!uid) return;
+    await run(() => reopenBucketMonth(uid, bucketId, month), 'Bucket reopened.');
+  }
+
   return {
     month,
     currency: ctx.display,
     bucket,
+    closed: group?.closed ?? null,
+    netLeftover: Math.max(0, net),
+    netOver: Math.max(0, -net),
+    closeBucket,
+    reopenBucket,
+    archived: Boolean(bucket?.archived),
+    unarchiveBucket,
     card,
     items,
     category,

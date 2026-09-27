@@ -13,7 +13,8 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { AlertCircle, ArrowLeft, ArrowRight, MoreHorizontal, Pencil, Plus, Sparkles } from 'lucide-react';
+import { useState } from 'react';
+import { AlertCircle, Archive, ArrowLeft, ArrowRight, Lock, LockOpen, MoreHorizontal, Pencil, Plus, Sparkles } from 'lucide-react';
 import { useLogic } from '@/src/logic/planningBucket/useLogic';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { ActionMenu } from '@/src/widgets/ActionMenu/ActionMenu';
@@ -22,6 +23,7 @@ import { HistoryRowView, coverHref, reallocateHref } from '@/src/screens/Plannin
 import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import p from '@/src/screens/Planning/Planning.module.css';
 import { AdjustmentRow, AdjustmentSheet } from './Adjustments';
+import { CloseBucketSheet } from './CloseBucketSheet';
 import adj from './Adjustments.module.css';
 import styles from './PlanningBucketScreen.module.css';
 
@@ -52,6 +54,7 @@ export function PlanningBucketScreen({ bucketId }: { bucketId: string }) {
  * rendered with sample data. */
 export function PlanningBucketView({ bucketId, b }: { bucketId: string; b: ReturnType<typeof useLogic> }) {
   const router = useRouter();
+  const [closing, setClosing] = useState(false);
   const card = b.card;
   const currency = b.currency;
 
@@ -105,6 +108,9 @@ export function PlanningBucketView({ bucketId, b }: { bucketId: string; b: Retur
               triggerIcon={<MoreHorizontal size={18} strokeWidth={2} />}
               items={[
                 { key: 'add', label: 'Add item', icon: <Plus size={14} strokeWidth={2} />, onSelect: () => router.push(`/add-bucket-item/${bucketId}`) },
+                b.closed
+                  ? { key: 'reopen', label: 'Reopen bucket', icon: <LockOpen size={14} strokeWidth={2} />, onSelect: () => b.reopenBucket() }
+                  : { key: 'close', label: `Close bucket for ${monthTitle(b.month)}`, icon: <Lock size={14} strokeWidth={2} />, onSelect: () => setClosing(true) },
                 {
                   key: 'history',
                   label: 'All transactions',
@@ -121,11 +127,38 @@ export function PlanningBucketView({ bucketId, b }: { bucketId: string; b: Retur
       <h1 className={p.heroTitle}>{card.name}</h1>
       <p className={p.heroSub}>{monthTitle(b.month)}</p>
 
+      {b.archived && (
+        <div className={styles.closedBanner}>
+          <Archive size={15} strokeWidth={2.25} aria-hidden />
+          <span className={styles.closedText}>
+            <strong>Archived</strong>
+            <span>Its recorded payments still count. Nothing new is expected from it.</span>
+          </span>
+          <button type="button" className={p.textButton} onClick={() => b.unarchiveBucket()}>
+            Unarchive
+          </button>
+        </div>
+      )}
+
+      {b.closed && (
+        <div className={styles.closedBanner}>
+          <Lock size={15} strokeWidth={2.25} aria-hidden />
+          <span className={styles.closedText}>
+            <strong>Closed for {monthTitle(b.month)}</strong>
+            {b.closed.note ? <span>“{b.closed.note}”</span> : <span>No note added.</span>}
+          </span>
+          <button type="button" className={p.textButton} onClick={() => b.reopenBucket()}>
+            Reopen
+          </button>
+        </div>
+      )}
+
       {/* 1. Segment bar and legend */}
       <div className={styles.segments}>
         {card.items.map((item, i) => {
           const share = (Math.max(0, item.available) / total) * 100;
-          const isOver = item.type !== 'Income' && item.remaining < 0;
+          // Red only for a real overspend (the bucket as a whole went over).
+          const isOver = item.type !== 'Income' && item.unfunded > 0;
           return (
             <button
               key={item.key}
@@ -144,7 +177,7 @@ export function PlanningBucketView({ bucketId, b }: { bucketId: string; b: Retur
         {legend.map((item, i) => (
           <li key={item.key}>
             <button type="button" onClick={() => scrollToItem(item.itemId)}>
-              <span className={styles.dot} style={{ background: item.type !== 'Income' && item.remaining < 0 ? 'var(--p-red)' : shade(i) }} aria-hidden />
+              <span className={styles.dot} style={{ background: item.type !== 'Income' && item.unfunded > 0 ? 'var(--p-red)' : shade(i) }} aria-hidden />
               <span className={styles.legendName}>{item.name}</span>
               <span className={styles.legendPair}>
                 <strong>{money(item.actual)}</strong> / {money(item.available)}
@@ -259,7 +292,7 @@ export function PlanningBucketView({ bucketId, b }: { bucketId: string; b: Retur
         </Link>
       </div>
       <div className={styles.itemGrid}>
-        {b.items.map(({ item, over: itemOver, justified: itemJustified, movedOut }) => (
+        {b.items.map(({ item, over: itemOver, justified: itemJustified, aboveEstimate, movedOut }) => (
           <Link
             key={item.key}
             id={`item-${item.itemId}`}
@@ -271,7 +304,9 @@ export function PlanningBucketView({ bucketId, b }: { bucketId: string; b: Retur
               {item.type === 'Income'
                 ? `${money(item.actual)} in`
                 : item.remaining < 0
-                  ? `${money(-item.remaining)} over`
+                  ? aboveEstimate
+                    ? `${money(-item.remaining)} above estimate`
+                    : `${money(-item.remaining)} over`
                   : `${money(item.remaining)} left`}
             </span>
             <span className={styles.itemOf}>
@@ -283,7 +318,7 @@ export function PlanningBucketView({ bucketId, b }: { bucketId: string; b: Retur
             </span>
             <span className={styles.itemChips}>
               <span className={styles.statusChip} data-tone={itemOver ? 'over' : undefined}>
-                {itemOver ? 'OVER' : itemJustified ? 'JUSTIFIED' : item.kind === 'Fixed' ? 'FIXED' : 'PLANNED'}
+                {itemOver ? 'OVER' : itemJustified ? 'JUSTIFIED' : aboveEstimate ? 'ABOVE ESTIMATE' : item.kind === 'Fixed' ? 'FIXED' : 'PLANNED'}
               </span>
               <span className={styles.categoryChip}>{item.categoryName}</span>
             </span>
@@ -302,6 +337,21 @@ export function PlanningBucketView({ bucketId, b }: { bucketId: string; b: Retur
             ))}
           </div>
         </>
+      )}
+      {closing && (
+        <CloseBucketSheet
+          month={monthTitle(b.month)}
+          currency={currency}
+          leftover={b.netLeftover}
+          over={b.netOver}
+          busy={b.adjustmentBusy}
+          error={b.adjustmentError}
+          onClose={() => setClosing(false)}
+          onConfirm={async (note) => {
+            await b.closeBucket(note);
+            setClosing(false);
+          }}
+        />
       )}
       {b.openAdjustment && (
         <AdjustmentSheet

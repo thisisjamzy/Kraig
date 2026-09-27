@@ -160,8 +160,9 @@ export function useLogic() {
     );
   }
 
+  // The same bucket details page the Budget tab and Buckets page open.
   function openBucket(goalId: string) {
-    router.push(`/buckets/${goalId}`);
+    router.push(`/budget/bucket/${goalId}`);
   }
 
   return {

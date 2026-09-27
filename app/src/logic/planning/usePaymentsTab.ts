@@ -66,7 +66,11 @@ export function frequencyLabel(recurrence: { frequency: Frequency; interval?: nu
 }
 
 /** Every scheduled payment in the month, with its status. */
-export function monthPayments(month: string, data: PlanningData, categories: FirestoreCategory[]): MonthPayment[] {
+export function monthPayments(
+  month: string,
+  data: Pick<PlanningData, 'budget' | 'buckets' | 'itemsByBucket' | 'accounts' | 'ctx'>,
+  categories: FirestoreCategory[]
+): MonthPayment[] {
   const { budget, buckets, itemsByBucket, accounts, ctx } = data;
   const [y, m] = month.split('-').map(Number);
   const monthStart = new Date(y, m - 1, 1);
@@ -98,11 +102,21 @@ export function monthPayments(month: string, data: PlanningData, categories: Fir
       const native = item.accountId ? (accountCurrency.get(item.accountId) ?? bucket.currency) : bucket.currency;
       const amount = toDisplay(ctx, item.amount, native);
       const entry = budget.itemsByKey.get(itemMonthKey(item.id, month));
-      const closed = isItemClosed(item, bucket.kind);
-      const paidCount = closed ? dates.length : entry && amount > 0 ? Math.floor((entry.actual + 0.01) / amount) : 0;
+      // Closed (the item, or its bucket for this month): nothing more is due.
+      const closed = isItemClosed(item, bucket.kind) || Boolean(entry?.closed);
+      // A payment counts as paid once anything is recorded against it —
+      // the amount may differ from the plan (a mis-estimate, not a missed
+      // payment). Several records pay several dates; a large one can pay
+      // more than one.
+      const records = entry ? entry.transactionIds.length + entry.transferIds.length : 0;
+      const byAmount = entry && amount > 0 ? Math.floor((entry.actual + 0.01) / amount) : 0;
+      const paidCount = closed ? dates.length : Math.min(dates.length, Math.max(records, byAmount));
       const cat = item.categoryId ? category.get(item.categoryId) : undefined;
       dates.forEach((due, index) => {
         const paid = index < paidCount;
+        // An archived bucket keeps its payment history, but nothing more is
+        // due from it.
+        if (bucket.archived && !paid) return;
         out.push({
           id: `${item.id}@${dayKey(due)}`,
           bucketId: bucket.id,

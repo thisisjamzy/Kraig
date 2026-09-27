@@ -1,11 +1,13 @@
 /* Planning — the Budget section's shared look, used by the Planning page
    and every screen it opens (bucket, item, transaction details, the cover
-   and reallocate flows). Brand tokens are defined once on .page (and again
+   and reallocate flows). Brand tokens are defined once on .tokens (and again
    for dark mode). One accent per card: red only for problems, blue for
    actions and positive states. Black appears only on the summary and
    calendar cards. */
 
-.page {
+/* Planning's colour tokens — on the page, and on anything that shows
+   Planning pieces elsewhere (the Buckets page's bucket cards). */
+.tokens {
   --p-blue: #3b63f0;
   --p-blue-deep: #243a8c;
   --p-navy: #1c1f3a;
@@ -34,6 +36,10 @@
   --lq-primary: var(--p-blue);
   --screen-header-bg: var(--p-bg);
   --screen-header-color: var(--p-navy);
+}
+
+.page {
+  composes: tokens;
   min-height: 100%;
   padding: 8px var(--space-lg) 120px;
   background: var(--p-bg);

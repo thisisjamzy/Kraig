@@ -22,7 +22,7 @@ import {
   updateDoc,
 } from 'firebase/firestore';
 import { getFirebaseFirestore } from '@/src/shared/config/firebaseClient';
-import { accountRef, allocationRef, bucketLineItemRef } from './refs';
+import { accountRef, allocationRef, bucketLineItemRef, bucketRef } from './refs';
 import { convert, round2, type CurrencyContext } from './currency';
 import { writeTransferContribution } from './aggregation';
 import type { AllocationEndpoint, AllocationReason, JustificationReason } from './types';
@@ -212,6 +212,25 @@ export async function justifyItemMonth(
       justification === null
         ? deleteField()
         : { ...justification, amount: round2(justification.amount), at: Timestamp.now() },
+    updatedAt: serverTimestamp(),
+  });
+}
+
+/**
+ * Closes a bucket for a month — the household is done with it then: its
+ * items count as closed (the leftover can be moved on right away, and no
+ * more payments are expected), with an optional note on how it went.
+ */
+export async function closeBucketMonth(uid: string, bucketId: string, month: string, note: string) {
+  await updateDoc(bucketRef(uid, bucketId), {
+    [`closedMonths.${month}`]: { at: Timestamp.now(), note: note.trim() },
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function reopenBucketMonth(uid: string, bucketId: string, month: string) {
+  await updateDoc(bucketRef(uid, bucketId), {
+    [`closedMonths.${month}`]: deleteField(),
     updatedAt: serverTimestamp(),
   });
 }

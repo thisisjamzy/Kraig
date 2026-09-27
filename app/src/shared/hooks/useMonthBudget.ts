@@ -40,7 +40,9 @@ export function useMonthBudget(monthOrNull: string | null) {
   const month = monthOrNull ?? '';
 
   const { data: buckets, loading: bucketsLoading } = useFirestoreCollection<FirestoreBucket>(
-    useMemo(() => (uid ? query(bucketsRef(uid), where('archived', '==', false)) : null), [uid])
+    // Archived ones too: buildMonthBudget keeps their items only where
+    // something was recorded that month, so archiving hides no real money.
+    useMemo(() => (uid ? query(bucketsRef(uid)) : null), [uid])
   );
   const { itemsByBucket, loading: itemsLoading } = useBucketLineItemsByBucket(buckets);
 

@@ -55,7 +55,7 @@ export function TransactionDetailsScreen({ id }: { id: string }) {
           <section className={p.spec}>
             <SpecRow>
               <SpecCell label="Date" value={`${weekdayDayMonth(v.date)} ${v.date.getFullYear()}`} />
-              <SpecCell label="Time" value={v.date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} />
+              <SpecCell label="Time" value={v.timeKnown ? v.date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : 'Not recorded'} />
             </SpecRow>
             <SpecRow>
               <SpecCell label="Type" value={v.type} />

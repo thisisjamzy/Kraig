@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, Pencil, Archive, Trash2, CheckCircle2, Wallet, Plus, ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronLeft, Pencil, Archive, ArchiveRestore, Trash2, CheckCircle2, Wallet, Plus, ChevronDown, ChevronUp } from 'lucide-react';
 import { Modal } from '@/src/widgets/Modal/Modal';
 import { ConfirmDialog } from '@/src/widgets/ConfirmDialog/ConfirmDialog';
 import { ActionMenu } from '@/src/widgets/ActionMenu/ActionMenu';
@@ -91,6 +91,8 @@ export function BucketDetailScreen({ goalId }: { goalId: string }) {
     handleRecordPayment,
 
     archiveBucket,
+    archived,
+    unarchiveBucket,
     deleteBucket,
     goBack,
     loading,
@@ -127,13 +129,20 @@ export function BucketDetailScreen({ goalId }: { goalId: string }) {
                   icon: <Pencil size={16} strokeWidth={1.75} />,
                   onSelect: openBucketEdit,
                 },
-                {
-                  key: 'archive',
-                  label: strings.bucketDetail.archiveBucket,
-                  icon: <Archive size={16} strokeWidth={1.75} />,
-                  onSelect: () => setConfirmArchive(true),
-                  danger: true,
-                },
+                archived
+                  ? {
+                      key: 'unarchive',
+                      label: 'Unarchive bucket',
+                      icon: <ArchiveRestore size={16} strokeWidth={1.75} />,
+                      onSelect: () => unarchiveBucket(),
+                    }
+                  : {
+                      key: 'archive',
+                      label: strings.bucketDetail.archiveBucket,
+                      icon: <Archive size={16} strokeWidth={1.75} />,
+                      onSelect: () => setConfirmArchive(true),
+                      danger: true,
+                    },
                 {
                   key: 'delete',
                   label: strings.bucketDetail.deleteBucket,
@@ -148,6 +157,16 @@ export function BucketDetailScreen({ goalId }: { goalId: string }) {
       />
 
       {bucket && <p className={styles.bucketName}>{bucket.name}</p>}
+
+      {archived && (
+        <div className={styles.archivedBanner}>
+          <Archive size={16} strokeWidth={2} aria-hidden />
+          <span>Archived — its recorded payments still count in your history and payments calendar.</span>
+          <button type="button" onClick={() => unarchiveBucket()}>
+            Unarchive
+          </button>
+        </div>
+      )}
 
       <ScreenState loading={loading} error={error} />
 

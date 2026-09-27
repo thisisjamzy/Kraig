@@ -147,7 +147,7 @@ function ItemBody({ it, entry }: { it: ReturnType<typeof useLogic>; entry: ItemM
         <SpecRow>
           <SpecCell label="Planned" value={money(entry.available)} />
           <SpecCell label={income ? 'Received' : 'Spent'} value={money(entry.actual)} />
-          <SpecCell label={left < 0 ? 'Over' : 'Left'} value={money(Math.abs(left))} tone={over ? 'over' : undefined} />
+          <SpecCell label={left < 0 ? (over ? 'Over' : 'Above estimate') : 'Left'} value={money(Math.abs(left))} tone={over ? 'over' : undefined} />
         </SpecRow>
         <SpecRow>
           <SpecCell label="Type" value={entry.kind === 'Fixed' ? 'Fixed' : 'Planned'} />
@@ -171,7 +171,9 @@ function ItemBody({ it, entry }: { it: ReturnType<typeof useLogic>; entry: ItemM
                 ? `${money(prompt!.amount)} left over`
                 : prompt?.kind === 'justified'
                   ? `Over, justified (${prompt.reason})`
-                  : entry.isOverride
+                  : !income && left < 0
+                    ? `${money(-left)} above its estimate — the rest of the bucket covers it`
+                    : entry.isOverride
                     ? 'On track · amount changed this month'
                     : 'On track'}
           </span>

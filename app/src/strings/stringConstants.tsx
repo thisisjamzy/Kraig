@@ -937,7 +937,8 @@ export const stringConstants = {
     nextPaymentPrefix: 'Next payment:',
     totalDebtTrendTitle: 'Total debt over time',
     archiveBucketConfirmTitle: 'Archive this bucket?',
-    archiveBucketConfirmMessage: "It'll be hidden from your buckets list. This can't be undone from the app.",
+    archiveBucketConfirmMessage:
+      "It'll be hidden from your buckets list and future budgets. Payments already recorded against it stay in your history and payments calendar. You can unarchive it any time.",
     deleteBucketConfirmTitle: 'Delete this bucket?',
     deleteBucketConfirmMessage: "This permanently deletes the bucket and every one of its line items. This can't be undone.",
     deleteBucketAction: 'Delete permanently',
