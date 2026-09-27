@@ -3,25 +3,24 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { query, where } from 'firebase/firestore';
-import { ruleAppliesToMonth } from '@dreda/shared-recurrence';
 import { getFirebaseAuth } from '@/src/shared/config/firebaseClient';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { useFirestoreCollection, useFirestoreDoc } from '@/src/shared/firestore/hooks';
-import { budgetRulesRef, categoryRef, goalsRef, transactionTemplateRef, unjustifiedWalletRef } from '@/src/shared/firestore/refs';
-import { toRecurrenceRule } from '@/src/shared/firestore/recurrence';
+import { categoryRef, bucketsRef, transactionTemplateRef, unjustifiedWalletRef } from '@/src/shared/firestore/refs';
 import { useAccounts, useCategories, useCurrencyContext } from '@/src/shared/firestore/queries';
-import { createTransferWithAggregation, recordGoalLineItemPayment } from '@/src/shared/firestore/aggregation';
+import { createTransferWithAggregation, recordBucketLineItemPayment } from '@/src/shared/firestore/aggregation';
 import { recordHistoricEntry } from '@/src/shared/firestore/unaccountedBalance';
-import { useGoalLineItemsByGoal } from '@/src/shared/hooks/useGoalLineItemsByGoal';
+import { useBucketLineItemsByBucket } from '@/src/shared/hooks/useBucketLineItemsByBucket';
+import { addMonths, itemOccurrence, monthLabel } from '@/src/shared/budget/monthBudget';
 import { TRANSFER_CATEGORIES } from '@/src/viewmodels/categories';
 import { isSavingsAccount } from '@/src/viewmodels/wallets';
 import type {
-  FirestoreBudgetRule,
   FirestoreCategory,
   FirestoreAccount,
-  FirestoreGoal,
+  FirestoreBucket,
   FirestoreTransactionTemplate,
 } from '@/src/shared/firestore/types';
+import { useGoBack } from '@/src/shared/navigation/useGoBack';
 
 export type TransactionType = 'expense' | 'income' | 'transfer' | 'savings';
 export type Step = 'type' | 'category' | 'details' | 'review';
@@ -115,6 +114,17 @@ function templateIdFromSearch(): string {
   return new URLSearchParams(window.location.search).get('templateId') ?? '';
 }
 
+// The bucket item month sheet's "Record payment" (src/screens/
+// BucketItemMonth) deep-links here with ?bucketItem=bucketId:itemId:yyyy-MM
+// — that exact occurrence gets pre-linked once items load.
+function bucketItemFromSearch(): { bucketId: string; itemId: string; month: string } | null {
+  if (typeof window === 'undefined') return null;
+  const raw = new URLSearchParams(window.location.search).get('bucketItem');
+  const [bucketId, itemId, month] = raw?.split(':') ?? [];
+  if (!bucketId || !itemId || !/^\d{4}-\d{2}$/.test(month ?? '')) return null;
+  return { bucketId, itemId, month };
+}
+
 export function useLogic() {
   const router = useRouter();
   const { user } = useFirebaseUser();
@@ -122,6 +132,7 @@ export function useLogic() {
   const [retroTarget] = useState(retroTargetFromSearch);
   const [prefillCategoryId] = useState(categoryIdFromSearch);
   const [prefillTemplateId] = useState(templateIdFromSearch);
+  const [prefillBucketItem] = useState(bucketItemFromSearch);
   const [step, setStep] = useState<Step>(() => (prefillCategoryId || prefillTemplateId ? 'details' : 'type'));
   const [type, setType] = useState<TransactionType>('expense');
   const [savingsMode, setSavingsModeState] = useState<SavingsMode>('moved');
@@ -220,30 +231,29 @@ export function useLogic() {
     isTransfer ? undefined : CATEGORY_TYPE[type]
   );
   const { ctx } = useCurrencyContext();
+  // Unfiltered — a ?bucketItem= deep link needs its item's category type
+  // before this screen has switched to that type.
+  const { data: fetchedCategoriesAll } = useCategories();
 
-  // Which categories actually have a budget line for the month `dateValue`
-  // falls in — same rule-expansion Budget screen itself uses
-  // (src/logic/budget/useLogic.ts) so "has a budget this month" means the
-  // same thing in both places. Recomputed off dateValue, not "today", so
-  // changing the date (including via the Budget screen's retrospective
-  // link above) re-filters against the right month.
-  const activeBudgetRulesQuery = useMemo(
-    () => (uid ? query(budgetRulesRef(uid), where('archived', '==', false)) : null),
-    [uid]
+  // Which categories actually have a budget for the month `dateValue` falls
+  // in — PRD-BUDGETS-V2.md: a category is budgeted when a bucket item in it
+  // applies to that month, same as the Budget screen's own category list.
+  // Recomputed off dateValue, not "today", so changing the date (including
+  // via the Budget screen's retrospective link above) re-filters against
+  // the right month.
+  const { data: activeBuckets } = useFirestoreCollection<FirestoreBucket>(
+    useMemo(() => (uid ? query(bucketsRef(uid), where('archived', '==', false)) : null), [uid])
   );
-  const { data: budgetRules, loading: budgetRulesLoading } =
-    useFirestoreCollection<FirestoreBudgetRule>(activeBudgetRulesQuery);
+  const { itemsByBucket, loading: bucketItemsLoading } = useBucketLineItemsByBucket(activeBuckets);
   const [dateYear, dateMonth] = dateValue.split('-').map(Number);
   const dateMonthKey = `${dateYear}-${pad2(dateMonth)}`;
   const budgetedCategoryIds = useMemo(() => {
     const ids = new Set<string>();
-    for (const rule of budgetRules) {
-      const occurrence = ruleAppliesToMonth(toRecurrenceRule(rule), dateYear, dateMonth);
-      if (!occurrence || rule.excludedMonths?.includes(dateMonthKey)) continue;
-      ids.add(rule.categoryId);
+    for (const item of Object.values(itemsByBucket).flat()) {
+      if (item.categoryId && itemOccurrence(item, dateMonthKey)) ids.add(item.categoryId);
     }
     return ids;
-  }, [budgetRules, dateYear, dateMonth, dateMonthKey]);
+  }, [dateMonthKey, itemsByBucket]);
 
   // Default both account pickers once accounts load, distinct accounts for
   // from/to. fromAccountId defaults to a spendable one — the initial type
@@ -290,63 +300,124 @@ export function useLogic() {
   const budgetedCategoriesForType = categoriesForType.filter((option) => budgetedCategoryIds.has(option.id));
 
   // Recording an Expense, Income, or Savings can be linked to an incomplete
-  // goal line item instead of a plain transaction — submitting then calls
-  // recordGoalLineItemPayment (goalDetail's own "record payment" write) so
+  // bucket line item instead of a plain transaction — submitting then calls
+  // recordBucketLineItemPayment (bucketDetail's own "record payment" write) so
   // the item's payment status updates too, rather than creating an
-  // unlinked transaction. Not offered for a transfer (a goal item is never
+  // unlinked transaction. Not offered for a transfer (a bucket item is never
   // Transfer-flavored) and only against items whose own category is one of
   // THIS type's categories (fetchedCategories is already filtered to
   // CATEGORY_TYPE[type]), so a Savings pick never lists an Expense item or
   // vice versa.
-  const { data: activeGoals } = useFirestoreCollection<FirestoreGoal>(
-    useMemo(() => (uid ? query(goalsRef(uid), where('archived', '==', false)) : null), [uid])
-  );
-  const { itemsByGoal } = useGoalLineItemsByGoal(activeGoals);
-  const [linkedGoalItemId, setLinkedGoalItemId] = useState('');
-  const goalNameById = useMemo(() => new Map(activeGoals.map((goal) => [goal.id, goal.name])), [activeGoals]);
-  const linkableGoalItems = useMemo(() => {
-    if (type === 'transfer') return [];
-    const fetchedCategoryIds = new Set(fetchedCategories.map((cat) => cat.id));
-    return Object.values(itemsByGoal)
+  const [linkedBucketItemId, setLinkedBucketItemId] = useState('');
+  const bucketNameById = useMemo(() => new Map(activeBuckets.map((bucket) => [bucket.id, bucket.name])), [activeBuckets]);
+  const bucketKindById = useMemo(() => new Map(activeBuckets.map((bucket) => [bucket.id, bucket.kind ?? 'Variable'])), [activeBuckets]);
+  const bucketTypeById = useMemo(() => new Map(activeBuckets.map((bucket) => [bucket.id, bucket.type ?? 'Expense'])), [activeBuckets]);
+  // One option per item OCCURRENCE, not per item (PRD-BUDGETS-V2.md
+  // section 4.3): a Fixed item has one every month, so it can never be
+  // "completed" away — the old per-item `completed` flag hid rent forever
+  // after the first payment. Occurrences from the month before and after
+  // the transaction's date are offered too, for a late or early payment,
+  // labelled with their month. A closed Planned item is done for good.
+  const linkableBucketItems = useMemo(() => {
+    // A Transfer bucket's items (categoryId = a TRANSFER_CATEGORIES kind)
+    // are only offered for a transfer; every other bucket's only for its
+    // own category type, via fetchedCategories.
+    const isTransferType = type === 'transfer';
+    const fetchedCategoryIds = new Set<string>(isTransferType ? TRANSFER_CATEGORIES : fetchedCategories.map((cat) => cat.id));
+    const months = [dateMonthKey, addMonths(dateMonthKey, -1), addMonths(dateMonthKey, 1)];
+    return Object.values(itemsByBucket)
       .flat()
-      .filter((item) => !item.completed && item.categoryId && fetchedCategoryIds.has(item.categoryId))
-      .map((item) => ({
-        id: item.id,
-        goalId: item.goalId,
-        goalName: goalNameById.get(item.goalId) ?? 'Goal',
-        name: item.name,
-        amount: item.amount,
-        categoryId: item.categoryId!,
-        accountId: item.accountId,
-      }));
-  }, [type, itemsByGoal, fetchedCategories, goalNameById]);
-  const linkedGoalItem = linkableGoalItems.find((item) => item.id === linkedGoalItemId) ?? null;
-  // A linked goal item is settled as a direct Expense/Savings write against
-  // its own accountId (see handleConfirm below) even when savingsMode
-  // still defaults to 'moved' — never treat it as transfer-shaped once
-  // linked, or the details step would wrongly show a from/to account pair.
-  const isEffectivelyTransferLike = !linkedGoalItem && isTransferLike;
+      .filter((item) => (bucketTypeById.get(item.goalId) === 'Transfer') === isTransferType)
+      .filter((item) => item.categoryId && fetchedCategoryIds.has(item.categoryId))
+      .filter((item) => bucketKindById.get(item.goalId) === 'Fixed' || !item.completed)
+      .flatMap((item) =>
+        months.flatMap((occurrenceMonth) => {
+          const occurrence = itemOccurrence(item, occurrenceMonth);
+          if (!occurrence) return [];
+          const bucketName = bucketNameById.get(item.goalId) ?? 'Bucket';
+          return [{
+            id: `${item.id}@${occurrenceMonth}`,
+            itemId: item.id,
+            goalId: item.goalId,
+            occurrenceMonth,
+            bucketName: occurrenceMonth === dateMonthKey ? bucketName : `${bucketName} · ${monthLabel(occurrenceMonth)}`,
+            name: item.name,
+            amount: occurrence.planned,
+            categoryId: item.categoryId!,
+            accountId: item.accountId,
+            toAccountId: item.toAccountId ?? null,
+            charges: item.charges ?? null,
+            isFixed: bucketKindById.get(item.goalId) === 'Fixed',
+            isTransfer: isTransferType,
+          }];
+        })
+      );
+  }, [type, itemsByBucket, fetchedCategories, bucketNameById, bucketKindById, bucketTypeById, dateMonthKey]);
+  const linkedBucketItem = linkableBucketItems.find((item) => item.id === linkedBucketItemId) ?? null;
+  // A linked Expense/Income/Savings item is settled as a direct write against
+  // its own accountId (see handleConfirm below) even when savingsMode still
+  // defaults to 'moved' — never treat it as transfer-shaped once linked, or
+  // the details step would wrongly show a from/to account pair. A linked
+  // Transfer item stays a transfer.
+  const isEffectivelyTransferLike = isTransferLike && (!linkedBucketItem || linkedBucketItem.isTransfer);
 
-  function selectLinkedGoalItem(id: string) {
-    const item = linkableGoalItems.find((entry) => entry.id === id);
+  function selectLinkedBucketItem(id: string) {
+    const item = linkableBucketItems.find((entry) => entry.id === id);
     if (!item) return;
-    setLinkedGoalItemId(id);
+    setLinkedBucketItemId(id);
     setCategory(item.categoryId);
-    setDescription(`${item.goalName}: ${item.name}`);
+    setDescription(`${item.bucketName}: ${item.name}`);
     setAmountString(String(item.amount));
     if (item.accountId) setFromAccountId(item.accountId);
+    if (item.toAccountId) setToAccountId(item.toAccountId);
+    if (item.isTransfer && item.charges != null) setChargesString(String(item.charges));
   }
 
-  function clearLinkedGoalItem() {
-    setLinkedGoalItemId('');
+  function clearLinkedBucketItem() {
+    setLinkedBucketItemId('');
   }
+
+  // ?bucketItem= deep link: switch to the item's own type and month, then
+  // pre-link that occurrence once it shows up in linkableBucketItems.
+  const [bucketItemApplied, setBucketItemApplied] = useState(false);
+  const prefillItem = prefillBucketItem
+    ? itemsByBucket[prefillBucketItem.bucketId]?.find((item) => item.id === prefillBucketItem.itemId)
+    : undefined;
+  const prefillItemType: 'Expense' | 'Income' | 'Savings' | 'Transfer' | undefined = prefillBucketItem &&
+    bucketTypeById.get(prefillBucketItem.bucketId) === 'Transfer'
+    ? 'Transfer'
+    : prefillItem?.categoryId
+      ? fetchedCategoriesAll.find((cat) => cat.id === prefillItem.categoryId)?.transactionType
+      : undefined;
+  useEffect(() => {
+    if (!prefillBucketItem || bucketItemApplied || !prefillItemType) return;
+    const wantedType = prefillItemType === 'Transfer' ? 'transfer' : TRANSACTION_TYPE_FOR_CATEGORY[prefillItemType];
+    if (type !== wantedType) {
+      setType(wantedType);
+      if (wantedType === 'savings') setSavingsModeState('frozen');
+      return;
+    }
+    const [year, month] = prefillBucketItem.month.split('-').map(Number);
+    const today = new Date();
+    if (dateMonthKey !== prefillBucketItem.month) {
+      const day = year === today.getFullYear() && month === today.getMonth() + 1 ? today.getDate() : 1;
+      setDateValue(`${year}-${pad2(month)}-${pad2(day)}`);
+      return;
+    }
+    const key = `${prefillBucketItem.itemId}@${prefillBucketItem.month}`;
+    if (!linkableBucketItems.some((item) => item.id === key)) return;
+    selectLinkedBucketItem(key);
+    setStep('details');
+    setBucketItemApplied(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefillBucketItem, bucketItemApplied, prefillItemType, type, dateMonthKey, linkableBucketItems]);
 
   // Picking a different category by hand after linking means the user
   // changed their mind about which item this is for — unlink rather than
   // silently keep completing the old item under a mismatched category.
   function chooseCategory(id: string) {
     setCategory(id);
-    if (linkedGoalItemId) setLinkedGoalItemId('');
+    if (linkedBucketItemId) setLinkedBucketItemId('');
   }
   const hasBudgetedCategories = isSavingsMoved || budgetedCategoriesForType.length > 0;
   // Shown list: budgeted-only by default. When nothing's budgeted this
@@ -354,10 +425,9 @@ export function useLogic() {
   // record as unplanned" prompt instead — until the user explicitly opts
   // into unplanned mode, which reveals every category of this type.
   const categoryOptions = isSavingsMoved ? [] : showUnplanned ? categoriesForType : budgetedCategoriesForType;
-  // Where "add a budget" sends them — the Budget screen for the exact month
-  // this transaction is dated in (monthIndex there is 0-based, same as
-  // dateMonth - 1 here).
-  const budgetHref = `/budget?month=${dateMonth - 1}&year=${dateYear}`;
+  // Where "plan it" sends them — budgets are built from bucket items now
+  // (PRD-BUDGETS-V2.md), so that's Buckets, not the Budget screen.
+  const budgetHref = '/buckets';
   const accountName = (id: string) => accounts.find((account) => account.id === id)?.name ?? '';
 
   function selectType(key: TransactionType) {
@@ -367,7 +437,7 @@ export function useLogic() {
     setShowUnplanned(false);
     setChargesString('');
     setExplainsUnjustifiedBalance(false);
-    setLinkedGoalItemId('');
+    setLinkedBucketItemId('');
   }
 
   function chooseSavingsMode(mode: SavingsMode) {
@@ -375,7 +445,7 @@ export function useLogic() {
     setCategory(mode === 'moved' ? 'Wallet to savings' : '');
     setShowUnplanned(false);
     setExplainsUnjustifiedBalance(false);
-    setLinkedGoalItemId('');
+    setLinkedBucketItemId('');
   }
 
   // Does `categoryId` still have a budget line in (year, month)? Used below
@@ -385,11 +455,9 @@ export function useLogic() {
   // dateValue at the moment the date actually changes).
   function categoryBudgetedFor(categoryId: string, year: number, month: number) {
     const monthKey = `${year}-${pad2(month)}`;
-    return budgetRules.some((rule) => {
-      if (rule.categoryId !== categoryId) return false;
-      if (rule.excludedMonths?.includes(monthKey)) return false;
-      return ruleAppliesToMonth(toRecurrenceRule(rule), year, month) != null;
-    });
+    return Object.values(itemsByBucket)
+      .flat()
+      .some((item) => item.categoryId === categoryId && itemOccurrence(item, monthKey) != null);
   }
 
   function chooseDate(iso: string) {
@@ -400,7 +468,7 @@ export function useLogic() {
     // chosen one. Unplanned mode is exempt: it opted out of the budget
     // filter entirely.
     const [isoYear, isoMonth] = iso.split('-').map(Number);
-    if (!linkedGoalItemId && !showUnplanned && category && !categoryBudgetedFor(category, isoYear, isoMonth)) {
+    if (!linkedBucketItemId && !showUnplanned && category && !categoryBudgetedFor(category, isoYear, isoMonth)) {
       setCategory('');
       setStep((current) => (current === 'details' || current === 'review' ? 'category' : current));
     }
@@ -431,9 +499,11 @@ export function useLogic() {
     });
   }
 
+  // Leaving the flow returns to where the user came from (useGoBack).
+  const navigateBack = useGoBack();
   function goBack() {
     if (step === 'type') {
-      router.push('/home');
+      navigateBack('/home');
       return;
     }
     setStep(STEP_ORDER[STEP_ORDER.indexOf(step) - 1]);
@@ -457,7 +527,7 @@ export function useLogic() {
   // of closing it.
   const canExplainUnjustifiedBalance =
     !isEffectivelyTransferLike &&
-    !linkedGoalItem &&
+    !linkedBucketItem &&
     dateValue !== todayIso() &&
     unjustifiedBalance !== 0 &&
     (unjustifiedBalance > 0 ? type === 'expense' || type === 'savings' : type === 'income');
@@ -480,23 +550,32 @@ export function useLogic() {
     const date = new Date(`${dateValue}T00:00:00`);
 
     try {
-      if (linkedGoalItem) {
-        // No partial-payment choice here either — same reasoning as
-        // paymentsCalendar's own quick-confirm above: linking an item from
-        // this flow always closes it in full. Goal Detail's own "Record
-        // payment" action is the one place that offers Partial.
-        await recordGoalLineItemPayment(
+      if (linkedBucketItem) {
+        // A Fixed item's occurrence never closes the item (the write path
+        // ignores fullyPaid for Fixed buckets); a Planned item closes once
+        // what's paid covers its planned amount. A Transfer item records a
+        // real transfer (recordBucketLineItemPayment's Transfer branch).
+        await recordBucketLineItemPayment(
           uid,
-          linkedGoalItem.goalId,
-          linkedGoalItem.id,
+          linkedBucketItem.goalId,
+          linkedBucketItem.itemId,
           Number(amountString),
-          true,
+          Number(amountString) >= linkedBucketItem.amount,
           {
+            occurrenceMonth: linkedBucketItem.occurrenceMonth,
             accountId: fromAccountId,
-            categoryId: category || linkedGoalItem.categoryId,
+            categoryId: category || linkedBucketItem.categoryId,
             date,
             description,
-            categoryType: type === 'savings' ? 'Savings' : type === 'income' ? 'Income' : 'Expense',
+            categoryType: linkedBucketItem.isTransfer
+              ? 'Transfer'
+              : type === 'savings'
+                ? 'Savings'
+                : type === 'income'
+                  ? 'Income'
+                  : 'Expense',
+            toAccountId: linkedBucketItem.isTransfer ? toAccountId : null,
+            charges: linkedBucketItem.isTransfer ? Number(chargesString) || 0 : null,
           },
           ctx
         );
@@ -567,10 +646,10 @@ export function useLogic() {
     category,
     categoryName,
     setCategory: chooseCategory,
-    linkableGoalItems,
-    linkedGoalItem,
-    selectLinkedGoalItem,
-    clearLinkedGoalItem,
+    linkableBucketItems,
+    linkedBucketItem,
+    selectLinkedBucketItem,
+    clearLinkedBucketItem,
     description,
     setDescription,
     amountString,
@@ -607,7 +686,7 @@ export function useLogic() {
     loading:
       accountsLoading ||
       categoriesLoading ||
-      budgetRulesLoading ||
+      bucketItemsLoading ||
       (Boolean(prefillCategoryId) && (prefillCategoryLoading || !prefillApplied)) ||
       (Boolean(prefillTemplateId) && (prefillTemplateLoading || !templateApplied)),
     error: accountsError || categoriesError,

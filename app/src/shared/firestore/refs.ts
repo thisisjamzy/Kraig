@@ -22,25 +22,23 @@ import type {
   FirestoreTransaction,
   FirestoreTransfer,
   FirestoreTransactionTemplate,
-  FirestoreBudgetRule,
   FirestorePlannedPayment,
   FirestoreSettings,
   FirestoreTaskTypesSettings,
-  FirestoreBudgetPlan,
   FirestoreExchangeRate,
-  FirestoreGoal,
-  FirestoreGoalLineItem,
+  FirestoreBucket,
+  FirestoreBucketLineItem,
   FirestoreDebt,
   FirestoreRepayment,
   StatsHome,
   StatsMonthly,
-  StatsBudgetProgress,
   FirestoreUserDoc,
   FirestoreArea,
-  FirestoreBucket,
+  FirestoreSection,
   FirestoreProject,
   FirestoreTask,
   FirestoreReconciliation,
+  FirestoreAllocation,
 } from './types';
 import type { FirestoreAuditReport } from './auditReport';
 
@@ -99,13 +97,6 @@ export function transactionTemplateRef(uid: string, id: string): DocumentReferen
   return subDoc(uid, 'transactionTemplates', id) as DocumentReference<Omit<FirestoreTransactionTemplate, 'id'>>;
 }
 
-export function budgetRulesRef(uid: string): CollectionReference<FirestoreBudgetRule> {
-  return sub(uid, 'budgetRules') as CollectionReference<FirestoreBudgetRule>;
-}
-export function budgetRuleRef(uid: string, id: string): DocumentReference<Omit<FirestoreBudgetRule, 'id'>> {
-  return subDoc(uid, 'budgetRules', id) as DocumentReference<Omit<FirestoreBudgetRule, 'id'>>;
-}
-
 export function plannedPaymentsRef(uid: string): CollectionReference<FirestorePlannedPayment> {
   return sub(uid, 'plannedPayments') as CollectionReference<FirestorePlannedPayment>;
 }
@@ -113,22 +104,22 @@ export function plannedPaymentRef(uid: string, id: string): DocumentReference<Om
   return subDoc(uid, 'plannedPayments', id) as DocumentReference<Omit<FirestorePlannedPayment, 'id'>>;
 }
 
-export function goalsRef(uid: string): CollectionReference<FirestoreGoal> {
-  return sub(uid, 'goals') as CollectionReference<FirestoreGoal>;
+export function bucketsRef(uid: string): CollectionReference<FirestoreBucket> {
+  return sub(uid, 'goals') as CollectionReference<FirestoreBucket>;
 }
-export function goalRef(uid: string, id: string): DocumentReference<Omit<FirestoreGoal, 'id'>> {
-  return subDoc(uid, 'goals', id) as DocumentReference<Omit<FirestoreGoal, 'id'>>;
+export function bucketRef(uid: string, id: string): DocumentReference<Omit<FirestoreBucket, 'id'>> {
+  return subDoc(uid, 'goals', id) as DocumentReference<Omit<FirestoreBucket, 'id'>>;
 }
-export function goalLineItemsRef(uid: string, goalId: string): CollectionReference<FirestoreGoalLineItem> {
-  return collection(getFirebaseFirestore(), 'users', uid, 'goals', goalId, 'lineItems') as CollectionReference<FirestoreGoalLineItem>;
+export function bucketLineItemsRef(uid: string, goalId: string): CollectionReference<FirestoreBucketLineItem> {
+  return collection(getFirebaseFirestore(), 'users', uid, 'goals', goalId, 'lineItems') as CollectionReference<FirestoreBucketLineItem>;
 }
-export function goalLineItemRef(
+export function bucketLineItemRef(
   uid: string,
   goalId: string,
   lineItemId: string
-): DocumentReference<Omit<FirestoreGoalLineItem, 'id'>> {
+): DocumentReference<Omit<FirestoreBucketLineItem, 'id'>> {
   return doc(getFirebaseFirestore(), 'users', uid, 'goals', goalId, 'lineItems', lineItemId) as DocumentReference<
-    Omit<FirestoreGoalLineItem, 'id'>
+    Omit<FirestoreBucketLineItem, 'id'>
   >;
 }
 
@@ -151,6 +142,15 @@ export function repaymentRef(
   >;
 }
 
+// PRD-BUDGETS-V2.md section 4.4 — the budget-move ledger (leftovers
+// reallocated, overspends covered), see src/shared/firestore/allocations.ts.
+export function allocationsRef(uid: string): CollectionReference<FirestoreAllocation> {
+  return sub(uid, 'allocations') as CollectionReference<FirestoreAllocation>;
+}
+export function allocationRef(uid: string, id: string): DocumentReference<Omit<FirestoreAllocation, 'id'>> {
+  return subDoc(uid, 'allocations', id) as DocumentReference<Omit<FirestoreAllocation, 'id'>>;
+}
+
 export function areasRef(uid: string): CollectionReference<FirestoreArea> {
   return sub(uid, 'areas') as CollectionReference<FirestoreArea>;
 }
@@ -158,11 +158,11 @@ export function areaRef(uid: string, id: string): DocumentReference<Omit<Firesto
   return subDoc(uid, 'areas', id) as DocumentReference<Omit<FirestoreArea, 'id'>>;
 }
 
-export function bucketsRef(uid: string): CollectionReference<FirestoreBucket> {
-  return sub(uid, 'buckets') as CollectionReference<FirestoreBucket>;
+export function sectionsRef(uid: string): CollectionReference<FirestoreSection> {
+  return sub(uid, 'buckets') as CollectionReference<FirestoreSection>;
 }
-export function bucketRef(uid: string, id: string): DocumentReference<Omit<FirestoreBucket, 'id'>> {
-  return subDoc(uid, 'buckets', id) as DocumentReference<Omit<FirestoreBucket, 'id'>>;
+export function sectionRef(uid: string, id: string): DocumentReference<Omit<FirestoreSection, 'id'>> {
+  return subDoc(uid, 'buckets', id) as DocumentReference<Omit<FirestoreSection, 'id'>>;
 }
 
 export function projectsRef(uid: string): CollectionReference<FirestoreProject> {
@@ -187,13 +187,6 @@ export function taskTypesRef(uid: string): DocumentReference<FirestoreTaskTypesS
   return subDoc(uid, 'settings', 'taskTypes') as DocumentReference<FirestoreTaskTypesSettings>;
 }
 
-export function budgetPlansRef(uid: string): CollectionReference<FirestoreBudgetPlan> {
-  return sub(uid, 'budgetPlans') as CollectionReference<FirestoreBudgetPlan>;
-}
-export function budgetPlanRef(uid: string, month: string): DocumentReference<FirestoreBudgetPlan> {
-  return subDoc(uid, 'budgetPlans', month) as DocumentReference<FirestoreBudgetPlan>;
-}
-
 export function exchangeRatesRef(uid: string): CollectionReference<FirestoreExchangeRate> {
   return sub(uid, 'exchangeRates') as CollectionReference<FirestoreExchangeRate>;
 }
@@ -206,9 +199,6 @@ export function statsHomeRef(uid: string): DocumentReference<StatsHome> {
 }
 export function statsMonthlyRef(uid: string, month: string): DocumentReference<StatsMonthly> {
   return subDoc(uid, 'statsMonthly', month) as DocumentReference<StatsMonthly>;
-}
-export function statsBudgetProgressRef(uid: string, month: string): DocumentReference<StatsBudgetProgress> {
-  return subDoc(uid, 'statsBudgetProgress', month) as DocumentReference<StatsBudgetProgress>;
 }
 
 // Generated financial audit reports (src/shared/firestore/auditReport.ts) —

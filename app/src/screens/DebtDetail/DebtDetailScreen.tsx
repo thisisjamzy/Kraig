@@ -8,7 +8,7 @@ import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { TrendChart } from '@/src/widgets/TrendChart/TrendChart';
 import { ConfirmDialog } from '@/src/widgets/ConfirmDialog/ConfirmDialog';
-import { formatAmount } from '@/src/screens/Goals/GoalsScreen';
+import { formatAmount } from '@/src/screens/Buckets/BucketsScreen';
 import styles from './DebtDetailScreen.module.css';
 
 const INTERVAL_LABEL: Record<string, string> = {
@@ -67,7 +67,7 @@ export function DebtDetailScreen({ debtId }: { debtId: string }) {
               {debt.debtType === 'cash' ? strings.debtDetail.typeCash : strings.debtDetail.typeExisting}
             </span>
             <span className={`${styles.priorityBadge} ${styles[`priorityBadge_${debt.priority}`]}`}>
-              {strings.goals[debt.priority === 'high' ? 'priorityHigh' : debt.priority === 'medium' ? 'priorityMedium' : 'priorityLow']}
+              {strings.buckets[debt.priority === 'high' ? 'priorityHigh' : debt.priority === 'medium' ? 'priorityMedium' : 'priorityLow']}
             </span>
           </div>
 
@@ -168,8 +168,8 @@ export function DebtDetailScreen({ debtId }: { debtId: string }) {
 
       {confirmArchive && (
         <ConfirmDialog
-          title={strings.goals.archiveDebtConfirmTitle}
-          message={strings.goals.archiveDebtConfirmMessage}
+          title={strings.buckets.archiveDebtConfirmTitle}
+          message={strings.buckets.archiveDebtConfirmMessage}
           confirmLabel={strings.debtDetail.archiveDebt}
           cancelLabel={strings.common.cancel}
           onConfirm={() => {

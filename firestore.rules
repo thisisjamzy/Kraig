@@ -121,12 +121,25 @@ service cloud.firestore {
         allow delete: if activeUser() && request.auth.uid == uid;
       }
 
-      match /budgetRules/{ruleId} {
+      // PRD-BUDGETS-V2.md section 4.4 — budget moves between bucket items,
+      // the month's unallocated pool, and savings. Deletable: removing one
+      // just reverses the move (aggregation's deleteAllocation also removes
+      // a savings-sourced allocation's own transfer, reversing its balances).
+      match /allocations/{allocationId} {
         allow read: if activeUser() && request.auth.uid == uid;
         allow create, update: if activeUser() && request.auth.uid == uid
-          && request.resource.data.budgetedAmount is number
-          && request.resource.data.frequency in ['Once', 'Daily', 'Weekly', 'Monthly', 'Quarterly', 'Yearly'];
-        allow delete: if false; // archive in place, keep history
+          && request.resource.data.amount is number && request.resource.data.amount > 0
+          && request.resource.data.months is list
+          && request.resource.data.createdBy == request.auth.uid;
+        allow delete: if activeUser() && request.auth.uid == uid;
+      }
+
+      // Legacy (PRD-BUDGETS-V2.md): budgets are derived from bucket items
+      // now. Old rules stay readable as history; scripts/migrate-budgets-v2.ts
+      // archives them through the Admin SDK, which bypasses these rules.
+      match /budgetRules/{ruleId} {
+        allow read: if activeUser() && request.auth.uid == uid;
+        allow write: if false;
       }
 
       // A real bill with a due date (Netflix, rent, ...) — several can
@@ -158,6 +171,8 @@ service cloud.firestore {
       // check, so every read of a goal was denied). Every collection below
       // keeps read (and delete) on its own line, same as
       // transactions/transfers/budgetRules above.
+      // Money buckets (PRD-BUDGETS-V2.md — renamed from goals in the app;
+      // the storage path kept its old name).
       match /goals/{goalId} {
         allow read: if activeUser() && request.auth.uid == uid;
         allow create, update: if activeUser() && request.auth.uid == uid
@@ -206,6 +221,9 @@ service cloud.firestore {
         allow read, create, update: if activeUser() && request.auth.uid == uid;
         allow delete: if false; // archive in place
       }
+      // The Projects hub's sections (renamed from buckets in the app; the
+      // storage path kept its old name — unrelated to money buckets, which
+      // live under /goals).
       match /buckets/{bucketId} {
         allow read, create, update: if activeUser() && request.auth.uid == uid;
         allow delete: if false; // archive in place
@@ -230,7 +248,8 @@ service cloud.firestore {
       // projected-income / planned-savings figures for that month, replacing
       // the old single global settings.totalBudget.
       match /budgetPlans/{monthId} {
-        allow read, write: if activeUser() && request.auth.uid == uid;
+        allow read: if activeUser() && request.auth.uid == uid;
+        allow write: if false; // legacy, see budgetRules above
       }
 
       match /exchangeRates/{code} {
@@ -255,7 +274,8 @@ service cloud.firestore {
         allow read, write: if activeUser() && request.auth.uid == uid;
       }
       match /statsBudgetProgress/{monthId} {
-        allow read, write: if activeUser() && request.auth.uid == uid;
+        allow read: if activeUser() && request.auth.uid == uid;
+        allow write: if false; // legacy, see budgetRules above
       }
 
       // Generated financial audit reports (src/shared/firestore/

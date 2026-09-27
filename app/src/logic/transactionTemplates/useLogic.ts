@@ -15,6 +15,7 @@ import { transactionTemplateRef, transactionTemplatesRef } from '@/src/shared/fi
 import { useAccounts, useCategories } from '@/src/shared/firestore/queries';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import type { FirestoreTransactionTemplate } from '@/src/shared/firestore/types';
+import { useGoBack } from '@/src/shared/navigation/useGoBack';
 
 export function useLogic() {
   const router = useRouter();
@@ -99,8 +100,9 @@ export function useLogic() {
 
   // Reachable from both Add Transaction and Settings — router.back() returns
   // to whichever one actually launched it, rather than a fixed destination.
+  const navigateBack = useGoBack();
   function goBack() {
-    router.back();
+    navigateBack('/settings');
   }
 
   return {

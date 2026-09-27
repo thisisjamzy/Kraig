@@ -1,18 +1,16 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { getDocs, type QuerySnapshot, type DocumentData } from 'firebase/firestore';
 import {
   areasRef,
-  bucketsRef,
+  sectionsRef,
   accountsRef,
   categoriesRef,
-  budgetRulesRef,
   projectsRef,
   tasksRef,
-  goalsRef,
-  goalLineItemsRef,
+  bucketsRef,
+  bucketLineItemsRef,
   debtsRef,
   repaymentsRef,
   transactionsRef,
@@ -23,19 +21,19 @@ import { buildExportWorkbook, downloadWorkbook, type ExportData, type ExportLook
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import type {
   FirestoreArea,
-  FirestoreBucket,
+  FirestoreSection,
   FirestoreAccount,
   FirestoreCategory,
-  FirestoreBudgetRule,
   FirestoreProject,
   FirestoreTask,
-  FirestoreGoal,
-  FirestoreGoalLineItem,
+  FirestoreBucket,
+  FirestoreBucketLineItem,
   FirestoreDebt,
   FirestoreRepayment,
   FirestoreTransaction,
   FirestoreTransfer,
 } from '@/src/shared/firestore/types';
+import { useGoBack } from '@/src/shared/navigation/useGoBack';
 
 function docs<T>(snap: QuerySnapshot<DocumentData>): T[] {
   return snap.docs.map((d) => ({ ...d.data(), id: d.id }) as T);
@@ -47,7 +45,6 @@ function isoToday() {
 }
 
 export function useLogic() {
-  const router = useRouter();
   const { user } = useFirebaseUser();
   const uid = user?.uid;
 
@@ -67,42 +64,40 @@ export function useLogic() {
       // names even if those entities' own sheets weren't selected.
       const [
         areasSnap,
-        bucketsSnap,
+        sectionsSnap,
         accountsSnap,
         categoriesSnap,
-        budgetsSnap,
         projectsSnap,
         tasksSnap,
-        goalsSnap,
+        bucketsSnap,
         debtsSnap,
         transactionsSnap,
         transfersSnap,
       ] = await Promise.all([
         getDocs(areasRef(uid)),
-        getDocs(bucketsRef(uid)),
+        getDocs(sectionsRef(uid)),
         getDocs(accountsRef(uid)),
         getDocs(categoriesRef(uid)),
-        getDocs(budgetRulesRef(uid)),
         getDocs(projectsRef(uid)),
         getDocs(tasksRef(uid)),
-        getDocs(goalsRef(uid)),
+        getDocs(bucketsRef(uid)),
         getDocs(debtsRef(uid)),
         getDocs(transactionsRef(uid)),
         getDocs(transfersRef(uid)),
       ]);
 
-      const goals = docs<FirestoreGoal>(goalsSnap);
+      const buckets = docs<FirestoreBucket>(bucketsSnap);
       const debts = docs<FirestoreDebt>(debtsSnap);
 
       // Line items and repayments live in per-parent subcollections — fetch
       // each parent's own subcollection, sequentially (a household's own
-      // goal/debt count is small; this mirrors this codebase's general
+      // bucket/debt count is small; this mirrors this codebase's general
       // "sequential over a handful of docs" convention rather than firing
       // an unbounded number of parallel reads).
-      const goalItems: FirestoreGoalLineItem[] = [];
-      for (const goal of goals) {
-        const snap = await getDocs(goalLineItemsRef(uid, goal.id));
-        goalItems.push(...docs<FirestoreGoalLineItem>(snap));
+      const bucketItems: FirestoreBucketLineItem[] = [];
+      for (const bucket of buckets) {
+        const snap = await getDocs(bucketLineItemsRef(uid, bucket.id));
+        bucketItems.push(...docs<FirestoreBucketLineItem>(snap));
       }
       const repayments: FirestoreRepayment[] = [];
       for (const debt of debts) {
@@ -112,14 +107,13 @@ export function useLogic() {
 
       const data: ExportData = {
         areas: docs<FirestoreArea>(areasSnap),
-        buckets: docs<FirestoreBucket>(bucketsSnap),
+        sections: docs<FirestoreSection>(sectionsSnap),
         accounts: docs<FirestoreAccount>(accountsSnap),
         categories: docs<FirestoreCategory>(categoriesSnap),
-        budgets: docs<FirestoreBudgetRule>(budgetsSnap),
         projects: docs<FirestoreProject>(projectsSnap),
         tasks: docs<FirestoreTask>(tasksSnap),
-        goals,
-        goalItems,
+        buckets,
+        bucketItems,
         debts,
         repayments,
         transactions: docs<FirestoreTransaction>(transactionsSnap),
@@ -128,11 +122,11 @@ export function useLogic() {
 
       const lookups: ExportLookups = {
         areaName: new Map(data.areas.map((a) => [a.id, a.name])),
-        bucketName: new Map(data.buckets.map((b) => [b.id, b.name])),
+        sectionName: new Map(data.sections.map((b) => [b.id, b.name])),
         accountName: new Map(data.accounts.map((a) => [a.id, a.name])),
         categoryName: new Map(data.categories.map((c) => [c.id, c.name])),
         projectName: new Map(data.projects.map((p) => [p.id, p.name])),
-        goalName: new Map(data.goals.map((g) => [g.id, g.name])),
+        bucketName: new Map(data.buckets.map((g) => [g.id, g.name])),
         debtName: new Map(data.debts.map((d) => [d.id, d.name])),
       };
 
@@ -146,8 +140,11 @@ export function useLogic() {
     }
   }
 
+  // Back to the page the user came from (skipping forms); '/settings' only
+  // when there's no history — see src/shared/navigation/useGoBack.ts.
+  const navigateBack = useGoBack();
   function goBack() {
-    router.push('/settings');
+    navigateBack('/settings');
   }
 
   return { selected, setSelected, exporting, error, done, handleExport, goBack };

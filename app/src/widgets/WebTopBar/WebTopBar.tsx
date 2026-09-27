@@ -34,7 +34,7 @@ import styles from './WebTopBar.module.css';
 const SECTION_TITLE: Record<string, string> = {
   money: 'Money',
   projects: 'Projects',
-  goals: 'Goals',
+  buckets: 'Buckets',
 };
 
 // The money home page's own quick-jump search — a small, real feature (not
@@ -47,7 +47,7 @@ const QUICK_NAV_ROUTES = [
   { label: 'Wallets', href: '/wallets' },
   { label: 'Statistics', href: '/statistics' },
   { label: 'Debts', href: '/debts' },
-  { label: 'Goals', href: '/goals' },
+  { label: 'Buckets', href: '/buckets' },
   { label: 'Payments calendar', href: '/payments' },
   { label: 'Add transaction', href: '/add-transaction' },
   { label: 'Settings', href: '/settings' },

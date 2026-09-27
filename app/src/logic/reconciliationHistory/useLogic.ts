@@ -1,14 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { listReconciliations } from '@/src/shared/firestore/unaccountedBalance';
 import { useAccounts, useCurrencyContext } from '@/src/shared/firestore/queries';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import type { FirestoreReconciliation } from '@/src/shared/firestore/types';
+import { useGoBack } from '@/src/shared/navigation/useGoBack';
 
 export function useLogic() {
-  const router = useRouter();
   const { user } = useFirebaseUser();
   const uid = user?.uid;
   const { ctx } = useCurrencyContext();
@@ -45,8 +44,11 @@ export function useLogic() {
     setExpandedId((current) => (current === id ? null : id));
   }
 
+  // Back to the page the user came from (skipping forms); '/settings/reconciliation' only
+  // when there's no history — see src/shared/navigation/useGoBack.ts.
+  const navigateBack = useGoBack();
   function goBack() {
-    router.push('/settings/reconciliation');
+    navigateBack('/settings/reconciliation');
   }
 
   return {

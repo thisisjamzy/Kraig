@@ -36,7 +36,7 @@ export function DebtEditScreen({ debtId }: { debtId: string }) {
   } = useLogic(debtId);
 
   const priorityLabel = (p: (typeof DEBT_PRIORITIES)[number]) =>
-    strings.goals[p === 'high' ? 'priorityHigh' : p === 'medium' ? 'priorityMedium' : 'priorityLow'];
+    strings.buckets[p === 'high' ? 'priorityHigh' : p === 'medium' ? 'priorityMedium' : 'priorityLow'];
 
   return (
     <div className={styles.page}>

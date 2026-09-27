@@ -1,16 +1,16 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
 import { ChevronLeft, BellOff } from 'lucide-react';
 import styles from './NotificationsScreen.module.css';
+import { useGoBack } from '@/src/shared/navigation/useGoBack';
 
 export function NotificationsScreen() {
-  const router = useRouter();
+  const navigateBack = useGoBack();
 
   return (
     <div className={styles.page}>
       <header className={styles.header}>
-        <button type="button" className={styles.backButton} onClick={() => router.back()} aria-label="Back">
+        <button type="button" className={styles.backButton} onClick={() => navigateBack('/home')} aria-label="Back">
           <ChevronLeft size={18} strokeWidth={2} />
         </button>
         <h1 className={styles.title}>Notifications</h1>

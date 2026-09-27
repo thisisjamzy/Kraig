@@ -640,7 +640,7 @@ export function StatisticsScreen() {
 
       {/* Fixed vs. Variable — Expense budget lines only (same scope as
           Budget vs. Spend above), split by whether the covering rule came
-          from a Fixed goal's line item or anywhere else. */}
+          from a Fixed bucket's line item or anywhere else. */}
       <section className={styles.section}>
         <div className={styles.sectionHeader}>
           <h2 className={styles.sectionTitle}>{strings.statistics.fixedVsVariable}</h2>

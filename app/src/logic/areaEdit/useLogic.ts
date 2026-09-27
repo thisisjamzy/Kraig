@@ -8,6 +8,7 @@ import { areaRef } from '@/src/shared/firestore/refs';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { PROJECT_COLORS } from '@/src/viewmodels/projects';
 import type { FirestoreArea } from '@/src/shared/firestore/types';
+import { useGoBack } from '@/src/shared/navigation/useGoBack';
 
 export function useLogic(areaId: string) {
   const router = useRouter();
@@ -65,8 +66,11 @@ export function useLogic(areaId: string) {
     await updateDoc(areaRef(uid, areaId), { archived: false, updatedAt: serverTimestamp() });
   }
 
+  // Back to the page the user came from (skipping forms); `/areas/${areaId}` only
+  // when there's no history — see src/shared/navigation/useGoBack.ts.
+  const navigateBack = useGoBack();
   function goBack() {
-    router.push(`/areas/${areaId}`);
+    navigateBack(`/areas/${areaId}`);
   }
 
   return {

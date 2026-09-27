@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { listBackfillBatches, deleteBackfillBatch, type BackfillBatch } from '@/src/shared/firestore/unaccountedBalance';
 import { useCurrencyContext } from '@/src/shared/firestore/queries';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
+import { useGoBack } from '@/src/shared/navigation/useGoBack';
 
 export function useLogic() {
   const router = useRouter();
@@ -50,8 +51,11 @@ export function useLogic() {
     router.push(`/transactions?backfillBatch=${batchId}`);
   }
 
+  // Back to the page the user came from (skipping forms); '/settings/backfill' only
+  // when there's no history — see src/shared/navigation/useGoBack.ts.
+  const navigateBack = useGoBack();
   function goBack() {
-    router.push('/settings/backfill');
+    navigateBack('/settings/backfill');
   }
 
   return { batches, loading, error, deletingId, handleDelete, viewBatch, goBack };

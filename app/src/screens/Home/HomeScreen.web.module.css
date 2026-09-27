@@ -140,6 +140,11 @@
   font-weight: 700;
   color: var(--color-text-primary);
   cursor: pointer;
+  transition: transform var(--duration-press) var(--ease-out);
+}
+
+.statCurrencyChip:active {
+  transform: scale(0.97);
 }
 
 .statEyeToggle {
@@ -154,6 +159,11 @@
   background: none;
   color: var(--color-text-secondary);
   cursor: pointer;
+  transition: transform var(--duration-press) var(--ease-out);
+}
+
+.statEyeToggle:active {
+  transform: scale(0.97);
 }
 
 .statSubLink {
@@ -361,6 +371,11 @@
   cursor: pointer;
   white-space: nowrap;
   flex-shrink: 0;
+  transition: transform var(--duration-press) var(--ease-out);
+}
+
+.textButton:active {
+  transform: scale(0.97);
 }
 
 .textButtonBadge {
@@ -697,6 +712,11 @@
   text-decoration: none;
   cursor: pointer;
   white-space: nowrap;
+  transition: transform var(--duration-press) var(--ease-out);
+}
+
+.highlightButton:active {
+  transform: scale(0.97);
 }
 
 .highlightButtonBadge {
@@ -709,4 +729,21 @@
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.92);
   color: var(--money-ink);
+}
+
+/* Reduced motion — no press scaling. */
+@media (prefers-reduced-motion: reduce) {
+  .statCurrencyChip,
+  .statEyeToggle,
+  .textButton,
+  .highlightButton {
+    transition: none;
+  }
+
+  .statCurrencyChip:active,
+  .statEyeToggle:active,
+  .textButton:active,
+  .highlightButton:active {
+    transform: none;
+  }
 }

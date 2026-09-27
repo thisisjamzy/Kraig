@@ -11,12 +11,15 @@ import { useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { query, where } from 'firebase/firestore';
 import { useFirestoreCollection, useFirestoreDoc } from '@/src/shared/firestore/hooks';
-import { useBuckets } from '@/src/shared/firestore/queries';
+import { useSections } from '@/src/shared/firestore/queries';
 import { areaRef, projectsRef, tasksRef } from '@/src/shared/firestore/refs';
-import { ensureDefaultBucket, defaultBucketId } from '@/src/shared/firestore/buckets';
+import { ensureDefaultSection, defaultSectionId } from '@/src/shared/firestore/sections';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { DEFAULT_PRIORITY } from '@/src/viewmodels/projects';
 import type { FirestoreArea, FirestoreProject, FirestoreTask } from '@/src/shared/firestore/types';
+import { useGoBack } from '@/src/shared/navigation/useGoBack';
+import { effectiveTimeMode } from '@/src/viewmodels/scheduling';
+import { actionableTasks, summarizeSeries } from '@/src/shared/tasks/recurringTasks';
 
 export function useLogic(areaId: string) {
   const router = useRouter();
@@ -26,41 +29,41 @@ export function useLogic(areaId: string) {
   const areaDocRef = useMemo(() => (uid ? areaRef(uid, areaId) : null), [uid, areaId]);
   const { data: area, loading: areaLoading, error: areaError } = useFirestoreDoc<FirestoreArea>(areaDocRef);
 
-  // Self-heals an area that predates the Bucket feature — first load of any
-  // such area quietly gives it its own "General" bucket, same lazy-create
+  // Self-heals an area that predates the Section feature — first load of any
+  // such area quietly gives it its own "General" section, same lazy-create
   // pattern as ensureUnjustifiedWallet.
   useEffect(() => {
     if (!uid || !area) return;
-    ensureDefaultBucket(uid, areaId, area.color);
+    ensureDefaultSection(uid, areaId, area.color);
   }, [uid, area, areaId]);
 
-  const { data: buckets, loading: bucketsLoading } = useBuckets(areaId);
+  const { data: sections, loading: bucketsLoading } = useSections(areaId);
 
   const projectsQuery = useMemo(() => (uid ? query(projectsRef(uid), where('areaId', '==', areaId)) : null), [uid, areaId]);
   const { data: projectDocs, loading: projectsLoading } = useFirestoreCollection<FirestoreProject>(projectsQuery);
 
-  // A project's bucketId counts toward that bucket if it resolves to one
-  // that's actually in this area's own bucket list; anything else (no
+  // A project's bucketId counts toward that section if it resolves to one
+  // that's actually in this area's own section list; anything else (no
   // bucketId, or a stale/unrecognized one) falls back to the area's default
-  // bucket — see buckets.ts's own header.
+  // section — see sections.ts's own header.
   const bucketProjectCounts = useMemo(() => {
-    const knownIds = new Set(buckets.map((b) => b.id));
+    const knownIds = new Set(sections.map((b) => b.id));
     const counts = new Map<string, number>();
     for (const project of projectDocs) {
       if (project.status === 'Archived') continue;
-      const id = project.bucketId && knownIds.has(project.bucketId) ? project.bucketId : defaultBucketId(areaId);
+      const id = project.bucketId && knownIds.has(project.bucketId) ? project.bucketId : defaultSectionId(areaId);
       counts.set(id, (counts.get(id) ?? 0) + 1);
     }
     return counts;
-  }, [projectDocs, buckets, areaId]);
+  }, [projectDocs, sections, areaId]);
 
   const bucketsWithCounts = useMemo(
-    () => buckets.map((bucket) => ({ ...bucket, projectCount: bucketProjectCounts.get(bucket.id) ?? 0 })),
-    [buckets, bucketProjectCounts]
+    () => sections.map((section) => ({ ...section, projectCount: bucketProjectCounts.get(section.id) ?? 0 })),
+    [sections, bucketProjectCounts]
   );
 
-  const bucketName = useMemo(() => new Map(buckets.map((b) => [b.id, b.name])), [buckets]);
-  const knownBucketIds = useMemo(() => new Set(buckets.map((b) => b.id)), [buckets]);
+  const bucketName = useMemo(() => new Map(sections.map((b) => [b.id, b.name])), [sections]);
+  const knownBucketIds = useMemo(() => new Set(sections.map((b) => b.id)), [sections]);
   const projectName = useMemo(() => new Map(projectDocs.map((p) => [p.id, p.name])), [projectDocs]);
 
   // Single-field query (auto-indexed, no composite index to deploy) —
@@ -70,7 +73,8 @@ export function useLogic(areaId: string) {
 
   const taskStatsByProject = useMemo(() => {
     const stats = new Map<string, { total: number; done: number }>();
-    for (const task of taskDocs) {
+    // A recurring series counts once (recurringTasks.ts's summarizeSeries).
+    for (const task of summarizeSeries(taskDocs)) {
       if (task.archived || !task.projectId) continue;
       const entry = stats.get(task.projectId) ?? { total: 0, done: 0 };
       entry.total += 1;
@@ -84,7 +88,7 @@ export function useLogic(areaId: string) {
     .filter((p) => p.status !== 'Archived')
     .map((p) => {
       const stats = taskStatsByProject.get(p.id) ?? { total: 0, done: 0 };
-      const resolvedBucketId = p.bucketId && knownBucketIds.has(p.bucketId) ? p.bucketId : defaultBucketId(areaId);
+      const resolvedBucketId = p.bucketId && knownBucketIds.has(p.bucketId) ? p.bucketId : defaultSectionId(areaId);
       return {
         id: p.id,
         name: p.name,
@@ -107,12 +111,13 @@ export function useLogic(areaId: string) {
   // header), so this already covers every task in every one of this
   // area's projects, standalone area-level tasks included. areaName is
   // left off each card — every task here is already in this one area.
-  const tasks = useMemo(
-    () =>
-      taskDocs
+  const tasks = useMemo(() => {
+    const now = new Date();
+    // A recurring task lists as today's / overdue dates, or its next one.
+    return actionableTasks(taskDocs, now, { includeUpcoming: true })
         .filter((t) => !t.archived)
         .map((t) => {
-          const resolvedBucketId = t.bucketId && knownBucketIds.has(t.bucketId) ? t.bucketId : defaultBucketId(areaId);
+          const resolvedBucketId = t.bucketId && knownBucketIds.has(t.bucketId) ? t.bucketId : defaultSectionId(areaId);
           return {
             id: t.id,
             title: t.title,
@@ -120,17 +125,24 @@ export function useLogic(areaId: string) {
             done: t.done,
             status: t.status,
             startTime: t.startTime ? t.startTime.toDate() : null,
+            allDay: Boolean(t.allDay),
+            timeMode: effectiveTimeMode(t),
+            recurring: Boolean(t.seriesId),
             dueDate: t.dueDate ? t.dueDate.toDate() : null,
             projectName: t.projectId ? projectName.get(t.projectId) ?? null : null,
             bucketName: bucketName.get(resolvedBucketId) ?? null,
+            // TaskCheckRow's Overdue badge — past its end and not done.
+            overdue: !t.done && ((t.dueDate ?? t.startTime)?.toDate() ?? now) < now,
           };
         })
-        .sort((a, b) => (a.dueDate?.getTime() ?? Infinity) - (b.dueDate?.getTime() ?? Infinity)),
-    [taskDocs, knownBucketIds, bucketName, projectName, areaId]
-  );
+        .sort((a, b) => (a.dueDate?.getTime() ?? Infinity) - (b.dueDate?.getTime() ?? Infinity));
+  }, [taskDocs, knownBucketIds, bucketName, projectName, areaId]);
 
+  // Back to the page the user came from (skipping forms); '/projects' only
+  // when there's no history — see src/shared/navigation/useGoBack.ts.
+  const navigateBack = useGoBack();
   function goBack() {
-    router.push('/projects');
+    navigateBack('/projects');
   }
   function openProject(id: string) {
     router.push(`/projects/${id}`);
@@ -139,10 +151,10 @@ export function useLogic(areaId: string) {
     router.push(`/areas/${areaId}/edit`);
   }
   function openBucket(bucketId: string) {
-    router.push(`/buckets/${bucketId}`);
+    router.push(`/sections/${bucketId}`);
   }
   function openNewBucket() {
-    router.push(`/buckets/new?areaId=${areaId}`);
+    router.push(`/sections/new?areaId=${areaId}`);
   }
   function openNewProject() {
     router.push(`/projects/new?areaId=${areaId}`);
@@ -152,7 +164,7 @@ export function useLogic(areaId: string) {
     area,
     projects,
     tasks,
-    buckets: bucketsWithCounts,
+    sections: bucketsWithCounts,
     goBack,
     openProject,
     openEdit,

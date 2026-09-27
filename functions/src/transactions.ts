@@ -8,7 +8,7 @@
 // is a subcollection of its own owner's users/{uid} doc — no household-wide
 // sharing, see firestore.rules' header) — event.params.uid is threaded
 // through every read/write below so this only ever touches that same uid's
-// own accounts/statsMonthly/stats/statsBudgetProgress, never another
+// own accounts/statsMonthly/stats, never another
 // account's.
 //
 // Design: rather than compute a clever per-field delta (easy to get subtly
@@ -52,7 +52,6 @@ import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { FieldValue, type DocumentData, type Timestamp } from 'firebase-admin/firestore';
 import { db } from './lib/firestore';
 import { getDefaultCurrency, getExchangeRates, currencyOfAccount, convert } from './lib/currency';
-import { recomputeRulesForCategory } from './lib/budgetProgress';
 
 interface Contribution {
   accountId: string;
@@ -147,17 +146,6 @@ export const onTransactionWrite = onDocumentWritten('users/{uid}/transactions/{t
   }
 
   await batch.commit();
-
-  // stats/budgetProgress reads statsMonthly.perCategorySpend, so it has to
-  // run after the batch above lands, not inside it — dedupe (categoryId,
-  // month) pairs since before/after commonly share both.
-  const categoryMonthPairs = new Map<string, { categoryId: string; month: string }>();
-  for (const c of [beforeContribution, afterContribution]) {
-    if (c?.categoryId) categoryMonthPairs.set(`${c.categoryId}::${c.month}`, { categoryId: c.categoryId, month: c.month });
-  }
-  await Promise.all(
-    [...categoryMonthPairs.values()].map(({ categoryId, month }) => recomputeRulesForCategory(uid, categoryId, month))
-  );
 });
 
 /**

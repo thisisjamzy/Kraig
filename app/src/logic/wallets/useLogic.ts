@@ -1,7 +1,6 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { query, setDoc, where } from 'firebase/firestore';
 import { useAccounts, useCurrencyContext, useExchangeRates } from '@/src/shared/firestore/queries';
 import { useFirestoreCollection } from '@/src/shared/firestore/hooks';
@@ -11,13 +10,13 @@ import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { walletColor, ACCOUNT_TYPES } from '@/src/viewmodels/wallets';
 import { currencyName } from '@/src/viewmodels/currencies';
 import type { FirestoreAccount } from '@/src/shared/firestore/types';
+import { useGoBack } from '@/src/shared/navigation/useGoBack';
 
 export function formatAmount(value: number) {
   return new Intl.NumberFormat('en-US').format(value);
 }
 
 export function useLogic() {
-  const router = useRouter();
   const { user } = useFirebaseUser();
   const { data: accounts, loading: accountsLoading, error } = useAccounts();
   const { data: exchangeRates } = useExchangeRates();
@@ -59,8 +58,11 @@ export function useLogic() {
     (code) => ({ code, name: currencyName(code) })
   );
 
+  // Back to the page the user came from (skipping forms); '/home' only
+  // when there's no history — see src/shared/navigation/useGoBack.ts.
+  const navigateBack = useGoBack();
   function goBack() {
-    router.push('/home');
+    navigateBack('/home');
   }
 
   function openAddWallet() {

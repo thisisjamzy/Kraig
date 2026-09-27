@@ -58,14 +58,6 @@
       ]
     },
     {
-      "collectionGroup": "budgetRules",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "categoryId", "order": "ASCENDING" },
-        { "fieldPath": "archived", "order": "ASCENDING" }
-      ]
-    },
-    {
       "collectionGroup": "transfers",
       "queryScope": "COLLECTION",
       "fields": [

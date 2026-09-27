@@ -5,8 +5,8 @@ import { ChevronLeft, Pencil, Plus } from 'lucide-react';
 import { useLogic } from '@/src/logic/areaDetail/useLogic';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { ProjectCard } from '@/src/widgets/ProjectCard/ProjectCard';
-import { BucketCard } from '@/src/widgets/BucketCard/BucketCard';
-import { TaskCard } from '@/src/widgets/TaskCard/TaskCard';
+import { SectionCard } from '@/src/widgets/SectionCard/SectionCard';
+import { TaskCheckRow } from '@/src/widgets/TaskCheckRow/TaskCheckRow';
 import { projectCoverImageUrl } from '@/src/viewmodels/projects';
 import styles from './AreaDetailScreen.module.css';
 
@@ -15,7 +15,7 @@ export function AreaDetailScreen({ areaId }: { areaId: string }) {
     area,
     projects,
     tasks,
-    buckets,
+    sections,
     goBack,
     openProject,
     openEdit,
@@ -57,23 +57,23 @@ export function AreaDetailScreen({ areaId }: { areaId: string }) {
       {!loading && !error && area && (
         <>
           <div className={styles.sectionTitleRow}>
-            <h2 className={styles.sectionTitle}>Buckets</h2>
+            <h2 className={styles.sectionTitle}>Sections</h2>
             <button
               type="button"
               className={styles.addIconButton}
               onClick={openNewBucket}
-              aria-label="New bucket"
-              title="New bucket"
+              aria-label="New section"
+              title="New section"
             >
               <Plus size={16} strokeWidth={2.5} />
             </button>
           </div>
-          {buckets.length === 0 ? (
-            <p className={styles.emptyText}>No buckets yet.</p>
+          {sections.length === 0 ? (
+            <p className={styles.emptyText}>No sections yet.</p>
           ) : (
             <div className={styles.bucketCarousel} data-hscroll="true">
-              {buckets.map((bucket) => (
-                <BucketCard key={bucket.id} bucket={bucket} onClick={() => openBucket(bucket.id)} />
+              {sections.map((section) => (
+                <SectionCard key={section.id} section={section} onClick={() => openBucket(section.id)} />
               ))}
             </div>
           )}
@@ -95,7 +95,7 @@ export function AreaDetailScreen({ areaId }: { areaId: string }) {
           ) : (
             <div className={styles.projectCarousel} data-hscroll="true">
               {projects.map((project) => (
-                <ProjectCard key={project.id} project={project} onClick={() => openProject(project.id)} />
+                <ProjectCard key={project.id} project={project} variant="compact" onClick={() => openProject(project.id)} />
               ))}
             </div>
           )}
@@ -117,7 +117,7 @@ export function AreaDetailScreen({ areaId }: { areaId: string }) {
           ) : (
             <div className={styles.taskList}>
               {tasks.map((task) => (
-                <TaskCard key={task.id} task={task} />
+                <TaskCheckRow key={task.id} task={task} />
               ))}
             </div>
           )}

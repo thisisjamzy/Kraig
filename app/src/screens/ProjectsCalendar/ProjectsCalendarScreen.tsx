@@ -1,360 +1,272 @@
 'use client';
 
-// Design/task5.JPG's "Schedule" frame — a horizontally scrolling week-strip
-// date picker over a vertical, hour-by-hour agenda timeline, replacing the
-// old month-grid-plus-agenda-list layout (Design/task4.jpg's "frame two").
-// The month grid isn't gone, just moved: tapping the month label opens it
-// in a popover for jumping to an arbitrary date, since a single week strip
-// alone can't reach a date more than a couple of weeks away without a lot
-// of scrolling.
+// Calendar + daily schedule, per the Time module brief: a header (menu icon,
+// month title), a Monday-first month grid in its own tinted panel with
+// rounded top corners, then "Schedule" / "Add Event" over an hour timeline
+// (08.00 labels, faint guide lines) with each task placed at its start time.
+// Tasks render with exactly the Time hub's own card (TaskCheckRow): the radio
+// completes the task, anything else on the card opens its edit page. On web
+// the grid sits beside the schedule. "Add Event" opens the new task form on
+// the selected day. The generic AppHeader is off on this
+// route (chromeVisibility.ts) — this header replaces it.
 
-import { useEffect, useMemo, useRef, useState } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { Calendar } from '@heroui/react';
-import { parseDate } from '@internationalized/date';
-import { CalendarClock, ChevronDown, FolderKanban, ListPlus, ShoppingBasket, Target, Wallet } from 'lucide-react';
-import { useLogic } from '@/src/logic/projectsCalendar/useLogic';
+import { useRef } from 'react';
+import { ChevronLeft, ChevronRight, CalendarClock, FolderKanban, ListPlus, Target, Wallet } from 'lucide-react';
+import { useLogic, HOUR_HEIGHT } from '@/src/logic/projectsCalendar/useLogic';
 import { ActionMenu } from '@/src/widgets/ActionMenu/ActionMenu';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
-import { TaskCard } from '@/src/widgets/TaskCard/TaskCard';
-import { toDateOnly } from '@/src/shared/firestore/taskWrites';
-import { iconTint } from '@/src/viewmodels/iconTint';
+import { TaskCheckRow } from '@/src/widgets/TaskCheckRow/TaskCheckRow';
 import { useIsWeb } from '@/src/shared/hooks/useViewportMode';
 import styles from './ProjectsCalendarScreen.module.css';
 import webStyles from './ProjectsCalendarScreen.web.module.css';
 
-// Sunday-start week containing dateIso — matches the mobile date strip's
-// own US-locale weekday labels (date.toLocaleDateString('en-US', {weekday
-// :'short'})) so "Sun...Sat" reads the same way in both views.
-function buildWeekDays(dateIso: string): string[] {
-  const anchor = new Date(`${dateIso}T00:00:00`);
-  const start = new Date(anchor);
-  start.setDate(start.getDate() - start.getDay());
-  return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(start);
-    d.setDate(d.getDate() + i);
-    return toDateOnly(d);
-  });
-}
+const WEEKDAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
 
-// The date strip's own scrollable window — wide enough either side of
-// "today" that picking any day within about three weeks never needs the
-// month popover at all, while a single render still only ever builds one
-// fixed-size array.
-const STRIP_DAYS_BEFORE = 7;
-const STRIP_DAYS_TOTAL = 35;
-
-function buildDateStrip(anchorIso: string): Date[] {
-  const anchor = new Date(`${anchorIso}T00:00:00`);
-  const start = new Date(anchor);
-  start.setDate(start.getDate() - STRIP_DAYS_BEFORE);
-  return Array.from({ length: STRIP_DAYS_TOTAL }, (_, i) => {
-    const d = new Date(start);
-    d.setDate(d.getDate() + i);
-    return d;
-  });
+function hourLabel(hour: number) {
+  return `${String(hour % 24).padStart(2, '0')}.00`;
 }
 
 export function ProjectsCalendarScreen() {
-  const {
-    monthCursor,
-    goToMonth,
-    daysWithItems,
-    selectedDate,
-    selectDay,
-    agenda,
-    agendaForDate,
-    todayIso,
-    openProject,
-    openPayment,
-    loading,
-  } = useLogic();
-  const router = useRouter();
+  const logic = useLogic();
   const isWeb = useIsWeb();
+  return <ProjectsCalendarView {...logic} isWeb={isWeb} />;
+}
 
-  const [monthPickerOpen, setMonthPickerOpen] = useState(false);
+export type ProjectsCalendarViewProps = Pick<
+  ReturnType<typeof useLogic>,
+  | 'monthCursor'
+  | 'daysWithItems'
+  | 'selectedDate'
+  | 'todayIso'
+  | 'agenda'
+  | 'allDayTasks'
+  | 'schedule'
+  | 'monthGrid'
+  | 'shiftMonth'
+  | 'pickDate'
+  | 'jumpToToday'
+  | 'openAddEvent'
+  | 'openProject'
+  | 'openPayment'
+  | 'loading'
+> & { isWeb: boolean };
 
-  // An anchored popover next to the date button (not a full-screen Modal) —
-  // same convention as Home's own currency picker
-  // (src/screens/Home/HomeScreen.tsx's currencyMenuRef): closes on an
-  // outside click/tap or Escape.
-  const monthMenuRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!monthPickerOpen) return;
-    function handlePointerDown(event: MouseEvent | TouchEvent) {
-      if (monthMenuRef.current && !monthMenuRef.current.contains(event.target as Node)) {
-        setMonthPickerOpen(false);
-      }
-    }
-    function handleKeydown(event: KeyboardEvent) {
-      if (event.key === 'Escape') setMonthPickerOpen(false);
-    }
-    document.addEventListener('mousedown', handlePointerDown);
-    document.addEventListener('touchstart', handlePointerDown);
-    document.addEventListener('keydown', handleKeydown);
-    return () => {
-      document.removeEventListener('mousedown', handlePointerDown);
-      document.removeEventListener('touchstart', handlePointerDown);
-      document.removeEventListener('keydown', handleKeydown);
-    };
-  }, [monthPickerOpen]);
+/** The whole calendar UI, fed by props — ProjectsCalendarScreen wires it to
+ * live data; keeping it presentational means it can also be rendered with
+ * fixed sample data to check its layout. */
+export function ProjectsCalendarView({
+  monthCursor,
+  daysWithItems,
+  selectedDate,
+  todayIso,
+  agenda,
+  allDayTasks,
+  schedule,
+  monthGrid,
+  shiftMonth,
+  pickDate,
+  jumpToToday,
+  openAddEvent,
+  openProject,
+  openPayment,
+  loading,
+  isWeb,
+}: ProjectsCalendarViewProps) {
 
-  // The strip's own anchor stays put across re-selections within its
-  // window so scrolling doesn't jump around — it only ever re-centers at
-  // the specific call sites that can jump far away (the month popover,
-  // "Jump to today"), never reactively off of every selectedDate change.
-  const [stripAnchor, setStripAnchor] = useState(selectedDate);
-  function selectDayAndRecenter(iso: string) {
-    selectDay(iso);
-    setStripAnchor(iso);
+  // Swipe the month panel left/right to change month — the brief's header
+  // carries only the menu and the title, so there are no arrow buttons.
+  const touchStartX = useRef<number | null>(null);
+  function onPanelTouchStart(event: React.TouchEvent) {
+    touchStartX.current = event.touches[0]?.clientX ?? null;
+  }
+  function onPanelTouchEnd(event: React.TouchEvent) {
+    const startX = touchStartX.current;
+    touchStartX.current = null;
+    const endX = event.changedTouches[0]?.clientX;
+    if (startX === null || endX === undefined) return;
+    const dx = endX - startX;
+    if (Math.abs(dx) > 50) shiftMonth(dx < 0 ? 1 : -1);
   }
 
-  const strip = useMemo(() => buildDateStrip(stripAnchor), [stripAnchor]);
-
-  const stripRef = useRef<HTMLDivElement>(null);
-  const selectedDayRef = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    selectedDayRef.current?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
-  }, [selectedDate, strip]);
-
-  const hasAllDayItems = agenda.projectItems.length > 0 || agenda.paymentItems.length > 0;
-  const hasAnything = agenda.taskItems.length > 0 || hasAllDayItems;
-  const isToday = selectedDate === todayIso;
-
   const monthLabel = monthCursor.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  const selectedLabel = new Date(`${selectedDate}T00:00:00`).toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  });
+  const hasAllDay = agenda.projectItems.length > 0 || agenda.paymentItems.length > 0 || allDayTasks.length > 0;
 
   return (
     <div className={`${styles.page} ${isWeb ? webStyles.page : ''}`}>
-      <div className={styles.headerRow}>
-        <div className={styles.monthWrap} ref={monthMenuRef}>
-          <button
-            type="button"
-            className={styles.monthButton}
-            onClick={() => setMonthPickerOpen((current) => !current)}
-            aria-expanded={monthPickerOpen}
-          >
-            {monthLabel}
-            <ChevronDown size={16} strokeWidth={2.25} />
-          </button>
-
-          {monthPickerOpen && (
-            <div className={styles.monthPopover} onClick={(event) => event.stopPropagation()}>
-              <Calendar.Root
-                focusedValue={parseDate(toDateOnly(monthCursor))}
-                onFocusChange={(date) => goToMonth(new Date(date.year, date.month - 1, date.day))}
-                value={parseDate(selectedDate)}
-                onChange={(date) => {
-                  if (date) {
-                    selectDayAndRecenter(date.toString());
-                    setMonthPickerOpen(false);
-                  }
-                }}
-              >
-                <Calendar.Header className={styles.calendarHeader}>
-                  <Calendar.NavButton slot="previous" className={styles.calendarNavButton} />
-                  <Calendar.Heading className={styles.calendarHeading} />
-                  <Calendar.NavButton slot="next" className={styles.calendarNavButton} />
-                </Calendar.Header>
-                <Calendar.Grid className={styles.calendarGrid}>
-                  <Calendar.GridHeader>
-                    {(day) => <Calendar.HeaderCell className={styles.weekdayCell}>{day}</Calendar.HeaderCell>}
-                  </Calendar.GridHeader>
-                  <Calendar.GridBody>
-                    {(date) => (
-                      <Calendar.Cell date={date} className={styles.dayCell}>
-                        {({ formattedDate }) => (
-                          <span className={styles.dayCellInner}>
-                            {formattedDate}
-                            {daysWithItems.has(date.toString()) && <span className={styles.dayDot} />}
-                          </span>
-                        )}
-                      </Calendar.Cell>
-                    )}
-                  </Calendar.GridBody>
-                </Calendar.Grid>
-              </Calendar.Root>
-            </div>
-          )}
-        </div>
-
+      <header className={styles.header}>
         <ActionMenu
-          ariaLabel="Schedule actions"
+          ariaLabel="Calendar menu"
+          triggerClassName={styles.menuButton}
+          triggerIcon={
+            <span className={styles.menuIcon} aria-hidden>
+              <span />
+              <span />
+            </span>
+          }
           items={[
             {
               key: 'today',
               label: 'Jump to today',
               icon: <CalendarClock size={14} strokeWidth={2} />,
-              onSelect: () => {
-                goToMonth(new Date());
-                selectDayAndRecenter(todayIso);
-              },
+              onSelect: jumpToToday,
             },
             {
-              key: 'new-task',
-              label: 'New task',
+              key: 'previous',
+              label: 'Previous month',
+              icon: <ChevronLeft size={14} strokeWidth={2} />,
+              onSelect: () => shiftMonth(-1),
+            },
+            {
+              key: 'next',
+              label: 'Next month',
+              icon: <ChevronRight size={14} strokeWidth={2} />,
+              onSelect: () => shiftMonth(1),
+            },
+            {
+              key: 'add',
+              label: 'Add event',
               icon: <ListPlus size={14} strokeWidth={2} />,
-              onSelect: () => router.push('/tasks/new'),
+              onSelect: openAddEvent,
             },
           ]}
         />
-      </div>
+        <h1 className={styles.monthTitle}>{monthLabel}</h1>
+        <span className={styles.headerSpacer} aria-hidden />
+      </header>
 
-      {isWeb ? (
-        <>
-          <ScreenState loading={loading} />
-          {!loading && (
-            <div className={webStyles.weekGrid}>
-              {buildWeekDays(selectedDate).map((iso) => {
-                const date = new Date(`${iso}T00:00:00`);
-                const dayAgenda = agendaForDate(iso);
-                const isSelected = iso === selectedDate;
-                const isToday = iso === todayIso;
-                const isEmpty =
-                  dayAgenda.taskItems.length === 0 &&
-                  dayAgenda.projectItems.length === 0 &&
-                  dayAgenda.paymentItems.length === 0;
+        <div className={`${styles.layout} ${isWeb ? webStyles.layout : ''}`}>
+          <section
+            className={`${styles.calendarPanel} ${isWeb ? webStyles.calendarPanel : ''}`}
+            aria-label={monthLabel}
+            onTouchStart={onPanelTouchStart}
+            onTouchEnd={onPanelTouchEnd}
+          >
+            <div className={styles.weekdays}>
+              {WEEKDAYS.map((day) => (
+                <span key={day}>{day}</span>
+              ))}
+            </div>
+            <div className={styles.grid} role="grid">
+              {monthGrid.map((cell) => {
+                const isSelected = cell.iso === selectedDate;
+                const isToday = cell.iso === todayIso;
                 return (
-                  <div
-                    key={iso}
-                    className={`${webStyles.weekColumn} ${isSelected ? webStyles.weekColumnSelected : ''}`}
+                  <button
+                    key={cell.iso}
+                    type="button"
+                    role="gridcell"
+                    aria-selected={isSelected}
+                    aria-label={new Date(`${cell.iso}T00:00:00`).toDateString()}
+                    className={styles.day}
+                    data-outside={!cell.inMonth || undefined}
+                    data-today={isToday || undefined}
+                    onClick={() => pickDate(cell.iso)}
                   >
-                    <button type="button" className={webStyles.weekColumnHeader} onClick={() => selectDay(iso)}>
-                      <span className={webStyles.weekColumnWeekday}>
-                        {date.toLocaleDateString('en-US', { weekday: 'short' })}
-                      </span>
-                      <span className={isToday ? webStyles.weekColumnDateToday : webStyles.weekColumnDate}>
-                        {date.getDate()}
-                      </span>
-                    </button>
-                    <div className={webStyles.weekColumnBody}>
-                      {dayAgenda.projectItems.map((item) => (
-                        <button
-                          key={`${item.id}-${item.label}`}
-                          type="button"
-                          className={`${webStyles.eventChip} ${webStyles.eventChipProject}`}
-                          onClick={() => openProject(item.id)}
-                          title={`${item.label}: ${item.title}`}
-                        >
-                          {item.title}
-                        </button>
-                      ))}
-                      {dayAgenda.paymentItems.map((payment) => (
-                        <button
-                          key={payment.id}
-                          type="button"
-                          className={`${webStyles.eventChip} ${webStyles.eventChipPayment}`}
-                          onClick={openPayment}
-                          title={`Payment due: ${payment.title}`}
-                        >
-                          {payment.title}
-                        </button>
-                      ))}
-                      {dayAgenda.taskItems.map((task) => (
-                        <button
-                          key={task.id}
-                          type="button"
-                          className={`${webStyles.eventChip} ${webStyles.eventChipTask}`}
-                          onClick={() => router.push(`/tasks/${task.id}/edit`)}
-                          title={task.title}
-                        >
-                          {task.title}
-                        </button>
-                      ))}
-                      {isEmpty && <span className={webStyles.emptyDay}>—</span>}
-                    </div>
-                  </div>
+                    <span className={styles.dayNumber}>{cell.day}</span>
+                    {daysWithItems.has(cell.iso) && !isSelected && <span className={styles.dayDot} aria-hidden />}
+                  </button>
                 );
               })}
             </div>
-          )}
-        </>
-      ) : (
-        <>
-          <div className={styles.dateStrip} ref={stripRef} data-hscroll="true">
-            {strip.map((date) => {
-              const iso = toDateOnly(date);
-              const isSelected = iso === selectedDate;
-              return (
-                <button
-                  key={iso}
-                  ref={isSelected ? selectedDayRef : undefined}
-                  type="button"
-                  className={`${styles.stripDay} ${isSelected ? styles.stripDaySelected : ''}`}
-                  onClick={() => selectDay(iso)}
-                >
-                  <span className={styles.stripDayLabel}>
-                    {date.toLocaleDateString('en-US', { weekday: 'short' })}
-                  </span>
-                  <span className={styles.stripDateNum}>{date.getDate()}</span>
-                  {daysWithItems.has(iso) && !isSelected && <span className={styles.stripDot} />}
-                </button>
-              );
-            })}
-          </div>
+          </section>
 
-          <ScreenState loading={loading} />
-
-          {!loading && !hasAnything && (
-            <div className={styles.emptyState}>
-              <ShoppingBasket size={40} strokeWidth={1.5} className={styles.emptyIcon} />
-              <p className={styles.emptyTitle}>{isToday ? 'All done for today!' : 'Nothing scheduled'}</p>
-              <p className={styles.emptyPrompt}>Want to add a task for this day?</p>
-              <Link href="/tasks/new" className={styles.emptyCta}>
-                <ListPlus size={16} strokeWidth={2.25} />
-                Add task
-              </Link>
+          <section className={styles.schedule}>
+            <div className={styles.scheduleHead}>
+              <div>
+                <h2 className={styles.scheduleTitle}>Schedule</h2>
+                <p className={styles.scheduleDate}>{selectedLabel}</p>
+              </div>
+              <button type="button" className={styles.addLink} onClick={openAddEvent}>
+                Add Event
+              </button>
             </div>
-          )}
 
-          {!loading && hasAnything && (
-            <div className={styles.timeline}>
-              {hasAllDayItems && (
-                <div className={styles.allDayGroup}>
-                  {agenda.projectItems.map((item) => (
-                    <button
-                      key={`${item.id}-${item.label}`}
-                      type="button"
-                      className={styles.allDayRow}
-                      onClick={() => openProject(item.id)}
-                    >
-                      <span className={styles.agendaIcon} style={{ background: iconTint(item.isMilestone ? 3 : 4) }}>
-                        {item.isMilestone ? <Target size={16} strokeWidth={2} /> : <FolderKanban size={16} strokeWidth={2} />}
+            <ScreenState loading={loading} />
+
+            {hasAllDay && (
+              <div className={styles.allDay}>
+                {allDayTasks.map((task) => (
+                  <TaskCheckRow key={task.id} task={task} timeOnly />
+                ))}
+                {agenda.projectItems.map((item) => (
+                  <button
+                    key={`${item.id}-${item.label}`}
+                    type="button"
+                    className={styles.allDayItem}
+                    onClick={() => openProject(item.id)}
+                  >
+                    <span className={styles.allDayIcon} data-kind="project">
+                      {item.isMilestone ? <Target size={14} strokeWidth={2} /> : <FolderKanban size={14} strokeWidth={2} />}
+                    </span>
+                    <span className={styles.allDayText}>
+                      <span className={styles.allDayTitle}>{item.title}</span>
+                      <span className={styles.allDayMeta}>{item.label}</span>
+                    </span>
+                  </button>
+                ))}
+                {agenda.paymentItems.map((payment) => (
+                  <button key={payment.id} type="button" className={styles.allDayItem} onClick={openPayment}>
+                    <span className={styles.allDayIcon} data-kind="payment">
+                      <Wallet size={14} strokeWidth={2} />
+                    </span>
+                    <span className={styles.allDayText}>
+                      <span className={styles.allDayTitle}>{payment.title}</span>
+                      <span className={styles.allDayMeta}>
+                        Payment due · {payment.amount.toLocaleString()} {payment.currency}
                       </span>
-                      <div className={styles.agendaTaskBody}>
-                        <p className={styles.agendaTitleBlock}>{item.title}</p>
-                        <span className={styles.agendaTypeCaption}>{item.label}</span>
-                      </div>
-                    </button>
-                  ))}
-                  {agenda.paymentItems.map((payment) => (
-                    <button key={payment.id} type="button" className={styles.allDayRow} onClick={openPayment}>
-                      <span className={styles.agendaIcon} style={{ background: iconTint(5) }}>
-                        <Wallet size={16} strokeWidth={2} />
-                      </span>
-                      <div className={styles.agendaTaskBody}>
-                        <span className={styles.agendaTypeCaption}>Payment due</span>
-                        <p className={styles.agendaTitleBlock}>{payment.title}</p>
-                        <span className={styles.agendaTime}>
-                          {payment.amount.toLocaleString()} {payment.currency}
-                        </span>
-                      </div>
-                    </button>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {!loading && (
+              <div className={styles.timeline} style={{ height: schedule.height + 24 }}>
+                {schedule.hours.map((hour) => (
+                  <div
+                    key={hour}
+                    className={styles.hourRow}
+                    style={{ top: (hour - schedule.firstHour) * HOUR_HEIGHT }}
+                    aria-hidden
+                  >
+                    <span className={styles.hourLabel}>{hourLabel(hour)}</span>
+                    <span className={styles.hourLine} />
+                  </div>
+                ))}
+                <div className={styles.events}>
+                  {schedule.items.map((item) => (
+                    <TaskCheckRow
+                      key={item.id}
+                      task={item}
+                      timeOnly
+                      className={styles.event}
+                      style={{
+                        top: item.top,
+                        minHeight: item.height,
+                        left: `calc(${item.lane} * (100% / ${item.lanes}))`,
+                        width: `calc(100% / ${item.lanes} - ${item.lanes > 1 ? 6 : 0}px)`,
+                      }}
+                    />
                   ))}
                 </div>
-              )}
+                {schedule.items.length === 0 && (
+                  <p className={styles.emptyDay}>
+                    Nothing scheduled.{' '}
+                    <button type="button" className={styles.addLink} onClick={openAddEvent}>
+                      Add an event
+                    </button>
+                  </p>
+                )}
+              </div>
+            )}
+          </section>
+        </div>
 
-              {agenda.taskItems.length > 0 && (
-                <div className={styles.taskList}>
-                  {agenda.taskItems.map((item) => (
-                    <TaskCard key={item.id} task={item} />
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </>
-      )}
     </div>
   );
 }

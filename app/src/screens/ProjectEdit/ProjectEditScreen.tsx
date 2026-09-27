@@ -18,7 +18,7 @@ export function ProjectEditScreen({ projectId }: { projectId: string }) {
   const {
     project,
     areas,
-    buckets,
+    sections,
     name,
     setName,
     emoji,
@@ -108,18 +108,18 @@ export function ProjectEditScreen({ projectId }: { projectId: string }) {
 
             {areaId && (
               <div className={styles.formField}>
-                <label className={styles.formLabel} htmlFor="project-bucket">
-                  Bucket
+                <label className={styles.formLabel} htmlFor="project-section">
+                  Section
                 </label>
                 <select
-                  id="project-bucket"
+                  id="project-section"
                   className={styles.formInput}
                   value={bucketId}
                   onChange={(event) => setBucketId(event.target.value)}
                 >
-                  {buckets.map((bucket) => (
-                    <option key={bucket.id} value={bucket.id}>
-                      {bucket.name}
+                  {sections.map((section) => (
+                    <option key={section.id} value={section.id}>
+                      {section.name}
                     </option>
                   ))}
                 </select>

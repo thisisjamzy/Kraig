@@ -6,7 +6,7 @@
 // readable 40px-per-point spacing would overflow that width, it switches to
 // a fixed per-point width and the card scrolls horizontally instead of
 // squeezing points together. Used by DebtDetailScreen (one debt's balance)
-// and GoalsScreen's Debt tab (every debt's balance combined).
+// and BucketsScreen's Debt tab (every debt's balance combined).
 
 import { useLayoutEffect, useRef, useState } from 'react';
 import styles from './TrendChart.module.css';

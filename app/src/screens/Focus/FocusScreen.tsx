@@ -1,123 +1,76 @@
 'use client';
 
+// Focus — every pending task on an Eisenhower board (drag between
+// quadrants). One header row: menu, the title, and "new task". The generic
+// AppHeader is off on this route (chromeVisibility.ts) — this header
+// replaces it.
+
+import { CalendarDays, List, ListChecks, Plus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { Plus } from 'lucide-react';
 import { useLogic } from '@/src/logic/focus/useLogic';
-import { TrendChart } from '@/src/widgets/TrendChart/TrendChart';
+import { ActionMenu } from '@/src/widgets/ActionMenu/ActionMenu';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
-import { TaskCard } from '@/src/widgets/TaskCard/TaskCard';
-import { PRIORITY_LEVELS } from '@/src/viewmodels/projects';
-import type { FocusPriorityFilter, FocusDateFilter } from '@/src/logic/focus/useLogic';
+import { FocusKanban } from './FocusKanban';
 import styles from './FocusScreen.module.css';
 
-const PRIORITY_FILTERS: FocusPriorityFilter[] = ['All', ...PRIORITY_LEVELS];
-const PRIORITY_FILTER_LABEL: Record<FocusPriorityFilter, string> = {
-  All: 'All priorities',
-  High: 'High priority',
-  Medium: 'Medium priority',
-  Low: 'Low priority',
-};
-
-const DATE_FILTERS: FocusDateFilter[] = ['all', 'today', 'thisWeek', 'thisMonth', 'lastWeek', 'lastMonth'];
-const DATE_FILTER_LABEL: Record<FocusDateFilter, string> = {
-  all: 'Any date',
-  today: 'Today',
-  thisWeek: 'This week',
-  thisMonth: 'This month',
-  lastWeek: 'Last week',
-  lastMonth: 'Last month',
-};
-
 export function FocusScreen() {
-  const {
-    visibleTasks,
-    priorityFilter,
-    setPriorityFilter,
-    dateFilter,
-    setDateFilter,
-    successTrend,
-    todaySuccess,
-    timeLeftToday,
-    loading,
-  } = useLogic();
+  return <FocusView {...useLogic()} />;
+}
+
+/** The whole Focus UI, fed by props — FocusScreen wires it to live data;
+ * presentational so it can also be rendered with sample tasks. */
+export function FocusView({ search, setSearch, columns, moveToQuadrant, newTask, loading }: ReturnType<typeof useLogic>) {
   const router = useRouter();
 
   return (
     <div className={styles.page}>
-      <div className={styles.pageTitleRow}>
-        <h1 className={styles.pageTitle}>Focus</h1>
-        <button
-          type="button"
-          className={styles.addIconButton}
-          onClick={() => router.push('/tasks/new')}
-          aria-label="New task"
-          title="New task"
-        >
-          <Plus size={16} strokeWidth={2.5} />
+      <header className={styles.header}>
+        <ActionMenu
+          ariaLabel="Menu"
+          triggerClassName={styles.menuButton}
+          triggerIcon={
+            <span className={styles.menuIcon} aria-hidden>
+              <span />
+              <span />
+            </span>
+          }
+          items={[
+            {
+              key: 'today',
+              label: "Today's tasks",
+              icon: <ListChecks size={14} strokeWidth={2} />,
+              onSelect: () => router.push('/tasks?filter=today'),
+            },
+            {
+              key: 'all',
+              label: 'All tasks',
+              icon: <List size={14} strokeWidth={2} />,
+              onSelect: () => router.push('/tasks?filter=all'),
+            },
+            {
+              key: 'calendar',
+              label: 'Calendar',
+              icon: <CalendarDays size={14} strokeWidth={2} />,
+              onSelect: () => router.push('/projects/calendar'),
+            },
+          ]}
+        />
+        <h1 className={styles.title}>Focus</h1>
+        <button type="button" className={styles.newButton} onClick={() => newTask()} aria-label="New task">
+          <Plus size={18} strokeWidth={2.5} />
         </button>
-      </div>
+      </header>
 
       <ScreenState loading={loading} />
 
       {!loading && (
-        <>
-          <div className={styles.chartCard}>
-            <p className={styles.chartTitle}>Success this week</p>
-            <TrendChart points={successTrend} color="var(--color-brand)" />
-          </div>
-
-          <div className={styles.statGrid}>
-            <div className={styles.statTile}>
-              <span className={styles.statLabel}>Left today</span>
-              <p className={styles.statValue}>{timeLeftToday}</p>
-            </div>
-            <div className={styles.statTile}>
-              <span className={styles.statLabel}>Today&apos;s success</span>
-              <p className={styles.statValue}>{todaySuccess}%</p>
-            </div>
-          </div>
-
-          {/* Native <select>s rather than chip rows — always exactly one
-              line regardless of screen width, left-aligned rather than
-              stretched, same dropdown-for-a-single-choice pattern already
-              used by TaskEdit's own project picker. */}
-          <div className={styles.filterRow}>
-            <select
-              className={styles.filterSelect}
-              value={priorityFilter}
-              onChange={(event) => setPriorityFilter(event.target.value as FocusPriorityFilter)}
-              aria-label="Filter by priority"
-            >
-              {PRIORITY_FILTERS.map((filter) => (
-                <option key={filter} value={filter}>
-                  {PRIORITY_FILTER_LABEL[filter]}
-                </option>
-              ))}
-            </select>
-            <select
-              className={styles.filterSelect}
-              value={dateFilter}
-              onChange={(event) => setDateFilter(event.target.value as FocusDateFilter)}
-              aria-label="Filter by due date"
-            >
-              {DATE_FILTERS.map((filter) => (
-                <option key={filter} value={filter}>
-                  {DATE_FILTER_LABEL[filter]}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {visibleTasks.length === 0 ? (
-            <p className={styles.emptyText}>Nothing left to complete. Nice work.</p>
-          ) : (
-            <div className={styles.list}>
-              {visibleTasks.map((task) => (
-                <TaskCard key={task.id} task={task} />
-              ))}
-            </div>
-          )}
-        </>
+        <FocusKanban
+          columns={columns}
+          search={search}
+          setSearch={setSearch}
+          onMove={moveToQuadrant}
+          onAdd={(quadrant) => newTask(quadrant)}
+        />
       )}
     </div>
   );

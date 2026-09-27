@@ -7,15 +7,14 @@
 // row the instant it archives).
 
 import { useMemo } from 'react';
-import { useRouter } from 'next/navigation';
 import { query, updateDoc, serverTimestamp, where } from 'firebase/firestore';
 import { useFirestoreCollection } from '@/src/shared/firestore/hooks';
 import { areasRef, areaRef, projectsRef } from '@/src/shared/firestore/refs';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import type { FirestoreArea, FirestoreProject } from '@/src/shared/firestore/types';
+import { useGoBack } from '@/src/shared/navigation/useGoBack';
 
 export function useLogic() {
-  const router = useRouter();
   const { user } = useFirebaseUser();
   const uid = user?.uid;
 
@@ -40,8 +39,11 @@ export function useLogic() {
     [areaDocs, projectDocs]
   );
 
+  // Back to the page the user came from (skipping forms); '/projects' only
+  // when there's no history — see src/shared/navigation/useGoBack.ts.
+  const navigateBack = useGoBack();
   function goBack() {
-    router.push('/projects');
+    navigateBack('/projects');
   }
 
   async function archiveArea(id: string) {

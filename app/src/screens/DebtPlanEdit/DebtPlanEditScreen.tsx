@@ -110,7 +110,7 @@ export function DebtPlanEditScreen({ debtId }: { debtId: string }) {
             disabled={(hasRecurring && !amount) || saving}
             onClick={handleSave}
           >
-            {saving ? strings.goalDetail.saving : strings.goalDetail.save}
+            {saving ? strings.bucketDetail.saving : strings.bucketDetail.save}
           </button>
         </div>
       )}

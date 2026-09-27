@@ -4,6 +4,11 @@
 // next to the button itself — not a full-screen bottom sheet — each row
 // with both an icon and a text label. Closes on picking an action, on
 // Escape, or on a click/tap anywhere else.
+//
+// The card grows away from the nearer screen edge: a trigger in the right
+// half (most "⋮" buttons) opens it leftward from its right edge; one in the
+// left half (e.g. the Calendar's menu icon) opens it rightward from its
+// left edge — otherwise it would open off-screen.
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { MoreVertical } from 'lucide-react';
@@ -30,6 +35,7 @@ export function ActionMenu({
   triggerClassName?: string;
 }) {
   const [open, setOpen] = useState(false);
+  const [align, setAlign] = useState<'start' | 'end'>('end');
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -59,6 +65,11 @@ export function ActionMenu({
         className={triggerClassName ?? styles.trigger}
         onClick={(event) => {
           event.stopPropagation();
+          if (!open) {
+            // Decided at open time from where the trigger actually is.
+            const rect = containerRef.current?.getBoundingClientRect();
+            setAlign(rect && rect.left + rect.width / 2 < window.innerWidth / 2 ? 'start' : 'end');
+          }
           setOpen((current) => !current);
         }}
         aria-label={ariaLabel}
@@ -68,7 +79,7 @@ export function ActionMenu({
       </button>
 
       {open && (
-        <div className={styles.popover} onClick={(event) => event.stopPropagation()}>
+        <div className={styles.popover} data-align={align} onClick={(event) => event.stopPropagation()}>
           {items.map((item) => (
             <button
               key={item.key}

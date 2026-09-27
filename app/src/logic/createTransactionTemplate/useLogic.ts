@@ -16,6 +16,7 @@ import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { TRANSFER_CATEGORIES } from '@/src/viewmodels/categories';
 import { isSavingsAccount } from '@/src/viewmodels/wallets';
 import type { FirestoreTransactionTemplate, TransactionTemplateType } from '@/src/shared/firestore/types';
+import { useGoBack } from '@/src/shared/navigation/useGoBack';
 
 export type TemplateSavingsMode = 'moved' | 'frozen';
 export const TEMPLATE_TYPES: TransactionTemplateType[] = ['expense', 'income', 'transfer', 'savings'];
@@ -168,8 +169,11 @@ export function useLogic(templateId?: string) {
     }
   }
 
+  // Back to the page the user came from (skipping forms); '/transaction-templates' only
+  // when there's no history — see src/shared/navigation/useGoBack.ts.
+  const navigateBack = useGoBack();
   function goBack() {
-    router.push('/transaction-templates');
+    navigateBack('/transaction-templates');
   }
 
   return {

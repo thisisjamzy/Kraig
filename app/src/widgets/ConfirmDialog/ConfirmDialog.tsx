@@ -1,7 +1,7 @@
 'use client';
 
 // A styled stand-in for window.confirm() — every destructive action in this
-// app (archive a goal/debt, delete a line item, ...) routes through this
+// app (archive a bucket/debt, delete a line item, ...) routes through this
 // instead of firing immediately, so a stray tap can't silently lose data.
 
 import { Modal } from '@/src/widgets/Modal/Modal';

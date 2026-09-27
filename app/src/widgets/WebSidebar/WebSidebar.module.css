@@ -1,12 +1,12 @@
 /* Redesigned onto Lunacy/Images' light dashboard palette — see
    src/styles/base/globals.css's own --money-* tokens for the source
    values. Brand-new file, never shared with BottomNav.module.css/
-   ProjectsBottomNav.module.css/GoalsBottomNav.module.css/AppHeader
+   ProjectsBottomNav.module.css/BucketsBottomNav.module.css/AppHeader
    .module.css, so nothing here can affect the mobile bars those style.
 
    The rail itself is now a plain white/near-white surface (var(--color-
    background), not var(--ink-surface)) with near-black ink text — the
-   always-dark identity the mobile bottom-nav pills and Goals hero card
+   always-dark identity the mobile bottom-nav pills and Buckets hero card
    still use is untouched, this is a deliberate departure for the web
    drawer only. Width is plain px (240 desktop / 72 tablet-icon-only),
    deliberately NOT var(--app-max-width) — that token stays 480px

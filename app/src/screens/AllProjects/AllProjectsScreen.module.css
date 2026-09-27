@@ -104,21 +104,22 @@
   color: var(--color-text-secondary);
 }
 
-/* Vertically scrolling list — each entry is its own rounded card (same
-   info ProjectCard's carousel card shows), wrapped in a SwipeableListItem
-   whose swipe reveal needs that same rounding + full-bleed opaque
-   background, or the red delete action shows through/around the corners
-   even at rest. */
+/* A flush, full-bleed list: every project row runs the full page width
+   (out past .page's side padding) with no gap above or below it — rows are
+   separated by a hairline only. Each row is wrapped in a
+   SwipeableListItem, so its background stays solid to hide the red delete
+   action behind it until swiped. Bottom padding leaves room for the Areas
+   floating button. */
 
 .list {
   display: flex;
   flex-direction: column;
-  gap: var(--space-md);
+  margin: 0 calc(-1 * var(--space-lg)) 72px;
+  border-top: 1px solid var(--color-border);
 }
 
 .listItem {
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .card {
@@ -132,6 +133,17 @@
   background: var(--color-background);
   text-decoration: none;
   color: inherit;
+}
+
+@media (hover: hover) {
+  .card:hover {
+    background: color-mix(in srgb, var(--color-surface) 60%, var(--color-background));
+  }
+}
+
+.card:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: -2px;
 }
 
 .cardTop {
@@ -188,4 +200,45 @@
   font-size: 0.7rem;
   font-weight: 600;
   color: var(--color-text-secondary);
+}
+
+/* Floating action button to Areas — bottom right, kept inside the app's
+   mobile frame on a wide screen. */
+.areasFab {
+  position: fixed;
+  right: max(16px, calc(50vw - var(--app-max-width) / 2 + 16px));
+  bottom: calc(20px + env(safe-area-inset-bottom));
+  z-index: 20;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 52px;
+  padding: 0 20px 0 18px;
+  border-radius: var(--radius-full);
+  background: var(--color-brand);
+  color: #ffffff;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  text-decoration: none;
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--color-brand) 35%, transparent);
+  transition: transform var(--duration-press) var(--ease-out);
+}
+
+.areasFab:active {
+  transform: scale(0.96);
+}
+
+.areasFab:focus-visible {
+  outline: 2px solid var(--color-text-primary);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .areasFab {
+    transition: none;
+  }
+
+  .areasFab:active {
+    transform: none;
+  }
 }

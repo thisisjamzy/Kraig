@@ -9,9 +9,9 @@
 // feature behind them in this app yet, so they land here rather than a
 // dead link or a route that silently does something unrelated.
 
-import { useRouter } from 'next/navigation';
 import { BookOpen, ChevronLeft, Contact, Settings } from 'lucide-react';
 import styles from './ComingSoonScreen.module.css';
+import { useGoBack } from '@/src/shared/navigation/useGoBack';
 
 // A string key, not the icon component itself — this screen is a Client
 // Component but its page.tsx callers (app/(mobile)/address-book,
@@ -21,13 +21,13 @@ import styles from './ComingSoonScreen.module.css';
 const ICONS = { contact: Contact, 'book-open': BookOpen, settings: Settings } as const;
 
 export function ComingSoonScreen({ title, message, icon }: { title: string; message: string; icon: keyof typeof ICONS }) {
-  const router = useRouter();
+  const navigateBack = useGoBack();
   const Icon = ICONS[icon];
 
   return (
     <div className={styles.page}>
       <header className={styles.header}>
-        <button type="button" className={styles.backButton} onClick={() => router.back()} aria-label="Back">
+        <button type="button" className={styles.backButton} onClick={() => navigateBack('/home')} aria-label="Back">
           <ChevronLeft size={18} strokeWidth={2} />
         </button>
         <h1 className={styles.title}>{title}</h1>

@@ -1,159 +1,105 @@
 'use client';
 
-// "What needs my attention today" — every not-done task, filterable by
-// priority and by when it's due, plus a quick read on how today (and the
-// last week) is going. Everything project-related (Active projects, the old
-// completed-trend/reschedule stats) moved to the Analytics screen, which is
-// the one place in Projects mode that's specifically about numbers rather
-// than action — this one stays a plain worklist plus a single at-a-glance
-// trend. The worklist itself is one flat list, not sectioned by priority —
-// the priority badge on each TaskCard already says that, a heading
-// repeating it just to split the list into blocks would be redundant.
+// The Focus page — an Eisenhower board of every pending task, one column
+// per quadrant (src/viewmodels/eisenhower.ts), searchable; dragging a card
+// to another column moves it there (and keeps its importance in line).
 
 import { useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { query } from 'firebase/firestore';
 import { useFirestoreCollection } from '@/src/shared/firestore/hooks';
-import { useBuckets } from '@/src/shared/firestore/queries';
-import { areasRef, projectsRef } from '@/src/shared/firestore/refs';
+import { projectsRef } from '@/src/shared/firestore/refs';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { useAllTasks } from '@/src/shared/hooks/useAllTasks';
-import { pendingTasksByPriority, dailySuccessTrend } from '@/src/shared/firestore/taskInsights';
-import { PRIORITY_LEVELS } from '@/src/viewmodels/projects';
-import type { Priority, FirestoreArea, FirestoreProject } from '@/src/shared/firestore/types';
-import type { TaskCardTask } from '@/src/widgets/TaskCard/TaskCard';
+import { updateTaskQuadrant } from '@/src/shared/firestore/taskWrites';
+import { DEFAULT_PRIORITY } from '@/src/viewmodels/projects';
+import { QUADRANTS, priorityForQuadrant, taskQuadrant } from '@/src/viewmodels/eisenhower';
+import { effectiveTimeMode } from '@/src/viewmodels/scheduling';
+import { actionableTasks } from '@/src/shared/tasks/recurringTasks';
+import type { FirestoreProject, Priority, Quadrant, TimeMode } from '@/src/shared/firestore/types';
 
-const SUCCESS_TREND_DAYS = 7;
-
-export type FocusPriorityFilter = Priority | 'All';
-export type FocusDateFilter = 'all' | 'today' | 'thisWeek' | 'thisMonth' | 'lastWeek' | 'lastMonth';
-
-function timeLeftToday(): string {
-  const now = new Date();
-  const end = new Date(now);
-  end.setHours(23, 59, 59, 999);
-  const diffMinutes = Math.max(0, Math.round((end.getTime() - now.getTime()) / 60000));
-  const hours = Math.floor(diffMinutes / 60);
-  const minutes = diffMinutes % 60;
-  return `${hours}h ${minutes}m`;
-}
-
-function startOfDay(date: Date): Date {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
-function startOfWeek(date: Date): Date {
-  // Sunday-start, same convention as ProjectsCalendarScreen's own WEEKDAY_LABELS.
-  const d = startOfDay(date);
-  d.setDate(d.getDate() - d.getDay());
-  return d;
-}
-function startOfMonth(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth(), 1);
-}
-function addDays(date: Date, days: number): Date {
-  const d = new Date(date);
-  d.setDate(d.getDate() + days);
-  return d;
-}
-function addMonths(date: Date, months: number): Date {
-  return new Date(date.getFullYear(), date.getMonth() + months, date.getDate());
-}
-
-/** [start, end) for a date filter, or null for 'all' (no date filtering). */
-function dateRangeFor(filter: FocusDateFilter, now: Date): { start: Date; end: Date } | null {
-  switch (filter) {
-    case 'today': {
-      const start = startOfDay(now);
-      return { start, end: addDays(start, 1) };
-    }
-    case 'thisWeek': {
-      const start = startOfWeek(now);
-      return { start, end: addDays(start, 7) };
-    }
-    case 'thisMonth': {
-      const start = startOfMonth(now);
-      return { start, end: addMonths(start, 1) };
-    }
-    case 'lastWeek': {
-      const start = addDays(startOfWeek(now), -7);
-      return { start, end: addDays(start, 7) };
-    }
-    case 'lastMonth': {
-      const start = addMonths(startOfMonth(now), -1);
-      return { start, end: startOfMonth(now) };
-    }
-    default:
-      return null;
-  }
+export interface FocusTask {
+  id: string;
+  title: string;
+  priority: Priority;
+  startTime: Date | null;
+  dueDate: Date | null;
+  allDay: boolean;
+  timeMode: TimeMode;
+  recurring: boolean;
+  projectName: string | null;
+  quadrant: Quadrant;
+  overdue: boolean;
+  sortKey: number;
 }
 
 export function useLogic() {
+  const router = useRouter();
   const { user } = useFirebaseUser();
   const uid = user?.uid;
-  const { data: tasks, loading } = useAllTasks();
-  const [priorityFilter, setPriorityFilter] = useState<FocusPriorityFilter>('All');
-  const [dateFilter, setDateFilter] = useState<FocusDateFilter>('all');
+  const { data: taskDocs, loading: tasksLoading } = useAllTasks();
+  const { data: projectDocs, loading: projectsLoading } = useFirestoreCollection<FirestoreProject>(
+    useMemo(() => (uid ? query(projectsRef(uid)) : null), [uid])
+  );
 
-  // Keyed by task id so the visible list — built from pendingTasksByPriority's
-  // own FocusTaskItem shape, which doesn't carry project/bucket/area ids —
-  // can still look each task's own context back up.
-  const taskById = useMemo(() => new Map(tasks.map((t) => [t.id, t])), [tasks]);
+  const [search, setSearch] = useState('');
 
-  const projectsQuery = useMemo(() => (uid ? query(projectsRef(uid)) : null), [uid]);
-  const { data: projectDocs } = useFirestoreCollection<FirestoreProject>(projectsQuery);
-  const projectName = useMemo(() => new Map(projectDocs.map((p) => [p.id, p.name])), [projectDocs]);
-
-  const areasQuery = useMemo(() => (uid ? query(areasRef(uid)) : null), [uid]);
-  const { data: areaDocs } = useFirestoreCollection<FirestoreArea>(areasQuery);
-  const areaName = useMemo(() => new Map(areaDocs.map((a) => [a.id, a.name])), [areaDocs]);
-
-  const { data: bucketDocs } = useBuckets();
-  const bucketName = useMemo(() => new Map(bucketDocs.map((b) => [b.id, b.name])), [bucketDocs]);
-
-  const priorityGroups = useMemo(() => pendingTasksByPriority(tasks), [tasks]);
-
-  const visibleTasks = useMemo<TaskCardTask[]>(() => {
-    const visiblePriorities = priorityFilter === 'All' ? PRIORITY_LEVELS : [priorityFilter];
-    const range = dateRangeFor(dateFilter, new Date());
-    return visiblePriorities
-      .flatMap((priority) => priorityGroups[priority].map((item) => ({ ...item, priority })))
-      .filter((item) => !range || (item.dueDate && item.dueDate >= range.start && item.dueDate < range.end))
-      .map((item) => {
-        const source = taskById.get(item.id);
+  // Pending tasks only — done and cancelled ones are off the board. A
+  // recurring task shows only today's and overdue dates, so a daily task
+  // doesn't fill a column.
+  const tasks = useMemo(() => {
+    const now = new Date();
+    const project = new Map(projectDocs.map((p) => [p.id, p]));
+    return actionableTasks(taskDocs, now)
+      .filter((t) => !t.done && t.status !== 'Cancelled')
+      .map((t): FocusTask => {
+        const startTime = t.startTime ? t.startTime.toDate() : null;
+        const dueDate = t.dueDate ? t.dueDate.toDate() : null;
+        const priority = t.priority ?? DEFAULT_PRIORITY;
+        const p = t.projectId ? project.get(t.projectId) : undefined;
+        const anchor = startTime ?? dueDate;
+        const end = dueDate ?? startTime;
         return {
-          id: item.id,
-          title: item.title,
-          priority: item.priority,
-          done: false,
-          status: item.status,
-          startTime: item.startTime,
-          dueDate: item.dueDate,
-          projectName: source?.projectId ? projectName.get(source.projectId) ?? null : null,
-          bucketName: source?.bucketId ? bucketName.get(source.bucketId) ?? null : null,
-          areaName: source?.areaId ? areaName.get(source.areaId) ?? null : null,
+          id: t.id,
+          title: t.title,
+          priority,
+          startTime,
+          dueDate,
+          allDay: Boolean(t.allDay),
+          timeMode: effectiveTimeMode(t),
+          recurring: Boolean(t.seriesId),
+          projectName: p?.name ?? null,
+          quadrant: taskQuadrant({ quadrant: t.quadrant, priority, dueDate, startTime }, now),
+          overdue: end !== null && end < now,
+          // Soonest first, undated last.
+          sortKey: anchor?.getTime() ?? Number.MAX_SAFE_INTEGER,
         };
-      })
-      .sort((a, b) => {
-        if (!a.dueDate && !b.dueDate) return 0;
-        if (!a.dueDate) return 1;
-        if (!b.dueDate) return -1;
-        return a.dueDate.getTime() - b.dueDate.getTime();
       });
-  }, [priorityGroups, priorityFilter, dateFilter, taskById, projectName, bucketName, areaName]);
+  }, [taskDocs, projectDocs]);
 
-  const successTrend = useMemo(() => dailySuccessTrend(tasks, SUCCESS_TREND_DAYS), [tasks]);
-  const todaySuccess = successTrend.length > 0 ? successTrend[successTrend.length - 1].value : 0;
+  const columns = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const pending = tasks
+      .filter((t) => !q || t.title.toLowerCase().includes(q) || (t.projectName ?? '').toLowerCase().includes(q))
+      .sort((a, b) => a.sortKey - b.sortKey);
+    return QUADRANTS.map((quadrant) => ({ ...quadrant, tasks: pending.filter((t) => t.quadrant === quadrant.id) }));
+  }, [tasks, search]);
+
+  async function moveToQuadrant(id: string, quadrant: Quadrant) {
+    const task = tasks.find((t) => t.id === id);
+    if (!uid || !task || task.quadrant === quadrant) return;
+    await updateTaskQuadrant(uid, id, quadrant, priorityForQuadrant(task.priority, quadrant));
+  }
+  function newTask(quadrant?: Quadrant) {
+    router.push(quadrant ? `/tasks/new?quadrant=${quadrant}` : '/tasks/new');
+  }
 
   return {
-    visibleTasks,
-    priorityFilter,
-    setPriorityFilter,
-    dateFilter,
-    setDateFilter,
-    successTrend,
-    todaySuccess,
-    timeLeftToday: timeLeftToday(),
-    loading,
+    search,
+    setSearch,
+    columns,
+    moveToQuadrant,
+    newTask,
+    loading: tasksLoading || projectsLoading,
   };
 }

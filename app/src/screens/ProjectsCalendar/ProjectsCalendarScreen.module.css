@@ -1,321 +1,180 @@
+/* Calendar + daily schedule, per the Time module brief: a plain white
+   screen, no hard borders, depth from soft shadows only. The month grid is
+   a separate, slightly tinted layer with large rounded top corners.
+   Colors map onto the app's tokens (brand blue, text primary/secondary)
+   so dark mode keeps working. */
+
 .page {
+  --cal-inactive: color-mix(in srgb, var(--color-text-secondary) 45%, transparent);
   display: flex;
   flex-direction: column;
   min-height: 100%;
-  padding: var(--space-lg);
-  padding-top: calc(var(--space-lg) + env(safe-area-inset-top));
-  gap: var(--space-md);
+  background: var(--color-background);
 }
 
-.headerRow {
-  display: flex;
+/* ---- Header: stays put while the schedule scrolls ---- */
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: grid;
+  grid-template-columns: 44px 1fr 44px;
   align-items: center;
-  justify-content: space-between;
+  padding: calc(12px + env(safe-area-inset-top)) 12px 12px;
+  background: var(--color-background);
 }
 
-/* The date button sits where a page title normally would — tapping it
-   opens the full month-grid popover, anchored right next to the button
-   (not a full-screen sheet), for reaching a date further out than the
-   week strip's own scrollable window. */
-.monthWrap {
+.menuButton {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.menuButton:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: -2px;
+}
+
+/* Two lines, the bottom one shorter. */
+.menuIcon {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  width: 20px;
+}
+
+.menuIcon span {
+  display: block;
+  height: 2px;
+  border-radius: 2px;
+  background: currentColor;
+}
+
+.menuIcon span:first-child {
+  width: 20px;
+}
+
+.menuIcon span:last-child {
+  width: 12px;
+}
+
+.monthTitle {
+  margin: 0;
+  min-width: 0;
+  text-align: center;
+  font-family: var(--font-family-heading);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+}
+
+.headerSpacer {
+  width: 44px;
+}
+
+.layout {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+/* ---- Month grid ---- */
+.calendarPanel {
+  padding: 22px 14px 18px;
+  border-radius: 32px 32px 0 0;
+  background: color-mix(in srgb, var(--color-surface) 55%, var(--color-background));
+  touch-action: pan-y;
+}
+
+:global([data-theme='dark']) .calendarPanel {
+  background: var(--color-surface);
+}
+
+.weekdays,
+.grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+}
+
+.weekdays {
+  margin-bottom: 8px;
+}
+
+.weekdays span {
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.grid {
+  row-gap: 6px;
+}
+
+.day {
   position: relative;
-}
-
-.monthButton {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 0;
+  display: grid;
+  place-items: center;
+  height: 44px;
   border: none;
   background: none;
   font-family: var(--font-family-heading);
-  font-size: var(--font-size-lg);
-  font-weight: 800;
-  color: var(--color-text-primary);
   cursor: pointer;
 }
 
-.monthPopover {
-  position: absolute;
-  top: calc(100% + var(--space-sm));
-  left: 0;
-  z-index: 30;
-  display: flex;
-  justify-content: center;
-  min-width: 300px;
-  max-width: calc(100vw - 2 * var(--space-lg));
-  padding: var(--space-md);
-  border-radius: var(--radius-lg);
-  background: var(--color-background);
-  border: 1px solid var(--color-border);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.16);
-}
-
-/* The week-strip date picker (Design/task5.JPG's "Schedule" frame) —
-   scrolls horizontally, selected day a filled dark pill, days with
-   something scheduled get a small dot. */
-.dateStrip {
-  display: flex;
-  gap: var(--space-sm);
-  overflow-x: auto;
-  scroll-snap-type: x proximity;
-  margin: 0 calc(-1 * var(--space-lg));
-  padding: 2px var(--space-lg) 4px;
-}
-
-.stripDay {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  flex-shrink: 0;
-  width: 44px;
-  padding: var(--space-sm) 0;
-  border: none;
-  border-radius: var(--radius-lg);
-  background: var(--color-background);
-  font-family: inherit;
-  cursor: pointer;
-  scroll-snap-align: center;
-}
-
-.stripDaySelected {
-  background: var(--ink-bg);
-}
-
-.stripDayLabel {
-  font-size: 0.6875rem;
-  font-weight: 700;
-  color: var(--color-text-secondary);
-}
-
-.stripDaySelected .stripDayLabel {
-  color: var(--ink-text-secondary);
-}
-
-.stripDateNum {
-  font-size: var(--font-size-md);
-  font-weight: 800;
-  color: var(--color-text-primary);
-}
-
-.stripDaySelected .stripDateNum {
-  color: var(--ink-text);
-}
-
-.stripDot {
-  position: absolute;
-  bottom: 4px;
-  width: 4px;
-  height: 4px;
+.dayNumber {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+  transition:
+    background-color var(--duration-popover) ease,
+    color var(--duration-popover) ease,
+    transform var(--duration-press) var(--ease-out);
+}
+
+.day[data-outside] .dayNumber {
+  color: var(--cal-inactive);
+}
+
+.day[data-today] .dayNumber {
+  color: var(--color-brand);
+}
+
+.day[aria-selected='true'] .dayNumber {
   background: var(--color-brand);
+  color: #ffffff;
+  box-shadow: 0 6px 14px color-mix(in srgb, var(--color-brand) 35%, transparent);
 }
 
-/* Empty state — "the basket's empty" when the selected day has nothing on
-   it at all (no tasks, no project milestones, no payments due). */
-.emptyState {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-xs);
-  padding: var(--space-3xl) var(--space-lg);
-  text-align: center;
+.day:active .dayNumber {
+  transform: scale(0.9);
 }
 
-.emptyIcon {
-  margin-bottom: var(--space-sm);
-  color: var(--color-text-secondary);
+@media (hover: hover) {
+  .day:hover:not([aria-selected='true']) .dayNumber {
+    background: color-mix(in srgb, var(--color-brand) 10%, transparent);
+  }
 }
 
-.emptyTitle {
-  margin: 0;
-  font-size: var(--font-size-md);
-  font-weight: 800;
-  color: var(--color-text-primary);
-}
-
-.emptyPrompt {
-  margin: 0 0 var(--space-sm);
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
-}
-
-.emptyCta {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: var(--space-sm) var(--space-lg);
-  border-radius: var(--radius-full);
-  background: var(--ink-bg);
-  color: var(--ink-text);
-  font-size: var(--font-size-sm);
-  font-weight: 700;
-  text-decoration: none;
-}
-
-/* All-day items (project milestones, payments due) — no time slot of
-   their own, so they sit above the hourly timeline rather than in it. */
-.allDayGroup {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
-  padding-bottom: var(--space-md);
-  margin-bottom: var(--space-sm);
-  border-bottom: 1px solid var(--color-border);
-}
-
-.allDayRow {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-sm);
-  padding: 0;
-  border: none;
-  background: none;
-  font-family: inherit;
-  text-align: left;
-  cursor: pointer;
-  width: 100%;
-}
-
-.agendaIcon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 28px;
-  height: 28px;
-  margin-top: 1px;
-  border-radius: 50%;
-  background: var(--color-background);
-  color: var(--color-text-secondary);
-}
-
-.agendaTaskBody {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.agendaTypeCaption {
-  font-size: 0.7rem;
-  font-weight: 600;
-  color: var(--color-text-secondary);
-}
-
-.agendaTitleBlock {
-  margin: 0;
-  font-size: var(--font-size-sm);
-  font-weight: 700;
-  color: var(--color-text-primary);
-}
-
-.agendaTime {
-  font-size: 0.75rem;
-  color: var(--color-text-secondary);
-}
-
-.timeline {
-  display: flex;
-  flex-direction: column;
-}
-
-.taskList {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
-  padding-bottom: var(--space-lg);
-}
-
-/* The month-picker popover (a Modal) — the same compact HeroUI calendar
-   grid the old month-grid layout used, just reachable via the month label
-   now instead of being the page's main view. */
-.calendarHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 0 var(--space-sm);
-}
-
-.calendarNavButton {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border: none;
-  border-radius: 50%;
-  background: var(--color-background);
-  color: var(--color-text-primary);
-  cursor: pointer;
-}
-
-.calendarHeading {
-  margin: 0;
-  font-size: var(--font-size-sm);
-  font-weight: 800;
-  color: var(--color-text-primary);
-}
-
-.calendarGrid {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.weekdayCell {
-  padding-bottom: 4px;
-  font-size: 0.625rem;
-  font-weight: 700;
-  color: var(--color-text-secondary);
-  text-align: center;
-}
-
-.dayCell {
-  padding: 1px;
-  text-align: center;
-  cursor: pointer;
+.day:focus-visible {
   outline: none;
 }
 
-.dayCellInner {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  margin: 0 auto;
-  border-radius: 50%;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  color: var(--color-text-primary);
-}
-
-.dayCell[data-outside-month] .dayCellInner {
-  color: var(--color-text-secondary);
-  opacity: 0.4;
-}
-
-.dayCell[data-today] .dayCellInner {
-  background: color-mix(in srgb, var(--color-brand) 20%, transparent);
-  color: var(--color-text-primary);
-}
-
-.dayCell[data-selected] .dayCellInner {
-  background: var(--ink-bg);
-  color: #ffffff;
-}
-
-.dayCell[data-disabled] .dayCellInner {
-  opacity: 0.3;
-}
-
-.dayCell[data-focus-visible] .dayCellInner {
+.day:focus-visible .dayNumber {
   box-shadow: 0 0 0 2px var(--color-brand);
 }
 
@@ -325,5 +184,189 @@
   width: 4px;
   height: 4px;
   border-radius: 50%;
-  background: currentColor;
+  background: var(--color-brand);
+}
+
+/* ---- Schedule ---- */
+/* The schedule reads as the white layer under the tinted calendar panel,
+   lifted onto it with rounded top corners and a soft upward shadow. */
+.schedule {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: -18px;
+  padding: 24px 16px 32px;
+  border-radius: 28px 28px 0 0;
+  background: var(--color-background);
+  box-shadow: 0 -10px 30px rgba(31, 36, 48, 0.05);
+}
+
+.scheduleHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.scheduleTitle {
+  margin: 0;
+  font-family: var(--font-family-heading);
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.scheduleDate {
+  margin: 2px 0 0;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.addLink {
+  padding: 4px 0;
+  border: none;
+  background: none;
+  color: var(--color-brand);
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.addLink:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* All-day items: project starts/ends, payments due. */
+.allDay {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.allDayItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 12px;
+  background: var(--color-background);
+  box-shadow: 0 1px 2px rgba(27, 27, 57, 0.04), 0 6px 18px rgba(27, 27, 57, 0.05);
+  color: inherit;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.allDayIcon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--color-brand) 14%, transparent);
+  color: var(--color-brand);
+}
+
+.allDayIcon[data-kind='payment'] {
+  background: color-mix(in srgb, var(--color-success) 16%, transparent);
+  color: var(--color-success);
+}
+
+.allDayText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.allDayTitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.allDayMeta {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+/* The hour timeline: labels and faint guide lines, cards absolutely
+   positioned over them by start time and duration. */
+.timeline {
+  position: relative;
+  margin-top: 8px;
+}
+
+.hourRow {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transform: translateY(-50%);
+}
+
+/* Cards start just below their hour's guide line. */
+
+.hourLabel {
+  flex-shrink: 0;
+  width: 42px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.hourLine {
+  flex: 1;
+  height: 1px;
+  background: color-mix(in srgb, var(--color-text-secondary) 16%, transparent);
+}
+
+.events {
+  position: absolute;
+  inset: 0 0 0 52px;
+}
+
+.event {
+  position: absolute;
+  z-index: 1;
+  margin-top: 4px;
+  /* A long task's card is taller than its content: hang the content from
+     the top (its start time), not float it in the middle. Same card,
+     only its alignment within the taller slot differs. */
+  align-items: flex-start;
+}
+
+.emptyDay {
+  position: absolute;
+  top: 14px;
+  left: 52px;
+  right: 0;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--color-background);
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dayNumber {
+    transition: none;
+  }
+
+  .day:active .dayNumber {
+    transform: none;
+  }
 }

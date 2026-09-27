@@ -135,3 +135,145 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* ---- Compact variant (the Time hub's carousel): no cover image ---- */
+.compact {
+  --project-color: var(--color-brand);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  gap: 12px;
+  width: 248px;
+  padding: var(--space-md);
+  border: none;
+  border-radius: var(--radius-lg);
+  background: var(--color-background);
+  box-shadow: 0 1px 2px rgba(27, 27, 57, 0.04), 0 6px 18px rgba(27, 27, 57, 0.05);
+  color: var(--color-text-primary);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  scroll-snap-align: start;
+  transition: transform var(--duration-press) var(--ease-out);
+}
+
+:global([data-theme='dark']) .compact {
+  background: var(--color-surface);
+  box-shadow: none;
+}
+
+.compact:active {
+  transform: scale(0.97);
+}
+
+.compact:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+}
+
+.compactName {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: 2.6em;
+  font-family: var(--font-family-heading);
+  font-size: var(--font-size-md);
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.compactHead {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+/* The project's area, above its name — tinted with the project's own color. */
+.compactArea {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--project-color) 16%, transparent);
+  color: color-mix(in srgb, var(--project-color) 75%, var(--color-text-primary));
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.compactTimeline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.compactProgress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.compactProgressHead {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.compactPercent {
+  font-weight: 700;
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.compactTrack {
+  display: block;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--project-color) 16%, transparent);
+  overflow: hidden;
+}
+
+.compactFill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--project-color);
+  transition: width 300ms var(--ease-out);
+}
+
+.compact .priorityChip[data-priority='Urgent'] {
+  background: color-mix(in srgb, var(--color-danger) 14%, transparent);
+  color: var(--color-danger);
+}
+
+.compact .priorityChip[data-priority='High'] {
+  background: color-mix(in srgb, #e8a33d 18%, transparent);
+  color: #c9861f;
+}
+
+.compact .priorityChip[data-priority='Medium'] {
+  background: color-mix(in srgb, var(--color-brand) 14%, transparent);
+  color: var(--color-brand);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .compact,
+  .compactFill {
+    transition: none;
+  }
+
+  .compact:active {
+    transform: none;
+  }
+}

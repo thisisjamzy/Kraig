@@ -56,6 +56,11 @@
   color: #ffffff;
   cursor: pointer;
   flex-shrink: 0;
+  transition: transform var(--duration-press) var(--ease-out);
+}
+
+.currencyChip:active {
+  transform: scale(0.97);
 }
 
 /* Anchored right next to the currency chip — a context menu, not a
@@ -77,6 +82,17 @@
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.24);
   color: var(--color-text-primary);
   text-align: left;
+  transform-origin: top right;
+  transition:
+    transform var(--duration-popover) var(--ease-out),
+    opacity var(--duration-popover) var(--ease-out);
+}
+
+@starting-style {
+  .currencyPopover {
+    opacity: 0;
+    transform: scale(0.97);
+  }
 }
 
 .balanceAmount {
@@ -274,6 +290,11 @@
   color: #ffffff;
   text-decoration: none;
   flex-shrink: 0;
+  transition: transform var(--duration-press) var(--ease-out);
+}
+
+.viewAllButton:active {
+  transform: scale(0.97);
 }
 
 /* Wallet cards — Design/card design.jpg's layout (type+name top, a
@@ -560,7 +581,7 @@
 .breakdownBarExpense {
   width: 7px;
   border-radius: 2px;
-  transition: height 0.2s ease;
+  transition: height var(--duration-morph) var(--ease-in-out);
 }
 
 .breakdownBarIncome {
@@ -745,4 +766,35 @@
 .currencyName {
   font-size: 0.75rem;
   color: var(--color-text-secondary);
+}
+
+/* Reduced motion — keep the popover's fade, drop scale and size changes. */
+@media (prefers-reduced-motion: reduce) {
+  .currencyPopover {
+    transition: opacity var(--duration-popover) var(--ease-out);
+  }
+
+  .breakdownBarIncome,
+  .breakdownBarExpense {
+    transition: none;
+  }
+
+  .currencyChip,
+  .viewAllButton {
+    transition: none;
+  }
+
+  .currencyChip:active,
+  .viewAllButton:active {
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @starting-style {
+    .currencyPopover {
+      opacity: 0;
+      transform: none;
+    }
+  }
 }

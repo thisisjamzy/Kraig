@@ -10,6 +10,7 @@ import { createTransferWithAggregation } from '@/src/shared/firestore/aggregatio
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { ACCOUNT_TYPES } from '@/src/viewmodels/wallets';
 import type { FirestoreAccount } from '@/src/shared/firestore/types';
+import { useGoBack } from '@/src/shared/navigation/useGoBack';
 
 export function useLogic(walletId: string) {
   const router = useRouter();
@@ -154,8 +155,11 @@ export function useLogic(walletId: string) {
     await updateDoc(accountRef(uid, walletId), { archived: false });
   }
 
+  // Back to the page the user came from (skipping forms); `/wallets/${walletId}` only
+  // when there's no history — see src/shared/navigation/useGoBack.ts.
+  const navigateBack = useGoBack();
   function goBack() {
-    router.push(`/wallets/${walletId}`);
+    navigateBack(`/wallets/${walletId}`);
   }
 
   return {

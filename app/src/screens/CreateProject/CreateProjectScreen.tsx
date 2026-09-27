@@ -1,32 +1,44 @@
 'use client';
 
+// New project — the app's card-style create form (src/widgets/CardForm),
+// same look as New task. Area, section, priority, color and timeline each
+// open a bottom sheet.
+
 import { useState } from 'react';
 import { RangeCalendar as HeroRangeCalendar } from '@heroui/react';
 import { parseDate } from '@internationalized/date';
-import { X, Check, ChevronRight, Layers, Box, Palette, AlertTriangle, CalendarDays } from 'lucide-react';
 import { useLogic } from '@/src/logic/createProject/useLogic';
 import { EmojiPicker } from '@/src/widgets/EmojiPicker/EmojiPicker';
+import { Modal } from '@/src/widgets/Modal/Modal';
 import { toDateOnly } from '@/src/shared/firestore/taskWrites';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { WebFormPanel } from '@/src/widgets/WebFormPanel/WebFormPanel';
 import { useIsWeb } from '@/src/shared/hooks/useViewportMode';
-import { PROJECT_COLORS, PRIORITY_LEVELS } from '@/src/viewmodels/projects';
-import styles from './CreateProjectScreen.module.css';
+import { priorityLabel } from '@/src/viewmodels/projects';
+import {
+  CardFormPage,
+  ColorSheet,
+  FieldCard,
+  PickerCard,
+  PriorityIcon,
+  PrioritySheet,
+  SubmitButton,
+  capitalize,
+  cardFormStyles as styles,
+} from '@/src/widgets/CardForm/CardForm';
 
-function formatDateOnly(value: string): string {
-  return new Date(`${value}T00:00:00`).toLocaleDateString('en-US', {
-    month: 'short',
-    day: '2-digit',
-    year: 'numeric',
-  });
+function formatDate(value: string): string {
+  return new Date(`${value}T00:00:00`).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
 }
+
+type Sheet = 'area' | 'section' | 'color' | 'priority' | 'timeline' | null;
 
 export function CreateProjectScreen() {
   const strings = useStrings();
   const {
     areas,
-    buckets,
+    sections,
     name,
     setName,
     emoji,
@@ -52,244 +64,189 @@ export function CreateProjectScreen() {
     goBack,
     loading,
   } = useLogic();
+  const isWeb = useIsWeb();
 
-  const [areaPickerOpen, setAreaPickerOpen] = useState(false);
-  const [bucketPickerOpen, setBucketPickerOpen] = useState(false);
-  const [colorPickerOpen, setColorPickerOpen] = useState(false);
-  const [priorityPickerOpen, setPriorityPickerOpen] = useState(false);
-  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [sheet, setSheet] = useState<Sheet>(null);
   const [dateMonthCursor, setDateMonthCursor] = useState(() => (startDate ? new Date(`${startDate}T00:00:00`) : new Date()));
 
   const selectedArea = areas.find((a) => a.id === areaId) ?? null;
-  const selectedBucket = buckets.find((b) => b.id === bucketId) ?? null;
-  const isWeb = useIsWeb();
+  const selectedSection = sections.find((b) => b.id === bucketId) ?? null;
+  const timeline =
+    startDate && endDate
+      ? `${formatDate(startDate)} – ${formatDate(endDate)}`
+      : startDate
+        ? formatDate(startDate)
+        : null;
 
   const content = (
-    <div className={styles.page}>
-      <header className={styles.header}>
-        <button type="button" className={styles.iconButton} onClick={goBack} aria-label={strings.projectDetail.backLabel}>
-          <X size={18} strokeWidth={2} />
-        </button>
-        <h1 className={styles.headerTitle}>{strings.createProject.title}</h1>
-        <button
-          type="button"
-          className={`${styles.saveIconButton} ${isValid ? styles.saveIconButtonActive : ''}`}
-          disabled={!isValid || saving}
-          onClick={handleSave}
-          aria-label="Save"
-        >
-          <Check size={18} strokeWidth={2.5} />
-        </button>
-      </header>
-
-      <div className={styles.emojiRow}>
-        <EmojiPicker value={emoji} onChange={setEmoji} label="Project emoji" noneLabel="No emoji" />
-      </div>
-
+    <CardFormPage title={strings.createProject.title} onClose={goBack}>
       <ScreenState loading={loading} />
 
       {!loading && (
-        <div className={styles.form}>
-          <div className={styles.card}>
+        <form
+          className={styles.cards}
+          onSubmit={(event) => {
+            event.preventDefault();
+            handleSave();
+          }}
+        >
+          <FieldCard label="Name">
             <input
-              className={styles.titleInput}
+              className={styles.valueInput}
               value={name}
               onChange={(event) => setName(event.target.value)}
               placeholder={strings.createProject.namePlaceholder}
+              autoFocus
             />
-            <div className={styles.cardDivider} />
+          </FieldCard>
+
+          <FieldCard label={strings.createProject.notesLabel}>
             <textarea
               className={styles.notesInput}
-              rows={3}
               value={description}
               onChange={(event) => setDescription(event.target.value)}
-              placeholder={strings.createProject.notesLabel}
+              placeholder="What is this project about?"
+              rows={2}
             />
-          </div>
+          </FieldCard>
 
-          <div className={styles.listGroup}>
-            <button type="button" className={styles.listRow} onClick={() => setAreaPickerOpen((c) => !c)}>
-              <span className={styles.listRowIcon}>
-                <Layers size={16} strokeWidth={2} />
-              </span>
-              <span className={styles.listRowLabel}>Area</span>
-              <span className={styles.listRowValue}>{selectedArea ? selectedArea.name : strings.createProject.noAreaOption}</span>
-              <ChevronRight size={16} strokeWidth={2} className={styles.listRowChevron} />
-            </button>
-            {areaPickerOpen && (
-              <div className={styles.expandPanel}>
-                <button
-                  type="button"
-                  className={`${styles.optionRow} ${!areaId ? styles.optionRowActive : ''}`}
-                  onClick={() => {
-                    setAreaId('');
-                    setAreaPickerOpen(false);
-                  }}
-                >
-                  {strings.createProject.noAreaOption}
-                </button>
-                {areas.map((area) => (
-                  <button
-                    key={area.id}
-                    type="button"
-                    className={`${styles.optionRow} ${areaId === area.id ? styles.optionRowActive : ''}`}
-                    onClick={() => {
-                      setAreaId(area.id);
-                      setAreaPickerOpen(false);
-                    }}
-                  >
-                    {area.name}
-                  </button>
-                ))}
-              </div>
+          <PickerCard label="Timeline" onClick={() => setSheet('timeline')}>
+            {timeline ?? <span className={styles.muted}>Pick start and end dates</span>}
+          </PickerCard>
+
+          <PickerCard label="Area" onClick={() => setSheet('area')}>
+            {selectedArea ? (
+              <>
+                <span className={styles.projectDot} style={{ background: selectedArea.color }} aria-hidden />
+                {selectedArea.name}
+              </>
+            ) : (
+              <span className={styles.muted}>{strings.createProject.noAreaOption}</span>
             )}
-          </div>
+          </PickerCard>
 
           {areaId && (
-            <div className={styles.listGroup}>
-              <button type="button" className={styles.listRow} onClick={() => setBucketPickerOpen((c) => !c)}>
-                <span className={styles.listRowIcon}>
-                  <Box size={16} strokeWidth={2} />
-                </span>
-                <span className={styles.listRowLabel}>Bucket</span>
-                <span className={styles.listRowValue}>{selectedBucket ? selectedBucket.name : '—'}</span>
-                <ChevronRight size={16} strokeWidth={2} className={styles.listRowChevron} />
-              </button>
-              {bucketPickerOpen && (
-                <div className={styles.expandPanel}>
-                  {buckets.map((bucket) => (
-                    <button
-                      key={bucket.id}
-                      type="button"
-                      className={`${styles.optionRow} ${bucketId === bucket.id ? styles.optionRowActive : ''}`}
-                      onClick={() => {
-                        setBucketId(bucket.id);
-                        setBucketPickerOpen(false);
-                      }}
-                    >
-                      {bucket.name}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            <PickerCard label="Section" onClick={() => setSheet('section')}>
+              {selectedSection ? selectedSection.name : <span className={styles.muted}>Choose a section</span>}
+            </PickerCard>
           )}
 
-          <div className={styles.listGroup}>
-            <button type="button" className={styles.listRow} onClick={() => setColorPickerOpen((c) => !c)}>
-              <span className={styles.listRowIcon}>
-                <Palette size={16} strokeWidth={2} />
-              </span>
-              <span className={styles.listRowLabel}>{strings.createProject.colorLabel}</span>
-              <span className={styles.listRowSwatch} style={{ background: color }} />
-              <ChevronRight size={16} strokeWidth={2} className={styles.listRowChevron} />
-            </button>
-            {colorPickerOpen && (
-              <div className={styles.expandPanel}>
-                <div className={styles.colorGrid}>
-                  {PROJECT_COLORS.map((swatch) => (
-                    <button
-                      key={swatch}
-                      type="button"
-                      className={`${styles.colorSwatch} ${color === swatch ? styles.colorSwatchActive : ''}`}
-                      style={{ background: swatch }}
-                      aria-label={swatch}
-                      onClick={() => {
-                        setColor(swatch);
-                        setColorPickerOpen(false);
-                      }}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
+          <PickerCard label="Choose project priority" onClick={() => setSheet('priority')}>
+            <PriorityIcon priority={priority} />
+            {capitalize(priorityLabel(priority))}
+          </PickerCard>
+
+          <div className={styles.row}>
+            <PickerCard label={strings.createProject.colorLabel} onClick={() => setSheet('color')}>
+              <span className={styles.swatchValue} style={{ background: color }} aria-hidden />
+            </PickerCard>
+            <div className={`${styles.card} ${styles.emojiCard}`}>
+              <span className={styles.label}>Emoji</span>
+              <EmojiPicker value={emoji} onChange={setEmoji} label="Project emoji" noneLabel="No emoji" />
+            </div>
           </div>
 
-          <div className={styles.listGroup}>
-            <button type="button" className={styles.listRow} onClick={() => setPriorityPickerOpen((c) => !c)}>
-              <span className={styles.listRowIcon}>
-                <AlertTriangle size={16} strokeWidth={2} />
-              </span>
-              <span className={styles.listRowLabel}>Priority</span>
-              <span className={styles.listRowValue}>{priority}</span>
-              <ChevronRight size={16} strokeWidth={2} className={styles.listRowChevron} />
-            </button>
-            {priorityPickerOpen && (
-              <div className={styles.expandPanel}>
-                <div className={styles.chipGroup}>
-                  {PRIORITY_LEVELS.map((option) => (
-                    <button
-                      key={option}
-                      type="button"
-                      className={`${styles.chip} ${priority === option ? styles.chipActive : ''}`}
-                      onClick={() => {
-                        setPriority(option);
-                        setPriorityPickerOpen(false);
-                      }}
-                    >
-                      {option}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+          {saveError && <p className={styles.formError}>{saveError}</p>}
 
-          <div className={styles.listGroup}>
-            <button type="button" className={styles.listRow} onClick={() => setDatePickerOpen((c) => !c)}>
-              <span className={styles.listRowIcon}>
-                <CalendarDays size={16} strokeWidth={2} />
-              </span>
-              <span className={styles.listRowLabel}>Timeline</span>
-              <span className={styles.listRowValue}>
-                {startDate && endDate
-                  ? `${formatDateOnly(startDate)} - ${formatDateOnly(endDate)}`
-                  : startDate
-                    ? formatDateOnly(startDate)
-                    : 'Select dates'}
-              </span>
-              <ChevronRight size={16} strokeWidth={2} className={styles.listRowChevron} />
-            </button>
-            {datePickerOpen && (
-              <div className={styles.expandPanel}>
-                <HeroRangeCalendar.Root
-                  focusedValue={parseDate(toDateOnly(dateMonthCursor))}
-                  onFocusChange={(next) => setDateMonthCursor(new Date(next.year, next.month - 1, next.day))}
-                  value={startDate && endDate ? { start: parseDate(startDate), end: parseDate(endDate) } : null}
-                  onChange={(next) => {
-                    if (next) {
-                      setStartDate(next.start.toString());
-                      setEndDate(next.end.toString());
-                      setDatePickerOpen(false);
-                    }
-                  }}
-                >
-                  <HeroRangeCalendar.Header className={styles.calendarHeader}>
-                    <HeroRangeCalendar.NavButton slot="previous" className={styles.calendarNavButton} />
-                    <HeroRangeCalendar.Heading className={styles.calendarHeading} />
-                    <HeroRangeCalendar.NavButton slot="next" className={styles.calendarNavButton} />
-                  </HeroRangeCalendar.Header>
-                  <HeroRangeCalendar.Grid className={styles.calendarGrid}>
-                    <HeroRangeCalendar.GridHeader>
-                      {(day) => <HeroRangeCalendar.HeaderCell className={styles.weekdayCell}>{day}</HeroRangeCalendar.HeaderCell>}
-                    </HeroRangeCalendar.GridHeader>
-                    <HeroRangeCalendar.GridBody>
-                      {(cellDate) => (
-                        <HeroRangeCalendar.Cell date={cellDate} className={styles.dayCell}>
-                          {({ formattedDate }) => <span className={styles.dayCellInner}>{formattedDate}</span>}
-                        </HeroRangeCalendar.Cell>
-                      )}
-                    </HeroRangeCalendar.GridBody>
-                  </HeroRangeCalendar.Grid>
-                </HeroRangeCalendar.Root>
-              </div>
-            )}
-          </div>
-
-          {saveError && <p className={styles.errorText}>{saveError}</p>}
-        </div>
+          <SubmitButton disabled={!isValid || saving}>{saving ? 'Saving…' : '+ Add new project'}</SubmitButton>
+        </form>
       )}
-    </div>
+
+      {sheet === 'timeline' && (
+        <Modal title="Timeline" onClose={() => setSheet(null)}>
+          <HeroRangeCalendar.Root
+            focusedValue={parseDate(toDateOnly(dateMonthCursor))}
+            onFocusChange={(next) => setDateMonthCursor(new Date(next.year, next.month - 1, next.day))}
+            value={startDate && endDate ? { start: parseDate(startDate), end: parseDate(endDate) } : null}
+            onChange={(next) => {
+              if (next) {
+                setStartDate(next.start.toString());
+                setEndDate(next.end.toString());
+                setSheet(null);
+              }
+            }}
+          >
+            <HeroRangeCalendar.Header className={styles.calendarHeader}>
+              <HeroRangeCalendar.NavButton slot="previous" className={styles.calendarNavButton} />
+              <HeroRangeCalendar.Heading className={styles.calendarHeading} />
+              <HeroRangeCalendar.NavButton slot="next" className={styles.calendarNavButton} />
+            </HeroRangeCalendar.Header>
+            <HeroRangeCalendar.Grid className={styles.calendarGrid}>
+              <HeroRangeCalendar.GridHeader>
+                {(day) => <HeroRangeCalendar.HeaderCell className={styles.weekdayCell}>{day}</HeroRangeCalendar.HeaderCell>}
+              </HeroRangeCalendar.GridHeader>
+              <HeroRangeCalendar.GridBody>
+                {(cellDate) => (
+                  <HeroRangeCalendar.Cell date={cellDate} className={styles.dayCell}>
+                    {({ formattedDate }) => <span className={styles.dayCellInner}>{formattedDate}</span>}
+                  </HeroRangeCalendar.Cell>
+                )}
+              </HeroRangeCalendar.GridBody>
+            </HeroRangeCalendar.Grid>
+          </HeroRangeCalendar.Root>
+          <p className={styles.hint}>Tap a start date, then an end date.</p>
+        </Modal>
+      )}
+
+      {sheet === 'area' && (
+        <Modal title="Area" onClose={() => setSheet(null)}>
+          <div className={styles.sheetList}>
+            {areas.map((area) => (
+              <button
+                key={area.id}
+                type="button"
+                className={styles.sheetOption}
+                aria-pressed={area.id === areaId}
+                onClick={() => {
+                  setAreaId(area.id);
+                  setSheet(null);
+                }}
+              >
+                <span className={styles.projectDot} style={{ background: area.color }} aria-hidden />
+                {area.name}
+              </button>
+            ))}
+            <button
+              type="button"
+              className={`${styles.sheetOption} ${styles.sheetOptionNone}`}
+              aria-pressed={!areaId}
+              onClick={() => {
+                setAreaId('');
+                setSheet(null);
+              }}
+            >
+              {strings.createProject.noAreaOption}
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {sheet === 'section' && (
+        <Modal title="Section" onClose={() => setSheet(null)}>
+          <div className={styles.sheetList}>
+            {sections.map((section) => (
+              <button
+                key={section.id}
+                type="button"
+                className={styles.sheetOption}
+                aria-pressed={section.id === bucketId}
+                onClick={() => {
+                  setBucketId(section.id);
+                  setSheet(null);
+                }}
+              >
+                <span className={styles.projectDot} style={{ background: section.color }} aria-hidden />
+                {section.name}
+              </button>
+            ))}
+            {sections.length === 0 && <p className={styles.sheetEmpty}>This area has no sections yet.</p>}
+          </div>
+        </Modal>
+      )}
+
+      {sheet === 'priority' && <PrioritySheet value={priority} onChange={setPriority} onClose={() => setSheet(null)} />}
+      {sheet === 'color' && <ColorSheet value={color} onChange={setColor} onClose={() => setSheet(null)} />}
+    </CardFormPage>
   );
 
   return isWeb ? <WebFormPanel onClose={goBack}>{content}</WebFormPanel> : content;

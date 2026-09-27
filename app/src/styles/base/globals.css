@@ -66,6 +66,14 @@
   --money-tint-blue: #f2f8fc;
   --money-tint-yellow: #fffff0;
   --money-ink: #14142b;
+
+  /* Motion — strong custom curves; the built-in `ease`/`ease-out` are too
+     weak for deliberate UI motion. UI animations stay under 300ms. */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --duration-press: 160ms;
+  --duration-popover: 150ms;
+  --duration-morph: 250ms;
 }
 
 /* Mirrors styles/tokens/colors.ts. If you change one, change the other.

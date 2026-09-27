@@ -8,6 +8,7 @@ import { categoryRef } from '@/src/shared/firestore/refs';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import type { FirestoreCategory } from '@/src/shared/firestore/types';
 import { CATEGORY_TYPES, type CategoryType } from '@/src/logic/createCategory/useLogic';
+import { useGoBack } from '@/src/shared/navigation/useGoBack';
 
 export { CATEGORY_TYPES };
 export type { CategoryType };
@@ -60,8 +61,11 @@ export function useLogic(categoryId: string) {
     }
   }
 
+  // Back to the page the user came from (skipping forms); '/categories' only
+  // when there's no history — see src/shared/navigation/useGoBack.ts.
+  const navigateBack = useGoBack();
   function goBack() {
-    router.push('/categories');
+    navigateBack('/categories');
   }
 
   return {

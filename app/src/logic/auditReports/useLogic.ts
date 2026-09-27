@@ -11,6 +11,7 @@ import {
   type FirestoreAuditReport,
 } from '@/src/shared/firestore/auditReport';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
+import { useGoBack } from '@/src/shared/navigation/useGoBack';
 
 const QUARTER_LABELS = ['Q1 (Jan–Mar)', 'Q2 (Apr–Jun)', 'Q3 (Jul–Sep)', 'Q4 (Oct–Dec)'];
 const MONTH_LABELS = [
@@ -102,8 +103,11 @@ export function useLogic() {
     router.push(`/settings/audit-reports/${reportId}`);
   }
 
+  // Back to the page the user came from (skipping forms); '/settings' only
+  // when there's no history — see src/shared/navigation/useGoBack.ts.
+  const navigateBack = useGoBack();
   function goBack() {
-    router.push('/settings');
+    navigateBack('/settings');
   }
 
   return {

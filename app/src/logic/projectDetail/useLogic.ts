@@ -15,6 +15,9 @@ import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { isAtRisk, projectRescheduleFlag } from '@/src/shared/firestore/projectInsights';
 import { DEFAULT_PRIORITY } from '@/src/viewmodels/projects';
 import type { FirestoreProject, FirestoreTask, FirestoreArea, ProjectStatus } from '@/src/shared/firestore/types';
+import { useGoBack } from '@/src/shared/navigation/useGoBack';
+import { effectiveTimeMode } from '@/src/viewmodels/scheduling';
+import { actionableTasks } from '@/src/shared/tasks/recurringTasks';
 
 export type TaskFilterTab = 'all' | 'done' | 'pending' | 'archived';
 
@@ -52,7 +55,8 @@ export function useLogic(projectId: string) {
   const today = useMemo(() => startOfDay(new Date()), []);
   const allTasks = useMemo(
     () =>
-      taskDocs
+      // A recurring task lists as today's / overdue dates, or its next one.
+      actionableTasks(taskDocs, new Date(), { includeUpcoming: true })
         .map((t) => ({
           id: t.id,
           title: t.title,
@@ -63,6 +67,9 @@ export function useLogic(projectId: string) {
           status: t.status,
           archived: t.archived,
           startTime: t.startTime ? t.startTime.toDate() : null,
+          allDay: Boolean(t.allDay),
+          timeMode: effectiveTimeMode(t),
+          recurring: Boolean(t.seriesId),
           dueDate: t.dueDate ? t.dueDate.toDate() : null,
           overdue: !t.done && Boolean(t.dueDate) && t.dueDate!.toDate() < today,
           ...(() => {
@@ -116,8 +123,11 @@ export function useLogic(projectId: string) {
     await updateDoc(projectRef(uid, projectId), { areaId: newAreaId, updatedAt: serverTimestamp() });
   }
 
+  // Back to the page the user came from (skipping forms); '/projects' only
+  // when there's no history — see src/shared/navigation/useGoBack.ts.
+  const navigateBack = useGoBack();
   function goBack() {
-    router.push('/projects');
+    navigateBack('/projects');
   }
   function openEditProject() {
     router.push(`/projects/${projectId}/edit`);

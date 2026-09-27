@@ -1,13 +1,12 @@
 // Pure, client-side derivations from a live list of a user's non-archived
-// tasks — shared by the Focus screen, the Analytics screen, and
-// ProjectsBottomNav's notification badge, so the three places that all
+// tasks — shared by the Analytics screen and
+// ProjectsBottomNav's notification badge, so the places that all
 // answer "what needs attention" agree with each other by construction
 // rather than by convention. No stats doc: same reasoning as src/logic/
 // projects/useLogic.ts's header — a household's own tasks are a small
 // enough list to recompute live on every read.
 
-import type { FirestoreTask, Priority, TaskStatus } from './types';
-import { DEFAULT_PRIORITY } from '@/src/viewmodels/projects';
+import type { FirestoreTask } from './types';
 
 export interface TaskInsight {
   id: string;
@@ -127,63 +126,3 @@ export function taskOnTimeVsRescheduled(tasks: (FirestoreTask & { id: string })[
   return { onTime: done.length - rescheduled, rescheduled };
 }
 
-export interface FocusTaskItem {
-  id: string;
-  title: string;
-  emoji: string | null;
-  startTime: Date | null;
-  dueDate: Date | null;
-  overdue: boolean;
-  status?: TaskStatus;
-}
-
-/** Every not-done task (any due date, or none), split into High/Medium/Low priority — the Focus screen's worklist. Each bucket is soonest-due first, undated tasks last. */
-export function pendingTasksByPriority(
-  tasks: (FirestoreTask & { id: string })[]
-): Record<Priority, FocusTaskItem[]> {
-  const today = startOfDay(new Date());
-  const buckets: Record<Priority, FocusTaskItem[]> = { High: [], Medium: [], Low: [] };
-  for (const task of tasks) {
-    if (task.done) continue;
-    const priority = task.priority ?? DEFAULT_PRIORITY;
-    const dueDate = task.dueDate ? task.dueDate.toDate() : null;
-    buckets[priority].push({
-      id: task.id,
-      title: task.title,
-      emoji: task.emoji ?? null,
-      startTime: task.startTime ? task.startTime.toDate() : null,
-      dueDate,
-      overdue: Boolean(dueDate) && dueDate! < today,
-      status: task.status,
-    });
-  }
-  for (const list of Object.values(buckets)) {
-    list.sort((a, b) => {
-      if (!a.dueDate && !b.dueDate) return 0;
-      if (!a.dueDate) return 1;
-      if (!b.dueDate) return -1;
-      return a.dueDate.getTime() - b.dueDate.getTime();
-    });
-  }
-  return buckets;
-}
-
-/** Per-day completion rate (% of that day's due tasks marked done) for the last `days` days, oldest first, today last — the Focus screen's success trend line. */
-export function dailySuccessTrend(tasks: (FirestoreTask & { id: string })[], days: number): { label: string; value: number }[] {
-  const today = startOfDay(new Date());
-  const buckets: { date: number; label: string; due: number; done: number }[] = [];
-  for (let i = days - 1; i >= 0; i--) {
-    const d = new Date(today);
-    d.setDate(d.getDate() - i);
-    buckets.push({ date: d.getTime(), label: d.toLocaleDateString('en-US', { weekday: 'short' }), due: 0, done: 0 });
-  }
-  for (const task of tasks) {
-    if (!task.dueDate) continue;
-    const dueDay = startOfDay(task.dueDate.toDate()).getTime();
-    const bucket = buckets.find((b) => b.date === dueDay);
-    if (!bucket) continue;
-    bucket.due += 1;
-    if (task.done) bucket.done += 1;
-  }
-  return buckets.map((b) => ({ label: b.label, value: b.due > 0 ? Math.round((b.done / b.due) * 100) : 0 }));
-}

@@ -153,7 +153,7 @@ export function HomeScreen() {
     { label: strings.home.quickActionAddNew, icon: Plus, href: '/add-transaction' },
     { label: strings.home.quickActionHistory, icon: History, href: '/transactions' },
     { label: strings.home.quickActionSeeBudget, icon: SlidersHorizontal, href: '/budget' },
-    { label: strings.home.quickActionGoals, icon: Target, href: '/goals' },
+    { label: strings.home.quickActionBuckets, icon: Target, href: '/buckets' },
     { label: strings.home.quickActionDebts, icon: CreditCard, href: '/debts' },
   ];
 

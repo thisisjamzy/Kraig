@@ -7,8 +7,10 @@ import { AppHeader } from '@/src/widgets/AppHeader/AppHeader';
 import { AppContent } from '@/src/widgets/AppContent/AppContent';
 import { BottomNav } from '@/src/widgets/BottomNav/BottomNav';
 import { ProjectsBottomNav } from '@/src/widgets/ProjectsBottomNav/ProjectsBottomNav';
-import { GoalsBottomNav } from '@/src/widgets/GoalsBottomNav/GoalsBottomNav';
+import { BucketsBottomNav } from '@/src/widgets/BucketsBottomNav/BucketsBottomNav';
 import { AuthGuard } from '@/src/widgets/AuthGuard/AuthGuard';
+import { NavigationTracker } from '@/src/shared/navigation/NavigationTracker';
+import { ToastHost } from '@/src/widgets/Toast/Toast';
 import { useIsWeb } from '@/src/shared/hooks/useViewportMode';
 import { WebSidebar } from '@/src/widgets/WebSidebar/WebSidebar';
 import { WebTopBar } from '@/src/widgets/WebTopBar/WebTopBar';
@@ -39,6 +41,8 @@ export default function AppShellLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className={isWeb ? styles.webShell : styles.shell}>
+      <NavigationTracker />
+      <ToastHost />
       <AuthGuard>
         {isWeb ? (
           <>
@@ -63,7 +67,7 @@ export default function AppShellLayout({ children }: { children: ReactNode }) {
             <AppContent>{children}</AppContent>
             <BottomNav />
             <ProjectsBottomNav />
-            <GoalsBottomNav />
+            <BucketsBottomNav />
           </>
         )}
       </AuthGuard>

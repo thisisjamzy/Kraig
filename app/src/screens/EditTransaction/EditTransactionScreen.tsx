@@ -17,6 +17,9 @@ export function EditTransactionScreen({ transactionId }: { transactionId: string
     categoryId,
     setCategoryId,
     categories,
+    bucketItemKey,
+    setBucketItemKey,
+    bucketItemOptions,
     amountString,
     setAmountString,
     accountId,
@@ -107,6 +110,27 @@ export function EditTransactionScreen({ transactionId }: { transactionId: string
               ))}
             </select>
           </div>
+
+          {(bucketItemOptions.length > 0 || bucketItemKey) && (
+            <div className={styles.formField}>
+              <label className={styles.formLabel} htmlFor="edit-transaction-bucket-item">
+                {strings.editTransaction.bucketItemLabel}
+              </label>
+              <select
+                id="edit-transaction-bucket-item"
+                className={styles.formInput}
+                value={bucketItemKey}
+                onChange={(event) => setBucketItemKey(event.target.value)}
+              >
+                <option value="">{strings.editTransaction.bucketItemNone}</option>
+                {bucketItemOptions.map((option) => (
+                  <option key={option.key} value={option.key}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div className={styles.formField}>
             <label className={styles.formLabel} htmlFor="edit-transaction-amount">

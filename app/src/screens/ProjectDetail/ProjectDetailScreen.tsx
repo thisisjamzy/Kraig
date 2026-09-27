@@ -6,7 +6,7 @@ import { useLogic, type TaskFilterTab } from '@/src/logic/projectDetail/useLogic
 import { DonutChart } from '@/src/widgets/DonutChart/DonutChart';
 import { Modal } from '@/src/widgets/Modal/Modal';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
-import { TaskCard } from '@/src/widgets/TaskCard/TaskCard';
+import { TaskCheckRow } from '@/src/widgets/TaskCheckRow/TaskCheckRow';
 import { projectCoverImageUrl } from '@/src/viewmodels/projects';
 import type { ProjectStatus } from '@/src/shared/firestore/types';
 import styles from './ProjectDetailScreen.module.css';
@@ -214,7 +214,7 @@ export function ProjectDetailScreen({ projectId }: { projectId: string }) {
           ) : (
             <div className={styles.list}>
               {tasks.map((task) => (
-                <TaskCard key={task.id} task={task} />
+                <TaskCheckRow key={task.id} task={task} />
               ))}
             </div>
           )}

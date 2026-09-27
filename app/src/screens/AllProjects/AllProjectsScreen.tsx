@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { ChevronLeft, Plus } from 'lucide-react';
+import { ChevronLeft, Layers, Plus } from 'lucide-react';
 import { useLogic } from '@/src/logic/allProjects/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
@@ -100,6 +100,12 @@ export function AllProjectsScreen() {
           )}
         </>
       )}
+
+      {/* Areas' way in on mobile — a floating button, bottom right. */}
+      <Link href="/areas" className={styles.areasFab}>
+        <Layers size={18} strokeWidth={2.25} aria-hidden />
+        {strings.projects.tabAreas}
+      </Link>
 
       {pendingProject && (
         <ConfirmDialog

@@ -1,7 +1,6 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { query, where, orderBy, Timestamp } from 'firebase/firestore';
 import { RefreshCw, ArrowLeftRight, Clock, Download } from 'lucide-react';
 import { useFirestoreCollection, useFirestoreDoc } from '@/src/shared/firestore/hooks';
@@ -12,6 +11,7 @@ import { computeUpcomingPayments } from '@/src/shared/firestore/upcomingPayments
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { walletColor } from '@/src/viewmodels/wallets';
 import type { FirestoreAccount, FirestoreTransaction, FirestoreTransfer, FirestorePlannedPayment } from '@/src/shared/firestore/types';
+import { useGoBack } from '@/src/shared/navigation/useGoBack';
 
 const ICONS = [RefreshCw, ArrowLeftRight, Clock, Download];
 const HISTORY_MONTHS = 6;
@@ -50,7 +50,6 @@ function monthKeyOf(date: Date) {
 }
 
 export function useLogic(walletId: string, periods: readonly string[]) {
-  const router = useRouter();
   const [period, setPeriod] = useState<string>(periods[0]);
   const { user, loading: authLoading } = useFirebaseUser();
   const uid = user?.uid;
@@ -223,8 +222,11 @@ export function useLogic(walletId: string, periods: readonly string[]) {
   );
   const upcomingTotal = round2(upcomingForAccount.reduce((sum, p) => sum + p.amount, 0));
 
+  // Back to the page the user came from (skipping forms); '/wallets' only
+  // when there's no history — see src/shared/navigation/useGoBack.ts.
+  const navigateBack = useGoBack();
   function goBack() {
-    router.push('/wallets');
+    navigateBack('/wallets');
   }
 
   function iconFor(index: number) {

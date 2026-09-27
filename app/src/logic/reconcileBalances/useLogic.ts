@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import {
   auditAccountBalances,
   applyBalanceCorrections,
@@ -9,9 +8,9 @@ import {
   type OrphanedEntry,
 } from '@/src/shared/firestore/reconciliation';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
+import { useGoBack } from '@/src/shared/navigation/useGoBack';
 
 export function useLogic() {
-  const router = useRouter();
   const { user } = useFirebaseUser();
   const uid = user?.uid;
 
@@ -83,8 +82,11 @@ export function useLogic() {
     }
   }
 
+  // Back to the page the user came from (skipping forms); '/settings' only
+  // when there's no history — see src/shared/navigation/useGoBack.ts.
+  const navigateBack = useGoBack();
   function goBack() {
-    router.push('/settings');
+    navigateBack('/settings');
   }
 
   return {

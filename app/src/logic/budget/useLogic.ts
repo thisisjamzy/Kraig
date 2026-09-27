@@ -1,38 +1,22 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { query, where, orderBy, limit, updateDoc, arrayUnion, Timestamp } from 'firebase/firestore';
-import { ruleAppliesToMonth, effectiveBudgetedAmount } from '@dreda/shared-recurrence';
+import { query, where, orderBy, limit, updateDoc, Timestamp } from 'firebase/firestore';
 import { ArrowUpRight, ArrowDownLeft, PiggyBank, type LucideIcon } from 'lucide-react';
 import { useFirestoreCollection, useFirestoreDoc } from '@/src/shared/firestore/hooks';
-import {
-  budgetRulesRef,
-  budgetRuleRef,
-  statsMonthlyRef,
-  transactionsRef,
-  transfersRef,
-  settingsRef,
-  goalsRef,
-} from '@/src/shared/firestore/refs';
-import { useAccounts, useCategories, useCurrencyContext, useExchangeRates } from '@/src/shared/firestore/queries';
-import { toDisplay, convert, round2 } from '@/src/shared/firestore/currency';
-import { toRecurrenceRule, goalLineItemAppliesToMonth } from '@/src/shared/firestore/recurrence';
-import { recomputeBudgetProgressForRuleCurrentMonth } from '@/src/shared/firestore/aggregation';
+import { statsMonthlyRef, transactionsRef, transfersRef, settingsRef } from '@/src/shared/firestore/refs';
+import { useCategories, useExchangeRates } from '@/src/shared/firestore/queries';
+import { toDisplay, round2 } from '@/src/shared/firestore/currency';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
-import { useGoalLineItemsByGoal } from '@/src/shared/hooks/useGoalLineItemsByGoal';
-import { currentMonthIndex, currentYear, toAppRecurrence } from '@/src/viewmodels/budget';
+import { useMonthBudget } from '@/src/shared/hooks/useMonthBudget';
+import { currentMonthIndex, currentYear } from '@/src/viewmodels/budget';
 import { currencyName } from '@/src/viewmodels/currencies';
 import { isSavingsAccount } from '@/src/viewmodels/wallets';
 import { savingsTransactionFlow, savingsTransferFlow } from '@/src/viewmodels/savingsTransfers';
-import { categoryAccentColor, TRANSFER_CATEGORIES } from '@/src/viewmodels/categories';
-import type {
-  FirestoreBudgetRule,
-  StatsMonthly,
-  FirestoreTransaction,
-  FirestoreTransfer,
-  FirestoreGoal,
-  BudgetLineType,
-} from '@/src/shared/firestore/types';
+import { categoryAccentColor } from '@/src/viewmodels/categories';
+import type { StatsMonthly, FirestoreTransaction, FirestoreTransfer } from '@/src/shared/firestore/types';
+
+export type BudgetView = 'category' | 'bucket';
 
 // Same set src/logic/transactionHistory/useLogic.ts's own card list uses —
 // this panel now renders with that same card, so the icon needs to match.
@@ -41,8 +25,6 @@ const TYPE_ICONS: Record<string, LucideIcon> = {
   Income: ArrowDownLeft,
   Savings: PiggyBank,
 };
-
-export const BUDGET_LINE_TYPES: BudgetLineType[] = ['Expense', 'Income', 'Savings', 'Transfer'];
 
 // PRD-BUDGET-TRANSACTIONS.md section 3.2 — the Budget screen's own preview
 // is deliberately small (a busy household can log 40+ transactions in a
@@ -108,23 +90,12 @@ export function useLogic() {
   const { user, loading: authLoading } = useFirebaseUser();
   const uid = user?.uid;
 
-  const activeBudgetRulesQuery = useMemo(
-    () => (uid ? query(budgetRulesRef(uid), where('archived', '==', false)) : null),
-    [uid]
-  );
-  const { data: rules, loading: rulesLoading, error: rulesError } =
-    useFirestoreCollection<FirestoreBudgetRule>(activeBudgetRulesQuery);
   const { data: statsMonthly, loading: statsLoading } = useFirestoreDoc<StatsMonthly>(
     useMemo(() => (uid ? statsMonthlyRef(uid, monthStr) : null), [uid, monthStr])
   );
-  // Every category's actual (spent/received/saved) figure is computed live
-  // off this month's real transactions rather than trusted from
-  // statsMonthly.perCategorySpend — that field is only as correct as every
-  // increment ever applied to it, and a since-fixed sign bug (Income
-  // categories were being subtracted instead of added) left already-written
-  // months with a stale, wrong cumulative value that no code fix alone can
-  // correct. Re-deriving from source each time is self-healing: it can never
-  // drift from what the transactions themselves say, past or future.
+  // This month's savings flow (the tracking table's Savings "actual") is
+  // account-type based, not item based, so it still reads the month's raw
+  // transactions/transfers itself.
   const monthAllTransactionsQuery = useMemo(
     () => (uid ? query(transactionsRef(uid), where('month', '==', monthStr), limit(MONTH_ALL_TRANSACTIONS_PAGE_SIZE)) : null),
     [uid, monthStr]
@@ -166,187 +137,32 @@ export function useLogic() {
   }, [uid, isPastMonth, year, monthIndex]);
   const { data: sinceMonthEndTransferDocs, loading: sinceMonthEndTransfersLoading } =
     useFirestoreCollection<FirestoreTransfer>(sinceMonthEndTransfersQuery);
-  const { data: accounts, loading: accountsLoading } = useAccounts();
-  const { data: allCategories, loading: categoriesLoading } = useCategories();
-  const { ctx, loading: ctxLoading } = useCurrencyContext();
-  // Reconciling the app's two budgeting methods: a category's own budgeted
-  // estimate is inherently "unplanned" (a household types in a rough
-  // figure, nobody decided in advance exactly what each dollar is for) —
-  // a goal's line items are the alternative, where each dollar has a
-  // specific, named purpose. "Dedicated" is how much of this month's
-  // BUDGETED estimate a goal item already claims (see dedicatedByCategory
-  // below); "unplanned" is the rest. Every active goal's line items, same
-  // fetch shape Home/Statistics already use for their own goal-derived
-  // figures.
-  const goalsQuery = useMemo(() => (uid ? query(goalsRef(uid), where('archived', '==', false)) : null), [uid]);
-  const { data: goalDocs, loading: goalsLoading } = useFirestoreCollection<FirestoreGoal>(goalsQuery);
-  const { itemsByGoal, loading: goalItemsLoading } = useGoalLineItemsByGoal(goalDocs);
-  const goalCurrency = useMemo(() => new Map(goalDocs.map((g) => [g.id, g.currency])), [goalDocs]);
-  const goalType = useMemo(() => new Map(goalDocs.map((g) => [g.id, g.type ?? 'Expense'])), [goalDocs]);
+  // PRD-BUDGETS-V2.md section 5 — the whole month's budget, derived from
+  // bucket items + linked transactions + the allocation ledger. Categories
+  // here are only a read-only lens over those items; there's no longer a
+  // per-category budget to create, edit, or delete.
+  const {
+    budget,
+    transactionsById,
+    transfersById,
+    buckets,
+    itemsByBucket,
+    allocations,
+    accounts,
+    ctx,
+    loading: budgetLoading,
+  } = useMonthBudget(monthStr);
+  const [view, setView] = useState<BudgetView>('category');
+  // The item-month sheet (src/screens/BucketItemMonth) — keyed by
+  // ItemMonth.key so it follows live updates to that entry.
+  const [openItemKey, setOpenItemKey] = useState<string | null>(null);
+  const openItem = openItemKey ? budget.itemsByKey.get(openItemKey) ?? null : null;
 
   const accountCurrency = useMemo(() => new Map(accounts.map((a) => [a.id, a.currency])), [accounts]);
   const accountType = useMemo(() => new Map(accounts.map((a) => [a.id, a.type])), [accounts]);
   const accountName = useMemo(() => new Map(accounts.map((a) => [a.id, a.name])), [accounts]);
+  const { data: allCategories } = useCategories();
   const categoryName = useMemo(() => new Map(allCategories.map((c) => [c.id, c.name])), [allCategories]);
-  const categoryTransactionType = useMemo(
-    () => new Map(allCategories.map((c) => [c.id, c.transactionType])),
-    [allCategories]
-  );
-  // A rule written before FirestoreBudgetRule.type existed has no explicit
-  // type — it's always Expense/Income/Savings (Transfer rules are new, they
-  // always set it), so fall back to whatever type its linked category is.
-  function budgetLineType(rule: FirestoreBudgetRule): BudgetLineType {
-    return rule.type ?? categoryTransactionType.get(rule.categoryId) ?? 'Expense';
-  }
-
-  // Same Income-vs-Expense sign convention as writeTransactionContribution
-  // (aggregation.ts): for an Income category a normal Inflow counts as
-  // positive progress, the opposite of an Expense/Savings category's
-  // Outflow. In base currency, matching what statsMonthly.perCategorySpend
-  // used to hold, so every downstream toDisplay(ctx, ..., ctx.base) call
-  // below keeps working unchanged.
-  const perCategoryActualBase = useMemo(() => {
-    const totals = new Map<string, number>();
-    for (const t of monthAllTransactionDocs) {
-      if (!t.categoryId) continue;
-      const native = accountCurrency.get(t.accountId) ?? ctx.base;
-      const signedAmount = t.direction === 'Inflow' ? t.amount : -t.amount;
-      const contribution = t.type === 'Income' ? signedAmount : -signedAmount;
-      const contributionBase = convert(contribution, native, ctx.base, ctx.rates);
-      totals.set(t.categoryId, (totals.get(t.categoryId) ?? 0) + contributionBase);
-    }
-    // A Transfer-type budget category tracks the COST of transferring (the
-    // charges — moving your own money between your own accounts isn't
-    // spend, same reasoning Goals' own Transfers dashboard card already
-    // uses), keyed by the transfer's own `kind` — the same
-    // TRANSFER_CATEGORIES string a Transfer-type budget rule's own
-    // categoryId already reuses (src/logic/addBudgetCategory/useLogic.ts),
-    // so this Map's keys line up with `categories` below reading
-    // perCategoryActualBase.get(rule.categoryId) for either kind of rule
-    // without it needing to know the difference.
-    for (const t of monthTransferDocs) {
-      if (!t.kind || !t.charges) continue;
-      const native = accountCurrency.get(t.fromAccountId) ?? ctx.base;
-      const contributionBase = convert(t.charges, native, ctx.base, ctx.rates);
-      totals.set(t.kind, (totals.get(t.kind) ?? 0) + contributionBase);
-    }
-    return totals;
-  }, [monthAllTransactionDocs, monthTransferDocs, accountCurrency, ctx]);
-
-  // How much of THIS MONTH'S BUDGETED estimate a goal already claims —
-  // every active goal's line item that applies to this month
-  // (goalLineItemAppliesToMonth), regardless of whether it's actually been
-  // completed/paid yet. A goal item is "dedicated" the moment it exists
-  // and applies, not only once it's been settled — this is a claim on the
-  // ESTIMATE, not a slice of actual spend (see this function's own header
-  // comment for the full reasoning). Grouped by categoryId, which a
-  // Transfer goal's own item already stores as a TRANSFER_CATEGORIES kind
-  // string (same convention a Transfer-type budget rule's own categoryId
-  // uses), so this Map's keys line up with ordinary category ids with no
-  // special-casing needed below — only the amount picked (charges, not the
-  // full amount moved, same reasoning Goals' own Transfers dashboard card
-  // uses) depends on the goal's type.
-  const dedicatedByCategory = useMemo(() => {
-    const totals = new Map<string, number>();
-    const targetMonth = monthIndex + 1;
-    for (const [goalId, items] of Object.entries(itemsByGoal)) {
-      const nativeCurrency = goalCurrency.get(goalId) ?? ctx.base;
-      const isTransferGoal = goalType.get(goalId) === 'Transfer';
-      for (const item of items) {
-        if (!item.categoryId) continue;
-        const occurrence = goalLineItemAppliesToMonth(item, year, targetMonth);
-        if (!occurrence) continue;
-        const amount = (isTransferGoal ? (item.charges ?? 0) : item.amount) * occurrence.multiplier;
-        const contributionBase = convert(amount, nativeCurrency, ctx.base, ctx.rates);
-        totals.set(item.categoryId, (totals.get(item.categoryId) ?? 0) + contributionBase);
-      }
-    }
-    return totals;
-  }, [itemsByGoal, goalCurrency, goalType, ctx, year, monthIndex]);
-
-  const categories = useMemo(() => {
-    const [y, m] = monthStr.split('-').map(Number);
-    const fromRules = rules
-      .map((rule) => {
-        const occurrence = ruleAppliesToMonth(toRecurrenceRule(rule), y, m);
-        if (!occurrence || rule.excludedMonths?.includes(monthStr)) return null;
-        const ruleNative = rule.accountId ? accountCurrency.get(rule.accountId) ?? ctx.base : ctx.base;
-        const budgeted = round2(
-          toDisplay(ctx, effectiveBudgetedAmount(rule.budgetedAmount, occurrence.multiplier, rule.monthOverrides, monthStr), ruleNative)
-        );
-        const hasMonthOverride = Boolean(rule.monthOverrides?.[monthStr]);
-        const spentBase = perCategoryActualBase.get(rule.categoryId) ?? 0;
-        const spent = round2(toDisplay(ctx, spentBase, ctx.base));
-        // dedicated/unplanned are a breakdown of BUDGETED (the estimate),
-        // not of spent — see dedicatedByCategory's own header comment.
-        const dedicatedBase = dedicatedByCategory.get(rule.categoryId) ?? 0;
-        const dedicated = round2(toDisplay(ctx, dedicatedBase, ctx.base));
-        const unplanned = round2(budgeted - dedicated);
-        const bucket = toAppRecurrence(rule);
-        return {
-          id: rule.id,
-          categoryId: rule.categoryId,
-          type: budgetLineType(rule),
-          category: categoryName.get(rule.categoryId) ?? rule.categoryId,
-          description: rule.description,
-          budgeted,
-          spent,
-          dedicated,
-          unplanned,
-          recurrence: bucket.recurrence,
-          recurrenceMonths: bucket.recurrenceMonths,
-          endMonthIndex: bucket.endMonthIndex,
-          endYear: bucket.endYear,
-          hasMonthOverride,
-          isAutoIncluded: false,
-        };
-      })
-      .filter((entry): entry is NonNullable<typeof entry> => entry !== null);
-
-    // A goal can dedicate money to a category with no budget rule of its
-    // own at all — the goal item itself IS the plan for that category, so
-    // it shouldn't take a separate manual "Add budget category" step to
-    // even show up here. Synthesized, never written to Firestore (no rule
-    // doc exists to edit/delete — BudgetScreen.tsx hides those actions for
-    // isAutoIncluded entries) — same "derive it live from goals, don't
-    // persist a second copy" approach dedicatedByCategory itself already
-    // takes. budgeted is exactly the dedicated amount, so unplanned is
-    // always 0: the category's entire plan comes from the goal.
-    const coveredCategoryIds = new Set(fromRules.map((entry) => entry.categoryId));
-    const autoIncluded: typeof fromRules = [];
-    for (const [categoryId, dedicatedBase] of dedicatedByCategory) {
-      if (coveredCategoryIds.has(categoryId) || dedicatedBase <= 0) continue;
-      const dedicated = round2(toDisplay(ctx, dedicatedBase, ctx.base));
-      const spentBase = perCategoryActualBase.get(categoryId) ?? 0;
-      const spent = round2(toDisplay(ctx, spentBase, ctx.base));
-      const type: BudgetLineType = TRANSFER_CATEGORIES.includes(categoryId as (typeof TRANSFER_CATEGORIES)[number])
-        ? 'Transfer'
-        : (categoryTransactionType.get(categoryId) ?? 'Expense');
-      autoIncluded.push({
-        id: `auto:${categoryId}`,
-        categoryId,
-        type,
-        category: categoryName.get(categoryId) ?? categoryId,
-        description: '',
-        budgeted: dedicated,
-        spent,
-        dedicated,
-        unplanned: 0,
-        recurrence: 'once',
-        recurrenceMonths: undefined,
-        endMonthIndex: undefined,
-        endYear: undefined,
-        hasMonthOverride: false,
-        isAutoIncluded: true,
-      });
-    }
-
-    // Highest-spent-first — which categories are actually active this
-    // month matters more than an arbitrary insertion order once the list
-    // is capped (PRD-BUDGET-TRANSACTIONS.md section 8, decision 2).
-    return [...fromRules, ...autoIncluded].sort((a, b) => b.spent - a.spent);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rules, monthStr, accountCurrency, categoryName, categoryTransactionType, ctx, perCategoryActualBase, dedicatedByCategory]);
 
   const currency = ctx.display;
   // Currency badge on the total card — same switch-and-persist write
@@ -370,31 +186,34 @@ export function useLogic() {
     }
   }
 
-  // Bottom-up, not a separately typed-in target: "how much you're planning
-  // to spend/receive/save this month" is always exactly the sum of the
-  // budget lines you've actually entered for that type — there's no more
-  // top-down budgetPlans/{month} figure to keep in sync with that by hand.
-  const expenseCategories = useMemo(() => categories.filter((entry) => entry.type === 'Expense'), [categories]);
-  const incomeCategories = useMemo(() => categories.filter((entry) => entry.type === 'Income'), [categories]);
-  const savingsCategories = useMemo(() => categories.filter((entry) => entry.type === 'Savings'), [categories]);
-  const totalExpenseBudgeted = round2(expenseCategories.reduce((sum, entry) => sum + entry.budgeted, 0));
-  const totalExpenseSpent = round2(expenseCategories.reduce((sum, entry) => sum + entry.spent, 0));
-  const plannedIncome = round2(incomeCategories.reduce((sum, entry) => sum + entry.budgeted, 0));
-  const plannedSavings = round2(savingsCategories.reduce((sum, entry) => sum + entry.budgeted, 0));
-  // What you'd actually have left to spend after saving — if your planned
-  // expenses are more than that, you're planning to overspend this month
-  // even before anything is actually bought. Only worth flagging once
-  // there's an actual income plan to compare against.
-  const availableToSpend = plannedIncome - plannedSavings;
-  const overspendAmount = round2(totalExpenseBudgeted - availableToSpend);
-  const isOverspending = plannedIncome > 0 && overspendAmount > 0;
-  // "Left to budget" — the headline card's own summary line. Not "left to
-  // spend": it's how much of the projected income (after planned savings)
-  // still has no Expense budget line claiming it at all. Floored at 0 —
-  // once every dollar of projected income is accounted for (or the plan
-  // overspends it), there's nothing left to budget; that overspent case is
-  // isOverspending's own warning above, not a negative number here.
-  const leftToBudget = Math.max(0, round2(availableToSpend - totalExpenseBudgeted));
+  const sumItems = (type: string, pick: 'planned' | 'actual') =>
+    round2(budget.items.filter((entry) => entry.type === type).reduce((sum, entry) => sum + entry[pick], 0));
+  const sumCategories = (type: string) =>
+    round2(budget.categories.filter((group) => group.type === type).reduce((sum, group) => sum + group.actual, 0));
+  const plannedIncome = budget.plannedIncome;
+  const plannedSavings = sumItems('Savings', 'planned');
+  const totalExpenseBudgeted = sumItems('Expense', 'planned');
+  const totalExpenseSpent = sumCategories('Expense');
+  // "Left to budget" is the month's pool: planned income no item claims
+  // yet, moved by every allocation into/out of it. Negative = the plan
+  // itself spends more than it expects to earn.
+  const isOverspending = budget.pool < 0;
+  const overspendAmount = round2(Math.max(0, -budget.pool));
+  const leftToBudget = round2(Math.max(0, budget.pool));
+
+  // Overspends nobody has funded yet, and leftovers that could move —
+  // the two strips above the category list (section 6.1). Leftovers only
+  // surface once they're real: the month is over, or a Planned item was
+  // closed with money unspent.
+  const monthEnded = isPastMonthOf(year, monthIndex);
+  const needsAttention = useMemo(() => budget.items.filter((entry) => entry.unfunded > 0), [budget.items]);
+  const leftovers = useMemo(
+    () =>
+      budget.items.filter(
+        (entry) => entry.type !== 'Income' && entry.remaining > 0 && (monthEnded || entry.closed)
+      ),
+    [budget.items, monthEnded]
+  );
 
   // Actual income for the month — derived from real transactions, never
   // typed in, and — same bottom-up shift as planned above — summed per
@@ -402,21 +221,10 @@ export function useLogic() {
   // transaction against any Income category (budgeted this month or not)
   // always moves the actual total. A month with nothing logged yet just
   // reads 0/0%; there's no other way to know what actually came in.
-  const incomeCategoryIds = useMemo(
-    () => new Set(allCategories.filter((category) => category.transactionType === 'Income').map((c) => c.id)),
-    [allCategories]
-  );
-  function sumPerCategory(categoryIds: Set<string>) {
-    let sum = 0;
-    for (const [categoryId, amount] of perCategoryActualBase) {
-      if (categoryIds.has(categoryId)) sum += amount;
-    }
-    return sum;
-  }
   // Floored at 0 — a correction/refund against an Income category can drive
   // the raw sum below zero, but "money received this month" reading negative
   // would only confuse the summary card, so it never displays as such.
-  const actualIncome = Math.max(0, round2(toDisplay(ctx, sumPerCategory(incomeCategoryIds), ctx.base)));
+  const actualIncome = Math.max(0, budget.actualIncome);
   // Savings is account-type based now, not category based (see
   // src/viewmodels/savingsTransfers.ts). The tracking table's Savings row
   // carries two different "actual" figures side by side: this month's real
@@ -476,22 +284,6 @@ export function useLogic() {
     setMonthIndex(index);
     setYear(pickerYear);
     setMonthPickerOpen(false);
-  }
-
-  // Deleting a one-off ("Once") rule removes it outright — there's no other
-  // month it could still apply to. Deleting a recurring rule while viewing
-  // one month only skips that month (e.g. skip a monthly subscription for
-  // September without touching August or October) — see excludedMonths on
-  // FirestoreBudgetRule.
-  async function handleDelete(id: string) {
-    if (!uid) return;
-    const rule = rules.find((entry) => entry.id === id);
-    if (rule && rule.frequency !== 'Once') {
-      await updateDoc(budgetRuleRef(uid, id), { excludedMonths: arrayUnion(monthStr) });
-    } else {
-      await updateDoc(budgetRuleRef(uid, id), { archived: true });
-    }
-    await recomputeBudgetProgressForRuleCurrentMonth(uid, id);
   }
 
   // Where the "Record Transaction" button (PRD-BUDGET-TRANSACTIONS.md
@@ -560,17 +352,26 @@ export function useLogic() {
     monthTransactionsLoading,
     monthTransactionCount,
     viewAllMonthTransactionsHref,
-    // Where "Add category" sends them — its own page (see
-    // src/logic/addBudgetCategory/useLogic.ts). "Edit" on an existing line
-    // sends to its own page too (src/logic/editBudgetCategory/useLogic.ts),
-    // not a modal — BudgetScreen.tsx builds that href per-entry since it
-    // needs the entry's own rule id.
-    addBudgetCategoryHref: `/add-budget-category?month=${monthIndex}&year=${year}`,
+    // Planning happens in Buckets now — the Budget screen only reads it.
+    planHref: '/buckets',
+    monthStr,
+    budget,
+    view,
+    setView,
+    openItem,
+    setOpenItemKey,
+    transactionsById,
+    transfersById,
+    buckets,
+    itemsByBucket,
+    allocations,
+    needsAttention,
+    leftovers,
     monthPickerOpen,
     setMonthPickerOpen,
     pickerYear,
     setPickerYear,
-    categories,
+
     currency,
     currencyOptions,
     setCurrency,
@@ -584,25 +385,22 @@ export function useLogic() {
     cumulativeSavings,
     incomeVariance,
     expenseOverBudget,
-    availableToSpend,
     overspendAmount,
     isOverspending,
     loading:
       authLoading ||
-      rulesLoading ||
+      budgetLoading ||
       statsLoading ||
       monthAllTransactionsLoading ||
       monthTransfersLoading ||
       sinceMonthEndTransactionsLoading ||
-      sinceMonthEndTransfersLoading ||
-      goalsLoading ||
-      goalItemsLoading ||
-      accountsLoading ||
-      categoriesLoading ||
-      ctxLoading,
-    error: rulesError,
+      sinceMonthEndTransfersLoading,
+    error: null,
     openMonthPicker,
     chooseMonth,
-    handleDelete,
   };
+}
+
+function isPastMonthOf(year: number, monthIndex: number) {
+  return year < currentYear() || (year === currentYear() && monthIndex < currentMonthIndex());
 }

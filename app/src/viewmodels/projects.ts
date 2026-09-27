@@ -6,7 +6,7 @@
 // user choice, not an auto-cycled one.
 
 import { CircleDot, Users, CalendarDays, type LucideIcon } from 'lucide-react';
-import type { TaskType, TaskStatus, Priority, GoalItemNecessity } from '@/src/shared/firestore/types';
+import type { TaskType, TaskStatus, Priority, BucketItemNecessity } from '@/src/shared/firestore/types';
 
 export const PROJECT_COLORS = [
   '#7b7ef3',
@@ -19,19 +19,6 @@ export const PROJECT_COLORS = [
   '#e91e63',
 ] as const;
 
-// A task has no color of its own to pick (unlike an area/project) — TaskCard
-// (Design/task1.jpg, task2.jpg's vivid gradient cards) instead hashes the
-// task's own id into this same palette, same technique as
-// viewmodels/categories.ts's categoryAccentColor, so the same task always
-// lands on the same color without storing one.
-export function taskCardColor(id: string): string {
-  let hash = 0;
-  for (let i = 0; i < id.length; i++) {
-    hash = (hash * 31 + id.charCodeAt(i)) | 0;
-  }
-  return PROJECT_COLORS[Math.abs(hash) % PROJECT_COLORS.length];
-}
-
 function hashString(id: string): number {
   let hash = 0;
   for (let i = 0; i < id.length; i++) {
@@ -40,11 +27,11 @@ function hashString(id: string): number {
   return Math.abs(hash);
 }
 
-// Areas, projects, and buckets have no cover image of their own to pick —
-// every card for the three (ProjectCard, BucketCard,
+// Areas, projects, and sections have no cover image of their own to pick —
+// every card for the three (ProjectCard, SectionCard,
 // ProjectsScreen's own area cards) instead hashes the record's own id into
 // a small curated set of real Unsplash photos, same technique as
-// taskCardColor above, so a given area/project/bucket keeps the same cover
+// viewmodels/categories.ts's categoryAccentColor, so a given area/project/section keeps the same cover
 // across renders/sessions without storing one. Direct images.unsplash.com
 // CDN hotlinks (Unsplash's own recommended usage for this — no API key or
 // download-tracking call needed just to display a photo), sized/compressed
@@ -115,12 +102,25 @@ export function isValidCustomTaskType(name: string): boolean {
   return /^[A-Z][a-zA-Z]*$/.test(name);
 }
 
-export const PRIORITY_LEVELS: Priority[] = ['High', 'Medium', 'Low'];
+export const PRIORITY_LEVELS: Priority[] = ['Urgent', 'High', 'Medium', 'Low'];
+// How each level reads in the UI — lowercase, per the task form's design.
+// Stored values stay 'Urgent' | 'High' | 'Medium' | 'Low'.
+export const PRIORITY_LABEL: Record<Priority, string> = {
+  Urgent: 'very important',
+  High: 'important',
+  Medium: 'normal',
+  Low: 'low',
+};
+export function priorityLabel(priority: Priority): string {
+  return PRIORITY_LABEL[priority] ?? priority;
+}
+// Most urgent first — for sorting lists by priority.
+export const PRIORITY_RANK: Record<Priority, number> = { Urgent: 0, High: 1, Medium: 2, Low: 3 };
 // Legacy projects/tasks written before priority existed default to Medium
 // wherever they're read (never stored as undefined going forward).
 export const DEFAULT_PRIORITY: Priority = 'Medium';
 
-export const TASK_STATUSES: TaskStatus[] = ['Pending', 'Stuck', 'In Review', 'Done'];
+export const TASK_STATUSES: TaskStatus[] = ['Pending', 'Stuck', 'In Review', 'Done', 'Cancelled'];
 
 // A task's real status: the stored field when present, otherwise derived
 // from `done` alone for a task written before status existed — never read
@@ -130,15 +130,15 @@ export function resolveTaskStatus(task: { status?: TaskStatus; done: boolean }):
   return task.status ?? (task.done ? 'Done' : 'Pending');
 }
 
-export const NECESSITY_OPTIONS: GoalItemNecessity[] = ['MustHave', 'NiceToHave'];
-export const NECESSITY_LABEL: Record<GoalItemNecessity, string> = {
+export const NECESSITY_OPTIONS: BucketItemNecessity[] = ['MustHave', 'NiceToHave'];
+export const NECESSITY_LABEL: Record<BucketItemNecessity, string> = {
   MustHave: 'Must have',
   NiceToHave: 'Nice to have',
 };
-// Legacy goal line items written before necessity existed default to Nice
+// Legacy bucket line items written before necessity existed default to Nice
 // to have wherever they're read — the safer assumption when a household
 // never actually tagged something as essential.
-export const DEFAULT_NECESSITY: GoalItemNecessity = 'NiceToHave';
+export const DEFAULT_NECESSITY: BucketItemNecessity = 'NiceToHave';
 
 // "Too many overdue tasks" for a project's At Risk indicator — 2 rather
 // than 1, so a single slipped date doesn't flag a project that's otherwise
