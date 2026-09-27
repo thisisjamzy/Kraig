@@ -435,3 +435,22 @@ test('a Fixed bucket\'s month figures match the Budget screen exactly (allocatio
   assert.equal(progress.spent, entry.actual);
   assert.equal(progress.doneCount, 1);
 });
+
+test('a bucket with the salary and the bills totals only the bills', () => {
+  const budget = buildMonthBudget(
+    base({
+      itemsByBucket: {
+        b1: [item('rent', { amount: 400, categoryId: 'housing' }), item('pay', { amount: 2000, categoryId: 'salary' })],
+      },
+      transactions: [
+        tx('t1', 400, { categoryId: 'housing', bucketItem: { bucketId: 'b1', itemId: 'rent', month: '2026-09' } }),
+        tx('t2', 2000, { type: 'Income', direction: 'Inflow', categoryId: 'salary', bucketItem: { bucketId: 'b1', itemId: 'pay', month: '2026-09' } }),
+      ],
+    })
+  );
+  const group = budget.buckets.find((g) => g.bucketId === 'b1')!;
+  assert.equal(group.planned, 400);
+  assert.equal(group.actual, 400);
+  assert.equal(group.remaining, 0);
+  assert.equal(budget.plannedIncome, 2000);
+});

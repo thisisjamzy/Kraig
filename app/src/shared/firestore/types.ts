@@ -486,7 +486,7 @@ export interface FirestoreBucketLineItem {
   // instead). Optional: not every bucket item has a hard deadline.
   dueDate: Timestamp | null;
   // Custom manual order within the cross-bucket "All bucket items" list
-  // (src/logic/bucketItems) — lower sorts first. Set once at creation
+  // (Priorities' "My order", src/logic/priorities) — lower sorts first. Set once at creation
   // (Date.now(), always after every existing item) and only ever changed by
   // a manual reorder or by applying a Priority/Ease sort as the new
   // baseline. Absent on a line item written before this field existed;
@@ -563,6 +563,14 @@ export interface FirestoreBucketLineItem {
   // the part of that month's overspend the household accepted, and why.
   // Written by the Planning "Cover or justify" flow
   // (src/shared/firestore/bucketBudget.ts's justifyItemMonth).
+  // Priorities (src/viewmodels/plans): moved to a later date, with why.
+  postponeHistory?: { fromDate: Timestamp | null; toDate: Timestamp; reason: string; at: Timestamp }[];
+  // 'dropped' — decided not to buy it (a one-off; it's also marked
+  // completed so its plan closes). Absent means it's still wanted.
+  status?: 'dropped';
+  // A penalty if it's late, or an installment tied to a contract — ranks
+  // it ahead of equal items in Priorities' recommended order.
+  penaltyIfLate?: boolean;
   monthJustifications?: Record<string, ItemJustification>;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;

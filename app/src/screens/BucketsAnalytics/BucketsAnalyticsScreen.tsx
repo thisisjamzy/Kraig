@@ -1,7 +1,7 @@
 'use client';
 
 import { ChevronDown, Check } from 'lucide-react';
-import { useLogic, type ProportionsMode } from '@/src/logic/buckets/useLogic';
+import { useLogic, type ProportionsMode } from '@/src/logic/bucketsAnalytics/useLogic';
 import { formatAmount } from '@/src/screens/Buckets/BucketsScreen';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';

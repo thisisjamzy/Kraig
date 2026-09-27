@@ -40,6 +40,7 @@ export function ListQueryBar<T>({
   noun,
   stickyTop = '0px',
   manualOrder = false,
+  hideSort = false,
   className,
 }: {
   fields: FieldDef<T>[];
@@ -54,6 +55,8 @@ export function ListQueryBar<T>({
   stickyTop?: string;
   /** The list can be reordered by hand (paused while sorting). */
   manualOrder?: boolean;
+  /** The list has its own ordering control (e.g. Priorities' sort chips). */
+  hideSort?: boolean;
   /** Placement tweaks from the screen (the bar must stay a direct child of
    * the scrolling content for sticky to work). */
   className?: string;
@@ -154,17 +157,19 @@ export function ListQueryBar<T>({
                   <ListFilter size={20} strokeWidth={2} />
                   {nFilters > 0 && <span className={styles.badge}>{nFilters}</span>}
                 </button>
-                <button
-                  type="button"
-                  className={styles.tool}
-                  data-active={nSorts > 0 || undefined}
-                  aria-label={nSorts ? `Sort, ${nSorts} active` : 'Sort'}
-                  aria-haspopup="dialog"
-                  onClick={(e) => setMenu({ kind: 'sort', anchor: e.currentTarget })}
-                >
-                  <ArrowDownUp size={20} strokeWidth={2} />
-                  {nSorts > 0 && <span className={styles.badge}>{nSorts}</span>}
-                </button>
+                {!hideSort && (
+                  <button
+                    type="button"
+                    className={styles.tool}
+                    data-active={nSorts > 0 || undefined}
+                    aria-label={nSorts ? `Sort, ${nSorts} active` : 'Sort'}
+                    aria-haspopup="dialog"
+                    onClick={(e) => setMenu({ kind: 'sort', anchor: e.currentTarget })}
+                  >
+                    <ArrowDownUp size={20} strokeWidth={2} />
+                    {nSorts > 0 && <span className={styles.badge}>{nSorts}</span>}
+                  </button>
+                )}
                 <button type="button" className={styles.tool} aria-label="Search" onClick={() => setSearching(true)}>
                   <Search size={20} strokeWidth={2} />
                 </button>

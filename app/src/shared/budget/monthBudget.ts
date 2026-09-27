@@ -526,17 +526,25 @@ export function buildMonthBudget(input: MonthBudgetInput): MonthBudget {
       bucketGroups.set(entry.bucketId, group);
     }
     group.items.push(entry);
-    group.planned += entry.planned;
-    group.available += entry.available;
-    group.actual += entry.actual;
   }
-  const bucketList = [...bucketGroups.values()].map((group) => ({
-    ...group,
-    planned: round2(group.planned),
-    available: round2(group.available),
-    actual: round2(group.actual),
-    remaining: round2(group.available - group.actual),
-  }));
+  // A bucket's totals are its spending. Income items in a bucket that also
+  // holds expenses (the salary in a recurring bucket with the bills) aren't
+  // money spent, so they stay out of its planned, spent and left; only an
+  // all-income bucket totals its income (received vs planned).
+  const bucketList = [...bucketGroups.values()].map((group) => {
+    const spending = group.items.filter((entry) => entry.type !== 'Income');
+    const counted = spending.length ? spending : group.items;
+    const planned = counted.reduce((total, entry) => total + entry.planned, 0);
+    const available = counted.reduce((total, entry) => total + entry.available, 0);
+    const actual = counted.reduce((total, entry) => total + entry.actual, 0);
+    return {
+      ...group,
+      planned: round2(planned),
+      available: round2(available),
+      actual: round2(actual),
+      remaining: round2(available - actual),
+    };
+  });
 
   const sum = (list: ItemMonth[], pick: (entry: ItemMonth) => number) => list.reduce((total, entry) => total + pick(entry), 0);
   const incomeItems = items.filter((entry) => entry.type === 'Income');

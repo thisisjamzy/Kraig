@@ -898,3 +898,52 @@
 .listGap {
   margin-top: 14px;
 }
+
+/* Bucket card extras (the Buckets page): need chip, kind line, overdue strip. */
+.needChip {
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 0.625rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.needChip[data-need='must'] {
+  background: #fdf3e2;
+  color: #9a6a14;
+}
+
+.needChip[data-need='nice'] {
+  background: var(--p-track);
+  color: var(--p-muted);
+}
+
+.bucketLine {
+  display: block;
+  margin-top: 6px;
+  font-size: 0.75rem;
+  color: var(--p-muted);
+}
+
+.overdueStrip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 10px;
+  margin: 14px -16px -16px;
+  padding: 11px 16px 11px 14px;
+  border-left: 3px solid var(--p-red);
+  border-radius: 0 0 22px 22px;
+  background: var(--p-red-tint);
+  color: var(--p-red);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.overdueStrip a {
+  color: var(--p-navy);
+  font-weight: 700;
+  text-decoration: none;
+}

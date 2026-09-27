@@ -10,7 +10,27 @@ import { money, type BucketCard } from '@/src/viewmodels/planning';
 import { Bar, IconCircle, Pair, PromptStrip } from './PlanningParts';
 import tab from './PlanningTabs.module.css';
 
-export function BucketCardView({ card, currency, month }: { card: BucketCard; currency: string; month: string }) {
+export interface BucketCardExtras {
+  /** The kind-specific line: "2 of 9 paid · next: Bunk bed on 10 Oct". */
+  line?: string;
+  /** Its highest need, as a chip. */
+  topNeed?: 'must' | 'nice' | null;
+  /** Overdue items — takes the action strip first ("Mark paid"). */
+  overdue?: { count: number; amount: number; href: string };
+}
+
+export function BucketCardView({
+  card,
+  currency,
+  month,
+  extras,
+}: {
+  card: BucketCard;
+  currency: string;
+  month: string;
+  /** The Buckets page's extra detail; Planning's Budget tab leaves it out. */
+  extras?: BucketCardExtras;
+}) {
   // Red only while it still needs action — a settled overspend reads as a
   // grey "justified" tag instead.
   const flagged = card.prompt?.kind === 'over' || card.prompt?.kind === 'uncovered';
@@ -26,6 +46,11 @@ export function BucketCardView({ card, currency, month }: { card: BucketCard; cu
             <span className={tab.bucketMeta}>
               {card.itemCount} {card.itemCount === 1 ? 'item' : 'items'}
               {card.archived && ' · archived'}
+              {extras?.topNeed && (
+                <span className={tab.needChip} data-need={extras.topNeed}>
+                  {extras.topNeed === 'must' ? 'Must have' : 'Nice to have'}
+                </span>
+              )}
             </span>
           </span>
           <Pair spent={card.spent} planned={card.planned} />
@@ -43,8 +68,21 @@ export function BucketCardView({ card, currency, month }: { card: BucketCard; cu
               : `Available ${money(card.available)} ${currency}`}
           </span>
         )}
+        {extras?.line && <span className={tab.bucketLine}>{extras.line}</span>}
       </Link>
-      {card.prompt && <PromptStrip prompt={card.prompt} currency={currency} month={month} bucketId={card.id} />}
+      {extras?.overdue && extras.overdue.count > 0 ? (
+        // One action per card, overdue first.
+        <div className={tab.overdueStrip}>
+          <span>
+            {extras.overdue.count} overdue · {money(extras.overdue.amount)} {currency}
+          </span>
+          <Link href={extras.overdue.href} onClick={(e) => e.stopPropagation()}>
+            Mark paid →
+          </Link>
+        </div>
+      ) : (
+        card.prompt && <PromptStrip prompt={card.prompt} currency={currency} month={month} bucketId={card.id} />
+      )}
     </article>
   );
 }
