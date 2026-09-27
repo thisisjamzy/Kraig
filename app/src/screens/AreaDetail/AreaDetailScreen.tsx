@@ -7,6 +7,7 @@ import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { ProjectCard } from '@/src/widgets/ProjectCard/ProjectCard';
 import { SectionCard } from '@/src/widgets/SectionCard/SectionCard';
 import { TaskCheckRow } from '@/src/widgets/TaskCheckRow/TaskCheckRow';
+import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import { projectCoverImageUrl } from '@/src/viewmodels/projects';
 import styles from './AreaDetailScreen.module.css';
 
@@ -29,17 +30,21 @@ export function AreaDetailScreen({ areaId }: { areaId: string }) {
 
   return (
     <div className={styles.page}>
-      <header className={styles.header}>
-        <button type="button" className={styles.backButton} onClick={goBack} aria-label="Back">
-          <ChevronLeft size={18} strokeWidth={2} />
-        </button>
-        <h1 className={styles.title}>{area?.name ?? 'Area'}</h1>
-        {area && (
-          <button type="button" className={styles.archiveButton} onClick={openEdit} aria-label="Edit area">
-            <Pencil size={14} strokeWidth={1.75} />
+      <ScreenHeader
+        left={
+          <button type="button" className={styles.backButton} onClick={goBack} aria-label="Back">
+            <ChevronLeft size={18} strokeWidth={2} />
           </button>
-        )}
-      </header>
+        }
+        title={area?.name ?? 'Area'}
+        right={
+          area && (
+            <button type="button" className={styles.archiveButton} onClick={openEdit} aria-label="Edit area">
+              <Pencil size={14} strokeWidth={1.75} />
+            </button>
+          )
+        }
+      />
 
       {area && (
         <div

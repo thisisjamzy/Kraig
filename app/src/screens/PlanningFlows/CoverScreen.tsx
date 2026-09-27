@@ -9,6 +9,7 @@ import { ArrowLeft, Check, Coins, MessageSquareText } from 'lucide-react';
 import { useLogic } from '@/src/logic/planningCover/useLogic';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { money } from '@/src/viewmodels/planning';
+import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import p from '@/src/screens/Planning/Planning.module.css';
 import f from './Flows.module.css';
 
@@ -16,12 +17,14 @@ export function CoverScreen() {
   const c = useLogic();
 
   return (
-    <div className={`${p.page} ${f.page}`}>
-      <div className={p.topBar}>
-        <button type="button" className={p.roundButton} onClick={c.goBack} aria-label="Back">
-          <ArrowLeft size={20} strokeWidth={2} />
-        </button>
-      </div>
+    <div className={`${p.page} ${p.detail} ${f.page}`}>
+      <ScreenHeader
+        left={
+          <button type="button" className={p.roundButton} onClick={c.goBack} aria-label="Back">
+            <ArrowLeft size={20} strokeWidth={2} />
+          </button>
+        }
+      />
 
       <ScreenState loading={c.loading} error={!c.loading && c.need <= 0 ? 'Nothing here is over budget any more.' : null} />
 

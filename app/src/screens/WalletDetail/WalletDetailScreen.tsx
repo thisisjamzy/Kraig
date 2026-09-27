@@ -7,6 +7,7 @@ import { DonutChart } from '@/src/widgets/DonutChart/DonutChart';
 import { useLogic, formatAmount } from '@/src/logic/walletDetail/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
+import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import styles from './WalletDetailScreen.module.css';
 
 export function WalletDetailScreen({ walletId }: { walletId: string }) {
@@ -35,15 +36,19 @@ export function WalletDetailScreen({ walletId }: { walletId: string }) {
 
   return (
     <div className={styles.page}>
-      <header className={styles.header}>
-        <button type="button" className={styles.backButton} onClick={goBack} aria-label="Back">
-          <ChevronLeft size={18} strokeWidth={2} />
-        </button>
-        <h1 className={styles.title}>{wallet?.name ?? '…'}</h1>
-        <Link href={`/wallets/${walletId}/edit`} className={styles.editButton} aria-label={strings.walletDetail.editWallet}>
-          <Settings size={18} strokeWidth={1.75} />
-        </Link>
-      </header>
+      <ScreenHeader
+        left={
+          <button type="button" className={styles.backButton} onClick={goBack} aria-label="Back">
+            <ChevronLeft size={18} strokeWidth={2} />
+          </button>
+        }
+        title={wallet?.name ?? '…'}
+        right={
+          <Link href={`/wallets/${walletId}/edit`} className={styles.editButton} aria-label={strings.walletDetail.editWallet}>
+            <Settings size={18} strokeWidth={1.75} />
+          </Link>
+        }
+      />
 
       <p className={styles.balance}>
         {formatAmount(balance)} <span className={styles.balanceCurrency}>{currency}</span>

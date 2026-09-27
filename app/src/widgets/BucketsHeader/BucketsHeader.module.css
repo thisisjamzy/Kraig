@@ -1,24 +1,5 @@
-/* Same sticky-header pattern every drill-down screen's own .header uses
-   (full-bleed via negative margins, flush against the very top, pinned on
-   scroll) — see e.g. src/screens/WalletDetail/WalletDetailScreen.module.css.
-   Each Buckets tab's own .page still owns the padding this cancels out. */
-.header {
-  display: flex;
-  align-items: center;
-  gap: var(--space-md);
-  position: sticky;
-  top: 0;
-  z-index: 15;
-  margin-top: calc(-1 * (var(--space-lg) + env(safe-area-inset-top)));
-  margin-left: calc(-1 * var(--space-lg));
-  margin-right: calc(-1 * var(--space-lg));
-  padding-top: calc(var(--space-lg) + env(safe-area-inset-top));
-  padding-left: var(--space-lg);
-  padding-right: var(--space-lg);
-  padding-bottom: var(--space-sm);
-  background: var(--color-page);
-}
-
+/* The bar itself is ScreenHeader (safe area, sticky, full-bleed) — this
+   only styles what goes in its slots. */
 .backButton {
   display: flex;
   align-items: center;
@@ -34,15 +15,6 @@
   cursor: pointer;
 }
 
-.title {
-  margin: 0;
-  min-width: 0;
-  flex: 1;
-  font-family: var(--font-family-heading);
-  font-size: var(--font-size-xl);
-  font-weight: 800;
-  color: var(--color-text-primary);
-}
 
 /* Same size/shape as AppHeader's own ModeSwitch (Money/Time) — a compact
    pill, not a full-width segmented control. */

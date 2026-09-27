@@ -19,6 +19,7 @@ import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { ActionMenu } from '@/src/widgets/ActionMenu/ActionMenu';
 import { dayMonth, fillOf, money, monthTitle } from '@/src/viewmodels/planning';
 import { HistoryRowView, coverHref, reallocateHref } from '@/src/screens/Planning/PlanningParts';
+import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import p from '@/src/screens/Planning/Planning.module.css';
 import styles from './PlanningBucketScreen.module.css';
 
@@ -54,12 +55,14 @@ export function PlanningBucketView({ bucketId, b }: { bucketId: string; b: Retur
 
   if (b.loading || !card || !b.bucket) {
     return (
-      <div className={p.page}>
-        <div className={p.topBar}>
-          <button type="button" className={p.roundButton} onClick={b.goBack} aria-label="Back">
-            <ArrowLeft size={20} strokeWidth={2} />
-          </button>
-        </div>
+      <div className={`${p.page} ${p.detail}`}>
+        <ScreenHeader
+          left={
+            <button type="button" className={p.roundButton} onClick={b.goBack} aria-label="Back">
+              <ArrowLeft size={20} strokeWidth={2} />
+            </button>
+          }
+        />
         <ScreenState
           loading={b.loading}
           error={!b.loading ? (b.bucket ? `Nothing planned in this bucket for ${monthTitle(b.month)}.` : 'This bucket could not be found.') : null}
@@ -81,32 +84,36 @@ export function PlanningBucketView({ bucketId, b }: { bucketId: string; b: Retur
   const stickyText = money(Math.abs(left));
 
   return (
-    <div className={`${p.page} ${styles.page}`}>
-      <div className={p.topBar}>
-        <button type="button" className={p.roundButton} onClick={b.goBack} aria-label="Back">
-          <ArrowLeft size={20} strokeWidth={2} />
-        </button>
-        <div className={p.topActions}>
-          <Link href={`/buckets/${bucketId}`} className={p.roundButton} aria-label="Edit bucket">
-            <Pencil size={17} strokeWidth={2} />
-          </Link>
-          <ActionMenu
-            ariaLabel="More"
-            triggerClassName={p.roundButton}
-            triggerIcon={<MoreHorizontal size={18} strokeWidth={2} />}
-            items={[
-              { key: 'add', label: 'Add item', icon: <Plus size={14} strokeWidth={2} />, onSelect: () => router.push(`/add-bucket-item/${bucketId}`) },
-              {
-                key: 'history',
-                label: 'All transactions',
-                icon: <ArrowRight size={14} strokeWidth={2} />,
-                onSelect: () => router.push(`/budget?tab=history&month=${b.month}&bucket=${bucketId}`),
-              },
-              { key: 'edit', label: 'Edit bucket', icon: <Pencil size={14} strokeWidth={2} />, onSelect: () => router.push(`/buckets/${bucketId}`) },
-            ]}
-          />
-        </div>
-      </div>
+    <div className={`${p.page} ${p.detail} ${styles.page}`}>
+      <ScreenHeader
+        left={
+          <button type="button" className={p.roundButton} onClick={b.goBack} aria-label="Back">
+            <ArrowLeft size={20} strokeWidth={2} />
+          </button>
+        }
+        right={
+          <>
+            <Link href={`/buckets/${bucketId}`} className={p.roundButton} aria-label="Edit bucket">
+              <Pencil size={17} strokeWidth={2} />
+            </Link>
+            <ActionMenu
+              ariaLabel="More"
+              triggerClassName={p.roundButton}
+              triggerIcon={<MoreHorizontal size={18} strokeWidth={2} />}
+              items={[
+                { key: 'add', label: 'Add item', icon: <Plus size={14} strokeWidth={2} />, onSelect: () => router.push(`/add-bucket-item/${bucketId}`) },
+                {
+                  key: 'history',
+                  label: 'All transactions',
+                  icon: <ArrowRight size={14} strokeWidth={2} />,
+                  onSelect: () => router.push(`/budget?tab=history&month=${b.month}&bucket=${bucketId}`),
+                },
+                { key: 'edit', label: 'Edit bucket', icon: <Pencil size={14} strokeWidth={2} />, onSelect: () => router.push(`/buckets/${bucketId}`) },
+              ]}
+            />
+          </>
+        }
+      />
 
       <h1 className={p.heroTitle}>{card.name}</h1>
       <p className={p.heroSub}>{monthTitle(b.month)}</p>

@@ -17,6 +17,7 @@
 import { ChevronLeft } from 'lucide-react';
 import Link from 'next/link';
 import type { BucketsRange } from '@/src/shared/hooks/useBucketsRange';
+import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import styles from './BucketsHeader.module.css';
 
 export function BucketsHeader({
@@ -27,27 +28,31 @@ export function BucketsHeader({
   onChangeRange: (range: BucketsRange) => void;
 }) {
   return (
-    <header className={styles.header}>
-      <Link href="/home" className={styles.backButton} aria-label="Back to Home">
-        <ChevronLeft size={18} strokeWidth={2} />
-      </Link>
-      <h1 className={styles.title}>Buckets</h1>
-      <div className={styles.rangeToggle}>
-        <button
-          type="button"
-          className={`${styles.rangeSegment} ${range === 'month' ? styles.rangeSegmentActive : ''}`}
-          onClick={() => onChangeRange('month')}
-        >
-          Month
-        </button>
-        <button
-          type="button"
-          className={`${styles.rangeSegment} ${range === 'all' ? styles.rangeSegmentActive : ''}`}
-          onClick={() => onChangeRange('all')}
-        >
-          All time
-        </button>
-      </div>
-    </header>
+    <ScreenHeader
+      left={
+        <Link href="/home" className={styles.backButton} aria-label="Back to Home">
+          <ChevronLeft size={18} strokeWidth={2} />
+        </Link>
+      }
+      title="Buckets"
+      right={
+        <div className={styles.rangeToggle}>
+          <button
+            type="button"
+            className={`${styles.rangeSegment} ${range === 'month' ? styles.rangeSegmentActive : ''}`}
+            onClick={() => onChangeRange('month')}
+          >
+            Month
+          </button>
+          <button
+            type="button"
+            className={`${styles.rangeSegment} ${range === 'all' ? styles.rangeSegmentActive : ''}`}
+            onClick={() => onChangeRange('all')}
+          >
+            All time
+          </button>
+        </div>
+      }
+    />
   );
 }

@@ -5,6 +5,7 @@ import { ChevronLeft, Upload } from 'lucide-react';
 import { useLogic } from '@/src/logic/importData/useLogic';
 import { ENTITY_DEFS } from '@/src/shared/firestore/dataEntities';
 import styles from './ImportDataScreen.module.css';
+import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 
 export function ImportDataScreen() {
   const {
@@ -34,12 +35,14 @@ export function ImportDataScreen() {
 
   return (
     <div className={styles.page}>
-      <header className={styles.header}>
-        <button type="button" className={styles.backButton} onClick={goBack} aria-label="Back">
-          <ChevronLeft size={18} strokeWidth={2} />
-        </button>
-        <h1 className={styles.title}>Import data</h1>
-      </header>
+      <ScreenHeader
+        left={
+          <button type="button" className={styles.backButton} onClick={goBack} aria-label="Back">
+            <ChevronLeft size={18} strokeWidth={2} />
+          </button>
+        }
+        title="Import data"
+      />
 
       {step === 'upload' && (
         <div className={styles.form}>

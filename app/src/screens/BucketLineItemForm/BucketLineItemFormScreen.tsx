@@ -25,6 +25,7 @@ import { useRouter } from 'next/navigation';
 import { useLogic, FIXED_ITEM_FREQUENCIES } from '@/src/logic/bucketDetail/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
+import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import { toDateOnly } from '@/src/shared/firestore/taskWrites';
 import { PRIORITY_LEVELS, NECESSITY_OPTIONS, NECESSITY_LABEL } from '@/src/viewmodels/projects';
 import { formatAmount } from '@/src/screens/Buckets/BucketsScreen';
@@ -216,23 +217,30 @@ export function BucketLineItemFormScreen({ goalId, itemId }: { goalId: string; i
 
   return (
     <div className={styles.page}>
-      <header className={styles.header}>
-        <button type="button" className={styles.iconButton} onClick={goBack} aria-label={strings.bucketDetail.backLabel}>
-          <X size={18} strokeWidth={2} />
-        </button>
-        <h1 className={styles.headerTitle}>
-          {isEditing ? strings.bucketDetail.editLineItemTitle : strings.bucketDetail.addLineItem}
-        </h1>
-        <button
-          type="button"
-          className={`${styles.saveIconButton} ${canSaveLineItem ? styles.saveIconButtonActive : ''}`}
-          disabled={!canSaveLineItem || savingItem}
-          onClick={handleAddLineItem}
-          aria-label={strings.bucketDetail.save}
-        >
-          <Check size={18} strokeWidth={2.5} />
-        </button>
-      </header>
+      <ScreenHeader
+        center
+        left={
+          <button type="button" className={styles.iconButton} onClick={goBack} aria-label={strings.bucketDetail.backLabel}>
+            <X size={18} strokeWidth={2} />
+          </button>
+        }
+        title={
+          <>
+            {isEditing ? strings.bucketDetail.editLineItemTitle : strings.bucketDetail.addLineItem}
+          </>
+        }
+        right={
+          <button
+            type="button"
+            className={`${styles.saveIconButton} ${canSaveLineItem ? styles.saveIconButtonActive : ''}`}
+            disabled={!canSaveLineItem || savingItem}
+            onClick={handleAddLineItem}
+            aria-label={strings.bucketDetail.save}
+          >
+            <Check size={18} strokeWidth={2.5} />
+          </button>
+        }
+      />
 
       {bucket && <p className={styles.bucketName}>{bucket.name}</p>}
 

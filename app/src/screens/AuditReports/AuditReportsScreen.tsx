@@ -6,6 +6,7 @@ import { useLogic } from '@/src/logic/auditReports/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { ConfirmDialog } from '@/src/widgets/ConfirmDialog/ConfirmDialog';
+import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import type { AuditPeriodType, FirestoreAuditReport } from '@/src/shared/firestore/auditReport';
 import styles from './AuditReportsScreen.module.css';
 
@@ -38,12 +39,14 @@ export function AuditReportsScreen() {
 
   return (
     <div className={styles.page}>
-      <header className={styles.header}>
-        <button type="button" className={styles.backButton} onClick={goBack} aria-label={strings.common.back}>
-          <ChevronLeft size={18} strokeWidth={2} />
-        </button>
-        <h1 className={styles.title}>{strings.auditReports.title}</h1>
-      </header>
+      <ScreenHeader
+        left={
+          <button type="button" className={styles.backButton} onClick={goBack} aria-label={strings.common.back}>
+            <ChevronLeft size={18} strokeWidth={2} />
+          </button>
+        }
+        title={strings.auditReports.title}
+      />
 
       <div className={styles.generateCard}>
         <div className={styles.formField}>

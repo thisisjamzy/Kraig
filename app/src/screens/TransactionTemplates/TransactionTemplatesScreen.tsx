@@ -6,6 +6,7 @@ import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { ConfirmDialog } from '@/src/widgets/ConfirmDialog/ConfirmDialog';
 import { ActionMenu } from '@/src/widgets/ActionMenu/ActionMenu';
+import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import styles from './TransactionTemplatesScreen.module.css';
 
 const TYPE_LABEL: Record<string, string> = {
@@ -38,12 +39,14 @@ export function TransactionTemplatesScreen() {
 
   return (
     <div className={styles.page}>
-      <header className={styles.header}>
-        <button type="button" className={styles.backButton} onClick={goBack} aria-label="Back">
-          <ChevronLeft size={18} strokeWidth={2} />
-        </button>
-        <h1 className={styles.title}>{strings.transactionTemplates.title}</h1>
-      </header>
+      <ScreenHeader
+        left={
+          <button type="button" className={styles.backButton} onClick={goBack} aria-label="Back">
+            <ChevronLeft size={18} strokeWidth={2} />
+          </button>
+        }
+        title={strings.transactionTemplates.title}
+      />
 
       <p className={styles.hintText}>{strings.transactionTemplates.hint}</p>
 

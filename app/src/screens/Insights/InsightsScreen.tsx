@@ -37,6 +37,7 @@ import {
   RecurringHeatmaps,
 } from './InsightCharts';
 import styles from './InsightsScreen.module.css';
+import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 
 const RANGES: { id: RangeKind; label: string }[] = [
   { id: 'today', label: 'Today' },
@@ -65,12 +66,16 @@ export function InsightsView({
 }: ReturnType<typeof useLogic>) {
   return (
     <div className={styles.page}>
-      <header className={styles.header}>
-        <h1 className={styles.title}>Insights</h1>
-        <Link href="/settings/insights" className={styles.iconLink} aria-label="Insights settings">
-          <Settings2 size={20} strokeWidth={2} />
-        </Link>
-      </header>
+      <ScreenHeader
+        sticky={false}
+        large
+        title="Insights"
+        right={
+          <Link href="/settings/insights" className={styles.iconLink} aria-label="Insights settings">
+            <Settings2 size={20} strokeWidth={2} />
+          </Link>
+        }
+      />
 
       <div className={styles.ranges} role="radiogroup" aria-label="Date range">
         {RANGES.map((r) => (

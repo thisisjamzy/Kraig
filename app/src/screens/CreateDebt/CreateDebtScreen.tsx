@@ -4,6 +4,7 @@ import { ChevronLeft } from 'lucide-react';
 import { useLogic, DEBT_TYPES, DEBT_PRIORITIES, RECURRING_INTERVALS } from '@/src/logic/createDebt/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
+import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import styles from './CreateDebtScreen.module.css';
 
 const INTERVAL_LABEL: Record<(typeof RECURRING_INTERVALS)[number], string> = {
@@ -59,12 +60,14 @@ export function CreateDebtScreen() {
 
   return (
     <div className={styles.page}>
-      <header className={styles.header}>
-        <button type="button" className={styles.backButton} onClick={goBack} aria-label={strings.debtDetail.backLabel}>
-          <ChevronLeft size={18} strokeWidth={2} />
-        </button>
-        <h1 className={styles.title}>{strings.createDebt.title}</h1>
-      </header>
+      <ScreenHeader
+        left={
+          <button type="button" className={styles.backButton} onClick={goBack} aria-label={strings.debtDetail.backLabel}>
+            <ChevronLeft size={18} strokeWidth={2} />
+          </button>
+        }
+        title={strings.createDebt.title}
+      />
 
       <ScreenState loading={loading} />
 

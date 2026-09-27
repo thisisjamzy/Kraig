@@ -6,6 +6,7 @@ import type { BackfillFrequency } from '@/src/logic/backfillSpread/useLogic';
 import { formatAmount } from '@/src/logic/walletDetail/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import styles from './BackfillSpreadScreen.module.css';
+import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 
 const WEEKDAY_OPTIONS = [
   { value: 0, label: 'Sunday' },
@@ -88,12 +89,14 @@ export function BackfillSpreadScreen() {
 
   return (
     <div className={styles.page}>
-      <header className={styles.header}>
-        <button type="button" className={styles.backButton} onClick={goBack} aria-label={strings.common.back}>
-          <ChevronLeft size={18} strokeWidth={2} />
-        </button>
-        <h1 className={styles.title}>{step === 'preview' ? s.previewTitle : s.title}</h1>
-      </header>
+      <ScreenHeader
+        left={
+          <button type="button" className={styles.backButton} onClick={goBack} aria-label={strings.common.back}>
+            <ChevronLeft size={18} strokeWidth={2} />
+          </button>
+        }
+        title={step === 'preview' ? s.previewTitle : s.title}
+      />
 
       {step === 'form' && (
         <div className={styles.form}>

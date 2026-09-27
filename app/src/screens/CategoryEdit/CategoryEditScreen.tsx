@@ -4,6 +4,7 @@ import { ChevronLeft } from 'lucide-react';
 import { useLogic, CATEGORY_TYPES } from '@/src/logic/categoryEdit/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
+import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import styles from './CategoryEditScreen.module.css';
 
 export function CategoryEditScreen({ categoryId }: { categoryId: string }) {
@@ -13,12 +14,14 @@ export function CategoryEditScreen({ categoryId }: { categoryId: string }) {
 
   return (
     <div className={styles.page}>
-      <header className={styles.header}>
-        <button type="button" className={styles.backButton} onClick={goBack} aria-label="Back">
-          <ChevronLeft size={18} strokeWidth={2} />
-        </button>
-        <h1 className={styles.title}>{strings.categories.editTitle}</h1>
-      </header>
+      <ScreenHeader
+        left={
+          <button type="button" className={styles.backButton} onClick={goBack} aria-label="Back">
+            <ChevronLeft size={18} strokeWidth={2} />
+          </button>
+        }
+        title={strings.categories.editTitle}
+      />
 
       <ScreenState loading={loading} error={error} />
 

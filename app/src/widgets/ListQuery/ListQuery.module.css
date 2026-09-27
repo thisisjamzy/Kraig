@@ -220,7 +220,7 @@
   width: auto;
   max-width: none;
   max-height: 75dvh;
-  padding-bottom: env(safe-area-inset-bottom);
+  padding-bottom: var(--safe-bottom);
   border-radius: 18px 18px 0 0;
   animation: sheet 200ms var(--ease-out);
 }

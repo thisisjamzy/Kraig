@@ -4,6 +4,7 @@ import { ChevronLeft, Pencil, Plus } from 'lucide-react';
 import { useLogic } from '@/src/logic/sectionDetail/useLogic';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { ProjectCard } from '@/src/widgets/ProjectCard/ProjectCard';
+import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import { projectCoverImageUrl } from '@/src/viewmodels/projects';
 import styles from './SectionDetailScreen.module.css';
 
@@ -13,17 +14,21 @@ export function SectionDetailScreen({ bucketId }: { bucketId: string }) {
 
   return (
     <div className={styles.page}>
-      <header className={styles.header}>
-        <button type="button" className={styles.backButton} onClick={goBack} aria-label="Back">
-          <ChevronLeft size={18} strokeWidth={2} />
-        </button>
-        <h1 className={styles.title}>Section</h1>
-        {section && (
-          <button type="button" className={styles.editButton} onClick={openEdit} aria-label="Edit section">
-            <Pencil size={14} strokeWidth={1.75} />
+      <ScreenHeader
+        left={
+          <button type="button" className={styles.backButton} onClick={goBack} aria-label="Back">
+            <ChevronLeft size={18} strokeWidth={2} />
           </button>
-        )}
-      </header>
+        }
+        title="Section"
+        right={
+          section && (
+            <button type="button" className={styles.editButton} onClick={openEdit} aria-label="Edit section">
+              <Pencil size={14} strokeWidth={1.75} />
+            </button>
+          )
+        }
+      />
 
       {section && (
         <>

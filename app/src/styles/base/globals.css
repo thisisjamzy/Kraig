@@ -33,6 +33,32 @@
      chrome (BottomNav) stay locked to this on wider viewports. */
   --app-max-width: 480px;
 
+  /* Safe area — the device's real insets (notch, Dynamic Island, status
+     bar, home indicator, landscape side notch). Needs viewport-fit=cover
+     (app/layout.tsx's `viewport`); 0 on devices without one. Never
+     hardcode 44px/47px anywhere instead — read these. */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+
+  /* The one header rule every screen shares (ScreenHeader, AppHeader and
+     each screen's own sticky .header): the background runs up behind the
+     status bar, the content starts --header-gap below the inset, and the
+     content row is at least --header-min-height tall. Anything sticking
+     under a header (filter toolbars, chip rows, month selectors) uses
+     top: var(--header-height), never top: 0. */
+  --header-gap: 12px;
+  --header-min-height: 56px;
+  --header-pad-top: calc(var(--safe-top) + var(--header-gap));
+  --header-height: calc(var(--header-pad-top) + var(--header-min-height));
+  /* Header side padding — at least 8px clear of a landscape notch. */
+  --header-pad-left: max(var(--space-lg), calc(var(--safe-left) + var(--space-sm)));
+  --header-pad-right: max(var(--space-lg), calc(var(--safe-right) + var(--space-sm)));
+  /* Bottom bars (nav, sticky action bars, floating buttons). */
+  --bottom-bar-pad: calc(var(--safe-bottom) + 12px);
+  --tap-target: 44px;
+
   /* Fixed navy palette for elements that stay dark regardless of theme
      (mockup panels, the "how to use it" band, the install pill, the
      bottom-nav pill, every hero/total card). Navy instead of near-black —

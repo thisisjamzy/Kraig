@@ -7,6 +7,11 @@
   justify-content: center;
   background: rgba(0, 0, 0, 0.5);
   padding: var(--space-lg);
+  /* A sheet that grows to full height still stops below the status bar
+     and clears a landscape notch. */
+  padding-top: calc(var(--space-lg) + var(--safe-top));
+  padding-left: max(var(--space-lg), calc(var(--safe-left) + var(--space-sm)));
+  padding-right: max(var(--space-lg), calc(var(--safe-right) + var(--space-sm)));
 }
 
 .sheet {
@@ -19,7 +24,7 @@
   flex-direction: column;
   gap: var(--space-lg);
   box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.2);
-  margin-bottom: env(safe-area-inset-bottom);
+  margin-bottom: var(--safe-bottom);
 }
 
 .header {

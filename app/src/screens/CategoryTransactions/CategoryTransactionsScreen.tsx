@@ -7,6 +7,7 @@ import { useLogic, formatAmount, type TimeRange } from '@/src/logic/categoryTran
 import { CATEGORY_ICON_COLOR } from '@/src/viewmodels/categories';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
+import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import styles from './CategoryTransactionsScreen.module.css';
 
 const TIME_RANGES: TimeRange[] = ['week', 'month', 'quarter', 'year', 'all'];
@@ -42,15 +43,19 @@ export function CategoryTransactionsScreen({ categoryId }: { categoryId: string 
 
   return (
     <div className={styles.page}>
-      <header className={styles.header}>
-        <button type="button" className={styles.backButton} onClick={goBack} aria-label="Back">
-          <ChevronLeft size={18} strokeWidth={2} />
-        </button>
-        <h1 className={styles.title}>
-          {categoryName}
-          {categoryArchived && <span className={styles.archivedBadge}>Archived</span>}
-        </h1>
-      </header>
+      <ScreenHeader
+        left={
+          <button type="button" className={styles.backButton} onClick={goBack} aria-label="Back">
+            <ChevronLeft size={18} strokeWidth={2} />
+          </button>
+        }
+        title={
+          <>
+            {categoryName}
+            {categoryArchived && <span className={styles.archivedBadge}>Archived</span>}
+          </>
+        }
+      />
 
       <ScreenState loading={loading} error={error} />
 

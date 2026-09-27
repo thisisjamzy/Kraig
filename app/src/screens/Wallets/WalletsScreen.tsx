@@ -6,6 +6,7 @@ import { useLogic, formatAmount } from '@/src/logic/wallets/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { Modal } from '@/src/widgets/Modal/Modal';
+import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import styles from './WalletsScreen.module.css';
 
 export function WalletsScreen() {
@@ -40,12 +41,14 @@ export function WalletsScreen() {
 
   return (
     <div className={styles.page}>
-      <header className={styles.header}>
-        <button type="button" className={styles.backButton} onClick={goBack} aria-label="Back">
-          <ChevronLeft size={18} strokeWidth={2} />
-        </button>
-        <h1 className={styles.title}>{strings.wallets.title}</h1>
-      </header>
+      <ScreenHeader
+        left={
+          <button type="button" className={styles.backButton} onClick={goBack} aria-label="Back">
+            <ChevronLeft size={18} strokeWidth={2} />
+          </button>
+        }
+        title={strings.wallets.title}
+      />
 
       <p className={styles.totalCaption}>
         {formatAmount(total)} <span className={styles.totalCurrency}>{strings.wallets.totalAcrossWalletsSuffix}</span>

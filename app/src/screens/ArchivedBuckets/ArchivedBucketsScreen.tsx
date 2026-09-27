@@ -6,6 +6,7 @@ import { useLogic } from '@/src/logic/archivedBuckets/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { ConfirmDialog } from '@/src/widgets/ConfirmDialog/ConfirmDialog';
+import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import { formatAmount } from '@/src/screens/Buckets/BucketsScreen';
 import styles from './ArchivedBucketsScreen.module.css';
 
@@ -16,12 +17,14 @@ export function ArchivedBucketsScreen() {
 
   return (
     <div className={styles.page}>
-      <header className={styles.header}>
-        <button type="button" className={styles.backButton} onClick={goBack} aria-label="Back">
-          <ChevronLeft size={18} strokeWidth={2} />
-        </button>
-        <h1 className={styles.title}>{strings.archivedBuckets.title}</h1>
-      </header>
+      <ScreenHeader
+        left={
+          <button type="button" className={styles.backButton} onClick={goBack} aria-label="Back">
+            <ChevronLeft size={18} strokeWidth={2} />
+          </button>
+        }
+        title={strings.archivedBuckets.title}
+      />
 
       <p className={styles.hintText}>{strings.archivedBuckets.hint}</p>
 

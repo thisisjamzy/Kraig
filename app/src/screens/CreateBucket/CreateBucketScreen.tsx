@@ -13,6 +13,7 @@ import { parseDate } from '@internationalized/date';
 import { useLogic } from '@/src/logic/createBucket/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
+import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import { toDateOnly } from '@/src/shared/firestore/taskWrites';
 import styles from './CreateBucketScreen.module.css';
 
@@ -72,21 +73,26 @@ export function CreateBucketScreen() {
 
   return (
     <div className={styles.page}>
-      <header className={styles.header}>
-        <button type="button" className={styles.iconButton} onClick={goBack} aria-label={strings.bucketDetail.backLabel}>
-          <X size={18} strokeWidth={2} />
-        </button>
-        <h1 className={styles.headerTitle}>{strings.createBucket.title}</h1>
-        <button
-          type="button"
-          className={`${styles.saveIconButton} ${canSave ? styles.saveIconButtonActive : ''}`}
-          disabled={!canSave}
-          onClick={handleSave}
-          aria-label={strings.createBucket.save}
-        >
-          <Check size={18} strokeWidth={2.5} />
-        </button>
-      </header>
+      <ScreenHeader
+        center
+        left={
+          <button type="button" className={styles.iconButton} onClick={goBack} aria-label={strings.bucketDetail.backLabel}>
+            <X size={18} strokeWidth={2} />
+          </button>
+        }
+        title={strings.createBucket.title}
+        right={
+          <button
+            type="button"
+            className={`${styles.saveIconButton} ${canSave ? styles.saveIconButtonActive : ''}`}
+            disabled={!canSave}
+            onClick={handleSave}
+            aria-label={strings.createBucket.save}
+          >
+            <Check size={18} strokeWidth={2.5} />
+          </button>
+        }
+      />
 
       <ScreenState loading={loading} />
 

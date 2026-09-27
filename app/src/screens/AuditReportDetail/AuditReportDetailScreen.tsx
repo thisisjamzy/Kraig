@@ -7,6 +7,7 @@ import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { TrendChart } from '@/src/widgets/TrendChart/TrendChart';
 import { DonutChart } from '@/src/widgets/DonutChart/DonutChart';
 import { Logo } from '@/src/widgets/Logo/Logo';
+import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import { walletColor } from '@/src/viewmodels/wallets';
 import type { Status } from '@/src/shared/firestore/auditReport';
 import styles from './AuditReportDetailScreen.module.css';
@@ -37,18 +38,22 @@ export function AuditReportDetailScreen({ reportId }: { reportId: string }) {
         <Logo className={styles.reportLogo} height={22} />
       </div>
 
-      <header className={styles.header}>
-        <button type="button" className={styles.backButton} onClick={goBack} aria-label={strings.common.back}>
-          <ChevronLeft size={18} strokeWidth={2} />
-        </button>
-        <h1 className={styles.title}>{data?.meta.periodLabel ?? strings.auditReports.title}</h1>
-        {data && (
-          <button type="button" className={styles.exportButton} onClick={exportPdf}>
-            <Download size={16} strokeWidth={2} />
-            {s.exportPdf}
+      <ScreenHeader
+        left={
+          <button type="button" className={styles.backButton} onClick={goBack} aria-label={strings.common.back}>
+            <ChevronLeft size={18} strokeWidth={2} />
           </button>
-        )}
-      </header>
+        }
+        title={data?.meta.periodLabel ?? strings.auditReports.title}
+        right={
+          data && (
+            <button type="button" className={styles.exportButton} onClick={exportPdf}>
+              <Download size={16} strokeWidth={2} />
+              {s.exportPdf}
+            </button>
+          )
+        }
+      />
 
       <ScreenState loading={loading} error={error} />
       {notFound && <p className={styles.errorText}>{s.notFound}</p>}

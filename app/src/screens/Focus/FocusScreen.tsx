@@ -10,6 +10,7 @@ import { useRouter } from 'next/navigation';
 import { useLogic } from '@/src/logic/focus/useLogic';
 import { ActionMenu } from '@/src/widgets/ActionMenu/ActionMenu';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
+import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import { FocusKanban } from './FocusKanban';
 import styles from './FocusScreen.module.css';
 
@@ -24,42 +25,49 @@ export function FocusView({ search, setSearch, columns, moveToQuadrant, newTask,
 
   return (
     <div className={styles.page}>
-      <header className={styles.header}>
-        <ActionMenu
-          ariaLabel="Menu"
-          triggerClassName={styles.menuButton}
-          triggerIcon={
-            <span className={styles.menuIcon} aria-hidden>
-              <span />
-              <span />
-            </span>
-          }
-          items={[
-            {
-              key: 'today',
-              label: "Today's tasks",
-              icon: <ListChecks size={14} strokeWidth={2} />,
-              onSelect: () => router.push('/tasks?filter=today'),
-            },
-            {
-              key: 'all',
-              label: 'All tasks',
-              icon: <List size={14} strokeWidth={2} />,
-              onSelect: () => router.push('/tasks?filter=all'),
-            },
-            {
-              key: 'calendar',
-              label: 'Calendar',
-              icon: <CalendarDays size={14} strokeWidth={2} />,
-              onSelect: () => router.push('/projects/calendar'),
-            },
-          ]}
-        />
-        <h1 className={styles.title}>Focus</h1>
-        <button type="button" className={styles.newButton} onClick={() => newTask()} aria-label="New task">
-          <Plus size={18} strokeWidth={2.5} />
-        </button>
-      </header>
+      <ScreenHeader
+        className={styles.header}
+        sticky={false}
+        large
+        left={
+            <ActionMenu
+              ariaLabel="Menu"
+              triggerClassName={styles.menuButton}
+              triggerIcon={
+                <span className={styles.menuIcon} aria-hidden>
+                  <span />
+                  <span />
+                </span>
+              }
+              items={[
+                {
+                  key: 'today',
+                  label: "Today's tasks",
+                  icon: <ListChecks size={14} strokeWidth={2} />,
+                  onSelect: () => router.push('/tasks?filter=today'),
+                },
+                {
+                  key: 'all',
+                  label: 'All tasks',
+                  icon: <List size={14} strokeWidth={2} />,
+                  onSelect: () => router.push('/tasks?filter=all'),
+                },
+                {
+                  key: 'calendar',
+                  label: 'Calendar',
+                  icon: <CalendarDays size={14} strokeWidth={2} />,
+                  onSelect: () => router.push('/projects/calendar'),
+                },
+              ]}
+            />
+        }
+        title="Focus"
+        right={
+            <button type="button" className={styles.newButton} onClick={() => newTask()} aria-label="New task">
+              <Plus size={18} strokeWidth={2.5} />
+            </button>
+        }
+      />
 
       <ScreenState loading={loading} />
 

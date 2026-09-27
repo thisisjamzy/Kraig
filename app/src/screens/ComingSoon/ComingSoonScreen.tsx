@@ -12,6 +12,7 @@
 import { BookOpen, ChevronLeft, Contact, Settings } from 'lucide-react';
 import styles from './ComingSoonScreen.module.css';
 import { useGoBack } from '@/src/shared/navigation/useGoBack';
+import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 
 // A string key, not the icon component itself — this screen is a Client
 // Component but its page.tsx callers (app/(mobile)/address-book,
@@ -26,12 +27,14 @@ export function ComingSoonScreen({ title, message, icon }: { title: string; mess
 
   return (
     <div className={styles.page}>
-      <header className={styles.header}>
-        <button type="button" className={styles.backButton} onClick={() => navigateBack('/home')} aria-label="Back">
-          <ChevronLeft size={18} strokeWidth={2} />
-        </button>
-        <h1 className={styles.title}>{title}</h1>
-      </header>
+      <ScreenHeader
+        left={
+          <button type="button" className={styles.backButton} onClick={() => navigateBack('/home')} aria-label="Back">
+            <ChevronLeft size={18} strokeWidth={2} />
+          </button>
+        }
+        title={title}
+      />
 
       <div className={styles.emptyState}>
         <Icon size={32} strokeWidth={1.5} />

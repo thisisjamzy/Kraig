@@ -4,25 +4,10 @@
   flex-direction: column;
   min-height: 100%;
   padding: var(--space-lg);
-  padding-top: calc(var(--space-lg) + env(safe-area-inset-top));
+  padding-top: 0;
   gap: var(--space-md);
 }
 
-.header {
-  display: flex;
-  align-items: center;
-  gap: var(--space-md);
-  position: sticky;
-  top: 0;
-  z-index: 15;
-  margin-top: calc(-1 * (var(--space-lg) + env(safe-area-inset-top)));
-  margin-left: calc(-1 * var(--space-lg));
-  margin-right: calc(-1 * var(--space-lg));
-  padding-top: calc(var(--space-lg) + env(safe-area-inset-top));
-  padding-left: var(--space-lg);
-  padding-right: var(--space-lg);
-  background: var(--color-page);
-}
 
 .backButton {
   display: flex;
@@ -38,13 +23,6 @@
   cursor: pointer;
 }
 
-.title {
-  margin: 0;
-  font-family: var(--font-family-heading);
-  font-size: var(--font-size-xl);
-  font-weight: 800;
-  color: var(--color-text-primary);
-}
 
 .hintText {
   margin: 0;
@@ -188,7 +166,7 @@
   position: fixed;
   left: 0;
   right: 0;
-  bottom: calc(var(--space-lg) + env(safe-area-inset-bottom));
+  bottom: calc(var(--space-lg) + var(--safe-bottom));
   display: flex;
   justify-content: flex-end;
   max-width: var(--app-max-width);

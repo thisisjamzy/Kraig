@@ -1,7 +1,7 @@
 .region {
   position: fixed;
   left: 50%;
-  bottom: calc(96px + env(safe-area-inset-bottom));
+  bottom: calc(96px + var(--safe-bottom));
   z-index: 200;
   width: min(calc(100vw - 32px), calc(var(--app-max-width) - 32px));
   transform: translateX(-50%);

@@ -1,0 +1,79 @@
+/* See ScreenHeader.tsx. All sizes come from globals.css's header tokens
+   (--header-pad-top, --header-height, --header-pad-left/right). */
+.header {
+  z-index: 15;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-sizing: border-box;
+  min-height: var(--header-height);
+  margin-inline: calc(-1 * var(--screen-gutter, var(--space-lg)));
+  padding-top: var(--header-pad-top);
+  padding-right: var(--screen-header-pad-x, var(--header-pad-right));
+  padding-left: var(--screen-header-pad-x, var(--header-pad-left));
+  /* Solid, so nothing scrolling underneath shows through the status bar. */
+  background: var(--screen-header-bg, var(--color-page));
+}
+
+.header[data-sticky] {
+  position: sticky;
+  top: 0;
+}
+
+.header[data-center] {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+}
+
+.slot {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+
+.slotRight {
+  margin-left: auto;
+}
+
+.header[data-center] .slotRight {
+  justify-self: end;
+}
+
+/* 44x44 minimum tap area without changing how a smaller round button
+   looks: an invisible hit box grows it out to --tap-target. */
+.slot > :where(a, button),
+.slot > * > :where(a, button) {
+  position: relative;
+}
+
+.slot > :where(a, button)::after,
+.slot > * > :where(a, button)::after {
+  content: '';
+  position: absolute;
+  inset: min(0px, calc((100% - var(--tap-target)) / 2));
+}
+
+.title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  font-family: var(--font-family-heading);
+  font-size: var(--font-size-xl);
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--screen-header-color, var(--color-text-primary));
+}
+
+.header[data-center] .title {
+  font-size: var(--font-size-lg);
+  text-align: center;
+}
+
+.title[data-large] {
+  font-size: 2rem;
+  letter-spacing: -0.02em;
+}

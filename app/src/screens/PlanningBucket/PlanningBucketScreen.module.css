@@ -5,7 +5,7 @@
 
 .page {
   /* Room for the sticky bar (≈ its height), so the last cards stay visible. */
-  padding-bottom: calc(100px + env(safe-area-inset-bottom));
+  padding-bottom: calc(100px + var(--safe-bottom));
 }
 
 /* ---- 1. Segment bar ---- */

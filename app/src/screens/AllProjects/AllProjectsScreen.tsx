@@ -9,6 +9,7 @@ import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { ConfirmDialog } from '@/src/widgets/ConfirmDialog/ConfirmDialog';
 import { SwipeableListItem } from '@/src/widgets/SwipeableListItem/SwipeableListItem';
 import { ListQueryBar, ListQueryEmpty } from '@/src/widgets/ListQuery/ListQueryBar';
+import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import styles from './AllProjectsScreen.module.css';
 
 // Same short date format ProjectCard's own formatDate uses
@@ -27,15 +28,19 @@ export function AllProjectsScreen() {
 
   return (
     <div className={styles.page}>
-      <header className={styles.header}>
-        <button type="button" className={styles.backButton} onClick={goBack} aria-label="Back">
-          <ChevronLeft size={18} strokeWidth={2} />
-        </button>
-        <h1 className={styles.title}>{strings.projects.projectsSectionTitle}</h1>
-        <Link href="/projects/new" className={styles.addIconButton} aria-label="New project" title="New project">
-          <Plus size={16} strokeWidth={2.5} />
-        </Link>
-      </header>
+      <ScreenHeader
+        left={
+          <button type="button" className={styles.backButton} onClick={goBack} aria-label="Back">
+            <ChevronLeft size={18} strokeWidth={2} />
+          </button>
+        }
+        title={strings.projects.projectsSectionTitle}
+        right={
+          <Link href="/projects/new" className={styles.addIconButton} aria-label="New project" title="New project">
+            <Plus size={16} strokeWidth={2.5} />
+          </Link>
+        }
+      />
 
       <ListQueryBar
         className={styles.toolbarSlot}
@@ -45,7 +50,7 @@ export function AllProjectsScreen() {
         onClear={list.clear}
         count={projects.length}
         noun={['project', 'projects']}
-        stickyTop="calc(var(--space-lg) + env(safe-area-inset-top) + 36px)"
+        stickyTop="var(--header-height)"
       />
 
       <ScreenState loading={loading} error={error} />

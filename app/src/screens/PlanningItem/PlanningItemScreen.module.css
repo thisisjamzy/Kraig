@@ -1,7 +1,7 @@
 /* Item details — extras on top of Planning.module.css. */
 
 .page {
-  padding-bottom: 140px;
+  padding-bottom: calc(140px + var(--safe-bottom));
 }
 
 .heroBar {
