@@ -250,6 +250,13 @@ export function useFinanceData() {
 
   return {
     data,
+    // Raw documents, for screens that need item details the finance model
+    // doesn't carry (Buckets, Priorities, Plans forecast).
+    buckets,
+    itemsByBucket,
+    categories,
+    accounts,
+    ctx,
     loading,
     currency: ctx.display,
     bucketName,

@@ -32,7 +32,7 @@
 
 /* One bordered, rounded card per template (not a single container with
    dividers) — each carries its own name, type/category/account tags, and
-   amount, the same "proper card with details" shape src/screens/BucketItems
+   amount, the same "proper card with details" shape the old bucket Board
    and src/screens/SelectLineItem use for their own list items. */
 .templateList {
   display: flex;

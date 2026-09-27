@@ -64,6 +64,8 @@
 }
 
 .addButton {
+  border: none;
+  cursor: pointer;
   pointer-events: auto;
   flex-shrink: 0;
   display: flex;
@@ -85,4 +87,41 @@
 
 .addButton:active {
   transform: scale(0.96);
+}
+
+/* The "+" sheet. The bar ignores pointer events so the page scrolls under
+   it; the sheet (a Modal) needs them back. */
+.sheetLayer {
+  pointer-events: auto;
+}
+
+.sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  pointer-events: auto;
+}
+
+.sheetOption {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 14px;
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.sheetEmpty {
+  margin: 4px 2px;
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
 }

@@ -1,10 +1,11 @@
 import type { Metadata } from 'next';
-import { BucketItemsScreen } from '@/src/screens/BucketItems/BucketItemsScreen';
+import { PrioritiesScreen } from '@/src/screens/Plans/PrioritiesScreen';
 
 export const metadata: Metadata = {
-  title: 'All bucket items · Dreda',
+  title: 'Priorities · Dreda',
 };
 
-export default function BucketItemsPage() {
-  return <BucketItemsScreen />;
+// "What should I pay next?" — replaced the Board at the same address.
+export default function PrioritiesPage() {
+  return <PrioritiesScreen />;
 }
