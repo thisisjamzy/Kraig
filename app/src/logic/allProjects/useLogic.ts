@@ -10,9 +10,9 @@
 // description, section, area — just laid out for a full-width vertical
 // list instead of a fixed-width carousel card.
 //
-// Archiving here is the same status:'Archived' write projectEdit/
-// useLogic.ts's own archiveProject makes, just without that hook's
-// redirect-after-archive (this list stays put and the live query drops
+// Archiving here is the same status:'Archived' write the project form
+// (projectForm/useLogic.ts) saves, just without that form's
+// redirect-after-save (this list stays put and the live query drops
 // the row the instant it archives).
 
 import { useMemo } from 'react';

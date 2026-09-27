@@ -1,13 +1,14 @@
 'use client';
 
-// New project — the app's card-style create form (src/widgets/CardForm),
+// New / edit project — one card-style form for both (src/widgets/CardForm),
 // same look as New task. Area, section, priority, color and timeline each
-// open a bottom sheet.
+// open a bottom sheet. Editing adds the status (which includes archiving)
+// and deleting the project for good, keeping or deleting its tasks.
 
 import { useState } from 'react';
 import { RangeCalendar as HeroRangeCalendar } from '@heroui/react';
 import { parseDate } from '@internationalized/date';
-import { useLogic } from '@/src/logic/createProject/useLogic';
+import { useLogic } from '@/src/logic/projectForm/useLogic';
 import { EmojiPicker } from '@/src/widgets/EmojiPicker/EmojiPicker';
 import { Modal } from '@/src/widgets/Modal/Modal';
 import { toDateOnly } from '@/src/shared/firestore/taskWrites';
@@ -16,6 +17,7 @@ import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { WebFormPanel } from '@/src/widgets/WebFormPanel/WebFormPanel';
 import { useIsWeb } from '@/src/shared/hooks/useViewportMode';
 import { priorityLabel } from '@/src/viewmodels/projects';
+import type { ProjectStatus } from '@/src/shared/firestore/types';
 import {
   CardFormPage,
   ColorSheet,
@@ -32,9 +34,15 @@ function formatDate(value: string): string {
   return new Date(`${value}T00:00:00`).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-type Sheet = 'area' | 'section' | 'color' | 'priority' | 'timeline' | null;
+type Sheet = 'area' | 'section' | 'color' | 'priority' | 'timeline' | 'status' | 'delete' | null;
 
-export function CreateProjectScreen() {
+const STATUSES: { value: ProjectStatus; label: string; hint: string }[] = [
+  { value: 'Active', label: 'Active', hint: 'In progress' },
+  { value: 'Completed', label: 'Completed', hint: 'Done — kept with your projects' },
+  { value: 'Archived', label: 'Archived', hint: 'Hidden from Projects; can be restored any time' },
+];
+
+export function ProjectFormScreen({ projectId }: { projectId?: string }) {
   const strings = useStrings();
   const {
     areas,
@@ -57,16 +65,24 @@ export function CreateProjectScreen() {
     setEndDate,
     description,
     setDescription,
+    status,
+    setStatus,
     isValid,
     saving,
     saveError,
     handleSave,
+    isEditing,
+    taskCount,
+    deleting,
+    handleDelete,
     goBack,
     loading,
-  } = useLogic();
+    notFound,
+  } = useLogic(projectId);
   const isWeb = useIsWeb();
 
   const [sheet, setSheet] = useState<Sheet>(null);
+  const [deleteTasks, setDeleteTasks] = useState(false);
   const [dateMonthCursor, setDateMonthCursor] = useState(() => (startDate ? new Date(`${startDate}T00:00:00`) : new Date()));
 
   const selectedArea = areas.find((a) => a.id === areaId) ?? null;
@@ -79,10 +95,10 @@ export function CreateProjectScreen() {
         : null;
 
   const content = (
-    <CardFormPage title={strings.createProject.title} onClose={goBack}>
-      <ScreenState loading={loading} />
+    <CardFormPage title={isEditing ? 'Edit project' : strings.createProject.title} onClose={goBack}>
+      <ScreenState loading={loading} error={notFound ? 'This project could not be found.' : null} />
 
-      {!loading && (
+      {!loading && !notFound && (
         <form
           className={styles.cards}
           onSubmit={(event) => {
@@ -131,6 +147,12 @@ export function CreateProjectScreen() {
             </PickerCard>
           )}
 
+          {isEditing && (
+            <PickerCard label="Status" onClick={() => setSheet('status')}>
+              {status}
+            </PickerCard>
+          )}
+
           <PickerCard label="Choose project priority" onClick={() => setSheet('priority')}>
             <PriorityIcon priority={priority} />
             {capitalize(priorityLabel(priority))}
@@ -148,7 +170,15 @@ export function CreateProjectScreen() {
 
           {saveError && <p className={styles.formError}>{saveError}</p>}
 
-          <SubmitButton disabled={!isValid || saving}>{saving ? 'Saving…' : '+ Add new project'}</SubmitButton>
+          <SubmitButton disabled={!isValid || saving}>
+            {saving ? 'Saving…' : isEditing ? 'Save changes' : '+ Add new project'}
+          </SubmitButton>
+
+          {isEditing && (
+            <button type="button" className={styles.deleteLink} onClick={() => setSheet('delete')}>
+              Delete project
+            </button>
+          )}
         </form>
       )}
 
@@ -241,6 +271,70 @@ export function CreateProjectScreen() {
             ))}
             {sections.length === 0 && <p className={styles.sheetEmpty}>This area has no sections yet.</p>}
           </div>
+        </Modal>
+      )}
+
+      {sheet === 'status' && (
+        <Modal title="Status" onClose={() => setSheet(null)}>
+          <div className={styles.sheetList}>
+            {STATUSES.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                className={`${styles.sheetOption} ${styles.sheetOptionStacked}`}
+                aria-pressed={option.value === status}
+                onClick={() => {
+                  setStatus(option.value);
+                  setSheet(null);
+                }}
+              >
+                {option.label}
+                <small className={styles.muted}>{option.hint}</small>
+              </button>
+            ))}
+          </div>
+        </Modal>
+      )}
+
+      {sheet === 'delete' && (
+        <Modal title="Delete this project?" onClose={() => setSheet(null)}>
+          <p className={styles.hint}>
+            It&apos;s removed for good, with its milestones. This can&apos;t be undone — to hide it instead, set its status to Archived.
+          </p>
+          {taskCount > 0 && (
+            <div className={styles.sheetList} role="radiogroup" aria-label="Its tasks">
+              <button
+                type="button"
+                role="radio"
+                aria-checked={!deleteTasks}
+                className={`${styles.sheetOption} ${styles.sheetOptionStacked}`}
+                onClick={() => setDeleteTasks(false)}
+              >
+                Keep its {taskCount} {taskCount === 1 ? 'task' : 'tasks'}
+                <small className={styles.muted}>They stay as standalone tasks, with no project.</small>
+              </button>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={deleteTasks}
+                className={`${styles.sheetOption} ${styles.sheetOptionStacked}`}
+                onClick={() => setDeleteTasks(true)}
+              >
+                Delete its {taskCount} {taskCount === 1 ? 'task' : 'tasks'} too
+                <small className={styles.muted}>Subtasks included. Also can&apos;t be undone.</small>
+              </button>
+            </div>
+          )}
+          {saveError && <p className={styles.formError}>{saveError}</p>}
+          <button
+            type="button"
+            className={styles.primary}
+            data-tone="danger"
+            disabled={deleting}
+            onClick={() => handleDelete(taskCount > 0 && deleteTasks)}
+          >
+            {deleting ? 'Deleting…' : taskCount > 0 && deleteTasks ? 'Delete project and tasks' : 'Delete project'}
+          </button>
         </Modal>
       )}
 

@@ -4,7 +4,8 @@
 // pages (src/logic/taskEdit) — this hook is display-only: the project's own
 // fields, its area (if any), its tasks (done/not-done only, no kanban), and
 // the done-vs-pending split the Activity donut needs. Editing the project
-// itself is /projects/[id]/edit (src/logic/projectEdit).
+// itself is /projects/[id]/edit — the New project form in edit mode
+// (src/logic/projectForm).
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';

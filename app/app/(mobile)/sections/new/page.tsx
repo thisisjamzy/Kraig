@@ -7,7 +7,7 @@ export const metadata: Metadata = {
 
 // areaId comes in as a real prop from Next's own parsed searchParams, not a
 // client-side window.location.search read (every other create/edit screen's
-// own convention, see e.g. src/logic/createProject/useLogic.ts) — this one
+// own convention, see e.g. src/logic/projectForm/useLogic.ts) — this one
 // screen has no fallback UI for a missing area (sections.ts always splits
 // section:area 1:1, unlike a project's optional area), so it can't tolerate
 // the one real gap in that convention: navigating client-side between two
