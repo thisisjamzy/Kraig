@@ -18,7 +18,7 @@ import { DEFAULT_PRIORITY } from '@/src/viewmodels/projects';
 import type { FirestoreProject, FirestoreTask, FirestoreArea, ProjectStatus } from '@/src/shared/firestore/types';
 import { useGoBack } from '@/src/shared/navigation/useGoBack';
 import { effectiveTimeMode } from '@/src/viewmodels/scheduling';
-import { actionableTasks } from '@/src/shared/tasks/recurringTasks';
+import { actionableTasks, isRecurring, occurrencesInRange } from '@/src/shared/tasks/recurringTasks';
 
 export type TaskFilterTab = 'all' | 'done' | 'pending' | 'archived';
 
@@ -26,6 +26,24 @@ function startOfDay(date: Date) {
   const d = new Date(date);
   d.setHours(0, 0, 0, 0);
   return d;
+}
+
+/** How far back a repeating task's completed dates are listed. */
+const COMPLETED_DAYS = 90;
+
+function withCompletedDates<T extends { id: string }>(
+  listed: T[],
+  docs: FirestoreTask[]
+): ((T | ReturnType<typeof occurrencesInRange>[number]) & { history?: boolean })[] {
+  const ids = new Set(listed.map((t) => t.id));
+  const now = new Date();
+  const from = new Date(now.getFullYear(), now.getMonth(), now.getDate() - COMPLETED_DAYS);
+  const done = docs
+    .filter(isRecurring)
+    .flatMap((series) => occurrencesInRange(series, from, now))
+    .filter((o) => o.done && !ids.has(o.id))
+    .map((o) => ({ ...o, history: true }));
+  return [...listed, ...done];
 }
 
 export function useLogic(projectId: string) {
@@ -56,8 +74,10 @@ export function useLogic(projectId: string) {
   const today = useMemo(() => startOfDay(new Date()), []);
   const allTasks = useMemo(
     () =>
-      // A recurring task lists as today's / overdue dates, or its next one.
-      actionableTasks(taskDocs, new Date(), { includeUpcoming: true })
+      // A recurring task lists as today's / missed dates, or its next one —
+      // plus the dates already completed (last COMPLETED_DAYS), so finished
+      // work stays visible here like a finished one-off task does.
+      withCompletedDates(actionableTasks(taskDocs, new Date(), { includeUpcoming: true }), taskDocs)
         .map((t) => ({
           id: t.id,
           title: t.title,
@@ -67,6 +87,8 @@ export function useLogic(projectId: string) {
           done: t.done,
           status: t.status,
           archived: t.archived,
+          // A past completed date of a repeating task: listed, not counted.
+          history: Boolean('history' in t && t.history),
           startTime: t.startTime ? t.startTime.toDate() : null,
           allDay: Boolean(t.allDay),
           timeMode: effectiveTimeMode(t),
@@ -81,7 +103,13 @@ export function useLogic(projectId: string) {
             return flag;
           })(),
         }))
-        .sort((a, b) => Number(a.done) - Number(b.done)),
+        // Pending first; completed ones after, most recent first.
+        .sort((a, b) => {
+          if (a.done !== b.done) return Number(a.done) - Number(b.done);
+          if (!a.done) return 0;
+          const at = (t: typeof a) => (t.startTime ?? t.dueDate)?.getTime() ?? 0;
+          return at(b) - at(a);
+        }),
     [taskDocs, today]
   );
 
@@ -99,7 +127,9 @@ export function useLogic(projectId: string) {
     }
   }, [allTasks, taskTab]);
 
-  const activeTasks = useMemo(() => allTasks.filter((t) => !t.archived), [allTasks]);
+  // Counts (activity donut, overdue) see a repeating task's current dates
+  // only — its past completed dates are listed but not counted again.
+  const activeTasks = useMemo(() => allTasks.filter((t) => !t.archived && !t.history), [allTasks]);
   const completedCount = activeTasks.filter((t) => t.done).length;
   const overdueCount = activeTasks.filter((t) => t.overdue).length;
   const atRisk = isAtRisk(overdueCount);
