@@ -13,7 +13,8 @@
   --tint-grey: #8b90a0;
   --tint-green: #2f9e6b;
   min-height: 100%;
-  padding: calc(12px + env(safe-area-inset-top)) var(--space-lg) 96px;
+  --screen-header-bg: transparent;
+  padding: 0 var(--space-lg) 96px;
   background: linear-gradient(180deg, #efeaff 0%, #e6f1ff 100%);
   font-family: var(--font-family-heading);
   color: var(--color-text-primary);
@@ -26,11 +27,9 @@
 }
 
 /* ---- Header: menu · title · new, one row ---- */
+/* ScreenHeader (see FocusScreen.tsx) — just the space below it. */
 .header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 18px;
+  margin-bottom: 6px;
 }
 
 .menuButton {
@@ -69,14 +68,6 @@
   width: 12px;
 }
 
-.title {
-  flex: 1;
-  min-width: 0;
-  margin: 0;
-  font-size: 2rem;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-}
 
 .newButton {
   display: grid;

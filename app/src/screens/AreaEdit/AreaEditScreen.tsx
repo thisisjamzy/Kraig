@@ -6,6 +6,7 @@ import { useLogic } from '@/src/logic/areaEdit/useLogic';
 import { EmojiPicker } from '@/src/widgets/EmojiPicker/EmojiPicker';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { ConfirmDialog } from '@/src/widgets/ConfirmDialog/ConfirmDialog';
+import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import { PROJECT_COLORS } from '@/src/viewmodels/projects';
 import styles from './AreaEditScreen.module.css';
 
@@ -35,21 +36,26 @@ export function AreaEditScreen({ areaId }: { areaId: string }) {
 
   return (
     <div className={styles.page}>
-      <header className={styles.header}>
-        <button type="button" className={styles.iconButton} onClick={goBack} aria-label="Close">
-          <X size={18} strokeWidth={2} />
-        </button>
-        <h1 className={styles.headerTitle}>Edit area</h1>
-        <button
-          type="button"
-          className={`${styles.saveIconButton} ${isValid ? styles.saveIconButtonActive : ''}`}
-          disabled={!isValid || saving}
-          onClick={handleSave}
-          aria-label="Save"
-        >
-          <Check size={18} strokeWidth={2.5} />
-        </button>
-      </header>
+      <ScreenHeader
+        center
+        left={
+          <button type="button" className={styles.iconButton} onClick={goBack} aria-label="Close">
+            <X size={18} strokeWidth={2} />
+          </button>
+        }
+        title="Edit area"
+        right={
+          <button
+            type="button"
+            className={`${styles.saveIconButton} ${isValid ? styles.saveIconButtonActive : ''}`}
+            disabled={!isValid || saving}
+            onClick={handleSave}
+            aria-label="Save"
+          >
+            <Check size={18} strokeWidth={2.5} />
+          </button>
+        }
+      />
 
       <ScreenState loading={loading} error={error} />
 

@@ -4,6 +4,7 @@ import { ChevronLeft } from 'lucide-react';
 import { useLogic } from '@/src/logic/editTransfer/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
+import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import styles from './EditTransferScreen.module.css';
 
 export function EditTransferScreen({ transferId }: { transferId: string }) {
@@ -48,12 +49,14 @@ export function EditTransferScreen({ transferId }: { transferId: string }) {
 
   return (
     <div className={styles.page}>
-      <header className={styles.header}>
-        <button type="button" className={styles.backButton} onClick={goBack} aria-label={strings.editTransfer.back}>
-          <ChevronLeft size={18} strokeWidth={2} />
-        </button>
-        <h1 className={styles.title}>{strings.editTransfer.title}</h1>
-      </header>
+      <ScreenHeader
+        left={
+          <button type="button" className={styles.backButton} onClick={goBack} aria-label={strings.editTransfer.back}>
+            <ChevronLeft size={18} strokeWidth={2} />
+          </button>
+        }
+        title={strings.editTransfer.title}
+      />
 
       <ScreenState loading={loading} error={error} />
 

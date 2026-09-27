@@ -8,7 +8,7 @@ import type { PlanningData } from '@/src/logic/planning/useLogic';
 import { HistoryView } from './HistoryView';
 
 // Pinned under the app bar.
-const STICKY_TOP = 'calc(68px + env(safe-area-inset-top))';
+const STICKY_TOP = 'var(--header-height)';
 
 export function HistoryTab({
   month,

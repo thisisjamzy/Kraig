@@ -7,6 +7,7 @@ import { DonutChart } from '@/src/widgets/DonutChart/DonutChart';
 import { Modal } from '@/src/widgets/Modal/Modal';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { TaskCheckRow } from '@/src/widgets/TaskCheckRow/TaskCheckRow';
+import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import { projectCoverImageUrl } from '@/src/viewmodels/projects';
 import type { ProjectStatus } from '@/src/shared/firestore/types';
 import styles from './ProjectDetailScreen.module.css';
@@ -65,17 +66,21 @@ export function ProjectDetailScreen({ projectId }: { projectId: string }) {
 
   return (
     <div className={styles.page}>
-      <header className={styles.header}>
-        <button type="button" className={styles.backButton} onClick={goBack} aria-label="Back">
-          <ChevronLeft size={18} strokeWidth={2} />
-        </button>
-        <h1 className={styles.title}>Project detail</h1>
-        {project && (
-          <button type="button" className={styles.archiveButton} onClick={openEditProject} aria-label="Edit project">
-            <Pencil size={14} strokeWidth={1.75} />
+      <ScreenHeader
+        left={
+          <button type="button" className={styles.backButton} onClick={goBack} aria-label="Back">
+            <ChevronLeft size={18} strokeWidth={2} />
           </button>
-        )}
-      </header>
+        }
+        title="Project detail"
+        right={
+          project && (
+            <button type="button" className={styles.archiveButton} onClick={openEditProject} aria-label="Edit project">
+              <Pencil size={14} strokeWidth={1.75} />
+            </button>
+          )
+        }
+      />
 
       <ScreenState loading={loading} error={error} />
 

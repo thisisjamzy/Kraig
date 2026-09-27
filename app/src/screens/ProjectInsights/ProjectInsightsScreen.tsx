@@ -11,6 +11,7 @@ import { CartesianGrid, Line, LineChart, ReferenceDot, ReferenceLine, Tooltip, X
 import { useLogic } from '@/src/logic/projectInsights/useLogic';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { Modal } from '@/src/widgets/Modal/Modal';
+import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import { dayKey, shortDate } from '@/src/viewmodels/insights/dates';
 import type { MilestoneState } from '@/src/viewmodels/insights/metrics';
 import { ProgressRing, RiskChip } from '@/src/screens/Insights/InsightsScreen';
@@ -53,14 +54,19 @@ export function ProjectInsightsScreen({ projectId }: { projectId: string }) {
 
   return (
     <div className={`${insightStyles.page} ${styles.page}`}>
-      <header className={styles.header}>
-        <button type="button" className={insightStyles.iconLink} onClick={goBack} aria-label="Back">
-          <ChevronLeft size={20} strokeWidth={2} />
-        </button>
-        <Link href={`/projects/${projectId}`} className={styles.openProject}>
-          Open project
-        </Link>
-      </header>
+      <ScreenHeader
+        sticky={false}
+        left={
+          <button type="button" className={insightStyles.iconLink} onClick={goBack} aria-label="Back">
+            <ChevronLeft size={20} strokeWidth={2} />
+          </button>
+        }
+        right={
+          <Link href={`/projects/${projectId}`} className={styles.openProject}>
+            Open project
+          </Link>
+        }
+      />
 
       <ScreenState loading={loading} error={!loading && !project ? 'This project could not be found.' : null} />
 

@@ -4,6 +4,7 @@ import { ChevronLeft } from 'lucide-react';
 import { useLogic, CATEGORY_TYPES } from '@/src/logic/createCategory/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import styles from './CreateCategoryScreen.module.css';
+import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 
 export function CreateCategoryScreen() {
   const strings = useStrings();
@@ -12,12 +13,14 @@ export function CreateCategoryScreen() {
 
   return (
     <div className={styles.page}>
-      <header className={styles.header}>
-        <button type="button" className={styles.backButton} onClick={goBack} aria-label="Back">
-          <ChevronLeft size={18} strokeWidth={2} />
-        </button>
-        <h1 className={styles.title}>{strings.createCategory.title}</h1>
-      </header>
+      <ScreenHeader
+        left={
+          <button type="button" className={styles.backButton} onClick={goBack} aria-label="Back">
+            <ChevronLeft size={18} strokeWidth={2} />
+          </button>
+        }
+        title={strings.createCategory.title}
+      />
 
       <div className={styles.form}>
         <div className={styles.formField}>

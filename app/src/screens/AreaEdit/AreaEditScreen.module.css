@@ -3,7 +3,7 @@
   flex-direction: column;
   min-height: 100%;
   padding: var(--space-lg);
-  padding-top: calc(var(--space-lg) + env(safe-area-inset-top));
+  padding-top: 0;
   gap: var(--space-lg);
 }
 
@@ -11,37 +11,12 @@
    centered regardless of how wide the two side buttons are (Design/
    Newtask2.PNG, Newtask 4.PNG). The emoji picker sits on its own row
    below, not in this header. */
-.header {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: center;
-  position: sticky;
-  top: 0;
-  z-index: 15;
-  margin-top: calc(-1 * (var(--space-lg) + env(safe-area-inset-top)));
-  margin-left: calc(-1 * var(--space-lg));
-  margin-right: calc(-1 * var(--space-lg));
-  padding-top: calc(var(--space-lg) + env(safe-area-inset-top));
-  padding-left: var(--space-lg);
-  padding-right: var(--space-lg);
-  padding-bottom: var(--space-md);
-  background: var(--color-page);
-}
 
 .emojiRow {
   display: flex;
   justify-content: center;
 }
 
-.headerTitle {
-  grid-column: 2;
-  justify-self: center;
-  margin: 0;
-  font-family: var(--font-family-heading);
-  font-size: var(--font-size-lg);
-  font-weight: 800;
-  color: var(--color-text-primary);
-}
 
 .iconButton {
   display: flex;

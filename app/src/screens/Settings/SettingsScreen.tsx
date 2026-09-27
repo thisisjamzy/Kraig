@@ -26,6 +26,7 @@ import { Modal } from '@/src/widgets/Modal/Modal';
 import { useLogic } from '@/src/logic/settings/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
+import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import { iconTint } from '@/src/viewmodels/iconTint';
 import styles from './SettingsScreen.module.css';
 
@@ -56,12 +57,14 @@ export function SettingsScreen() {
 
   return (
     <div className={styles.page}>
-      <header className={styles.header}>
-        <button type="button" className={styles.backButton} onClick={goBack} aria-label="Back">
-          <ChevronLeft size={18} strokeWidth={2} />
-        </button>
-        <h1 className={styles.title}>{strings.settings.title}</h1>
-      </header>
+      <ScreenHeader
+        left={
+          <button type="button" className={styles.backButton} onClick={goBack} aria-label="Back">
+            <ChevronLeft size={18} strokeWidth={2} />
+          </button>
+        }
+        title={strings.settings.title}
+      />
 
       <ScreenState loading={settingsLoading} error={settingsError} />
 

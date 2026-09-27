@@ -39,11 +39,13 @@
 }
 
 .withHeader {
-  padding-top: calc(84px + env(safe-area-inset-top));
+  padding-top: calc(var(--header-height) + var(--space-sm));
 }
 
+/* Nav bar height (its 56px button + 16px top padding) plus
+   --bottom-bar-pad, plus breathing room for the last item. */
 .withBottomNav {
-  padding-bottom: calc(96px + env(safe-area-inset-bottom));
+  padding-bottom: calc(96px + var(--safe-bottom));
 }
 
 /* Printing (window.print(), e.g. a report's "Export as PDF" button)

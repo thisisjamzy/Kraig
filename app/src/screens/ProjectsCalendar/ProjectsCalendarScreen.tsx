@@ -16,6 +16,7 @@ import { useLogic, HOUR_HEIGHT } from '@/src/logic/projectsCalendar/useLogic';
 import { ActionMenu } from '@/src/widgets/ActionMenu/ActionMenu';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { TaskCheckRow } from '@/src/widgets/TaskCheckRow/TaskCheckRow';
+import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import { useIsWeb } from '@/src/shared/hooks/useViewportMode';
 import styles from './ProjectsCalendarScreen.module.css';
 import webStyles from './ProjectsCalendarScreen.web.module.css';
@@ -98,46 +99,48 @@ export function ProjectsCalendarView({
 
   return (
     <div className={`${styles.page} ${isWeb ? webStyles.page : ''}`}>
-      <header className={styles.header}>
-        <ActionMenu
-          ariaLabel="Calendar menu"
-          triggerClassName={styles.menuButton}
-          triggerIcon={
-            <span className={styles.menuIcon} aria-hidden>
-              <span />
-              <span />
-            </span>
-          }
-          items={[
-            {
-              key: 'today',
-              label: 'Jump to today',
-              icon: <CalendarClock size={14} strokeWidth={2} />,
-              onSelect: jumpToToday,
-            },
-            {
-              key: 'previous',
-              label: 'Previous month',
-              icon: <ChevronLeft size={14} strokeWidth={2} />,
-              onSelect: () => shiftMonth(-1),
-            },
-            {
-              key: 'next',
-              label: 'Next month',
-              icon: <ChevronRight size={14} strokeWidth={2} />,
-              onSelect: () => shiftMonth(1),
-            },
-            {
-              key: 'add',
-              label: 'Add event',
-              icon: <ListPlus size={14} strokeWidth={2} />,
-              onSelect: openAddEvent,
-            },
-          ]}
-        />
-        <h1 className={styles.monthTitle}>{monthLabel}</h1>
-        <span className={styles.headerSpacer} aria-hidden />
-      </header>
+      <ScreenHeader
+        center
+        left={
+            <ActionMenu
+              ariaLabel="Calendar menu"
+              triggerClassName={styles.menuButton}
+              triggerIcon={
+                <span className={styles.menuIcon} aria-hidden>
+                  <span />
+                  <span />
+                </span>
+              }
+              items={[
+                {
+                  key: 'today',
+                  label: 'Jump to today',
+                  icon: <CalendarClock size={14} strokeWidth={2} />,
+                  onSelect: jumpToToday,
+                },
+                {
+                  key: 'previous',
+                  label: 'Previous month',
+                  icon: <ChevronLeft size={14} strokeWidth={2} />,
+                  onSelect: () => shiftMonth(-1),
+                },
+                {
+                  key: 'next',
+                  label: 'Next month',
+                  icon: <ChevronRight size={14} strokeWidth={2} />,
+                  onSelect: () => shiftMonth(1),
+                },
+                {
+                  key: 'add',
+                  label: 'Add event',
+                  icon: <ListPlus size={14} strokeWidth={2} />,
+                  onSelect: openAddEvent,
+                },
+              ]}
+            />
+        }
+        title={monthLabel}
+      />
 
         <div className={`${styles.layout} ${isWeb ? webStyles.layout : ''}`}>
           <section

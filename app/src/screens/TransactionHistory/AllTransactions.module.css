@@ -1,22 +1,5 @@
-/* All transactions — back, title and add on one row above the shared
+/* All transactions — ScreenHeader (back, title, add) above the shared
    History list. */
-
-.topBar {
-  gap: 12px;
-}
-
-.title {
-  flex: 1;
-  min-width: 0;
-  margin: 0;
-  overflow: hidden;
-  font-family: var(--font-family-heading);
-  font-size: 1.375rem;
-  font-weight: 800;
-  letter-spacing: -0.01em;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
 
 .capped {
   margin: 16px 4px 0;

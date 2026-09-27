@@ -8,6 +8,7 @@ import { ArrowLeft, CalendarPlus, Layers, PiggyBank } from 'lucide-react';
 import { useLogic, type Destination } from '@/src/logic/planningReallocate/useLogic';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { money, monthTitle } from '@/src/viewmodels/planning';
+import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import p from '@/src/screens/Planning/Planning.module.css';
 import f from './Flows.module.css';
 
@@ -23,12 +24,14 @@ export function ReallocateScreen() {
   const r = useLogic();
 
   return (
-    <div className={`${p.page} ${f.page}`}>
-      <div className={p.topBar}>
-        <button type="button" className={p.roundButton} onClick={r.goBack} aria-label="Back">
-          <ArrowLeft size={20} strokeWidth={2} />
-        </button>
-      </div>
+    <div className={`${p.page} ${p.detail} ${f.page}`}>
+      <ScreenHeader
+        left={
+          <button type="button" className={p.roundButton} onClick={r.goBack} aria-label="Back">
+            <ArrowLeft size={20} strokeWidth={2} />
+          </button>
+        }
+      />
 
       <ScreenState loading={r.loading} error={!r.loading && r.total <= 0 ? 'There’s nothing left over here to move.' : null} />
 

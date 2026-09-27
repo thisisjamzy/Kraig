@@ -6,6 +6,7 @@ import { useLogic } from '@/src/logic/sectionEdit/useLogic';
 import { EmojiPicker } from '@/src/widgets/EmojiPicker/EmojiPicker';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { ConfirmDialog } from '@/src/widgets/ConfirmDialog/ConfirmDialog';
+import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import { PROJECT_COLORS, projectCoverImageUrl } from '@/src/viewmodels/projects';
 import styles from './SectionEditScreen.module.css';
 
@@ -34,12 +35,14 @@ export function SectionEditScreen({ bucketId }: { bucketId: string }) {
 
   return (
     <div className={styles.page}>
-      <header className={styles.header}>
-        <button type="button" className={styles.backButton} onClick={goBack} aria-label="Back">
-          <ChevronLeft size={18} strokeWidth={2} />
-        </button>
-        <h1 className={styles.title}>Edit section</h1>
-      </header>
+      <ScreenHeader
+        left={
+          <button type="button" className={styles.backButton} onClick={goBack} aria-label="Back">
+            <ChevronLeft size={18} strokeWidth={2} />
+          </button>
+        }
+        title="Edit section"
+      />
 
       <ScreenState loading={loading} error={error} />
 

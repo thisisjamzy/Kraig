@@ -32,6 +32,8 @@
   /* The filter / sort toolbar (src/widgets/ListQuery) sits on this page. */
   --lq-bg: var(--p-bg);
   --lq-primary: var(--p-blue);
+  --screen-header-bg: var(--p-bg);
+  --screen-header-color: var(--p-navy);
   min-height: 100%;
   padding: 8px var(--space-lg) 120px;
   background: var(--p-bg);
@@ -518,16 +520,15 @@
 }
 
 /* ---- Details top bar ---- */
-.topBar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin: 4px 0 16px;
+/* Drill-down pages (bucket, item, transaction, cover, reallocate, all
+   transactions) — no AppHeader above them, so ScreenHeader is their first
+   child and carries the safe-area spacing itself. */
+.detail {
+  padding-top: 0;
 }
 
-.topActions {
-  display: flex;
-  gap: 8px;
+.detail > header:first-child {
+  margin-bottom: 16px;
 }
 
 .roundButton {
@@ -692,7 +693,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 12px var(--space-lg) calc(12px + env(safe-area-inset-bottom));
+  padding: 12px var(--header-pad-right) var(--bottom-bar-pad) var(--header-pad-left);
   background: var(--p-card);
   box-shadow: 0 -8px 24px rgba(28, 31, 58, 0.06);
 }

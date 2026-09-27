@@ -21,7 +21,7 @@
   --tf-orange: #e8a33d;
   --tf-watermark: color-mix(in srgb, var(--color-text-primary) 8%, var(--color-surface));
   min-height: 100%;
-  padding: calc(8px + env(safe-area-inset-top)) 12px 40px;
+  padding: calc(8px + var(--safe-top)) 12px 40px;
   background: var(--tf-bg);
   color: var(--tf-text);
   font-family: var(--font-family-body);
@@ -71,6 +71,13 @@
   background: var(--tf-card);
   color: var(--tf-text);
   cursor: pointer;
+}
+
+/* 44x44 tap area around the 36px circle. */
+.closeButton::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
 }
 
 .closeButton:focus-visible {

@@ -17,6 +17,7 @@ import { HeroDatePicker } from '@/src/widgets/HeroDatePicker/HeroDatePicker';
 import { useLogic, KEYPAD_KEYS, formatMoney, type TransactionType } from '@/src/logic/addTransaction/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
+import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import styles from './AddTransactionScreen.module.css';
 
 const TYPE_ICONS: Record<TransactionType, typeof ArrowUpRight> = {
@@ -108,12 +109,14 @@ export function AddTransactionScreen() {
 
   return (
     <div className={styles.page}>
-      <header className={styles.header}>
-        <button type="button" className={styles.backButton} onClick={goBack} aria-label="Back">
-          <ChevronLeft size={18} strokeWidth={2} />
-        </button>
-        <h1 className={styles.title}>{strings.addTransaction.title}</h1>
-      </header>
+      <ScreenHeader
+        left={
+          <button type="button" className={styles.backButton} onClick={goBack} aria-label="Back">
+            <ChevronLeft size={18} strokeWidth={2} />
+          </button>
+        }
+        title={strings.addTransaction.title}
+      />
 
       <p className={styles.subheading}>
         {stepPrefix} <span className={styles.subheadingHighlight}>{stepHighlight}</span>

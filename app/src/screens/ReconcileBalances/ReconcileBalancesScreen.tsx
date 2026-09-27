@@ -5,6 +5,7 @@ import { useLogic } from '@/src/logic/reconcileBalances/useLogic';
 import { formatAmount } from '@/src/logic/walletDetail/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import styles from './ReconcileBalancesScreen.module.css';
+import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 
 export function ReconcileBalancesScreen() {
   const strings = useStrings();
@@ -32,12 +33,14 @@ export function ReconcileBalancesScreen() {
 
   return (
     <div className={styles.page}>
-      <header className={styles.header}>
-        <button type="button" className={styles.backButton} onClick={goBack} aria-label={strings.common.back}>
-          <ChevronLeft size={18} strokeWidth={2} />
-        </button>
-        <h1 className={styles.title}>{strings.reconcile.title}</h1>
-      </header>
+      <ScreenHeader
+        left={
+          <button type="button" className={styles.backButton} onClick={goBack} aria-label={strings.common.back}>
+            <ChevronLeft size={18} strokeWidth={2} />
+          </button>
+        }
+        title={strings.reconcile.title}
+      />
 
       {!results && (
         <div className={styles.introCard}>

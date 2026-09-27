@@ -7,11 +7,13 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  align-items: center;
+  box-sizing: border-box;
   max-width: var(--app-max-width);
+  /* The shared header rule (globals.css): exactly --header-height tall —
+     background behind the status bar, a 56px row below the inset. */
+  min-height: var(--header-height);
   margin-inline: auto;
-  padding: var(--space-lg);
-  padding-top: calc(var(--space-lg) + env(safe-area-inset-top));
+  padding: var(--header-pad-top) var(--header-pad-right) 0 var(--header-pad-left);
   background: var(--color-page);
 }
 
@@ -35,10 +37,18 @@
   width: 36px;
   height: 36px;
   flex-shrink: 0;
+  position: relative;
   border-radius: 50%;
   border: 1px solid var(--color-border);
   background: none;
   color: var(--color-text-primary);
   text-decoration: none;
   cursor: pointer;
+}
+
+/* 44x44 tap area around the 36px circle. */
+.iconButton::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
 }

@@ -3,39 +3,14 @@
   flex-direction: column;
   min-height: 100%;
   padding: var(--space-lg);
-  padding-top: calc(var(--space-lg) + env(safe-area-inset-top));
+  padding-top: 0;
   gap: var(--space-lg);
 }
 
 /* X — title — check, a true 3-column grid so the title stays centered
    regardless of how wide the two side buttons are — same convention as
    TaskEdit/CreateProject/BucketLineItemForm's own create/edit header. */
-.header {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: center;
-  position: sticky;
-  top: 0;
-  z-index: 15;
-  margin-top: calc(-1 * (var(--space-lg) + env(safe-area-inset-top)));
-  margin-left: calc(-1 * var(--space-lg));
-  margin-right: calc(-1 * var(--space-lg));
-  padding-top: calc(var(--space-lg) + env(safe-area-inset-top));
-  padding-left: var(--space-lg);
-  padding-right: var(--space-lg);
-  padding-bottom: var(--space-md);
-  background: var(--color-page);
-}
 
-.headerTitle {
-  grid-column: 2;
-  justify-self: center;
-  margin: 0;
-  font-family: var(--font-family-heading);
-  font-size: var(--font-size-lg);
-  font-weight: 800;
-  color: var(--color-text-primary);
-}
 
 .iconButton {
   display: flex;

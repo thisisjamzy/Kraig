@@ -2,8 +2,8 @@
   display: flex;
   flex-direction: column;
   min-height: 100%;
+  /* Under AppHeader, which already clears the safe area. */
   padding: var(--space-lg);
-  padding-top: calc(var(--space-lg) + env(safe-area-inset-top));
   gap: var(--space-lg);
 }
 

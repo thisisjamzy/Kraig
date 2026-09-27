@@ -5,6 +5,7 @@ import { useLogic } from '@/src/logic/debtEdit/useLogic';
 import { DEBT_PRIORITIES } from '@/src/logic/createDebt/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
+import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import styles from './DebtEditScreen.module.css';
 
 export function DebtEditScreen({ debtId }: { debtId: string }) {
@@ -40,12 +41,14 @@ export function DebtEditScreen({ debtId }: { debtId: string }) {
 
   return (
     <div className={styles.page}>
-      <header className={styles.header}>
-        <button type="button" className={styles.backButton} onClick={goBack} aria-label={strings.debtDetail.backLabel}>
-          <ChevronLeft size={18} strokeWidth={2} />
-        </button>
-        <h1 className={styles.title}>{strings.debtDetail.editDebt}</h1>
-      </header>
+      <ScreenHeader
+        left={
+          <button type="button" className={styles.backButton} onClick={goBack} aria-label={strings.debtDetail.backLabel}>
+            <ChevronLeft size={18} strokeWidth={2} />
+          </button>
+        }
+        title={strings.debtDetail.editDebt}
+      />
 
       <ScreenState loading={loading} error={error} />
 

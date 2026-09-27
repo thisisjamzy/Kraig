@@ -1,7 +1,8 @@
 'use client';
 
 // A floating menu anchored under the tapped icon or chip, aligned to its
-// edge (flipping to the right edge when it would run off-screen): 12px
+// edge (flipping to the right edge when it would run off-screen, and above
+// the anchor when there's no room below — never under the top inset): 12px
 // corners, soft shadow, max 320px wide and 60% of the screen tall with its
 // own scroll; a quick fade and scale-up. Under 360px wide the same content
 // opens as a bottom sheet. Closes on a tap outside or Escape; arrow keys
@@ -14,6 +15,18 @@ import styles from './ListQuery.module.css';
 const SHEET_BELOW = 360;
 const GAP = 6;
 const MARGIN = 8;
+
+// The device's real top/bottom insets (globals.css --safe-top/--safe-bottom),
+// measured — env() can't be read from JS directly.
+function safeInsets() {
+  const probe = document.createElement('div');
+  probe.style.cssText = 'position:fixed;visibility:hidden;pointer-events:none;padding-top:var(--safe-top);padding-bottom:var(--safe-bottom)';
+  document.body.appendChild(probe);
+  const cs = getComputedStyle(probe);
+  const insets = { top: parseFloat(cs.paddingTop) || 0, bottom: parseFloat(cs.paddingBottom) || 0 };
+  probe.remove();
+  return insets;
+}
 
 export function Popover({
   anchor,
@@ -39,6 +52,7 @@ export function Popover({
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
+    let safe = safeInsets();
     function place() {
       if (!el) return;
       const vw = window.innerWidth;
@@ -53,13 +67,24 @@ export function Popover({
       let left = r.left;
       if (left + width > vw - MARGIN) left = Math.max(MARGIN, r.right - width);
       el.style.left = `${Math.round(left)}px`;
-      el.style.top = `${Math.round(r.bottom + GAP)}px`;
+      // Below the anchor; flip above when it doesn't fit and there's more
+      // room there — but never up into the status bar / notch.
+      const minTop = safe.top + MARGIN;
+      const maxBottom = window.innerHeight - safe.bottom - MARGIN;
+      const height = el.offsetHeight;
+      let top = r.bottom + GAP;
+      if (top + height > maxBottom && r.top - GAP - minTop > maxBottom - top) top = r.top - GAP - height;
+      el.style.top = `${Math.round(Math.max(minTop, top))}px`;
+    }
+    function onResize() {
+      safe = safeInsets(); // rotation changes the insets
+      place();
     }
     place();
-    window.addEventListener('resize', place);
+    window.addEventListener('resize', onResize);
     window.addEventListener('scroll', place, true);
     return () => {
-      window.removeEventListener('resize', place);
+      window.removeEventListener('resize', onResize);
       window.removeEventListener('scroll', place, true);
     };
   }, [anchor, wide]);

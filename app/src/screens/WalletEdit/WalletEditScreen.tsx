@@ -5,6 +5,7 @@ import { useLogic } from '@/src/logic/walletEdit/useLogic';
 import { formatAmount } from '@/src/logic/walletDetail/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
+import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import { SAVINGS_ACCOUNT_TYPE } from '@/src/viewmodels/wallets';
 import styles from './WalletEditScreen.module.css';
 
@@ -51,12 +52,14 @@ export function WalletEditScreen({ walletId }: { walletId: string }) {
 
   return (
     <div className={styles.page}>
-      <header className={styles.header}>
-        <button type="button" className={styles.backButton} onClick={goBack} aria-label={strings.common.back}>
-          <ChevronLeft size={18} strokeWidth={2} />
-        </button>
-        <h1 className={styles.title}>{strings.walletDetail.editWalletTitle}</h1>
-      </header>
+      <ScreenHeader
+        left={
+          <button type="button" className={styles.backButton} onClick={goBack} aria-label={strings.common.back}>
+            <ChevronLeft size={18} strokeWidth={2} />
+          </button>
+        }
+        title={strings.walletDetail.editWalletTitle}
+      />
 
       <ScreenState loading={loading} error={error} />
 

@@ -6,6 +6,7 @@ import { useLogic } from '@/src/logic/createTransactionTemplate/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { ConfirmDialog } from '@/src/widgets/ConfirmDialog/ConfirmDialog';
+import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import type { TransactionTemplateType } from '@/src/shared/firestore/types';
 import styles from './CreateTransactionTemplateScreen.module.css';
 
@@ -72,23 +73,30 @@ export function CreateTransactionTemplateScreen({ templateId }: { templateId?: s
 
   return (
     <div className={styles.page}>
-      <header className={styles.header}>
-        <button type="button" className={styles.iconButton} onClick={goBack} aria-label={strings.common.back}>
-          <X size={18} strokeWidth={2} />
-        </button>
-        <h1 className={styles.headerTitle}>
-          {isEditing ? strings.transactionTemplates.editTitle : strings.transactionTemplates.createTitle}
-        </h1>
-        <button
-          type="button"
-          className={`${styles.saveIconButton} ${canSave ? styles.saveIconButtonActive : ''}`}
-          disabled={!canSave || saving}
-          onClick={handleSave}
-          aria-label={strings.common.save}
-        >
-          <Check size={18} strokeWidth={2.5} />
-        </button>
-      </header>
+      <ScreenHeader
+        center
+        left={
+          <button type="button" className={styles.iconButton} onClick={goBack} aria-label={strings.common.back}>
+            <X size={18} strokeWidth={2} />
+          </button>
+        }
+        title={
+          <>
+            {isEditing ? strings.transactionTemplates.editTitle : strings.transactionTemplates.createTitle}
+          </>
+        }
+        right={
+          <button
+            type="button"
+            className={`${styles.saveIconButton} ${canSave ? styles.saveIconButtonActive : ''}`}
+            disabled={!canSave || saving}
+            onClick={handleSave}
+            aria-label={strings.common.save}
+          >
+            <Check size={18} strokeWidth={2.5} />
+          </button>
+        }
+      />
 
       <ScreenState loading={loading} error={error} />
 

@@ -2,7 +2,7 @@
    top of Planning.module.css's tokens. */
 
 .page {
-  padding-bottom: 130px;
+  padding-bottom: calc(130px + var(--safe-bottom));
 }
 
 .headline {

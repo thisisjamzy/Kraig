@@ -10,6 +10,7 @@ import { ActionMenu } from '@/src/widgets/ActionMenu/ActionMenu';
 import { useLogic } from '@/src/logic/bucketDetail/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
+import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import { formatAmount } from '@/src/screens/Buckets/BucketsScreen';
 import { NECESSITY_LABEL } from '@/src/viewmodels/projects';
 import { BucketItemMonthSheet } from '@/src/screens/BucketItemMonth/BucketItemMonthSheet';
@@ -107,40 +108,44 @@ export function BucketDetailScreen({ goalId }: { goalId: string }) {
 
   return (
     <div className={styles.page}>
-      <header className={styles.header}>
-        <button type="button" className={styles.backButton} onClick={goBack} aria-label={strings.bucketDetail.backLabel}>
-          <ChevronLeft size={18} strokeWidth={2} />
-        </button>
-        <h1 className={styles.title}>{strings.bucketDetail.headerTitle}</h1>
-        {bucket && (
-          <ActionMenu
-            title={bucket.name}
-            ariaLabel={`Actions for ${bucket.name}`}
-            items={[
-              {
-                key: 'edit',
-                label: strings.bucketDetail.editBucket,
-                icon: <Pencil size={16} strokeWidth={1.75} />,
-                onSelect: openBucketEdit,
-              },
-              {
-                key: 'archive',
-                label: strings.bucketDetail.archiveBucket,
-                icon: <Archive size={16} strokeWidth={1.75} />,
-                onSelect: () => setConfirmArchive(true),
-                danger: true,
-              },
-              {
-                key: 'delete',
-                label: strings.bucketDetail.deleteBucket,
-                icon: <Trash2 size={16} strokeWidth={1.75} />,
-                onSelect: () => setConfirmDeleteBucket(true),
-                danger: true,
-              },
-            ]}
-          />
-        )}
-      </header>
+      <ScreenHeader
+        left={
+          <button type="button" className={styles.backButton} onClick={goBack} aria-label={strings.bucketDetail.backLabel}>
+            <ChevronLeft size={18} strokeWidth={2} />
+          </button>
+        }
+        title={strings.bucketDetail.headerTitle}
+        right={
+          bucket && (
+            <ActionMenu
+              title={bucket.name}
+              ariaLabel={`Actions for ${bucket.name}`}
+              items={[
+                {
+                  key: 'edit',
+                  label: strings.bucketDetail.editBucket,
+                  icon: <Pencil size={16} strokeWidth={1.75} />,
+                  onSelect: openBucketEdit,
+                },
+                {
+                  key: 'archive',
+                  label: strings.bucketDetail.archiveBucket,
+                  icon: <Archive size={16} strokeWidth={1.75} />,
+                  onSelect: () => setConfirmArchive(true),
+                  danger: true,
+                },
+                {
+                  key: 'delete',
+                  label: strings.bucketDetail.deleteBucket,
+                  icon: <Trash2 size={16} strokeWidth={1.75} />,
+                  onSelect: () => setConfirmDeleteBucket(true),
+                  danger: true,
+                },
+              ]}
+            />
+          )
+        }
+      />
 
       {bucket && <p className={styles.bucketName}>{bucket.name}</p>}
 

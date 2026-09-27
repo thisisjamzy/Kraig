@@ -4,6 +4,7 @@ import { ChevronLeft } from 'lucide-react';
 import { useLogic } from '@/src/logic/editTransaction/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
+import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import styles from './EditTransactionScreen.module.css';
 
 export function EditTransactionScreen({ transactionId }: { transactionId: string }) {
@@ -47,12 +48,14 @@ export function EditTransactionScreen({ transactionId }: { transactionId: string
 
   return (
     <div className={styles.page}>
-      <header className={styles.header}>
-        <button type="button" className={styles.backButton} onClick={goBack} aria-label={strings.editTransaction.back}>
-          <ChevronLeft size={18} strokeWidth={2} />
-        </button>
-        <h1 className={styles.title}>{strings.editTransaction.title}</h1>
-      </header>
+      <ScreenHeader
+        left={
+          <button type="button" className={styles.backButton} onClick={goBack} aria-label={strings.editTransaction.back}>
+            <ChevronLeft size={18} strokeWidth={2} />
+          </button>
+        }
+        title={strings.editTransaction.title}
+      />
 
       <ScreenState loading={loading} error={error} />
 

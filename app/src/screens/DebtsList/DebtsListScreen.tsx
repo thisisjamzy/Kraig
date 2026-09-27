@@ -11,6 +11,7 @@ import { DonutChart } from '@/src/widgets/DonutChart/DonutChart';
 import { ConfirmDialog } from '@/src/widgets/ConfirmDialog/ConfirmDialog';
 import { ActionMenu } from '@/src/widgets/ActionMenu/ActionMenu';
 import { Logo } from '@/src/widgets/Logo/Logo';
+import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import { formatAmount } from '@/src/screens/Buckets/BucketsScreen';
 import styles from './DebtsListScreen.module.css';
 import { useGoBack } from '@/src/shared/navigation/useGoBack';
@@ -36,12 +37,14 @@ export function DebtsListScreen() {
 
   return (
     <div className={styles.page}>
-      <header className={styles.header}>
-        <button type="button" className={styles.backButton} onClick={() => navigateBack('/home')} aria-label="Back">
-          <ChevronLeft size={18} strokeWidth={2} />
-        </button>
-        <h1 className={styles.title}>{strings.buckets.tabDebt}</h1>
-      </header>
+      <ScreenHeader
+        left={
+          <button type="button" className={styles.backButton} onClick={() => navigateBack('/home')} aria-label="Back">
+            <ChevronLeft size={18} strokeWidth={2} />
+          </button>
+        }
+        title={strings.buckets.tabDebt}
+      />
 
       <ScreenState loading={loading} error={error} />
 

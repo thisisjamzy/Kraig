@@ -10,6 +10,7 @@ import { useLogic } from '@/src/logic/transactionDetails/useLogic';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { money, weekdayDayMonth } from '@/src/viewmodels/planning';
 import { SpecCell, SpecRow } from '@/src/screens/Planning/PlanningParts';
+import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import p from '@/src/screens/Planning/Planning.module.css';
 import styles from './TransactionDetailsScreen.module.css';
 
@@ -19,17 +20,21 @@ export function TransactionDetailsScreen({ id }: { id: string }) {
   const Icon = v?.flow === 'in' ? ArrowDownLeft : v?.flow === 'out' ? ArrowUpRight : ArrowLeftRight;
 
   return (
-    <div className={`${p.page} ${styles.page}`}>
-      <div className={p.topBar}>
-        <button type="button" className={p.roundButton} onClick={t.goBack} aria-label="Back">
-          <ArrowLeft size={20} strokeWidth={2} />
-        </button>
-        {v && (
-          <Link href={v.editHref} className={p.roundButton} aria-label="Edit">
-            <Pencil size={17} strokeWidth={2} />
-          </Link>
-        )}
-      </div>
+    <div className={`${p.page} ${p.detail} ${styles.page}`}>
+      <ScreenHeader
+        left={
+          <button type="button" className={p.roundButton} onClick={t.goBack} aria-label="Back">
+            <ArrowLeft size={20} strokeWidth={2} />
+          </button>
+        }
+        right={
+          v && (
+            <Link href={v.editHref} className={p.roundButton} aria-label="Edit">
+              <Pencil size={17} strokeWidth={2} />
+            </Link>
+          )
+        }
+      />
 
       <ScreenState loading={t.loading} error={t.missing ? 'This transaction could not be found.' : null} />
 

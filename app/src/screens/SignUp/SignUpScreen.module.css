@@ -7,8 +7,8 @@
   max-width: var(--app-max-width);
   margin-inline: auto;
   padding: var(--space-lg);
-  padding-top: calc(var(--space-lg) + env(safe-area-inset-top));
-  padding-bottom: max(var(--space-lg), env(safe-area-inset-bottom));
+  padding-top: calc(var(--space-lg) + var(--safe-top));
+  padding-bottom: max(var(--space-lg), var(--safe-bottom));
   background: var(--color-page);
 }
 

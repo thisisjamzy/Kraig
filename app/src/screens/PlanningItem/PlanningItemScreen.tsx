@@ -16,6 +16,7 @@ import { ConfirmDialog } from '@/src/widgets/ConfirmDialog/ConfirmDialog';
 import { money, monthTitle, dayMonth } from '@/src/viewmodels/planning';
 import type { ItemMonth } from '@/src/shared/budget/monthBudget';
 import { Bar, HistoryRowView, SpecCell, SpecRow, coverHref, reallocateHref } from '@/src/screens/Planning/PlanningParts';
+import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import p from '@/src/screens/Planning/Planning.module.css';
 import styles from './PlanningItemScreen.module.css';
 
@@ -23,12 +24,14 @@ export function PlanningItemScreen({ bucketId, itemId }: { bucketId: string; ite
   const it = useLogic(bucketId, itemId);
   if (it.loading || !it.entry) {
     return (
-      <div className={p.page}>
-        <div className={p.topBar}>
-          <button type="button" className={p.roundButton} onClick={it.goBack} aria-label="Back">
-            <ArrowLeft size={20} strokeWidth={2} />
-          </button>
-        </div>
+      <div className={`${p.page} ${p.detail}`}>
+        <ScreenHeader
+          left={
+            <button type="button" className={p.roundButton} onClick={it.goBack} aria-label="Back">
+              <ArrowLeft size={20} strokeWidth={2} />
+            </button>
+          }
+        />
         <ScreenState loading={it.loading} error={!it.loading ? `This item isn't in the budget for ${monthTitle(it.month)}.` : null} />
       </div>
     );
@@ -57,36 +60,40 @@ function ItemBody({ it, entry }: { it: ReturnType<typeof useLogic>; entry: ItemM
   const moved = entry.allocatedIn - entry.allocatedOut;
 
   return (
-    <div className={`${p.page} ${styles.page}`}>
-      <div className={p.topBar}>
-        <button type="button" className={p.roundButton} onClick={it.goBack} aria-label="Back">
-          <ArrowLeft size={20} strokeWidth={2} />
-        </button>
-        <div className={p.topActions}>
-          <Link href={`/edit-bucket-item/${entry.bucketId}/${entry.itemId}`} className={p.roundButton} aria-label="Edit item">
-            <Pencil size={17} strokeWidth={2} />
-          </Link>
-          <ActionMenu
-            ariaLabel="More"
-            triggerClassName={p.roundButton}
-            triggerIcon={<MoreHorizontal size={18} strokeWidth={2} />}
-            items={[
-              {
-                key: 'amount',
-                label: `Change ${monthTitle(month)}'s amount`,
-                icon: <Pencil size={14} strokeWidth={2} />,
-                onSelect: () => {
-                  m.start('override');
-                  setEditingAmount(true);
+    <div className={`${p.page} ${p.detail} ${styles.page}`}>
+      <ScreenHeader
+        left={
+          <button type="button" className={p.roundButton} onClick={it.goBack} aria-label="Back">
+            <ArrowLeft size={20} strokeWidth={2} />
+          </button>
+        }
+        right={
+          <>
+            <Link href={`/edit-bucket-item/${entry.bucketId}/${entry.itemId}`} className={p.roundButton} aria-label="Edit item">
+              <Pencil size={17} strokeWidth={2} />
+            </Link>
+            <ActionMenu
+              ariaLabel="More"
+              triggerClassName={p.roundButton}
+              triggerIcon={<MoreHorizontal size={18} strokeWidth={2} />}
+              items={[
+                {
+                  key: 'amount',
+                  label: `Change ${monthTitle(month)}'s amount`,
+                  icon: <Pencil size={14} strokeWidth={2} />,
+                  onSelect: () => {
+                    m.start('override');
+                    setEditingAmount(true);
+                  },
                 },
-              },
-              ...(!m.hasPayments && !income
-                ? [{ key: 'skip', label: `Skip ${monthTitle(month)}`, icon: <Undo2 size={14} strokeWidth={2} />, onSelect: () => setConfirmSkip(true) }]
-                : []),
-            ]}
-          />
-        </div>
-      </div>
+                ...(!m.hasPayments && !income
+                  ? [{ key: 'skip', label: `Skip ${monthTitle(month)}`, icon: <Undo2 size={14} strokeWidth={2} />, onSelect: () => setConfirmSkip(true) }]
+                  : []),
+              ]}
+            />
+          </>
+        }
+      />
 
       <h1 className={p.heroTitle}>{entry.name}</h1>
       <p className={p.heroSub}>{monthTitle(month)}</p>
