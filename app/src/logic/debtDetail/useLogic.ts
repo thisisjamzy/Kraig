@@ -9,6 +9,7 @@ import { round2 } from '@/src/shared/firestore/currency';
 import { archiveDebt as archiveDebtWrite } from '@/src/shared/firestore/aggregation';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import type { FirestoreDebt, FirestoreRepayment } from '@/src/shared/firestore/types';
+import { useGoBack } from '@/src/shared/navigation/useGoBack';
 
 export function useLogic(debtId: string) {
   const router = useRouter();
@@ -71,8 +72,11 @@ export function useLogic(debtId: string) {
     router.push('/debts');
   }
 
+  // Back to the page the user came from (skipping forms); '/debts' only
+  // when there's no history — see src/shared/navigation/useGoBack.ts.
+  const navigateBack = useGoBack();
   function goBack() {
-    router.push('/debts');
+    navigateBack('/debts');
   }
 
   return {

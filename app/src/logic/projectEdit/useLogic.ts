@@ -4,12 +4,13 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getDoc, query, updateDoc, serverTimestamp, Timestamp, where } from 'firebase/firestore';
 import { useFirestoreCollection, useFirestoreDoc } from '@/src/shared/firestore/hooks';
-import { useBuckets } from '@/src/shared/firestore/queries';
+import { useSections } from '@/src/shared/firestore/queries';
 import { projectRef, areasRef } from '@/src/shared/firestore/refs';
-import { ensureDefaultBucket, defaultBucketId } from '@/src/shared/firestore/buckets';
+import { ensureDefaultSection, defaultSectionId } from '@/src/shared/firestore/sections';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { PROJECT_COLORS, DEFAULT_PRIORITY } from '@/src/viewmodels/projects';
 import type { FirestoreProject, FirestoreArea, ProjectStatus, Priority } from '@/src/shared/firestore/types';
+import { useGoBack } from '@/src/shared/navigation/useGoBack';
 
 function toIso(date: Date) {
   return date.toISOString().slice(0, 10);
@@ -55,24 +56,24 @@ export function useLogic(projectId: string) {
     setDescription(project.description ?? '');
   }, [project, seededFor, projectId]);
 
-  // Every bucket in the currently selected area — same lookup
+  // Every section in the currently selected area — same lookup
   // createProject/useLogic.ts uses.
-  const { data: buckets } = useBuckets(areaId || undefined);
+  const { data: sections } = useSections(areaId || undefined);
 
-  // Once seeded, keep the bucket choice valid for whichever area is
-  // currently selected: a bucket from a different area (the user just
+  // Once seeded, keep the section choice valid for whichever area is
+  // currently selected: a section from a different area (the user just
   // switched areas), or a legacy null bucketId, both resolve to that
-  // area's own default the moment its bucket list is known.
+  // area's own default the moment its section list is known.
   useEffect(() => {
     if (seededFor !== projectId) return;
     if (!areaId) {
       setBucketId('');
       return;
     }
-    if (uid) ensureDefaultBucket(uid, areaId, color);
-    setBucketId((current) => (buckets.some((b) => b.id === current) ? current : defaultBucketId(areaId)));
+    if (uid) ensureDefaultSection(uid, areaId, color);
+    setBucketId((current) => (sections.some((b) => b.id === current) ? current : defaultSectionId(areaId)));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `color`/`projectId` intentionally excluded, see createProject/useLogic.ts's identical effect.
-  }, [areaId, buckets, uid, seededFor]);
+  }, [areaId, sections, uid, seededFor]);
 
   async function handleSave() {
     if (!uid || saving || !name.trim() || !description.trim()) return;
@@ -90,7 +91,7 @@ export function useLogic(projectId: string) {
       const newEndDate = endDate ? new Date(`${endDate}T00:00:00`) : null;
       const newEndMs = newEndDate ? newEndDate.getTime() : null;
       const endDateChanged = newEndMs !== null && newEndMs !== beforeEndMs;
-      const resolvedBucketId = areaId ? bucketId || (await ensureDefaultBucket(uid, areaId, color)) : null;
+      const resolvedBucketId = areaId ? bucketId || (await ensureDefaultSection(uid, areaId, color)) : null;
 
       const update: Record<string, unknown> = {
         name: name.trim(),
@@ -131,14 +132,17 @@ export function useLogic(projectId: string) {
     setStatus('Active');
   }
 
+  // Back to the page the user came from (skipping forms); `/projects/${projectId}` only
+  // when there's no history — see src/shared/navigation/useGoBack.ts.
+  const navigateBack = useGoBack();
   function goBack() {
-    router.push(`/projects/${projectId}`);
+    navigateBack(`/projects/${projectId}`);
   }
 
   return {
     project,
     areas,
-    buckets,
+    sections,
     name,
     setName,
     emoji,

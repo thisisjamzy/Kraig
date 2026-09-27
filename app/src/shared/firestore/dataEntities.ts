@@ -18,19 +18,18 @@ import type {
   TaskType,
   TaskStatus,
   ProjectStatus,
-  GoalItemNecessity,
+  BucketItemNecessity,
 } from './types';
 
 export type EntityKey =
   | 'areas'
-  | 'buckets'
+  | 'sections'
   | 'accounts'
   | 'categories'
-  | 'budgets'
   | 'projects'
   | 'tasks'
-  | 'goals'
-  | 'goalItems'
+  | 'buckets'
+  | 'bucketItems'
   | 'debts'
   | 'repayments'
   | 'transactions'
@@ -41,14 +40,13 @@ export type EntityKey =
 // before it, both walk this exact order.
 export const ENTITY_ORDER: EntityKey[] = [
   'areas',
-  'buckets',
+  'sections',
   'accounts',
   'categories',
-  'budgets',
   'projects',
   'tasks',
-  'goals',
-  'goalItems',
+  'buckets',
+  'bucketItems',
   'debts',
   'repayments',
   'transactions',
@@ -83,6 +81,10 @@ export interface EntityDef<TDraft = Record<string, unknown>> {
   label: string;
   // Excel sheet names: <=31 chars, no : \ / ? * [ ]
   sheetName: string;
+  // Older export files' names for this same sheet, still accepted on
+  // import — e.g. Projects' "Buckets" sheet from before sections were
+  // renamed (PRD-BUDGETS-V2.md section 3). Never written on export.
+  legacySheetNames?: string[];
   columns: string[];
   templateRows: string[][];
   parseRow: (row: Record<string, unknown>, rowNumber: number) => ParsedRow<TDraft>;
@@ -161,7 +163,7 @@ export interface AreaDraft {
   archived: boolean;
 }
 
-export interface BucketDraft {
+export interface SectionDraft {
   name: string;
   areaName: string;
   emoji: string | null;
@@ -189,20 +191,10 @@ export interface CategoryDraft {
   archived: boolean;
 }
 
-export interface BudgetDraft {
-  categoryName: string;
-  description: string;
-  budgetedAmount: number;
-  frequency: 'Once' | 'Daily' | 'Weekly' | 'Monthly' | 'Quarterly' | 'Yearly';
-  accountName: string | null;
-  tag: string | null;
-  archived: boolean;
-}
-
 export interface ProjectDraft {
   name: string;
   areaName: string | null;
-  bucketName: string | null;
+  sectionName: string | null;
   color: string;
   priority: Priority;
   startDate: Date | null;
@@ -223,7 +215,7 @@ export interface TaskDraft {
   tags: string[];
 }
 
-export interface GoalDraft {
+export interface BucketDraft {
   name: string;
   description: string;
   currency: string;
@@ -231,13 +223,13 @@ export interface GoalDraft {
   archived: boolean;
 }
 
-export interface GoalItemDraft {
-  goalName: string;
+export interface BucketItemDraft {
+  bucketName: string;
   name: string;
   description: string;
   amount: number;
   priority: Priority;
-  necessity: GoalItemNecessity;
+  necessity: BucketItemNecessity;
   completed: boolean;
 }
 
@@ -285,13 +277,12 @@ export interface TransferDraft {
 // Entity definitions
 // ---------------------------------------------------------------------------
 
-const PRIORITY_OPTIONS = ['Low', 'Medium', 'High'] as const;
+const PRIORITY_OPTIONS = ['Low', 'Medium', 'High', 'Urgent'] as const;
 const DEBT_PRIORITY_OPTIONS = ['low', 'medium', 'high'] as const;
 const TASK_TYPE_OPTIONS = ['ToDo', 'Meeting', 'Event'] as const;
 const TASK_STATUS_OPTIONS = ['Pending', 'Stuck', 'In Review', 'Done'] as const;
 const PROJECT_STATUS_OPTIONS = ['Active', 'Completed', 'Archived'] as const;
 const CATEGORY_TYPE_OPTIONS = ['Expense', 'Income', 'Savings'] as const;
-const BUDGET_FREQUENCY_OPTIONS = ['Once', 'Daily', 'Weekly', 'Monthly', 'Quarterly', 'Yearly'] as const;
 const NECESSITY_OPTIONS = ['MustHave', 'NiceToHave'] as const;
 const DEBT_TYPE_OPTIONS = ['cash', 'existing'] as const;
 const REPAYMENT_METHOD_OPTIONS = ['manual', 'planned'] as const;
@@ -325,10 +316,11 @@ export const AREA_ENTITY: EntityDef<AreaDraft> = {
   },
 };
 
-export const BUCKET_ENTITY: EntityDef<BucketDraft> = {
-  key: 'buckets',
-  label: 'Buckets',
-  sheetName: 'Buckets',
+export const SECTION_ENTITY: EntityDef<SectionDraft> = {
+  key: 'sections',
+  label: 'Sections',
+  sheetName: 'Sections',
+  legacySheetNames: ['Buckets'],
   columns: ['Name', 'Area', 'Emoji', 'Color', 'Description', 'Archived'],
   templateRows: [['Groceries', 'Home', '🛒', '#8bc34a', 'Weekly food shopping', 'FALSE']],
   parseRow(row, rowNumber) {
@@ -341,7 +333,7 @@ export const BUCKET_ENTITY: EntityDef<BucketDraft> = {
     if (!areaName) errors.push('Area is required.');
     if (!description) errors.push('Description is required.');
     if (errors.length) return { rowNumber, draft: null, refs: [], errors };
-    const draft: BucketDraft = {
+    const draft: SectionDraft = {
       name,
       areaName,
       emoji: optionalCell(row, 'Emoji'),
@@ -429,45 +421,11 @@ export const CATEGORY_ENTITY: EntityDef<CategoryDraft> = {
   },
 };
 
-export const BUDGET_ENTITY: EntityDef<BudgetDraft> = {
-  key: 'budgets',
-  label: 'Budgets',
-  sheetName: 'Budgets',
-  columns: ['Category', 'Description', 'Budgeted Amount', 'Frequency', 'Account', 'Tag', 'Archived'],
-  templateRows: [['Groceries', 'Monthly food budget', '150000', 'Monthly', '', '', 'FALSE']],
-  parseRow(row, rowNumber) {
-    if (isRowBlank(row, this.columns)) return { rowNumber, draft: null, refs: [], errors: [] };
-    const categoryName = cell(row, 'Category');
-    const errors: string[] = [];
-    if (!categoryName) errors.push('Category is required.');
-    const budgetedAmount = parseNumber(cell(row, 'Budgeted Amount'));
-    if (budgetedAmount === null) errors.push('Budgeted Amount must be a number.');
-    const frequency = parseEnum(cell(row, 'Frequency'), BUDGET_FREQUENCY_OPTIONS, 'Monthly');
-    if (frequency.error) errors.push(`Frequency ${frequency.error}`);
-    if (errors.length) return { rowNumber, draft: null, refs: [], errors };
-    const accountName = optionalCell(row, 'Account');
-    const draft: BudgetDraft = {
-      categoryName,
-      description: cell(row, 'Description'),
-      budgetedAmount: budgetedAmount!,
-      frequency: frequency.value,
-      accountName,
-      tag: optionalCell(row, 'Tag'),
-      archived: parseBool(cell(row, 'Archived')),
-    };
-    const refs: RefNeed[] = [
-      { field: 'categoryId', entityKey: 'categories', name: categoryName, mode: 'autoCreate', onDecline: 'skipRow' },
-    ];
-    if (accountName) refs.push({ field: 'accountId', entityKey: 'accounts', name: accountName, mode: 'hardRequired' });
-    return { rowNumber, draft, refs, errors: [] };
-  },
-};
-
 export const PROJECT_ENTITY: EntityDef<ProjectDraft> = {
   key: 'projects',
   label: 'Projects',
   sheetName: 'Projects',
-  columns: ['Name', 'Area', 'Bucket', 'Color', 'Priority', 'Start Date', 'End Date', 'Status', 'Description'],
+  columns: ['Name', 'Area', 'Section', 'Color', 'Priority', 'Start Date', 'End Date', 'Status', 'Description'],
   templateRows: [
     ['Repaint the fence', 'Home', 'Maintenance', '#ff9800', 'Medium', '2026-03-01', '2026-03-15', 'Active', 'Repaint the back fence before summer'],
   ],
@@ -484,11 +442,11 @@ export const PROJECT_ENTITY: EntityDef<ProjectDraft> = {
     if (status.error) errors.push(`Status ${status.error}`);
     if (errors.length) return { rowNumber, draft: null, refs: [], errors };
     const areaName = optionalCell(row, 'Area');
-    const bucketName = optionalCell(row, 'Bucket');
+    const sectionName = optionalCell(row, 'Section');
     const draft: ProjectDraft = {
       name,
       areaName,
-      bucketName,
+      sectionName,
       color: cell(row, 'Color') || '#7b7ef3',
       priority: priority.value,
       startDate: parseDateCell(row, 'Start Date'),
@@ -498,7 +456,7 @@ export const PROJECT_ENTITY: EntityDef<ProjectDraft> = {
     };
     const refs: RefNeed[] = [];
     if (areaName) refs.push({ field: 'areaId', entityKey: 'areas', name: areaName, mode: 'autoCreate', onDecline: 'skipRow' });
-    if (bucketName) refs.push({ field: 'bucketId', entityKey: 'buckets', name: bucketName, mode: 'autoCreate', onDecline: 'null' });
+    if (sectionName) refs.push({ field: 'bucketId', entityKey: 'sections', name: sectionName, mode: 'autoCreate', onDecline: 'null' });
     return { rowNumber, draft, refs, errors: [] };
   },
 };
@@ -542,10 +500,13 @@ export const TASK_ENTITY: EntityDef<TaskDraft> = {
   },
 };
 
-export const GOAL_ENTITY: EntityDef<GoalDraft> = {
-  key: 'goals',
-  label: 'Goals',
-  sheetName: 'Goals',
+export const BUCKET_ENTITY: EntityDef<BucketDraft> = {
+  key: 'buckets',
+  label: 'Buckets',
+  // Not plain "Buckets": older exports used that name for Projects'
+  // sections (see the sections entity's legacySheetNames).
+  sheetName: 'Money Buckets',
+  legacySheetNames: ['Goals'],
   columns: ['Name', 'Description', 'Currency', 'Deadline', 'Archived'],
   templateRows: [['New laptop', 'Save up for a work laptop', 'XAF', '2026-12-31', 'FALSE']],
   parseRow(row, rowNumber) {
@@ -571,18 +532,20 @@ export const GOAL_ENTITY: EntityDef<GoalDraft> = {
   },
 };
 
-export const GOAL_ITEM_ENTITY: EntityDef<GoalItemDraft> = {
-  key: 'goalItems',
-  label: 'Goal items',
-  sheetName: 'Goal Items',
-  columns: ['Goal', 'Name', 'Description', 'Amount', 'Priority', 'Necessity', 'Completed'],
+export const BUCKET_ITEM_ENTITY: EntityDef<BucketItemDraft> = {
+  key: 'bucketItems',
+  label: 'Bucket items',
+  sheetName: 'Bucket Items',
+  legacySheetNames: ['Goal Items'],
+  columns: ['Bucket', 'Name', 'Description', 'Amount', 'Priority', 'Necessity', 'Completed'],
   templateRows: [['New laptop', 'Laptop body', '', '600000', 'High', 'MustHave', 'FALSE']],
   parseRow(row, rowNumber) {
     if (isRowBlank(row, this.columns)) return { rowNumber, draft: null, refs: [], errors: [] };
-    const goalName = cell(row, 'Goal');
+    // 'Goal' is the same column in an export from before the rename.
+    const bucketName = cell(row, 'Bucket') || cell(row, 'Goal');
     const name = cell(row, 'Name');
     const errors: string[] = [];
-    if (!goalName) errors.push('Goal is required.');
+    if (!bucketName) errors.push('Bucket is required.');
     if (!name) errors.push('Name is required.');
     const amount = parseNumber(cell(row, 'Amount'));
     if (amount === null) errors.push('Amount must be a number.');
@@ -591,8 +554,8 @@ export const GOAL_ITEM_ENTITY: EntityDef<GoalItemDraft> = {
     const necessity = parseEnum(cell(row, 'Necessity'), NECESSITY_OPTIONS, 'NiceToHave');
     if (necessity.error) errors.push(`Necessity ${necessity.error}`);
     if (errors.length) return { rowNumber, draft: null, refs: [], errors };
-    const draft: GoalItemDraft = {
-      goalName,
+    const draft: BucketItemDraft = {
+      bucketName,
       name,
       description: cell(row, 'Description'),
       amount: amount!,
@@ -603,7 +566,7 @@ export const GOAL_ITEM_ENTITY: EntityDef<GoalItemDraft> = {
     return {
       rowNumber,
       draft,
-      refs: [{ field: 'goalId', entityKey: 'goals', name: goalName, mode: 'autoCreate', onDecline: 'skipRow' }],
+      refs: [{ field: 'goalId', entityKey: 'buckets', name: bucketName, mode: 'autoCreate', onDecline: 'skipRow' }],
       errors: [],
     };
   },
@@ -774,14 +737,13 @@ export const TRANSFER_ENTITY: EntityDef<TransferDraft> = {
 
 export const ENTITY_DEFS: Record<EntityKey, EntityDef<unknown>> = {
   areas: AREA_ENTITY,
-  buckets: BUCKET_ENTITY,
+  sections: SECTION_ENTITY,
   accounts: ACCOUNT_ENTITY,
   categories: CATEGORY_ENTITY,
-  budgets: BUDGET_ENTITY,
   projects: PROJECT_ENTITY,
   tasks: TASK_ENTITY,
-  goals: GOAL_ENTITY,
-  goalItems: GOAL_ITEM_ENTITY,
+  buckets: BUCKET_ENTITY,
+  bucketItems: BUCKET_ITEM_ENTITY,
   debts: DEBT_ENTITY,
   repayments: REPAYMENT_ENTITY,
   transactions: TRANSACTION_ENTITY,

@@ -12,6 +12,7 @@ import type { FirestoreSettings, FirestoreExchangeRate } from '@/src/shared/fire
 import { currencyName } from '@/src/viewmodels/currencies';
 import { clearSignedIn } from '@/src/shared/config/authSession';
 import { INITIAL_REMINDER_TIMES } from '@/src/viewmodels/settings';
+import { useGoBack } from '@/src/shared/navigation/useGoBack';
 
 export function useLogic() {
   const router = useRouter();
@@ -95,8 +96,11 @@ export function useLogic() {
     router.push('/');
   }
 
+  // Back to the page the user came from (skipping forms); '/home' only
+  // when there's no history — see src/shared/navigation/useGoBack.ts.
+  const navigateBack = useGoBack();
   function goBack() {
-    router.push('/home');
+    navigateBack('/home');
   }
 
   return {

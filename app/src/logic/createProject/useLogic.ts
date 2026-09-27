@@ -4,12 +4,13 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { query, setDoc, serverTimestamp, Timestamp, where } from 'firebase/firestore';
 import { useFirestoreCollection } from '@/src/shared/firestore/hooks';
-import { useBuckets } from '@/src/shared/firestore/queries';
+import { useSections } from '@/src/shared/firestore/queries';
 import { areasRef, projectRef } from '@/src/shared/firestore/refs';
-import { ensureDefaultBucket, defaultBucketId } from '@/src/shared/firestore/buckets';
+import { ensureDefaultSection, defaultSectionId } from '@/src/shared/firestore/sections';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { PROJECT_COLORS, DEFAULT_PRIORITY } from '@/src/viewmodels/projects';
 import type { FirestoreArea, Priority } from '@/src/shared/firestore/types';
+import { useGoBack } from '@/src/shared/navigation/useGoBack';
 
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
@@ -47,12 +48,12 @@ export function useLogic() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const isValid = Boolean(name.trim() && description.trim());
 
-  // Every bucket in the chosen area — always includes that area's own
-  // default bucket (buckets.ts), since areaDetail/useLogic.ts's self-heal
+  // Every section in the chosen area — always includes that area's own
+  // default section (sections.ts), since areaDetail/useLogic.ts's self-heal
   // effect guarantees one exists by the time an area can be picked here.
-  const { data: buckets } = useBuckets(areaId || undefined);
+  const { data: sections } = useSections(areaId || undefined);
 
-  // Switching areas resets the bucket choice to that area's default, and
+  // Switching areas resets the section choice to that area's default, and
   // guarantees that default exists — this screen may well be the first
   // place an area is ever touched, so it can't just assume
   // areaDetail/useLogic.ts's own self-heal has already run for it.
@@ -61,10 +62,10 @@ export function useLogic() {
       setBucketId('');
       return;
     }
-    if (uid) ensureDefaultBucket(uid, areaId, color);
-    setBucketId((current) => (buckets.some((b) => b.id === current) ? current : defaultBucketId(areaId)));
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- `color` intentionally excluded: it's only the fallback for a brand-new default bucket's own swatch, not something that should re-run this on every color pick.
-  }, [areaId, buckets, uid]);
+    if (uid) ensureDefaultSection(uid, areaId, color);
+    setBucketId((current) => (sections.some((b) => b.id === current) ? current : defaultSectionId(areaId)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `color` intentionally excluded: it's only the fallback for a brand-new default section's own swatch, not something that should re-run this on every color pick.
+  }, [areaId, sections, uid]);
 
   async function handleSave() {
     if (!uid || saving || !isValid) return;
@@ -73,11 +74,11 @@ export function useLogic() {
     try {
       const id = crypto.randomUUID();
       const endDateValue = endDate ? Timestamp.fromDate(new Date(`${endDate}T00:00:00`)) : null;
-      // A project's bucket only makes sense alongside its area — resolve
+      // A project's section only makes sense alongside its area — resolve
       // (and lazily create, for an area older than this feature) the
-      // area's default bucket right before writing, rather than trusting
+      // area's default section right before writing, rather than trusting
       // the picker's state alone.
-      const resolvedBucketId = areaId ? bucketId || (await ensureDefaultBucket(uid, areaId, color)) : null;
+      const resolvedBucketId = areaId ? bucketId || (await ensureDefaultSection(uid, areaId, color)) : null;
       await setDoc(projectRef(uid, id), {
         name: name.trim(),
         emoji,
@@ -101,13 +102,16 @@ export function useLogic() {
     }
   }
 
+  // Back to the page the user came from (skipping forms); '/projects' only
+  // when there's no history — see src/shared/navigation/useGoBack.ts.
+  const navigateBack = useGoBack();
   function goBack() {
-    router.push('/projects');
+    navigateBack('/projects');
   }
 
   return {
     areas,
-    buckets,
+    sections,
     name,
     setName,
     emoji,

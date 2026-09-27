@@ -7,187 +7,6 @@
   gap: var(--space-lg);
 }
 
-.portfolioTitle {
-  margin: 0;
-  font-family: var(--font-family-heading);
-  font-size: var(--font-size-xl);
-  font-weight: 800;
-  color: var(--color-text-primary);
-}
-
-/* "Welcome, {name}" — Design/task5.JPG's home greeting. */
-
-.greeting {
-  margin: 0;
-  font-family: var(--font-family-heading);
-  font-size: var(--font-size-xl);
-  font-weight: 800;
-  color: var(--color-text-primary);
-}
-
-/* "See your performance" card — one box per day of the last 30 days
-   (taskInsights.ts's dailyCompletionActivity), shaded by how busy that
-   day was, laid out as a single row spanning the card's full width. */
-
-.performanceCard {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-md);
-  padding: var(--space-lg);
-  border-radius: 0;
-  background: var(--color-background);
-}
-
-.performanceLeft {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-md);
-}
-
-.performanceTitle {
-  margin: 0;
-  font-size: var(--font-size-sm);
-  font-weight: 700;
-  color: var(--color-text-primary);
-}
-
-.performanceButton {
-  flex-shrink: 0;
-  padding: var(--space-xs) var(--space-md);
-  border: none;
-  border-radius: var(--radius-full);
-  background: var(--ink-bg);
-  color: var(--ink-text);
-  font-family: inherit;
-  font-size: 0.75rem;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.performanceHeatmapWrap {
-  width: 100%;
-}
-
-.performanceHeatmap {
-  display: flex;
-  align-items: stretch;
-  gap: 3px;
-  width: 100%;
-}
-
-.heatmapCell {
-  flex: 1;
-  min-width: 0;
-  height: 32px;
-  border-radius: 3px;
-  background: var(--color-border);
-}
-
-.heatmapCell[data-level='1'] {
-  background: color-mix(in srgb, var(--ink-bg) 35%, var(--color-border));
-}
-
-.heatmapCell[data-level='2'] {
-  background: color-mix(in srgb, var(--ink-bg) 60%, var(--color-border));
-}
-
-.heatmapCell[data-level='3'] {
-  background: color-mix(in srgb, var(--ink-bg) 82%, var(--color-border));
-}
-
-.heatmapCell[data-level='4'] {
-  background: var(--ink-bg);
-}
-
-/* Top row — a section title left, one or more small text actions right
-   (a page-view link, "See all", "Set priorities", ...). */
-
-.topRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-sm);
-}
-
-.topRowActions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-md);
-}
-
-/* Projects carousel sort — Timeline (start date) vs. Name. */
-
-.sortToggle {
-  display: flex;
-  gap: 2px;
-  padding: 2px;
-  border-radius: var(--radius-full);
-  background: var(--color-surface);
-}
-
-.sortToggleButton {
-  border: none;
-  background: none;
-  font-family: inherit;
-  padding: 4px var(--space-sm);
-  border-radius: var(--radius-full);
-  font-size: 0.7rem;
-  font-weight: 700;
-  color: var(--color-text-secondary);
-  cursor: pointer;
-}
-
-.sortToggleButtonActive {
-  background: var(--ink-bg);
-  color: #ffffff;
-}
-
-/* Today's tasks' own action pair — a black filled pill ("See all") next to
-   a white bordered pill ("Set priorities" / "Edit"), both fully rounded. */
-
-.pillButtonBlack {
-  flex-shrink: 0;
-  padding: var(--space-xs) var(--space-md);
-  border: none;
-  border-radius: var(--radius-full);
-  background: var(--ink-bg);
-  font-family: inherit;
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--ink-text);
-  cursor: pointer;
-}
-
-.pillButtonWhite {
-  flex-shrink: 0;
-  padding: var(--space-xs) var(--space-md);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-full);
-  background: var(--color-background);
-  font-family: inherit;
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--color-text-primary);
-  cursor: pointer;
-}
-
-/* The rounded "create new" affordance every project/task/bucket list gets
-   next to its own section header. */
-.addIconButton {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 28px;
-  height: 28px;
-  border: none;
-  border-radius: var(--radius-full);
-  background: var(--ink-bg);
-  color: var(--ink-text);
-  cursor: pointer;
-}
-
 /* "See all" — a round 45°-arrow button next to a section header, same
    affordance/style Home's own viewAllButton uses (HomeScreen.module.css),
    linking to that section's own full list page instead of a create flow. */
@@ -202,86 +21,14 @@
   color: #ffffff;
   text-decoration: none;
   flex-shrink: 0;
-}
-
-/* Projects carousel — Design/task5.JPG's home "Projects" row: the one
-   ProjectCard (src/widgets/ProjectCard) every project list in the app now
-   uses, scrolling horizontally, same data-hscroll convention as Home's own
-   wallet cards row. */
-
-.projectCarousel {
-  display: flex;
-  gap: var(--space-md);
-  overflow-x: auto;
-  scroll-snap-type: x proximity;
-  margin: 0 calc(-1 * var(--space-lg));
-  /* Left inset matches .page's own padding exactly, so the first card's
-     left edge lines up with the "Projects" heading above it. */
-  padding: var(--space-xs) var(--space-lg) var(--space-md);
+  border: none;
+  cursor: pointer;
+  transition: transform var(--duration-press) var(--ease-out);
 }
 
 .emptyText {
   margin: 0;
   font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
-}
-
-.areaCarousel {
-  display: flex;
-  gap: var(--space-md);
-  overflow-x: auto;
-  scroll-snap-type: x proximity;
-  margin: 0 calc(-1 * var(--space-lg));
-  padding: var(--space-xs) var(--space-lg) var(--space-md);
-}
-
-.areaCard {
-  display: flex;
-  flex-direction: column;
-  flex-shrink: 0;
-  /* Same width as ProjectCard/BucketCard — every list in the Projects hub
-     scrolls horizontally now. */
-  width: 66.6667vw;
-  max-width: calc(var(--app-max-width) * 2 / 3);
-  min-width: 240px;
-  border: none;
-  border-radius: 0;
-  background: var(--color-background);
-  font-family: inherit;
-  text-align: left;
-  cursor: pointer;
-  overflow: hidden;
-  color: var(--color-text-primary);
-  scroll-snap-align: start;
-}
-
-.areaCardCover {
-  width: 100%;
-  height: 80px;
-  flex-shrink: 0;
-  background-color: var(--color-border);
-  background-size: cover;
-  background-position: center;
-}
-
-.areaCardBody {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--space-xs);
-  padding: var(--space-md);
-}
-
-.areaCardName {
-  margin: 0;
-  font-size: var(--font-size-sm);
-  font-weight: 700;
-  color: var(--color-text-primary);
-}
-
-.areaCardMeta {
-  margin: 0;
-  font-size: 0.75rem;
   color: var(--color-text-secondary);
 }
 
@@ -293,12 +40,6 @@
   margin: calc(-1 * var(--space-sm)) 0 0;
   font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
-}
-
-.priorityList {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
 }
 
 .pickerList {
@@ -361,4 +102,122 @@
   font-size: var(--font-size-md);
   font-weight: 700;
   cursor: pointer;
+}
+
+/* ---- Time hub (projects strip + today's checklist) ---- */
+.hubSection {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.hubHeader {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.hubHeading {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.hubTitle {
+  margin: 0;
+  font-family: var(--font-family-heading);
+  font-size: var(--font-size-xl);
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.hubSubtitle {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.hubActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-shrink: 0;
+}
+
+.iconButtonSoft {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: transform var(--duration-press) var(--ease-out);
+}
+
+.iconButtonSoft:active,
+.viewAllButton:active {
+  transform: scale(0.92);
+}
+
+.iconButtonSoft:focus-visible,
+.viewAllButton:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+}
+
+/* Full-bleed horizontal strip: cards start flush with the page's own
+   left padding and scroll out past the right edge. The vertical padding
+   keeps the cards' shadows from being clipped by overflow-x. */
+.projectStrip {
+  display: flex;
+  gap: 12px;
+  margin: 0 calc(-1 * var(--space-lg));
+  padding: 4px var(--space-lg) 14px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-padding-inline: var(--space-lg);
+  -webkit-overflow-scrolling: touch;
+}
+
+.taskList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.todayEmpty {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: var(--space-lg) var(--space-md);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-lg);
+  text-align: center;
+}
+
+.todayEmptyTitle {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .iconButtonSoft {
+    transition: none;
+  }
+
+  .iconButtonSoft:active,
+  .viewAllButton:active {
+    transform: none;
+  }
 }

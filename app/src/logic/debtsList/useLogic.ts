@@ -1,8 +1,8 @@
 'use client';
 
-// Debt hub — its own bottom-nav tab, split from Goals (src/logic/goals is
-// Goals' own equivalent hub now) per the "two separate pages" request: they
-// used to share one Goals & Debt screen behind an in-page tab. List-level
+// Debt hub — its own bottom-nav tab, split from Buckets (src/logic/buckets is
+// Buckets' own equivalent hub now) per the "two separate pages" request: they
+// used to share one Buckets & Debt screen behind an in-page tab. List-level
 // data only — a debt's repayment history/trend lives on its own detail
 // screen (src/logic/debtDetail).
 

@@ -45,7 +45,7 @@ export function ImportDataScreen() {
         <div className={styles.form}>
           <p className={styles.helperText}>
             Upload a Dreda export or template (.xlsx or .csv). Each sheet is matched by name — Areas, Buckets,
-            Accounts, Categories, Budgets, Projects, Tasks, Goals, Goal Items, Debts, Repayments, Transactions,
+            Accounts, Categories, Budgets, Projects, Tasks, Buckets, Bucket Items, Debts, Repayments, Transactions,
             Transfers.
           </p>
           <input

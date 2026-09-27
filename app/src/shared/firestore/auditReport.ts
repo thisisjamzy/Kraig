@@ -32,27 +32,30 @@ import {
   accountsRef,
   debtsRef,
   categoriesRef,
-  budgetRulesRef,
-  goalsRef,
+  bucketsRef,
+  bucketLineItemsRef,
+  allocationsRef,
+  transfersRef,
   settingsRef,
   exchangeRatesRef,
   statsMonthlyRef,
-  statsBudgetProgressRef,
   transactionsRef,
   auditReportsRef,
   auditReportRef,
 } from './refs';
 import { buildCurrencyContext, toDisplay, round2, type CurrencyContext } from './currency';
+import { buildMonthBudget, monthKeyOf as budgetMonthKeyOf } from '../budget/monthBudget';
+import { buildItemSpend, bucketProgress } from '../budget/bucketProgress';
 import type {
   FirestoreAccount,
   FirestoreDebt,
   FirestoreCategory,
-  FirestoreBudgetRule,
-  FirestoreGoal,
+  FirestoreBucket,
   FirestoreTransaction,
   FirestoreDebtRecurringPlan,
   StatsMonthly,
-  StatsBudgetProgress,
+  FirestoreAllocation,
+  FirestoreTransfer,
 } from './types';
 
 // ---------------------------------------------------------------------------
@@ -102,7 +105,7 @@ export interface ExecutiveSummary {
   redFlags: RedFlag[];
   netWorthSparkline: { label: string; value: number }[];
   netWorthSparklineNote: string;
-  goalsStatus: { total: number; completed: number; totalTarget: number; totalSaved: number };
+  bucketsStatus: { total: number; completed: number; totalTarget: number; totalSaved: number };
   debtStatus: { totalDebt: number; debtCount: number; monthsToPayoffAvg: number | null };
 }
 
@@ -177,6 +180,8 @@ export interface SpendingHabits {
 }
 
 export interface BudgetVarianceRow {
+  // A bucket item's id since Budgets v2 (a budget rule's before) — the
+  // name is kept because saved reports are immutable snapshots.
   ruleId: string;
   categoryId: string;
   name: string;
@@ -216,7 +221,7 @@ export interface FinancialHealth {
   rankedByUrgency: { label: string; status: Status; note: string }[];
 }
 
-export interface GoalRow {
+export interface BucketRow {
   goalId: string;
   name: string;
   totalAmount: number;
@@ -235,8 +240,8 @@ export interface DebtRow {
   priority: string;
 }
 
-export interface GoalsDebtSummary {
-  goals: GoalRow[];
+export interface BucketsDebtSummary {
+  buckets: BucketRow[];
   debts: DebtRow[];
   payoffOpportunity: string | null;
 }
@@ -275,7 +280,7 @@ export interface AuditReportData {
   spendingHabits: SpendingHabits;
   budgetAdherence: BudgetAdherence;
   financialHealth: FinancialHealth;
-  goalsDebt: GoalsDebtSummary;
+  bucketsDebt: BucketsDebtSummary;
   appendix: Appendix;
 }
 
@@ -420,23 +425,19 @@ export async function generateAuditReport(uid: string, selection: AuditReportSel
     accountsSnap,
     debtsSnap,
     categoriesSnap,
-    budgetRulesSnap,
-    goalsSnap,
+    bucketsSnap,
     settingsSnap,
     ratesSnap,
     statsMonthlySnaps,
-    statsBudgetSnaps,
     periodTxSnap,
   ] = await Promise.all([
     getDocs(accountsRef(uid)),
     getDocs(debtsRef(uid)),
     getDocs(categoriesRef(uid)),
-    getDocs(budgetRulesRef(uid)),
-    getDocs(goalsRef(uid)),
+    getDocs(bucketsRef(uid)),
     getDoc(settingsRef(uid)),
     getDocs(exchangeRatesRef(uid)),
     Promise.all(trailing12.map((m) => getDoc(statsMonthlyRef(uid, m.key)))),
-    Promise.all(trailing12.map((m) => getDoc(statsBudgetProgressRef(uid, m.key)))),
     getDocs(
       query(
         transactionsRef(uid),
@@ -464,11 +465,66 @@ export async function generateAuditReport(uid: string, selection: AuditReportSel
   const debts = debtsSnap.docs.map((d) => ({ ...d.data(), id: d.id }) as FirestoreDebt).filter((d) => !d.archivedAt);
   const categories = categoriesSnap.docs.map((d) => ({ ...d.data(), id: d.id }) as FirestoreCategory);
   const categoryById = new Map(categories.map((c) => [c.id, c]));
-  const budgetRules = budgetRulesSnap.docs.map((d) => ({ ...d.data(), id: d.id }) as FirestoreBudgetRule).filter((r) => !r.archived);
-  const goals = goalsSnap.docs.map((d) => ({ ...d.data(), id: d.id }) as FirestoreGoal).filter((g) => !g.archived);
+  const buckets = bucketsSnap.docs.map((d) => ({ ...d.data(), id: d.id }) as FirestoreBucket).filter((g) => !g.archived);
 
   const monthStats: (StatsMonthly | undefined)[] = statsMonthlySnaps.map((s) => (s.exists() ? { ...s.data(), id: s.id } : undefined));
-  const monthBudget: (StatsBudgetProgress | undefined)[] = statsBudgetSnaps.map((s) => (s.exists() ? s.data() : undefined));
+  // PRD-BUDGETS-V2.md — budget adherence per bucket item, from the same
+  // derived month budget the Budget screen shows (buildMonthBudget), for
+  // each of the trailing 12 months: "budgeted" is what the item had
+  // available that month (planned ± allocations), "spent" what was linked
+  // to it. Only Expense/Savings items — income over/under isn't adherence.
+  const monthKeys = trailing12.map((m) => m.key);
+  const trailingStart = new Date(trailing12[0].year, trailing12[0].month, 1);
+  const trailingEnd = new Date(end.getFullYear(), end.getMonth() + 1, 1);
+  const [itemSnaps, trailingTxSnap, linkedTxSnap, trailingTransferSnap, linkedTransferSnap, allocationsSnap] = await Promise.all([
+    Promise.all(buckets.map((bucket) => getDocs(bucketLineItemsRef(uid, bucket.id)))),
+    getDocs(query(transactionsRef(uid), where('date', '>=', Timestamp.fromDate(trailingStart)), where('date', '<', Timestamp.fromDate(trailingEnd)))),
+    getDocs(query(transactionsRef(uid), where('bucketItem.month', 'in', monthKeys))),
+    getDocs(query(transfersRef(uid), where('date', '>=', Timestamp.fromDate(trailingStart)), where('date', '<', Timestamp.fromDate(trailingEnd)))),
+    getDocs(query(transfersRef(uid), where('bucketItem.month', 'in', monthKeys))),
+    getDocs(query(allocationsRef(uid), where('months', 'array-contains-any', monthKeys))),
+  ]);
+  const itemsByBucket = Object.fromEntries(
+    buckets.map((bucket, i) => [bucket.id, itemSnaps[i].docs.map((d) => ({ ...d.data(), id: d.id }))])
+  );
+  const budgetTransactions = [...linkedTxSnap.docs, ...trailingTxSnap.docs].map((d) => {
+    const t = { ...d.data(), id: d.id } as FirestoreTransaction;
+    return { ...t, month: t.month ?? budgetMonthKeyOf(t.date.toDate()) };
+  });
+  const budgetTransfers = [...linkedTransferSnap.docs, ...trailingTransferSnap.docs].map((d) => {
+    const t = { ...d.data(), id: d.id } as FirestoreTransfer;
+    return { ...t, month: budgetMonthKeyOf(t.date.toDate()) };
+  });
+  const allocations = allocationsSnap.docs.map((d) => ({ ...d.data(), id: d.id }) as FirestoreAllocation);
+  const accountCurrency = new Map(accountsSnap.docs.map((d) => [d.id, d.data().currency as string]));
+  const budgetCategories = new Map(categories.map((c) => [c.id, { name: c.name, transactionType: c.transactionType }]));
+  const monthBudget = trailing12.map((m) => {
+    const budget = buildMonthBudget({
+      month: m.key,
+      buckets,
+      itemsByBucket,
+      transactions: budgetTransactions,
+      transfers: budgetTransfers,
+      allocations,
+      accountCurrency,
+      categories: budgetCategories,
+      baseCurrency: ctx.base,
+      toDisplay: (amount, currency) => toDisplay(ctx, amount, currency),
+    });
+    return new Map(
+      budget.items
+        .filter((entry) => entry.type === 'Expense' || entry.type === 'Savings')
+        .map((entry) => [entry.itemId, { budgeted: entry.available, spent: entry.actual, entry }])
+    );
+  });
+  // Every item that applied to at least one trailing month, in the shape
+  // the adherence loops below walk.
+  const budgetItems = new Map<string, { id: string; categoryId: string; name: string; kind: 'Fixed' | 'Planned' }>();
+  for (const month of monthBudget) {
+    for (const [itemId, { entry }] of month) {
+      budgetItems.set(itemId, { id: itemId, categoryId: entry.categoryId ?? 'uncategorized', name: entry.name, kind: entry.kind });
+    }
+  }
 
   const periodTransactions = periodTxSnap.docs.map((d) => ({ ...d.data(), id: d.id }) as FirestoreTransaction);
 
@@ -496,7 +552,7 @@ export async function generateAuditReport(uid: string, selection: AuditReportSel
     .sort((a, b) => b.value - a.value);
   const highestPriorityDebt = [...debts].sort((a, b) => b.currentBalance - a.currentBalance)[0];
   const debtPayoffOpportunity = highestPriorityDebt
-    ? `Paying an extra amount toward "${highestPriorityDebt.name}" (largest balance) shortens its payoff timeline the most per unit paid — see Goals & Debt Summary for its current pace.`
+    ? `Paying an extra amount toward "${highestPriorityDebt.name}" (largest balance) shortens its payoff timeline the most per unit paid — see Buckets & Debt Summary for its current pace.`
     : null;
 
   // ---- Cash flow trend (trailing 12 + period sums) ----
@@ -551,7 +607,7 @@ export async function generateAuditReport(uid: string, selection: AuditReportSel
       status: diningPercent > 12 ? 'red' : diningPercent > 8 ? 'yellow' : 'yellow',
       message:
         diningPercent > 12
-          ? 'Excessive — dining/entertainment spend is crowding out other goals.'
+          ? 'Excessive — dining/entertainment spend is crowding out other buckets.'
           : diningPercent > 8
             ? 'High — worth capping.'
             : 'Watch — creeping up.',
@@ -624,7 +680,7 @@ export async function generateAuditReport(uid: string, selection: AuditReportSel
     .sort((a, b) => b.total - a.total)
     .slice(0, 8);
 
-  const recurringCategoryIds = new Set(budgetRules.filter((r) => r.frequency !== 'Once').map((r) => r.categoryId));
+  const recurringCategoryIds = new Set([...budgetItems.values()].filter((item) => item.kind === 'Fixed').map((item) => item.categoryId));
   let recurringTotal = 0;
   let variableTotal = 0;
   for (const row of expenseBreakdown) {
@@ -643,13 +699,13 @@ export async function generateAuditReport(uid: string, selection: AuditReportSel
 
   // ---- Budget adherence ----
   const rows: BudgetVarianceRow[] = [];
-  for (const rule of budgetRules) {
+  for (const rule of budgetItems.values()) {
     let budgeted = 0;
     let actual = 0;
     let monthsApplied = 0;
     trailing12.forEach((m, i) => {
       if (!periodMonthKeys.has(m.key)) return;
-      const entry = monthBudget[i]?.[rule.id];
+      const entry = monthBudget[i]?.get(rule.id);
       if (!entry) return;
       budgeted += entry.budgeted;
       actual += entry.spent;
@@ -662,7 +718,7 @@ export async function generateAuditReport(uid: string, selection: AuditReportSel
     rows.push({
       ruleId: rule.id,
       categoryId: rule.categoryId,
-      name: categoryById.get(rule.categoryId)?.name ?? rule.description,
+      name: rule.name,
       budgeted: round2(budgeted),
       actual: round2(actual),
       variancePercent,
@@ -678,13 +734,13 @@ export async function generateAuditReport(uid: string, selection: AuditReportSel
   // per-rule then rolled up into one headline number.
   const chronicOverages: ChronicOverage[] = [];
   const perRuleScores: number[] = [];
-  for (const rule of budgetRules) {
+  for (const rule of budgetItems.values()) {
     let applicable = 0;
     let withinBand = 0;
     let currentStreak = 0;
     const flaggedMonths: string[] = [];
     trailing12.forEach((m, i) => {
-      const entry = monthBudget[i]?.[rule.id];
+      const entry = monthBudget[i]?.get(rule.id);
       if (!entry || entry.budgeted <= 0) {
         currentStreak = 0;
         return;
@@ -701,7 +757,7 @@ export async function generateAuditReport(uid: string, selection: AuditReportSel
     });
     if (applicable > 0) perRuleScores.push(pct(withinBand, applicable));
     if (flaggedMonths.length > 0) {
-      chronicOverages.push({ ruleId: rule.id, name: categoryById.get(rule.categoryId)?.name ?? rule.description, months: flaggedMonths });
+      chronicOverages.push({ ruleId: rule.id, name: rule.name, months: flaggedMonths });
     }
   }
   const consistencyScore = round2(mean(perRuleScores));
@@ -838,12 +894,43 @@ export async function generateAuditReport(uid: string, selection: AuditReportSel
     running -= trend[i].net;
   }
 
-  const activeGoals = goals;
-  const goalsStatus = {
-    total: activeGoals.length,
-    completed: activeGoals.filter((g) => g.totalAmount > 0 && g.amountCompleted >= g.totalAmount).length,
-    totalTarget: round2(activeGoals.reduce((s, g) => s + g.totalAmount, 0)),
-    totalSaved: round2(activeGoals.reduce((s, g) => s + g.amountCompleted, 0)),
+  // Bucket status — one-off (Planned) buckets only: a recurring (Fixed)
+  // bucket has no finish line to be "completed" against. Same derivation as
+  // every bucket screen (src/shared/budget/bucketProgress.ts), not the
+  // stored amountCompleted, which only counted fully-closed items.
+  const itemSpend = buildItemSpend({
+    buckets,
+    itemsByBucket,
+    transactions: budgetTransactions.filter((t) => t.bucketItem),
+    transfers: budgetTransfers.filter((t) => t.bucketItem),
+    accountCurrency,
+    baseCurrency: ctx.base,
+    toDisplay: (amount, currency) => toDisplay(ctx, amount, currency),
+  });
+  const plannedBuckets = buckets.filter((b) => b.kind !== 'Fixed');
+  const progressById = new Map(
+    buckets.map((b) => {
+      if (b.kind !== 'Fixed') {
+        return [b.id, bucketProgress(b, itemsByBucket[b.id] ?? [], itemSpend, null, (amount, currency) => toDisplay(ctx, amount, currency))];
+      }
+      // A recurring bucket is reported on the period's last month, the same
+      // month-scoped figures the Budget screen shows for it.
+      let planned = 0;
+      let spent = 0;
+      for (const { entry } of monthBudget[monthBudget.length - 1]?.values() ?? []) {
+        if (entry.bucketId !== b.id) continue;
+        planned += entry.available;
+        spent += entry.actual;
+      }
+      return [b.id, { planned: round2(planned), spent: round2(spent) }];
+    })
+  );
+  const plannedProgress = plannedBuckets.map((b) => progressById.get(b.id) as ReturnType<typeof bucketProgress>);
+  const bucketsStatus = {
+    total: plannedBuckets.length,
+    completed: plannedProgress.filter((p) => p.itemCount > 0 && p.doneCount === p.itemCount).length,
+    totalTarget: round2(plannedProgress.reduce((s, p) => s + p.planned, 0)),
+    totalSaved: round2(plannedProgress.reduce((s, p) => s + p.spent, 0)),
   };
   const debtMonthsToPayoffList = debts.map((d) => monthsToPayoff(d)).filter((v): v is number => v != null);
   const debtStatus = {
@@ -852,15 +939,18 @@ export async function generateAuditReport(uid: string, selection: AuditReportSel
     monthsToPayoffAvg: debtMonthsToPayoffList.length > 0 ? round2(mean(debtMonthsToPayoffList)) : null,
   };
 
-  // ---- Goals & Debt summary ----
-  const goalRows: GoalRow[] = activeGoals.map((g) => ({
-    goalId: g.id,
-    name: g.name,
-    totalAmount: g.totalAmount,
-    amountCompleted: g.amountCompleted,
-    percent: round2(pct(g.amountCompleted, g.totalAmount)),
-    deadline: g.deadline ? g.deadline.toDate().toISOString().slice(0, 10) : null,
-  }));
+  // ---- Buckets & Debt summary ----
+  const bucketRows: BucketRow[] = buckets.map((g) => {
+    const { planned, spent } = progressById.get(g.id) ?? { planned: 0, spent: 0 };
+    return {
+      goalId: g.id,
+      name: g.name,
+      totalAmount: planned,
+      amountCompleted: spent,
+      percent: round2(pct(spent, planned)),
+      deadline: g.deadline ? g.deadline.toDate().toISOString().slice(0, 10) : null,
+    };
+  });
   const debtRows: DebtRow[] = debts.map((d) => ({
     debtId: d.id,
     name: d.name,
@@ -917,7 +1007,7 @@ export async function generateAuditReport(uid: string, selection: AuditReportSel
       redFlags,
       netWorthSparkline: sparkline,
       netWorthSparklineNote: "Estimated by working backward from today's actual net worth using each month's recorded net cash flow — not a stored historical balance.",
-      goalsStatus,
+      bucketsStatus,
       debtStatus,
     },
     balanceSheet: {
@@ -941,7 +1031,7 @@ export async function generateAuditReport(uid: string, selection: AuditReportSel
     },
     budgetAdherence: { rows, consistencyScore, chronicOverages },
     financialHealth: { metrics, overallStatus, overallSummary, incomeLossContingency, rankedByUrgency },
-    goalsDebt: { goals: goalRows, debts: debtRows, payoffOpportunity },
+    bucketsDebt: { buckets: bucketRows, debts: debtRows, payoffOpportunity },
     appendix: { transactions: appendixTransactions, truncatedCount: Math.max(0, periodTransactions.length - APPENDIX_LIMIT), totalsByCategory },
   };
 

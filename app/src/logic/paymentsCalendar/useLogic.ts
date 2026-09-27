@@ -1,9 +1,9 @@
 'use client';
 
-// Upcoming payments now come straight from goal line items' own due dates
-// (src/shared/firestore/upcomingPayments.ts's computeUpcomingPaymentsFromGoalItems)
+// Upcoming payments now come straight from bucket line items' own due dates
+// (src/shared/firestore/upcomingPayments.ts's computeUpcomingPaymentsFromBucketItems)
 // instead of the separate plannedPayments collection — "add an upcoming
-// payment" means "add a goal line item with a due date" on Goal Detail now,
+// payment" means "add a bucket line item with a due date" on Bucket Detail now,
 // so this screen no longer has its own create flow; it only reviews and
 // confirms what's already there. plannedPayments itself (collection,
 // computeUpcomingPayments, FirestorePlannedPayment) is left in place,
@@ -13,13 +13,14 @@ import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { query, where } from 'firebase/firestore';
 import { useFirestoreCollection } from '@/src/shared/firestore/hooks';
-import { goalsRef } from '@/src/shared/firestore/refs';
+import { bucketsRef } from '@/src/shared/firestore/refs';
 import { useAccounts, useCategories, useCurrencyContext } from '@/src/shared/firestore/queries';
-import { computeUpcomingPaymentsFromGoalItems, type UpcomingGoalPayment } from '@/src/shared/firestore/upcomingPayments';
-import { recordGoalLineItemPayment } from '@/src/shared/firestore/aggregation';
-import { useGoalLineItemsByGoal } from '@/src/shared/hooks/useGoalLineItemsByGoal';
+import { computeUpcomingPaymentsFromBucketItems, type UpcomingBucketPayment } from '@/src/shared/firestore/upcomingPayments';
+import { recordBucketLineItemPayment } from '@/src/shared/firestore/aggregation';
+import { useBucketLineItemsByBucket } from '@/src/shared/hooks/useBucketLineItemsByBucket';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
-import type { FirestoreGoal } from '@/src/shared/firestore/types';
+import type { FirestoreBucket } from '@/src/shared/firestore/types';
+import { useGoBack } from '@/src/shared/navigation/useGoBack';
 
 // The upcoming-payments list only ever shows this many rows inline — anything
 // past it is reachable through "View all" instead of growing the page.
@@ -98,9 +99,9 @@ export function useLogic() {
   const { user, loading: authLoading } = useFirebaseUser();
   const uid = user?.uid;
 
-  const goalsQuery = useMemo(() => (uid ? query(goalsRef(uid), where('archived', '==', false)) : null), [uid]);
-  const { data: goalDocs, loading: goalsLoading, error: goalsError } = useFirestoreCollection<FirestoreGoal>(goalsQuery);
-  const { itemsByGoal, loading: goalItemsLoading } = useGoalLineItemsByGoal(goalDocs);
+  const bucketsQuery = useMemo(() => (uid ? query(bucketsRef(uid), where('archived', '==', false)) : null), [uid]);
+  const { data: bucketDocs, loading: bucketsLoading, error: bucketsError } = useFirestoreCollection<FirestoreBucket>(bucketsQuery);
+  const { itemsByBucket, loading: bucketItemsLoading } = useBucketLineItemsByBucket(bucketDocs);
 
   const { data: accounts, loading: accountsLoading } = useAccounts();
   // Frozen wallets can't receive a captured payment until unfrozen (see
@@ -115,7 +116,7 @@ export function useLogic() {
   const [dueFilter, setDueFilter] = useState<DueFilter>('all');
   const [dueFilterPickerOpen, setDueFilterPickerOpen] = useState(false);
   const [viewAllOpen, setViewAllOpen] = useState(false);
-  const [confirmingPayment, setConfirmingPayment] = useState<UpcomingGoalPayment | null>(null);
+  const [confirmingPayment, setConfirmingPayment] = useState<UpcomingBucketPayment | null>(null);
   const [confirmAccountId, setConfirmAccountId] = useState('');
   const [confirming, setConfirming] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
@@ -126,8 +127,8 @@ export function useLogic() {
   }, [accounts]);
 
   const pending = useMemo(
-    () => computeUpcomingPaymentsFromGoalItems(goalDocs, itemsByGoal, accounts, categories, ctx, HORIZON_DAYS),
-    [goalDocs, itemsByGoal, accounts, categories, ctx]
+    () => computeUpcomingPaymentsFromBucketItems(bucketDocs, itemsByBucket, accounts, categories, ctx, HORIZON_DAYS),
+    [bucketDocs, itemsByBucket, accounts, categories, ctx]
   );
 
   function chooseDueFilter(filter: DueFilter) {
@@ -158,11 +159,11 @@ export function useLogic() {
       const now = new Date();
       // This checkmark is a quick "yes, I paid this" confirmation with no
       // partial-payment UI of its own — always closes the item in full,
-      // same behavior this had before recordGoalLineItemPayment could
+      // same behavior this had before recordBucketLineItemPayment could
       // leave an item open. A partial payment (or one that turned out to
-      // cost more/less than planned) still goes through Goal Detail's own
+      // cost more/less than planned) still goes through Bucket Detail's own
       // "Record payment" action, which does offer that choice.
-      await recordGoalLineItemPayment(
+      await recordBucketLineItemPayment(
         uid,
         payment.goalId,
         payment.id,
@@ -196,12 +197,15 @@ export function useLogic() {
     }
   }
 
+  // Back to the page the user came from (skipping forms); '/home' only
+  // when there's no history — see src/shared/navigation/useGoBack.ts.
+  const navigateBack = useGoBack();
   function goBack() {
-    router.push('/home');
+    navigateBack('/home');
   }
 
-  function goToGoals() {
-    router.push('/goals');
+  function goToBuckets() {
+    router.push('/buckets');
   }
 
   const filteredPending = pending.filter((payment) => matchesDueFilter(payment.dueDate, dueFilter));
@@ -230,9 +234,9 @@ export function useLogic() {
     cancelConfirmPayment,
     confirmPayment,
     goBack,
-    goToGoals,
+    goToBuckets,
 
-    loading: authLoading || goalsLoading || goalItemsLoading || accountsLoading || categoriesLoading || ctxLoading,
-    error: goalsError,
+    loading: authLoading || bucketsLoading || bucketItemsLoading || accountsLoading || categoriesLoading || ctxLoading,
+    error: bucketsError,
   };
 }

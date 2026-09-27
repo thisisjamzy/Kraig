@@ -15,6 +15,7 @@ import {
 import { TRANSFER_CATEGORIES } from '@/src/viewmodels/categories';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import type { FirestoreAccount } from '@/src/shared/firestore/types';
+import { useGoBack } from '@/src/shared/navigation/useGoBack';
 
 type TransferKind = (typeof TRANSFER_CATEGORIES)[number];
 
@@ -164,12 +165,13 @@ export function useLogic() {
   const accountName = accounts.find((a) => a.id === accountId)?.name ?? '';
   const toAccountName = accounts.find((a) => a.id === toAccountId)?.name ?? '';
 
+  const navigateBack = useGoBack();
   function goBack() {
     if (step === 'preview') {
       backToEdit();
       return;
     }
-    router.push('/settings');
+    navigateBack('/settings');
   }
 
   function openBatches() {

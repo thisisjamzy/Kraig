@@ -2,10 +2,10 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { setDoc, Timestamp } from 'firebase/firestore';
+import { getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useAccounts, useCategories, useCurrencyContext, useExchangeRates } from '@/src/shared/firestore/queries';
-import { accountRef, categoryRef, budgetRuleRef } from '@/src/shared/firestore/refs';
-import { recomputeBudgetProgressForRuleCurrentMonth } from '@/src/shared/firestore/aggregation';
+import { accountRef, categoryRef, bucketRef } from '@/src/shared/firestore/refs';
+import { createBucketLineItem } from '@/src/shared/firestore/aggregation';
 import { toDisplay } from '@/src/shared/firestore/currency';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { walletColor, ACCOUNT_TYPES } from '@/src/viewmodels/wallets';
@@ -145,22 +145,40 @@ export function useLogic() {
     setCreatingBudget(true);
     setBudgetError(null);
     try {
-      const id = `rule_${crypto.randomUUID().slice(0, 8)}`;
-      await setDoc(budgetRuleRef(uid, id), {
-        categoryId: budgetCategoryId,
+      // PRD-BUDGETS-V2.md — a monthly budget line is a Fixed bucket item,
+      // collected into one "Monthly expenses" bucket for everything added
+      // here (created on the first item, reused after).
+      const bucketId = 'onboarding_monthly_expenses';
+      const bucketSnap = await getDoc(bucketRef(uid, bucketId));
+      if (!bucketSnap.exists()) {
+        await setDoc(bucketRef(uid, bucketId), {
+          name: 'Monthly expenses',
+          description: 'Recurring costs set up during onboarding.',
+          totalAmount: 0,
+          lineItemCount: 0,
+          completedLineItemCount: 0,
+          amountCompleted: 0,
+          currency: ctx.base,
+          deadline: null,
+          archived: false,
+          kind: 'Fixed',
+          type: 'Expense',
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+      }
+      await createBucketLineItem(uid, bucketId, 'Fixed', {
+        name: categories.find((c) => c.id === budgetCategoryId)?.name ?? 'Budget',
         description: '',
-        budgetedAmount: Number(budgetAmount.replace(/[^0-9]/g, '')) || 0,
-        frequency: 'Monthly',
-        interval: 1,
-        anchorDate: Timestamp.fromDate(new Date(budgetYear, budgetMonthIndex, 1)),
-        endCondition: 'Never',
-        endOccurrences: null,
-        endDate: null,
+        amount: Number(budgetAmount.replace(/[^0-9]/g, '')) || 0,
+        priority: 'Medium',
+        necessity: 'MustHave',
+        categoryId: budgetCategoryId,
+        categoryType: 'Expense',
         accountId: null,
-        tag: '',
-        archived: false,
+        dueDate: new Date(budgetYear, budgetMonthIndex, 1),
+        recurrence: { frequency: 'Monthly', interval: 1 },
       });
-      await recomputeBudgetProgressForRuleCurrentMonth(uid, id);
       setBudgetCategoryId('');
       setBudgetAmount('');
       setCreatedBudgetCount((n) => n + 1);

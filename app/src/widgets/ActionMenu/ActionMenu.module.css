@@ -33,6 +33,12 @@
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
 }
 
+/* Trigger in the left half of the screen: open rightward instead. */
+.popover[data-align='start'] {
+  right: auto;
+  left: 0;
+}
+
 .item {
   display: flex;
   align-items: center;

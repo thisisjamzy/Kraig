@@ -7,10 +7,9 @@
   gap: var(--space-lg);
 }
 
-/* X — "New bucket" — check, a true 3-column grid so the title stays
-   centered regardless of how wide the two side buttons are (Design/
-   Newtask2.PNG, Newtask 4.PNG). The emoji picker sits on its own row
-   below, not in this header. */
+/* X — title — check, a true 3-column grid so the title stays centered
+   regardless of how wide the two side buttons are — same convention as
+   TaskEdit/CreateProject/BucketLineItemForm's own create/edit header. */
 .header {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
@@ -26,11 +25,6 @@
   padding-right: var(--space-lg);
   padding-bottom: var(--space-md);
   background: var(--color-page);
-}
-
-.emojiRow {
-  display: flex;
-  justify-content: center;
 }
 
 .headerTitle {
@@ -58,9 +52,6 @@
   cursor: pointer;
 }
 
-/* Grey/muted until every required field is filled, then turns solid
-   black — same "not ready yet" -> "ready" convention as iOS's own
-   Reminders checkmark. */
 .saveIconButton {
   display: flex;
   align-items: center;
@@ -88,8 +79,6 @@
   gap: var(--space-md);
 }
 
-/* Every input/row group is its own flat white card, rounded — same
-   Design/Newtask2.PNG grouped-card convention as TaskEdit's own form. */
 .card,
 .listGroup {
   display: flex;
@@ -137,10 +126,6 @@
   cursor: pointer;
 }
 
-.listRowStatic {
-  cursor: default;
-}
-
 .listRowIcon {
   display: flex;
   align-items: center;
@@ -171,17 +156,23 @@
   white-space: nowrap;
 }
 
-.listRowSwatch {
-  width: 20px;
-  height: 20px;
-  flex-shrink: 0;
-  border-radius: 50%;
-  margin-left: auto;
-}
-
 .listRowChevron {
   flex-shrink: 0;
   color: var(--color-text-secondary);
+}
+
+.clearRowButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 50%;
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  cursor: pointer;
 }
 
 .expandPanel {
@@ -193,27 +184,144 @@
   padding-top: var(--space-md);
 }
 
-.colorGrid {
+.optionRow {
+  padding: var(--space-sm) var(--space-md);
+  border: none;
+  border-radius: 0;
+  background: var(--color-surface);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  text-align: left;
+  cursor: pointer;
+}
+
+.optionRowActive {
+  background: var(--ink-bg);
+  color: var(--ink-text);
+}
+
+.chipGroup {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-sm);
+  gap: var(--space-xs);
 }
 
-.colorSwatch {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  border: 2px solid transparent;
+.chip {
+  padding: var(--space-xs) var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: none;
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
   cursor: pointer;
-  padding: 0;
 }
 
-.colorSwatchActive {
-  border-color: var(--color-text-primary);
+.chipActive {
+  border-color: var(--ink-bg);
+  background: var(--ink-bg);
+  color: #ffffff;
+}
+
+.hintText {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
 }
 
 .errorText {
   margin: 0;
   font-size: var(--font-size-sm);
   color: var(--color-danger);
+}
+
+/* The Deadline row's own expanded panel — HeroUI's Calendar rendered
+   inline, same convention as TaskEditScreen's own Date row (an anchored
+   floating popover mispositioned itself to the top of the screen instead
+   of tracking the row — inline avoids that class of bug entirely). */
+.calendarHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 0 var(--space-sm);
+}
+
+.calendarNavButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 50%;
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.calendarHeading {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.calendarGrid {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.weekdayCell {
+  padding-bottom: 4px;
+  font-size: 0.625rem;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+.dayCell {
+  padding: 1px;
+  text-align: center;
+  cursor: pointer;
+  outline: none;
+}
+
+.dayCellInner {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  margin: 0 auto;
+  border-radius: 50%;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.dayCell[data-outside-month] .dayCellInner {
+  color: var(--color-text-secondary);
+  opacity: 0.4;
+}
+
+.dayCell[data-today] .dayCellInner {
+  background: color-mix(in srgb, var(--color-brand) 20%, transparent);
+  color: var(--color-text-primary);
+}
+
+.dayCell[data-selected] .dayCellInner {
+  background: var(--ink-bg);
+  color: #ffffff;
+}
+
+.dayCell[data-disabled] .dayCellInner {
+  opacity: 0.3;
+}
+
+.dayCell[data-focus-visible] .dayCellInner {
+  box-shadow: 0 0 0 2px var(--color-brand);
 }

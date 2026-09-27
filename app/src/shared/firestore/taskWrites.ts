@@ -11,9 +11,15 @@
 // originalDueDate bookkeeping right, rather than every call site
 // re-deriving it.
 
-import { getDoc, setDoc, updateDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { deleteField, FieldPath, getDoc, setDoc, updateDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { taskRef } from './refs';
-import type { TaskType, Priority, TaskStatus } from './types';
+import type { TaskException, TaskType, Priority, TaskStatus, Quadrant, TimeMode } from './types';
+import { parseOccurrenceId } from '@/src/shared/tasks/recurringTasks';
+
+// Recurring tasks: every quick write below also accepts an occurrence id
+// ("seriesId@YYYY-MM-DD", src/shared/tasks/recurringTasks.ts) and then
+// changes only that date — written onto the series doc's exceptions map,
+// never onto the series itself.
 
 // Tasks are day-bound — a single date, plus a start and an end time of day
 // on that same date (never spanning midnight into a second day) — so the
@@ -44,6 +50,26 @@ export function combineDateAndTime(dateStr: string, timeStr: string): Date {
   return new Date(year, month - 1, day, hours, minutes);
 }
 
+/** Sets (or, with deleteField(), clears) fields of one date's exception on
+ * a series — a nested write, so the rest of the exceptions map stays. */
+export async function writeOccurrence(
+  uid: string,
+  seriesId: string,
+  key: string,
+  fields: Record<string, unknown>
+): Promise<void> {
+  const pairs: unknown[] = [];
+  for (const [field, value] of Object.entries(fields)) pairs.push(new FieldPath('exceptions', key, field), value);
+  pairs.push('updatedAt', serverTimestamp());
+  const [first, firstValue, ...rest] = pairs;
+  await updateDoc(taskRef(uid, seriesId), first as FieldPath, firstValue, ...rest);
+}
+
+/** Replaces one date's exception wholesale ("this task" edits). */
+export async function replaceOccurrence(uid: string, seriesId: string, key: string, exception: TaskException): Promise<void> {
+  await updateDoc(taskRef(uid, seriesId), new FieldPath('exceptions', key), exception, 'updatedAt', serverTimestamp());
+}
+
 export interface CreateTaskInput {
   title: string;
   emoji: string | null;
@@ -54,7 +80,7 @@ export interface CreateTaskInput {
   projectId: string | null;
   areaId: string | null;
   // Same mirroring convention as areaId — the project's own bucketId (null
-  // when the project has no bucket, or projectId itself is null).
+  // when the project has no section, or projectId itself is null).
   bucketId: string | null;
   // Required going forward — every task gets a start and an end time now
   // (the create/edit form and TaskQuickActionsMenu's reschedule both
@@ -63,8 +89,18 @@ export interface CreateTaskInput {
   // need to parse.
   startTime: Date;
   dueDate: Date;
+  // See FirestoreTask.allDay — the caller passes the day's 00:00/23:59 as
+  // startTime/dueDate when this is true.
+  allDay?: boolean;
+  // A quadrant picked on the form (FirestoreTask.quadrant); null = derive.
+  quadrant?: Quadrant | null;
+  // See FirestoreTask.timeMode.
+  timeMode?: TimeMode;
   notes: string;
   createdBy: string;
+  // Recurring series (FirestoreTask.rrule / exceptions); absent = one-off.
+  rrule?: string | null;
+  exceptions?: Record<string, TaskException>;
 }
 
 export async function createTask(uid: string, input: CreateTaskInput): Promise<string> {
@@ -82,6 +118,10 @@ export async function createTask(uid: string, input: CreateTaskInput): Promise<s
     status: 'Pending',
     startTime: Timestamp.fromDate(input.startTime),
     dueDate: Timestamp.fromDate(input.dueDate),
+    allDay: input.allDay ?? false,
+    quadrant: input.quadrant ?? null,
+    ...(input.timeMode ? { timeMode: input.timeMode } : {}),
+    ...(input.rrule ? { rrule: input.rrule, exceptions: input.exceptions ?? {} } : {}),
     originalDueDate: Timestamp.fromDate(input.dueDate),
     rescheduleCount: 0,
     completedAt: null,
@@ -110,7 +150,13 @@ export interface UpdateTaskInput {
   done: boolean;
   startTime: Date;
   dueDate: Date;
+  allDay?: boolean;
+  quadrant?: Quadrant | null;
+  timeMode?: TimeMode;
   notes: string;
+  // undefined = leave as is; null = no longer recurring.
+  rrule?: string | null;
+  exceptions?: Record<string, TaskException>;
 }
 
 export async function updateTask(uid: string, taskId: string, input: UpdateTaskInput): Promise<void> {
@@ -132,9 +178,17 @@ export async function updateTask(uid: string, taskId: string, input: UpdateTaskI
     done: input.done,
     startTime: Timestamp.fromDate(input.startTime),
     dueDate: Timestamp.fromDate(input.dueDate),
+    allDay: input.allDay ?? false,
+    quadrant: input.quadrant ?? null,
+    ...(input.timeMode ? { timeMode: input.timeMode } : {}),
     notes: input.notes,
     updatedAt: serverTimestamp(),
   };
+  if (input.rrule !== undefined) {
+    update.rrule = input.rrule ?? deleteField();
+    if (!input.rrule) update.exceptions = deleteField();
+  }
+  if (input.exceptions !== undefined && input.rrule !== null) update.exceptions = input.exceptions;
   // originalDueDate is set once, the first time a task ever gets a due
   // date, then left alone — the fixed point rescheduleCount measures
   // against (see types.ts's FirestoreTask header).
@@ -161,6 +215,14 @@ export async function updateTask(uid: string, taskId: string, input: UpdateTaskI
  * binary shortcut, not aware of the in-between statuses (Stuck, In Review)
  * that only the status picker (updateTaskStatus below) sets. */
 export async function updateTaskDone(uid: string, taskId: string, done: boolean): Promise<void> {
+  const occurrence = parseOccurrenceId(taskId);
+  if (occurrence) {
+    await writeOccurrence(uid, occurrence.seriesId, occurrence.key, {
+      status: done ? 'Done' : deleteField(),
+      completedAt: done ? serverTimestamp() : deleteField(),
+    });
+    return;
+  }
   const beforeSnap = await getDoc(taskRef(uid, taskId));
   const wasDone = beforeSnap.exists() ? Boolean(beforeSnap.data().done) : false;
   const update: Record<string, unknown> = {
@@ -177,6 +239,16 @@ export async function updateTaskDone(uid: string, taskId: string, done: boolean)
  * sync with `done` the other way round from updateTaskDone: status
  * 'Done' means done:true, any other status means done:false. */
 export async function updateTaskStatus(uid: string, taskId: string, status: TaskStatus): Promise<void> {
+  const occurrence = parseOccurrenceId(taskId);
+  if (occurrence) {
+    // A date is pending, done or cancelled — nothing in between.
+    const kept = status === 'Done' || status === 'Cancelled';
+    await writeOccurrence(uid, occurrence.seriesId, occurrence.key, {
+      status: kept ? status : deleteField(),
+      completedAt: status === 'Done' ? serverTimestamp() : deleteField(),
+    });
+    return;
+  }
   const beforeSnap = await getDoc(taskRef(uid, taskId));
   const wasDone = beforeSnap.exists() ? Boolean(beforeSnap.data().done) : false;
   const done = status === 'Done';
@@ -186,10 +258,27 @@ export async function updateTaskStatus(uid: string, taskId: string, status: Task
   await updateDoc(taskRef(uid, taskId), update);
 }
 
+/** The Focus board's drag between columns: the task's quadrant, and its
+ * priority kept in line with that quadrant's importance
+ * (eisenhower.ts's priorityForQuadrant), in one write. */
+export async function updateTaskQuadrant(uid: string, taskId: string, quadrant: Quadrant, priority: Priority): Promise<void> {
+  const occurrence = parseOccurrenceId(taskId);
+  if (occurrence) {
+    await writeOccurrence(uid, occurrence.seriesId, occurrence.key, { quadrant, priority });
+    return;
+  }
+  await updateDoc(taskRef(uid, taskId), { quadrant, priority, updatedAt: serverTimestamp() });
+}
+
 /** Quick priority change without touching the rest of the task — the
  * priority section of TaskQuickActionsMenu, available wherever a task is
  * rendered. */
 export async function updateTaskPriority(uid: string, taskId: string, priority: Priority): Promise<void> {
+  const occurrence = parseOccurrenceId(taskId);
+  if (occurrence) {
+    await writeOccurrence(uid, occurrence.seriesId, occurrence.key, { priority });
+    return;
+  }
   await updateDoc(taskRef(uid, taskId), { priority, updatedAt: serverTimestamp() });
 }
 
@@ -199,6 +288,8 @@ export async function updateTaskPriority(uid: string, taskId: string, priority: 
  * write into per day (no separate "priorities/{date}" doc), so toggling is
  * just this one field on the task itself. */
 export async function updateTaskTodayPriority(uid: string, taskId: string, isPriority: boolean): Promise<void> {
+  // A series' dates already show on their own days — no pinning.
+  if (parseOccurrenceId(taskId)) return;
   await updateDoc(taskRef(uid, taskId), {
     priorityDate: isPriority ? toDateOnly(new Date()) : null,
     updatedAt: serverTimestamp(),
@@ -215,6 +306,25 @@ export async function updateTaskTodayPriority(uid: string, taskId: string, isPri
  * required) only has whichever one it already has moved — reschedule isn't
  * the place to invent a missing time of day, the full edit form is. */
 export async function rescheduleTask(uid: string, taskId: string, dateStr: string): Promise<void> {
+  const occurrence = parseOccurrenceId(taskId);
+  if (occurrence) {
+    // Moves this one date: same times of day, on the new day.
+    const snap = await getDoc(taskRef(uid, occurrence.seriesId));
+    const series = snap.data();
+    const exception = series?.exceptions?.[occurrence.key] ?? {};
+    const moved = (ts: Timestamp | null | undefined) => {
+      if (!ts) return undefined;
+      const d = ts.toDate();
+      return Timestamp.fromDate(combineDateAndTime(dateStr, `${pad(d.getHours())}:${pad(d.getMinutes())}`));
+    };
+    const fields: Record<string, unknown> = {};
+    const start = moved(exception.startTime ?? series?.startTime);
+    const due = moved(exception.dueDate ?? series?.dueDate);
+    if (start) fields.startTime = start;
+    if (due) fields.dueDate = due;
+    if (Object.keys(fields).length) await writeOccurrence(uid, occurrence.seriesId, occurrence.key, fields);
+    return;
+  }
   const beforeSnap = await getDoc(taskRef(uid, taskId));
   const before = beforeSnap.data();
 
@@ -241,5 +351,11 @@ export async function rescheduleTask(uid: string, taskId: string, dateStr: strin
 }
 
 export async function archiveTask(uid: string, taskId: string): Promise<void> {
+  // An occurrence id removes just that date from its series.
+  const occurrence = parseOccurrenceId(taskId);
+  if (occurrence) {
+    await writeOccurrence(uid, occurrence.seriesId, occurrence.key, { deleted: true });
+    return;
+  }
   await updateDoc(taskRef(uid, taskId), { archived: true, updatedAt: serverTimestamp() });
 }

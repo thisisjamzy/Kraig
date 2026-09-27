@@ -32,8 +32,8 @@ import {
   deleteDoc,
   increment,
   serverTimestamp,
-  deleteField,
   writeBatch,
+  limit,
   Timestamp,
 } from 'firebase/firestore';
 import { getFirebaseFirestore } from '@/src/shared/config/firebaseClient';
@@ -45,12 +45,10 @@ import {
   transfersRef,
   statsHomeRef,
   statsMonthlyRef,
-  statsBudgetProgressRef,
-  budgetRulesRef,
-  budgetRuleRef,
-  goalRef,
-  goalLineItemsRef,
-  goalLineItemRef,
+  allocationsRef,
+  bucketRef,
+  bucketLineItemsRef,
+  bucketLineItemRef,
   debtRef,
   repaymentsRef,
   repaymentRef,
@@ -58,17 +56,16 @@ import {
   unjustifiedWalletRef,
 } from './refs';
 import { convert, round2, type CurrencyContext } from './currency';
-import { toRecurrenceRule } from './recurrence';
-import { ruleAppliesToMonth, effectiveBudgetedAmount } from '@dreda/shared-recurrence';
 import type {
   FirestoreDebtPaymentPlan,
   DebtType,
   DebtPriority,
   BudgetLineType,
   Priority,
-  GoalItemNecessity,
+  BucketItemNecessity,
   Frequency,
-  GoalLineItemSubItem,
+  BucketLineItemSubItem,
+  BucketItemLink,
 } from './types';
 
 function monthKey(date: Date) {
@@ -119,15 +116,18 @@ export interface CreateTransactionInput {
   // for a Savings-type, Outflow-direction entry; callers enforce that, this
   // function trusts it rather than re-validating type/direction itself.
   isFrozenSavings?: boolean;
+  // PRD-BUDGETS-V2.md section 4.3 — the bucket item occurrence this pays
+  // for, see FirestoreTransaction.bucketItem.
+  bucketItem?: BucketItemLink | null;
 }
 
 /**
  * The write half of "record a transaction" — account currentBalance,
  * statsMonthly, stats-home, the same fields onTransactionWrite's
  * applyDelta() used to maintain via a trigger — factored out so
- * recordGoalLineItemPayment and recordRepaymentWithAggregation (both of
+ * recordBucketLineItemPayment and recordRepaymentWithAggregation (both of
  * which also need to write a real transaction, inside their OWN
- * runTransaction() alongside a goal/debt write) can reuse the exact same
+ * runTransaction() alongside a bucket/debt write) can reuse the exact same
  * math instead of re-deriving it. Every read this needs (the account snap,
  * for its currency and frozen/lockedAmount checks) must already have
  * happened before this runs — Firestore transactions require all reads
@@ -182,6 +182,7 @@ export function writeTransactionContribution(
       ? { isUnjustifiedAdjustment: true, pairedTransferId: input.pairedTransferId ?? null }
       : {}),
     ...(input.isFrozenSavings ? { isFrozenSavings: true } : {}),
+    bucketItem: input.bucketItem ?? null,
     createdBy: input.createdBy,
     createdAt: dateTimestamp,
   });
@@ -226,6 +227,40 @@ export function writeTransactionContribution(
 }
 
 /**
+ * Keeps a bucket item's legacy `payments[]` list (still what Bucket Detail's
+ * payment history renders) in step with the transaction/transfer that is
+ * now the real source of truth (FirestoreTransaction.bucketItem,
+ * PRD-BUDGETS-V2.md section 4.3). `amount: null` removes the payment;
+ * otherwise it's upserted. A missing item (deleted since) is ignored.
+ */
+async function syncLinkedItemPayment(
+  uid: string,
+  link: BucketItemLink,
+  paymentId: string,
+  kind: 'expense' | 'transfer',
+  payment: { amount: number; date: Date } | null
+): Promise<void> {
+  const ref = bucketLineItemRef(uid, link.bucketId, link.itemId);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return;
+  const existing = (snap.data().payments ?? []).filter((entry) => entry.id !== paymentId);
+  const payments = payment
+    ? [...existing, { id: paymentId, kind, amount: payment.amount, date: Timestamp.fromDate(payment.date) }].sort(
+        (a, b) => a.date.toMillis() - b.date.toMillis()
+      )
+    : existing;
+  await updateDoc(ref, {
+    payments,
+    actualAmount: payments.length > 0 ? round2(payments.reduce((sum, entry) => sum + entry.amount, 0)) : null,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+function sameLink(a: BucketItemLink | null | undefined, b: BucketItemLink | null | undefined) {
+  return Boolean(a && b && a.itemId === b.itemId && a.bucketId === b.bucketId);
+}
+
+/**
  * Writes a new transaction and, in the same runTransaction(), updates its
  * account's currentBalance and statsMonthly/stats-home via
  * writeTransactionContribution above. statsBudgetProgress is recomputed
@@ -244,11 +279,10 @@ export async function createTransactionWithAggregation(input: CreateTransactionI
     writeTransactionContribution(tx, uid, input, accountSnap.data(), ctx);
   });
 
-  if (input.categoryId) {
-    const month = monthKey(input.date);
-    await ensureBudgetCoverageForCategoryMonth(uid, input.categoryId, month, input.type as BudgetLineType);
-    await recomputeBudgetProgressForCategoryMonth(uid, input.categoryId, month);
+  if (input.bucketItem) {
+    await syncLinkedItemPayment(uid, input.bucketItem, input.id, 'expense', { amount: input.amount, date: input.date });
   }
+
 }
 
 export interface UpdateTransactionInput {
@@ -260,6 +294,8 @@ export interface UpdateTransactionInput {
   categoryId: string | null;
   amount: number;
   direction: 'Inflow' | 'Outflow';
+  // undefined leaves the existing link alone; null unlinks it.
+  bucketItem?: BucketItemLink | null;
 }
 
 /**
@@ -286,11 +322,13 @@ export async function updateTransactionWithAggregation(
 
   let oldMonth = '';
   let oldCategoryId: string | null = null;
+  let oldLink: BucketItemLink | null = null;
 
   await runTransaction(db, async (tx) => {
     const beforeSnap = await tx.get(transactionRef(uid, input.id));
     const before = beforeSnap.data();
     if (!before) throw new Error('This transaction no longer exists.');
+    oldLink = before.bucketItem ?? null;
     const oldAccountId = before.accountId;
     oldCategoryId = before.categoryId ?? null;
     oldMonth = before.month ?? monthKey(before.date.toDate());
@@ -318,6 +356,7 @@ export async function updateTransactionWithAggregation(
       direction: input.direction,
       signedAmount: newSignedAmount,
       month: newMonth,
+      ...(input.bucketItem !== undefined ? { bucketItem: input.bucketItem } : {}),
       updatedAt: dateTimestamp,
     });
 
@@ -457,18 +496,15 @@ export async function updateTransactionWithAggregation(
     tx.set(statsHomeRef(uid), homeUpdate, { merge: true });
   });
 
-  if (input.categoryId) {
-    await ensureBudgetCoverageForCategoryMonth(uid, input.categoryId, newMonth, input.type as BudgetLineType);
+  const newLink = input.bucketItem === undefined ? oldLink : input.bucketItem;
+  if (oldLink && !sameLink(oldLink, newLink)) {
+    await syncLinkedItemPayment(uid, oldLink, input.id, 'expense', null);
+  }
+  if (newLink) {
+    await syncLinkedItemPayment(uid, newLink, input.id, 'expense', { amount: input.amount, date: input.date });
   }
 
-  const pairs = new Map<string, { categoryId: string; month: string }>();
-  if (oldCategoryId) pairs.set(`${oldCategoryId}::${oldMonth}`, { categoryId: oldCategoryId, month: oldMonth });
-  if (input.categoryId) {
-    pairs.set(`${input.categoryId}::${newMonth}`, { categoryId: input.categoryId, month: newMonth });
-  }
-  await Promise.all(
-    [...pairs.values()].map(({ categoryId, month }) => recomputeBudgetProgressForCategoryMonth(uid, categoryId, month))
-  );
+
 }
 
 /**
@@ -487,11 +523,13 @@ export async function deleteTransactionWithAggregation(uid: string, transactionI
 
   let categoryId: string | null = null;
   let month = '';
+  let link: BucketItemLink | null = null;
 
   await runTransaction(db, async (tx) => {
     const beforeSnap = await tx.get(transactionRef(uid, transactionId));
     const before = beforeSnap.data();
     if (!before) throw new Error('This transaction no longer exists.');
+    link = before.bucketItem ?? null;
     const accountId = before.accountId;
     categoryId = before.categoryId ?? null;
     month = before.month ?? monthKey(before.date.toDate());
@@ -554,9 +592,7 @@ export async function deleteTransactionWithAggregation(uid: string, transactionI
     tx.set(statsHomeRef(uid), homeUpdate, { merge: true });
   });
 
-  if (categoryId) {
-    await recomputeBudgetProgressForCategoryMonth(uid, categoryId, month);
-  }
+  if (link) await syncLinkedItemPayment(uid, link, transactionId, 'expense', null);
 }
 
 /**
@@ -634,9 +670,6 @@ export async function recordTransactionExplainingUnjustifiedBalance(
     writeTransactionContribution(tx, uid, { ...input, isUnjustifiedAdjustment: true }, accountData, ctx);
   });
 
-  if (input.categoryId) {
-    await recomputeBudgetProgressForCategoryMonth(uid, input.categoryId, monthKey(input.date));
-  }
 }
 
 /**
@@ -684,9 +717,6 @@ export async function recordIncomeExplainingUnjustifiedBalance(
     tx.update(unjustifiedWalletRef(uid), { currentBalance: increment(input.amount) });
   });
 
-  if (input.categoryId) {
-    await recomputeBudgetProgressForCategoryMonth(uid, input.categoryId, monthKey(input.date));
-  }
 }
 
 export interface CreateTransferInput {
@@ -708,6 +738,7 @@ export interface CreateTransferInput {
   // transaction-side convention; every other caller leaves these undefined.
   isHistoricBackfill?: boolean;
   backfillBatchId?: string | null;
+  bucketItem?: BucketItemLink | null;
 }
 
 /**
@@ -724,55 +755,75 @@ export interface CreateTransferInput {
  * computation is already generic over categoryId, no changes needed there).
  * `input.createdBy` doubles as the uid whose subcollections this writes to.
  */
-export async function createTransferWithAggregation(input: CreateTransferInput) {
-  const uid = input.createdBy;
-  const db = getFirebaseFirestore();
+/**
+ * The write half of createTransferWithAggregation — factored out the same
+ * way writeTransactionContribution is, so a write that must create a real
+ * transfer alongside its own doc (src/shared/firestore/bucketBudget.ts's
+ * savings-funded allocation) can do both in one runTransaction(). Both
+ * account snaps must already have been read.
+ */
+export function writeTransferContribution(
+  tx: import('firebase/firestore').Transaction,
+  uid: string,
+  input: CreateTransferInput,
+  fromData: { frozen?: boolean; lockedAmount?: number; currentBalance?: number } | undefined,
+  toData: { frozen?: boolean } | undefined
+): void {
   const month = monthKey(input.date);
   const dateTimestamp = Timestamp.fromDate(input.date);
   const charges = input.charges ?? 0;
+  if (fromData?.frozen || toData?.frozen) {
+    throw new Error('One of these wallets is frozen — unfreeze it before transferring.');
+  }
+  // Only fromAccountId is ever debited (below) — toAccountId only
+  // receives, so it never needs the locked-amount check.
+  assertNotBelowLocked(fromData, -(input.amount + charges));
+
+  tx.set(transferRef(uid, input.id), {
+    date: dateTimestamp,
+    description: input.description,
+    fromAccountId: input.fromAccountId,
+    toAccountId: input.toAccountId,
+    amount: input.amount,
+    charges,
+    kind: input.kind,
+    notes: '',
+    createdBy: input.createdBy,
+    createdAt: dateTimestamp,
+    ...(input.isHistoricBackfill ? { isHistoricBackfill: true, backfillBatchId: input.backfillBatchId ?? null } : {}),
+    bucketItem: input.bucketItem ?? null,
+  });
+  // fromAccountId pays the transfer amount AND the charges; toAccountId
+  // only ever receives the transfer amount itself.
+  tx.update(accountRef(uid, input.fromAccountId), { currentBalance: increment(-(input.amount + charges)) });
+  tx.update(accountRef(uid, input.toAccountId), { currentBalance: increment(input.amount) });
+
+  tx.set(
+    statsMonthlyRef(uid, month),
+    {
+      perCategorySpend: { [input.kind]: increment(input.amount) },
+      perCategoryCount: { [input.kind]: increment(1) },
+      lastUpdated: serverTimestamp(),
+    },
+    { merge: true }
+  );
+}
+
+export async function createTransferWithAggregation(input: CreateTransferInput) {
+  const uid = input.createdBy;
+  const db = getFirebaseFirestore();
 
   await runTransaction(db, async (tx) => {
     const [fromSnap, toSnap] = await Promise.all([
       tx.get(accountRef(uid, input.fromAccountId)),
       tx.get(accountRef(uid, input.toAccountId)),
     ]);
-    if (fromSnap.data()?.frozen || toSnap.data()?.frozen) {
-      throw new Error('One of these wallets is frozen — unfreeze it before transferring.');
-    }
-    // Only fromAccountId is ever debited (below) — toAccountId only
-    // receives, so it never needs the locked-amount check.
-    assertNotBelowLocked(fromSnap.data(), -(input.amount + charges));
-
-    tx.set(transferRef(uid, input.id), {
-      date: dateTimestamp,
-      description: input.description,
-      fromAccountId: input.fromAccountId,
-      toAccountId: input.toAccountId,
-      amount: input.amount,
-      charges,
-      kind: input.kind,
-      notes: '',
-      createdBy: input.createdBy,
-      createdAt: dateTimestamp,
-      ...(input.isHistoricBackfill ? { isHistoricBackfill: true, backfillBatchId: input.backfillBatchId ?? null } : {}),
-    });
-    // fromAccountId pays the transfer amount AND the charges; toAccountId
-    // only ever receives the transfer amount itself.
-    tx.update(accountRef(uid, input.fromAccountId), { currentBalance: increment(-(input.amount + charges)) });
-    tx.update(accountRef(uid, input.toAccountId), { currentBalance: increment(input.amount) });
-
-    tx.set(
-      statsMonthlyRef(uid, month),
-      {
-        perCategorySpend: { [input.kind]: increment(input.amount) },
-        perCategoryCount: { [input.kind]: increment(1) },
-        lastUpdated: serverTimestamp(),
-      },
-      { merge: true }
-    );
+    writeTransferContribution(tx, uid, input, fromSnap.data(), toSnap.data());
   });
 
-  await recomputeBudgetProgressForCategoryMonth(uid, input.kind, month);
+  if (input.bucketItem) {
+    await syncLinkedItemPayment(uid, input.bucketItem, input.id, 'transfer', { amount: input.amount, date: input.date });
+  }
 }
 
 export interface UpdateTransferInput {
@@ -784,6 +835,7 @@ export interface UpdateTransferInput {
   amount: number;
   charges?: number;
   kind: string;
+  bucketItem?: BucketItemLink | null; // undefined leaves the existing link alone
 }
 
 /**
@@ -805,11 +857,13 @@ export async function updateTransferWithAggregation(uid: string, input: UpdateTr
 
   let oldKind = '';
   let oldMonth = '';
+  let oldLink: BucketItemLink | null = null;
 
   await runTransaction(db, async (tx) => {
     const beforeSnap = await tx.get(transferRef(uid, input.id));
     const before = beforeSnap.data();
     if (!before) throw new Error('This transfer no longer exists.');
+    oldLink = before.bucketItem ?? null;
     oldKind = before.kind;
     oldMonth = monthKey(before.date.toDate());
     const oldCharges = before.charges ?? 0;
@@ -832,6 +886,7 @@ export async function updateTransferWithAggregation(uid: string, input: UpdateTr
       amount: input.amount,
       charges: newCharges,
       kind: input.kind,
+      ...(input.bucketItem !== undefined ? { bucketItem: input.bucketItem } : {}),
       updatedAt: dateTimestamp,
     });
 
@@ -890,12 +945,13 @@ export async function updateTransferWithAggregation(uid: string, input: UpdateTr
     }
   });
 
-  const pairs = new Map<string, { kind: string; month: string }>();
-  pairs.set(`${oldKind}::${oldMonth}`, { kind: oldKind, month: oldMonth });
-  pairs.set(`${input.kind}::${newMonth}`, { kind: input.kind, month: newMonth });
-  await Promise.all(
-    [...pairs.values()].map(({ kind, month }) => recomputeBudgetProgressForCategoryMonth(uid, kind, month))
-  );
+  const newLink = input.bucketItem === undefined ? oldLink : input.bucketItem;
+  if (oldLink && !sameLink(oldLink, newLink)) {
+    await syncLinkedItemPayment(uid, oldLink, input.id, 'transfer', null);
+  }
+  if (newLink) {
+    await syncLinkedItemPayment(uid, newLink, input.id, 'transfer', { amount: input.amount, date: input.date });
+  }
 }
 
 /**
@@ -908,15 +964,14 @@ export async function updateTransferWithAggregation(uid: string, input: UpdateTr
  */
 export async function deleteTransferWithAggregation(uid: string, transferId: string): Promise<void> {
   const db = getFirebaseFirestore();
-  let kind = '';
-  let month = '';
+  let link: BucketItemLink | null = null;
 
   await runTransaction(db, async (tx) => {
     const beforeSnap = await tx.get(transferRef(uid, transferId));
     const before = beforeSnap.data();
     if (!before) throw new Error('This transfer no longer exists.');
-    kind = before.kind;
-    month = monthKey(before.date.toDate());
+    link = before.bucketItem ?? null;
+    const month = monthKey(before.date.toDate());
     const charges = before.charges ?? 0;
 
     const [fromSnap, toSnap] = await Promise.all([
@@ -949,144 +1004,14 @@ export async function deleteTransferWithAggregation(uid: string, transferId: str
     );
   });
 
-  await recomputeBudgetProgressForCategoryMonth(uid, kind, month);
-}
-
-/**
- * Every transaction registers to its own month's budget, even when
- * unbudgeted — if `categoryId` has no active rule covering `month`, this
- * creates a one-month, zero-budgeted rule for it (frequency 'Once',
- * anchored to that month) so the category still shows up as a line in that
- * month's Budget view (0 budgeted, whatever it actually spent) instead of
- * being invisible there. Called right before recomputeBudgetProgressForCategoryMonth
- * so a rule created here is immediately picked up by that recompute, same
- * "query outside a transaction, write after" shape every other budget
- * recompute in this file already uses.
- */
-async function ensureBudgetCoverageForCategoryMonth(
-  uid: string,
-  categoryId: string,
-  month: string,
-  type: BudgetLineType
-) {
-  const [year, monthNum] = month.split('-').map(Number);
-  const rulesSnap = await getDocs(
-    query(budgetRulesRef(uid), where('categoryId', '==', categoryId), where('archived', '==', false))
-  );
-  const covered = rulesSnap.docs.some((ruleDoc) => {
-    const rule = ruleDoc.data();
-    const occurrence = ruleAppliesToMonth(toRecurrenceRule(rule), year, monthNum);
-    return occurrence && !rule.excludedMonths?.includes(month);
-  });
-  if (covered) return;
-
-  await setDoc(budgetRuleRef(uid, crypto.randomUUID()), {
-    categoryId,
-    type,
-    description: '',
-    budgetedAmount: 0,
-    frequency: 'Once',
-    interval: 1,
-    anchorDate: Timestamp.fromDate(new Date(year, monthNum - 1, 1)),
-    endCondition: 'Never',
-    endOccurrences: null,
-    endDate: null,
-    accountId: null,
-    tag: null,
-    archived: false,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  });
-}
-
-/**
- * Recomputes statsBudgetProgress/{month} for every active rule covering
- * `categoryId` — mirrors functions/src/lib/budgetProgress.ts's
- * recomputeRulesForCategory, called after a transaction changes that
- * category's spend for `month` (which may be any month, not just the
- * current one).
- */
-async function recomputeBudgetProgressForCategoryMonth(uid: string, categoryId: string, month: string) {
-  const [rulesSnap, monthlySnap] = await Promise.all([
-    getDocs(query(budgetRulesRef(uid), where('categoryId', '==', categoryId), where('archived', '==', false))),
-    getDoc(statsMonthlyRef(uid, month)),
-  ]);
-  const perCategorySpend = monthlySnap.data()?.perCategorySpend ?? {};
-  const perCategoryCount = monthlySnap.data()?.perCategoryCount ?? {};
-  const [year, monthNum] = month.split('-').map(Number);
-
-  const progress: Record<string, unknown> = {};
-  for (const ruleDoc of rulesSnap.docs) {
-    const rule = ruleDoc.data();
-    const occurrence = ruleAppliesToMonth(toRecurrenceRule(rule), year, monthNum);
-    if (!occurrence || rule.excludedMonths?.includes(month)) {
-      progress[ruleDoc.id] = deleteField();
-      continue;
-    }
-    const budgeted = effectiveBudgetedAmount(Number(rule.budgetedAmount) || 0, occurrence.multiplier, rule.monthOverrides, month);
-    const spent = perCategorySpend[categoryId] ?? 0;
-    const count = perCategoryCount[categoryId] ?? 0;
-    progress[ruleDoc.id] = { budgeted, spent, remaining: budgeted - spent, count };
-  }
-  if (Object.keys(progress).length > 0) {
-    await setDoc(statsBudgetProgressRef(uid, month), progress, { merge: true });
-  }
-}
-
-/**
- * Recomputes exactly one rule's entry in one specific month's
- * statsBudgetProgress doc — mirrors functions/src/budgetRules.ts's
- * onBudgetRuleWrite. Takes an explicit month rather than assuming "now" so
- * a rule newly anchored into a past month (a retrospective budget) can have
- * that past month's snapshot populated too, and so a "this month only"
- * amount override (rule.monthOverrides) can refresh just the one month it
- * targets — see recomputeBudgetProgressForRuleCurrentMonth below for the
- * current-month convenience wrapper most callers still want.
- */
-export async function recomputeBudgetProgressForRuleAndMonth(uid: string, ruleId: string, month: string): Promise<void> {
-  const ruleSnap = await getDoc(budgetRuleRef(uid, ruleId));
-  const rule = ruleSnap.data();
-
-  if (!rule || rule.archived || !rule.categoryId) {
-    await setDoc(statsBudgetProgressRef(uid, month), { [ruleId]: deleteField() }, { merge: true });
-    return;
-  }
-
-  const [year, monthNum] = month.split('-').map(Number);
-  const occurrence = ruleAppliesToMonth(toRecurrenceRule(rule), year, monthNum);
-  if (!occurrence || rule.excludedMonths?.includes(month)) {
-    await setDoc(statsBudgetProgressRef(uid, month), { [ruleId]: deleteField() }, { merge: true });
-    return;
-  }
-
-  const monthlySnap = await getDoc(statsMonthlyRef(uid, month));
-  const spent = monthlySnap.data()?.perCategorySpend?.[rule.categoryId] ?? 0;
-  const count = monthlySnap.data()?.perCategoryCount?.[rule.categoryId] ?? 0;
-  const budgeted = effectiveBudgetedAmount(Number(rule.budgetedAmount) || 0, occurrence.multiplier, rule.monthOverrides, month);
-
-  await setDoc(
-    statsBudgetProgressRef(uid, month),
-    { [ruleId]: { budgeted, spent, remaining: budgeted - spent, count } },
-    { merge: true }
-  );
-}
-
-/**
- * Deliberately current-month-only, same as the onBudgetRuleWrite trigger
- * this mirrors — a plain edit to a rule's own fields shouldn't rewrite
- * already-closed past months' snapshots. Retrospective-anchor creation and
- * "this month only" overrides both need a specific past month recomputed
- * too, and call recomputeBudgetProgressForRuleAndMonth directly for that.
- */
-export async function recomputeBudgetProgressForRuleCurrentMonth(uid: string, ruleId: string): Promise<void> {
-  await recomputeBudgetProgressForRuleAndMonth(uid, ruleId, monthKey(new Date()));
+  if (link) await syncLinkedItemPayment(uid, link, transferId, 'transfer', null);
 }
 
 // ---------------------------------------------------------------------
-// Goals — `PRD Files/prd debt n goals` section 1.
+// Buckets — `PRD Files/prd debt n goals` section 1.
 // ---------------------------------------------------------------------
 
-export interface CreateGoalInput {
+export interface CreateBucketInput {
   name: string;
   description: string;
   deadline: Date | null;
@@ -1095,9 +1020,9 @@ export interface CreateGoalInput {
   type: 'Expense' | 'Income' | 'Savings' | 'Transfer';
 }
 
-export async function createGoal(uid: string, input: CreateGoalInput): Promise<string> {
+export async function createBucket(uid: string, input: CreateBucketInput): Promise<string> {
   const id = crypto.randomUUID();
-  await setDoc(goalRef(uid, id), {
+  await setDoc(bucketRef(uid, id), {
     name: input.name,
     description: input.description,
     totalAmount: 0,
@@ -1115,17 +1040,17 @@ export async function createGoal(uid: string, input: CreateGoalInput): Promise<s
   return id;
 }
 
-export async function archiveGoal(uid: string, goalId: string): Promise<void> {
-  await updateDoc(goalRef(uid, goalId), { archived: true, updatedAt: serverTimestamp() });
+export async function archiveBucket(uid: string, goalId: string): Promise<void> {
+  await updateDoc(bucketRef(uid, goalId), { archived: true, updatedAt: serverTimestamp() });
 }
 
-// Archiving a goal never deletes it — Settings' own Archived goals screen
+// Archiving a bucket never deletes it — Settings' own Archived buckets screen
 // lists everything archived==true and can bring one back with this.
-export async function restoreGoal(uid: string, goalId: string): Promise<void> {
-  await updateDoc(goalRef(uid, goalId), { archived: false, updatedAt: serverTimestamp() });
+export async function restoreBucket(uid: string, goalId: string): Promise<void> {
+  await updateDoc(bucketRef(uid, goalId), { archived: false, updatedAt: serverTimestamp() });
 }
 
-export interface UpdateGoalInput {
+export interface UpdateBucketInput {
   name: string;
   description: string;
   deadline: Date | null;
@@ -1135,15 +1060,15 @@ export interface UpdateGoalInput {
 }
 
 /**
- * Goal-level fields only — totalAmount/lineItemCount/etc. stay owned by
- * recalcGoalTotals. `kind`/`type` are editable here same as every other
+ * Bucket-level fields only — totalAmount/lineItemCount/etc. stay owned by
+ * recalcBucketTotals. `kind`/`type` are editable here same as every other
  * field on the edit form — changing either one only affects which
  * categories/recurrence options new line items see going forward; any
  * line item already created keeps its own categoryId/recurrence exactly as
- * it was, even if that no longer matches the goal's new kind/type.
+ * it was, even if that no longer matches the bucket's new kind/type.
  */
-export async function updateGoal(uid: string, goalId: string, input: UpdateGoalInput): Promise<void> {
-  await updateDoc(goalRef(uid, goalId), {
+export async function updateBucket(uid: string, goalId: string, input: UpdateBucketInput): Promise<void> {
+  await updateDoc(bucketRef(uid, goalId), {
     name: input.name,
     description: input.description,
     deadline: input.deadline ? Timestamp.fromDate(input.deadline) : null,
@@ -1154,55 +1079,66 @@ export async function updateGoal(uid: string, goalId: string, input: UpdateGoalI
   });
 }
 
-// Permanently removes a goal and every one of its line items — unlike
-// archiveGoal (which only flips archived: true so Settings' own Archived
-// goals screen can always bring it back), this leaves no record behind and
-// can't be undone. A line item's own linked budget rule is archived (not
-// deleted), same as deleteGoalLineItem does for a single item — a budget
-// rule is its own real entity independent of the goal that created it.
-export async function deleteGoal(uid: string, goalId: string): Promise<void> {
-  const itemsSnap = await getDocs(goalLineItemsRef(uid, goalId));
-  const budgetRuleIds = new Set<string>();
-  for (const docSnap of itemsSnap.docs) {
-    const budgetRuleId = docSnap.data().budgetRuleId;
-    if (budgetRuleId) budgetRuleIds.add(budgetRuleId);
+/**
+ * PRD-BUDGETS-V2.md section 9 — a bucket item that real money was recorded
+ * against (a linked transaction/transfer) or that budget was moved into or
+ * out of (an allocation) can't be deleted: its spend would silently fall
+ * back to "unplanned" and its funding trail would point at nothing.
+ * Archiving the bucket keeps both intact. The scope is one item, or every
+ * item of one bucket.
+ */
+async function assertNothingLinked(uid: string, scope: { itemId: string } | { bucketId: string }) {
+  const [field, value] = 'itemId' in scope ? ['itemId', scope.itemId] : ['bucketId', scope.bucketId];
+  const [transactionsSnap, transfersSnap, fromSnap, toSnap] = await Promise.all([
+    getDocs(query(transactionsRef(uid), where(`bucketItem.${field}`, '==', value), limit(1))),
+    getDocs(query(transfersRef(uid), where(`bucketItem.${field}`, '==', value), limit(1))),
+    getDocs(query(allocationsRef(uid), where(`from.${field}`, '==', value), limit(1))),
+    getDocs(query(allocationsRef(uid), where(`to.${field}`, '==', value), limit(1))),
+  ]);
+  if (!transactionsSnap.empty || !transfersSnap.empty) {
+    throw new Error('Payments are linked to this — unlink them first, or archive the bucket instead.');
   }
+  if (!fromSnap.empty || !toSnap.empty) {
+    throw new Error('Budget was moved into or out of this — undo those moves first, or archive the bucket instead.');
+  }
+}
+
+// Permanently removes a bucket and every one of its line items — unlike
+// archiveBucket (which only flips archived: true so Settings' own Archived
+// buckets screen can always bring it back), this leaves no record behind and
+// can't be undone. Refused while anything is still linked to its items (see
+// assertNothingLinked).
+export async function deleteBucket(uid: string, goalId: string): Promise<void> {
+  await assertNothingLinked(uid, { bucketId: goalId });
+  const itemsSnap = await getDocs(bucketLineItemsRef(uid, goalId));
   const batch = writeBatch(getFirebaseFirestore());
   for (const docSnap of itemsSnap.docs) {
     batch.delete(docSnap.ref);
   }
-  for (const budgetRuleId of budgetRuleIds) {
-    batch.update(budgetRuleRef(uid, budgetRuleId), { archived: true, updatedAt: serverTimestamp() });
-  }
-  batch.delete(goalRef(uid, goalId));
+  batch.delete(bucketRef(uid, goalId));
   await batch.commit();
-  for (const budgetRuleId of budgetRuleIds) {
-    await recomputeBudgetProgressForRuleCurrentMonth(uid, budgetRuleId);
-  }
 }
 
 /**
- * Recomputes a goal's denormalized totalAmount/lineItemCount/
+ * Recomputes a bucket's denormalized totalAmount/lineItemCount/
  * completedLineItemCount/amountCompleted from its real lineItems
- * subcollection — the same "needs a query, which a Firestore transaction
- * can't run, so recompute right after instead" shape
- * recomputeBudgetProgressForCategoryMonth above already uses (a
- * Transaction.get() only ever accepts a single DocumentReference, never a
- * Query — see that function's own header for the same constraint on
- * statsBudgetProgress). Called after every lineItems write.
+ * subcollection — recomputed right after rather than inside the write's
+ * own runTransaction(), since that needs a query and a Transaction.get()
+ * only ever accepts a single DocumentReference. Called after every
+ * lineItems write.
  */
 // Exported so a caller outside this file can force a recompute — used by
-// src/logic/goalDetail/useLogic.ts's actualAmount backfill effect, which
+// src/logic/bucketDetail/useLogic.ts's actualAmount backfill effect, which
 // patches a line item's own actualAmount directly (not through one of this
-// file's own recordGoalLineItemPayment/etc. writes, which already call this
-// themselves) and would otherwise leave the goal's own amountCompleted
+// file's own recordBucketLineItemPayment/etc. writes, which already call this
+// themselves) and would otherwise leave the bucket's own amountCompleted
 // stale against the now-corrected line item.
-export async function recalcGoalTotals(uid: string, goalId: string) {
-  const snap = await getDocs(goalLineItemsRef(uid, goalId));
+export async function recalcBucketTotals(uid: string, goalId: string) {
+  const snap = await getDocs(bucketLineItemsRef(uid, goalId));
   const lineItems = snap.docs.map((d) => d.data());
   const totalAmount = lineItems.reduce((sum, li) => sum + (Number(li.amount) || 0), 0);
   const completed = lineItems.filter((li) => li.completed);
-  await updateDoc(goalRef(uid, goalId), {
+  await updateDoc(bucketRef(uid, goalId), {
     totalAmount,
     lineItemCount: lineItems.length,
     completedLineItemCount: completed.length,
@@ -1215,63 +1151,63 @@ export async function recalcGoalTotals(uid: string, goalId: string) {
   });
 }
 
-export interface CreateGoalLineItemInput {
+export interface CreateBucketLineItemInput {
   name: string;
   description: string;
   amount: number;
   priority: Priority;
-  necessity: GoalItemNecessity;
-  // For a Transfer goal, a TRANSFER_CATEGORIES kind string rather than a
-  // real categories/{id} — see FirestoreGoalLineItem.categoryId's header.
+  necessity: BucketItemNecessity;
+  // For a Transfer bucket, a TRANSFER_CATEGORIES kind string rather than a
+  // real categories/{id} — see FirestoreBucketLineItem.categoryId's header.
   categoryId: string;
-  // The category's own transactionType — the caller (goalDetail/useLogic.ts)
+  // The category's own transactionType — the caller (bucketDetail/useLogic.ts)
   // already has this from its own categoryTransactionType map, so this
-  // avoids a second category read here just to tag a Fixed goal's
-  // auto-created budget rule (or a later addGoalLineItemToBudget call)
+  // avoids a second category read here just to tag a Fixed bucket's
+  // auto-created budget rule (or a later addBucketLineItemToBudget call)
   // with the right BudgetLineType.
   categoryType: BudgetLineType;
-  // The FROM account for a Transfer goal's item, same field for every
-  // other goal type.
+  // The FROM account for a Transfer bucket's item, same field for every
+  // other bucket type.
   accountId: string | null;
-  // Transfer goal items only.
+  // Transfer bucket items only.
   toAccountId?: string | null;
   charges?: number | null;
   dueDate: Date | null;
-  // Fixed-goal items only — see FirestoreGoalLineItem.recurrence's header.
+  // Fixed-bucket items only — see FirestoreBucketLineItem.recurrence's header.
   recurrence?: { frequency: Frequency; interval: number } | null;
   // The item's own shopping-list checklist, edited as a batch alongside
-  // every other field on this same form (see FirestoreGoalLineItem
-  // .subItems's header) — ticking one off afterward from Goal Detail goes
-  // through toggleGoalLineItemSubItem instead, not this.
-  subItems?: GoalLineItemSubItem[];
+  // every other field on this same form (see FirestoreBucketLineItem
+  // .subItems's header) — ticking one off afterward from Bucket Detail goes
+  // through toggleBucketLineItemSubItem instead, not this.
+  subItems?: BucketLineItemSubItem[];
 }
 
 /**
- * A goal line item is a DEDICATION of future spend, not a budget plan — it
+ * A bucket line item is a DEDICATION of future spend, not a budget plan — it
  * never touches FirestoreBudgetRule (that stays the household's own direct,
  * manually-entered "estimated basket" per category/month, PRD-BUDGET's
- * original mechanism). Used to be that a Fixed goal's item auto-created its
+ * original mechanism). Used to be that a Fixed bucket's item auto-created its
  * own recurring budget rule right here, silently inflating that category's
  * planned amount the moment the item was created; that's exactly the
  * double-accounting this app now avoids. Instead, once this item is later
- * completed (recordGoalLineItemPayment), the real transaction it records
+ * completed (recordBucketLineItemPayment), the real transaction it records
  * shows up in the Budget screen's per-category breakdown as "dedicated"
- * spend — tied to a goal — versus "unplanned" for everything else, so both
- * budgeting methods (a direct per-category estimate, and a goal's own line
+ * spend — tied to a bucket — versus "unplanned" for everything else, so both
+ * budgeting methods (a direct per-category estimate, and a bucket's own line
  * items) reconcile against the same real spend instead of each claiming
  * their own separate planned figure. A Fixed item's `recurrence` is kept
  * purely for its own due-date scheduling (Payments Calendar/Home's upcoming
  * payments read it directly off the item, see upcomingPayments.ts) — it no
  * longer drives any budget rule.
  */
-export async function createGoalLineItem(
+export async function createBucketLineItem(
   uid: string,
   goalId: string,
-  goalKind: 'Fixed' | 'Variable',
-  input: CreateGoalLineItemInput
+  bucketKind: 'Fixed' | 'Variable',
+  input: CreateBucketLineItemInput
 ): Promise<string> {
   const id = crypto.randomUUID();
-  await setDoc(goalLineItemRef(uid, goalId, id), {
+  await setDoc(bucketLineItemRef(uid, goalId, id), {
     goalId,
     name: input.name,
     description: input.description,
@@ -1283,11 +1219,9 @@ export async function createGoalLineItem(
     toAccountId: input.toAccountId ?? null,
     charges: input.charges ?? null,
     dueDate: input.dueDate ? Timestamp.fromDate(input.dueDate) : null,
-    recurrence: goalKind === 'Fixed' ? (input.recurrence ?? null) : null,
+    recurrence: bucketKind === 'Fixed' ? (input.recurrence ?? null) : null,
     subItems: input.subItems ?? [],
-    budgetRuleId: null,
-    addedToBudget: false,
-    // A new item always lands at the end of the cross-goal to-do list's
+    // A new item always lands at the end of the cross-bucket to-do list's
     // custom order — Date.now() is always greater than any earlier item's
     // rank without needing to read the whole list first to find a max.
     rank: Date.now(),
@@ -1298,43 +1232,48 @@ export async function createGoalLineItem(
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
-  await recalcGoalTotals(uid, goalId);
+  await recalcBucketTotals(uid, goalId);
   return id;
 }
 
 /**
- * Bulk-sets rank on line items possibly spanning several goals — the
- * cross-goal "All goal items" list's reordering (both a manual up/down swap
+ * Bulk-sets rank on line items possibly spanning several buckets — the
+ * cross-bucket "All bucket items" list's reordering (both a manual up/down swap
  * and "use this order" after sorting by priority/ease). One batch so a
  * multi-item reorder can never apply half its writes.
  */
-export async function setGoalLineItemRanks(
+export async function setBucketLineItemRanks(
   uid: string,
   items: { goalId: string; lineItemId: string; rank: number }[]
 ): Promise<void> {
   const db = getFirebaseFirestore();
   const batch = writeBatch(db);
   for (const item of items) {
-    batch.update(goalLineItemRef(uid, item.goalId, item.lineItemId), { rank: item.rank, updatedAt: serverTimestamp() });
+    batch.update(bucketLineItemRef(uid, item.goalId, item.lineItemId), { rank: item.rank, updatedAt: serverTimestamp() });
   }
   await batch.commit();
 }
 
 /**
  * Editing a line item never touches a budget rule any more — see
- * createGoalLineItem's own header for why. A pre-existing item from before
+ * createBucketLineItem's own header for why. A pre-existing item from before
  * this change may still carry a `budgetRuleId` from back when one was
  * auto-created for it; that old rule is left exactly as it is (now just an
  * ordinary manually-editable budget line as far as the Budget screen is
  * concerned) rather than kept in sync with edits made here.
  */
-export async function updateGoalLineItem(
+export async function updateBucketLineItem(
   uid: string,
   goalId: string,
   lineItemId: string,
-  input: CreateGoalLineItemInput
+  input: CreateBucketLineItemInput
 ): Promise<void> {
-  await updateDoc(goalLineItemRef(uid, goalId, lineItemId), {
+  // The edit form only knows frequency/interval — keep an existing
+  // recurrence.endDate (set by scripts/migrate-budgets-v2.ts for a rule that
+  // had an end condition) instead of silently making the item repeat forever.
+  const existingEndDate = (await getDoc(bucketLineItemRef(uid, goalId, lineItemId))).data()?.recurrence?.endDate ?? null;
+  const recurrence = input.recurrence ? { ...input.recurrence, endDate: existingEndDate } : null;
+  await updateDoc(bucketLineItemRef(uid, goalId, lineItemId), {
     name: input.name,
     description: input.description,
     amount: input.amount,
@@ -1345,146 +1284,68 @@ export async function updateGoalLineItem(
     toAccountId: input.toAccountId ?? null,
     charges: input.charges ?? null,
     dueDate: input.dueDate ? Timestamp.fromDate(input.dueDate) : null,
-    recurrence: input.recurrence ?? null,
+    recurrence,
     subItems: input.subItems ?? [],
     updatedAt: serverTimestamp(),
   });
-  await recalcGoalTotals(uid, goalId);
+  await recalcBucketTotals(uid, goalId);
 }
 
 // Adding/removing a sub-item happens as part of this same form's batched
-// Save (CreateGoalLineItemInput.subItems above, via createGoalLineItem/
-// updateGoalLineItem) — this is only for ticking one off live from Goal
+// Save (CreateBucketLineItemInput.subItems above, via createBucketLineItem/
+// updateBucketLineItem) — this is only for ticking one off live from Bucket
 // Detail's own line item row, without opening the edit form. A plain
-// read-modify-write on the embedded array (see FirestoreGoalLineItem
+// read-modify-write on the embedded array (see FirestoreBucketLineItem
 // .subItems's header); never touches money/balances/budget, so no
-// transaction, and never calls recalcGoalTotals since a line item's own
+// transaction, and never calls recalcBucketTotals since a line item's own
 // `amount` (what that sums) never changes here.
-export async function toggleGoalLineItemSubItem(
+export async function toggleBucketLineItemSubItem(
   uid: string,
   goalId: string,
   lineItemId: string,
   subItemId: string
 ): Promise<void> {
-  const ref = goalLineItemRef(uid, goalId, lineItemId);
+  const ref = bucketLineItemRef(uid, goalId, lineItemId);
   const snap = await getDoc(ref);
-  const current = (snap.data()?.subItems ?? []) as GoalLineItemSubItem[];
+  const current = (snap.data()?.subItems ?? []) as BucketLineItemSubItem[];
   const next = current.map((subItem) =>
     subItem.id === subItemId ? { ...subItem, completed: !subItem.completed } : subItem
   );
   await updateDoc(ref, { subItems: next, updatedAt: serverTimestamp() });
 }
 
-/**
- * A Variable goal item's manual "Add to budget" action — bumps this month's
- * budget for the item's own category by its amount, or creates a one-off
- * rule for it if the category has no budget line yet this month. Same
- * category+month lookup shape as ensureBudgetCoverageForCategoryMonth
- * above, but that helper only ever backfills a $0 placeholder so actual
- * spend still has somewhere to land — this one carries a real amount, since
- * the whole point here is to add real planned money to the budget. A
- * one-off (`frequency: 'Once'`) rule, not recurring — a Fixed goal's own
- * line items get a real recurring rule instead (see createGoalLineItem's
- * Fixed-goal branch), so this path is Variable-items-only by construction
- * (the UI never offers this button for a Fixed goal's items).
- */
-export async function addGoalLineItemToBudget(
-  uid: string,
-  goalId: string,
-  lineItemId: string,
-  categoryId: string,
-  amount: number,
-  type: BudgetLineType
-): Promise<void> {
-  const month = monthKey(new Date());
-  const [year, monthNum] = month.split('-').map(Number);
-  const rulesSnap = await getDocs(
-    query(budgetRulesRef(uid), where('categoryId', '==', categoryId), where('archived', '==', false))
-  );
-  const coveringRule = rulesSnap.docs.find((ruleDoc) => {
-    const rule = ruleDoc.data();
-    const occurrence = ruleAppliesToMonth(toRecurrenceRule(rule), year, monthNum);
-    return occurrence && !rule.excludedMonths?.includes(month);
-  });
-
-  let ruleId: string;
-  if (coveringRule) {
-    ruleId = coveringRule.id;
-    await updateDoc(budgetRuleRef(uid, ruleId), {
-      budgetedAmount: round2((coveringRule.data().budgetedAmount ?? 0) + amount),
-      updatedAt: serverTimestamp(),
-    });
-  } else {
-    ruleId = `rule_${crypto.randomUUID().slice(0, 8)}`;
-    await setDoc(budgetRuleRef(uid, ruleId), {
-      categoryId,
-      type,
-      description: '',
-      budgetedAmount: round2(amount),
-      frequency: 'Once',
-      interval: 1,
-      anchorDate: Timestamp.fromDate(new Date(year, monthNum - 1, 1)),
-      endCondition: 'Never',
-      endOccurrences: null,
-      endDate: null,
-      accountId: null,
-      tag: null,
-      archived: false,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
-  }
-
-  await updateDoc(goalLineItemRef(uid, goalId, lineItemId), { addedToBudget: true, updatedAt: serverTimestamp() });
-  await recomputeBudgetProgressForRuleAndMonth(uid, ruleId, month);
-  await recomputeBudgetProgressForRuleCurrentMonth(uid, ruleId);
+/** Refused while anything is still linked to the item (assertNothingLinked). */
+export async function deleteBucketLineItem(uid: string, goalId: string, lineItemId: string): Promise<void> {
+  await assertNothingLinked(uid, { itemId: lineItemId });
+  await deleteDoc(bucketLineItemRef(uid, goalId, lineItemId));
+  await recalcBucketTotals(uid, goalId);
 }
 
-/**
- * Only a not-yet-completed line item — deleting one that already paid for
- * something real would silently orphan the reasoning behind that expense.
- * `budgetRuleId` only ever has a value on a line item created before goal
- * items stopped auto-creating budget rules (see createGoalLineItem's own
- * header) — kept here purely so deleting one of those older items still
- * archives its old auto-created rule instead of leaving it behind still
- * budgeting for a cost that no longer exists. A line item created going
- * forward never has one, so this branch is a no-op for it.
- */
-export async function deleteGoalLineItem(
-  uid: string,
-  goalId: string,
-  lineItemId: string,
-  budgetRuleId?: string | null
-): Promise<void> {
-  await deleteDoc(goalLineItemRef(uid, goalId, lineItemId));
-  if (budgetRuleId) {
-    await updateDoc(budgetRuleRef(uid, budgetRuleId), { archived: true, updatedAt: serverTimestamp() });
-    await recomputeBudgetProgressForRuleCurrentMonth(uid, budgetRuleId);
-  }
-  await recalcGoalTotals(uid, goalId);
-}
-
-export interface MarkGoalLineItemCompleteInput {
+export interface MarkBucketLineItemCompleteInput {
   accountId: string;
   categoryId: string | null;
   date: Date;
   description: string;
   // The completed item's own category transactionType — an Expense-category
   // item spends out of accountId (Outflow); a Savings-category item credits
-  // accountId, which the goal form already restricts to a real Savings
+  // accountId, which the bucket form already restricts to a real Savings
   // Account wallet (viewmodels/wallets.ts's SAVINGS_ACCOUNT_TYPE), so this
   // is a deposit into it (Inflow), not a frozen-lock like Add Transaction's
   // "frozen savings" mode; an Income-category item also credits accountId
   // (Inflow) — the expected income actually arriving. 'Transfer' takes the
   // separate branch below entirely (accountId is the FROM side, see
   // toAccountId/charges). Defaults to 'Expense' — the only behavior this
-  // function had before Savings/Income/Transfer goal items existed.
+  // function had before Savings/Income/Transfer bucket items existed.
   categoryType?: 'Expense' | 'Savings' | 'Income' | 'Transfer';
-  // Transfer goal items only — the account the amount lands in, and the
+  // Transfer bucket items only — the account the amount lands in, and the
   // planned cost of moving it (mirrors createTransferWithAggregation's own
   // CreateTransferInput).
   toAccountId?: string | null;
   charges?: number | null;
+  // PRD-BUDGETS-V2.md section 4.3 — which month's occurrence of this item
+  // the payment settles (yyyy-MM). Defaults to the payment date's own month;
+  // differs for an early/late payment (September's rent paid Aug 30).
+  occurrenceMonth?: string;
 }
 
 /**
@@ -1500,7 +1361,7 @@ export interface MarkGoalLineItemCompleteInput {
  * shot. `paymentAmount` is this ONE payment's amount, not necessarily the
  * item's full planned `amount`.
  *
- * A Transfer goal's item takes a wholly different branch: it moves money
+ * A Transfer bucket's item takes a wholly different branch: it moves money
  * between two of the household's own accounts (categoryId here is a
  * TRANSFER_CATEGORIES kind string, not a real category) rather than
  * spending/receiving against one, so it records a real transfer the same
@@ -1508,18 +1369,23 @@ export interface MarkGoalLineItemCompleteInput {
  * transaction so a payment can't end up recorded without the transfer
  * existing either.
  */
-export async function recordGoalLineItemPayment(
+export async function recordBucketLineItemPayment(
   uid: string,
   goalId: string,
   lineItemId: string,
   paymentAmount: number,
   fullyPaid: boolean,
-  input: MarkGoalLineItemCompleteInput,
+  input: MarkBucketLineItemCompleteInput,
   ctx: CurrencyContext
 ): Promise<void> {
   const db = getFirebaseFirestore();
   const clientId = crypto.randomUUID();
   const categoryType = input.categoryType ?? 'Expense';
+  const bucketItem: BucketItemLink = {
+    bucketId: goalId,
+    itemId: lineItemId,
+    month: input.occurrenceMonth ?? monthKey(input.date),
+  };
 
   if (categoryType === 'Transfer') {
     if (!input.toAccountId) throw new Error('Choose which account this transfer moves money into.');
@@ -1529,11 +1395,16 @@ export async function recordGoalLineItemPayment(
     const kind = input.categoryId ?? 'Wallet to wallet';
 
     await runTransaction(db, async (tx) => {
-      const [fromSnap, toSnap, lineItemSnap] = await Promise.all([
+      const [fromSnap, toSnap, lineItemSnap, bucketSnap] = await Promise.all([
         tx.get(accountRef(uid, input.accountId)),
         tx.get(accountRef(uid, toAccountId)),
-        tx.get(goalLineItemRef(uid, goalId, lineItemId)),
+        tx.get(bucketLineItemRef(uid, goalId, lineItemId)),
+        tx.get(bucketRef(uid, goalId)),
       ]);
+      // A Fixed item recurs — paying one month's occurrence never closes
+      // the item itself (that used to hide it from every later month).
+      // Per-month status is derived instead (src/shared/budget/monthBudget.ts).
+      const closes = fullyPaid && bucketSnap.data()?.kind !== 'Fixed';
       if (fromSnap.data()?.frozen || toSnap.data()?.frozen) {
         throw new Error('One of these wallets is frozen — unfreeze it before transferring.');
       }
@@ -1548,6 +1419,7 @@ export async function recordGoalLineItemPayment(
         charges,
         kind,
         notes: '',
+        bucketItem,
         createdBy: uid,
         createdAt: dateTimestamp,
       });
@@ -1566,9 +1438,9 @@ export async function recordGoalLineItemPayment(
         ...(lineItemSnap.data()?.payments ?? []),
         { id: clientId, kind: 'transfer' as const, amount: paymentAmount, date: dateTimestamp },
       ];
-      tx.update(goalLineItemRef(uid, goalId, lineItemId), {
-        completed: fullyPaid,
-        completedAt: fullyPaid ? serverTimestamp() : null,
+      tx.update(bucketLineItemRef(uid, goalId, lineItemId), {
+        completed: closes,
+        completedAt: closes ? serverTimestamp() : null,
         transferId: clientId,
         payments,
         actualAmount: round2(payments.reduce((sum, payment) => sum + payment.amount, 0)),
@@ -1576,18 +1448,19 @@ export async function recordGoalLineItemPayment(
       });
     });
 
-    await recomputeBudgetProgressForCategoryMonth(uid, kind, monthKey(input.date));
-    await recalcGoalTotals(uid, goalId);
+    await recalcBucketTotals(uid, goalId);
     return;
   }
 
   const direction = categoryType === 'Expense' ? 'Outflow' : 'Inflow';
 
   await runTransaction(db, async (tx) => {
-    const [accountSnap, lineItemSnap] = await Promise.all([
+    const [accountSnap, lineItemSnap, bucketSnap] = await Promise.all([
       tx.get(accountRef(uid, input.accountId)),
-      tx.get(goalLineItemRef(uid, goalId, lineItemId)),
+      tx.get(bucketLineItemRef(uid, goalId, lineItemId)),
+      tx.get(bucketRef(uid, goalId)),
     ]);
+    const closes = fullyPaid && bucketSnap.data()?.kind !== 'Fixed';
     writeTransactionContribution(
       tx,
       uid,
@@ -1601,6 +1474,7 @@ export async function recordGoalLineItemPayment(
         amount: paymentAmount,
         direction,
         createdBy: uid,
+        bucketItem,
       },
       accountSnap.data(),
       ctx
@@ -1609,9 +1483,9 @@ export async function recordGoalLineItemPayment(
       ...(lineItemSnap.data()?.payments ?? []),
       { id: clientId, kind: 'expense' as const, amount: paymentAmount, date: Timestamp.fromDate(input.date) },
     ];
-    tx.update(goalLineItemRef(uid, goalId, lineItemId), {
-      completed: fullyPaid,
-      completedAt: fullyPaid ? serverTimestamp() : null,
+    tx.update(bucketLineItemRef(uid, goalId, lineItemId), {
+      completed: closes,
+      completedAt: closes ? serverTimestamp() : null,
       expenseId: clientId,
       payments,
       actualAmount: round2(payments.reduce((sum, payment) => sum + payment.amount, 0)),
@@ -1619,12 +1493,7 @@ export async function recordGoalLineItemPayment(
     });
   });
 
-  if (input.categoryId) {
-    const month = monthKey(input.date);
-    await ensureBudgetCoverageForCategoryMonth(uid, input.categoryId, month, categoryType);
-    await recomputeBudgetProgressForCategoryMonth(uid, input.categoryId, month);
-  }
-  await recalcGoalTotals(uid, goalId);
+  await recalcBucketTotals(uid, goalId);
 }
 
 // ---------------------------------------------------------------------
@@ -1803,7 +1672,7 @@ function addInterval(date: Date, interval: 'weekly' | 'biweekly' | 'monthly' | '
 }
 
 /** Same "recompute from the real subcollection, a transaction can't query"
- * shape as recalcGoalTotals above. */
+ * shape as recalcBucketTotals above. */
 async function recalcDebtBalance(uid: string, debtId: string, principalAmount: number) {
   const snap = await getDocs(repaymentsRef(uid, debtId));
   const totalRepaid = snap.docs.reduce((sum, d) => sum + (Number(d.data().amount) || 0), 0);
@@ -1892,11 +1761,6 @@ export async function recordRepayment(
         createdAt: serverTimestamp(),
       });
     });
-    if (input.categoryId) {
-      const month = monthKey(input.date);
-      await ensureBudgetCoverageForCategoryMonth(uid, input.categoryId, month, 'Expense');
-      await recomputeBudgetProgressForCategoryMonth(uid, input.categoryId, month);
-    }
   } else {
     await setDoc(repaymentRef(uid, debt.id, repaymentId), {
       debtId: debt.id,

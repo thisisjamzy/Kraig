@@ -17,6 +17,19 @@ const nextConfig: NextConfig = {
   // run build` still needs the `--webpack` flag (see package.json) so
   // next-pwa's service-worker generation actually runs for production.
   turbopack: {},
+  // PRD-BUDGETS-V2.md section 3 — Goals were renamed to Buckets. Old links
+  // (bookmarks, the installed PWA's cached start routes) keep working. The
+  // Projects tier's old /buckets/* URLs can't be redirected: that path now
+  // belongs to money buckets.
+  async redirects() {
+    return [
+      { source: '/goals', destination: '/buckets', permanent: true },
+      { source: '/goals/:path*', destination: '/buckets/:path*', permanent: true },
+      { source: '/add-goal-item/:path*', destination: '/add-bucket-item/:path*', permanent: true },
+      { source: '/edit-goal-item/:path*', destination: '/edit-bucket-item/:path*', permanent: true },
+      { source: '/settings/archived-goals', destination: '/settings/archived-buckets', permanent: true },
+    ];
+  },
 };
 
 //

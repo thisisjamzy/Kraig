@@ -8,7 +8,7 @@
 // icons reads as varied rather than one flat grey stripe.
 //
 // Same color-mix(in srgb, <hue> 18%, transparent) formula
-// src/widgets/TaskCard/TaskCard.module.css's priority/status chips already
+// src/widgets/TaskCheckRow/TaskCheckRow.module.css's priority/status chips already
 // used for exactly this kind of faint chip — this just generalizes it to a
 // rotating set of hues instead of one fixed semantic color per chip.
 export const ICON_TINT_HUES = [

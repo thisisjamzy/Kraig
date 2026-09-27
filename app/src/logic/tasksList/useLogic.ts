@@ -9,16 +9,18 @@
 // which tile got you here.
 
 import { useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { query } from 'firebase/firestore';
 import { useFirestoreCollection } from '@/src/shared/firestore/hooks';
-import { useBuckets } from '@/src/shared/firestore/queries';
+import { useSections } from '@/src/shared/firestore/queries';
 import { areasRef, projectsRef } from '@/src/shared/firestore/refs';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { useAllTasks } from '@/src/shared/hooks/useAllTasks';
 import { PRIORITY_LEVELS, DEFAULT_PRIORITY } from '@/src/viewmodels/projects';
 import type { Priority, FirestoreArea, FirestoreProject } from '@/src/shared/firestore/types';
-import type { TaskCardTask } from '@/src/widgets/TaskCard/TaskCard';
+import type { TaskCheckRowTask } from '@/src/widgets/TaskCheckRow/TaskCheckRow';
+import { effectiveTimeMode } from '@/src/viewmodels/scheduling';
+import { actionableTasks, expandTasks } from '@/src/shared/tasks/recurringTasks';
+import { useGoBack } from '@/src/shared/navigation/useGoBack';
 
 export type TaskListFilter = 'today' | 'week' | 'overdue' | 'all';
 export type TaskStatusFilter = 'notDone' | 'done' | 'all';
@@ -41,8 +43,9 @@ export const STATUS_FILTER_LABEL: Record<TaskStatusFilter, string> = {
 export const PRIORITY_FILTERS: TaskPriorityFilter[] = ['All', ...PRIORITY_LEVELS];
 export const PRIORITY_FILTER_LABEL: Record<TaskPriorityFilter, string> = {
   All: 'Any priority',
-  High: 'High priority',
-  Medium: 'Medium priority',
+  Urgent: 'Very important',
+  High: 'Important',
+  Medium: 'Normal priority',
   Low: 'Low priority',
 };
 
@@ -62,7 +65,6 @@ function filterFromSearch(): TaskListFilter {
 }
 
 export function useLogic() {
-  const router = useRouter();
   const { user } = useFirebaseUser();
   const uid = user?.uid;
   const { data: taskDocs, loading } = useAllTasks();
@@ -75,7 +77,7 @@ export function useLogic() {
   const { data: areaDocs } = useFirestoreCollection<FirestoreArea>(areasQuery);
   const areaName = useMemo(() => new Map(areaDocs.map((a) => [a.id, a.name])), [areaDocs]);
 
-  const { data: bucketDocs } = useBuckets();
+  const { data: bucketDocs } = useSections();
   const bucketName = useMemo(() => new Map(bucketDocs.map((b) => [b.id, b.name])), [bucketDocs]);
 
   const filter = filterFromSearch();
@@ -85,7 +87,7 @@ export function useLogic() {
   const [statusFilter, setStatusFilter] = useState<TaskStatusFilter>('notDone');
   const [priorityFilter, setPriorityFilter] = useState<TaskPriorityFilter>('All');
 
-  const tasks = useMemo<TaskCardTask[]>(() => {
+  const tasks = useMemo<TaskCheckRowTask[]>(() => {
     const now = new Date();
     const today = startOfDay(now);
     const tomorrow = new Date(today);
@@ -95,7 +97,13 @@ export function useLogic() {
     const weekEnd = new Date(today);
     weekEnd.setDate(weekEnd.getDate() + 7);
 
-    return taskDocs
+    // Recurring tasks: every date in a day/week list; otherwise what's
+    // actionable (today's, overdue, and — for All — the next date).
+    const base =
+      filter === 'today' || filter === 'week'
+        ? expandTasks(taskDocs, today, new Date(weekEnd.getTime() - 1))
+        : actionableTasks(taskDocs, now, { includeUpcoming: filter === 'all' });
+    return base
       .filter((task) => {
         if (statusFilter === 'notDone' && task.done) return false;
         if (statusFilter === 'done' && !task.done) return false;
@@ -110,18 +118,29 @@ export function useLogic() {
         // this list always agree.
         return due < now;
       })
-      .map((task) => ({
-        id: task.id,
-        title: task.title,
-        priority: task.priority ?? DEFAULT_PRIORITY,
-        done: task.done,
-        status: task.status,
-        startTime: task.startTime ? task.startTime.toDate() : null,
-        dueDate: task.dueDate ? task.dueDate.toDate() : null,
-        projectName: task.projectId ? projectName.get(task.projectId) ?? null : null,
-        bucketName: task.bucketId ? bucketName.get(task.bucketId) ?? null : null,
-        areaName: task.areaId ? areaName.get(task.areaId) ?? null : null,
-      }))
+      .map((task): TaskCheckRowTask => {
+        const startTime = task.startTime ? task.startTime.toDate() : null;
+        const dueDate = task.dueDate ? task.dueDate.toDate() : null;
+        const end = dueDate ?? startTime;
+        const context = [
+          task.projectId ? projectName.get(task.projectId) : null,
+          task.bucketId ? bucketName.get(task.bucketId) : null,
+          task.areaId ? areaName.get(task.areaId) : null,
+        ].filter(Boolean);
+        return {
+          id: task.id,
+          title: task.title,
+          priority: task.priority ?? DEFAULT_PRIORITY,
+          done: task.done,
+          startTime,
+          dueDate,
+          allDay: Boolean(task.allDay),
+          timeMode: effectiveTimeMode(task),
+          recurring: Boolean(task.seriesId),
+          overdue: !task.done && end !== null && end < now,
+          context: context.length > 0 ? context.join(' · ') : null,
+        };
+      })
       .sort((a, b) => {
         if (!a.dueDate && !b.dueDate) return 0;
         if (!a.dueDate) return 1;
@@ -130,8 +149,9 @@ export function useLogic() {
       });
   }, [taskDocs, filter, statusFilter, priorityFilter, projectName, bucketName, areaName]);
 
+  const navigateBack = useGoBack();
   function goBack() {
-    router.back();
+    navigateBack('/projects');
   }
 
   return {

@@ -55,7 +55,7 @@ export function CreateDebtScreen() {
   const typeLabel = (type: (typeof DEBT_TYPES)[number]) =>
     type === 'cash' ? strings.createDebt.typeCash : strings.createDebt.typeExisting;
   const priorityLabel = (p: (typeof DEBT_PRIORITIES)[number]) =>
-    strings.goals[p === 'high' ? 'priorityHigh' : p === 'medium' ? 'priorityMedium' : 'priorityLow'];
+    strings.buckets[p === 'high' ? 'priorityHigh' : p === 'medium' ? 'priorityMedium' : 'priorityLow'];
 
   return (
     <div className={styles.page}>

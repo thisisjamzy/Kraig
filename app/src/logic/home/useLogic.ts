@@ -3,21 +3,21 @@
 import { useEffect, useMemo, useState } from 'react';
 import { query, where, orderBy, limit, updateDoc, Timestamp } from 'firebase/firestore';
 import { ArrowUpRight, ArrowDownLeft, PiggyBank, type LucideIcon } from 'lucide-react';
-import { ruleAppliesToMonth, effectiveBudgetedAmount } from '@dreda/shared-recurrence';
 import { useFirestoreCollection, useFirestoreDoc } from '@/src/shared/firestore/hooks';
-import { transactionsRef, settingsRef, unjustifiedWalletRef, goalsRef, budgetRulesRef } from '@/src/shared/firestore/refs';
+import { transactionsRef, settingsRef, unjustifiedWalletRef, bucketsRef } from '@/src/shared/firestore/refs';
 import { useAccounts, useCategories, useCurrencyContext, useExchangeRates } from '@/src/shared/firestore/queries';
 import { toDisplay, round2 } from '@/src/shared/firestore/currency';
-import { toRecurrenceRule } from '@/src/shared/firestore/recurrence';
-import { computeUpcomingPaymentsFromGoalItems } from '@/src/shared/firestore/upcomingPayments';
+import { computeUpcomingPaymentsFromBucketItems } from '@/src/shared/firestore/upcomingPayments';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
-import { useGoalLineItemsByGoal } from '@/src/shared/hooks/useGoalLineItemsByGoal';
+import { useMonthBudget } from '@/src/shared/hooks/useMonthBudget';
+import { isItemClosed } from '@/src/shared/budget/bucketProgress';
+import { useBucketLineItemsByBucket } from '@/src/shared/hooks/useBucketLineItemsByBucket';
 import { useIsWeb } from '@/src/shared/hooks/useViewportMode';
 import { walletCardColor, walletColor, walletCardNumber, isSavingsAccount } from '@/src/viewmodels/wallets';
 import { currencyName } from '@/src/viewmodels/currencies';
 import { categoryAccentColor } from '@/src/viewmodels/categories';
 import { dueLabel, formatDueDate } from '@/src/logic/paymentsCalendar/useLogic';
-import type { FirestoreAccount, FirestoreTransaction, FirestoreGoal, FirestoreBudgetRule } from '@/src/shared/firestore/types';
+import type { FirestoreAccount, FirestoreTransaction, FirestoreBucket } from '@/src/shared/firestore/types';
 
 // Analytics now owns Quarter/Year (src/logic/statistics/useLogic.ts) — Home
 // keeps the shorter-range Week/Month views instead, since those are the
@@ -120,13 +120,13 @@ export function useLogic() {
   const { data: accounts, loading: accountsLoading, error: accountsError } = useAccounts();
   const { data: categories, loading: categoriesLoading } = useCategories();
 
-  // Which wallets a goal is actually targeting — every active goal's own
-  // line items, same fan-out-per-goal hook src/logic/goals/useLogic.ts's
+  // Which wallets a bucket is actually targeting — every active bucket's own
+  // line items, same fan-out-per-bucket hook src/logic/buckets/useLogic.ts's
   // own gauge card uses. Only feeds the wallets chart's "required" bar
   // below; nothing else here depends on it.
-  const goalsQuery = useMemo(() => (uid ? query(goalsRef(uid), where('archived', '==', false)) : null), [uid]);
-  const { data: goalDocs, loading: goalsLoading } = useFirestoreCollection<FirestoreGoal>(goalsQuery);
-  const { itemsByGoal, loading: goalItemsLoading } = useGoalLineItemsByGoal(goalDocs);
+  const bucketsQuery = useMemo(() => (uid ? query(bucketsRef(uid), where('archived', '==', false)) : null), [uid]);
+  const { data: bucketDocs, loading: bucketsLoading } = useFirestoreCollection<FirestoreBucket>(bucketsQuery);
+  const { itemsByBucket, loading: bucketItemsLoading } = useBucketLineItemsByBucket(bucketDocs);
 
   // Most recent transactions across every account, not scoped to a month —
   // this is a quick "what just happened" glance, not a budget-progress view
@@ -141,14 +141,14 @@ export function useLogic() {
 
   const requiredByAccountId = useMemo(() => {
     const totals = new Map<string, number>();
-    for (const goal of goalDocs) {
-      for (const item of itemsByGoal[goal.id] ?? []) {
-        if (item.completed || !item.accountId) continue;
-        totals.set(item.accountId, (totals.get(item.accountId) ?? 0) + toDisplay(ctx, item.amount, goal.currency));
+    for (const bucket of bucketDocs) {
+      for (const item of itemsByBucket[bucket.id] ?? []) {
+        if (isItemClosed(item, bucket.kind) || !item.accountId) continue;
+        totals.set(item.accountId, (totals.get(item.accountId) ?? 0) + toDisplay(ctx, item.amount, bucket.currency));
       }
     }
     return totals;
-  }, [goalDocs, itemsByGoal, ctx]);
+  }, [bucketDocs, itemsByBucket, ctx]);
 
   // Tapping the currency chip switches which currency the whole app
   // displays amounts in — same write Settings' own currency picker makes
@@ -204,32 +204,14 @@ export function useLogic() {
   );
   const { data: monthTransactionDocs, loading: monthTransactionsLoading } =
     useFirestoreCollection<FirestoreTransaction>(monthTransactionsQuery);
-  const activeBudgetRulesQuery = useMemo(
-    () => (uid && isWeb ? query(budgetRulesRef(uid), where('archived', '==', false)) : null),
-    [uid, isWeb]
+  // PRD-BUDGETS-V2.md — this month's planned Expense items, the same
+  // derived budget src/logic/budget/useLogic.ts's own totalExpenseBudgeted
+  // reads (just the one headline total).
+  const { budget: monthBudget, loading: monthBudgetLoading } = useMonthBudget(isWeb ? monthStr : null);
+  const monthBudgeted = useMemo(
+    () => round2(monthBudget.items.filter((entry) => entry.type === 'Expense').reduce((sum, entry) => sum + entry.planned, 0)),
+    [monthBudget]
   );
-  const { data: budgetRuleDocs, loading: budgetRulesLoading } =
-    useFirestoreCollection<FirestoreBudgetRule>(activeBudgetRulesQuery);
-
-  // Same ruleAppliesToMonth/effectiveBudgetedAmount math src/logic/budget/
-  // useLogic.ts's own totalExpenseBudgeted uses — just the one headline
-  // total, no per-category breakdown (that's Budget's own screen's job).
-  const monthBudgeted = useMemo(() => {
-    const [y, m] = monthStr.split('-').map(Number);
-    return round2(
-      budgetRuleDocs
-        .filter((rule) => (rule.type ?? 'Expense') === 'Expense')
-        .reduce((sum, rule) => {
-          const occurrence = ruleAppliesToMonth(toRecurrenceRule(rule), y, m);
-          if (!occurrence || rule.excludedMonths?.includes(monthStr)) return sum;
-          const native = rule.accountId ? accountCurrency.get(rule.accountId) ?? ctx.base : ctx.base;
-          return (
-            sum +
-            toDisplay(ctx, effectiveBudgetedAmount(rule.budgetedAmount, occurrence.multiplier, rule.monthOverrides, monthStr), native)
-          );
-        }, 0)
-    );
-  }, [budgetRuleDocs, monthStr, accountCurrency, ctx]);
 
   const monthExpenseTotal = useMemo(
     () =>
@@ -352,7 +334,7 @@ export function useLogic() {
       // gradient) uses — the web dashboard's own plan-row accent bar needs
       // a flat color, not a gradient, to render as a border.
       accentColor: walletColor(index),
-      // How much of what a goal is targeting for this specific wallet is
+      // How much of what a bucket is targeting for this specific wallet is
       // still outstanding (unpaid/uncompleted line items) — 0 renders as
       // "*****" on the card rather than a real figure (Design/card
       // design.jpg's CVV slot repurposed for this).
@@ -415,14 +397,14 @@ export function useLogic() {
 
   const upcomingPayments = useMemo(
     () =>
-      computeUpcomingPaymentsFromGoalItems(goalDocs, itemsByGoal, accounts, categories, ctx, UPCOMING_PAYMENTS_HORIZON_DAYS)
+      computeUpcomingPaymentsFromBucketItems(bucketDocs, itemsByBucket, accounts, categories, ctx, UPCOMING_PAYMENTS_HORIZON_DAYS)
         .slice(0, UPCOMING_PAYMENTS_PREVIEW_COUNT)
         .map((payment) => ({
           ...payment,
           dueDateLabel: formatDueDate(payment.dueDate),
           dueInLabel: dueLabel(payment.dueDate),
         })),
-    [goalDocs, itemsByGoal, accounts, categories, ctx]
+    [bucketDocs, itemsByBucket, accounts, categories, ctx]
   );
 
   return {
@@ -459,10 +441,10 @@ export function useLogic() {
       recentTransactionsLoading ||
       ctxLoading ||
       breakdownLoading ||
-      goalsLoading ||
-      goalItemsLoading ||
+      bucketsLoading ||
+      bucketItemsLoading ||
       monthTransactionsLoading ||
-      budgetRulesLoading,
+      monthBudgetLoading,
     error: accountsError,
   };
 }

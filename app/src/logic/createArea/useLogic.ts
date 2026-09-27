@@ -6,6 +6,7 @@ import { setDoc, serverTimestamp } from 'firebase/firestore';
 import { areaRef } from '@/src/shared/firestore/refs';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { PROJECT_COLORS } from '@/src/viewmodels/projects';
+import { useGoBack } from '@/src/shared/navigation/useGoBack';
 
 export function useLogic() {
   const router = useRouter();
@@ -42,8 +43,11 @@ export function useLogic() {
     }
   }
 
+  // Back to the page the user came from (skipping forms); '/projects' only
+  // when there's no history — see src/shared/navigation/useGoBack.ts.
+  const navigateBack = useGoBack();
   function goBack() {
-    router.push('/projects');
+    navigateBack('/projects');
   }
 
   return {

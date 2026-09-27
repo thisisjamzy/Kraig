@@ -15,12 +15,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useFirestoreDoc } from '@/src/shared/firestore/hooks';
+import { useBucketItemOptions, bucketItemKey as linkKey } from '@/src/shared/hooks/useBucketItemOptions';
 import { transactionRef } from '@/src/shared/firestore/refs';
 import { useAccounts, useCategories, useCurrencyContext } from '@/src/shared/firestore/queries';
 import { updateTransactionWithAggregation, deleteTransactionWithAggregation } from '@/src/shared/firestore/aggregation';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { isSavingsAccount } from '@/src/viewmodels/wallets';
 import type { FirestoreTransaction } from '@/src/shared/firestore/types';
+import { useGoBack } from '@/src/shared/navigation/useGoBack';
 
 export type EditableTransactionType = 'Expense' | 'Income' | 'Savings';
 export const TRANSACTION_TYPES: EditableTransactionType[] = ['Expense', 'Income', 'Savings'];
@@ -62,6 +64,9 @@ export function useLogic(transactionId: string) {
   const [amountString, setAmountString] = useState('');
   const [accountId, setAccountId] = useState('');
   const [dateValue, setDateValue] = useState('');
+  // PRD-BUDGETS-V2.md section 6.4 — which bucket item occurrence this pays
+  // for, as `${itemId}@${yyyy-MM}`; '' = not linked (unplanned spend).
+  const [bucketItemKey, setBucketItemKey] = useState('');
   const [seededFor, setSeededFor] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -105,8 +110,11 @@ export function useLogic(transactionId: string) {
     setAmountString(String(original.amount));
     setAccountId(original.accountId);
     setDateValue(toIso(original.date.toDate()));
+    setBucketItemKey(linkKey(original.bucketItem));
     setSeededFor(transactionId);
   }, [original, seededFor, transactionId]);
+
+  const bucketItemOptions = useBucketItemOptions({ categoryId, dateValue, current: original?.bucketItem });
 
   async function handleSave() {
     if (!original || !uid || submitting) return;
@@ -125,6 +133,7 @@ export function useLogic(transactionId: string) {
           categoryId,
           amount: Number(amountString),
           direction: type === 'Income' ? 'Inflow' : 'Outflow',
+          bucketItem: bucketItemOptions.find((option) => option.key === bucketItemKey)?.link ?? null,
         },
         ctx
       );
@@ -161,8 +170,11 @@ export function useLogic(transactionId: string) {
     }
   }
 
+  // Back to the page the user came from (skipping forms); '/transactions' only
+  // when there's no history — see src/shared/navigation/useGoBack.ts.
+  const navigateBack = useGoBack();
   function goBack() {
-    router.push('/transactions');
+    navigateBack('/transactions');
   }
 
   const canSave = categoryId.length > 0 && accountId.length > 0 && Number(amountString) > 0 && !submitting;
@@ -176,6 +188,9 @@ export function useLogic(transactionId: string) {
     categoryId,
     setCategoryId,
     categories,
+    bucketItemKey,
+    setBucketItemKey,
+    bucketItemOptions,
     amountString,
     setAmountString,
     accountId,

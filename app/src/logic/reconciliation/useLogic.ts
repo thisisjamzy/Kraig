@@ -13,6 +13,7 @@ import {
 import { toDisplay } from '@/src/shared/firestore/currency';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import type { FirestoreAccount, FirestoreTransaction } from '@/src/shared/firestore/types';
+import { useGoBack } from '@/src/shared/navigation/useGoBack';
 
 export function useLogic() {
   const router = useRouter();
@@ -109,8 +110,11 @@ export function useLogic() {
     router.push('/settings/reconciliation/history');
   }
 
+  // Back to the page the user came from (skipping forms); '/settings' only
+  // when there's no history — see src/shared/navigation/useGoBack.ts.
+  const navigateBack = useGoBack();
   function goBack() {
-    router.push('/settings');
+    navigateBack('/settings');
   }
 
   return {

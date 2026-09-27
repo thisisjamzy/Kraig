@@ -99,7 +99,7 @@ export function PaymentsCalendarScreen() {
     cancelConfirmPayment,
     confirmPayment,
     goBack,
-    goToGoals,
+    goToBuckets,
 
     loading,
     error,
@@ -159,7 +159,7 @@ export function PaymentsCalendarScreen() {
           </>
         )}
 
-        <button type="button" className={styles.addPaymentButton} onClick={goToGoals}>
+        <button type="button" className={styles.addPaymentButton} onClick={goToBuckets}>
           <Plus size={16} strokeWidth={2.25} />
           {strings.paymentsCalendar.addPayment}
         </button>

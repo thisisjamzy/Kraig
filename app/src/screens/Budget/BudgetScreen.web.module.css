@@ -10,6 +10,7 @@
   grid-template-areas:
     'header    header'
     'total     tracking'
+    'attention attention'
     'catsHead  catsHead'
     'cats      cats'
     'transHead transHead'
@@ -39,6 +40,32 @@
   grid-area: catsHead;
 }
 
+.areaAttention {
+  grid-area: attention;
+}
+
+/* The phone's horizontal snap strip becomes a wrapping grid on web. */
+.page .attentionRailWeb {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  margin: 0;
+  padding: 0;
+  overflow: visible;
+}
+
+.page .attentionRailWeb > * {
+  width: auto;
+}
+
+/* Budget groups (BudgetGroups.module.css): two columns of category/bucket
+   groups instead of one stacked list. */
+.page .areaGroups {
+  grid-area: cats;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  align-items: start;
+}
+
 .areaTransHead {
   grid-area: transHead;
 }
@@ -64,10 +91,3 @@
   padding: 0;
 }
 
-/* .categoryCard's mobile width:70% assumed a ~480px horizontal scroll
-   strip (see the audit that fed this file's plan) — pinned to the grid
-   cell's own width here instead, not a viewport/container fraction. */
-.page .categoryCardWeb {
-  width: 100%;
-  scroll-snap-align: none;
-}

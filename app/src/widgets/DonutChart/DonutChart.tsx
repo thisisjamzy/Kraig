@@ -27,13 +27,13 @@ export function DonutChart({
   thickness?: number;
   legendPosition?: 'right' | 'bottom';
   // Optional callout text over the ring's own hole — e.g. a total amount +
-  // what it represents (see Design/goal1.jpg's "$2,482 / Your savings").
+  // what it represents (see Design/bucket1.jpg's "$2,482 / Your savings").
   centerValue?: string;
   centerLabel?: string;
   // A 'bottom' legend normally stacks one row per segment full-width —
   // legendWrap instead lets each label+value chip flow left-to-right and
   // wrap, for a bottom legend with more than a couple of segments (see
-  // Goals' priority/type/category breakdown).
+  // Buckets' priority/type/category breakdown).
   legendWrap?: boolean;
 }) {
   const total = segments.reduce((sum, segment) => sum + segment.value, 0);

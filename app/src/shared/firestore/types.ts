@@ -110,6 +110,15 @@ export interface FirestoreTransaction {
   // other Savings entry, and still shows up in Transaction History; only
   // its effect on the account's own balance differs.
   isFrozenSavings?: boolean;
+  // PRD-BUDGETS-V2.md section 4.3 — which bucket item (and which month's
+  // occurrence of it) this transaction pays for. The single source of truth
+  // for "spent against item X in month M" (src/shared/budget/monthBudget.ts)
+  // — nothing on the item itself is denormalized from it, so editing or
+  // deleting the transaction keeps every budget figure right for free.
+  // `month` is explicit rather than derived from `date`: paying September's
+  // rent on Aug 30 counts toward September. Absent/null = not tied to any
+  // item (category-only spend, shown as "Unplanned" on the Budget screen).
+  bucketItem?: BucketItemLink | null;
   createdBy: string;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
@@ -140,7 +149,53 @@ export interface FirestoreTransfer {
   // one unit. See src/shared/firestore/unaccountedBalance.ts.
   isHistoricBackfill?: boolean;
   backfillBatchId?: string | null;
+  // Same as FirestoreTransaction.bucketItem — a Transfer (or moved-Savings)
+  // bucket item's own occurrence this transfer settles.
+  bucketItem?: BucketItemLink | null;
 }
+
+/** See FirestoreTransaction.bucketItem. `bucketId` is the buckets/{id} doc id
+ * (buckets are still stored under `goals` — PRD-BUDGETS-V2.md section 3). */
+export interface BucketItemLink {
+  bucketId: string;
+  itemId: string;
+  month: string; // yyyy-MM of the occurrence being paid, not the payment's own date
+}
+
+/**
+ * users/{uid}/allocations/{id} — PRD-BUDGETS-V2.md section 4.4. One budget
+ * move: leftover reallocated, an overspend covered, next month's plan
+ * borrowed from. Moves budget, never money — except a `savings` source,
+ * which is created alongside a real transfer (transferId) so the cash that
+ * actually funded the overspend is traceable too. Deleting one simply
+ * reverses it (and its transfer, if any).
+ */
+export interface FirestoreAllocation {
+  id: string;
+  // The month whose pool a `pool` endpoint refers to, and the month the
+  // move was made for — the item endpoints carry their own month.
+  month: string;
+  // Every yyyy-MM this allocation touches (this month plus either item
+  // endpoint's own), so one array-contains query finds everything that
+  // affects a given month's budget.
+  months: string[];
+  from: AllocationEndpoint;
+  to: AllocationEndpoint;
+  amount: number;
+  currency: string; // the display currency the amount was entered in
+  reason: AllocationReason;
+  transferId: string | null;
+  note: string;
+  createdBy: string;
+  createdAt?: Timestamp;
+}
+
+export type AllocationReason = 'reallocate_leftover' | 'cover_overspend' | 'borrow_next_month' | 'return_to_pool';
+
+export type AllocationEndpoint =
+  | { kind: 'item'; bucketId: string; itemId: string; month: string }
+  | { kind: 'pool' }
+  | { kind: 'savings'; accountId: string };
 
 // A prefilled shortcut for a transaction/transfer a household records often
 // (a daily commute expense, a weekly savings sweep, ...) — src/logic/
@@ -182,67 +237,17 @@ export interface FirestoreTransactionTemplate {
 export type Frequency = 'Once' | 'Daily' | 'Weekly' | 'Monthly' | 'Quarterly' | 'Yearly';
 export type EndCondition = 'Never' | 'After Occurrences' | 'On Date';
 
-// What kind of budget line this is. 'Expense' | 'Income' | 'Savings' mirror
-// FirestoreCategory.transactionType (categoryId then points at a real
-// categories/{id} doc of that same type); 'Transfer' has no such doc —
-// categoryId there is one of viewmodels/categories.ts's TRANSFER_CATEGORIES
-// strings instead (e.g. "Wallet to savings"), the same "category" shape
-// Add Transaction's transfer step already uses (src/logic/addTransaction).
-// Optional for back-compat with rules written before this field existed —
-// those are always Expense/Income/Savings, never Transfer, so callers fall
-// back to the linked category's own transactionType (see
-// src/logic/budget/useLogic.ts's toAppBudgetType).
+// The four kinds of money a bucket (and so a bucket item) can be about —
+// FirestoreBucket.type. 'Expense' | 'Income' | 'Savings' mirror
+// FirestoreCategory.transactionType; 'Transfer' items use one of
+// viewmodels/categories.ts's TRANSFER_CATEGORIES strings as their
+// "category" instead of a real categories/{id}.
 export type BudgetLineType = 'Expense' | 'Income' | 'Savings' | 'Transfer';
-
-export interface FirestoreBudgetRule {
-  id: string;
-  categoryId: string;
-  type?: BudgetLineType;
-  description: string;
-  budgetedAmount: number;
-  frequency: Frequency;
-  interval: number;
-  anchorDate: Timestamp;
-  endCondition: EndCondition;
-  endOccurrences: number | null;
-  endDate: Timestamp | null;
-  accountId: string | null;
-  tag: string | null;
-  archived: boolean;
-  // Months (yyyy-MM) this recurring rule is deliberately skipped for —
-  // "delete" on a per-month view of a recurring item doesn't archive the
-  // whole rule (that would remove it from every month, past and future),
-  // it just adds the viewed month here. Every other month keeps applying
-  // (see src/logic/budget/useLogic.ts's categories computation, and
-  // aggregation.ts's/recomputeStats.ts's/functions' exclusion checks).
-  // Optional — most rules never skip a month.
-  excludedMonths?: string[];
-  // Sibling to excludedMonths, same yyyy-MM keying, but for "change the
-  // budgeted figure for this one month" instead of "skip this month
-  // outright" — lets a household edit April's number on a recurring
-  // "Groceries" line without touching March, May, or any other month.
-  // Set from the Budget screen's "Save for this month only" edit path
-  // (src/logic/budget/useLogic.ts). Read everywhere a rule's per-month
-  // budgeted figure is computed, via @dreda/shared-recurrence's own
-  // effectiveBudgetedAmount (keeps this one rule in one place, same as
-  // ruleAppliesToMonth itself). Optional — most rules never override a
-  // month.
-  monthOverrides?: Record<string, { budgetedAmount: number }>;
-  // Set only on a rule auto-created for a Fixed goal's line item
-  // (aggregation.ts's createGoalLineItem) — Analytics' Fixed-vs-Variable
-  // split (src/logic/statistics/useLogic.ts) buckets a rule as Fixed
-  // whenever this is present, Variable otherwise. Absent on every
-  // hand-created rule (addBudgetCategory, addGoalLineItemToBudget's
-  // one-off Variable-item rules).
-  sourceGoalLineItemId?: string;
-  createdAt?: Timestamp;
-  updatedAt?: Timestamp;
-}
 
 /**
  * A real bill with a due date — Netflix, rent, an insurance premium.
- * Deliberately its own collection, NOT a field on FirestoreBudgetRule: a
- * budget is a monthly spending cap for a category, not a schedule, and
+ * Deliberately its own collection, NOT a field on a budget rule (rules
+ * were removed in Budgets v2 — PRD-BUDGETS-V2.md): a * budget is a monthly spending cap for a category, not a schedule, and
  * several planned payments can share one category (e.g. Netflix + Spotify
  * both count against a "Subscriptions" budget). Drives Payments Calendar
  * and Home's "Upcoming Payments" (src/shared/firestore/upcomingPayments.ts)
@@ -283,39 +288,13 @@ export interface FirestoreTaskTypesSettings {
 }
 
 /**
- * users/{uid}/budgetPlans/{yyyy-mm} — one doc per month, replacing the old
- * single global settings.totalBudget (which was the same number no matter
- * which month you viewed — a pre-existing quirk, not a per-month plan).
- * totalBudget is what you intend to spend that month; projectedIncome and
- * planned savings let the Budget screen warn you if totalBudget is more
- * than you'll actually have left after saving (see
- * src/logic/budget/useLogic.ts's overspend computation). Set via the
- * config modal (Budget screen's gear icon), never inline on the page —
- * inline number inputs there used to overflow on narrow screens.
- *
- * Planned savings is either a fixed amount or a percentage of
- * projectedIncome, the user's choice (savingsMode) — savingsValue holds
- * the raw number either way (an amount if 'fixed', a percent like 15 if
- * 'percent'); the effective amount is derived, never stored twice. A month
- * with no doc yet just reads as all-zero — created lazily the first time
- * its plan is saved, same as statsMonthly/statsBudgetProgress.
- */
-export interface FirestoreBudgetPlan {
-  totalBudget: number;
-  projectedIncome: number;
-  savingsMode: 'fixed' | 'percent';
-  savingsValue: number;
-  updatedAt?: Timestamp;
-}
-
-/**
  * A forward-looking savings project with its own line-item costs (see
  * `PRD Files/prd debt n goals` section 1) — "Buy a new car" broken into
  * "Down payment," "Insurance," etc., each paid off (and marked complete)
  * on its own. `totalAmount` is denormalized, the sum of every lineItem's
  * `amount`, recalculated inside the same `runTransaction()` as any
- * lineItems write (aggregation.ts's createGoalLineItem/
- * recordGoalLineItemPayment) — never trust a stale client copy of it
+ * lineItems write (aggregation.ts's createBucketLineItem/
+ * recordBucketLineItemPayment) — never trust a stale client copy of it
  * without re-deriving. No frozen-balance field lives here on purpose: "how
  * much of this line item is covered by locked wallet money" is computed
  * live from FirestoreAccount.lockedAmount at render time (section 1.3,
@@ -323,11 +302,11 @@ export interface FirestoreBudgetPlan {
  * `completedLineItemCount`/`amountCompleted` are the same denormalize-for-
  * read-performance idea the spec applies to `totalAmount`, extended one
  * step further — recalculated alongside it in the same transaction — so
- * the Goals list and Home's preview can show real progress without each
- * subscribing to every goal's own lineItems subcollection just to render a
+ * the Buckets list and Home's preview can show real progress without each
+ * subscribing to every bucket's own lineItems subcollection just to render a
  * progress bar.
  */
-export interface FirestoreGoal {
+export interface FirestoreBucket {
   id: string;
   name: string;
   description: string;
@@ -339,23 +318,23 @@ export interface FirestoreGoal {
   deadline: Timestamp | null;
   archived: boolean;
   // Variable (the default): line items are one-off plans, manually "added
-  // to budget" (aggregation.ts's addGoalLineItemToBudget) when the
+  // to budget" (aggregation.ts's addBucketLineItemToBudget) when the
   // household is ready to commit one to a month's plan. Fixed: a basket of
   // recurring costs (rent, subscriptions, a recurring savings transfer) —
   // its line items carry their own recurrence/due-date instead (see
-  // FirestoreGoalLineItem.recurrence), no budget rule involved either way
-  // any more. Optional for back-compat with a goal written before this
+  // FirestoreBucketLineItem.recurrence), no budget rule involved either way
+  // any more. Optional for back-compat with a bucket written before this
   // field existed; every read defaults it to 'Variable'.
   kind?: 'Fixed' | 'Variable';
-  // What kind of money this goal is about — decides which categories (or,
+  // What kind of money this bucket is about — decides which categories (or,
   // for Transfer, which TRANSFER_CATEGORIES kind) its own line items may
-  // use: an Expense goal's items only ever pick an Expense category, an
-  // Income goal's only an Income category, and so on. A Transfer goal has
+  // use: an Expense bucket's items only ever pick an Expense category, an
+  // Income bucket's only an Income category, and so on. A Transfer bucket has
   // no category at all — its items move money between two of the
   // household's own accounts (fromAccountId/toAccountId on the line item)
   // and exist to track the cost of doing so (see
-  // FirestoreGoalLineItem.charges), not a category-based spend. Optional
-  // for back-compat with a goal written before this field existed; every
+  // FirestoreBucketLineItem.charges), not a category-based spend. Optional
+  // for back-compat with a bucket written before this field existed; every
   // read defaults it to 'Expense'.
   type?: 'Expense' | 'Income' | 'Savings' | 'Transfer';
   createdAt?: Timestamp;
@@ -363,28 +342,28 @@ export interface FirestoreGoal {
 }
 
 /**
- * users/{uid}/goals/{goalId}/lineItems/{lineItemId} — one sub-cost (or, for
- * an Income-category item, one expected inflow; or, for a Transfer goal,
- * one planned account-to-account move) of a goal. Marking it complete
- * (aggregation.ts's recordGoalLineItemPayment) records a real transaction
+ * users/{uid}/buckets/{goalId}/lineItems/{lineItemId} — one sub-cost (or, for
+ * an Income-category item, one expected inflow; or, for a Transfer bucket,
+ * one planned account-to-account move) of a bucket. Marking it complete
+ * (aggregation.ts's recordBucketLineItemPayment) records a real transaction
  * (Expense/Income/Savings, linked back via `expenseId`) or, for a Transfer
- * goal, a real transfer (linked back via `transferId`) — either way the
- * transaction/transfer itself never needs to know about the goal.
+ * bucket, a real transfer (linked back via `transferId`) — either way the
+ * transaction/transfer itself never needs to know about the bucket.
  */
-export interface FirestoreGoalLineItem {
+export interface FirestoreBucketLineItem {
   id: string;
   goalId: string;
   name: string;
   description: string;
   amount: number;
   // What this item actually is, budget-wise — every line item is
-  // budgetable now, not just a wish-list entry, and Income is a valid goal
+  // budgetable now, not just a wish-list entry, and Income is a valid bucket
   // item type too (an expected income source, not just Expense/Savings
   // plans). Its category's own transactionType decides which accountId
   // below is even selectable: a Savings-category item may only point at a
   // Savings Account, an Expense- or Income-category item may only point at
-  // a spendable one (see src/logic/goalDetail/useLogic.ts's validation).
-  // For a Transfer goal (FirestoreGoal.type), this holds a
+  // a spendable one (see src/logic/bucketDetail/useLogic.ts's validation).
+  // For a Transfer bucket (FirestoreBucket.type), this holds a
   // TRANSFER_CATEGORIES kind string instead of a real categories/{id} —
   // same pseudo-category convention src/logic/addBudgetCategory/useLogic.ts
   // already uses for a Transfer-type budget rule. Optional only for
@@ -394,60 +373,61 @@ export interface FirestoreGoalLineItem {
   categoryId?: string;
   // The wallet this item is earmarked against, if any — lets Home compute
   // "how much of what's required for this wallet is actually there yet"
-  // (src/logic/home/useLogic.ts's wallet chart). For a Transfer goal's
+  // (src/logic/home/useLogic.ts's wallet chart). For a Transfer bucket's
   // item, this is specifically the FROM account — the source the amount
-  // (and any charges) leaves. Optional: a goal item doesn't have to target
+  // (and any charges) leaves. Optional: a bucket item doesn't have to target
   // a specific account.
   accountId: string | null;
-  // Transfer goal items only — the account the amount lands in. Unset for
-  // every other goal type.
+  // Transfer bucket items only — the account the amount lands in. Unset for
+  // every other bucket type.
   toAccountId?: string | null;
-  // Transfer goal items only — the planned cost of making this transfer
+  // Transfer bucket items only — the planned cost of making this transfer
   // (a wire fee, a mobile-money charge, etc.), same field
   // createTransferWithAggregation already writes onto the real transfer
-  // once this item is completed. This is what Goals' own dashboard
+  // once this item is completed. This is what Buckets' own dashboard
   // "Transfers" card sums — moving your own money between your own
   // accounts isn't spend, but what it costs to do so is. Unset (or 0) for
-  // a free transfer, and for every non-Transfer goal type.
+  // a free transfer, and for every non-Transfer bucket type.
   charges?: number | null;
-  // Fixed-goal items only — how often this recurring cost repeats.
-  // createGoalLineItem uses this to build the auto-generated
-  // FirestoreBudgetRule's own frequency/interval; irrelevant (and unset)
-  // for a Variable goal's items, which are one-off by nature.
-  recurrence?: { frequency: Frequency; interval: number } | null;
-  // Legacy only — a goal line item no longer auto-creates or maintains a
-  // budget rule (see aggregation.ts's createGoalLineItem). Only ever
-  // non-null on an item created before that change; deleteGoalLineItem
-  // still uses it to archive that old rule when one of those items is
-  // removed, but nothing writes a new value here any more.
+  // Fixed-bucket items only — how often this recurring cost repeats, i.e.
+  // which months' budgets it appears in (src/shared/budget/monthBudget.ts's
+  // itemOccurrence). Unset for a Planned (Variable) bucket's items, which
+  // are one-off: they appear only in their dueDate's month.
+  // `endDate` (optional) stops the recurrence after that date — set by
+  // scripts/migrate-budgets-v2.ts for a budget rule that had an end
+  // condition ("for 3 months", "until March"); absent = repeats forever.
+  recurrence?: { frequency: Frequency; interval: number; endDate?: Timestamp | null } | null;
+  // Legacy, read by scripts/migrate-budgets-v2.ts only — the budget rule an
+  // item created long ago auto-generated. Budget rules no longer exist
+  // (PRD-BUDGETS-V2.md); nothing writes this any more.
   budgetRuleId?: string | null;
   // When this cost is actually due — replaces the old separate
   // plannedPayments-based "Upcoming Payments" feature entirely (Home and
   // the Payments Calendar now read due dates straight off line items
-  // instead). Optional: not every goal item has a hard deadline.
+  // instead). Optional: not every bucket item has a hard deadline.
   dueDate: Timestamp | null;
-  // Custom manual order within the cross-goal "All goal items" list
-  // (src/logic/goalItems) — lower sorts first. Set once at creation
+  // Custom manual order within the cross-bucket "All bucket items" list
+  // (src/logic/bucketItems) — lower sorts first. Set once at creation
   // (Date.now(), always after every existing item) and only ever changed by
   // a manual reorder or by applying a Priority/Ease sort as the new
   // baseline. Absent on a line item written before this field existed;
   // every read defaults it to 0, same as this app's other back-compat
   // fields.
   rank: number;
-  // Shared Priority type (types.ts, above) — lets the cross-goal "All goal
-  // items" list filter across goals the same way it already sorts by
+  // Shared Priority type (types.ts, above) — lets the cross-bucket "All bucket
+  // items" list filter across buckets the same way it already sorts by
   // deadline/amount. Absent on a line item written before this field
   // existed; every read defaults it to 'Medium'.
   priority: Priority;
   // Independent of priority: how essential this cost actually is, not how
   // urgent it is — a "Must have" item might be low priority (not due soon)
   // while a "Nice to have" item is high priority (due soon but skippable).
-  necessity: GoalItemNecessity;
+  necessity: BucketItemNecessity;
   // `completed` means fully closed — no more spend is expected against
   // this item. An item with one or more `payments` but `completed: false`
   // is "partial": some real money has already gone toward it (covers the
   // case where an expense/transfer isn't settled in a single payment),
-  // and Goal Detail's own "Record payment" action stays available on it
+  // and Bucket Detail's own "Record payment" action stays available on it
   // to log another one.
   completed: boolean;
   completedAt: Timestamp | null;
@@ -456,13 +436,13 @@ export interface FirestoreGoalLineItem {
   // header below); every reader should prefer `payments` when present.
   expenseId: string | null;
   // Set instead of expenseId when the most recent payment was a Transfer
-  // goal's item — recording one creates a real transfers/{id}
-  // (aggregation.ts's recordGoalLineItemPayment) rather than a
+  // bucket's item — recording one creates a real transfers/{id}
+  // (aggregation.ts's recordBucketLineItemPayment) rather than a
   // transactions/{id}.
   transferId?: string | null;
   // Running total of every payment recorded so far (sum of `payments`
   // below) — real spend against a planned `amount`, which the Record
-  // Payment form (src/logic/goalDetail/useLogic.ts's handleRecordPayment)
+  // Payment form (src/logic/bucketDetail/useLogic.ts's handleRecordPayment)
   // lets differ from the plan since actual cost is very often more or
   // less than budgeted. Unset (or absent, on a line item completed
   // before this field existed) means no payment has ever been recorded
@@ -475,51 +455,53 @@ export interface FirestoreGoalLineItem {
   // transactions) accumulates more than one entry here rather than
   // overwriting expenseId/transferId. Absent (or empty) on a line item
   // completed before this feature existed, or one never yet paid at all
-  // — GoalDetailScreen synthesizes a single legacy entry from
+  // — BucketDetailScreen synthesizes a single legacy entry from
   // expenseId/transferId + actualAmount/amount when this is empty but the
   // item is already completed, so an old item still links through.
-  payments?: FirestoreGoalLineItemPayment[];
-  // Set once this (Variable-goal) item's amount has been folded into a
-  // month's budget via the "Add to budget" action (aggregation.ts's
-  // addGoalLineItemToBudget) — hides that action afterward so the same
-  // item's amount can't be added twice, and lets Analytics tell an
-  // already-counted Variable item apart from one still just a plan. A
-  // Fixed goal's items never set this — they get a real recurring budget
-  // rule automatically instead (see createGoalLineItem).
+  payments?: FirestoreBucketLineItemPayment[];
+  // Legacy, read by scripts/migrate-budgets-v2.ts only — the old "Add to
+  // budget" flag. A Planned item joins a month's budget by having a dueDate
+  // in it now (src/shared/firestore/bucketBudget.ts's scheduleItem).
   addedToBudget?: boolean;
   // A checklist within this one line item — e.g. a "Groceries" item's own
   // shopping list, each entry with its own planned amount. Purely a
   // planning/tracking aid: ticking one off never writes a transaction or
   // touches this item's own `completed`/`amount` — see
-  // src/logic/goalDetail/useLogic.ts's subItemsConsumed/subItemsRemaining
+  // src/logic/bucketDetail/useLogic.ts's subItemsConsumed/subItemsRemaining
   // for the rollup against this item's own `amount` as the budget cap.
   // Embedded array, not a subcollection — always small, always read
   // together with the item itself, and every other write to a line item
   // already goes through one whole-document update/transaction. Absent
   // (or empty) on every line item created before this feature existed.
-  subItems?: GoalLineItemSubItem[] | null;
+  subItems?: BucketLineItemSubItem[] | null;
+  // Ported from FirestoreBudgetRule (PRD-BUDGETS-V2.md section 4.2), same
+  // yyyy-MM keying and meaning: skip this item in a month outright, or plan
+  // a different amount for just that one month. Read through
+  // src/shared/budget/monthBudget.ts's itemOccurrence, never directly.
+  excludedMonths?: string[];
+  monthOverrides?: Record<string, { amount: number }>;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 }
 
-export interface GoalLineItemSubItem {
+export interface BucketLineItemSubItem {
   id: string;
   name: string;
   amount: number;
   completed: boolean;
 }
 
-// See FirestoreGoalLineItem.payments's own header — one entry per real
+// See FirestoreBucketLineItem.payments's own header — one entry per real
 // transaction/transfer recorded against a line item, in case it takes more
 // than one to cover it.
-export interface FirestoreGoalLineItemPayment {
+export interface FirestoreBucketLineItemPayment {
   id: string; // the transaction's or transfer's own client id
   kind: 'expense' | 'transfer';
   amount: number;
   date: Timestamp;
 }
 
-export type GoalItemNecessity = 'MustHave' | 'NiceToHave';
+export type BucketItemNecessity = 'MustHave' | 'NiceToHave';
 
 export type DebtType = 'cash' | 'existing';
 export type DebtPriority = 'low' | 'medium' | 'high';
@@ -610,17 +592,6 @@ export interface StatsMonthly {
   lastUpdated?: Timestamp;
 }
 
-export interface BudgetProgressEntry {
-  budgeted: number;
-  spent: number;
-  remaining: number;
-  count: number;
-}
-
-/** statsBudgetProgress/{yyyy-mm} — one field per ruleId, see
- * functions/src/lib/budgetProgress.ts. */
-export type StatsBudgetProgress = Record<string, BudgetProgressEntry>;
-
 export interface FirestoreUserDoc {
   email: string;
   name: string;
@@ -673,7 +644,7 @@ export interface FirestoreArea {
 // project can belong to one (see FirestoreProject.bucketId below). Same
 // shape as FirestoreArea, deliberately, so the create/edit screens can
 // reuse the same form pattern.
-export interface FirestoreBucket {
+export interface FirestoreSection {
   id: string;
   name: string;
   emoji: string | null;
@@ -693,7 +664,11 @@ export interface FirestoreBucket {
 export type ProjectStatus = 'Active' | 'Completed' | 'Archived';
 
 // Shared by projects and tasks — viewmodels/projects.ts's PRIORITY_LEVELS.
-export type Priority = 'Low' | 'Medium' | 'High';
+// 'Urgent' is the fourth level the new task form added ("very important").
+// The three older values keep their stored names — shown as important /
+// normal / low (viewmodels/projects.ts's priorityLabel), so existing data
+// needs no migration.
+export type Priority = 'Low' | 'Medium' | 'High' | 'Urgent';
 
 export interface FirestoreProject {
   id: string;
@@ -744,7 +719,22 @@ export type TaskType = string;
 // viewmodels/tasks.ts's TASK_STATUSES — set from TaskQuickActionsMenu's
 // status picker, kept in sync with FirestoreTask.done (see that field's own
 // comment below).
-export type TaskStatus = 'Pending' | 'Stuck' | 'In Review' | 'Done';
+// 'Cancelled' (the Focus page's swipe-left): not done, dropped from today's
+// plan — never counted in progress, and hidden from Today's Tasks.
+export type TaskStatus = 'Pending' | 'Stuck' | 'In Review' | 'Done' | 'Cancelled';
+
+// The Eisenhower quadrant a task sits in on the Focus board — see
+// src/viewmodels/eisenhower.ts. Stored only once chosen (dragged on the
+// board, or picked on the task form); otherwise derived live from priority
+// and due date.
+export type Quadrant = 'do' | 'schedule' | 'delegate' | 'eliminate';
+
+// Time blocking (src/viewmodels/scheduling.ts): a 'blocked' task owns its
+// time window outright; 'free' windows can be shared with other free
+// tasks. Absent on tasks written before this existed — read through
+// effectiveTimeMode, which defaults by type (meetings/events blocked,
+// to-dos free).
+export type TimeMode = 'blocked' | 'free';
 
 export interface FirestoreTask {
   id: string;
@@ -784,6 +774,17 @@ export interface FirestoreTask {
   // the start.
   startTime: Timestamp | null;
   dueDate: Timestamp | null; // date AND time — the only schedule a task has, shown on the Calendar agenda as "time below"
+  // A date-only task — a "todo" saved without a time (the task form's "set a
+  // time" toggle left off). Still stored with a full-day startTime (00:00)
+  // and dueDate (23:59) so every date filter/sort works unchanged; this flag
+  // only tells displays to show the day alone, and the Calendar to list it
+  // with the day's all-day items instead of on the hour timeline. Absent on
+  // tasks written before it existed (= timed).
+  allDay?: boolean;
+  // See Quadrant above — absent means "derive it" (eisenhower.ts).
+  quadrant?: Quadrant | null;
+  // See TimeMode above. Only meaningful for a timed task (not allDay).
+  timeMode?: TimeMode;
   // Set once, the first time dueDate is ever given a value — never changed
   // again. Compared against the live dueDate to show whether it was
   // extended or shortened (Analytics screen, task/project cards).
@@ -813,4 +814,35 @@ export interface FirestoreTask {
   // day passes (harmless history) — a task simply stops showing under
   // "Today's priorities" once the date no longer matches today.
   priorityDate?: string | null;
+  // Recurring tasks (src/viewmodels/recurrence.ts): an iCalendar RRULE,
+  // e.g. "FREQ=WEEKLY;INTERVAL=1;BYDAY=TU". Set = this doc is a series whose
+  // first date is startTime (or dueDate); every other date it falls on is
+  // generated on the fly (src/shared/tasks/recurringTasks.ts). The series
+  // doc's own done/status stay 'Pending' — each date has its own, below.
+  // Absent/null = an ordinary one-off task, exactly as before.
+  rrule?: string | null;
+  // Per-date changes to a series, keyed by the date the rule generated
+  // ("YYYY-MM-DD", local) — even when that date's task was moved to another
+  // day.
+  exceptions?: Record<string, TaskException>;
+}
+
+/** One date of a recurring series, changed on its own. */
+export interface TaskException {
+  // Removed from the series (deleted, or skipped for a conflict). Still
+  // counts toward an "after N occurrences" end, as in RRULE.
+  deleted?: boolean;
+  // Done or cancelled on this date only; absent = pending.
+  status?: 'Done' | 'Cancelled';
+  completedAt?: Timestamp | null;
+  // "This task" edits — only the fields that differ from the series.
+  title?: string;
+  notes?: string;
+  type?: TaskType;
+  priority?: Priority;
+  quadrant?: Quadrant | null;
+  timeMode?: TimeMode;
+  allDay?: boolean;
+  startTime?: Timestamp;
+  dueDate?: Timestamp;
 }

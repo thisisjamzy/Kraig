@@ -1,19 +1,20 @@
 'use client';
 
-import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { CalendarDays, Check, ChevronLeft, ChevronRight, Pencil, Trash2, Plus } from 'lucide-react';
+import { ArrowRight, CalendarDays, Check, ChevronLeft, ChevronRight, Plus, Layers } from 'lucide-react';
 import Link from 'next/link';
 import { Modal } from '@/src/widgets/Modal/Modal';
 import { ActionMenu } from '@/src/widgets/ActionMenu/ActionMenu';
-import { ConfirmDialog } from '@/src/widgets/ConfirmDialog/ConfirmDialog';
 import { useLogic, formatAmount } from '@/src/logic/budget/useLogic';
+import { BucketItemMonthSheet } from '@/src/screens/BucketItemMonth/BucketItemMonthSheet';
+import type { ItemMonth } from '@/src/shared/budget/monthBudget';
 import { CATEGORY_ICON_COLOR } from '@/src/viewmodels/categories';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { useIsWeb } from '@/src/shared/hooks/useViewportMode';
 import styles from './BudgetScreen.module.css';
 import webStyles from './BudgetScreen.web.module.css';
+import groupStyles from './BudgetGroups.module.css';
 // The month transactions panel uses this exact same card component style as
 // the all-transactions list, so it reuses that module's classes directly
 // rather than duplicating them.
@@ -23,7 +24,6 @@ export function BudgetScreen() {
   const strings = useStrings();
   const router = useRouter();
   const isWeb = useIsWeb();
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const {
     monthIndex,
     year,
@@ -37,11 +37,23 @@ export function BudgetScreen() {
     setMonthPickerOpen,
     pickerYear,
     setPickerYear,
-    categories,
     currency,
     currencyOptions,
     setCurrency,
-    addBudgetCategoryHref,
+    planHref,
+    monthStr,
+    budget,
+    view,
+    setView,
+    openItem,
+    setOpenItemKey,
+    transactionsById,
+    transfersById,
+    buckets,
+    itemsByBucket,
+    allocations,
+    needsAttention,
+    leftovers,
     plannedIncome,
     plannedSavings,
     actualIncome,
@@ -58,7 +70,6 @@ export function BudgetScreen() {
     error,
     openMonthPicker,
     chooseMonth,
-    handleDelete,
   } = useLogic();
 
   const monthNames = strings.months;
@@ -86,14 +97,6 @@ export function BudgetScreen() {
   function expenseVarianceClass(overBudget: number, spent: number) {
     if (spent === 0) return styles.percentNeutral;
     return overBudget > 0 ? styles.percentNegative : styles.percentPositive;
-  }
-
-  // One word, not the full "repeats for 3 more months" sentence the
-  // category's own edit form still uses elsewhere — 'limited' and 'until'
-  // are both still a monthly cadence underneath (just with an end
-  // condition), so the badge only needs to say whether this recurs at all.
-  function recurrenceBadgeLabel(recurrence: 'once' | 'monthly' | 'limited' | 'until') {
-    return recurrence === 'once' ? strings.budget.recurrenceBadgeOnce : strings.budget.recurrenceBadgeMonthly;
   }
 
   function goToCategory(categoryId: string) {
@@ -125,7 +128,7 @@ export function BudgetScreen() {
 
       <div className={`${styles.totalCard} ${isWeb ? webStyles.areaTotal : ''}`}>
         <div className={styles.totalCardTopRow}>
-          <span className={styles.totalLabel}>{strings.budget.totalBudgetLabel}</span>
+          <span className={styles.totalLabel}>{strings.budget.plannedSpendingLabel}</span>
           <ActionMenu
             ariaLabel={strings.budget.switchCurrency}
             triggerClassName={styles.currencyBadge}
@@ -139,7 +142,7 @@ export function BudgetScreen() {
           />
         </div>
         <p className={styles.totalAmount}>
-          {formatAmount(totalExpenseBudgeted)} {currency}
+          {formatAmount(budget.plannedOutflow)} {currency}
         </p>
 
         <div className={styles.totalCardBottomRow}>
@@ -151,9 +154,9 @@ export function BudgetScreen() {
               {formatAmount(isOverspending ? overspendAmount : leftToBudget)} {currency}
             </span>
           </div>
-          <Link href={addBudgetCategoryHref} className={styles.addBudgetButton} aria-label={strings.budget.addBudget}>
-            <Plus size={18} strokeWidth={2.5} />
-            {strings.budget.addBudget}
+          <Link href={planHref} className={styles.addBudgetButton}>
+            <Layers size={16} strokeWidth={2.25} />
+            {strings.budget.planInBuckets}
           </Link>
         </div>
       </div>
@@ -190,120 +193,128 @@ export function BudgetScreen() {
         </span>
       </div>
 
+      {(needsAttention.length > 0 || leftovers.length > 0) && (
+        <section className={`${groupStyles.attention} ${isWeb ? webStyles.areaAttention : ''}`}>
+          <div className={groupStyles.attentionHeader}>
+            <h2 className={groupStyles.attentionTitle}>{strings.budget.attentionTitle}</h2>
+            <span className={groupStyles.attentionCount}>{needsAttention.length + leftovers.length}</span>
+          </div>
+          <div className={`${groupStyles.attentionRail} ${isWeb ? webStyles.attentionRailWeb : ''}`}>
+            {needsAttention.map((entry) => (
+              <button key={entry.key} type="button" className={groupStyles.attentionCard} onClick={() => setOpenItemKey(entry.key)}>
+                <span className={groupStyles.attentionLabel}>{strings.budget.overspentBy}</span>
+                <span className={groupStyles.attentionAmount}>{formatAmount(entry.unfunded)}</span>
+                <span className={groupStyles.attentionName}>{entry.name}</span>
+                <span className={groupStyles.attentionCta}>
+                  {strings.budget.coverAction}
+                  <ArrowRight size={12} strokeWidth={2.5} />
+                </span>
+              </button>
+            ))}
+            {leftovers.map((entry) => (
+              <button
+                key={entry.key}
+                type="button"
+                className={groupStyles.attentionCard}
+                data-tone="leftover"
+                onClick={() => setOpenItemKey(entry.key)}
+              >
+                <span className={groupStyles.attentionLabel}>{strings.budget.leftoverLabel}</span>
+                <span className={groupStyles.attentionAmount}>{formatAmount(entry.remaining)}</span>
+                <span className={groupStyles.attentionName}>{entry.name}</span>
+                <span className={groupStyles.attentionCta}>
+                  {strings.budget.reallocateAction}
+                  <ArrowRight size={12} strokeWidth={2.5} />
+                </span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
       <div className={`${styles.sectionTitleRow} ${isWeb ? webStyles.areaCatsHead : ''}`}>
         <h2 className={styles.sectionTitle}>{strings.budget.sectionTitle}</h2>
-        <Link href={addBudgetCategoryHref} className={styles.addIconButton} aria-label={strings.budget.addCategory}>
-          <Plus size={16} strokeWidth={2.25} />
-        </Link>
+        <div className={groupStyles.viewToggle} role="group" aria-label={strings.budget.sectionTitle}>
+          <button
+            type="button"
+            className={groupStyles.viewToggleButton}
+            aria-pressed={view === 'category'}
+            onClick={() => setView('category')}
+          >
+            {strings.budget.byCategory}
+          </button>
+          <button
+            type="button"
+            className={groupStyles.viewToggleButton}
+            aria-pressed={view === 'bucket'}
+            onClick={() => setView('bucket')}
+          >
+            {strings.budget.byBucket}
+          </button>
+        </div>
       </div>
 
       <ScreenState loading={loading} error={error} />
 
-      {!loading && categories.length === 0 ? (
-        <p className={styles.emptyText}>
-          {strings.budget.noCategoriesPrefix} {monthLabel} {strings.budget.noCategoriesSuffix}
+      {!loading && budget.categories.length === 0 ? (
+        <p className={`${styles.emptyText} ${isWeb ? webStyles.areaCats : ''}`}>
+          {strings.budget.noItemsPrefix} {monthLabel} {strings.budget.noItemsSuffix}
         </p>
       ) : (
-        <div className={`${styles.cardScroll} ${isWeb ? webStyles.areaCats : ''}`}>
-          {categories.map((entry) => (
-            <div
-              key={entry.id}
-              role="button"
-              tabIndex={0}
-              className={`${styles.categoryCard} ${isWeb ? webStyles.categoryCardWeb : ''}`}
-              data-type={entry.type}
-              onClick={() => goToCategory(entry.categoryId)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' || event.key === ' ') {
-                  event.preventDefault();
-                  goToCategory(entry.categoryId);
-                }
-              }}
-            >
-              <div className={styles.cardTopRow}>
-                <p className={styles.cardCategoryName}>{entry.category}</p>
-                {/* An auto-included category has no real budget rule doc
-                    behind it (src/logic/budget/useLogic.ts's own
-                    isAutoIncluded header comment) — nothing to edit or
-                    delete here; change the goal itself instead. */}
-                {!entry.isAutoIncluded && (
-                  <div className={styles.cardMenu} onClick={(event) => event.stopPropagation()}>
-                    <ActionMenu
-                      title={entry.category}
-                      ariaLabel={`Actions for ${entry.category}`}
-                      items={[
-                        {
-                          key: 'edit',
-                          label: strings.budget.editAction,
-                          icon: <Pencil size={16} strokeWidth={1.75} />,
-                          onSelect: () =>
-                            router.push(`/edit-budget-category/${entry.id}?month=${monthIndex}&year=${year}`),
-                        },
-                        {
-                          key: 'delete',
-                          label: strings.budget.deleteAction,
-                          icon: <Trash2 size={16} strokeWidth={1.75} />,
-                          onSelect: () => setConfirmDeleteId(entry.id),
-                          danger: true,
-                        },
-                      ]}
-                    />
-                  </div>
-                )}
-              </div>
-
-              <div className={styles.cardBadgeRow}>
-                <span className={styles.typeBadge} data-type={entry.type}>
-                  {strings.budget.typeLabels[entry.type]}
-                </span>
-                {entry.isAutoIncluded ? (
-                  <span className={styles.autoIncludedBadge}>{strings.budget.autoIncludedBadge}</span>
-                ) : (
-                  <span className={styles.recurrenceBadge}>{recurrenceBadgeLabel(entry.recurrence)}</span>
-                )}
-              </div>
-
-              <div className={styles.cardBudgetedBlock}>
-                <span className={styles.cardBudgetedLabel}>{strings.budget.budgetedLabel}</span>
-                <span className={styles.cardBudgetedAmount}>
-                  {formatAmount(entry.budgeted)} {currency}
-                </span>
-              </div>
-
-              <div className={styles.cardStatsRow}>
-                <div className={styles.cardStat}>
-                  <span className={styles.cardStatLabel}>{strings.budget.spentActionLabels[entry.type]}</span>
-                  <span className={styles.cardStatValue}>{formatAmount(entry.spent)}</span>
-                </div>
-                <div className={styles.cardStat}>
-                  <span className={styles.cardStatLabel}>{strings.budget.dedicatedLabel}</span>
-                  <span className={styles.cardStatValue}>{formatAmount(entry.dedicated)}</span>
-                </div>
-                <div className={styles.cardStat}>
-                  <span className={styles.cardStatLabel}>{strings.budget.unplannedLabel}</span>
-                  <span className={styles.cardStatValue}>{formatAmount(entry.unplanned)}</span>
-                </div>
-              </div>
-            </div>
-          ))}
+        <div className={`${groupStyles.groups} ${isWeb ? webStyles.areaGroups : ''}`}>
+          {view === 'category'
+            ? budget.categories.map((group) => (
+                <section key={group.categoryId} className={groupStyles.group}>
+                  <GroupHeader
+                    name={group.name}
+                    type={group.type}
+                    itemCount={group.items.length}
+                    actual={group.actual}
+                    available={group.available}
+                    currency={currency}
+                  />
+                  {group.items.map((entry) => (
+                    <ItemRow key={entry.key} entry={entry} subtitle={entry.bucketName} currency={currency} onOpen={setOpenItemKey} />
+                  ))}
+                  {group.unplanned !== 0 && (
+                    <button type="button" className={groupStyles.unplannedRow} onClick={() => goToCategory(group.categoryId)}>
+                      <span className={groupStyles.unplannedText}>
+                        <span className={groupStyles.unplannedTitle}>{strings.budget.unplannedLabel}</span>
+                        <span className={groupStyles.unplannedHint}>{strings.budget.unplannedRowHint}</span>
+                      </span>
+                      <span className={groupStyles.unplannedAmount}>{formatAmount(group.unplanned)}</span>
+                    </button>
+                  )}
+                </section>
+              ))
+            : budget.buckets.map((group) => (
+                <section key={group.bucketId} className={groupStyles.group}>
+                  <GroupHeader
+                    name={group.name}
+                    itemCount={group.items.length}
+                    actual={group.actual}
+                    available={group.available}
+                    currency={currency}
+                  />
+                  {group.items.map((entry) => (
+                    <ItemRow key={entry.key} entry={entry} subtitle={entry.categoryName} currency={currency} onOpen={setOpenItemKey} />
+                  ))}
+                </section>
+              ))}
         </div>
       )}
 
-      {confirmDeleteId && (
-        <ConfirmDialog
-          title={strings.budget.deleteConfirmTitle}
-          message={
-            categories.find((c) => c.id === confirmDeleteId)?.recurrence !== 'once'
-              ? strings.budget.deleteRecurringHint
-              : strings.budget.deleteConfirmMessage
-          }
-          confirmLabel={strings.budget.deleteAction}
-          cancelLabel={strings.common.cancel}
-          onConfirm={() => {
-            handleDelete(confirmDeleteId);
-            setConfirmDeleteId(null);
-          }}
-          onCancel={() => setConfirmDeleteId(null)}
+      {openItem && (
+        <BucketItemMonthSheet
+          entry={openItem}
+          month={monthStr}
+          budget={budget}
+          transactionsById={transactionsById}
+          transfersById={transfersById}
+          buckets={buckets}
+          itemsByBucket={itemsByBucket}
+          allocations={allocations}
+          onClose={() => setOpenItemKey(null)}
         />
       )}
 
@@ -430,5 +441,132 @@ export function BudgetScreen() {
       )}
 
     </div>
+  );
+}
+
+// Share of `available` that `actual` fills, for the meters below — an
+// overspend (or anything spent against nothing planned) reads as full.
+function fillPercent(actual: number, available: number) {
+  if (available <= 0) return actual > 0 ? 100 : 0;
+  return Math.max(0, Math.min(100, (actual / available) * 100));
+}
+
+function GroupHeader({
+  name,
+  type,
+  itemCount,
+  actual,
+  available,
+  currency,
+}: {
+  name: string;
+  type?: string;
+  itemCount: number;
+  actual: number;
+  available: number;
+  currency: string;
+}) {
+  const strings = useStrings();
+  const isIncome = type === 'Income';
+  const remaining = available - actual;
+  const over = !isIncome && remaining < 0;
+  const typeLabel = type ? strings.budget.typeLabels[type as keyof typeof strings.budget.typeLabels] ?? type : null;
+  return (
+    <div className={groupStyles.groupHeader}>
+      <div className={groupStyles.groupTitleRow}>
+        <div className={groupStyles.groupName}>
+          <h3 className={groupStyles.groupNameText}>{name}</h3>
+          <span className={groupStyles.groupMeta}>
+            {type && <span className={groupStyles.typeDot} data-type={type} aria-hidden />}
+            {typeLabel && <span>{typeLabel} ·</span>}
+            <span>
+              {itemCount} {itemCount === 1 ? strings.budget.itemSingular : strings.budget.itemPlural}
+            </span>
+          </span>
+        </div>
+        <div className={groupStyles.groupRemaining}>
+          <span className={groupStyles.groupRemainingValue} data-status={over ? 'over' : 'ok'}>
+            {formatAmount(Math.abs(isIncome ? actual : remaining))}
+          </span>
+          <span className={groupStyles.groupRemainingLabel}>
+            {isIncome
+              ? strings.budget.receivedLabel
+              : over
+                ? strings.budget.overLabel.toLowerCase()
+                : `${currency} ${strings.budget.remainingLabel.toLowerCase()}`}
+          </span>
+        </div>
+      </div>
+      <div className={groupStyles.bar} aria-hidden>
+        <div
+          className={groupStyles.barFill}
+          data-status={isIncome ? 'income' : over ? 'over' : 'ok'}
+          style={{ width: `${fillPercent(actual, available)}%` }}
+        />
+      </div>
+      <p className={groupStyles.groupSpent}>
+        <strong>{formatAmount(actual)}</strong> {strings.budget.ofLabel} {formatAmount(available)} {currency}
+      </p>
+    </div>
+  );
+}
+
+function ItemRow({
+  entry,
+  subtitle,
+  currency,
+  onOpen,
+}: {
+  entry: ItemMonth;
+  subtitle: string;
+  currency: string;
+  onOpen: (key: string) => void;
+}) {
+  const strings = useStrings();
+  const isIncome = entry.type === 'Income';
+  const over = !isIncome && entry.remaining < 0;
+  const done = !isIncome && entry.remaining === 0 && entry.actual > 0;
+  const headline = isIncome
+    ? `${formatAmount(entry.actual)} ${strings.budget.receivedLabel}`
+    : over
+      ? `${formatAmount(-entry.remaining)} ${strings.budget.overLabel.toLowerCase()}`
+      : done
+        ? strings.budget.statusLabels.on
+        : `${formatAmount(entry.remaining)} ${strings.budget.remainingLabel.toLowerCase()}`;
+  return (
+    <button
+      type="button"
+      className={groupStyles.itemRow}
+      onClick={() => onOpen(entry.key)}
+      aria-label={`${entry.name}: ${headline}`}
+    >
+      <span className={groupStyles.itemTop}>
+        <span className={groupStyles.itemMain}>
+          <span className={groupStyles.itemName}>{entry.name}</span>
+          <span className={groupStyles.itemMeta}>
+            <span className={groupStyles.kindTag}>
+              {entry.kind === 'Fixed' ? strings.budget.fixedBadge : strings.budget.plannedBadge}
+            </span>
+            {entry.isOverride && <span className={groupStyles.overrideTag}>{strings.budget.overrideBadge}</span>}
+            <span>{subtitle}</span>
+          </span>
+        </span>
+        <span className={groupStyles.itemFigures}>
+          <span className={groupStyles.itemRemaining} data-status={over ? 'over' : done ? 'done' : 'ok'}>
+            {headline}
+          </span>
+          <span className={groupStyles.itemOf}>
+            {formatAmount(entry.actual)} / {formatAmount(entry.available)} {currency}
+          </span>
+        </span>
+      </span>
+      <span className={`${groupStyles.bar} ${groupStyles.barThin}`} aria-hidden>
+        <span
+          className={groupStyles.barFill}
+          data-status={isIncome ? 'income' : over ? 'over' : 'ok'}
+          style={{ display: 'block', width: `${fillPercent(entry.actual, entry.available)}%` }}
+        />
+      </span>
+    </button>
   );
 }

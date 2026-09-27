@@ -9,7 +9,7 @@
 //
 // Both modes' menus are exactly two groups — "Main" and "System" — per an
 // explicit spec, not a reuse of any mobile nav list:
-//   Money   Main: Dashboard, Budgets, Goals, Debts
+//   Money   Main: Dashboard, Budgets, Buckets, Debts
 //           System: Control Panel (-> Settings), Analytics (-> Statistics),
 //                   History (-> Transactions)
 //   Time    Main: Home, Calendar, Projects (-> All Projects), Analytics
@@ -68,6 +68,7 @@ import {
   Contact,
   CreditCard,
   FolderKanban,
+  Layers,
   History,
   Home,
   PieChart,
@@ -92,7 +93,7 @@ const MONEY_MENU_GROUPS: NavGroup[] = [
     items: [
       { href: '/home', label: 'Dashboard', icon: Home },
       { href: '/budget', label: 'Budgets', icon: SlidersHorizontal },
-      { href: '/goals', label: 'Goals', icon: Target },
+      { href: '/buckets', label: 'Buckets', icon: Target },
       { href: '/debts', label: 'Debts', icon: CreditCard },
     ],
   },
@@ -113,6 +114,7 @@ const PROJECTS_MENU_GROUPS: NavGroup[] = [
       { href: '/projects', label: 'Home', icon: Home },
       { href: '/projects/calendar', label: 'Calendar', icon: CalendarDays },
       { href: '/projects/all', label: 'Projects', icon: FolderKanban },
+      { href: '/areas', label: 'Areas', icon: Layers },
       { href: '/projects/analytics', label: 'Analytics', icon: ChartNoAxesCombined },
     ],
   },
@@ -159,13 +161,13 @@ export function WebSidebar() {
   const mode = useViewportMode();
   const compact = mode === 'tablet';
 
-  // A Goals route counts as 'money' (Goals is a single link inside
+  // A Buckets route counts as 'money' (Buckets is a single link inside
   // Money's own menu, not its own mode) — everything else that isn't a
   // real per-mode hub route is ambiguous ('none'), and falls through to
   // the persisted last-known mode below rather than hard-defaulting to
   // 'money'.
   const routeMode = navMode(pathname);
-  const confirmedMode = routeMode === 'projects' ? 'projects' : routeMode === 'money' || routeMode === 'goals' ? 'money' : null;
+  const confirmedMode = routeMode === 'projects' ? 'projects' : routeMode === 'money' || routeMode === 'buckets' ? 'money' : null;
 
   // The persisted fallback for ambiguous routes — read once, lazily (a
   // function initializer, not an effect, so there's no extra render before

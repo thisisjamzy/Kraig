@@ -101,9 +101,9 @@ export function AuditReportDetailScreen({ reportId }: { reportId: string }) {
 
             <div className={styles.summaryRowPair}>
               <p className={styles.summaryLine}>
-                {s.goalsStatusLabel}: {data.executiveSummary.goalsStatus.completed}/{data.executiveSummary.goalsStatus.total} complete ·{' '}
-                <Money value={data.executiveSummary.goalsStatus.totalSaved} currency={data.meta.currency} /> saved of{' '}
-                <Money value={data.executiveSummary.goalsStatus.totalTarget} currency={data.meta.currency} />
+                {s.bucketsStatusLabel}: {data.executiveSummary.bucketsStatus.completed}/{data.executiveSummary.bucketsStatus.total} complete ·{' '}
+                <Money value={data.executiveSummary.bucketsStatus.totalSaved} currency={data.meta.currency} /> saved of{' '}
+                <Money value={data.executiveSummary.bucketsStatus.totalTarget} currency={data.meta.currency} />
               </p>
               <p className={styles.summaryLine}>
                 {s.debtStatusLabel}: <Money value={data.executiveSummary.debtStatus.totalDebt} currency={data.meta.currency} /> across{' '}
@@ -458,19 +458,19 @@ export function AuditReportDetailScreen({ reportId }: { reportId: string }) {
             </div>
           </section>
 
-          {/* 7. Goals & Debt Summary */}
+          {/* 7. Buckets & Debt Summary */}
           <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>{s.sectionGoalsDebt}</h2>
+            <h2 className={styles.sectionTitle}>{s.sectionBucketsDebt}</h2>
 
-            <h3 className={styles.subTitle}>{s.goalsTableTitle}</h3>
-            {data.goalsDebt.goals.length === 0 ? (
+            <h3 className={styles.subTitle}>{s.bucketsTableTitle}</h3>
+            {data.bucketsDebt.buckets.length === 0 ? (
               <p className={styles.footnote}>—</p>
             ) : (
               <div className={styles.tableWrap}>
                 <table className={styles.table}>
                   <thead>
                     <tr>
-                      <th>{s.columnGoal}</th>
+                      <th>{s.columnBucket}</th>
                       <th className={styles.numCol}>{s.columnTarget}</th>
                       <th className={styles.numCol}>{s.columnSaved}</th>
                       <th className={styles.numCol}>{s.columnProgress}</th>
@@ -478,7 +478,7 @@ export function AuditReportDetailScreen({ reportId }: { reportId: string }) {
                     </tr>
                   </thead>
                   <tbody>
-                    {data.goalsDebt.goals.map((g) => (
+                    {data.bucketsDebt.buckets.map((g) => (
                       <tr key={g.goalId}>
                         <td>{g.name}</td>
                         <td className={styles.numCol}>{formatAmount(g.totalAmount)}</td>
@@ -493,7 +493,7 @@ export function AuditReportDetailScreen({ reportId }: { reportId: string }) {
             )}
 
             <h3 className={styles.subTitle}>{s.debtsTableTitle}</h3>
-            {data.goalsDebt.debts.length === 0 ? (
+            {data.bucketsDebt.debts.length === 0 ? (
               <p className={styles.footnote}>—</p>
             ) : (
               <div className={styles.tableWrap}>
@@ -507,7 +507,7 @@ export function AuditReportDetailScreen({ reportId }: { reportId: string }) {
                     </tr>
                   </thead>
                   <tbody>
-                    {data.goalsDebt.debts.map((d) => (
+                    {data.bucketsDebt.debts.map((d) => (
                       <tr key={d.debtId}>
                         <td>{d.name}</td>
                         <td className={styles.numCol}>{formatAmount(d.currentBalance)}</td>
@@ -520,10 +520,10 @@ export function AuditReportDetailScreen({ reportId }: { reportId: string }) {
               </div>
             )}
 
-            {data.goalsDebt.payoffOpportunity && (
+            {data.bucketsDebt.payoffOpportunity && (
               <>
                 <h3 className={styles.subTitle}>{s.payoffOpportunityTitle}</h3>
-                <p className={styles.opportunityNote}>{data.goalsDebt.payoffOpportunity}</p>
+                <p className={styles.opportunityNote}>{data.bucketsDebt.payoffOpportunity}</p>
               </>
             )}
           </section>

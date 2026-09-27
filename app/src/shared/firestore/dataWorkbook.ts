@@ -10,14 +10,13 @@ import * as XLSX from 'xlsx';
 import { ENTITY_DEFS, isoDate, boolLabel, type EntityKey } from './dataEntities';
 import type {
   FirestoreArea,
-  FirestoreBucket,
+  FirestoreSection,
   FirestoreAccount,
   FirestoreCategory,
-  FirestoreBudgetRule,
   FirestoreProject,
   FirestoreTask,
-  FirestoreGoal,
-  FirestoreGoalLineItem,
+  FirestoreBucket,
+  FirestoreBucketLineItem,
   FirestoreDebt,
   FirestoreRepayment,
   FirestoreTransaction,
@@ -31,11 +30,11 @@ import type {
 // resolve even if those entities' own sheets weren't requested.
 export interface ExportLookups {
   areaName: Map<string, string>;
-  bucketName: Map<string, string>;
+  sectionName: Map<string, string>;
   accountName: Map<string, string>;
   categoryName: Map<string, string>;
   projectName: Map<string, string>;
-  goalName: Map<string, string>;
+  bucketName: Map<string, string>;
   debtName: Map<string, string>;
 }
 
@@ -46,14 +45,13 @@ function name(map: Map<string, string>, id: string | null | undefined): string {
 
 export interface ExportData {
   areas: FirestoreArea[];
-  buckets: FirestoreBucket[];
+  sections: FirestoreSection[];
   accounts: FirestoreAccount[];
   categories: FirestoreCategory[];
-  budgets: FirestoreBudgetRule[];
   projects: FirestoreProject[];
   tasks: FirestoreTask[];
-  goals: FirestoreGoal[];
-  goalItems: FirestoreGoalLineItem[];
+  buckets: FirestoreBucket[];
+  bucketItems: FirestoreBucketLineItem[];
   debts: FirestoreDebt[];
   repayments: FirestoreRepayment[];
   transactions: FirestoreTransaction[];
@@ -68,10 +66,10 @@ function rowsFor(key: EntityKey, data: ExportData, lookups: ExportLookups): stri
   switch (key) {
     case 'areas':
       return data.areas.map((a) => [a.name, a.emoji ?? '', a.color, a.description, boolLabel(a.archived)]);
-    case 'buckets':
-      // The auto-generated default bucket (id `default-{areaId}`) isn't
+    case 'sections':
+      // The auto-generated default section (id `default-{areaId}`) isn't
       // real user data — every area gets one automatically on import too.
-      return data.buckets
+      return data.sections
         .filter((b) => !b.isDefault)
         .map((b) => [b.name, name(lookups.areaName, b.areaId), b.emoji ?? '', b.color, b.description, boolLabel(b.archived)]);
     case 'accounts':
@@ -91,21 +89,11 @@ function rowsFor(key: EntityKey, data: ExportData, lookups: ExportLookups): stri
         ]);
     case 'categories':
       return data.categories.map((c) => [c.name, c.transactionType, c.group ?? '', c.notes ?? '', boolLabel(c.archived)]);
-    case 'budgets':
-      return data.budgets.map((b) => [
-        name(lookups.categoryName, b.categoryId),
-        b.description,
-        String(b.budgetedAmount),
-        b.frequency,
-        name(lookups.accountName, b.accountId),
-        b.tag ?? '',
-        boolLabel(b.archived),
-      ]);
     case 'projects':
       return data.projects.map((p) => [
         p.name,
         name(lookups.areaName, p.areaId),
-        name(lookups.bucketName, p.bucketId),
+        name(lookups.sectionName, p.bucketId),
         p.color,
         p.priority,
         timestampToDateStr(p.startDate),
@@ -125,11 +113,11 @@ function rowsFor(key: EntityKey, data: ExportData, lookups: ExportLookups): stri
         t.notes,
         (t.tags ?? []).join(', '),
       ]);
-    case 'goals':
-      return data.goals.map((g) => [g.name, g.description, g.currency, timestampToDateStr(g.deadline), boolLabel(g.archived)]);
-    case 'goalItems':
-      return data.goalItems.map((i) => [
-        name(lookups.goalName, i.goalId),
+    case 'buckets':
+      return data.buckets.map((g) => [g.name, g.description, g.currency, timestampToDateStr(g.deadline), boolLabel(g.archived)]);
+    case 'bucketItems':
+      return data.bucketItems.map((i) => [
+        name(lookups.bucketName, i.goalId),
         i.name,
         i.description,
         String(i.amount),
@@ -224,7 +212,9 @@ export interface ReadWorkbookResult {
 }
 
 const SHEET_NAME_TO_KEY: Map<string, EntityKey> = new Map(
-  Object.values(ENTITY_DEFS).map((def) => [def.sheetName.toLowerCase(), def.key])
+  Object.values(ENTITY_DEFS).flatMap((def) =>
+    [def.sheetName, ...(def.legacySheetNames ?? [])].map((sheetName) => [sheetName.toLowerCase(), def.key] as const)
+  )
 );
 
 /**

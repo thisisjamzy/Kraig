@@ -7,6 +7,7 @@ import { navMode } from '@/src/shared/config/chromeVisibility';
 import { useAllTasks } from '@/src/shared/hooks/useAllTasks';
 import { overdueTasks, dueTodayTasks } from '@/src/shared/firestore/taskInsights';
 import styles from './ProjectsBottomNav.module.css';
+import { actionableTasks } from '@/src/shared/tasks/recurringTasks';
 
 // Exported for WebSidebar (src/widgets/WebSidebar) — reused verbatim so
 // mobile and web can never drift apart on what Projects mode contains.
@@ -35,7 +36,9 @@ export const CREATE_OPTIONS = [
 // not the one you're in — mirrors BottomNav's own switch button.
 export function ProjectsBottomNav() {
   const pathname = usePathname();
-  const { data: tasks } = useAllTasks();
+  const { data: taskDocs } = useAllTasks();
+  // Recurring tasks count by their own dates (today's and overdue ones).
+  const tasks = actionableTasks(taskDocs);
   const hasNotifications = overdueTasks(tasks).length > 0 || dueTodayTasks(tasks).length > 0;
 
   if (navMode(pathname) !== 'projects') {

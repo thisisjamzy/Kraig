@@ -124,13 +124,13 @@ export function SettingsScreen() {
         <ChevronRight size={16} strokeWidth={2} className={styles.actionRowChevron} />
       </Link>
 
-      <Link href="/settings/archived-goals" className={styles.actionRow}>
+      <Link href="/settings/archived-buckets" className={styles.actionRow}>
         <span className={styles.actionRowIcon} style={{ background: iconTint(2) }}>
           <Archive size={18} strokeWidth={1.75} />
         </span>
         <span className={styles.actionRowText}>
-          <span className={styles.actionRowLabel}>{strings.settings.archivedGoals}</span>
-          <span className={styles.actionRowMeta}>{strings.settings.archivedGoalsMeta}</span>
+          <span className={styles.actionRowLabel}>{strings.settings.archivedBuckets}</span>
+          <span className={styles.actionRowMeta}>{strings.settings.archivedBucketsMeta}</span>
         </span>
         <ChevronRight size={16} strokeWidth={2} className={styles.actionRowChevron} />
       </Link>

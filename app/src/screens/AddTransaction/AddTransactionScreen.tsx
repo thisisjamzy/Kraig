@@ -37,10 +37,10 @@ export function AddTransactionScreen() {
     category,
     categoryName,
     setCategory,
-    linkableGoalItems,
-    linkedGoalItem,
-    selectLinkedGoalItem,
-    clearLinkedGoalItem,
+    linkableBucketItems,
+    linkedBucketItem,
+    selectLinkedBucketItem,
+    clearLinkedBucketItem,
     description,
     setDescription,
     amountString,
@@ -79,12 +79,12 @@ export function AddTransactionScreen() {
     submitError,
   } = useLogic();
 
-  // Goals vs Category used to be two lists stacked on the same screen —
+  // Buckets vs Category used to be two lists stacked on the same screen —
   // now two tabs, so only one shows at a time. Only worth showing the tab
-  // switcher at all when there's actually a Goals option to switch to;
+  // switcher at all when there's actually a Buckets option to switch to;
   // otherwise this step is just the category list, same as always.
-  const hasGoalOption = linkableGoalItems.length > 0 || Boolean(linkedGoalItem);
-  const [categoryTab, setCategoryTab] = useState<'goals' | 'category'>(hasGoalOption ? 'goals' : 'category');
+  const hasBucketOption = linkableBucketItems.length > 0 || Boolean(linkedBucketItem);
+  const [categoryTab, setCategoryTab] = useState<'buckets' | 'category'>(hasBucketOption ? 'buckets' : 'category');
 
   const transactionTypes = (Object.keys(TYPE_ICONS) as TransactionType[]).map((key) => ({
     key,
@@ -147,7 +147,7 @@ export function AddTransactionScreen() {
 
       {step === 'category' && (
         <div className={styles.categorySection}>
-          {type === 'savings' && !linkedGoalItem && (
+          {type === 'savings' && !linkedBucketItem && (
             <div className={styles.savingsModeRow}>
               {(['moved', 'frozen'] as const).map((mode) => {
                 const active = savingsMode === mode;
@@ -174,14 +174,14 @@ export function AddTransactionScreen() {
             </div>
           )}
 
-          {hasGoalOption && (
+          {hasBucketOption && (
             <div className={styles.categoryTabRow}>
               <button
                 type="button"
-                className={`${styles.categoryTabButton} ${categoryTab === 'goals' ? styles.categoryTabButtonActive : ''}`}
-                onClick={() => setCategoryTab('goals')}
+                className={`${styles.categoryTabButton} ${categoryTab === 'buckets' ? styles.categoryTabButtonActive : ''}`}
+                onClick={() => setCategoryTab('buckets')}
               >
-                {strings.addTransaction.tabGoals}
+                {strings.addTransaction.tabBuckets}
               </button>
               <button
                 type="button"
@@ -193,38 +193,38 @@ export function AddTransactionScreen() {
             </div>
           )}
 
-          {hasGoalOption && categoryTab === 'goals' && (
-            <div className={styles.goalLinkSection}>
-              <div className={styles.goalLinkHeaderRow}>
-                <span className={styles.descriptionLabel}>{strings.addTransaction.linkGoalTitle}</span>
-                {linkedGoalItem && (
-                  <button type="button" className={styles.unplannedLink} onClick={clearLinkedGoalItem}>
-                    {strings.addTransaction.linkGoalClear}
+          {hasBucketOption && categoryTab === 'buckets' && (
+            <div className={styles.bucketLinkSection}>
+              <div className={styles.bucketLinkHeaderRow}>
+                <span className={styles.descriptionLabel}>{strings.addTransaction.linkBucketTitle}</span>
+                {linkedBucketItem && (
+                  <button type="button" className={styles.unplannedLink} onClick={clearLinkedBucketItem}>
+                    {strings.addTransaction.linkBucketClear}
                   </button>
                 )}
               </div>
-              {linkedGoalItem ? (
-                <div className={styles.linkedGoalBadge}>
+              {linkedBucketItem ? (
+                <div className={styles.linkedBucketBadge}>
                   <span>
-                    {strings.addTransaction.linkedGoalPrefix} {linkedGoalItem.goalName}: {linkedGoalItem.name}
+                    {strings.addTransaction.linkedBucketPrefix} {linkedBucketItem.bucketName}: {linkedBucketItem.name}
                   </span>
                 </div>
               ) : (
                 <>
-                  <p className={styles.helperText}>{strings.addTransaction.linkGoalHint}</p>
+                  <p className={styles.helperText}>{strings.addTransaction.linkBucketHint}</p>
                   <div className={styles.categoryList}>
-                    {linkableGoalItems.map((item) => (
+                    {linkableBucketItems.map((item) => (
                       <button
                         key={item.id}
                         type="button"
-                        className={styles.goalLinkRow}
-                        onClick={() => selectLinkedGoalItem(item.id)}
+                        className={styles.bucketLinkRow}
+                        onClick={() => selectLinkedBucketItem(item.id)}
                       >
-                        <span className={styles.goalLinkRowText}>
-                          <span className={styles.goalLinkRowGoal}>{item.goalName}</span>
-                          <span className={styles.goalLinkRowName}>{item.name}</span>
+                        <span className={styles.bucketLinkRowText}>
+                          <span className={styles.bucketLinkRowBucket}>{item.bucketName}</span>
+                          <span className={styles.bucketLinkRowName}>{item.name}</span>
                         </span>
-                        <span className={styles.goalLinkRowAmount}>{formatMoney(String(item.amount))}</span>
+                        <span className={styles.bucketLinkRowAmount}>{formatMoney(String(item.amount))}</span>
                       </button>
                     ))}
                   </div>
@@ -233,9 +233,9 @@ export function AddTransactionScreen() {
             </div>
           )}
 
-          {(!hasGoalOption || categoryTab === 'category') && (
+          {(!hasBucketOption || categoryTab === 'category') && (
             <>
-              {!linkedGoalItem && !hasBudgetedCategories && (
+              {!linkedBucketItem && !hasBudgetedCategories && (
                 <div className={styles.noBudgetCard}>
                   <p className={styles.noBudgetTitle}>{strings.addTransaction.noBudgetTitle}</p>
                   <p className={styles.helperText}>{strings.addTransaction.noBudgetBody}</p>
@@ -256,11 +256,11 @@ export function AddTransactionScreen() {
                 </div>
               )}
 
-              {!linkedGoalItem && showUnplanned && (
+              {!linkedBucketItem && showUnplanned && (
                 <p className={styles.helperText}>{strings.addTransaction.unplannedNotice}</p>
               )}
 
-              {!linkedGoalItem && categoriesForType.length > 0 && (
+              {!linkedBucketItem && categoriesForType.length > 0 && (
                 <div className={styles.categoryList}>
                   {categoriesForType.map((option) => (
                     <button
@@ -278,7 +278,7 @@ export function AddTransactionScreen() {
                 </div>
               )}
 
-              {!linkedGoalItem && !(type === 'savings' && savingsMode === 'moved') && (hasBudgetedCategories || showUnplanned) && (
+              {!linkedBucketItem && !(type === 'savings' && savingsMode === 'moved') && (hasBudgetedCategories || showUnplanned) && (
                 <button
                   type="button"
                   className={styles.unplannedLink}

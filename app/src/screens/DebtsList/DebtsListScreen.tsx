@@ -11,13 +11,15 @@ import { DonutChart } from '@/src/widgets/DonutChart/DonutChart';
 import { ConfirmDialog } from '@/src/widgets/ConfirmDialog/ConfirmDialog';
 import { ActionMenu } from '@/src/widgets/ActionMenu/ActionMenu';
 import { Logo } from '@/src/widgets/Logo/Logo';
-import { formatAmount } from '@/src/screens/Goals/GoalsScreen';
+import { formatAmount } from '@/src/screens/Buckets/BucketsScreen';
 import styles from './DebtsListScreen.module.css';
+import { useGoBack } from '@/src/shared/navigation/useGoBack';
 
 const PRIORITY_LABEL_KEY = { high: 'priorityHigh', medium: 'priorityMedium', low: 'priorityLow' } as const;
 
 export function DebtsListScreen() {
   const router = useRouter();
+  const navigateBack = useGoBack();
   const strings = useStrings();
   const { currency, debts, debtSummary, totalDebtTrend, archiveDebt, loading, error } = useLogic();
 
@@ -27,18 +29,18 @@ export function DebtsListScreen() {
   // (danger red / amber / brand teal) — a full-strength donut ring read as
   // too dark against the page.
   const prioritySegments = [
-    { label: strings.goals[PRIORITY_LABEL_KEY.high], value: debtSummary.byPriority.high, color: '#f3948c' },
-    { label: strings.goals[PRIORITY_LABEL_KEY.medium], value: debtSummary.byPriority.medium, color: '#f2c680' },
-    { label: strings.goals[PRIORITY_LABEL_KEY.low], value: debtSummary.byPriority.low, color: '#7fe4bf' },
+    { label: strings.buckets[PRIORITY_LABEL_KEY.high], value: debtSummary.byPriority.high, color: '#f3948c' },
+    { label: strings.buckets[PRIORITY_LABEL_KEY.medium], value: debtSummary.byPriority.medium, color: '#f2c680' },
+    { label: strings.buckets[PRIORITY_LABEL_KEY.low], value: debtSummary.byPriority.low, color: '#7fe4bf' },
   ];
 
   return (
     <div className={styles.page}>
       <header className={styles.header}>
-        <button type="button" className={styles.backButton} onClick={() => router.push('/home')} aria-label="Back">
+        <button type="button" className={styles.backButton} onClick={() => navigateBack('/home')} aria-label="Back">
           <ChevronLeft size={18} strokeWidth={2} />
         </button>
-        <h1 className={styles.title}>{strings.goals.tabDebt}</h1>
+        <h1 className={styles.title}>{strings.buckets.tabDebt}</h1>
       </header>
 
       <ScreenState loading={loading} error={error} />
@@ -50,7 +52,7 @@ export function DebtsListScreen() {
               <div className={styles.heroCardWrap}>
                 <div className={styles.heroCard}>
                   <div className={styles.heroTopRow}>
-                    <span className={styles.heroLabel}>{strings.goals.totalDebtLabel}</span>
+                    <span className={styles.heroLabel}>{strings.buckets.totalDebtLabel}</span>
                     <div data-theme="dark">
                       <Logo height={14} className={styles.heroLogo} />
                     </div>
@@ -77,7 +79,7 @@ export function DebtsListScreen() {
                 </div>
                 <button type="button" className={styles.heroAddButton} onClick={() => router.push('/debts/new')}>
                   <Plus size={16} strokeWidth={2.5} />
-                  {strings.goals.addDebt}
+                  {strings.buckets.addDebt}
                 </button>
               </div>
 
@@ -107,7 +109,7 @@ export function DebtsListScreen() {
           )}
           {totalDebtTrend.length > 0 && (
             <div className={styles.chartCard}>
-              <p className={styles.chartTitle}>{strings.goals.totalDebtTrendTitle}</p>
+              <p className={styles.chartTitle}>{strings.buckets.totalDebtTrendTitle}</p>
               <TrendChart
                 points={totalDebtTrend.map((point) => ({ label: point.label, value: point.total }))}
                 color="var(--color-danger)"
@@ -115,7 +117,7 @@ export function DebtsListScreen() {
             </div>
           )}
           {debts.length === 0 ? (
-            <p className={styles.emptyText}>{strings.goals.emptyDebt}</p>
+            <p className={styles.emptyText}>{strings.buckets.emptyDebt}</p>
           ) : (
             <div className={styles.list}>
               {debts.map((debt) => (
@@ -137,7 +139,7 @@ export function DebtsListScreen() {
                       <p className={styles.cardName}>{debt.name}</p>
                       <p className={styles.cardCategory}>
                         <span className={`${styles.priorityDot} ${styles[`priorityDot_${debt.priority}`]}`} />{' '}
-                        {strings.goals[PRIORITY_LABEL_KEY[debt.priority]]}
+                        {strings.buckets[PRIORITY_LABEL_KEY[debt.priority]]}
                       </p>
                     </div>
                     <span onClick={(event) => event.stopPropagation()}>
@@ -147,7 +149,7 @@ export function DebtsListScreen() {
                         items={[
                           {
                             key: 'archive',
-                            label: strings.goals.archiveAction,
+                            label: strings.buckets.archiveAction,
                             icon: <Trash2 size={16} strokeWidth={1.75} />,
                             onSelect: () => setConfirmDebtId(debt.id),
                             danger: true,
@@ -168,7 +170,7 @@ export function DebtsListScreen() {
                   {debt.nextPaymentDate && (
                     <div className={styles.metaRow}>
                       <span>
-                        {strings.goals.nextPaymentPrefix}{' '}
+                        {strings.buckets.nextPaymentPrefix}{' '}
                         {debt.nextPaymentDate.toLocaleDateString('en-US', { month: 'short', day: '2-digit' })}
                       </span>
                     </div>
@@ -180,7 +182,7 @@ export function DebtsListScreen() {
           {debtSummary.debtCount === 0 && (
             <button type="button" className={styles.addButton} onClick={() => router.push('/debts/new')}>
               <Plus size={18} strokeWidth={2.25} />
-              {strings.goals.addDebt}
+              {strings.buckets.addDebt}
             </button>
           )}
         </>
@@ -188,9 +190,9 @@ export function DebtsListScreen() {
 
       {confirmDebtId && (
         <ConfirmDialog
-          title={strings.goals.archiveDebtConfirmTitle}
-          message={strings.goals.archiveDebtConfirmMessage}
-          confirmLabel={strings.goals.archiveAction}
+          title={strings.buckets.archiveDebtConfirmTitle}
+          message={strings.buckets.archiveDebtConfirmMessage}
+          confirmLabel={strings.buckets.archiveAction}
           cancelLabel={strings.common.cancel}
           onConfirm={() => {
             archiveDebt(confirmDebtId);

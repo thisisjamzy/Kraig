@@ -62,7 +62,6 @@ async function getMonthly(month: string) {
 const ACCOUNT_ID = 'acc-int-test';
 const CATEGORY_ID = 'cat-int-test';
 const OTHER_CATEGORY_ID = 'cat-int-test-2';
-const RULE_ID = 'rule-int-test';
 const MONTH_A = '2031-03';
 const MONTH_B = '2031-04';
 
@@ -99,28 +98,11 @@ before(async () => {
     perCategorySpend: {},
     perCategoryCount: {},
   });
-  await userCol('budgetRules').doc(RULE_ID).set({
-    categoryId: CATEGORY_ID,
-    description: 'Integration test rule',
-    budgetedAmount: 500,
-    frequency: 'Monthly',
-    interval: 1,
-    anchorDate: admin.firestore.Timestamp.fromDate(new Date(`${MONTH_A}-01T00:00:00Z`)),
-    endCondition: 'Never',
-    endOccurrences: null,
-    endDate: null,
-    accountId: null,
-    tag: '',
-    archived: false,
-  });
-  // Let the onBudgetRuleWrite trigger settle (it only maintains the
-  // *current* month — irrelevant here, but avoids racing its own write).
-  await new Promise((resolve) => setTimeout(resolve, 500));
 });
 
 after(async () => {
   await Promise.all(
-    ['transactions', 'accounts', 'settings', 'statsMonthly', 'statsBudgetProgress', 'budgetRules'].map(
+    ['transactions', 'accounts', 'settings', 'statsMonthly'].map(
       async (col) => {
         const snap = await userCol(col).get();
         await Promise.all(snap.docs.map((d) => d.ref.delete()));
@@ -160,15 +142,6 @@ describe('onTransactionWrite: create', () => {
     assert.equal(monthly.perCategoryCount?.[CATEGORY_ID], 1);
     assert.equal(monthly.transactionCount, 1);
 
-    const progress = await waitFor(async () => {
-      const snap = await userCol('statsBudgetProgress').doc(MONTH_A).get();
-      const data = snap.data();
-      return data?.[RULE_ID] ? data : undefined;
-    }, 'statsBudgetProgress to reflect the new spend');
-    assert.equal(progress[RULE_ID].spent, 100);
-    assert.equal(progress[RULE_ID].budgeted, 500);
-    assert.equal(progress[RULE_ID].remaining, 400);
-    assert.equal(progress[RULE_ID].count, 1);
   });
 });
 

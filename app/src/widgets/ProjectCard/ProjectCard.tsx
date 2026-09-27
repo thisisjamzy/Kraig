@@ -1,11 +1,11 @@
 'use client';
 
 // The one project card every project listing uses — Area Detail and
-// Bucket Detail. Keeping a single component means a future visual change
+// Section Detail. Keeping a single component means a future visual change
 // to "the project card" only ever needs to happen here.
 
-import { Target } from 'lucide-react';
-import { projectCoverImageUrl } from '@/src/viewmodels/projects';
+import { CalendarDays, Target } from 'lucide-react';
+import { projectCoverImageUrl, priorityLabel } from '@/src/viewmodels/projects';
 import type { ProjectStatus, Priority } from '@/src/shared/firestore/types';
 import styles from './ProjectCard.module.css';
 
@@ -73,16 +73,21 @@ export function ProjectCard({
   project,
   onClick,
   className,
+  variant = 'cover',
 }: {
   project: ProjectCardData;
   onClick: () => void;
-  // Optional, additive — every existing call site (Area Detail, Bucket
+  // 'compact' (the Time hub's own carousel): no cover image — name,
+  // timeline, a linear progress bar, and the badges, nothing else.
+  variant?: 'cover' | 'compact';
+  // Optional, additive — every existing call site (Area Detail, Section
   // Detail, the Projects hub's own mobile carousel) omits it and keeps
   // rendering exactly styles.card alone. Only the Projects hub's web-mode
   // grid (ProjectsScreen.web.module.css) passes one, to cap this card's
   // otherwise vw-based width to its grid cell instead.
   className?: string;
 }) {
+  if (variant === 'compact') return <CompactProjectCard project={project} onClick={onClick} className={className} />;
   return (
     <button type="button" className={`${styles.card} ${className ?? ''}`} onClick={onClick}>
       <div
@@ -107,7 +112,7 @@ export function ProjectCard({
 
         <div className={styles.badgeRow}>
           <span className={styles.statusChip}>{project.status}</span>
-          <span className={styles.priorityChip}>{project.priority}</span>
+          <span className={styles.priorityChip}>{priorityLabel(project.priority)}</span>
           <span className={styles.taskCountChip}>{project.taskCount} tasks</span>
           {project.atRisk && (
             <span className={styles.riskChip}>
@@ -118,6 +123,74 @@ export function ProjectCard({
 
         {project.description && <p className={styles.description}>{project.description}</p>}
       </div>
+    </button>
+  );
+}
+
+function shortDate(date: Date) {
+  return date.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+}
+
+function CompactProjectCard({
+  project,
+  onClick,
+  className,
+}: {
+  project: ProjectCardData;
+  onClick: () => void;
+  className?: string;
+}) {
+  const percent = Math.max(0, Math.min(100, project.completionPercent));
+  return (
+    <button
+      type="button"
+      className={`${styles.compact} ${className ?? ''}`}
+      onClick={onClick}
+      style={{ ['--project-color' as string]: project.color }}
+    >
+      <span className={styles.compactHead}>
+        {project.areaName && <span className={styles.compactArea}>{project.areaName}</span>}
+        <span className={styles.compactName}>{project.name}</span>
+      </span>
+
+      <span className={styles.compactTimeline}>
+        <CalendarDays size={13} strokeWidth={2} aria-hidden />
+        {project.startDate ? shortDate(project.startDate) : 'No start'}
+        {' – '}
+        {project.endDate ? shortDate(project.endDate) : 'No end'}
+      </span>
+
+      <span className={styles.compactProgress}>
+        <span className={styles.compactProgressHead}>
+          <span>Progress</span>
+          <span className={styles.compactPercent}>{percent}%</span>
+        </span>
+        <span
+          className={styles.compactTrack}
+          role="progressbar"
+          aria-valuenow={percent}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label={`${project.name} progress`}
+        >
+          <span className={styles.compactFill} style={{ width: `${percent}%` }} />
+        </span>
+      </span>
+
+      <span className={styles.badgeRow}>
+        <span className={styles.statusChip}>{project.status}</span>
+        <span className={styles.priorityChip} data-priority={project.priority}>
+          {priorityLabel(project.priority)}
+        </span>
+        <span className={styles.taskCountChip}>
+          {project.taskCount} {project.taskCount === 1 ? 'task' : 'tasks'}
+        </span>
+        {project.atRisk && (
+          <span className={styles.riskChip}>
+            <Target size={11} strokeWidth={2.25} /> At risk
+          </span>
+        )}
+      </span>
     </button>
   );
 }

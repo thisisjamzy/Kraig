@@ -220,28 +220,68 @@ describe('transactions', () => {
   });
 });
 
-describe('budgetRules', () => {
+describe('budgetRules (legacy — PRD-BUDGETS-V2.md)', () => {
   beforeEach(async () => {
     await seedActiveUser(ACTIVE_UID);
-  });
-
-  it('rejects create with a bad frequency', async () => {
-    const db = testEnv.authenticatedContext(ACTIVE_UID).firestore();
-    await assertFails(
-      setDoc(doc(db, 'users', ACTIVE_UID, 'budgetRules', 'rule1'), { budgetedAmount: 100, frequency: 'Daily' })
-    );
-  });
-
-  it('never allows delete — archive in place instead', async () => {
     await testEnv.withSecurityRulesDisabled(async (context) => {
       await setDoc(doc(context.firestore(), 'users', ACTIVE_UID, 'budgetRules', 'rule1'), {
         budgetedAmount: 100,
         frequency: 'Monthly',
-        archived: false,
+        archived: true,
       });
     });
+  });
+
+  it('stays readable as history', async () => {
     const db = testEnv.authenticatedContext(ACTIVE_UID).firestore();
+    await assertSucceeds(getDoc(doc(db, 'users', ACTIVE_UID, 'budgetRules', 'rule1')));
+  });
+
+  it('rejects every client write', async () => {
+    const db = testEnv.authenticatedContext(ACTIVE_UID).firestore();
+    await assertFails(
+      setDoc(doc(db, 'users', ACTIVE_UID, 'budgetRules', 'rule2'), { budgetedAmount: 100, frequency: 'Monthly' })
+    );
     await assertFails(deleteDoc(doc(db, 'users', ACTIVE_UID, 'budgetRules', 'rule1')));
+  });
+});
+
+describe('allocations (PRD-BUDGETS-V2.md section 4.4)', () => {
+  beforeEach(async () => {
+    await seedActiveUser(ACTIVE_UID);
+  });
+
+  const valid = {
+    month: '2026-09',
+    months: ['2026-09'],
+    from: { kind: 'pool' },
+    to: { kind: 'item', bucketId: 'b1', itemId: 'i1', month: '2026-09' },
+    amount: 50,
+    currency: 'XAF',
+    reason: 'cover_overspend',
+    transferId: null,
+    note: '',
+    createdBy: ACTIVE_UID,
+  };
+
+  it('lets an active user create, read and delete their own', async () => {
+    const db = testEnv.authenticatedContext(ACTIVE_UID).firestore();
+    const ref = doc(db, 'users', ACTIVE_UID, 'allocations', 'a1');
+    await assertSucceeds(setDoc(ref, valid));
+    await assertSucceeds(getDoc(ref));
+    await assertSucceeds(deleteDoc(ref));
+  });
+
+  it('rejects a non-positive amount or a missing months list', async () => {
+    const db = testEnv.authenticatedContext(ACTIVE_UID).firestore();
+    await assertFails(setDoc(doc(db, 'users', ACTIVE_UID, 'allocations', 'a2'), { ...valid, amount: 0 }));
+    const { months: _months, ...withoutMonths } = valid;
+    await assertFails(setDoc(doc(db, 'users', ACTIVE_UID, 'allocations', 'a3'), withoutMonths));
+  });
+
+  it('denies another user', async () => {
+    const db = testEnv.authenticatedContext(OTHER_UID).firestore();
+    await assertFails(setDoc(doc(db, 'users', ACTIVE_UID, 'allocations', 'a4'), { ...valid, createdBy: OTHER_UID }));
   });
 });
 
@@ -250,11 +290,12 @@ describe('materialized stats — client-maintained (Spark plan, see firestore.ru
     await seedActiveUser(ACTIVE_UID);
   });
 
-  it('lets an active user read and write their own stats/statsMonthly/statsBudgetProgress', async () => {
+  it('lets an active user read and write their own stats/statsMonthly', async () => {
     const db = testEnv.authenticatedContext(ACTIVE_UID).firestore();
     await assertSucceeds(setDoc(doc(db, 'users', ACTIVE_UID, 'stats', 'home'), { totalBalanceBase: 999 }));
     await assertSucceeds(setDoc(doc(db, 'users', ACTIVE_UID, 'statsMonthly', '2026-08'), { totalIncome: 999 }));
-    await assertSucceeds(setDoc(doc(db, 'users', ACTIVE_UID, 'statsBudgetProgress', '2026-08'), { rule1: {} }));
+    // statsBudgetProgress is legacy and read-only now (PRD-BUDGETS-V2.md).
+    await assertFails(setDoc(doc(db, 'users', ACTIVE_UID, 'statsBudgetProgress', '2026-08'), { rule1: {} }));
   });
 
   it('denies reading or writing another user\'s stats', async () => {

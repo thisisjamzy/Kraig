@@ -21,8 +21,10 @@ import { transferRef } from '@/src/shared/firestore/refs';
 import { useAccounts } from '@/src/shared/firestore/queries';
 import { updateTransferWithAggregation, deleteTransferWithAggregation } from '@/src/shared/firestore/aggregation';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
+import { useBucketItemOptions, bucketItemKey as linkKey } from '@/src/shared/hooks/useBucketItemOptions';
 import { TRANSFER_CATEGORIES } from '@/src/viewmodels/categories';
 import type { FirestoreTransfer } from '@/src/shared/firestore/types';
+import { useGoBack } from '@/src/shared/navigation/useGoBack';
 
 function pad2(n: number) {
   return String(n).padStart(2, '0');
@@ -58,6 +60,9 @@ export function useLogic(transferId: string) {
   const [fromAccountId, setFromAccountId] = useState('');
   const [toAccountId, setToAccountId] = useState('');
   const [dateValue, setDateValue] = useState('');
+  // PRD-BUDGETS-V2.md section 6.4 — the Transfer bucket item occurrence
+  // this transfer settles, as `${itemId}@${yyyy-MM}`; '' = not linked.
+  const [bucketItemKey, setBucketItemKey] = useState('');
   const [seededFor, setSeededFor] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -75,8 +80,12 @@ export function useLogic(transferId: string) {
     setFromAccountId(original.fromAccountId);
     setToAccountId(original.toAccountId);
     setDateValue(toIso(original.date.toDate()));
+    setBucketItemKey(linkKey(original.bucketItem));
     setSeededFor(transferId);
   }, [original, seededFor, transferId]);
+
+  // A Transfer bucket's items use the transfer kind as their category.
+  const bucketItemOptions = useBucketItemOptions({ categoryId: kind, dateValue, current: original?.bucketItem });
 
   async function handleSave() {
     if (!original || !uid || submitting) return;
@@ -93,6 +102,7 @@ export function useLogic(transferId: string) {
         amount: Number(amountString),
         charges: Number(chargesString) || 0,
         kind,
+        bucketItem: bucketItemOptions.find((option) => option.key === bucketItemKey)?.link ?? null,
       });
       router.push('/transactions');
     } catch (error) {
@@ -127,8 +137,11 @@ export function useLogic(transferId: string) {
     }
   }
 
+  // Back to the page the user came from (skipping forms); '/transactions' only
+  // when there's no history — see src/shared/navigation/useGoBack.ts.
+  const navigateBack = useGoBack();
   function goBack() {
-    router.push('/transactions');
+    navigateBack('/transactions');
   }
 
   const canSave =
@@ -145,6 +158,9 @@ export function useLogic(transferId: string) {
     kind,
     setKind,
     kinds: TRANSFER_CATEGORIES,
+    bucketItemKey,
+    setBucketItemKey,
+    bucketItemOptions,
     amountString,
     setAmountString,
     chargesString,

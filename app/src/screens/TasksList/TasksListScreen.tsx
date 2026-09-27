@@ -11,7 +11,7 @@ import {
 } from '@/src/logic/tasksList/useLogic';
 import type { TaskStatusFilter, TaskPriorityFilter } from '@/src/logic/tasksList/useLogic';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
-import { TaskCard } from '@/src/widgets/TaskCard/TaskCard';
+import { TaskCheckRow } from '@/src/widgets/TaskCheckRow/TaskCheckRow';
 import styles from './TasksListScreen.module.css';
 
 export function TasksListScreen() {
@@ -73,7 +73,7 @@ export function TasksListScreen() {
           ) : (
             <div className={styles.list}>
               {tasks.map((task) => (
-                <TaskCard key={task.id} task={task} />
+                <TaskCheckRow key={task.id} task={task} />
               ))}
             </div>
           )}

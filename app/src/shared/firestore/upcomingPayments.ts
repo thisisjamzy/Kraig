@@ -13,13 +13,14 @@
 import { nextOccurrenceOnOrAfter } from '@dreda/shared-recurrence';
 import { toDisplay, type CurrencyContext } from './currency';
 import { toRecurrenceRule } from './recurrence';
+import { isItemClosed } from '../budget/bucketProgress';
 import type {
   FirestoreAccount,
   FirestorePlannedPayment,
   FirestoreCategory,
-  FirestoreGoal,
-  FirestoreGoalLineItem,
-  GoalItemNecessity,
+  FirestoreBucket,
+  FirestoreBucketLineItem,
+  BucketItemNecessity,
 } from './types';
 
 export interface UpcomingPayment {
@@ -77,13 +78,13 @@ export function computeUpcomingPayments(
 }
 
 // ---------------------------------------------------------------------
-// Goal-item-sourced upcoming payments — replaces the plannedPayments-based
+// Bucket-item-sourced upcoming payments — replaces the plannedPayments-based
 // computeUpcomingPayments above for both Home and the Payments Calendar.
 // plannedPayments itself is left alone (collection + computeUpcomingPayments
 // both still exist, just uncalled) rather than migrated or deleted.
 // ---------------------------------------------------------------------
 
-export interface UpcomingGoalPayment {
+export interface UpcomingBucketPayment {
   id: string;
   goalId: string;
   title: string;
@@ -94,39 +95,39 @@ export interface UpcomingGoalPayment {
   amount: number;
   currency: string;
   dueDate: string;
-  necessity: GoalItemNecessity;
-  // A Fixed goal's item repeats (its own recurrence field) — surfaced so
+  necessity: BucketItemNecessity;
+  // A Fixed bucket's item repeats (its own recurrence field) — surfaced so
   // the UI can badge it the same way a recurring plannedPayment used to be.
   recurring: boolean;
 }
 
 /**
- * Every active goal's own not-yet-completed line items that have a due
- * date, walked forward through `horizonDays`. A Fixed goal's item repeats
+ * Every active bucket's own not-yet-completed line items that have a due
+ * date, walked forward through `horizonDays`. A Fixed bucket's item repeats
  * according to its own `recurrence` (built into a plain RecurrenceRule
  * anchored on the item's stored dueDate, `endCondition: 'Never'` — a Fixed
- * goal's recurring cost has no built-in end); a Variable item's dueDate is
+ * bucket's recurring cost has no built-in end); a Variable item's dueDate is
  * always a single occurrence, shown only if it falls in the window.
  */
-export function computeUpcomingPaymentsFromGoalItems(
-  goals: FirestoreGoal[],
-  itemsByGoal: Record<string, FirestoreGoalLineItem[]>,
+export function computeUpcomingPaymentsFromBucketItems(
+  buckets: FirestoreBucket[],
+  itemsByBucket: Record<string, FirestoreBucketLineItem[]>,
   accounts: FirestoreAccount[],
   categories: FirestoreCategory[],
   ctx: CurrencyContext,
   horizonDays: number
-): UpcomingGoalPayment[] {
+): UpcomingBucketPayment[] {
   const accountName = new Map(accounts.map((a) => [a.id, a.name]));
   const accountCurrency = new Map(accounts.map((a) => [a.id, a.currency]));
   const categoryName = new Map(categories.map((c) => [c.id, c.name]));
 
   const from = new Date();
   const until = new Date(from.getTime() + horizonDays * 24 * 3600 * 1000);
-  const out: UpcomingGoalPayment[] = [];
+  const out: UpcomingBucketPayment[] = [];
 
-  for (const goal of goals) {
-    for (const item of itemsByGoal[goal.id] ?? []) {
-      if (item.completed || !item.dueDate) continue;
+  for (const bucket of buckets) {
+    for (const item of itemsByBucket[bucket.id] ?? []) {
+      if (isItemClosed(item, bucket.kind) || !item.dueDate) continue;
       // No recurrence field (a Variable item) defaults to 'Once' — a single
       // occurrence on the stored dueDate, same as a plain plannedPayment
       // used to behave.
@@ -141,10 +142,10 @@ export function computeUpcomingPaymentsFromGoalItems(
         until
       );
       if (!due) continue;
-      const native = item.accountId ? accountCurrency.get(item.accountId) ?? goal.currency : goal.currency;
+      const native = item.accountId ? accountCurrency.get(item.accountId) ?? bucket.currency : bucket.currency;
       out.push({
         id: item.id,
-        goalId: goal.id,
+        goalId: bucket.id,
         title: item.name || categoryName.get(item.categoryId ?? '') || 'Payment',
         category: categoryName.get(item.categoryId ?? '') ?? item.categoryId ?? '—',
         categoryId: item.categoryId ?? '',

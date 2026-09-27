@@ -27,6 +27,7 @@ import {
 } from '@/src/shared/firestore/projectInsights';
 import { PROJECT_COLORS } from '@/src/viewmodels/projects';
 import type { FirestoreArea, FirestoreProject } from '@/src/shared/firestore/types';
+import { actionableTasks, summarizeSeries } from '@/src/shared/tasks/recurringTasks';
 
 const COMPLETED_WEEKS = 6;
 
@@ -34,14 +35,18 @@ export function useLogic() {
   const { user } = useFirebaseUser();
   const uid = user?.uid;
 
-  const { data: tasks, loading: tasksLoading } = useAllTasks();
+  const { data: taskDocs, loading: tasksLoading } = useAllTasks();
+  // A recurring series counts once for totals and trends; its dates count
+  // for what's overdue or due today.
+  const tasks = useMemo(() => summarizeSeries(taskDocs), [taskDocs]);
+  const actionable = useMemo(() => actionableTasks(taskDocs), [taskDocs]);
   const areasQuery = useMemo(() => (uid ? query(areasRef(uid)) : null), [uid]);
   const { data: areaDocs, loading: areasLoading } = useFirestoreCollection<FirestoreArea>(areasQuery);
   const projectsQuery = useMemo(() => (uid ? query(projectsRef(uid)) : null), [uid]);
   const { data: projectDocs, loading: projectsLoading } = useFirestoreCollection<FirestoreProject>(projectsQuery);
 
-  const overdue = overdueTasks(tasks);
-  const today = dueTodayTasks(tasks);
+  const overdue = overdueTasks(actionable);
+  const today = dueTodayTasks(actionable);
   const completedTotal = tasks.filter((t) => t.done).length;
 
   const completedTrend = useMemo(() => completedByWeek(tasks, COMPLETED_WEEKS), [tasks]);

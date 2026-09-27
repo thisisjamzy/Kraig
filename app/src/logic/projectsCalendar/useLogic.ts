@@ -1,16 +1,17 @@
 'use client';
 
-// A lightweight month-grid + day-agenda calendar over tasks (by dueDate)
-// and projects (by startDate/endDate) — the Google Calendar bridge and the
-// dedicated calendarEvents collection PRD Files/PRD-PROJECTS.md section 16
-// specs are later build steps; this reads directly off tasks/projects,
-// which is everything a household's own due dates actually need for now.
+// A month grid over a day schedule — tasks (placed on an hour timeline by
+// their start/end), and projects/payments as all-day items — the Google
+// Calendar bridge and the dedicated calendarEvents collection PRD
+// Files/PRD-PROJECTS.md section 16 specs are later build steps; this reads
+// directly off tasks/projects, which is everything a household's own
+// schedule actually needs for now. "Add Event" opens the new task form.
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { query } from 'firebase/firestore';
 import { useFirestoreCollection } from '@/src/shared/firestore/hooks';
-import { useBuckets } from '@/src/shared/firestore/queries';
+import { useSections } from '@/src/shared/firestore/queries';
 import { projectsRef, areasRef, plannedPaymentsRef } from '@/src/shared/firestore/refs';
 import { useAllTasks } from '@/src/shared/hooks/useAllTasks';
 import { useAccounts, useCategories, useCurrencyContext } from '@/src/shared/firestore/queries';
@@ -18,6 +19,8 @@ import { computeUpcomingPayments } from '@/src/shared/firestore/upcomingPayments
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { DEFAULT_PRIORITY } from '@/src/viewmodels/projects';
 import type { FirestoreProject, FirestoreArea, FirestorePlannedPayment } from '@/src/shared/firestore/types';
+import { effectiveTimeMode } from '@/src/viewmodels/scheduling';
+import { expandTasks } from '@/src/shared/tasks/recurringTasks';
 
 // Payments are "upcoming from today," not tied to the month being browsed
 // (see upcomingPayments.ts's own header — same forward-looking model the
@@ -25,7 +28,105 @@ import type { FirestoreProject, FirestoreArea, FirestorePlannedPayment } from '@
 // months ahead still surfaces them, rather than recomputing per month.
 const PAYMENT_HORIZON_DAYS = 400;
 
-function isoDate(d: Date) {
+// Pixels per hour on the schedule timeline — tall enough that a one-hour
+// slot holds the full task card (the same TaskCheckRow as the Time hub:
+// badges, title, date · time) without clipping.
+export const HOUR_HEIGHT = 112;
+// Every task gets at least a one-hour slot on the timeline, so its card
+// always has room and lanes never let two cards overlap.
+const MIN_SLOT_MINUTES = 60;
+
+export interface MonthCell {
+  iso: string;
+  day: number;
+  inMonth: boolean;
+}
+
+/** Monday-first weeks covering the whole month, padded with the previous
+ * and next month's days. */
+export function buildMonthGrid(monthCursor: Date): MonthCell[] {
+  const first = new Date(monthCursor.getFullYear(), monthCursor.getMonth(), 1);
+  const lead = (first.getDay() + 6) % 7; // days before the 1st back to Monday
+  const start = new Date(first.getFullYear(), first.getMonth(), 1 - lead);
+  const daysInMonth = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate();
+  const weeks = Math.ceil((lead + daysInMonth) / 7);
+  return Array.from({ length: weeks * 7 }, (_, i) => {
+    const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+    return { iso: isoDate(d), day: d.getDate(), inMonth: d.getMonth() === first.getMonth() };
+  });
+}
+
+interface TimedItem {
+  id: string;
+  startMin: number; // minutes from midnight
+  endMin: number;
+}
+
+/** Side-by-side lanes for overlapping tasks: each item gets its lane and the
+ * number of lanes its overlap cluster needs. */
+export function assignLanes<T extends TimedItem>(items: T[]): (T & { lane: number; lanes: number })[] {
+  const sorted = [...items].sort((a, b) => a.startMin - b.startMin || b.endMin - a.endMin);
+  const out: (T & { lane: number; lanes: number })[] = [];
+  let cluster: (T & { lane: number; lanes: number })[] = [];
+  let clusterEnd = -1;
+  let laneEnds: number[] = [];
+  function closeCluster() {
+    const lanes = Math.max(1, laneEnds.length);
+    for (const item of cluster) item.lanes = lanes;
+    out.push(...cluster);
+    cluster = [];
+    laneEnds = [];
+  }
+  for (const item of sorted) {
+    if (cluster.length > 0 && item.startMin >= clusterEnd) closeCluster();
+    let lane = laneEnds.findIndex((end) => end <= item.startMin);
+    if (lane === -1) {
+      lane = laneEnds.length;
+      laneEnds.push(item.endMin);
+    } else {
+      laneEnds[lane] = item.endMin;
+    }
+    cluster.push({ ...item, lane, lanes: 1 });
+    clusterEnd = Math.max(clusterEnd, item.endMin);
+  }
+  if (cluster.length > 0) closeCluster();
+  return out;
+}
+
+export interface ScheduleTask {
+  id: string;
+  startTime: Date | null;
+  dueDate: Date | null;
+}
+
+/** The selected day's timeline: every task placed by its start and sized by
+ * its duration (a legacy task with only a due time gets a MIN_SLOT_MINUTES
+ * slot ending at it); the visible hour range always covers 08.00 onward and
+ * stretches to fit the day's tasks. Pure, so it can be tested and previewed. */
+export function buildSchedule<T extends ScheduleTask>(taskItems: T[], selectedDate: string) {
+  const minutes = (d: Date) => d.getHours() * 60 + d.getMinutes();
+  const timed = taskItems.map((task) => {
+    const start = task.startTime ?? new Date((task.dueDate as Date).getTime() - MIN_SLOT_MINUTES * 60000);
+    const end = task.dueDate && task.dueDate > start ? task.dueDate : new Date(start.getTime() + MIN_SLOT_MINUTES * 60000);
+    const startMin = minutes(start);
+    // A task running past midnight is drawn to the end of this day.
+    const endMin = isoDate(end) === selectedDate ? minutes(end) : 24 * 60;
+    return { ...task, startMin, endMin: Math.max(endMin, startMin + MIN_SLOT_MINUTES) };
+  });
+  const firstHour = Math.min(8, ...timed.map((t) => Math.floor(t.startMin / 60)));
+  const lastHour = Math.min(24, Math.max(firstHour + 7, ...timed.map((t) => Math.ceil(t.endMin / 60))));
+  const hours = Array.from({ length: lastHour - firstHour + 1 }, (_, i) => firstHour + i);
+  const items = assignLanes(timed).map((item) => ({
+    ...item,
+    top: ((item.startMin - firstHour * 60) / 60) * HOUR_HEIGHT,
+    // A minimum, not a fixed height: the card grows with its duration but
+    // is never cut short of its own content.
+    height: ((item.endMin - item.startMin) / 60) * HOUR_HEIGHT - 8,
+  }));
+  return { hours, firstHour, items, height: (lastHour - firstHour) * HOUR_HEIGHT };
+}
+
+export function isoDate(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
@@ -38,7 +139,18 @@ export function useLogic() {
   const [monthCursor, setMonthCursor] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1));
   const [selectedDate, setSelectedDate] = useState(() => isoDate(today));
 
-  const { data: tasks, loading: tasksLoading } = useAllTasks();
+  const { data: taskDocs, loading: tasksLoading } = useAllTasks();
+  // Recurring tasks as their dates, for the month on screen and one either
+  // side (the grid's padding days and the web week view stay covered).
+  const tasks = useMemo(
+    () =>
+      expandTasks(
+        taskDocs,
+        new Date(monthCursor.getFullYear(), monthCursor.getMonth() - 1, 1),
+        new Date(monthCursor.getFullYear(), monthCursor.getMonth() + 2, 0, 23, 59, 59, 999)
+      ),
+    [taskDocs, monthCursor]
+  );
   const projectsQuery = useMemo(() => (uid ? query(projectsRef(uid)) : null), [uid]);
   const { data: projectDocs, loading: projectsLoading } = useFirestoreCollection<FirestoreProject>(projectsQuery);
   const projects = projectDocs.filter((p) => p.status !== 'Archived');
@@ -48,7 +160,7 @@ export function useLogic() {
   const { data: areaDocs } = useFirestoreCollection<FirestoreArea>(areasQuery);
   const areaName = useMemo(() => new Map(areaDocs.map((a) => [a.id, a.name])), [areaDocs]);
 
-  const { data: bucketDocs } = useBuckets();
+  const { data: bucketDocs } = useSections();
   const bucketName = useMemo(() => new Map(bucketDocs.map((b) => [b.id, b.name])), [bucketDocs]);
 
   const paymentsQuery = useMemo(() => (uid ? query(plannedPaymentsRef(uid)) : null), [uid]);
@@ -71,7 +183,8 @@ export function useLogic() {
   const daysWithItems = useMemo(() => {
     const set = new Set<string>();
     for (const t of tasks) {
-      if (t.dueDate) set.add(isoDate(t.dueDate.toDate()));
+      const anchor = t.startTime ?? t.dueDate;
+      if (anchor) set.add(isoDate(anchor.toDate()));
     }
     for (const p of projects) {
       if (p.startDate) set.add(isoDate(p.startDate.toDate()));
@@ -89,8 +202,13 @@ export function useLogic() {
   // `selectedDate` — all off the same already-loaded tasks/projects/
   // payments arrays, no extra Firestore reads either way.
   function buildAgendaForDate(dateIso: string) {
+    const now = new Date();
     const taskItems = tasks
-      .filter((t) => t.dueDate && isoDate(t.dueDate.toDate()) === dateIso)
+      .filter((t) => {
+        if (t.status === 'Cancelled') return false;
+        const anchor = t.startTime ?? t.dueDate;
+        return anchor !== null && anchor !== undefined && isoDate(anchor.toDate()) === dateIso;
+      })
       .map((t) => ({
         kind: 'task' as const,
         id: t.id,
@@ -99,14 +217,21 @@ export function useLogic() {
         type: t.type ?? 'ToDo',
         priority: t.priority ?? DEFAULT_PRIORITY,
         startTime: t.startTime ? t.startTime.toDate() : null,
-        dueDate: t.dueDate!.toDate(),
+        allDay: Boolean(t.allDay),
+        timeMode: effectiveTimeMode(t),
+        recurring: Boolean(t.seriesId),
+        dueDate: t.dueDate ? t.dueDate.toDate() : null,
         done: t.done,
+        description: t.notes ?? '',
+        overdue: !t.done && ((t.dueDate ?? t.startTime)?.toDate() ?? now) < now,
         status: t.status,
         projectName: t.projectId ? projectName.get(t.projectId) ?? null : null,
         bucketName: t.bucketId ? bucketName.get(t.bucketId) ?? null : null,
         areaName: t.areaId ? areaName.get(t.areaId) ?? null : null,
       }))
-      .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
+      .sort(
+        (a, b) => ((a.startTime ?? a.dueDate)?.getTime() ?? 0) - ((b.startTime ?? b.dueDate)?.getTime() ?? 0)
+      );
     const projectItems = projects
       .filter(
         (p) =>
@@ -139,6 +264,41 @@ export function useLogic() {
     [tasks, projects, payments, selectedDate, projectName, bucketName, areaName]
   );
 
+  // The selected day's timeline: every task with a time is placed by its
+  // start and sized by its duration (a legacy task with only a due time
+  // gets a MIN_SLOT_MINUTES slot ending at it); the visible hour range
+  // always covers 08.00 onward and stretches to fit the day's tasks.
+  // Date-only tasks (FirestoreTask.allDay) sit with the day's all-day items,
+  // not on the hour timeline.
+  const allDayTasks = useMemo(() => agenda.taskItems.filter((task) => task.allDay), [agenda]);
+  const schedule = useMemo(
+    () => buildSchedule(agenda.taskItems.filter((task) => !task.allDay), selectedDate),
+    [agenda, selectedDate]
+  );
+
+  const monthGrid = useMemo(() => buildMonthGrid(monthCursor), [monthCursor]);
+  function shiftMonth(delta: number) {
+    setMonthCursor((current) => new Date(current.getFullYear(), current.getMonth() + delta, 1));
+  }
+  // Tapping a padding day (last/next month) also moves the grid there.
+  function pickDate(iso: string) {
+    setSelectedDate(iso);
+    const d = new Date(`${iso}T00:00:00`);
+    if (d.getMonth() !== monthCursor.getMonth() || d.getFullYear() !== monthCursor.getFullYear()) {
+      setMonthCursor(new Date(d.getFullYear(), d.getMonth(), 1));
+    }
+  }
+  function jumpToToday() {
+    setMonthCursor(new Date(today.getFullYear(), today.getMonth(), 1));
+    setSelectedDate(isoDate(today));
+  }
+
+  // "Add Event" — the new task form, on the selected day, as an Event.
+  function openAddEvent() {
+    router.push(`/tasks/new?date=${selectedDate}&type=Event`);
+  }
+
+
   // For HeroUI Calendar's onFocusChange (arrow-key/nav-button navigation) —
   // accepts whatever month react-aria's own focus state landed on directly.
   function goToMonth(date: Date) {
@@ -161,6 +321,13 @@ export function useLogic() {
     selectedDate,
     selectDay,
     agenda,
+    allDayTasks,
+    schedule,
+    monthGrid,
+    shiftMonth,
+    pickDate,
+    jumpToToday,
+    openAddEvent,
     // Only consumed by the web week-grid (ProjectsCalendarScreen.tsx's
     // isWeb branch) — the mobile single-day agenda above is unaffected.
     agendaForDate: buildAgendaForDate,

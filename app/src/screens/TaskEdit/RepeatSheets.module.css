@@ -1,0 +1,418 @@
+/* Recurring-task sheets — same tokens as the card form (CardForm.module.css
+   sets the --tf-* colors on the form page these render inside). */
+
+/* ---- Repeat presets: check on the right ---- */
+.checkOption {
+  justify-content: space-between;
+  font-size: 17px;
+}
+
+.tallList {
+  /* Nine options — keep "Custom…" in view on a phone. */
+  max-height: 72dvh;
+}
+
+.checkOption {
+  min-height: 48px;
+}
+
+.check {
+  flex-shrink: 0;
+  color: var(--tf-accent);
+}
+
+/* ---- Custom repeat: a full-screen sheet ---- */
+.fullSheet {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  background: var(--tf-bg);
+  color: var(--tf-text);
+  animation: sheetIn var(--duration-popover, 200ms) var(--ease-out, ease-out);
+}
+
+@keyframes sheetIn {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+}
+
+.fullHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: calc(10px + env(safe-area-inset-top)) 12px 10px;
+}
+
+.fullTitle {
+  flex: 1;
+  margin: 0;
+  font-family: var(--font-family-heading);
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.iconButton {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 50%;
+  background: var(--tf-card);
+  color: var(--tf-text);
+  cursor: pointer;
+}
+
+.doneButton {
+  height: 40px;
+  padding: 0 18px;
+  border: none;
+  border-radius: 999px;
+  background: var(--tf-accent);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.iconButton:focus-visible,
+.doneButton:focus-visible {
+  outline: 2px solid var(--tf-accent);
+  outline-offset: 2px;
+}
+
+.fullBody {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 12px calc(24px + env(safe-area-inset-bottom));
+  overscroll-behavior: contain;
+}
+
+/* ---- Every N units ---- */
+.everyRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 14px;
+  background: var(--tf-track);
+}
+
+.stepper button {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 11px;
+  background: var(--tf-card);
+  color: var(--tf-text);
+  cursor: pointer;
+}
+
+.stepper button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.stepper input {
+  width: 44px;
+  border: none;
+  background: transparent;
+  color: var(--tf-text);
+  font-family: inherit;
+  /* 16px+ stops iOS zooming in on focus. */
+  font-size: 18px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.stepper input::-webkit-outer-spin-button,
+.stepper input::-webkit-inner-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
+}
+
+.unitSelect {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex: 1;
+  color: var(--tf-label);
+}
+
+.unitSelect select {
+  width: 100%;
+  height: 40px;
+  padding: 0 34px 0 12px;
+  border: none;
+  border-radius: 12px;
+  background: var(--tf-track);
+  color: var(--tf-text);
+  font-family: inherit;
+  font-size: 18px;
+  appearance: none;
+  cursor: pointer;
+}
+
+.unitSelect svg {
+  position: absolute;
+  right: 10px;
+  pointer-events: none;
+}
+
+/* ---- Weekday chips ---- */
+.dayChips {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.dayChip {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 50%;
+  background: var(--tf-track);
+  color: var(--tf-text);
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background-color var(--duration-press, 120ms) ease,
+    color var(--duration-press, 120ms) ease;
+}
+
+.dayChip[aria-pressed='true'] {
+  background: var(--tf-accent);
+  color: #ffffff;
+}
+
+.dayChip:focus-visible {
+  outline: 2px solid var(--tf-accent);
+  outline-offset: 2px;
+}
+
+/* ---- Radios ---- */
+.radios {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.radio {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+}
+
+.radioDot {
+  position: relative;
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 2px solid var(--tf-placeholder);
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+}
+
+.radioDot[aria-checked='true'] {
+  border-color: var(--tf-accent);
+}
+
+.radioDot[aria-checked='true']::after {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: var(--tf-accent);
+}
+
+.radioDot:focus-visible {
+  outline: 2px solid var(--tf-accent);
+  outline-offset: 2px;
+}
+
+.radioText {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  font-size: 17px;
+  cursor: pointer;
+}
+
+.radio:not([data-checked]) .radioText {
+  color: var(--tf-label);
+}
+
+.inlineDate {
+  height: 40px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 12px;
+  background: var(--tf-track);
+  color: var(--tf-text);
+  font-family: inherit;
+  font-size: 16px;
+}
+
+/* ---- Live summary ---- */
+.summary {
+  margin-top: 4px;
+  padding: 14px 16px;
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--tf-accent) 10%, var(--tf-card));
+}
+
+.summaryText {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.summaryNext {
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: var(--tf-label);
+}
+
+/* ---- Conflict sheet ---- */
+.conflictLead {
+  margin: 0 0 2px;
+  font-size: 17px;
+  line-height: 1.4;
+  color: var(--tf-text, var(--color-text-primary));
+}
+
+.expand {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 0;
+  border: none;
+  background: none;
+  color: var(--tf-accent, var(--color-brand));
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.expandIcon {
+  transition: transform var(--duration-press, 120ms) var(--ease-out, ease-out);
+}
+
+.expand[aria-expanded='true'] .expandIcon {
+  transform: rotate(180deg);
+}
+
+.conflictList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 40dvh;
+  margin: 4px 0 8px;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.conflictList li {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-danger) 8%, transparent);
+}
+
+.conflictDate {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.conflictWith {
+  font-size: 13px;
+  color: var(--tf-label, var(--color-text-secondary));
+}
+
+.sheetActions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.secondary {
+  height: 52px;
+  border: none;
+  border-radius: 999px;
+  background: var(--tf-track, var(--color-surface));
+  color: var(--tf-text, var(--color-text-primary));
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.secondary:focus-visible {
+  outline: 2px solid var(--tf-accent);
+  outline-offset: 2px;
+}
+
+/* ---- Form bits: the series line and the later-conflicts note ---- */
+.seriesLine {
+  margin: 0 4px 2px;
+  font-size: 14px;
+  color: var(--tf-label);
+}
+
+.seriesNote {
+  margin: -2px 6px 0;
+  font-size: 13px;
+  color: var(--color-danger);
+}
+
+.sharedNote {
+  margin: -2px 6px 0;
+  font-size: 13px;
+  color: var(--tf-label);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fullSheet {
+    animation: none;
+  }
+
+  .dayChip,
+  .expandIcon {
+    transition: none;
+  }
+}

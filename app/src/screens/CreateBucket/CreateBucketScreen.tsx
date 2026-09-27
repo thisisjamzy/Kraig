@@ -1,72 +1,103 @@
 'use client';
 
+// Laid out like the New Task / New Project / New bucket line item forms
+// (src/screens/TaskEdit, src/screens/CreateProject, src/screens/
+// BucketLineItemForm) — X/title/check header, a white Name+Description card,
+// and a list of expandable rows for every picker — rather than the plain
+// stacked-label form this used to be.
+
 import { useState } from 'react';
-import { X, Check, ChevronRight, Layers, Palette } from 'lucide-react';
+import { X, Check, ChevronRight, Tag, Layers, Coins, CalendarDays } from 'lucide-react';
+import { Calendar as HeroCalendar } from '@heroui/react';
+import { parseDate } from '@internationalized/date';
 import { useLogic } from '@/src/logic/createBucket/useLogic';
-import { EmojiPicker } from '@/src/widgets/EmojiPicker/EmojiPicker';
+import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
-import { PROJECT_COLORS } from '@/src/viewmodels/projects';
+import { toDateOnly } from '@/src/shared/firestore/taskWrites';
 import styles from './CreateBucketScreen.module.css';
 
-export function CreateBucketScreen({ areaId }: { areaId: string }) {
+function formatDateOnly(value: string): string {
+  return new Date(`${value}T00:00:00`).toLocaleDateString('en-US', {
+    month: 'short',
+    day: '2-digit',
+    year: 'numeric',
+  });
+}
+
+export function CreateBucketScreen() {
+  const strings = useStrings();
   const {
-    area,
-    hasAreaId,
     name,
     setName,
-    emoji,
-    setEmoji,
-    color,
-    setColor,
     description,
     setDescription,
-    isValid,
+    deadline,
+    setDeadline,
+    currency,
+    setCurrency,
+    currencyOptions,
+    kind,
+    setKind,
+    type,
+    setType,
     saving,
     saveError,
     handleSave,
     goBack,
     loading,
-    error,
-  } = useLogic(areaId);
+  } = useLogic();
 
-  const [colorPickerOpen, setColorPickerOpen] = useState(false);
+  const [typePickerOpen, setTypePickerOpen] = useState(false);
+  const [kindPickerOpen, setKindPickerOpen] = useState(false);
+  const [currencyPickerOpen, setCurrencyPickerOpen] = useState(false);
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [dateMonthCursor, setDateMonthCursor] = useState(() => (deadline ? new Date(`${deadline}T00:00:00`) : new Date()));
+
+  const canSave = name.trim().length > 0 && !saving;
+  const selectedCurrency = currencyOptions.find((option) => option.code === currency) ?? null;
+
+  const typeLabel: Record<typeof type, string> = {
+    Expense: strings.createBucket.typeExpense,
+    Income: strings.createBucket.typeIncome,
+    Savings: strings.createBucket.typeSavings,
+    Transfer: strings.createBucket.typeTransfer,
+  };
+  const typeHint: Record<typeof type, string> = {
+    Expense: strings.createBucket.typeExpenseHint,
+    Income: strings.createBucket.typeIncomeHint,
+    Savings: strings.createBucket.typeSavingsHint,
+    Transfer: strings.createBucket.typeTransferHint,
+  };
+  const typeOptions: (typeof type)[] = ['Expense', 'Income', 'Savings', 'Transfer'];
 
   return (
     <div className={styles.page}>
       <header className={styles.header}>
-        <button type="button" className={styles.iconButton} onClick={goBack} aria-label="Close">
+        <button type="button" className={styles.iconButton} onClick={goBack} aria-label={strings.bucketDetail.backLabel}>
           <X size={18} strokeWidth={2} />
         </button>
-        <h1 className={styles.headerTitle}>New bucket</h1>
+        <h1 className={styles.headerTitle}>{strings.createBucket.title}</h1>
         <button
           type="button"
-          className={`${styles.saveIconButton} ${isValid ? styles.saveIconButtonActive : ''}`}
-          disabled={!isValid || saving}
+          className={`${styles.saveIconButton} ${canSave ? styles.saveIconButtonActive : ''}`}
+          disabled={!canSave}
           onClick={handleSave}
-          aria-label="Save"
+          aria-label={strings.createBucket.save}
         >
           <Check size={18} strokeWidth={2.5} />
         </button>
       </header>
 
-      <div className={styles.emojiRow}>
-        <EmojiPicker value={emoji} onChange={setEmoji} label="Bucket emoji" noneLabel="No emoji" />
-      </div>
+      <ScreenState loading={loading} />
 
-      <ScreenState loading={loading} error={error} />
-
-      {!hasAreaId && !loading && (
-        <p className={styles.errorText}>A bucket needs an area — open it from that area&apos;s own page.</p>
-      )}
-
-      {hasAreaId && !loading && !error && (
+      {!loading && (
         <div className={styles.form}>
           <div className={styles.card}>
             <input
               className={styles.titleInput}
               value={name}
               onChange={(event) => setName(event.target.value)}
-              placeholder="Name"
+              placeholder={strings.createBucket.namePlaceholder}
             />
             <div className={styles.cardDivider} />
             <textarea
@@ -74,51 +105,202 @@ export function CreateBucketScreen({ areaId }: { areaId: string }) {
               rows={3}
               value={description}
               onChange={(event) => setDescription(event.target.value)}
-              placeholder="Description"
+              placeholder={strings.createBucket.descriptionLabel}
             />
           </div>
 
-          {area && (
-            <div className={styles.listGroup}>
-              <div className={`${styles.listRow} ${styles.listRowStatic}`}>
-                <span className={styles.listRowIcon}>
-                  <Layers size={16} strokeWidth={2} />
-                </span>
-                <span className={styles.listRowLabel}>Area</span>
-                <span className={styles.listRowValue}>{area.name}</span>
-              </div>
-            </div>
-          )}
-
           <div className={styles.listGroup}>
-            <button type="button" className={styles.listRow} onClick={() => setColorPickerOpen((c) => !c)}>
+            <button type="button" className={styles.listRow} onClick={() => setTypePickerOpen((c) => !c)}>
               <span className={styles.listRowIcon}>
-                <Palette size={16} strokeWidth={2} />
+                <Layers size={16} strokeWidth={2} />
               </span>
-              <span className={styles.listRowLabel}>Color</span>
-              <span className={styles.listRowSwatch} style={{ background: color }} />
+              <span className={styles.listRowLabel}>{strings.createBucket.typeLabel}</span>
+              <span className={styles.listRowValue}>{typeLabel[type]}</span>
               <ChevronRight size={16} strokeWidth={2} className={styles.listRowChevron} />
             </button>
-            {colorPickerOpen && (
+            {typePickerOpen && (
               <div className={styles.expandPanel}>
-                <div className={styles.colorGrid}>
-                  {PROJECT_COLORS.map((swatch) => (
+                <div className={styles.chipGroup}>
+                  {typeOptions.map((option) => (
                     <button
-                      key={swatch}
+                      key={option}
                       type="button"
-                      className={`${styles.colorSwatch} ${color === swatch ? styles.colorSwatchActive : ''}`}
-                      style={{ background: swatch }}
-                      aria-label={swatch}
+                      className={`${styles.chip} ${type === option ? styles.chipActive : ''}`}
                       onClick={() => {
-                        setColor(swatch);
-                        setColorPickerOpen(false);
+                        setType(option);
+                        setTypePickerOpen(false);
                       }}
-                    />
+                    >
+                      {typeLabel[option]}
+                    </button>
                   ))}
                 </div>
+                <p className={styles.hintText}>{typeHint[type]}</p>
               </div>
             )}
           </div>
+
+          <div className={styles.listGroup}>
+            <button type="button" className={styles.listRow} onClick={() => setKindPickerOpen((c) => !c)}>
+              <span className={styles.listRowIcon}>
+                <Tag size={16} strokeWidth={2} />
+              </span>
+              <span className={styles.listRowLabel}>{strings.createBucket.kindLabel}</span>
+              <span className={styles.listRowValue}>
+                {kind === 'Fixed' ? strings.createBucket.kindFixed : strings.createBucket.kindVariable}
+              </span>
+              <ChevronRight size={16} strokeWidth={2} className={styles.listRowChevron} />
+            </button>
+            {kindPickerOpen && (
+              <div className={styles.expandPanel}>
+                <div className={styles.chipGroup}>
+                  <button
+                    type="button"
+                    className={`${styles.chip} ${kind === 'Variable' ? styles.chipActive : ''}`}
+                    onClick={() => {
+                      setKind('Variable');
+                      setKindPickerOpen(false);
+                    }}
+                  >
+                    {strings.createBucket.kindVariable}
+                  </button>
+                  <button
+                    type="button"
+                    className={`${styles.chip} ${kind === 'Fixed' ? styles.chipActive : ''}`}
+                    onClick={() => {
+                      setKind('Fixed');
+                      // A Fixed bucket repeats — a one-off target date doesn't
+                      // apply to it, so drop any date already picked rather
+                      // than leaving a stale value saved behind a hidden field.
+                      setDeadline('');
+                      setKindPickerOpen(false);
+                    }}
+                  >
+                    {strings.createBucket.kindFixed}
+                  </button>
+                </div>
+                <p className={styles.hintText}>
+                  {kind === 'Fixed' ? strings.createBucket.kindFixedHint : strings.createBucket.kindVariableHint}
+                </p>
+              </div>
+            )}
+          </div>
+
+          <div className={styles.listGroup}>
+            <button type="button" className={styles.listRow} onClick={() => setCurrencyPickerOpen((c) => !c)}>
+              <span className={styles.listRowIcon}>
+                <Coins size={16} strokeWidth={2} />
+              </span>
+              <span className={styles.listRowLabel}>{strings.createBucket.currencyLabel}</span>
+              <span className={styles.listRowValue}>{selectedCurrency ? selectedCurrency.name : currency}</span>
+              <ChevronRight size={16} strokeWidth={2} className={styles.listRowChevron} />
+            </button>
+            {currencyPickerOpen && (
+              <div className={styles.expandPanel}>
+                {currencyOptions.map((option) => (
+                  <button
+                    key={option.code}
+                    type="button"
+                    className={`${styles.optionRow} ${currency === option.code ? styles.optionRowActive : ''}`}
+                    onClick={() => {
+                      setCurrency(option.code);
+                      setCurrencyPickerOpen(false);
+                    }}
+                  >
+                    {option.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* A Fixed bucket repeats indefinitely — a one-off target date is a
+              Variable-bucket concept only (see kindFixedHint/kindVariableHint
+              above), so this row doesn't apply to Fixed at all rather than
+              just being disabled. */}
+          {kind !== 'Fixed' && (
+            <div className={styles.listGroup}>
+              <div
+                className={styles.listRow}
+                role="button"
+                tabIndex={0}
+                onClick={() => setDatePickerOpen((c) => !c)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    setDatePickerOpen((c) => !c);
+                  }
+                }}
+              >
+                <span className={styles.listRowIcon}>
+                  <CalendarDays size={16} strokeWidth={2} />
+                </span>
+                <span className={styles.listRowLabel}>{strings.createBucket.deadlineLabel}</span>
+                <span className={styles.listRowValue}>
+                  {deadline ? formatDateOnly(deadline) : strings.createBucket.deadlinePlaceholder}
+                </span>
+                {deadline && (
+                  <button
+                    type="button"
+                    className={styles.clearRowButton}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setDeadline('');
+                    }}
+                    aria-label="Clear target date"
+                  >
+                    <X size={12} strokeWidth={2.5} />
+                  </button>
+                )}
+                <ChevronRight size={16} strokeWidth={2} className={styles.listRowChevron} />
+              </div>
+              {datePickerOpen && (
+                <div className={styles.expandPanel}>
+                  <button
+                    type="button"
+                    className={`${styles.optionRow} ${!deadline ? styles.optionRowActive : ''}`}
+                    onClick={() => {
+                      setDeadline('');
+                      setDatePickerOpen(false);
+                    }}
+                  >
+                    {strings.createBucket.deadlinePlaceholder}
+                  </button>
+                  <HeroCalendar.Root
+                    focusedValue={parseDate(toDateOnly(dateMonthCursor))}
+                    onFocusChange={(next) => setDateMonthCursor(new Date(next.year, next.month - 1, next.day))}
+                    value={deadline ? parseDate(deadline) : undefined}
+                    onChange={(next) => {
+                      if (next) {
+                        setDeadline(next.toString());
+                        setDatePickerOpen(false);
+                      }
+                    }}
+                  >
+                    <HeroCalendar.Header className={styles.calendarHeader}>
+                      <HeroCalendar.NavButton slot="previous" className={styles.calendarNavButton} />
+                      <HeroCalendar.Heading className={styles.calendarHeading} />
+                      <HeroCalendar.NavButton slot="next" className={styles.calendarNavButton} />
+                    </HeroCalendar.Header>
+                    <HeroCalendar.Grid className={styles.calendarGrid}>
+                      <HeroCalendar.GridHeader>
+                        {(day) => <HeroCalendar.HeaderCell className={styles.weekdayCell}>{day}</HeroCalendar.HeaderCell>}
+                      </HeroCalendar.GridHeader>
+                      <HeroCalendar.GridBody>
+                        {(cellDate) => (
+                          <HeroCalendar.Cell date={cellDate} className={styles.dayCell}>
+                            {({ formattedDate }) => <span className={styles.dayCellInner}>{formattedDate}</span>}
+                          </HeroCalendar.Cell>
+                        )}
+                      </HeroCalendar.GridBody>
+                    </HeroCalendar.Grid>
+                  </HeroCalendar.Root>
+                </div>
+              )}
+            </div>
+          )}
+
+          <p className={styles.hintText}>{strings.createBucket.addLineItemsHint}</p>
 
           {saveError && <p className={styles.errorText}>{saveError}</p>}
         </div>

@@ -152,7 +152,7 @@
   line-height: 1.35;
 }
 
-/* Goals / Category — used to be two lists stacked on this same screen;
+/* Buckets / Category — used to be two lists stacked on this same screen;
    now a tab switcher so only one shows at a time. */
 .categoryTabRow {
   display: flex;
@@ -262,19 +262,19 @@
   cursor: pointer;
 }
 
-.goalLinkSection {
+.bucketLinkSection {
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
 }
 
-.goalLinkHeaderRow {
+.bucketLinkHeaderRow {
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
-.goalLinkRow {
+.bucketLinkRow {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -288,36 +288,36 @@
   cursor: pointer;
 }
 
-.goalLinkRow:last-child {
+.bucketLinkRow:last-child {
   border-bottom: none;
 }
 
-.goalLinkRowText {
+.bucketLinkRowText {
   display: flex;
   flex-direction: column;
   gap: 2px;
   min-width: 0;
 }
 
-.goalLinkRowGoal {
+.bucketLinkRowBucket {
   font-size: 0.75rem;
   color: var(--color-text-secondary);
 }
 
-.goalLinkRowName {
+.bucketLinkRowName {
   font-size: var(--font-size-sm);
   font-weight: 600;
   color: var(--color-text-primary);
 }
 
-.goalLinkRowAmount {
+.bucketLinkRowAmount {
   flex-shrink: 0;
   font-size: var(--font-size-sm);
   font-weight: 700;
   color: var(--color-text-primary);
 }
 
-.linkedGoalBadge {
+.linkedBucketBadge {
   display: flex;
   align-items: center;
   justify-content: space-between;

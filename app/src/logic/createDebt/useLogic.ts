@@ -7,6 +7,7 @@ import { createDebt } from '@/src/shared/firestore/aggregation';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { currencyName } from '@/src/viewmodels/currencies';
 import type { DebtType, DebtPriority } from '@/src/shared/firestore/types';
+import { useGoBack } from '@/src/shared/navigation/useGoBack';
 
 export const DEBT_TYPES: DebtType[] = ['cash', 'existing'];
 export const DEBT_PRIORITIES: DebtPriority[] = ['high', 'medium', 'low'];
@@ -93,8 +94,11 @@ export function useLogic() {
     }
   }
 
+  // Back to the page the user came from (skipping forms); '/debts' only
+  // when there's no history — see src/shared/navigation/useGoBack.ts.
+  const navigateBack = useGoBack();
   function goBack() {
-    router.push('/debts');
+    navigateBack('/debts');
   }
 
   return {

@@ -17,7 +17,6 @@
 // (see that screen's own useLogic.ts for why).
 
 import { useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { query, where, orderBy, limit, Timestamp } from 'firebase/firestore';
 import { ArrowUpRight, ArrowDownLeft, PiggyBank, ArrowLeftRight, type LucideIcon } from 'lucide-react';
 import { useFirestoreCollection } from '@/src/shared/firestore/hooks';
@@ -28,6 +27,7 @@ import { deleteTransactionWithAggregation, deleteTransferWithAggregation } from 
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { categoryAccentColor } from '@/src/viewmodels/categories';
 import type { FirestoreTransaction, FirestoreTransfer } from '@/src/shared/firestore/types';
+import { useGoBack } from '@/src/shared/navigation/useGoBack';
 
 // Same set Add Transaction's type step uses (src/logic/addTransaction) —
 // keyed by FirestoreTransaction.type (Title-Case).
@@ -112,7 +112,6 @@ export type GroupOption = 'none' | 'category' | 'wallet' | 'type';
 export const GROUP_OPTIONS: GroupOption[] = ['none', 'category', 'wallet', 'type'];
 
 export function useLogic() {
-  const router = useRouter();
   const { user, loading: authLoading } = useFirebaseUser();
   const uid = user?.uid;
   const [{ monthIndex, year }] = useState(targetFromSearch);
@@ -501,12 +500,13 @@ export function useLogic() {
       ? new Date(year!, monthIndex!, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
       : null;
 
+  const navigateBack = useGoBack();
   function goBack() {
     if (selectionMode) {
       exitSelectionMode();
       return;
     }
-    router.push(backfillBatchId ? '/settings/backfill/batches' : '/home');
+    navigateBack(backfillBatchId ? '/settings/backfill/batches' : '/home');
   }
 
   function editHref(id: string) {

@@ -4,7 +4,7 @@
 // (see src/screens/Projects/ProjectsScreen.tsx), the same Timeline/Name
 // sort that carousel already offers. Each row carries the same fields the
 // hub's own ProjectCard (src/widgets/ProjectCard) shows — name, timeline,
-// description, bucket, area — just laid out for a full-width vertical
+// description, section, area — just laid out for a full-width vertical
 // list instead of a fixed-width carousel card.
 //
 // Archiving here is the same status:'Archived' write projectEdit/
@@ -16,11 +16,12 @@ import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { query, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useFirestoreCollection } from '@/src/shared/firestore/hooks';
-import { useBuckets } from '@/src/shared/firestore/queries';
+import { useSections } from '@/src/shared/firestore/queries';
 import { areasRef, projectRef, projectsRef } from '@/src/shared/firestore/refs';
-import { defaultBucketId } from '@/src/shared/firestore/buckets';
+import { defaultSectionId } from '@/src/shared/firestore/sections';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import type { FirestoreArea, FirestoreProject } from '@/src/shared/firestore/types';
+import { useGoBack } from '@/src/shared/navigation/useGoBack';
 
 export function useLogic() {
   const router = useRouter();
@@ -35,7 +36,7 @@ export function useLogic() {
   const { data: areaDocs, loading: areasLoading } = useFirestoreCollection<FirestoreArea>(areasQuery);
   const areaName = useMemo(() => new Map(areaDocs.map((a) => [a.id, a.name])), [areaDocs]);
 
-  const { data: bucketDocs, loading: bucketsLoading } = useBuckets();
+  const { data: bucketDocs, loading: bucketsLoading } = useSections();
   const bucketName = useMemo(() => new Map(bucketDocs.map((b) => [b.id, b.name])), [bucketDocs]);
 
   const [sort, setSort] = useState<'timeline' | 'name'>('timeline');
@@ -46,10 +47,10 @@ export function useLogic() {
         .filter((project) => project.status !== 'Archived')
         .map((project) => {
           // A project's bucketId falls back to its own area's default
-          // bucket when unset — same rule the Projects hub's own logic
+          // section when unset — same rule the Projects hub's own logic
           // (src/logic/projects/useLogic.ts) and areaDetail/useLogic.ts
           // both apply.
-          const resolvedBucketId = project.bucketId ?? (project.areaId ? defaultBucketId(project.areaId) : null);
+          const resolvedBucketId = project.bucketId ?? (project.areaId ? defaultSectionId(project.areaId) : null);
           return {
             id: project.id,
             name: project.name,
@@ -74,8 +75,11 @@ export function useLogic() {
     router.push(`/projects/${id}`);
   }
 
+  // Back to the page the user came from (skipping forms); '/projects' only
+  // when there's no history — see src/shared/navigation/useGoBack.ts.
+  const navigateBack = useGoBack();
   function goBack() {
-    router.push('/projects');
+    navigateBack('/projects');
   }
 
   async function archiveProject(id: string) {

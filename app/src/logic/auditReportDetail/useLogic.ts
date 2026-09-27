@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { getAuditReport, type FirestoreAuditReport } from '@/src/shared/firestore/auditReport';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
+import { useGoBack } from '@/src/shared/navigation/useGoBack';
 
 export function formatAmount(value: number) {
   return new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(Math.round(value));
@@ -14,7 +14,6 @@ export function formatPercent(value: number) {
 }
 
 export function useLogic(reportId: string) {
-  const router = useRouter();
   const { user, loading: authLoading } = useFirebaseUser();
   const uid = user?.uid;
 
@@ -42,8 +41,11 @@ export function useLogic(reportId: string) {
     };
   }, [uid, authLoading, reportId]);
 
+  // Back to the page the user came from (skipping forms); '/settings/audit-reports' only
+  // when there's no history — see src/shared/navigation/useGoBack.ts.
+  const navigateBack = useGoBack();
   function goBack() {
-    router.push('/settings/audit-reports');
+    navigateBack('/settings/audit-reports');
   }
 
   // "Export as PDF": the browser's own print-to-PDF, driven by

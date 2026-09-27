@@ -123,7 +123,7 @@
   gap: var(--space-sm);
 }
 
-/* The rounded "create new" affordance every project/bucket/task list gets
+/* The rounded "create new" affordance every project/section/task list gets
    next to its own section header. */
 .addIconButton {
   display: flex;

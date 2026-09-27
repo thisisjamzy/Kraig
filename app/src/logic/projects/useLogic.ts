@@ -1,12 +1,10 @@
 'use client';
 
 // Projects mode's own root/hub screen (see chromeVisibility.ts's navMode) —
-// PRD Files/PRD-PROJECTS.md section 11. Just Areas (a plain grid, no tabs)
-// plus the Projects carousel and Today's tasks now — Buckets/Archive used
-// to live here behind a tab switcher; Buckets are still reachable from
-// inside each area, and archived items from their own edit screens
-// (areaEdit/projectEdit's archiveArea/archiveProject and their unarchive
-// counterparts), just not listed anywhere in this hub any more.
+// PRD Files/PRD-PROJECTS.md section 11. Two things only: the active
+// projects carousel, and the day's task checklist. Areas (/areas) and the
+// performance analytics (/projects/analytics) have their own screens and
+// are no longer surfaced here.
 // Every count is computed live from the loaded areas/projects/tasks lists
 // rather than a separate stats doc — those exist in the PRD to avoid
 // re-summing a large, write-heavy collection (the same reason the ledger
@@ -21,15 +19,16 @@ import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { query, where } from 'firebase/firestore';
 import { useFirestoreCollection } from '@/src/shared/firestore/hooks';
-import { useBuckets } from '@/src/shared/firestore/queries';
+import { useSections } from '@/src/shared/firestore/queries';
 import { areasRef, projectsRef, tasksRef } from '@/src/shared/firestore/refs';
-import { defaultBucketId } from '@/src/shared/firestore/buckets';
+import { defaultSectionId } from '@/src/shared/firestore/sections';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { overdueCountByProject, isAtRisk } from '@/src/shared/firestore/projectInsights';
-import { dailyCompletionActivity } from '@/src/shared/firestore/taskInsights';
 import { updateTaskTodayPriority, toDateOnly } from '@/src/shared/firestore/taskWrites';
-import { DEFAULT_PRIORITY } from '@/src/viewmodels/projects';
+import { DEFAULT_PRIORITY, PRIORITY_RANK } from '@/src/viewmodels/projects';
 import type { FirestoreArea, FirestoreProject, FirestoreTask } from '@/src/shared/firestore/types';
+import { effectiveTimeMode } from '@/src/viewmodels/scheduling';
+import { actionableTasks, expandTasks, isRecurring, summarizeSeries } from '@/src/shared/tasks/recurringTasks';
 
 export function useLogic() {
   const router = useRouter();
@@ -46,31 +45,19 @@ export function useLogic() {
   const tasksQuery = useMemo(() => (uid ? query(tasksRef(uid), where('archived', '==', false)) : null), [uid]);
   const { data: taskDocs, loading: tasksLoading } = useFirestoreCollection<FirestoreTask>(tasksQuery);
 
-  const { data: bucketDocs, loading: bucketsLoading } = useBuckets();
+  const { data: bucketDocs, loading: bucketsLoading } = useSections();
   const bucketName = useMemo(() => new Map(bucketDocs.map((b) => [b.id, b.name])), [bucketDocs]);
 
   const activeProjects = projectDocs.filter((p) => p.status !== 'Archived');
 
-  const areas = useMemo(
-    () =>
-      areaDocs.map((area) => ({
-        id: area.id,
-        name: area.name,
-        emoji: area.emoji ?? null,
-        color: area.color,
-        projectCount: activeProjects.filter((p) => p.areaId === area.id).length,
-      })),
-    [areaDocs, activeProjects]
-  );
-
   const areaName = useMemo(() => new Map(areaDocs.map((a) => [a.id, a.name])), [areaDocs]);
-  const projectName = useMemo(() => new Map(projectDocs.map((p) => [p.id, p.name])), [projectDocs]);
 
   // total/done per project — ProjectCard's own
   // completion bar.
   const taskStatsByProject = useMemo(() => {
     const stats = new Map<string, { total: number; done: number }>();
-    for (const task of taskDocs) {
+    // A recurring series counts once (recurringTasks.ts's summarizeSeries).
+    for (const task of summarizeSeries(taskDocs)) {
       if (!task.projectId) continue;
       const entry = stats.get(task.projectId) ?? { total: 0, done: 0 };
       entry.total += 1;
@@ -79,17 +66,17 @@ export function useLogic() {
     }
     return stats;
   }, [taskDocs]);
-  const overdueByProject = useMemo(() => overdueCountByProject(taskDocs), [taskDocs]);
+  const overdueByProject = useMemo(() => overdueCountByProject(actionableTasks(taskDocs)), [taskDocs]);
 
   const projects = useMemo(
     () =>
       activeProjects.map((project) => {
         const overdueCount = overdueByProject.get(project.id) ?? 0;
         const stats = taskStatsByProject.get(project.id) ?? { total: 0, done: 0 };
-        // A project's bucketId falls back to its own area's default bucket
+        // A project's bucketId falls back to its own area's default section
         // when unset — same rule areaDetail/useLogic.ts and projects hub's
-        // own bucket-count derivation already apply.
-        const resolvedBucketId = project.bucketId ?? (project.areaId ? defaultBucketId(project.areaId) : null);
+        // own section-count derivation already apply.
+        const resolvedBucketId = project.bucketId ?? (project.areaId ? defaultSectionId(project.areaId) : null);
         return {
           id: project.id,
           name: project.name,
@@ -110,43 +97,47 @@ export function useLogic() {
     [activeProjects, areaName, bucketName, taskStatsByProject, overdueByProject]
   );
 
-  // "See your performance" card (Design/task5.JPG) — one box per day over
-  // the last ACTIVITY_DAYS days of completed tasks, shaded by how busy
-  // that day was.
-  const ACTIVITY_DAYS = 30;
-  const activityCounts = useMemo(() => dailyCompletionActivity(taskDocs, ACTIVITY_DAYS), [taskDocs]);
-  const performance = useMemo(() => {
-    const max = Math.max(1, ...activityCounts);
-    const cells = activityCounts.map((count) => ({
-      count,
-      level: count === 0 ? 0 : Math.min(4, Math.ceil((count / max) * 4)),
-    }));
-    return { cells };
-  }, [activityCounts]);
-
-  // "Today's priorities" — tasks whose priorityDate matches today's own
-  // toDateOnly() output (see taskWrites.ts's updateTaskTodayPriority).
-  // Completing one drops it from this list entirely (not just crossed out)
-  // — the list is "what's left to focus on today", not a running log.
+  // The day's checklist: every task scheduled or due today (its start or
+  // due date falls on today) plus every task pinned as one of today's
+  // priorities (priorityDate, see taskWrites.ts's updateTaskTodayPriority)
+  // whatever its date. Completed ones stay listed — ticked and struck
+  // through, sorted to the bottom — so checking a task off doesn't make it
+  // vanish mid-tap; the list is today's plan, done and not.
   const todayIso = toDateOnly(new Date());
-  const todayPriorityTasks = useMemo(
-    () =>
-      taskDocs
-        .filter((task) => task.priorityDate === todayIso && !task.done)
-        .map((task) => ({
-          id: task.id,
-          title: task.title,
-          priority: task.priority ?? DEFAULT_PRIORITY,
-          done: task.done,
-          status: task.status,
-          startTime: task.startTime ? task.startTime.toDate() : null,
-          dueDate: task.dueDate ? task.dueDate.toDate() : null,
-          projectName: task.projectId ? projectName.get(task.projectId) ?? null : null,
-          bucketName: task.bucketId ? bucketName.get(task.bucketId) ?? null : null,
-          areaName: task.areaId ? areaName.get(task.areaId) ?? null : null,
-        })),
-    [taskDocs, todayIso, projectName, bucketName, areaName]
-  );
+  const todayTasks = useMemo(() => {
+    const isToday = (date: Date | null) => date !== null && toDateOnly(date) === todayIso;
+    const now = new Date();
+    // A recurring task shows as today's date of it (its own done state).
+    const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const dayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+    return expandTasks(taskDocs, dayStart, dayEnd)
+      // A cancelled task is off today's plan (the Focus page's swipe-left).
+      .filter((task) => task.status !== 'Cancelled')
+      .map((task) => ({
+        id: task.id,
+        title: task.title,
+        priority: task.priority ?? DEFAULT_PRIORITY,
+        done: task.done,
+        startTime: task.startTime ? task.startTime.toDate() : null,
+        allDay: Boolean(task.allDay),
+        timeMode: effectiveTimeMode(task),
+        recurring: Boolean(task.seriesId),
+        dueDate: task.dueDate ? task.dueDate.toDate() : null,
+        pinned: task.priorityDate === todayIso,
+        overdue: !task.done && (task.dueDate ?? task.startTime) !== null && (task.dueDate ?? task.startTime)!.toDate() < now,
+      }))
+      .filter((task) => task.pinned || isToday(task.startTime) || isToday(task.dueDate))
+      .sort((a, b) => {
+        if (a.done !== b.done) return a.done ? 1 : -1;
+        // Timed tasks in time order first, then untimed by priority.
+        // Date-only tasks have no time of day — after the timed ones.
+        const at = a.allDay ? Infinity : ((a.startTime ?? a.dueDate)?.getTime() ?? Infinity);
+        const bt = b.allDay ? Infinity : ((b.startTime ?? b.dueDate)?.getTime() ?? Infinity);
+        if (at !== bt) return at - bt;
+        return PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority];
+      });
+  }, [taskDocs, todayIso]);
+  const todayDoneCount = todayTasks.filter((task) => task.done).length;
 
   // The picker's own source list — every not-yet-done task, regardless of
   // whether it's already a today-priority (so the picker can show it
@@ -154,7 +145,8 @@ export function useLogic() {
   const pendingTasksForPicker = useMemo(
     () =>
       taskDocs
-        .filter((task) => !task.done)
+        // Recurring tasks already show on their own days — not pinnable.
+        .filter((task) => !task.done && !isRecurring(task))
         .map((task) => ({
           id: task.id,
           title: task.title,
@@ -178,25 +170,20 @@ export function useLogic() {
   function openProject(id: string) {
     router.push(`/projects/${id}`);
   }
-  function openArea(id: string) {
-    router.push(`/areas/${id}`);
-  }
   function openTaskList(filter: 'today' | 'week' | 'overdue' | 'all') {
     router.push(`/tasks?filter=${filter}`);
   }
 
   return {
-    performance,
-    todayPriorityTasks,
+    todayTasks,
+    todayDoneCount,
     pendingTasksForPicker,
     priorityPickerOpen,
     setPriorityPickerOpen,
     toggleTodayPriority,
-    areas,
     projects,
 
     openProject,
-    openArea,
     openTaskList,
 
     loading: areasLoading || projectsLoading || tasksLoading || bucketsLoading,

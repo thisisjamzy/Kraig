@@ -6,27 +6,25 @@
 // overall design; this hook is the resolution/commit engine.
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { getDocs, getDoc, setDoc, updateDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import {
   areasRef,
   areaRef,
-  bucketsRef,
-  bucketRef,
+  sectionsRef,
+  sectionRef,
   accountsRef,
   accountRef,
   categoriesRef,
   categoryRef,
-  budgetRuleRef,
   projectsRef,
   projectRef,
   taskRef,
-  goalsRef,
-  goalLineItemRef,
+  bucketsRef,
+  bucketLineItemRef,
   debtsRef,
   debtRef,
 } from '@/src/shared/firestore/refs';
-import { ensureDefaultBucket } from '@/src/shared/firestore/buckets';
+import { ensureDefaultSection } from '@/src/shared/firestore/sections';
 import { readWorkbookFile } from '@/src/shared/firestore/dataWorkbook';
 import {
   ENTITY_ORDER,
@@ -34,14 +32,13 @@ import {
   type EntityKey,
   type RefNeed,
   type AreaDraft,
-  type BucketDraft,
+  type SectionDraft,
   type AccountDraft,
   type CategoryDraft,
-  type BudgetDraft,
   type ProjectDraft,
   type TaskDraft,
-  type GoalDraft,
-  type GoalItemDraft,
+  type BucketDraft,
+  type BucketItemDraft,
   type DebtDraft,
   type RepaymentDraft,
   type TransactionDraft,
@@ -50,11 +47,10 @@ import {
 import {
   createTransactionWithAggregation,
   createTransferWithAggregation,
-  createGoal,
-  createGoalLineItem,
+  createBucket,
+  createBucketLineItem,
   createDebt,
   recordRepayment,
-  recomputeBudgetProgressForRuleCurrentMonth,
   type RepaymentDebt,
 } from '@/src/shared/firestore/aggregation';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
@@ -62,13 +58,14 @@ import { useCurrencyContext } from '@/src/shared/firestore/queries';
 import { PROJECT_COLORS } from '@/src/viewmodels/projects';
 import type {
   FirestoreArea,
-  FirestoreBucket,
+  FirestoreSection,
   FirestoreAccount,
   FirestoreCategory,
   FirestoreProject,
-  FirestoreGoal,
+  FirestoreBucket,
   FirestoreDebt,
 } from '@/src/shared/firestore/types';
+import { useGoBack } from '@/src/shared/navigation/useGoBack';
 
 type Step = 'upload' | 'review' | 'summary';
 
@@ -91,16 +88,16 @@ interface NameMaps {
   accounts: Map<string, string>;
   categories: Map<string, string>;
   projects: Map<string, string>;
-  goals: Map<string, string>;
-  debts: Map<string, string>;
-  // Buckets are scoped by area: `${areaId}::${name.toLowerCase()}`.
   buckets: Map<string, string>;
+  debts: Map<string, string>;
+  // Sections are scoped by area: `${areaId}::${name.toLowerCase()}`.
+  sections: Map<string, string>;
 }
 
 function nameKey(name: string): string {
   return name.trim().toLowerCase();
 }
-function bucketKey(areaId: string, name: string): string {
+function sectionKey(areaId: string, name: string): string {
   return `${areaId}::${nameKey(name)}`;
 }
 function missingKey(entityKey: EntityKey, name: string): string {
@@ -123,7 +120,6 @@ export interface CommitSummary {
 }
 
 export function useLogic() {
-  const router = useRouter();
   const { user } = useFirebaseUser();
   const uid = user?.uid;
   const { ctx } = useCurrencyContext();
@@ -193,26 +189,26 @@ export function useLogic() {
       }
 
       // Fetch every entity that something else might reference by name.
-      const [areasSnap, accountsSnap, categoriesSnap, projectsSnap, goalsSnap, debtsSnap, bucketsSnap] = await Promise.all([
+      const [areasSnap, accountsSnap, categoriesSnap, projectsSnap, bucketsSnap, debtsSnap, sectionsSnap] = await Promise.all([
         getDocs(areasRef(uid)),
         getDocs(accountsRef(uid)),
         getDocs(categoriesRef(uid)),
         getDocs(projectsRef(uid)),
-        getDocs(goalsRef(uid)),
-        getDocs(debtsRef(uid)),
         getDocs(bucketsRef(uid)),
+        getDocs(debtsRef(uid)),
+        getDocs(sectionsRef(uid)),
       ]);
       const maps: NameMaps = {
         areas: new Map(areasSnap.docs.map((d) => [nameKey((d.data() as FirestoreArea).name), d.id])),
         accounts: new Map(accountsSnap.docs.map((d) => [nameKey((d.data() as FirestoreAccount).name), d.id])),
         categories: new Map(categoriesSnap.docs.map((d) => [nameKey((d.data() as FirestoreCategory).name), d.id])),
         projects: new Map(projectsSnap.docs.map((d) => [nameKey((d.data() as FirestoreProject).name), d.id])),
-        goals: new Map(goalsSnap.docs.map((d) => [nameKey((d.data() as FirestoreGoal).name), d.id])),
+        buckets: new Map(bucketsSnap.docs.map((d) => [nameKey((d.data() as FirestoreBucket).name), d.id])),
         debts: new Map(debtsSnap.docs.map((d) => [nameKey((d.data() as FirestoreDebt).name), d.id])),
-        buckets: new Map(
-          bucketsSnap.docs.map((d) => {
-            const b = d.data() as FirestoreBucket;
-            return [bucketKey(b.areaId, b.name), d.id];
+        sections: new Map(
+          sectionsSnap.docs.map((d) => {
+            const b = d.data() as FirestoreSection;
+            return [sectionKey(b.areaId, b.name), d.id];
           })
         ),
       };
@@ -284,11 +280,11 @@ export function useLogic() {
         });
         return id;
       }
-      case 'buckets': {
+      case 'sections': {
         const areaId = hint.areaId as string;
         const areaColor = (hint.areaColor as string) || PROJECT_COLORS[0];
         const id = crypto.randomUUID();
-        await setDoc(bucketRef(uid, id), {
+        await setDoc(sectionRef(uid, id), {
           name,
           emoji: null,
           color: areaColor,
@@ -303,7 +299,7 @@ export function useLogic() {
       case 'projects': {
         const areaId = (hint.areaId as string | null) ?? null;
         const id = crypto.randomUUID();
-        const bucketId = areaId ? await ensureDefaultBucket(uid, areaId, PROJECT_COLORS[0]) : null;
+        const bucketId = areaId ? await ensureDefaultSection(uid, areaId, PROJECT_COLORS[0]) : null;
         await setDoc(projectRef(uid, id), {
           name,
           emoji: null,
@@ -322,8 +318,8 @@ export function useLogic() {
         });
         return id;
       }
-      case 'goals': {
-        return createGoal(uid, {
+      case 'buckets': {
+        return createBucket(uid, {
           name,
           description: 'Auto-created during import.',
           deadline: null,
@@ -350,9 +346,9 @@ export function useLogic() {
       accounts: new Map(nameMaps.accounts),
       categories: new Map(nameMaps.categories),
       projects: new Map(nameMaps.projects),
-      goals: new Map(nameMaps.goals),
-      debts: new Map(nameMaps.debts),
       buckets: new Map(nameMaps.buckets),
+      debts: new Map(nameMaps.debts),
+      sections: new Map(nameMaps.sections),
     };
     const areaColorById = new Map<string, string>();
     // A task mirrors its project's areaId/bucketId (never set directly) —
@@ -400,9 +396,9 @@ export function useLogic() {
       for (const ref of row.refs) {
         const map = maps[ref.entityKey as keyof NameMaps];
         let id: string | undefined;
-        if (ref.entityKey === 'buckets') {
+        if (ref.entityKey === 'sections') {
           const areaId = resolved.areaId ?? (row.draft.areaId as string | undefined);
-          id = areaId ? map.get(bucketKey(areaId, ref.name)) : undefined;
+          id = areaId ? map.get(sectionKey(areaId, ref.name)) : undefined;
         } else {
           id = map.get(nameKey(ref.name));
         }
@@ -414,17 +410,17 @@ export function useLogic() {
         const wantsAutoCreate = ref.mode === 'autoCreate' && (autoCreateChoices.get(missKey) ?? true);
         if (wantsAutoCreate) {
           const hint: Record<string, unknown> = { ...row.draft };
-          if (ref.entityKey === 'buckets') {
+          if (ref.entityKey === 'sections') {
             const areaId = resolved.areaId ?? (row.draft.areaId as string | undefined);
-            if (!areaId) return { resolved, skipReason: `Bucket "${ref.name}" needs an Area, and none was resolved.` };
+            if (!areaId) return { resolved, skipReason: `Section "${ref.name}" needs an Area, and none was resolved.` };
             hint.areaId = areaId;
             hint.areaColor = areaColorById.get(areaId);
           }
           try {
             const newId = await createMinimal(ref.entityKey, ref.name, hint);
-            if (ref.entityKey === 'buckets') {
+            if (ref.entityKey === 'sections') {
               const areaId = hint.areaId as string;
-              map.set(bucketKey(areaId, ref.name), newId);
+              map.set(sectionKey(areaId, ref.name), newId);
             } else {
               map.set(nameKey(ref.name), newId);
             }
@@ -466,11 +462,11 @@ export function useLogic() {
           areaColorById.set(id, d.color);
           return;
         }
-        case 'buckets': {
-          const d = draft as unknown as BucketDraft;
+        case 'sections': {
+          const d = draft as unknown as SectionDraft;
           const areaId = resolved.areaId!;
           const id = crypto.randomUUID();
-          await setDoc(bucketRef(uid!, id), {
+          await setDoc(sectionRef(uid!, id), {
             name: d.name,
             emoji: d.emoji,
             color: d.color,
@@ -480,7 +476,7 @@ export function useLogic() {
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
           });
-          maps.buckets.set(bucketKey(areaId, d.name), id);
+          maps.sections.set(sectionKey(areaId, d.name), id);
           return;
         }
         case 'accounts': {
@@ -511,26 +507,6 @@ export function useLogic() {
             archived: d.archived,
           });
           maps.categories.set(nameKey(d.name), id);
-          return;
-        }
-        case 'budgets': {
-          const d = draft as unknown as BudgetDraft;
-          const id = `rule_${crypto.randomUUID().slice(0, 8)}`;
-          await setDoc(budgetRuleRef(uid!, id), {
-            categoryId: resolved.categoryId!,
-            description: d.description,
-            budgetedAmount: d.budgetedAmount,
-            frequency: d.frequency,
-            interval: 1,
-            anchorDate: Timestamp.fromDate(new Date()),
-            endCondition: 'Never',
-            endOccurrences: null,
-            endDate: null,
-            accountId: resolved.accountId ?? null,
-            tag: d.tag ?? '',
-            archived: d.archived,
-          });
-          await recomputeBudgetProgressForRuleCurrentMonth(uid!, id);
           return;
         }
         case 'projects': {
@@ -595,12 +571,12 @@ export function useLogic() {
           });
           return;
         }
-        case 'goals': {
-          const d = draft as unknown as GoalDraft;
-          // The import spreadsheet has no Fixed/Variable or goal-type
-          // column yet — every bulk-imported goal lands Variable/Expense,
-          // same as any goal created before either field existed.
-          const id = await createGoal(uid!, {
+        case 'buckets': {
+          const d = draft as unknown as BucketDraft;
+          // The import spreadsheet has no Fixed/Variable or bucket-type
+          // column yet — every bulk-imported bucket lands Variable/Expense,
+          // same as any bucket created before either field existed.
+          const id = await createBucket(uid!, {
             name: d.name,
             description: d.description,
             deadline: d.deadline,
@@ -608,18 +584,18 @@ export function useLogic() {
             kind: 'Variable',
             type: 'Expense',
           });
-          maps.goals.set(nameKey(d.name), id);
+          maps.buckets.set(nameKey(d.name), id);
           return;
         }
-        case 'goalItems': {
-          const d = draft as unknown as GoalItemDraft;
+        case 'bucketItems': {
+          const d = draft as unknown as BucketItemDraft;
           const goalId = resolved.goalId!;
           // The import spreadsheet has no category/wallet/due-date columns
-          // for goal items yet — bulk-imported items land uncategorized and
-          // get their category assigned later via the goal's own edit form.
-          // Every imported goal is Variable (see the 'goals' case above), so
+          // for bucket items yet — bulk-imported items land uncategorized and
+          // get their category assigned later via the bucket's own edit form.
+          // Every imported bucket is Variable (see the 'buckets' case above), so
           // this never needs a categoryType for an auto-created budget rule.
-          const lineItemId = await createGoalLineItem(uid!, goalId, 'Variable', {
+          const lineItemId = await createBucketLineItem(uid!, goalId, 'Variable', {
             name: d.name,
             description: d.description,
             amount: d.amount,
@@ -631,7 +607,7 @@ export function useLogic() {
             dueDate: null,
           });
           if (d.completed) {
-            await updateDoc(goalLineItemRef(uid!, goalId, lineItemId), {
+            await updateDoc(bucketLineItemRef(uid!, goalId, lineItemId), {
               completed: true,
               completedAt: serverTimestamp(),
               updatedAt: serverTimestamp(),
@@ -761,12 +737,13 @@ export function useLogic() {
     setCommitting(false);
   }
 
+  const navigateBack = useGoBack();
   function goBack() {
     if (step !== 'upload') {
       cancelReview();
       return;
     }
-    router.push('/settings');
+    navigateBack('/settings');
   }
 
   return {
