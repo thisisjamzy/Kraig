@@ -1,568 +1,147 @@
 'use client';
 
-// PRD-BUDGET-TRANSACTIONS.md section 3.3. This screen now has two modes,
-// chosen by whether `month` is present on the URL:
-//   - month present: every transaction for that month, unfiltered by
-//     category — the Budget screen's own "View all N transactions this
-//     month" link.
-//   - month absent: last CATEGORY_PAGE_SIZE transactions overall — the
-//     app's own "all transactions" view (`isAllTransactionsView`), reached
-//     from Home's own quick-action link.
-//
-// The category drill-down ("zoom into one budget item") used to be a third
-// mode here, keyed off a `categoryId` query param — it now has its own
-// route, src/screens/CategoryTransactions (mounted at
-// /budget/category/[categoryId]), because a query-param-only mode on this
-// shared page went stale on client-side navigation between two categories
-// (see that screen's own useLogic.ts for why).
+// The all-transactions page — the same History list as Planning's History
+// tab (src/screens/Planning/HistoryView), over a wider set of records,
+// chosen by the URL:
+//   - no parameters: every transaction and transfer, newest first (the
+//     latest PAGE_SIZE of each) — Home's "all transactions";
+//   - ?month=0-11&year=YYYY: one month (older links);
+//   - ?backfillBatch=<id>: exactly the records one backfill spread created
+//     ("Manage backfill batches").
+// The category drill-down has its own route (/budget/category/[id]).
 
 import { useMemo, useState } from 'react';
 import { query, where, orderBy, limit, Timestamp } from 'firebase/firestore';
-import { ArrowUpRight, ArrowDownLeft, PiggyBank, ArrowLeftRight, type LucideIcon } from 'lucide-react';
 import { useFirestoreCollection } from '@/src/shared/firestore/hooks';
-import { transactionsRef, transfersRef } from '@/src/shared/firestore/refs';
+import { bucketsRef, transactionsRef, transfersRef } from '@/src/shared/firestore/refs';
 import { useAccounts, useCategories, useCurrencyContext } from '@/src/shared/firestore/queries';
-import { toDisplay } from '@/src/shared/firestore/currency';
-import { deleteTransactionWithAggregation, deleteTransferWithAggregation } from '@/src/shared/firestore/aggregation';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
-import { categoryAccentColor } from '@/src/viewmodels/categories';
-import type { FirestoreTransaction, FirestoreTransfer } from '@/src/shared/firestore/types';
 import { useGoBack } from '@/src/shared/navigation/useGoBack';
+import { buildRows, type HistoryRow } from '@/src/logic/planning/rows';
+import { TRANSACTION_DEFAULTS, transactionFields } from '@/src/logic/planning/transactionFields';
+import { dateRange, type DateValue, type ListQuery } from '@/src/shared/listQuery/engine';
+import { useListQuery } from '@/src/shared/listQuery/useListQuery';
+import { monthTitle } from '@/src/viewmodels/planning';
+import type { FirestoreBucket, FirestoreTransaction, FirestoreTransfer } from '@/src/shared/firestore/types';
 
-// Same set Add Transaction's type step uses (src/logic/addTransaction) —
-// keyed by FirestoreTransaction.type (Title-Case).
-const TYPE_ICONS: Record<string, LucideIcon> = {
-  Expense: ArrowUpRight,
-  Income: ArrowDownLeft,
-  Savings: PiggyBank,
-};
+export const PAGE_SIZE = 300;
+/** A chosen date window loads everything in it, up to this. */
+const WINDOW_CAP = 2000;
 
-const ALL_TIME_PAGE_SIZE = 300;
-const MONTH_ONLY_PAGE_SIZE = 300;
-
-export function formatAmount(value: number) {
-  return new Intl.NumberFormat('en-US').format(value);
+/** The date window a query's date filter asks for, to load exactly it. */
+function dateWindow(query: ListQuery): { from: number; to: number } | null {
+  const rule = query.filters.find((r) => r.field === 'date' && r.value);
+  if (!rule) return null;
+  const [start, end] = dateRange(rule.value as DateValue, new Date());
+  if (rule.op === 'is' || rule.op === 'within') return { from: start.getTime(), to: end.getTime() };
+  if (rule.op === 'after' || rule.op === 'on_or_after') return { from: start.getTime(), to: Date.now() + 366 * 86400000 };
+  return null;
 }
 
-function pad2(n: number) {
-  return String(n).padStart(2, '0');
+interface Mode {
+  month: string | null; // YYYY-MM
+  batch: string | null;
 }
 
-function formatDate(ts: FirestoreTransaction['date']) {
-  return ts.toDate().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
-}
-
-// Both a single-day filter and a range use the same two fields — a single
-// date is just `dateFromValue === dateToValue`. `toValue`'s own day is
-// inclusive (bumped to its exclusive upper bound, the start of the next
-// day), so filtering "just today" or "this week" doesn't quietly drop
-// everything from the last day itself.
-function withinDateRange(date: Timestamp, dateFromValue: string, dateToValue: string): boolean {
-  const ms = date.toMillis();
-  if (dateFromValue && ms < new Date(`${dateFromValue}T00:00:00`).getTime()) return false;
-  if (dateToValue && ms >= new Date(`${dateToValue}T00:00:00`).getTime() + 24 * 60 * 60 * 1000) return false;
-  return true;
-}
-
-// Read directly off window.location.search (not useSearchParams()) so this
-// screen never needs a Suspense boundary — same precedent as
-// src/logic/addTransaction/useLogic.ts's retroTargetFromSearch. `month` is
-// 0-based, matching every other screen's own URL convention
-// (src/logic/budget/useLogic.ts, src/logic/addTransaction/useLogic.ts).
-function targetFromSearch(): { monthIndex: number | null; year: number | null } {
-  if (typeof window === 'undefined') return { monthIndex: null, year: null };
+function modeFromSearch(): Mode {
+  if (typeof window === 'undefined') return { month: null, batch: null };
   const params = new URLSearchParams(window.location.search);
-  const monthParam = params.get('month');
-  const yearParam = params.get('year');
-  if (monthParam === null || yearParam === null) return { monthIndex: null, year: null };
-  const monthIndex = Number(monthParam);
-  const year = Number(yearParam);
-  if (!Number.isInteger(monthIndex) || monthIndex < 0 || monthIndex > 11 || !Number.isInteger(year)) {
-    return { monthIndex: null, year: null };
+  const batch = params.get('backfillBatch');
+  if (batch) return { month: null, batch };
+  const m = params.get('month');
+  const y = params.get('year');
+  if (m !== null && y !== null && /^\d{1,2}$/.test(m) && /^\d{4}$/.test(y) && Number(m) <= 11) {
+    return { month: `${y}-${String(Number(m) + 1).padStart(2, '0')}`, batch: null };
   }
-  return { monthIndex, year };
+  return { month: null, batch: null };
 }
-
-// PRD-AUDIT-RECONCILIATION.md section 1.4's "Manage backfill batches"
-// screen deep-links here with ?backfillBatch=<id> — a third mode, mutually
-// exclusive with the month view above, showing exactly (and only) the
-// transactions that one spread created.
-function backfillBatchFromSearch(): string | null {
-  if (typeof window === 'undefined') return null;
-  return new URLSearchParams(window.location.search).get('backfillBatch');
-}
-
-// FirestoreTransaction.type values this screen ever sees (mirrors
-// TYPE_ICONS' keys), plus 'Transfer' (a FirestoreTransfer, a separate
-// collection with no `type` field of its own) and 'All' for "no type filter
-// applied".
-export type TransactionTypeFilter = 'All' | 'Expense' | 'Income' | 'Savings' | 'Transfer';
-export const TYPE_FILTERS: TransactionTypeFilter[] = ['All', 'Expense', 'Income', 'Savings', 'Transfer'];
-
-// 'category' sorts the flat list alphabetically by category name (date-desc
-// as the tiebreaker within a category) — 'date' is the screen's original,
-// always-on ordering. Independent of groupBy below: grouping already
-// clusters rows regardless of which flat order it's built from.
-export type SortOption = 'date' | 'category';
-
-// 'none' shows the flat list; the other three cluster it into collapsible
-// sections keyed by category/transfer-kind, wallet, or type — see
-// groupKeyFor below for exactly which field each one reads.
-export type GroupOption = 'none' | 'category' | 'wallet' | 'type';
-export const GROUP_OPTIONS: GroupOption[] = ['none', 'category', 'wallet', 'type'];
 
 export function useLogic() {
-  const { user, loading: authLoading } = useFirebaseUser();
+  const { user } = useFirebaseUser();
   const uid = user?.uid;
-  const [{ monthIndex, year }] = useState(targetFromSearch);
-  const [backfillBatchId] = useState(backfillBatchFromSearch);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterOpen, setFilterOpen] = useState(false);
-  const [typeFilter, setTypeFilter] = useState<TransactionTypeFilter>('All');
-  const [accountFilter, setAccountFilter] = useState<string>('All');
-  const [categoryFilter, setCategoryFilter] = useState<string>('All');
-  // "YYYY-MM-DD", or '' when unset. A single specific date is just these
-  // two set to the same value — see withinDateRange above.
-  const [dateFromValue, setDateFromValue] = useState('');
-  const [dateToValue, setDateToValue] = useState('');
-  const [sortBy, setSortBy] = useState<SortOption>('date');
-  const [groupBy, setGroupBy] = useState<GroupOption>('none');
-  // Keyed by group title, not groupBy — switching grouping modes just
-  // leaves stale titles in here that no longer match anything, harmless
-  // since a title from a different mode can't collide with a real one.
-  const [collapsedGroupTitles, setCollapsedGroupTitles] = useState<Set<string>>(new Set());
-
-  // Long-press-to-select bulk delete — works on both transactions and
-  // transfers (kindById below resolves which delete path each selected id
-  // needs), since a transfer is a real ledger entry too and deserves the
-  // same delete capability a transaction has.
-  const [selectionMode, setSelectionMode] = useState(false);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
-  const hasMonth = monthIndex !== null && year !== null && !backfillBatchId;
-  const monthStr = hasMonth ? `${year}-${pad2(monthIndex + 1)}` : null;
-
-  const monthOnlyQuery = useMemo(
-    () => (uid && hasMonth ? query(transactionsRef(uid), where('month', '==', monthStr!), orderBy('date', 'desc'), limit(MONTH_ONLY_PAGE_SIZE)) : null),
-    [uid, hasMonth, monthStr]
+  const [{ month, batch }] = useState(modeFromSearch);
+  const { data: buckets } = useFirestoreCollection<FirestoreBucket>(
+    useMemo(() => (uid ? query(bucketsRef(uid)) : null), [uid])
   );
-  const allTimeQuery = useMemo(
-    () => (uid && !hasMonth && !backfillBatchId ? query(transactionsRef(uid), orderBy('date', 'desc'), limit(ALL_TIME_PAGE_SIZE)) : null),
-    [uid, hasMonth, backfillBatchId]
-  );
-  const backfillBatchQuery = useMemo(
-    () => (uid && backfillBatchId ? query(transactionsRef(uid), where('backfillBatchId', '==', backfillBatchId), orderBy('date', 'desc')) : null),
-    [uid, backfillBatchId]
-  );
-
-  const { data: monthOnlyDocs, loading: monthOnlyLoading, error: monthOnlyError } =
-    useFirestoreCollection<FirestoreTransaction>(monthOnlyQuery);
-  const { data: allTimeDocs, loading: allTimeLoading, error: allTimeError } =
-    useFirestoreCollection<FirestoreTransaction>(allTimeQuery);
-  const { data: backfillBatchDocs, loading: backfillBatchLoading, error: backfillBatchError } =
-    useFirestoreCollection<FirestoreTransaction>(backfillBatchQuery);
-
-  const transactionDocs = backfillBatchId ? backfillBatchDocs : hasMonth ? monthOnlyDocs : allTimeDocs;
-  const transactionsLoading = backfillBatchId ? backfillBatchLoading : hasMonth ? monthOnlyLoading : allTimeLoading;
-  const transactionsError = backfillBatchId ? backfillBatchError : hasMonth ? monthOnlyError : allTimeError;
-
-  // FirestoreTransfer has no `month` string field the way FirestoreTransaction
-  // does (see types.ts) — the month-view query below uses a plain date range
-  // instead, same shape src/logic/walletDetail/useLogic.ts already uses for
-  // its own transfer queries.
-  const monthOnlyTransfersQuery = useMemo(() => {
-    if (!uid || !hasMonth) return null;
-    const monthStart = Timestamp.fromDate(new Date(year!, monthIndex!, 1));
-    const monthEnd = Timestamp.fromDate(new Date(year!, monthIndex! + 1, 1));
-    return query(
-      transfersRef(uid),
-      where('date', '>=', monthStart),
-      where('date', '<', monthEnd),
-      orderBy('date', 'desc'),
-      limit(MONTH_ONLY_PAGE_SIZE)
-    );
-  }, [uid, hasMonth, year, monthIndex]);
-  const allTimeTransfersQuery = useMemo(
-    () => (uid && !hasMonth && !backfillBatchId ? query(transfersRef(uid), orderBy('date', 'desc'), limit(ALL_TIME_PAGE_SIZE)) : null),
-    [uid, hasMonth, backfillBatchId]
-  );
-  // A backfill spread can now generate transfers too (Savings backfilled as
-  // "moved to another account", or a plain recurring Transfer) — tagged with
-  // the same backfillBatchId convention as the transaction side, so batch
-  // mode needs its own transfers query alongside backfillBatchQuery above.
-  const backfillBatchTransfersQuery = useMemo(
-    () => (uid && backfillBatchId ? query(transfersRef(uid), where('backfillBatchId', '==', backfillBatchId), orderBy('date', 'desc')) : null),
-    [uid, backfillBatchId]
-  );
-
-  const { data: monthOnlyTransferDocs, loading: monthOnlyTransfersLoading, error: monthOnlyTransfersError } =
-    useFirestoreCollection<FirestoreTransfer>(monthOnlyTransfersQuery);
-  const { data: allTimeTransferDocs, loading: allTimeTransfersLoading, error: allTimeTransfersError } =
-    useFirestoreCollection<FirestoreTransfer>(allTimeTransfersQuery);
-  const { data: backfillBatchTransferDocs, loading: backfillBatchTransfersLoading, error: backfillBatchTransfersError } =
-    useFirestoreCollection<FirestoreTransfer>(backfillBatchTransfersQuery);
-
-  const transferDocs = backfillBatchId ? backfillBatchTransferDocs : hasMonth ? monthOnlyTransferDocs : allTimeTransferDocs;
-  const transfersLoading = backfillBatchId ? backfillBatchTransfersLoading : hasMonth ? monthOnlyTransfersLoading : allTimeTransfersLoading;
-  const transfersError = backfillBatchId ? backfillBatchTransfersError : hasMonth ? monthOnlyTransfersError : allTimeTransfersError;
-
   const { data: accounts, loading: accountsLoading } = useAccounts();
   const { data: categories, loading: categoriesLoading } = useCategories();
   const { ctx, loading: ctxLoading } = useCurrencyContext();
 
-  const accountById = useMemo(() => new Map(accounts.map((account) => [account.id, account])), [accounts]);
-  const categoryNameFallback = useMemo(() => {
-    const map = new Map(categories.map((category) => [category.id, category.name]));
-    return (categoryId: string | null) => (categoryId && map.get(categoryId)) || categoryId || '—';
-  }, [categories]);
-
-  // Filter first (type/account, on the raw docs — cheap field checks), THEN
-  // map to the display shape, so the search step below only ever scans rows
-  // already narrowed by the two dropdowns. Transfers are a separate
-  // collection with no `type` of their own (see FirestoreTransfer) — the
-  // 'Transfer' filter value selects them exclusively, any other specific
-  // type excludes them, and 'All' includes both alongside every
-  // transaction type.
-  const typeFilteredTransactions =
-    typeFilter === 'Transfer'
-      ? []
-      : transactionDocs.filter((transaction) => typeFilter === 'All' || transaction.type === typeFilter);
-  const accountAndTypeFilteredTransactions = typeFilteredTransactions.filter(
-    (transaction) => accountFilter === 'All' || transaction.accountId === accountFilter
+  const fields = useMemo(
+    () =>
+      transactionFields({
+        buckets: buckets.filter((b) => !b.archived).map((b) => ({ id: b.id, name: b.name })),
+        categories: categories.map((c) => ({ id: c.id, name: c.name })),
+        accounts: accounts.map((a) => ({ id: a.id, name: a.name })),
+      }),
+    [buckets, categories, accounts]
   );
-  // A transfer has no categoryId of its own (FirestoreTransfer) — picking a
-  // specific category means "only transactions in it", which excludes every
-  // transfer, same as the existing 'Transfer' type filter excludes every
-  // transaction.
-  const categoryFilteredTransactions = accountAndTypeFilteredTransactions.filter(
-    (transaction) => categoryFilter === 'All' || transaction.categoryId === categoryFilter
-  );
-  const dateFilteredTransactions = categoryFilteredTransactions.filter((transaction) =>
-    withinDateRange(transaction.date, dateFromValue, dateToValue)
-  );
+  const list = useListQuery<HistoryRow>({ listId: 'transactions-all', fields, defaults: TRANSACTION_DEFAULTS });
+  // A date filter on the open-ended view loads exactly that window, so
+  // records older than the latest PAGE_SIZE are found too.
+  const loadWindow = batch || month ? null : dateWindow(list.query);
+  const fromMs = loadWindow?.from ?? null;
+  const toMs = loadWindow?.to ?? null;
 
-  const typeFilteredTransfers = typeFilter === 'All' || typeFilter === 'Transfer' ? transferDocs : [];
-  const accountAndTypeFilteredTransfers = typeFilteredTransfers.filter(
-    (transfer) =>
-      accountFilter === 'All' || transfer.fromAccountId === accountFilter || transfer.toAccountId === accountFilter
-  );
-  const categoryFilteredTransfers = categoryFilter === 'All' ? accountAndTypeFilteredTransfers : [];
-  const dateFilteredTransfers = categoryFilteredTransfers.filter((transfer) =>
-    withinDateRange(transfer.date, dateFromValue, dateToValue)
-  );
-
-  const mappedTransactions = dateFilteredTransactions.map((transaction) => {
-    const account = accountById.get(transaction.accountId);
-    return {
-      id: transaction.id,
-      kind: 'transaction' as const,
-      title: categoryNameFallback(transaction.categoryId),
-      description: transaction.description,
-      account: account?.name ?? transaction.accountId,
-      // Group-by-wallet/type read these two instead of `title` — see
-      // groupKeyFor below.
-      walletGroupKey: account?.name ?? transaction.accountId,
-      typeGroupKey: transaction.type,
-      amount: toDisplay(ctx, transaction.amount, account?.currency ?? ctx.base),
-      currency: ctx.display,
-      date: formatDate(transaction.date),
-      sortMs: transaction.date.toMillis(),
-      icon: TYPE_ICONS[transaction.type] ?? ArrowUpRight,
-      iconColor: categoryAccentColor(categoryNameFallback(transaction.categoryId)),
-      // PRD-AUDIT-RECONCILIATION.md section 3 — a small origin tag so a row
-      // that looks unfamiliar (a transfer nobody remembers, a January
-      // entry logged in September) is legible rather than confusing.
-      // isHistoricBackfill takes precedence in the rare case both were
-      // ever true at once (a backfilled occurrence that also explained the
-      // gap), since "Backfilled" is the more informative label there.
-      origin: transaction.isHistoricBackfill
-        ? ('backfill' as const)
-        : transaction.isUnjustifiedAdjustment
-          ? ('reconciliation' as const)
-          : null,
-    };
-  });
-
-  const mappedTransfers = dateFilteredTransfers.map((transfer) => {
-    const fromAccount = accountById.get(transfer.fromAccountId);
-    const toAccount = accountById.get(transfer.toAccountId);
-    const fromName = fromAccount?.name ?? transfer.fromAccountId;
-    const toName = toAccount?.name ?? transfer.toAccountId;
-    return {
-      id: transfer.id,
-      kind: 'transfer' as const,
-      title: transfer.kind || 'Transfer',
-      description: transfer.description || transfer.notes || `${fromName} → ${toName}`,
-      account: `${fromName} → ${toName}`,
-      // A transfer touches two wallets, not one — grouped under the source
-      // side (the one debited) since that's the wallet whose balance this
-      // entry actually reduces. Type grouping has no real type of its own
-      // (see FirestoreTransfer/TYPE_FILTERS), so every transfer buckets
-      // into one flat 'Transfer' group there.
-      walletGroupKey: fromName,
-      typeGroupKey: 'Transfer',
-      // Native currency, same as a transaction row — transfers between two
-      // accounts in different currencies aren't a case aggregation.ts's
-      // createTransferWithAggregation actually converts (see its own
-      // header), so this doesn't invent a conversion here either.
-      amount: transfer.amount,
-      currency: fromAccount?.currency ?? ctx.display,
-      date: formatDate(transfer.date),
-      sortMs: transfer.date.toMillis(),
-      icon: ArrowLeftRight,
-      iconColor: categoryAccentColor(transfer.kind || 'Transfer'),
-      // The reconciliation-paired transfer's own tag lives on its matching
-      // transaction row instead (see mappedTransactions above) — PRD-
-      // AUDIT-RECONCILIATION.md section 3 only asks that the transaction
-      // side be legible, not both halves independently. A backfilled
-      // transfer has no such paired transaction, so it carries its own tag
-      // directly, same as mappedTransactions above.
-      origin: transfer.isHistoricBackfill ? ('backfill' as const) : null,
-    };
-  });
-
-  const allTransactions = [...mappedTransactions, ...mappedTransfers].sort((a, b) => b.sortMs - a.sortMs);
-  const kindById = useMemo(() => new Map(allTransactions.map((row) => [row.id, row.kind])), [allTransactions]);
-
-  // Client-side, over whatever page the queries above already fetched —
-  // this is a substring match Firestore itself can't do natively, and the
-  // page sizes here (ALL_TIME_PAGE_SIZE/MONTH_ONLY_PAGE_SIZE, 300 rows each)
-  // are small enough that scanning them in the browser is instant.
-  const normalizedQuery = searchQuery.trim().toLowerCase();
-  const searchedTransactions = normalizedQuery
-    ? allTransactions.filter((transaction) =>
-        [transaction.title, transaction.description, transaction.account].some((field) =>
-          field.toLowerCase().includes(normalizedQuery)
-        )
-      )
-    : allTransactions;
-
-  // allTransactions is already date-desc — only re-sort when 'category' is
-  // picked, alphabetically by category/transfer-kind name with date-desc as
-  // the tiebreaker within a name.
-  const transactions =
-    sortBy === 'category'
-      ? [...searchedTransactions].sort((a, b) => a.title.localeCompare(b.title) || b.sortMs - a.sortMs)
-      : searchedTransactions;
-
-  function groupKeyFor(row: (typeof transactions)[number]) {
-    if (groupBy === 'wallet') return row.walletGroupKey;
-    if (groupBy === 'type') return row.typeGroupKey;
-    return row.title;
-  }
-
-  // Buckets transactions (already sorted above) by whichever key groupBy
-  // picks, then orders the buckets alphabetically — each bucket keeps
-  // whichever order `transactions` was already in, so a 'date' sort still
-  // shows the most recent entry first within every group.
-  const groupedTransactions =
-    groupBy !== 'none'
-      ? Array.from(
-          transactions.reduce((groups, row) => {
-            const key = groupKeyFor(row);
-            const bucket = groups.get(key) ?? [];
-            bucket.push(row);
-            groups.set(key, bucket);
-            return groups;
-          }, new Map<string, typeof transactions>())
-        )
-          .map(([title, rows]) => ({ title, rows }))
-          .sort((a, b) => a.title.localeCompare(b.title))
-      : null;
-
-  function toggleGroupCollapsed(title: string) {
-    setCollapsedGroupTitles((current) => {
-      const next = new Set(current);
-      if (next.has(title)) next.delete(title);
-      else next.add(title);
-      return next;
-    });
-  }
-
-  const hasActiveFilters =
-    typeFilter !== 'All' ||
-    accountFilter !== 'All' ||
-    categoryFilter !== 'All' ||
-    dateFromValue !== '' ||
-    dateToValue !== '';
-  const isFiltered = hasActiveFilters || normalizedQuery.length > 0;
-
-  function clearFilters() {
-    setTypeFilter('All');
-    setAccountFilter('All');
-    setCategoryFilter('All');
-    setDateFromValue('');
-    setDateToValue('');
-    setSortBy('date');
-    setGroupBy('none');
-    setSearchQuery('');
-  }
-
-  function toggleSearch() {
-    // Closing the search field also drops whatever was typed — reopening it
-    // should start blank, not silently re-apply a stale query the person
-    // can no longer see.
-    if (searchOpen) setSearchQuery('');
-    setSearchOpen(!searchOpen);
-  }
-
-  function toggleFilter() {
-    setFilterOpen((open) => !open);
-  }
-
-  function enterSelectionMode(id: string) {
-    setSelectionMode(true);
-    setSelectedIds(new Set([id]));
-  }
-
-  function toggleSelected(id: string) {
-    setSelectedIds((current) => {
-      const next = new Set(current);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
-
-  function exitSelectionMode() {
-    setSelectionMode(false);
-    setSelectedIds(new Set());
-    setDeleteError(null);
-  }
-
-  function openConfirmDelete() {
-    if (selectedIds.size === 0) return;
-    setDeleteError(null);
-    setConfirmDeleteOpen(true);
-  }
-
-  function cancelConfirmDelete() {
-    setConfirmDeleteOpen(false);
-  }
-
-  // Sequential, not concurrent — same reasoning as every other bulk write in
-  // this codebase (importCsv, backfill's commitBackfillSpread): a handful of
-  // simultaneous writes to the same account/statsMonthly/stats-home docs
-  // would just contend with each other for no benefit. Each id is its own
-  // try/catch — one entry failing (a frozen wallet, a locked-amount
-  // conflict, one side of a transfer that's since been deleted, ...)
-  // otherwise aborted the whole remaining batch, which for a mixed
-  // selection meant a single bad transfer could block every ordinary
-  // transaction selected alongside it from ever being deleted. A failure
-  // leaves what's already deleted gone and what's left (including whatever
-  // failed) still selected, so retrying only re-attempts what didn't
-  // succeed.
-  async function confirmDeleteSelected() {
-    if (!uid || deleting || selectedIds.size === 0) return;
-    setDeleting(true);
-    setDeleteError(null);
-    const failureMessages: string[] = [];
-    for (const id of selectedIds) {
-      try {
-        if (kindById.get(id) === 'transfer') {
-          await deleteTransferWithAggregation(uid, id);
-        } else {
-          await deleteTransactionWithAggregation(uid, id, ctx);
-        }
-        setSelectedIds((current) => {
-          const next = new Set(current);
-          next.delete(id);
-          return next;
-        });
-      } catch (error) {
-        failureMessages.push(error instanceof Error ? error.message : 'Could not delete this entry.');
-      }
-    }
-    setDeleting(false);
-    // Always close the confirmation modal — leaving it open on failure hid
-    // deleteError behind its own backdrop, so a batch that failed partway
-    // through looked like the delete button had simply done nothing.
-    setConfirmDeleteOpen(false);
-    if (failureMessages.length === 0) {
-      exitSelectionMode();
-    } else {
-      setDeleteError(
-        failureMessages.length === 1
-          ? failureMessages[0]
-          : `${failureMessages.length} of the selected entries couldn't be deleted: ${failureMessages[0]}`
+  const transactionsQuery = useMemo(() => {
+    if (!uid) return null;
+    if (batch) return query(transactionsRef(uid), where('backfillBatchId', '==', batch), orderBy('date', 'desc'));
+    if (month) return query(transactionsRef(uid), where('month', '==', month), orderBy('date', 'desc'), limit(PAGE_SIZE));
+    if (fromMs !== null && toMs !== null) {
+      return query(
+        transactionsRef(uid),
+        where('date', '>=', Timestamp.fromMillis(fromMs)),
+        where('date', '<=', Timestamp.fromMillis(toMs)),
+        orderBy('date', 'desc'),
+        limit(WINDOW_CAP)
       );
     }
-  }
+    return query(transactionsRef(uid), orderBy('date', 'desc'), limit(PAGE_SIZE));
+  }, [uid, month, batch, fromMs, toMs]);
+  const transfersQuery = useMemo(() => {
+    if (!uid) return null;
+    if (batch) return query(transfersRef(uid), where('backfillBatchId', '==', batch), orderBy('date', 'desc'));
+    if (month) {
+      const [y, m] = month.split('-').map(Number);
+      return query(
+        transfersRef(uid),
+        where('date', '>=', Timestamp.fromDate(new Date(y, m - 1, 1))),
+        where('date', '<', Timestamp.fromDate(new Date(y, m, 1))),
+        orderBy('date', 'desc'),
+        limit(PAGE_SIZE)
+      );
+    }
+    if (fromMs !== null && toMs !== null) {
+      return query(
+        transfersRef(uid),
+        where('date', '>=', Timestamp.fromMillis(fromMs)),
+        where('date', '<=', Timestamp.fromMillis(toMs)),
+        orderBy('date', 'desc'),
+        limit(WINDOW_CAP)
+      );
+    }
+    return query(transfersRef(uid), orderBy('date', 'desc'), limit(PAGE_SIZE));
+  }, [uid, month, batch, fromMs, toMs]);
 
-  // Title: the month being viewed, the batch's own title, or the screen's
-  // generic default.
-  const monthLabel = backfillBatchId
-    ? (transactionDocs[0]?.description ?? transferDocs[0]?.description ?? 'Backfilled transactions')
-    : hasMonth
-      ? new Date(year!, monthIndex!, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-      : null;
+  const { data: transactions, loading: txLoading, error: txError } = useFirestoreCollection<FirestoreTransaction>(transactionsQuery);
+  const { data: transfers, loading: trLoading, error: trError } = useFirestoreCollection<FirestoreTransfer>(transfersQuery);
+  const rows = useMemo(() => {
+    const bucketName = new Map(buckets.map((b) => [b.id, b.name]));
+    return buildRows(transactions, transfers, { accounts, categories, bucketName, ctx });
+  }, [transactions, transfers, buckets, accounts, categories, ctx]);
 
   const navigateBack = useGoBack();
-  function goBack() {
-    if (selectionMode) {
-      exitSelectionMode();
-      return;
-    }
-    navigateBack(backfillBatchId ? '/settings/backfill/batches' : '/home');
-  }
-
-  function editHref(id: string) {
-    return kindById.get(id) === 'transfer' ? `/edit-transfer/${id}` : `/edit-transaction/${id}`;
-  }
-
   return {
-    transactions,
-    groupedTransactions,
-    isFiltered,
-    monthLabel,
-    isAllTransactionsView: !hasMonth && !backfillBatchId,
-    loading: authLoading || transactionsLoading || transfersLoading || accountsLoading || categoriesLoading || ctxLoading,
-    error: transactionsError || transfersError,
-    editHref,
-    goBack,
-
-    searchOpen,
-    toggleSearch,
-    searchQuery,
-    setSearchQuery,
-
-    filterOpen,
-    toggleFilter,
-    setFilterOpen,
-    typeFilter,
-    setTypeFilter,
-    accountFilter,
-    setAccountFilter,
-    categoryFilter,
-    setCategoryFilter,
-    dateFromValue,
-    setDateFromValue,
-    dateToValue,
-    setDateToValue,
-    categories,
-    sortBy,
-    setSortBy,
-    groupBy,
-    setGroupBy,
-    collapsedGroupTitles,
-    toggleGroupCollapsed,
-    accounts,
-    hasActiveFilters,
-    clearFilters,
-
-    selectionMode,
-    selectedIds,
-    enterSelectionMode,
-    toggleSelected,
-    exitSelectionMode,
-    confirmDeleteOpen,
-    openConfirmDelete,
-    cancelConfirmDelete,
-    confirmDeleteSelected,
-    deleting,
-    deleteError,
+    title: batch ? 'Backfill batch' : month ? monthTitle(month) : 'Transactions',
+    // Only the newest PAGE_SIZE of each are loaded in the open-ended view.
+    capped: !batch && fromMs === null && (transactions.length >= PAGE_SIZE || transfers.length >= PAGE_SIZE),
+    fields,
+    list,
+    rows,
+    currency: ctx.display,
+    addHref: month ? `/add-transaction?month=${Number(month.slice(5)) - 1}&year=${month.slice(0, 4)}` : '/add-transaction',
+    goBack: () => navigateBack('/home'),
+    loading: txLoading || trLoading || accountsLoading || categoriesLoading || ctxLoading,
+    error: txError ?? trError ?? null,
   };
 }

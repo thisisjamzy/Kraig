@@ -47,7 +47,7 @@ export type BudgetItemLike = Pick<
   FirestoreBucketLineItem,
   'id' | 'goalId' | 'name' | 'amount' | 'categoryId' | 'dueDate' | 'recurrence' | 'excludedMonths' | 'monthOverrides' | 'completed' | 'charges'
 > &
-  Partial<Pick<FirestoreBucketLineItem, 'payments' | 'expenseId' | 'transferId'>>;
+  Partial<Pick<FirestoreBucketLineItem, 'payments' | 'expenseId' | 'transferId' | 'monthJustifications'>>;
 
 /**
  * Which item a transaction/transfer pays for — THE one attribution rule
@@ -129,6 +129,10 @@ export interface ItemMonth {
   remaining: number; // available - actual
   status: BudgetItemStatus;
   unfunded: number; // an overspend no allocation has covered yet, >= 0
+  // The part of that overspend explained instead ("justified"), and why —
+  // FirestoreBucketLineItem.monthJustifications. unfunded − justified.amount
+  // is what still needs action.
+  justified: { reason: string; note: string; amount: number } | null;
   // Planned items only — the household marked it closed. Leftover on a
   // closed item is money that can be reallocated right now.
   closed: boolean;
@@ -219,6 +223,8 @@ export function buildMonthBudget(input: MonthBudgetInput): MonthBudget {
   const bucketById = new Map(input.buckets.map((bucket) => [bucket.id, bucket]));
 
   const items: ItemMonth[] = [];
+  // The raw item behind each entry, for per-month notes (justifications).
+  const rawItems = new Map<string, BudgetItemLike>();
   const itemsByKey = new Map<string, ItemMonth>();
   for (const [bucketId, bucketItems] of Object.entries(input.itemsByBucket)) {
     const bucket = bucketById.get(bucketId);
@@ -250,6 +256,7 @@ export function buildMonthBudget(input: MonthBudgetInput): MonthBudget {
         remaining: 0,
         status: 'on',
         unfunded: 0,
+        justified: null,
         closed: kind === 'Planned' && item.completed,
         transactionIds: [],
         transferIds: [],
@@ -257,6 +264,7 @@ export function buildMonthBudget(input: MonthBudgetInput): MonthBudget {
       };
       items.push(entry);
       itemsByKey.set(entry.key, entry);
+      rawItems.set(entry.key, item);
     }
   }
 
@@ -342,6 +350,11 @@ export function buildMonthBudget(input: MonthBudgetInput): MonthBudget {
     } else {
       entry.status = entry.remaining > 0 ? 'under' : entry.remaining === 0 ? 'on' : 'over';
       entry.unfunded = round2(Math.max(0, -entry.remaining));
+      const note = rawItems.get(entry.key)?.monthJustifications?.[month];
+      entry.justified =
+        note && entry.unfunded > 0
+          ? { reason: note.reason, note: note.note, amount: round2(Math.min(entry.unfunded, input.toDisplay(note.amount, note.currency))) }
+          : null;
     }
   }
 

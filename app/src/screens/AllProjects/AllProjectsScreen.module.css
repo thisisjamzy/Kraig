@@ -20,6 +20,8 @@
   padding-left: var(--space-lg);
   padding-right: var(--space-lg);
   background: var(--color-page);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
 }
 
 .backButton {
@@ -67,36 +69,9 @@
   text-decoration: none;
 }
 
-.topRow {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-}
 
-.sortToggle {
-  display: flex;
-  gap: 2px;
-  padding: 2px;
-  border-radius: var(--radius-full);
-  background: var(--color-surface);
-}
 
-.sortToggleButton {
-  border: none;
-  background: none;
-  font-family: inherit;
-  padding: 4px var(--space-sm);
-  border-radius: var(--radius-full);
-  font-size: 0.7rem;
-  font-weight: 700;
-  color: var(--color-text-secondary);
-  cursor: pointer;
-}
 
-.sortToggleButtonActive {
-  background: var(--ink-bg);
-  color: #ffffff;
-}
 
 .emptyText {
   margin: 0;
@@ -241,4 +216,9 @@
   .areasFab:active {
     transform: none;
   }
+}
+
+/* The filter / sort toolbar sits right under the header. */
+.toolbarSlot {
+  margin-top: calc(-1 * var(--space-lg));
 }

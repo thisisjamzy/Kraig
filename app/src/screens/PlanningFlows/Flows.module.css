@@ -1,0 +1,439 @@
+/* The Planning action flows (cover or justify, reallocate) — full pages on
+   top of Planning.module.css's tokens. */
+
+.page {
+  padding-bottom: 130px;
+}
+
+.headline {
+  margin: 0;
+  font-family: var(--font-family-heading);
+  font-size: 1.875rem;
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.headline[data-tone='over'] {
+  color: var(--p-red);
+}
+
+.headline[data-tone='leftover'] {
+  color: var(--p-blue);
+}
+
+.on {
+  margin: 4px 0 18px;
+  font-size: 0.9375rem;
+  color: var(--p-muted);
+}
+
+.on strong {
+  color: var(--p-navy);
+  font-weight: 600;
+}
+
+/* Covered progress */
+.progress {
+  margin-bottom: 18px;
+}
+
+.progressBar {
+  position: relative;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--p-red-tint);
+}
+
+.progressCovered {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 999px;
+  background: var(--p-blue);
+  transition: width var(--duration-morph) var(--ease-out);
+}
+
+.progressJustified {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: repeating-linear-gradient(-45deg, var(--p-light) 0 4px, transparent 4px 8px);
+}
+
+.progressText {
+  display: block;
+  margin-top: 6px;
+  font-size: 0.75rem;
+  color: var(--p-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Large selectable option cards */
+.option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin-top: 10px;
+  padding: 16px;
+  border: 2px solid transparent;
+  border-radius: 22px;
+  background: var(--p-card);
+  box-shadow: var(--p-shadow);
+  color: inherit;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.option[aria-pressed='true'] {
+  border-color: var(--p-navy);
+}
+
+.option:focus-visible {
+  outline: 2px solid var(--p-blue);
+  outline-offset: 2px;
+}
+
+.optionIcon {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  background: var(--p-item);
+  color: var(--p-navy);
+}
+
+.optionText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.optionTitle {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.optionSub {
+  font-size: 0.8125rem;
+  color: var(--p-muted);
+}
+
+.optionCheck {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--p-light);
+  border-radius: 50%;
+  color: var(--p-btn-text);
+}
+
+.option[aria-pressed='true'] .optionCheck {
+  border-color: var(--p-navy);
+  background: var(--p-navy);
+}
+
+.sources {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 8px 0 4px;
+  padding: 4px 4px 4px 8px;
+}
+
+.source {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 12px 12px 14px;
+  border-radius: 18px;
+  background: var(--p-card);
+}
+
+.sourceText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.sourceName {
+  overflow: hidden;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.sourceSub {
+  font-size: 0.75rem;
+  color: var(--p-muted);
+}
+
+.sourceInput {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 12px;
+  background: var(--p-item);
+}
+
+.sourceInput input {
+  width: 86px;
+  height: 36px;
+  padding: 0 8px;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--p-navy);
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.sourceInput button {
+  height: 30px;
+  padding: 0 8px;
+  border: none;
+  border-radius: 9px;
+  background: var(--p-card);
+  color: var(--p-blue);
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.sourceInput:focus-within {
+  box-shadow: 0 0 0 2px var(--p-blue);
+}
+
+.hint {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--p-muted);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.8125rem;
+  color: var(--p-muted);
+}
+
+.field select,
+.field input {
+  height: 46px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 14px;
+  background: var(--p-card);
+  color: var(--p-navy);
+  font-family: inherit;
+  font-size: 16px;
+}
+
+.reasonChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.reasonChips button,
+.quick button {
+  height: 34px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 999px;
+  background: var(--p-card);
+  color: var(--p-navy);
+  font-family: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.reasonChips button[aria-checked='true'],
+.quick button[aria-pressed='true'] {
+  background: var(--p-btn);
+  color: var(--p-btn-text);
+}
+
+.note {
+  width: 100%;
+  padding: 12px 14px;
+  border: none;
+  border-radius: 16px;
+  background: var(--p-card);
+  color: var(--p-navy);
+  font-family: inherit;
+  font-size: 16px;
+  resize: vertical;
+}
+
+.problem {
+  margin: 12px 4px 0;
+  font-size: 0.8125rem;
+  color: var(--p-red);
+}
+
+.confirm {
+  flex: 1;
+}
+
+/* Reallocate */
+.destinations {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.destination {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 14px 12px;
+  border: 2px solid transparent;
+  border-radius: 20px;
+  background: var(--p-card);
+  box-shadow: var(--p-shadow);
+  color: inherit;
+  font-family: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.destination[aria-checked='true'] {
+  border-color: var(--p-navy);
+}
+
+.destination:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.destination svg {
+  color: var(--p-blue);
+}
+
+.amountBox {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 14px 16px;
+  border-radius: 20px;
+  background: var(--p-card);
+  box-shadow: var(--p-shadow);
+}
+
+.amountBox input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--p-navy);
+  font-family: var(--font-family-heading);
+  font-size: 1.75rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.amountBox span {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--p-light);
+}
+
+.quick {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.summary {
+  margin-top: 16px;
+  padding: 14px 16px;
+  border-radius: 20px;
+  background: var(--p-blue-tint);
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+.summary strong {
+  font-weight: 700;
+}
+
+.label {
+  margin: 20px 2px 8px;
+  font-size: 0.8125rem;
+  color: var(--p-light);
+}
+
+.pickList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pick {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 2px solid transparent;
+  border-radius: 18px;
+  background: var(--p-card);
+  color: inherit;
+  font-family: inherit;
+  font-size: 0.9375rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pick[aria-checked='true'] {
+  border-color: var(--p-navy);
+}
+
+.pick small {
+  font-size: 0.75rem;
+  color: var(--p-muted);
+}
+
+.pick small[data-tone='over'] {
+  color: var(--p-red);
+  font-weight: 600;
+}
+
+.reasonChips button:focus-visible,
+.quick button:focus-visible,
+.destination:focus-visible,
+.pick:focus-visible,
+.sourceInput button:focus-visible {
+  outline: 2px solid var(--p-blue);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progressCovered {
+    transition: none;
+  }
+}

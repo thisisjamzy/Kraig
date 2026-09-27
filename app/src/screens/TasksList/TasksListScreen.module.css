@@ -21,6 +21,8 @@
   padding-left: var(--space-lg);
   padding-right: var(--space-lg);
   background: var(--color-page);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
 }
 
 .backButton {
@@ -58,26 +60,6 @@
   border-radius: var(--radius-full);
   background: var(--ink-bg);
   color: var(--ink-text);
-  cursor: pointer;
-}
-
-.filterRow {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-start;
-  gap: var(--space-sm);
-}
-
-.filterSelect {
-  max-width: 100%;
-  padding: var(--space-sm) var(--space-lg);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-background);
-  font-family: inherit;
-  font-size: var(--font-size-sm);
-  font-weight: 700;
-  color: var(--color-text-primary);
   cursor: pointer;
 }
 
@@ -120,4 +102,10 @@
 
 :global([data-theme='dark']) .leftovers {
   background: color-mix(in srgb, var(--color-brand) 18%, transparent);
+}
+
+/* The filter / sort toolbar sits right under the header; the page's own
+   flex gap would push it away. */
+.toolbarSlot {
+  margin-top: calc(-1 * var(--space-lg));
 }

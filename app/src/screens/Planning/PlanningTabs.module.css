@@ -1,0 +1,900 @@
+/* Planning tabs — Budget, Payments, History. Tokens (--p-*) come from
+   Planning.module.css's .page, which wraps every tab. */
+
+.fade {
+  animation: fadeIn 200ms var(--ease-out);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+}
+
+/* ---- Black cards: summary (Budget) and calendar (Payments) ---- */
+.summary,
+.calendar {
+  position: relative;
+  overflow: hidden;
+  border-radius: 24px;
+  background: var(--p-black);
+  color: #ffffff;
+  isolation: isolate;
+}
+
+/* A soft brand-blue glow bleeding in from the edge(s). */
+.summary::before,
+.calendar::before,
+.calendar::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  width: 260px;
+  height: 260px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(59, 99, 240, 0.55) 0%, rgba(59, 99, 240, 0) 70%);
+  opacity: 0.3;
+  pointer-events: none;
+}
+
+.summary::before {
+  top: -110px;
+  right: -110px;
+}
+
+.calendar::before {
+  top: 30%;
+  left: -170px;
+}
+
+.calendar::after {
+  top: 30%;
+  right: -170px;
+}
+
+.summary {
+  padding: 18px 18px 16px;
+}
+
+.summaryHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2px;
+}
+
+.currencyChip {
+  height: 26px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+.sumRow {
+  padding: 12px 0;
+}
+
+.sumTop {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.sumLabel {
+  font-size: 0.8125rem;
+  color: var(--p-black-muted);
+}
+
+.sumPair {
+  font-size: 0.9375rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.sumPair strong {
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.sumPair span {
+  color: var(--p-black-muted);
+}
+
+.sumBar {
+  position: relative;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--p-black-track);
+}
+
+.sumFill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 999px;
+  background: #3b63f0;
+}
+
+.sumFill[data-tone='over'] {
+  background: #e04b5a;
+}
+
+.sumMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.sumNote {
+  font-size: 0.6875rem;
+  color: var(--p-black-muted);
+}
+
+.sumChip {
+  margin-left: auto;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.sumChip[data-tone='blue'] {
+  background: rgba(59, 99, 240, 0.22);
+  color: #9fb3ff;
+}
+
+.sumChip[data-tone='grey'] {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--p-black-muted);
+}
+
+.sumChip[data-tone='red'] {
+  background: rgba(224, 75, 90, 0.2);
+  color: #ff8a95;
+}
+
+.leftRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px 0 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.leftValue {
+  font-family: var(--font-family-heading);
+  font-size: 1.75rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.leftValue small {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--p-black-muted);
+}
+
+.leftValue[data-tone='over'] {
+  color: #ff8a95;
+}
+
+.summaryButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 46px;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #1c1f3a;
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.summaryButton:focus-visible,
+.currencyChip:focus-visible {
+  outline: 2px solid #6f8dff;
+  outline-offset: 2px;
+}
+
+/* ---- Section head (Buckets / Upcoming payments) ---- */
+.sectionHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 24px 2px 12px;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-family: var(--font-family-heading);
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.sectionTools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.miniToggle {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--p-track);
+}
+
+.miniToggle button {
+  height: 28px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--p-muted);
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.miniToggle button[aria-checked='true'] {
+  background: var(--p-card);
+  color: var(--p-navy);
+  box-shadow: 0 1px 4px rgba(28, 31, 58, 0.1);
+}
+
+.addCircle {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--p-card);
+  box-shadow: var(--p-shadow);
+  color: var(--p-navy);
+}
+
+/* ---- Bucket cards ---- */
+.cardList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.bucketCard {
+  overflow: hidden;
+  padding: 16px;
+  border-radius: 22px;
+  background: var(--p-card);
+  box-shadow: var(--p-shadow);
+}
+
+.bucketBody {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.bucketBody:focus-visible {
+  outline: 2px solid var(--p-blue);
+  outline-offset: 4px;
+  border-radius: 12px;
+}
+
+.bucketTop {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.bucketName {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.bucketName > span:first-child {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.bucketMeta {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--p-muted);
+}
+
+.bucketBar {
+  position: relative;
+}
+
+.planMark {
+  position: absolute;
+  top: -2px;
+  width: 2px;
+  height: 8px;
+  border-radius: 1px;
+  background: var(--p-card);
+  transform: translateX(-1px);
+}
+
+.bucketAvailable {
+  margin-top: -4px;
+  font-size: 0.75rem;
+  color: var(--p-muted);
+}
+
+.bucketAvailable[data-tone='over'] {
+  color: var(--p-red);
+  font-weight: 600;
+}
+
+/* ---- Calendar ---- */
+.calendar {
+  padding: 14px 12px 12px;
+}
+
+.calHead {
+  display: grid;
+  grid-template-columns: 40px 1fr 40px;
+  align-items: center;
+  margin-bottom: 6px;
+  text-align: center;
+  font-size: 0.9375rem;
+  font-weight: 700;
+}
+
+.calHead button {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.calGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  row-gap: 2px;
+}
+
+.calWeekday {
+  padding: 6px 0;
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--p-black-muted);
+  text-align: center;
+}
+
+.calDay {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  height: 46px;
+  padding: 4px 0 0;
+  border: none;
+  background: none;
+  color: #ffffff;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.calDay[data-outside] {
+  color: #3d404a;
+  cursor: default;
+}
+
+.calNum {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  font-size: 0.875rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.calDay[data-today] .calNum::after {
+  content: '';
+  position: absolute;
+  bottom: 3px;
+  left: 50%;
+  width: 12px;
+  height: 2px;
+  border-radius: 1px;
+  background: #3b63f0;
+  transform: translateX(-50%);
+}
+
+.calDay[aria-pressed='true'] .calNum {
+  background: #3b63f0;
+  font-weight: 700;
+}
+
+.calDay[aria-pressed='true'] .calNum::after {
+  background: #ffffff;
+}
+
+.calDay:focus-visible .calNum {
+  outline: 2px solid #6f8dff;
+  outline-offset: 1px;
+}
+
+.calDots,
+.calLegend {
+  display: flex;
+  gap: 3px;
+}
+
+.calDots span,
+.calLegend span {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #3b63f0;
+}
+
+.calDots span[data-status='paid'],
+.calLegend span[data-status='paid'] {
+  background: #35c07f;
+}
+
+.calDots span[data-status='overdue'],
+.calLegend span[data-status='overdue'] {
+  background: #e04b5a;
+}
+
+.calLegend {
+  justify-content: center;
+  gap: 14px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.6875rem;
+  color: var(--p-black-muted);
+}
+
+.calLegend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.calLegend span {
+  width: 6px;
+  height: 6px;
+}
+
+/* ---- Payment cards ---- */
+.payCard {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 22px;
+  background: var(--p-card);
+  box-shadow: var(--p-shadow);
+}
+
+.payMain {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.payName {
+  overflow: hidden;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.payLine {
+  font-size: 0.75rem;
+  color: var(--p-muted);
+}
+
+.payChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.paySide {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.payAmount {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.payCard[data-status='paid'] .payName,
+.payCard[data-status='paid'] .payAmount {
+  color: var(--p-muted);
+}
+
+.paySide button[data-tone='overdue'] {
+  color: var(--p-red);
+}
+
+.paidGroup {
+  margin-top: 18px;
+}
+
+.paidGroup summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 2px 10px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--p-muted);
+  cursor: pointer;
+  list-style: none;
+}
+
+.paidGroup summary::-webkit-details-marker {
+  display: none;
+}
+
+.paidGroup summary span {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--p-item);
+  font-size: 0.6875rem;
+}
+
+/* ---- History ---- */
+.strip3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  padding: 14px 4px;
+  border-radius: 22px;
+  background: var(--p-card);
+  box-shadow: var(--p-shadow);
+}
+
+.strip3 div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 0 12px;
+}
+
+.strip3 div + div {
+  border-left: 1px solid var(--p-divider);
+}
+
+.strip3 span {
+  font-size: 0.75rem;
+  color: var(--p-muted);
+}
+
+.strip3 strong {
+  font-size: 1rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 0 14px;
+  border-radius: 16px;
+  background: var(--p-card);
+  box-shadow: var(--p-shadow);
+  color: var(--p-light);
+}
+
+.search input {
+  flex: 1;
+  min-width: 0;
+  height: 46px;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--p-navy);
+  font-family: inherit;
+  font-size: 16px;
+}
+
+.search button {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 50%;
+  background: var(--p-item);
+  color: var(--p-muted);
+  cursor: pointer;
+}
+
+.search:focus-within {
+  box-shadow: 0 0 0 2px var(--p-blue);
+}
+
+.chips {
+  display: flex;
+  gap: 6px;
+  margin: 12px calc(-1 * var(--space-lg)) 4px;
+  padding: 0 var(--space-lg) 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.chips::-webkit-scrollbar {
+  display: none;
+}
+
+.chips button {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+  height: 34px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 999px;
+  background: var(--p-card);
+  color: var(--p-navy);
+  font-family: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: var(--p-shadow);
+}
+
+.chips button[aria-pressed='true'] {
+  background: var(--p-btn);
+  color: var(--p-btn-text);
+}
+
+.chips .chipClear {
+  width: 34px;
+  padding: 0;
+  justify-content: center;
+  color: var(--p-muted);
+}
+
+.dayGroup {
+  margin-top: 14px;
+}
+
+.dayHead {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 4px;
+  background: var(--p-bg);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--p-navy);
+}
+
+.dayHead span:last-child {
+  font-weight: 500;
+  color: var(--p-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Sheets ---- */
+.sheetHint {
+  margin: 0 0 12px;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  color: var(--color-text-secondary);
+}
+
+.sheetList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 60dvh;
+  overflow-y: auto;
+}
+
+.sheetList button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 50px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 14px;
+  background: transparent;
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: 1rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sheetList button[aria-pressed='true'],
+.sheetList button:hover {
+  background: var(--color-surface);
+}
+
+.sheetNew {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-brand);
+  font-weight: 600;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+}
+
+.field select,
+.field input {
+  height: 46px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 12px;
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: 16px;
+}
+
+.error {
+  margin: 0 0 10px;
+  font-size: 0.8125rem;
+  color: var(--color-danger);
+}
+
+.fullButton {
+  width: 100%;
+  height: 50px;
+}
+
+.yearRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.yearValue {
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.monthGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.monthGrid button {
+  height: 44px;
+  border: none;
+  border-radius: 12px;
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.monthGrid button[aria-pressed='true'] {
+  background: var(--color-brand);
+  color: #ffffff;
+}
+
+.miniToggle button:focus-visible,
+.addCircle:focus-visible,
+.calHead button:focus-visible,
+.chips button:focus-visible,
+.sheetList button:focus-visible,
+.monthGrid button:focus-visible {
+  outline: 2px solid var(--p-blue, var(--color-brand));
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fade {
+    animation: none;
+  }
+}
+
+/* An empty or no-match message right under the chips. */
+.chips + p {
+  margin-top: 12px;
+}
+
+.chipBadge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--p-blue);
+  color: #ffffff;
+  font-size: 0.6875rem;
+  font-weight: 700;
+}
+
+.filterSummary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 8px 2px 0;
+  font-size: 0.8125rem;
+  color: var(--p-muted);
+}
+
+.filterSummary button {
+  flex-shrink: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--p-blue);
+  font-family: inherit;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* A list straight under the summary strip. */
+.listGap {
+  margin-top: 14px;
+}

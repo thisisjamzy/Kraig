@@ -1,0 +1,395 @@
+/* Bucket details — on top of Planning.module.css. Rule: amounts never
+   truncate. A cell lets its pieces wrap onto another line (prefix, number,
+   currency), and only on narrow screens does a figure step down (2px at
+   most). Only names (items, categories) may end in an ellipsis. */
+
+.page {
+  /* Room for the sticky bar (≈ its height), so the last cards stay visible. */
+  padding-bottom: calc(100px + env(safe-area-inset-bottom));
+}
+
+/* ---- 1. Segment bar ---- */
+.segments {
+  display: flex;
+  gap: 4px;
+  height: 12px;
+  margin: 20px 0 12px;
+}
+
+.segment {
+  position: relative;
+  flex-basis: 0;
+  min-width: 6px;
+  padding: 0;
+  overflow: hidden;
+  border: none;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--c) 28%, var(--p-card));
+  cursor: pointer;
+}
+
+.segmentSpent {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 999px;
+  background: var(--c);
+}
+
+.segment:focus-visible {
+  outline: 2px solid var(--p-blue);
+  outline-offset: 2px;
+}
+
+.legend {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+}
+
+.legend button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 30px;
+  padding: 0 2px;
+  border: none;
+  background: none;
+  color: inherit;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.legend button:focus-visible {
+  outline: 2px solid var(--p-blue);
+  outline-offset: 1px;
+  border-radius: 8px;
+}
+
+.dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.legendName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 0.8125rem;
+  color: var(--p-muted);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.legendPair {
+  flex-shrink: 0;
+  font-size: 0.8125rem;
+  color: var(--p-light);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.legendPair strong {
+  color: var(--p-navy);
+}
+
+.legendMore {
+  padding: 4px 18px 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--p-muted);
+}
+
+/* ---- 2. Spec card ---- */
+.spec {
+  position: relative;
+  z-index: 1;
+  padding: 0 16px;
+  border-radius: 22px;
+  background: var(--p-card);
+  box-shadow: var(--p-shadow);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 14px 0;
+}
+
+/* Vertical divider between the columns, horizontal between the rows. */
+.cell:nth-child(odd) {
+  padding-right: 12px;
+  border-right: 1px solid var(--p-divider);
+}
+
+.cell:nth-child(even) {
+  padding-left: 14px;
+}
+
+.cell:nth-child(n + 3) {
+  border-top: 1px solid var(--p-divider);
+}
+
+.cellLabelRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.cellSub {
+  font-size: 0.6875rem;
+  color: var(--p-light);
+}
+
+.amount {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.amountNumber {
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.amountUnit {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--p-light);
+}
+
+.amountPrefix {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.cell[data-tone='over'] .amountNumber,
+.cell[data-tone='over'] .amountPrefix,
+.cell[data-tone='over'] > .cellLabelRow > span:first-child {
+  color: var(--p-red);
+}
+
+.pairRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-top: 1px solid var(--p-divider);
+}
+
+.detail {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  padding: 14px 0;
+}
+
+.detail:first-child {
+  padding-right: 12px;
+  border-right: 1px solid var(--p-divider);
+}
+
+.detail + .detail {
+  padding-left: 14px;
+}
+
+.detailValue {
+  overflow: hidden;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Full-width rows: label left, value right. */
+.lineRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 52px;
+  padding: 12px 0;
+  border-top: 1px solid var(--p-divider);
+  color: inherit;
+  text-decoration: none;
+}
+
+a.lineRow:focus-visible {
+  outline: 2px solid var(--p-blue);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+.lineValue {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 0;
+}
+
+.lineArrow {
+  flex-shrink: 0;
+  color: var(--p-light);
+}
+
+.lastActivity {
+  overflow: hidden;
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.muted {
+  font-size: 0.875rem;
+  color: var(--p-light);
+}
+
+/* ---- 4. Item cards ---- */
+.itemGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.itemCard {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 14px;
+  border-radius: 20px;
+  background: var(--p-item);
+  color: inherit;
+  text-decoration: none;
+  scroll-margin: 90px;
+}
+
+.itemCard:focus-visible,
+.itemCard:target {
+  outline: 2px solid var(--p-blue);
+  outline-offset: 2px;
+}
+
+.itemName {
+  overflow: hidden;
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.itemLeft {
+  font-size: 1rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.itemLeft[data-tone='over'] {
+  color: var(--p-red);
+}
+
+.itemOf {
+  margin-bottom: 6px;
+  font-size: 0.6875rem;
+  color: var(--p-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A track dark enough to read on the grey card even at 0%. */
+.itemBar {
+  position: relative;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--p-navy) 14%, var(--p-item));
+}
+
+.itemBar span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 999px;
+  background: var(--p-blue);
+}
+
+.itemBar span[data-tone='over'] {
+  background: var(--p-red);
+}
+
+/* Status never truncates; the category gives way. */
+.itemChips {
+  display: flex;
+  gap: 4px;
+  min-width: 0;
+  margin-top: 8px;
+}
+
+.statusChip,
+.categoryChip {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--p-card);
+  font-size: 0.625rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.statusChip {
+  flex-shrink: 0;
+  color: var(--p-muted);
+  letter-spacing: 0.03em;
+}
+
+.statusChip[data-tone='over'] {
+  background: var(--p-red-tint);
+  color: var(--p-red);
+}
+
+.categoryChip {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--p-muted);
+  text-overflow: ellipsis;
+}
+
+/* ---- 5. Sticky bar ---- */
+.stickyValue {
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.stickyValue[data-size='small'] {
+  font-size: 1.375rem;
+}
+
+/* ---- Narrow screens ---- */
+@media (max-width: 359px) {
+  .itemGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .amountNumber {
+    font-size: 20px;
+  }
+}

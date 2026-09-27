@@ -1,0 +1,108 @@
+/* Transaction details — on top of Planning.module.css. */
+
+.page {
+  padding-bottom: 48px;
+}
+
+.hero {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.amount {
+  margin: 4px 0 0;
+  font-family: var(--font-family-heading);
+  font-size: 2.25rem;
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.amount small {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--p-light);
+}
+
+.amount[data-flow='in'] {
+  color: var(--p-green);
+}
+
+.title {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--p-muted);
+}
+
+.note {
+  margin: 0;
+  padding: 14px 16px;
+  border-radius: 20px;
+  background: var(--p-card);
+  font-size: 0.9375rem;
+  line-height: 1.45;
+}
+
+.linkCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+  padding: 14px 16px;
+  border-radius: 20px;
+  background: var(--p-blue-tint);
+  color: var(--p-blue);
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.options button {
+  min-height: 48px;
+  padding: 10px 14px;
+  border: 2px solid transparent;
+  border-radius: 16px;
+  background: var(--p-card);
+  color: var(--p-navy);
+  font-family: inherit;
+  font-size: 0.9375rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.options button[aria-checked='true'] {
+  border-color: var(--p-navy);
+}
+
+.options button:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.options .unlink {
+  color: var(--p-red);
+  font-weight: 600;
+}
+
+.options button:focus-visible,
+.linkCard:focus-visible {
+  outline: 2px solid var(--p-blue);
+  outline-offset: 2px;
+}
+
+.error {
+  margin: 10px 4px 0;
+  font-size: 0.8125rem;
+  color: var(--p-red);
+}

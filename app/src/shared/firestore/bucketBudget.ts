@@ -26,7 +26,7 @@ import { getFirebaseFirestore } from '@/src/shared/config/firebaseClient';
 import { accountRef, allocationRef, bucketLineItemRef } from './refs';
 import { convert, round2, type CurrencyContext } from './currency';
 import { deleteTransferWithAggregation, writeTransferContribution } from './aggregation';
-import type { AllocationEndpoint, AllocationReason } from './types';
+import type { AllocationEndpoint, AllocationReason, JustificationReason } from './types';
 
 export async function skipItemMonth(uid: string, bucketId: string, itemId: string, month: string) {
   await updateDoc(bucketLineItemRef(uid, bucketId, itemId), {
@@ -85,6 +85,9 @@ export interface CreateAllocationInput {
   // `from.kind === 'savings'` only — the spending wallet that actually paid
   // the overspend, which the real savings withdrawal lands in.
   savingsToAccountId?: string;
+  // `to.kind === 'savings'` only — the wallet a leftover is moved out of
+  // into savings (a real "Wallet to savings" transfer).
+  savingsFromAccountId?: string;
   date?: Date; // the savings withdrawal's own date, defaults to now
 }
 
@@ -110,6 +113,42 @@ export async function createAllocation(uid: string, input: CreateAllocationInput
     createdBy: uid,
     createdAt: serverTimestamp(),
   };
+
+  if (input.to.kind === 'savings') {
+    // A leftover moved to savings really moves: wallet → savings account.
+    const savingsAccountId = input.to.accountId;
+    const fromAccountId = input.savingsFromAccountId;
+    if (!fromAccountId) throw new Error('Choose which wallet the money leaves from.');
+    if (fromAccountId === savingsAccountId) throw new Error('Pick a different wallet than the savings account.');
+    const transferId = crypto.randomUUID();
+    const db = getFirebaseFirestore();
+    await runTransaction(db, async (tx) => {
+      const [fromSnap, toSnap] = await Promise.all([
+        tx.get(accountRef(uid, fromAccountId)),
+        tx.get(accountRef(uid, savingsAccountId)),
+      ]);
+      const walletCurrency = fromSnap.data()?.currency ?? ctx.base;
+      writeTransferContribution(
+        tx,
+        uid,
+        {
+          id: transferId,
+          date: input.date ?? new Date(),
+          description: input.note || 'Leftover moved to savings',
+          fromAccountId,
+          toAccountId: savingsAccountId,
+          amount: round2(convert(input.amount, input.currency, walletCurrency, ctx.rates)),
+          charges: 0,
+          kind: 'Wallet to savings',
+          createdBy: uid,
+        },
+        fromSnap.data(),
+        toSnap.data()
+      );
+      tx.set(allocationRef(uid, id), { ...doc, transferId });
+    });
+    return id;
+  }
 
   if (input.from.kind !== 'savings') {
     await setDoc(allocationRef(uid, id), { ...doc, transferId: null });
@@ -159,4 +198,25 @@ export async function deleteAllocation(uid: string, allocationId: string): Promi
   const transferId = snap.data()?.transferId;
   if (transferId) await deleteTransferWithAggregation(uid, transferId);
   await deleteDoc(allocationRef(uid, allocationId));
+}
+
+/**
+ * Explains (part of) an item's overspend in one month instead of covering
+ * it — FirestoreBucketLineItem.monthJustifications. `amount` is in the
+ * display currency it was entered in. `null` removes the justification.
+ */
+export async function justifyItemMonth(
+  uid: string,
+  bucketId: string,
+  itemId: string,
+  month: string,
+  justification: { reason: JustificationReason; note: string; amount: number; currency: string } | null
+) {
+  await updateDoc(bucketLineItemRef(uid, bucketId, itemId), {
+    [`monthJustifications.${month}`]:
+      justification === null
+        ? deleteField()
+        : { ...justification, amount: round2(justification.amount), at: Timestamp.now() },
+    updatedAt: serverTimestamp(),
+  });
 }

@@ -66,6 +66,7 @@ import type {
   Frequency,
   BucketLineItemSubItem,
   BucketItemLink,
+  FirestoreTransaction,
 } from './types';
 
 function monthKey(date: Date) {
@@ -1783,4 +1784,33 @@ export async function recordRepayment(
   }
 
   return repaymentId;
+}
+
+/**
+ * Links an already-recorded transaction to a bucket item's occurrence (or
+ * unlinks it with `null`) — the Planning History tab's "Assign to bucket".
+ * Everything else about the transaction stays as it is; the same update
+ * path as editing it keeps balances, stats and the item's payments right.
+ */
+export async function assignTransactionToItem(
+  uid: string,
+  transaction: FirestoreTransaction,
+  link: BucketItemLink | null,
+  ctx: CurrencyContext
+): Promise<void> {
+  await updateTransactionWithAggregation(
+    uid,
+    {
+      id: transaction.id,
+      date: transaction.date.toDate(),
+      type: transaction.type,
+      description: transaction.description,
+      accountId: transaction.accountId,
+      categoryId: transaction.categoryId,
+      amount: transaction.amount,
+      direction: transaction.direction,
+      bucketItem: link,
+    },
+    ctx
+  );
 }

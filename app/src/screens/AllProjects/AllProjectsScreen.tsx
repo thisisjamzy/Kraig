@@ -8,6 +8,7 @@ import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { ConfirmDialog } from '@/src/widgets/ConfirmDialog/ConfirmDialog';
 import { SwipeableListItem } from '@/src/widgets/SwipeableListItem/SwipeableListItem';
+import { ListQueryBar, ListQueryEmpty } from '@/src/widgets/ListQuery/ListQueryBar';
 import styles from './AllProjectsScreen.module.css';
 
 // Same short date format ProjectCard's own formatDate uses
@@ -20,7 +21,7 @@ function formatDate(date: Date) {
 
 export function AllProjectsScreen() {
   const strings = useStrings();
-  const { projects, sort, setSort, archiveProject, goBack, loading, error } = useLogic();
+  const { projects, total, fields, list, archiveProject, goBack, loading, error } = useLogic();
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const pendingProject = projects.find((project) => project.id === pendingDeleteId) ?? null;
 
@@ -36,31 +37,25 @@ export function AllProjectsScreen() {
         </Link>
       </header>
 
-      <div className={styles.topRow}>
-        <div className={styles.sortToggle}>
-          <button
-            type="button"
-            className={`${styles.sortToggleButton} ${sort === 'timeline' ? styles.sortToggleButtonActive : ''}`}
-            onClick={() => setSort('timeline')}
-          >
-            Timeline
-          </button>
-          <button
-            type="button"
-            className={`${styles.sortToggleButton} ${sort === 'name' ? styles.sortToggleButtonActive : ''}`}
-            onClick={() => setSort('name')}
-          >
-            Name
-          </button>
-        </div>
-      </div>
+      <ListQueryBar
+        className={styles.toolbarSlot}
+        fields={fields}
+        query={list.query}
+        setQuery={list.setQuery}
+        onClear={list.clear}
+        count={projects.length}
+        noun={['project', 'projects']}
+        stickyTop="calc(var(--space-lg) + env(safe-area-inset-top) + 36px)"
+      />
 
       <ScreenState loading={loading} error={error} />
 
       {!loading && !error && (
         <>
-          {projects.length === 0 ? (
+          {total === 0 ? (
             <p className={styles.emptyText}>{strings.projects.emptyProjectsCarousel}</p>
+          ) : projects.length === 0 ? (
+            <ListQueryEmpty onClear={list.clearFilters} />
           ) : (
             <div className={styles.list}>
               {projects.map((project) => (

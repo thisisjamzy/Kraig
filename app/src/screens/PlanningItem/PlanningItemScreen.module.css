@@ -1,0 +1,78 @@
+/* Item details — extras on top of Planning.module.css. */
+
+.page {
+  padding-bottom: 140px;
+}
+
+.heroBar {
+  margin: 22px 0 8px;
+}
+
+.heroBar > div {
+  height: 10px;
+}
+
+.heroTotal {
+  margin: 0 0 16px;
+  font-size: 0.875rem;
+  color: var(--p-light);
+}
+
+.heroTotal strong {
+  color: var(--p-navy);
+}
+
+.amountForm {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 14px 16px;
+  border-radius: 20px;
+  background: var(--p-card);
+  box-shadow: var(--p-shadow);
+}
+
+.amountForm label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.8125rem;
+  color: var(--p-muted);
+}
+
+.amountForm input {
+  height: 46px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 12px;
+  background: var(--p-item);
+  color: var(--p-navy);
+  font-family: inherit;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.amountActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+}
+
+.error {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--p-red);
+}
+
+.justifiedNote {
+  margin: 10px 4px 0;
+  font-size: 0.8125rem;
+  font-style: italic;
+  color: var(--p-muted);
+}
+
+.move {
+  align-items: center;
+}

@@ -1,10 +1,10 @@
 import type { Metadata } from 'next';
-import { BudgetScreen } from '@/src/screens/Budget/BudgetScreen';
+import { PlanningScreen } from '@/src/screens/Planning/PlanningScreen';
 
 export const metadata: Metadata = {
-  title: 'Budget · Dreda',
+  title: 'Planning · Dreda',
 };
 
 export default function BudgetPage() {
-  return <BudgetScreen />;
+  return <PlanningScreen />;
 }

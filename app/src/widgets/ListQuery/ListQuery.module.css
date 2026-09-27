@@ -1,0 +1,726 @@
+/* Notion-style filter and sort — toolbar, chip row and the menus. Colors
+   come from the screen: --lq-bg (the page background the bar sits on) and
+   --lq-primary, falling back to the app's own tokens. Menus render in a
+   portal, so they use the app-level tokens directly. */
+
+/* ---- Sticky toolbar + chip row ---- */
+.bar {
+  position: sticky;
+  z-index: 12;
+  margin: 0 calc(-1 * var(--lq-gutter, var(--space-lg)));
+  padding: 0 var(--lq-gutter, var(--space-lg));
+  background: var(--lq-bg, var(--color-page));
+  /* The page tokens can be translucent — keep what scrolls under legible. */
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid transparent;
+  transition: border-color 150ms ease;
+}
+
+.bar[data-stuck] {
+  border-bottom-color: var(--color-border);
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 44px;
+}
+
+.count {
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.tools {
+  display: flex;
+  align-items: center;
+}
+
+.tool {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: none;
+  border-radius: 10px;
+  background: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.tool[data-active] {
+  color: var(--lq-primary, var(--color-brand));
+}
+
+.badge {
+  position: absolute;
+  top: 3px;
+  right: 2px;
+  display: grid;
+  place-items: center;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--lq-primary, var(--color-brand));
+  color: #ffffff;
+  font-size: 0.625rem;
+  font-weight: 700;
+}
+
+.searchField {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 4px 0 12px;
+  border-radius: 12px;
+  background: var(--color-background);
+  box-shadow: 0 0 0 1.5px var(--lq-primary, var(--color-brand));
+  color: var(--color-text-secondary);
+  animation: grow 140ms var(--ease-out);
+}
+
+@keyframes grow {
+  from {
+    opacity: 0;
+    transform: scaleX(0.96);
+  }
+}
+
+.searchField input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: 16px;
+}
+
+.chips {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 calc(-1 * var(--lq-gutter, var(--space-lg)));
+  padding: 2px var(--lq-gutter, var(--space-lg)) 10px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.chips::-webkit-scrollbar {
+  display: none;
+}
+
+.chip {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 5px;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--lq-primary, var(--color-brand)) 12%, transparent);
+  color: var(--lq-primary, var(--color-brand));
+  font-family: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.chip[data-empty] {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--lq-primary, var(--color-brand)) 55%, transparent);
+  background: transparent;
+}
+
+.chip[data-missing] {
+  background: color-mix(in srgb, var(--color-danger) 12%, transparent);
+  color: var(--color-danger);
+}
+
+.chipText {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 3px;
+  height: 30px;
+  padding: 0 6px;
+  border: none;
+  background: none;
+  color: var(--color-text-secondary);
+  font-family: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.tool:focus-visible,
+.chip:focus-visible,
+.chipText:focus-visible,
+.iconButtonSmall:focus-visible {
+  outline: 2px solid var(--lq-primary, var(--color-brand));
+  outline-offset: 1px;
+}
+
+/* ---- Popover / bottom sheet ---- */
+.popover {
+  position: fixed;
+  z-index: 90;
+  width: max-content;
+  min-width: 240px;
+  max-width: min(320px, calc(100vw - 16px));
+  max-height: 60dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-radius: 12px;
+  background: var(--color-background);
+  box-shadow:
+    0 0 0 1px var(--color-border),
+    0 12px 32px rgba(27, 27, 57, 0.16);
+  color: var(--color-text-primary);
+  font-family: var(--font-family-body);
+  transform-origin: top left;
+  animation: pop 140ms var(--ease-out);
+}
+
+.popover[data-wide] {
+  width: min(380px, calc(100vw - 16px));
+  max-width: min(380px, calc(100vw - 16px));
+}
+
+:global([data-theme='dark']) .popover {
+  background: var(--color-surface);
+}
+
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+/* Under 360px: the same content as a bottom sheet. */
+.popover[data-sheet] {
+  top: auto;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  width: auto;
+  max-width: none;
+  max-height: 75dvh;
+  padding-bottom: env(safe-area-inset-bottom);
+  border-radius: 18px 18px 0 0;
+  animation: sheet 200ms var(--ease-out);
+}
+
+@keyframes sheet {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+}
+
+.scrim {
+  display: none;
+}
+
+.popover[data-sheet] + .scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 89;
+  display: block;
+  background: rgba(15, 17, 21, 0.35);
+}
+
+/* ---- Menu content ---- */
+.menu {
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+}
+
+.menuSearch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  margin: 2px 2px 6px;
+  padding: 0 10px;
+  border-radius: 9px;
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+}
+
+:global([data-theme='dark']) .menuSearch {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.menuSearch input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: 15px;
+}
+
+.menuList {
+  display: flex;
+  flex-direction: column;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 40px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: inherit;
+  font-family: inherit;
+  font-size: 0.875rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.row:hover,
+.row:focus-visible,
+.row:active {
+  background: var(--color-surface);
+  outline: none;
+}
+
+:global([data-theme='dark']) .row:hover,
+:global([data-theme='dark']) .row:focus-visible {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.row[data-danger],
+.row[data-missing] {
+  color: var(--color-danger);
+}
+
+.rowIcon {
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+}
+
+.row[data-danger] .rowIcon {
+  color: var(--color-danger);
+}
+
+.rowLabel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.menuEmpty,
+.menuNote,
+.missingNote {
+  margin: 6px 10px;
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+}
+
+.missingNote {
+  color: var(--color-danger);
+}
+
+.menuFooter {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--color-border);
+}
+
+/* Filter editor */
+.editorHead,
+.builderHead {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 4px 8px 8px;
+}
+
+.editorField {
+  font-size: 0.875rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.builderHead {
+  justify-content: space-between;
+}
+
+.editorBody {
+  padding: 0 4px 4px;
+}
+
+.dropdown {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  color: var(--color-text-secondary);
+}
+
+.dropdown select {
+  width: 100%;
+  height: 30px;
+  padding: 0 24px 0 8px;
+  border: none;
+  border-radius: 8px;
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: 0.8125rem;
+  appearance: none;
+  cursor: pointer;
+}
+
+:global([data-theme='dark']) .dropdown select {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.dropdown svg {
+  position: absolute;
+  right: 7px;
+  pointer-events: none;
+}
+
+.grow {
+  flex: 1;
+  min-width: 0;
+}
+
+.input,
+.select {
+  width: 100%;
+  height: 38px;
+  padding: 0 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 9px;
+  background: var(--color-background);
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+:global([data-theme='dark']) .input,
+:global([data-theme='dark']) .select {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.input:focus,
+.select:focus,
+.dropdown select:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: -1px;
+}
+
+.inputPair {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.checklist {
+  display: flex;
+  flex-direction: column;
+}
+
+.check {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid var(--color-text-secondary);
+  border-radius: 4px;
+}
+
+.check[data-single] {
+  border-radius: 50%;
+}
+
+.check[data-on] {
+  border-color: var(--color-brand);
+  background: var(--color-brand);
+  box-shadow: inset 0 0 0 2.5px var(--color-background);
+}
+
+.optionChip {
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--oc, var(--color-text-secondary)) 16%, transparent);
+  color: var(--oc, var(--color-text-primary));
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.dateEditor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.presetGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+
+.presetGrid button,
+.customRow button {
+  height: 34px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 8px;
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: 0.8125rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+:global([data-theme='dark']) .presetGrid button,
+:global([data-theme='dark']) .customRow button {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.presetGrid button[aria-pressed='true'],
+.customRow button[aria-pressed='true'] {
+  background: var(--color-brand);
+  color: #ffffff;
+}
+
+.customRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+
+/* "…" menus */
+.dots {
+  position: relative;
+  margin-left: auto;
+}
+
+.iconButtonSmall {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.dotsMenu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  min-width: 210px;
+  padding: 4px;
+  border-radius: 10px;
+  background: var(--color-background);
+  box-shadow:
+    0 0 0 1px var(--color-border),
+    0 10px 24px rgba(27, 27, 57, 0.16);
+}
+
+:global([data-theme='dark']) .dotsMenu {
+  background: var(--color-surface);
+}
+
+/* Sort rows */
+.sortRows {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sortRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px;
+  border-radius: 8px;
+  background: var(--color-background);
+}
+
+.sortRow[data-dragging] {
+  z-index: 1;
+  box-shadow: 0 6px 18px rgba(27, 27, 57, 0.18);
+}
+
+.handle {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 26px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--color-text-secondary);
+  cursor: grab;
+  touch-action: none;
+}
+
+.handle:focus-visible {
+  outline: 2px solid var(--color-brand);
+  border-radius: 6px;
+}
+
+/* Advanced builder */
+.builder {
+  gap: 4px;
+}
+
+.ruleLine {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 10px;
+  background: var(--color-surface);
+}
+
+:global([data-theme='dark']) .ruleLine {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.ruleLine + .ruleLine {
+  margin-top: 6px;
+}
+
+.ruleTop,
+.ruleBottom {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ruleBottom {
+  align-items: flex-start;
+}
+
+.where {
+  flex-shrink: 0;
+  min-width: 44px;
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+}
+
+.groupLabel {
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.nestedGroup {
+  padding: 6px;
+  border: 1px dashed var(--color-border);
+  border-radius: 10px;
+  background: var(--color-background);
+}
+
+.nestedGroup .ruleLine {
+  background: var(--color-surface);
+}
+
+.builderActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 8px 4px 2px;
+}
+
+.textButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--color-text-secondary);
+  font-family: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.textButton[data-danger] {
+  color: var(--color-danger);
+}
+
+/* ---- Empty state ---- */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 28px 16px;
+  text-align: center;
+}
+
+.empty p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+}
+
+.empty button {
+  height: 36px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--lq-primary, var(--color-brand)) 12%, transparent);
+  color: var(--lq-primary, var(--color-brand));
+  font-family: inherit;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .popover,
+  .popover[data-sheet],
+  .searchField {
+    animation: none;
+  }
+
+  .bar {
+    transition: none;
+  }
+}

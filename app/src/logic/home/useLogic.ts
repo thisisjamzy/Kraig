@@ -16,7 +16,7 @@ import { useIsWeb } from '@/src/shared/hooks/useViewportMode';
 import { walletCardColor, walletColor, walletCardNumber, isSavingsAccount } from '@/src/viewmodels/wallets';
 import { currencyName } from '@/src/viewmodels/currencies';
 import { categoryAccentColor } from '@/src/viewmodels/categories';
-import { dueLabel, formatDueDate } from '@/src/logic/paymentsCalendar/useLogic';
+import { dueLabel, formatDueDate } from '@/src/viewmodels/dueDates';
 import type { FirestoreAccount, FirestoreTransaction, FirestoreBucket } from '@/src/shared/firestore/types';
 
 // Analytics now owns Quarter/Year (src/logic/statistics/useLogic.ts) — Home

@@ -480,8 +480,23 @@ export interface FirestoreBucketLineItem {
   // src/shared/budget/monthBudget.ts's itemOccurrence, never directly.
   excludedMonths?: string[];
   monthOverrides?: Record<string, { amount: number }>;
+  // An overspend explained rather than (or as well as) covered — per month,
+  // the part of that month's overspend the household accepted, and why.
+  // Written by the Planning "Cover or justify" flow
+  // (src/shared/firestore/bucketBudget.ts's justifyItemMonth).
+  monthJustifications?: Record<string, ItemJustification>;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
+}
+
+export type JustificationReason = 'unexpected cost' | 'price increase' | 'emergency' | 'underestimated' | 'other';
+
+export interface ItemJustification {
+  reason: JustificationReason;
+  note: string;
+  amount: number; // in the display currency it was entered in
+  currency: string;
+  at: Timestamp;
 }
 
 export interface BucketLineItemSubItem {

@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { User, Bell } from 'lucide-react';
 import { hasAppHeader } from '@/src/shared/config/chromeVisibility';
+import { useCurrentAppBarAction } from '@/src/shared/appBar/appBarAction';
 import { Logo } from '@/src/widgets/Logo/Logo';
 import styles from './AppHeader.module.css';
 
@@ -18,6 +19,8 @@ import styles from './AppHeader.module.css';
 // (useSwipeModeSwitch) both hub screens already support.
 export function AppHeader() {
   const pathname = usePathname();
+  // A page's own action (Planning's per-tab one), shown before the bell.
+  const action = useCurrentAppBarAction();
 
   if (!hasAppHeader(pathname)) {
     return null;
@@ -27,6 +30,16 @@ export function AppHeader() {
     <header className={styles.header}>
       <Logo className={styles.logo} />
       <div className={styles.actions}>
+        {action &&
+          (action.href ? (
+            <Link href={action.href} className={styles.iconButton} aria-label={action.label} title={action.label}>
+              <action.icon size={18} strokeWidth={1.75} />
+            </Link>
+          ) : (
+            <button type="button" className={styles.iconButton} onClick={action.onClick} aria-label={action.label} title={action.label}>
+              <action.icon size={18} strokeWidth={1.75} />
+            </button>
+          ))}
         <Link href="/notifications" className={styles.iconButton} aria-label="Notifications">
           <Bell size={18} strokeWidth={1.75} />
         </Link>

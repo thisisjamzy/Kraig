@@ -1,33 +1,23 @@
 'use client';
 
+// The tasks list — its scope comes from the link (today, this week,
+// overdue, all, or an Insights drill-down); the Notion-style toolbar under
+// the header filters, sorts and searches within it.
+
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, Plus } from 'lucide-react';
-import {
-  useLogic,
-  STATUS_FILTERS,
-  STATUS_FILTER_LABEL,
-  PRIORITY_FILTERS,
-  PRIORITY_FILTER_LABEL,
-} from '@/src/logic/tasksList/useLogic';
-import type { TaskStatusFilter, TaskPriorityFilter } from '@/src/logic/tasksList/useLogic';
+import { useLogic } from '@/src/logic/tasksList/useLogic';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { TaskCheckRow } from '@/src/widgets/TaskCheckRow/TaskCheckRow';
+import { ListQueryBar, ListQueryEmpty } from '@/src/widgets/ListQuery/ListQueryBar';
 import styles from './TasksListScreen.module.css';
 
+// Pinned under this screen's own sticky header.
+const STICKY_TOP = 'calc(var(--space-lg) + env(safe-area-inset-top) + 36px)';
+
 export function TasksListScreen() {
-  const {
-    title,
-    tasks,
-    statusFilter,
-    setStatusFilter,
-    priorityFilter,
-    setPriorityFilter,
-    goBack,
-    loading,
-    leftoverCount,
-    movingLeftovers,
-    moveLeftoversToTomorrow,
-  } = useLogic();
+  const { title, tasks, total, fields, list, goBack, loading, leftoverCount, movingLeftovers, moveLeftoversToTomorrow } =
+    useLogic();
   const router = useRouter();
 
   return (
@@ -48,56 +38,37 @@ export function TasksListScreen() {
         </button>
       </header>
 
-      <div className={styles.filterRow}>
-        <select
-          className={styles.filterSelect}
-          value={statusFilter}
-          onChange={(event) => setStatusFilter(event.target.value as TaskStatusFilter)}
-          aria-label="Filter by status"
-        >
-          {STATUS_FILTERS.map((filter) => (
-            <option key={filter} value={filter}>
-              {STATUS_FILTER_LABEL[filter]}
-            </option>
-          ))}
-        </select>
-        <select
-          className={styles.filterSelect}
-          value={priorityFilter}
-          onChange={(event) => setPriorityFilter(event.target.value as TaskPriorityFilter)}
-          aria-label="Filter by priority"
-        >
-          {PRIORITY_FILTERS.map((filter) => (
-            <option key={filter} value={filter}>
-              {PRIORITY_FILTER_LABEL[filter]}
-            </option>
-          ))}
-        </select>
-      </div>
+      <ListQueryBar
+        className={styles.toolbarSlot}
+        fields={fields}
+        query={list.query}
+        setQuery={list.setQuery}
+        onClear={list.clear}
+        count={tasks.length}
+        noun={['task', 'tasks']}
+        stickyTop={STICKY_TOP}
+      />
 
       <ScreenState loading={loading} />
 
       {!loading && leftoverCount > 0 && (
         <button type="button" className={styles.leftovers} onClick={moveLeftoversToTomorrow} disabled={movingLeftovers}>
-          {movingLeftovers
-            ? 'Moving…'
-            : `Move ${leftoverCount} unfinished ${leftoverCount === 1 ? 'task' : 'tasks'} to tomorrow`}
+          {movingLeftovers ? 'Moving…' : `Move ${leftoverCount} unfinished ${leftoverCount === 1 ? 'task' : 'tasks'} to tomorrow`}
         </button>
       )}
 
-      {!loading && (
-        <>
-          {tasks.length === 0 ? (
-            <p className={styles.emptyText}>Nothing here.</p>
-          ) : (
-            <div className={styles.list}>
-              {tasks.map((task) => (
-                <TaskCheckRow key={task.id} task={task} />
-              ))}
-            </div>
-          )}
-        </>
-      )}
+      {!loading &&
+        (total === 0 ? (
+          <p className={styles.emptyText}>Nothing here.</p>
+        ) : tasks.length === 0 ? (
+          <ListQueryEmpty onClear={list.clearFilters} />
+        ) : (
+          <div className={styles.list}>
+            {tasks.map((task) => (
+              <TaskCheckRow key={task.id} task={task} />
+            ))}
+          </div>
+        ))}
     </div>
   );
 }
