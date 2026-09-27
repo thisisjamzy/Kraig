@@ -22,11 +22,16 @@ export function useBucketLineItemsByBucket(buckets: { id: string }[]) {
   const [itemsByBucket, setItemsByBucket] = useState<Record<string, (FirestoreBucketLineItem & { id: string })[]>>({});
   const [loading, setLoading] = useState(true);
   const bucketIdsKey = buckets.map((bucket) => bucket.id).sort().join(',');
+  // Which set of buckets `itemsByBucket` was loaded for — until the effect
+  // below has caught up with a new set, the items aren't settled yet (the
+  // one render in between would otherwise read as "loaded, no items").
+  const [loadedKey, setLoadedKey] = useState<string | null>(null);
 
   useEffect(() => {
     if (!uid || buckets.length === 0) {
       setItemsByBucket({});
       setLoading(false);
+      setLoadedKey(bucketIdsKey);
       return;
     }
     setLoading(true);
@@ -38,12 +43,15 @@ export function useBucketLineItemsByBucket(buckets: { id: string }[]) {
           [bucket.id]: snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<FirestoreBucketLineItem, 'id'>) })),
         }));
         pending = Math.max(0, pending - 1);
-        if (pending === 0) setLoading(false);
+        if (pending === 0) {
+          setLoading(false);
+          setLoadedKey(bucketIdsKey);
+        }
       })
     );
     return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uid, bucketIdsKey]);
 
-  return { itemsByBucket, loading };
+  return { itemsByBucket, loading: loading || loadedKey !== bucketIdsKey };
 }

@@ -90,11 +90,20 @@ interface CollectionState<T> {
 }
 
 export function useFirestoreCollection<T>(q: Query | null): CollectionState<T> {
-  const [state, setState] = useState<CollectionState<T>>({ data: [], loading: true, error: null });
+  // Tagged with the query it answers: on the render where `q` first changes
+  // (auth resolving, a new month), the previous query's result is still in
+  // state until the effect below runs — reporting it as settled would show
+  // one frame of "empty, not loading" (and e.g. "nothing over budget").
+  const [state, setState] = useState<CollectionState<T> & { for: Query | null | undefined }>({
+    data: [],
+    loading: true,
+    error: null,
+    for: undefined,
+  });
 
   useEffect(() => {
     if (!q) {
-      setState({ data: [], loading: false, error: null });
+      setState({ data: [], loading: false, error: null, for: q });
       return;
     }
     setState((current) => ({ ...current, loading: true, error: null }));
@@ -105,14 +114,15 @@ export function useFirestoreCollection<T>(q: Query | null): CollectionState<T> {
           data: snap.docs.map((d) => ({ id: d.id, ...d.data() }) as T),
           loading: false,
           error: null,
+          for: q,
         });
       },
       (error: FirestoreError) => {
-        setState({ data: [], loading: false, error: error.message });
+        setState({ data: [], loading: false, error: error.message, for: q });
       }
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q]);
 
-  return state;
+  return { data: state.data, loading: state.loading || state.for !== q, error: state.error };
 }

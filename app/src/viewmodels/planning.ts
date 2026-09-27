@@ -8,6 +8,7 @@
 // Kept free of Firestore so it's unit-testable (test/planning.test.ts).
 
 import type { BucketGroup, CategoryGroup, ItemMonth } from '../shared/budget/monthBudget';
+import type { OverspendAvoidability, OverspendExternalSource, OverspendReason } from '../shared/firestore/types';
 
 // ---------------------------------------------------------------------------
 // Formatting
@@ -101,6 +102,8 @@ export const LEFTOVER_DAYS = 5;
 
 export type Prompt =
   | { kind: 'over'; amount: number }
+  // Settled (Cover or justify) but part of it was left "not covered yet".
+  | { kind: 'uncovered'; amount: number }
   | { kind: 'justified'; amount: number; reason: string }
   | { kind: 'leftover'; amount: number };
 
@@ -123,14 +126,16 @@ export interface PromptContext {
 export function promptFor(items: ItemMonth[], ctx: PromptContext): Prompt | null {
   const spending = items.filter((i) => i.type !== 'Income');
   if (!spending.length) return null;
-  const over = round2(spending.reduce((s, i) => s + unexplained(i), 0));
-  if (over > 0) return { kind: 'over', amount: over };
-  const justified = spending.filter((i) => i.justified && i.unfunded > 0);
+  const open = spending.filter((i) => unexplained(i) > 0);
+  const over = round2(open.reduce((s, i) => s + unexplained(i), 0));
+  if (over > 0) return { kind: open.every((i) => i.settlement) ? 'uncovered' : 'over', amount: over };
+  // Explained, or settled entirely by moving budget — a grey tag, no action.
+  const justified = spending.filter((i) => (i.justified && i.unfunded > 0) || i.settlement);
   if (justified.length) {
     return {
       kind: 'justified',
       amount: round2(justified.reduce((s, i) => s + i.unfunded, 0)),
-      reason: justified[0].justified!.reason,
+      reason: reasonLabel(justified[0].settlement?.reason ?? justified[0].justified!.reason).toLowerCase(),
     };
   }
   const leftover = round2(spending.reduce((s, i) => s + Math.max(0, i.remaining), 0));
@@ -177,7 +182,7 @@ export function bucketCard(group: BucketGroup, ctx: PromptContext): BucketCard {
   };
 }
 
-const PROMPT_RANK = { over: 0, leftover: 1, justified: 2 } as const;
+const PROMPT_RANK = { over: 0, uncovered: 0, leftover: 1, justified: 2 } as const;
 
 /** Needing action first (over budget, then leftover), then most left. */
 export function sortCards(cards: BucketCard[]): BucketCard[] {
@@ -275,3 +280,52 @@ export function uncovered(needs: Need[], pairs: Pair[]): Need[] {
 }
 
 export const JUSTIFY_REASONS = ['unexpected cost', 'price increase', 'emergency', 'underestimated', 'other'] as const;
+
+// ---------------------------------------------------------------------------
+// Overspend settlements (Cover or justify)
+
+export const OVERSPEND_REASONS: { value: OverspendReason; label: string }[] = [
+  { value: 'unexpected_cost', label: 'Unexpected cost' },
+  { value: 'price_increase', label: 'Price went up' },
+  { value: 'emergency', label: 'Emergency' },
+  { value: 'plan_too_low', label: 'Plan was too low' },
+  { value: 'impulse', label: 'Impulse or unplanned spending' },
+  { value: 'other', label: 'Other' },
+];
+
+export const EXTERNAL_SOURCES: { value: OverspendExternalSource; label: string }[] = [
+  { value: 'savings_outside_plan', label: 'Savings (outside the plan)' },
+  { value: 'loan', label: 'Borrowed / loan' },
+  { value: 'extra_income', label: 'Extra income not in the budget' },
+  { value: 'untracked_cash', label: 'Personal cash not tracked in the budget' },
+  { value: 'unplanned_reallocation', label: 'Money pulled from somewhere without planning' },
+  { value: 'not_covered', label: 'Not covered yet' },
+];
+
+export const AVOIDABILITY: { value: OverspendAvoidability; label: string }[] = [
+  { value: 'avoidable', label: 'Avoidable' },
+  { value: 'partly', label: 'Partly avoidable' },
+  { value: 'unavoidable', label: 'Unavoidable' },
+];
+
+// Legacy item justifications stored the label itself ('price increase').
+const LEGACY_REASON_LABELS: Record<string, string> = {
+  'unexpected cost': 'Unexpected cost',
+  'price increase': 'Price went up',
+  emergency: 'Emergency',
+  underestimated: 'Plan was too low',
+  other: 'Other',
+};
+
+/** Display label for a settlement or legacy justification reason. */
+export function reasonLabel(reason: string): string {
+  return OVERSPEND_REASONS.find((r) => r.value === reason)?.label ?? LEGACY_REASON_LABELS[reason] ?? reason;
+}
+
+export function externalSourceLabel(source: OverspendExternalSource): string {
+  return EXTERNAL_SOURCES.find((s) => s.value === source)?.label ?? source;
+}
+
+export function avoidabilityLabel(value: OverspendAvoidability): string {
+  return AVOIDABILITY.find((a) => a.value === value)?.label ?? value;
+}

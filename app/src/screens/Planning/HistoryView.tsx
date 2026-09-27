@@ -46,6 +46,8 @@ export function HistoryView({
   const totals = {
     in: round2(shown.filter((r) => r.kind === 'transaction' && r.amount > 0).reduce((s, r) => s + r.amount, 0)),
     out: round2(-shown.filter((r) => r.kind === 'transaction' && r.amount < 0).reduce((s, r) => s + r.amount, 0)),
+    // Budget moves are listed but aren't transactions.
+    count: shown.filter((r) => r.kind !== 'adjustment').length,
   };
 
   return (
@@ -74,7 +76,7 @@ export function HistoryView({
         </div>
         <div>
           <span>Transactions</span>
-          <strong>{shown.length}</strong>
+          <strong>{totals.count}</strong>
         </div>
       </section>
 

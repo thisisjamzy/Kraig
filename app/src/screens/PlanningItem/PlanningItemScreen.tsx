@@ -54,7 +54,8 @@ function ItemBody({ it, entry }: { it: ReturnType<typeof useLogic>; entry: ItemM
   const [editingAmount, setEditingAmount] = useState(false);
   const [confirmSkip, setConfirmSkip] = useState(false);
   const income = entry.type === 'Income';
-  const over = prompt?.kind === 'over';
+  // Still needs action: never settled, or settled with part left open.
+  const over = prompt?.kind === 'over' || prompt?.kind === 'uncovered';
   const leftover = prompt?.kind === 'leftover';
   const left = entry.remaining;
   const moved = entry.allocatedIn - entry.allocatedOut;
@@ -99,7 +100,7 @@ function ItemBody({ it, entry }: { it: ReturnType<typeof useLogic>; entry: ItemM
       <p className={p.heroSub}>{monthTitle(month)}</p>
 
       <div className={styles.heroBar}>
-        <Bar spent={entry.actual} planned={entry.available} over={!income && left < 0} />
+        <Bar spent={entry.actual} planned={entry.available} over={over} />
       </div>
       <p className={styles.heroTotal}>
         <strong>{money(entry.actual)}</strong> of {money(entry.available)} {currency} {income ? 'received' : 'spent'}
@@ -144,9 +145,9 @@ function ItemBody({ it, entry }: { it: ReturnType<typeof useLogic>; entry: ItemM
 
       <section className={p.spec}>
         <SpecRow>
-          <SpecCell label="Planned" value={money(entry.planned)} />
+          <SpecCell label="Planned" value={money(entry.available)} />
           <SpecCell label={income ? 'Received' : 'Spent'} value={money(entry.actual)} />
-          <SpecCell label={left < 0 ? 'Over' : 'Left'} value={money(Math.abs(left))} tone={!income && left < 0 ? 'over' : undefined} />
+          <SpecCell label={left < 0 ? 'Over' : 'Left'} value={money(Math.abs(left))} tone={over ? 'over' : undefined} />
         </SpecRow>
         <SpecRow>
           <SpecCell label="Type" value={entry.kind === 'Fixed' ? 'Fixed' : 'Planned'} />
@@ -280,7 +281,7 @@ function ItemBody({ it, entry }: { it: ReturnType<typeof useLogic>; entry: ItemM
       {m.confirmUndoId && (
         <ConfirmDialog
           title="Undo this move?"
-          message="The money goes back where it came from. A savings withdrawal's transfer is removed too."
+          message="The money goes back where it came from (a savings move gets a reversing transfer). A move made while settling an overspend undoes that whole settlement. Nothing is deleted — it stays in the history as reverted."
           confirmLabel="Undo"
           cancelLabel="Keep it"
           onConfirm={() => m.undo(m.confirmUndoId!)}

@@ -317,6 +317,11 @@ a.lineRow:focus-visible {
   font-variant-numeric: tabular-nums;
 }
 
+.itemMoved {
+  color: var(--p-muted);
+  font-weight: 600;
+}
+
 /* A track dark enough to read on the grey card even at 0%. */
 .itemBar {
   position: relative;

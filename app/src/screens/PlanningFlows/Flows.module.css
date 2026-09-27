@@ -1,5 +1,6 @@
 /* The Planning action flows (cover or justify, reallocate) — full pages on
-   top of Planning.module.css's tokens. */
+   top of Planning.module.css's tokens. Cover's own layout lives in
+   Cover.module.css. */
 
 .page {
   padding-bottom: calc(130px + var(--safe-bottom));
@@ -34,191 +35,12 @@
   font-weight: 600;
 }
 
-/* Covered progress */
-.progress {
-  margin-bottom: 18px;
-}
-
-.progressBar {
-  position: relative;
-  height: 8px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: var(--p-red-tint);
-}
-
-.progressCovered {
-  position: absolute;
-  inset: 0 auto 0 0;
-  border-radius: 999px;
-  background: var(--p-blue);
-  transition: width var(--duration-morph) var(--ease-out);
-}
-
-.progressJustified {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  background: repeating-linear-gradient(-45deg, var(--p-light) 0 4px, transparent 4px 8px);
-}
-
-.progressText {
-  display: block;
-  margin-top: 6px;
-  font-size: 0.75rem;
-  color: var(--p-muted);
-  font-variant-numeric: tabular-nums;
-}
-
-/* Large selectable option cards */
-.option {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  margin-top: 10px;
-  padding: 16px;
-  border: 2px solid transparent;
-  border-radius: 22px;
-  background: var(--p-card);
-  box-shadow: var(--p-shadow);
-  color: inherit;
-  font-family: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.option[aria-pressed='true'] {
-  border-color: var(--p-navy);
-}
-
-.option:focus-visible {
-  outline: 2px solid var(--p-blue);
-  outline-offset: 2px;
-}
-
-.optionIcon {
-  display: grid;
-  flex-shrink: 0;
-  place-items: center;
-  width: 42px;
-  height: 42px;
-  border-radius: 14px;
-  background: var(--p-item);
-  color: var(--p-navy);
-}
-
-.optionText {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.optionTitle {
-  font-size: 1rem;
-  font-weight: 700;
-}
-
-.optionSub {
-  font-size: 0.8125rem;
-  color: var(--p-muted);
-}
-
-.optionCheck {
-  display: grid;
-  flex-shrink: 0;
-  place-items: center;
-  width: 24px;
-  height: 24px;
-  border: 2px solid var(--p-light);
-  border-radius: 50%;
-  color: var(--p-btn-text);
-}
-
-.option[aria-pressed='true'] .optionCheck {
-  border-color: var(--p-navy);
-  background: var(--p-navy);
-}
-
 .sources {
   display: flex;
   flex-direction: column;
   gap: 8px;
   margin: 8px 0 4px;
   padding: 4px 4px 4px 8px;
-}
-
-.source {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 12px 12px 14px;
-  border-radius: 18px;
-  background: var(--p-card);
-}
-
-.sourceText {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.sourceName {
-  overflow: hidden;
-  font-size: 0.9375rem;
-  font-weight: 600;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.sourceSub {
-  font-size: 0.75rem;
-  color: var(--p-muted);
-}
-
-.sourceInput {
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-  gap: 2px;
-  padding: 3px;
-  border-radius: 12px;
-  background: var(--p-item);
-}
-
-.sourceInput input {
-  width: 86px;
-  height: 36px;
-  padding: 0 8px;
-  border: none;
-  outline: none;
-  background: transparent;
-  color: var(--p-navy);
-  font-family: inherit;
-  font-size: 16px;
-  font-weight: 700;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-
-.sourceInput button {
-  height: 30px;
-  padding: 0 8px;
-  border: none;
-  border-radius: 9px;
-  background: var(--p-card);
-  color: var(--p-blue);
-  font-family: inherit;
-  font-size: 0.75rem;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.sourceInput:focus-within {
-  box-shadow: 0 0 0 2px var(--p-blue);
 }
 
 .hint {
@@ -247,13 +69,6 @@
   font-size: 16px;
 }
 
-.reasonChips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.reasonChips button,
 .quick button {
   height: 34px;
   padding: 0 14px;
@@ -267,7 +82,6 @@
   cursor: pointer;
 }
 
-.reasonChips button[aria-checked='true'],
 .quick button[aria-pressed='true'] {
   background: var(--p-btn);
   color: var(--p-btn-text);
@@ -423,17 +237,9 @@
   font-weight: 600;
 }
 
-.reasonChips button:focus-visible,
 .quick button:focus-visible,
 .destination:focus-visible,
-.pick:focus-visible,
-.sourceInput button:focus-visible {
+.pick:focus-visible {
   outline: 2px solid var(--p-blue);
   outline-offset: 2px;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .progressCovered {
-    transition: none;
-  }
 }

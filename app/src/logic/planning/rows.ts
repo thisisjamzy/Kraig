@@ -5,13 +5,14 @@ import { toDisplay, type CurrencyContext } from '@/src/shared/firestore/currency
 import type { MonthBudget } from '@/src/shared/budget/monthBudget';
 import type { FirestoreAccount, FirestoreCategory, FirestoreTransaction, FirestoreTransfer } from '@/src/shared/firestore/types';
 
-export type RowType = 'Income' | 'Expense' | 'Savings' | 'Transfer';
+// 'Adjustment': a budget move or overspend settlement — not money in or out.
+export type RowType = 'Income' | 'Expense' | 'Savings' | 'Transfer' | 'Adjustment';
 
 export interface HistoryRow {
   id: string;
-  kind: 'transaction' | 'transfer';
+  kind: 'transaction' | 'transfer' | 'adjustment';
   type: RowType;
-  flow: 'in' | 'out' | 'move';
+  flow: 'in' | 'out' | 'move' | 'adjust';
   name: string;
   note: string;
   method: string;

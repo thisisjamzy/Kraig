@@ -40,6 +40,7 @@ import type {
   FirestoreTask,
   FirestoreReconciliation,
   FirestoreAllocation,
+  FirestoreOverspendJustification,
 } from './types';
 import type { FirestoreAuditReport } from './auditReport';
 
@@ -150,6 +151,14 @@ export function allocationsRef(uid: string): CollectionReference<FirestoreAlloca
 }
 export function allocationRef(uid: string, id: string): DocumentReference<Omit<FirestoreAllocation, 'id'>> {
   return subDoc(uid, 'allocations', id) as DocumentReference<Omit<FirestoreAllocation, 'id'>>;
+}
+
+// Overspend settlements (Cover or justify), see src/shared/firestore/overspend.ts.
+export function overspendJustificationsRef(uid: string): CollectionReference<FirestoreOverspendJustification> {
+  return sub(uid, 'overspendJustifications') as CollectionReference<FirestoreOverspendJustification>;
+}
+export function overspendJustificationRef(uid: string, id: string): DocumentReference<Omit<FirestoreOverspendJustification, 'id'>> {
+  return subDoc(uid, 'overspendJustifications', id) as DocumentReference<Omit<FirestoreOverspendJustification, 'id'>>;
 }
 
 export function areasRef(uid: string): CollectionReference<FirestoreArea> {

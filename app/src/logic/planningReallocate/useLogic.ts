@@ -11,6 +11,7 @@ import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { useMonthBudget } from '@/src/shared/hooks/useMonthBudget';
 import { useGoBack } from '@/src/shared/navigation/useGoBack';
 import { createAllocation } from '@/src/shared/firestore/bucketBudget';
+import { showToast } from '@/src/widgets/Toast/Toast';
 import { addMonths, itemOccurrence } from '@/src/shared/budget/monthBudget';
 import { isSavingsAccount } from '@/src/viewmodels/wallets';
 import { monthOf, monthTitle, money, takeFrom, unexplained, type Need } from '@/src/viewmodels/planning';
@@ -65,6 +66,7 @@ export function useLogic() {
   const [savingsId, setSavingsId] = useState('');
   const [walletId, setWalletId] = useState('');
   const [amountString, setAmountString] = useState('');
+  const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -115,7 +117,7 @@ export function useLogic() {
               amount: give.amount,
               currency: ctx.display,
               reason: 'reallocate_leftover',
-              note: '',
+              note: note.trim(),
             },
             ctx
           );
@@ -129,7 +131,7 @@ export function useLogic() {
               amount: give.amount,
               currency: ctx.display,
               reason: 'reallocate_leftover',
-              note: `Leftover from ${from.name}`,
+              note: note.trim() || `Leftover from ${from.name}`,
               savingsFromAccountId: wallet.id,
             },
             ctx
@@ -144,12 +146,13 @@ export function useLogic() {
               amount: give.amount,
               currency: ctx.display,
               reason: 'reallocate_leftover',
-              note: '',
+              note: note.trim(),
             },
             ctx
           );
         }
       }
+      showToast('Money moved.');
       goBack();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not move that money.');
@@ -173,6 +176,8 @@ export function useLogic() {
     nextTotal,
     destination,
     setDestination,
+    note,
+    setNote,
     targets,
     target,
     setTargetKey,

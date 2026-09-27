@@ -188,6 +188,73 @@ export interface FirestoreAllocation {
   note: string;
   createdBy: string;
   createdAt?: Timestamp;
+  // The overspend settlement this move was part of (Cover or justify), or
+  // absent for a plain move (a reallocated leftover).
+  justificationId?: string | null;
+  // Undone — never deleted, so the history keeps every move. A reverted
+  // allocation no longer counts toward any figure (monthBudget.ts).
+  revertedAt?: Timestamp | null;
+  // A savings-funded move's own reversing transfer, written on undo.
+  reverseTransferId?: string | null;
+}
+
+// ---------------------------------------------------------------------------
+// Overspend settlements ("Cover or justify") — one record per settlement:
+// how an overspend was paid for, why it happened, and whether it was
+// noticed at the time. The money moves themselves are allocations
+// (FirestoreAllocation.justificationId points back here); the original
+// transactions and planned amounts are never edited.
+
+export type OverspendReason = 'unexpected_cost' | 'price_increase' | 'emergency' | 'plan_too_low' | 'impulse' | 'other';
+
+// How the part NOT covered by moving budget was paid for. `not_covered`
+// leaves that amount open: the bucket stays flagged until it's resolved.
+export type OverspendExternalSource =
+  | 'savings_outside_plan'
+  | 'loan'
+  | 'extra_income'
+  | 'untracked_cash'
+  | 'unplanned_reallocation'
+  | 'not_covered';
+
+export type OverspendAwareness = 'conscious' | 'discovered_later';
+export type OverspendAvoidability = 'avoidable' | 'partly' | 'unavoidable';
+
+export interface OverspendItemShare {
+  itemId: string;
+  overspend: number; // what this item needed at the time of settling
+  covered: number; // by the settlement's allocations
+  external: number; // by externalSources other than not_covered
+  uncovered: number; // left open (not_covered)
+}
+
+export interface FirestoreOverspendJustification {
+  id: string;
+  month: string;
+  bucketId: string;
+  itemId: string | null; // null when the whole bucket was settled at once
+  currency: string; // the display currency every amount here is in
+  overspendAmount: number;
+  coveredByAdjustments: number;
+  externalSources: { source: OverspendExternalSource; amount: number }[];
+  uncoveredAmount: number;
+  // The same settlement split per overspent item — what the month budget
+  // actually applies (a bucket-level settlement spans several items).
+  items: OverspendItemShare[];
+  adjustmentIds: string[];
+  reason: OverspendReason;
+  awareness: OverspendAwareness;
+  noticedOn: Timestamp | null;
+  avoidability: OverspendAvoidability;
+  note: string;
+  attachments: string[];
+  status: 'settled' | 'partially_settled' | 'reverted';
+  // Settles what an earlier partially settled record left uncovered.
+  followsUp: string[];
+  createdBy: string;
+  createdAt?: Timestamp;
+  updatedAt?: Timestamp;
+  revertedAt?: Timestamp | null;
 }
 
 export type AllocationReason = 'reallocate_leftover' | 'cover_overspend' | 'borrow_next_month' | 'return_to_pool';
@@ -714,7 +781,7 @@ export interface FirestoreProject {
   // Optional — a project can belong directly to an area with no bucket.
   // When set, areaId above is always that bucket's own areaId (the create/
   // edit screens enforce this; a bucket never gets picked without pulling
-  // its area along, see src/logic/createProject/useLogic.ts).
+  // its area along, see src/logic/projectForm/useLogic.ts).
   bucketId: string | null;
   color: string;
   priority: Priority;
