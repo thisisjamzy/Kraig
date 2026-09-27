@@ -337,6 +337,14 @@ export interface FirestorePlannedPayment {
   updatedAt?: Timestamp;
 }
 
+// settings/finance — the finance Insights page's own settings: the savings
+// target and the forecast's "what if" items (one-off future income or
+// expenses the household expects).
+export interface FirestoreFinanceSettings {
+  savingsTarget?: number; // 0.2 = 20%
+  forecastItems?: { id: string; name: string; month: string; kind: 'income' | 'expense'; amount: number }[];
+}
+
 export interface FirestoreSettings {
   defaultCurrency: string;
   displayCurrency: string;
@@ -404,6 +412,10 @@ export interface FirestoreBucket {
   // for back-compat with a bucket written before this field existed; every
   // read defaults it to 'Expense'.
   type?: 'Expense' | 'Income' | 'Savings' | 'Transfer';
+  // "YYYY-MM" → closed for that month: the household is done with this
+  // bucket then. Its items count as closed (leftover can be moved on, no
+  // more payments expected), with an optional note on how it went.
+  closedMonths?: Record<string, { at: Timestamp | null; note: string }>;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 }

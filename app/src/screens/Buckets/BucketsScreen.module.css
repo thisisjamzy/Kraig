@@ -325,162 +325,6 @@
   color: #ffffff;
 }
 
-/* Explore — a plain vertical list, one row per bucket (Design/Buckets App's
-   own Explore section: label, sublabel, chevron), not the old horizontally
-   scrolling progress-bar cards. */
-.exploreList {
-  display: flex;
-  flex-direction: column;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-}
-
-.exploreRow {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  width: 100%;
-  padding: var(--space-md);
-  border: none;
-  border-bottom: 1px solid var(--color-border);
-  background: var(--color-background);
-  font-family: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.exploreRow:last-child {
-  border-bottom: none;
-}
-
-/* Top line — avatar, name, then the bucket's type badge sitting right next
-   to the chevron (name's own flex:1 pushes both flush to the row's right
-   edge, same as the amount/progress line below). */
-.exploreRowTop {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-}
-
-/* Bottom line — the amount text and the progress bar + percentage share
-   this row, progress flush to the right same as the badge/chevron above. */
-.exploreRowBottom {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  padding-left: calc(36px + var(--space-sm));
-}
-
-/* One colorful circle per bucket (src/viewmodels/bucketIcons.ts) — a stable
-   tint (same "icon on a colored circle" language iconTint already
-   establishes elsewhere in the app) with the bucket name's first letter
-   centered in it, monogram-avatar style. */
-.exploreRowIcon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  flex-shrink: 0;
-  border-radius: 50%;
-  font-size: 0.875rem;
-  font-weight: 800;
-  color: var(--color-text-primary);
-}
-
-.exploreRowName {
-  flex: 1;
-  min-width: 0;
-  font-size: var(--font-size-sm);
-  font-weight: 700;
-  color: var(--color-text-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* Tiny badge naming the bucket's type — sits right next to the chevron on
-   the row's top line. */
-.typeBadge {
-  flex-shrink: 0;
-  padding: 2px 6px;
-  border-radius: var(--radius-sm);
-  font-size: 0.625rem;
-  font-weight: 800;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-}
-
-.typeBadgeExpense {
-  background: color-mix(in srgb, var(--color-danger) 14%, transparent);
-  color: var(--color-danger);
-}
-
-.typeBadgeIncome {
-  background: color-mix(in srgb, var(--color-brand) 14%, transparent);
-  color: var(--color-brand);
-}
-
-.typeBadgeSavings {
-  background: color-mix(in srgb, #e8a33d 18%, transparent);
-  color: #b6791f;
-}
-
-.typeBadgeTransfer {
-  background: var(--color-surface);
-  color: var(--color-text-secondary);
-}
-
-.exploreRowAmount {
-  flex: 1;
-  min-width: 0;
-  font-size: 0.75rem;
-  color: var(--color-text-secondary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* Progress bar + its own percentage, flush to the row's right edge on the
-   bottom line — mirrors the badge/chevron pairing on the top line. */
-.exploreRowProgress {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-}
-
-.exploreRowProgressTrack {
-  flex-shrink: 0;
-  width: 40px;
-  height: 5px;
-  border-radius: var(--radius-full);
-  background: var(--color-surface);
-  overflow: hidden;
-}
-
-.exploreRowProgressFill {
-  height: 100%;
-  border-radius: inherit;
-  background: var(--color-brand);
-}
-
-.exploreRowPercent {
-  flex-shrink: 0;
-  min-width: 2.25em;
-  font-size: 0.6875rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  color: var(--color-text-secondary);
-  text-align: right;
-}
-
-.exploreRowChevron {
-  flex-shrink: 0;
-  color: var(--color-text-secondary);
-}
-
 .addButton {
   display: flex;
   align-items: center;
@@ -552,4 +396,27 @@
 .monthOptionActive {
   background: var(--ink-bg);
   color: #ffffff;
+}
+
+/* Way back to archived buckets (they can be reopened from there). */
+.archivedLink {
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 var(--space-md);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* The bucket cards (Planning's own BucketCardView). */
+.cardList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  color: var(--p-navy);
+  font-family: var(--font-family-body);
 }

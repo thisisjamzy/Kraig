@@ -23,6 +23,7 @@ import { currentMonthIndex, currentYear } from '@/src/viewmodels/budget';
 import { DEFAULT_PRIORITY, DEFAULT_NECESSITY } from '@/src/viewmodels/projects';
 import { categoryAccentColor } from '@/src/viewmodels/categories';
 import type { FirestoreBucket } from '@/src/shared/firestore/types';
+import { bucketCard, type BucketCard } from '@/src/viewmodels/planning';
 
 export type BucketKindFilter = 'All' | 'Fixed' | 'Variable';
 export type ProportionsMode = 'priority' | 'type' | 'category';
@@ -170,6 +171,31 @@ export function useLogic() {
   );
   // The hero card's Income-mode denominator — "% of projected income".
   const monthPlannedIncome = viewedMonthBudget.plannedIncome;
+
+  // The list's cards — Planning's own bucket card for the viewed month, so
+  // this page and the Budget tab show (and open) exactly the same thing. A
+  // bucket with nothing planned that month still gets an empty card.
+  const cards = useMemo(() => {
+    const today = new Date();
+    const groups = new Map(viewedMonthBudget.buckets.map((g) => [g.bucketId, g]));
+    return buckets.map((b): BucketCard => {
+      const group = groups.get(b.id);
+      if (group) return bucketCard(group, { month: viewedMonthStr, today });
+      return {
+        id: b.id,
+        name: b.name,
+        archived: false,
+        income: b.type === 'Income',
+        itemCount: 0,
+        spent: 0,
+        planned: 0,
+        available: 0,
+        overflow: 0,
+        prompt: null,
+        items: [],
+      };
+    });
+  }, [buckets, viewedMonthBudget, viewedMonthStr]);
 
 
   // Same frozen-funds-availability check bucketDetail/useLogic.ts runs for one
@@ -446,6 +472,8 @@ export function useLogic() {
   return {
     currency,
     buckets,
+    cards,
+    viewedMonth: viewedMonthStr,
     allBucketsCount: allBuckets.length,
     kindFilter,
     setKindFilter,

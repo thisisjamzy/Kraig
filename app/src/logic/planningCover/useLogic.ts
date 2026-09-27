@@ -30,6 +30,7 @@ import {
   monthOf,
   pairUp,
   reasonLabel,
+  takeFrom,
   unexplained,
   type Need,
 } from '@/src/viewmodels/planning';
@@ -141,15 +142,31 @@ export function useLogic() {
     const payments = loading ? [] : monthPayments(month, data, categories).filter((p) => p.status !== 'paid');
     const none = { count: 0, total: 0, amounts: [] as number[], next: null as Date | null };
     const out: CoverSource[] = [];
+    // Other buckets' items with money to spare — each bucket only up to its
+    // NET leftover (a sibling over its estimate uses some of it). This
+    // bucket's own items aren't offered: their leftover already counts
+    // against the overspend (monthBudget.ts nets them).
+    const spare = new Map<string, number>();
+    for (const g of budget.buckets) {
+      if (g.bucketId === bucketId || g.archived) continue;
+      const net = Math.max(0, r2(g.items.filter((i) => i.type !== 'Income').reduce((s, i) => s + i.remaining, 0)));
+      for (const pot of takeFrom(
+        g.items.filter((i) => i.type !== 'Income' && i.remaining > 0).sort((a, b) => b.remaining - a.remaining).map((i) => ({ key: i.key, amount: i.remaining })),
+        net
+      )) {
+        spare.set(pot.key, pot.amount);
+      }
+    }
     for (const item of budget.items) {
-      if (item.type === 'Income' || targetKeys.has(item.key) || item.remaining <= 0) continue;
+      const available = spare.get(item.key) ?? 0;
+      if (targetKeys.has(item.key) || available <= 0) continue;
       const mine = payments.filter((p) => p.itemId === item.itemId).sort((a, b) => a.due.getTime() - b.due.getTime());
       out.push({
         id: `item:${item.key}`,
         kind: 'item',
         name: item.name,
         sub: item.bucketName,
-        available: item.remaining,
+        available,
         sameBucket: item.bucketId === bucketId,
         item,
         accountId: null,

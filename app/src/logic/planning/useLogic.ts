@@ -17,10 +17,12 @@ interface UrlState {
   tab: PlanningTab;
   month: string;
   bucket: string | null;
+  // History only: a category filter (?category=), e.g. from Insights.
+  category: string | null;
 }
 
 function fromUrl(defaultTab: PlanningTab): UrlState {
-  const fallback = { tab: defaultTab, month: monthOf(new Date()), bucket: null };
+  const fallback = { tab: defaultTab, month: monthOf(new Date()), bucket: null, category: null };
   if (typeof window === 'undefined') return fallback;
   const params = new URLSearchParams(window.location.search);
   const tab = params.get('tab');
@@ -36,6 +38,7 @@ function fromUrl(defaultTab: PlanningTab): UrlState {
     tab: TABS.includes(tab as PlanningTab) ? (tab as PlanningTab) : defaultTab,
     month,
     bucket: params.get('bucket'),
+    category: params.get('category'),
   };
 }
 
@@ -45,6 +48,7 @@ function writeUrl(state: UrlState) {
   if (state.tab !== 'budget') params.set('tab', state.tab);
   params.set('month', state.month);
   if (state.bucket && state.tab !== 'budget') params.set('bucket', state.bucket);
+  if (state.category && state.tab === 'history') params.set('category', state.category);
   window.history.replaceState(window.history.state, '', `${window.location.pathname}?${params.toString()}`);
 }
 
@@ -68,6 +72,8 @@ export function useLogic(defaultTab: PlanningTab = 'budget') {
     // A bucket filter shared by Payments and History (?bucket=).
     bucketFilter: state.bucket,
     setBucketFilter: (bucket: string | null) => update({ bucket }),
+    categoryFilter: state.category,
+    clearFilters: () => update({ bucket: null, category: null }),
     data,
   };
 }

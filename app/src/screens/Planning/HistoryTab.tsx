@@ -14,14 +14,16 @@ export function HistoryTab({
   month,
   data,
   bucket,
-  setBucket,
+  category,
+  onClearFilters,
 }: {
   month: string;
   data: PlanningData;
   bucket: string | null;
-  setBucket: (bucket: string | null) => void;
+  category: string | null;
+  onClearFilters: () => void;
 }) {
-  const { rows, currency, fields, list } = useHistoryTab(month, data, bucket);
+  const { rows, currency, fields, list } = useHistoryTab(month, data, bucket, category);
   return (
     <HistoryView
       rows={rows}
@@ -30,7 +32,7 @@ export function HistoryTab({
       list={list}
       stickyTop={STICKY_TOP}
       emptyText="No transactions recorded this month."
-      onClear={() => setBucket(null)}
+      onClear={onClearFilters}
     />
   );
 }

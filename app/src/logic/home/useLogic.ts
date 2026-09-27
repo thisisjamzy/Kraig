@@ -19,7 +19,7 @@ import { categoryAccentColor } from '@/src/viewmodels/categories';
 import { dueLabel, formatDueDate } from '@/src/viewmodels/dueDates';
 import type { FirestoreAccount, FirestoreTransaction, FirestoreBucket } from '@/src/shared/firestore/types';
 
-// Analytics now owns Quarter/Year (src/logic/statistics/useLogic.ts) — Home
+// Analytics now owns Quarter/Year (the Insights page, src/logic/financeInsights) — Home
 // keeps the shorter-range Week/Month views instead, since those are the
 // ones worth checking in on day to day.
 export type SpendingPeriod = 'week' | 'month';

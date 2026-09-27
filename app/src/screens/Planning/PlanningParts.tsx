@@ -134,7 +134,7 @@ export function HistoryRowView({ row, currency, showDate = false }: { row: Histo
           {money(Math.abs(row.amount))} {currency}
         </span>
         <span className={styles.rowWhen}>
-          {showDate ? dayMonth(row.date) : when(row.date)}
+          {showDate ? dayMonth(row.date) : row.timeKnown === false ? '' : when(row.date)}
         </span>
         {row.bucketName && <span className={styles.chip}>{row.bucketName}</span>}
       </span>

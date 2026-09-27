@@ -51,7 +51,7 @@ const UNJUSTIFIED_PLACEHOLDER = '******';
 const PLACEHOLDER_BREAKDOWN_COLUMNS = 6;
 // Three axis indicators (max, half, zero) — same "at least 3, clearly show
 // distance from zero" bar as every other chart in the app now follows (see
-// src/screens/Statistics/StatisticsScreen.tsx's own AXIS_SCALE).
+// the old Statistics screen's AXIS_SCALE).
 const AXIS_SCALE = [1, 0.5, 0];
 
 // Web dashboard's own Statistics donut — a household with a dozen

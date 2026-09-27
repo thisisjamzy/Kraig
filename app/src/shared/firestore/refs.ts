@@ -26,6 +26,7 @@ import type {
   FirestoreSettings,
   FirestoreTaskTypesSettings,
   FirestoreInsightsSettings,
+  FirestoreFinanceSettings,
   FirestoreExchangeRate,
   FirestoreBucket,
   FirestoreBucketLineItem,
@@ -195,6 +196,10 @@ export function settingsRef(uid: string): DocumentReference<FirestoreSettings> {
 
 export function insightsSettingsRef(uid: string): DocumentReference<FirestoreInsightsSettings> {
   return subDoc(uid, 'settings', 'insights') as DocumentReference<FirestoreInsightsSettings>;
+}
+
+export function financeSettingsRef(uid: string): DocumentReference<FirestoreFinanceSettings> {
+  return subDoc(uid, 'settings', 'finance') as DocumentReference<FirestoreFinanceSettings>;
 }
 
 export function taskTypesRef(uid: string): DocumentReference<FirestoreTaskTypesSettings> {

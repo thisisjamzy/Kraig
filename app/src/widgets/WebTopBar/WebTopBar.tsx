@@ -45,7 +45,7 @@ const QUICK_NAV_ROUTES = [
   { label: 'Budget', href: '/budget' },
   { label: 'Transactions', href: '/transactions' },
   { label: 'Wallets', href: '/wallets' },
-  { label: 'Statistics', href: '/statistics' },
+  { label: 'Insights', href: '/statistics' },
   { label: 'Debts', href: '/debts' },
   { label: 'Buckets', href: '/buckets' },
   { label: 'Payments calendar', href: '/payments' },

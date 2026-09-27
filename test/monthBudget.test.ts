@@ -133,21 +133,29 @@ test('spend linked to a skipped occurrence falls back to unplanned', () => {
   assert.equal(budget.unplannedTotal, 100);
 });
 
+// Groceries lives in its own bucket here: within one bucket, a sibling's
+// leftover already offsets the overspend (see the netting tests below).
+const twoBuckets = [
+  { id: 'b1', name: 'Monthly', currency: 'USD', type: 'Expense' as const, kind: 'Fixed' as const },
+  { id: 'b2', name: 'Food', currency: 'USD', type: 'Expense' as const, kind: 'Fixed' as const },
+];
+
 test('an overspend is unfunded until an allocation covers it', () => {
-  const items = { b1: [item('rent'), item('groceries')] };
+  const items = { b1: [item('rent')], b2: [item('groceries', { goalId: 'b2' })] };
   const transactions = [tx('t1', 130, { bucketItem: { bucketId: 'b1', itemId: 'rent', month: '2026-09' } })];
-  const before = buildMonthBudget(base({ itemsByBucket: items, transactions }));
+  const before = buildMonthBudget(base({ buckets: twoBuckets, itemsByBucket: items, transactions }));
   assert.equal(before.itemsByKey.get('rent@2026-09')!.unfunded, 30);
   assert.equal(before.unfundedTotal, 30);
 
   const covered = buildMonthBudget(
     base({
+      buckets: twoBuckets,
       itemsByBucket: items,
       transactions,
       allocations: [
         allocation(
           'a1',
-          { kind: 'item', bucketId: 'b1', itemId: 'groceries', month: '2026-09' },
+          { kind: 'item', bucketId: 'b2', itemId: 'groceries', month: '2026-09' },
           { kind: 'item', bucketId: 'b1', itemId: 'rent', month: '2026-09' },
           30
         ),
@@ -162,6 +170,69 @@ test('an overspend is unfunded until an allocation covers it', () => {
   assert.equal(groceries.available, 70);
   assert.deepEqual(rent.allocationIds, ['a1']);
   assert.deepEqual(groceries.allocationIds, ['a1']);
+});
+
+test('a bucket is only over when its items together spend more than planned', () => {
+  // Hotel 30 over its own estimate, transport 50 under: the bucket is fine.
+  const items = { b1: [item('hotel'), item('transport')] };
+  const link = (itemId: string) => ({ bucketItem: { bucketId: 'b1', itemId, month: '2026-09' } });
+  const within = buildMonthBudget(base({ itemsByBucket: items, transactions: [tx('t1', 130, link('hotel')), tx('t2', 50, link('transport'))] }));
+  const hotel = within.itemsByKey.get('hotel@2026-09')!;
+  assert.equal(hotel.remaining, -30); // above its estimate…
+  assert.equal(hotel.unfunded, 0); // …but not an overspend
+  assert.equal(within.unfundedTotal, 0);
+
+  // Transport spends 90 too: the bucket is 20 over (230 of 200), all hotel's.
+  const over = buildMonthBudget(base({ itemsByBucket: items, transactions: [tx('t1', 130, link('hotel')), tx('t2', 90, link('transport'))] }));
+  assert.equal(over.itemsByKey.get('hotel@2026-09')!.unfunded, 20);
+  assert.equal(over.itemsByKey.get('transport@2026-09')!.unfunded, 0);
+  assert.equal(over.unfundedTotal, 20);
+});
+
+test("a bucket's net overspend is shared by the items that went over", () => {
+  const items = { b1: [item('a'), item('b'), item('c')] };
+  const link = (itemId: string) => ({ bucketItem: { bucketId: 'b1', itemId, month: '2026-09' } });
+  // a +30 over, b +10 over, c 20 under → the bucket is 20 over.
+  const budget = buildMonthBudget(base({ itemsByBucket: items, transactions: [tx('t1', 130, link('a')), tx('t2', 110, link('b')), tx('t3', 80, link('c'))] }));
+  assert.equal(budget.itemsByKey.get('a@2026-09')!.unfunded, 15);
+  assert.equal(budget.itemsByKey.get('b@2026-09')!.unfunded, 5);
+  assert.equal(budget.unfundedTotal, 20);
+});
+
+test("an archived bucket keeps only what was recorded against it", () => {
+  const buckets = [{ id: 'b1', name: 'Old trip', currency: 'USD', type: 'Expense' as const, kind: 'Fixed' as const, archived: true }];
+  const items = { b1: [item('hotel'), item('taxi')] };
+  const transactions = [tx('t1', 130, { bucketItem: { bucketId: 'b1', itemId: 'hotel', month: '2026-09' } })];
+  const budget = buildMonthBudget(base({ buckets, itemsByBucket: items, transactions }));
+  const hotel = budget.itemsByKey.get('hotel@2026-09')!;
+  assert.equal(hotel.actual, 130); // the payment still counts…
+  assert.equal(hotel.archived, true);
+  assert.equal(hotel.unfunded, 0); // …but it's history, not an overspend to act on
+  assert.equal(budget.itemsByKey.has('taxi@2026-09'), false); // nothing recorded: gone
+  assert.equal(budget.buckets[0].archived, true);
+  assert.equal(budget.unplannedTotal, 0); // not re-counted as unplanned spend
+});
+
+test('before Budgets v2, an unlinked payment of a recurring item counts against it', () => {
+  // Rent (Fixed bucket b1, category food in these fixtures) in August 2026.
+  const items = { b1: [item('rent', { amount: 500 }), item('snacks', { amount: 40 })] };
+  const august = buildMonthBudget(base({ month: '2026-08', itemsByBucket: items, transactions: [tx('t1', 480, { month: '2026-08' })] }));
+  assert.deepEqual(august.itemsByKey.get('rent@2026-08')!.transactionIds, ['t1']); // closest planned amount
+  assert.equal(august.unplannedTotal, 0);
+
+  // From September on, unlinked stays unplanned until it's assigned.
+  const september = buildMonthBudget(base({ month: '2026-09', itemsByBucket: items, transactions: [tx('t1', 480, { month: '2026-09' })] }));
+  assert.deepEqual(september.itemsByKey.get('rent@2026-09')!.transactionIds, []);
+  assert.equal(september.unplannedTotal, 480);
+});
+
+test('closing a bucket for a month closes its items', () => {
+  const buckets = [{ id: 'b1', name: 'Trip', currency: 'USD', type: 'Expense' as const, kind: 'Fixed' as const, closedMonths: { '2026-09': { at: null, note: 'Done' } } }];
+  const budget = buildMonthBudget(base({ buckets, itemsByBucket: { b1: [item('hotel')] } }));
+  assert.equal(budget.itemsByKey.get('hotel@2026-09')!.closed, true);
+  assert.deepEqual(budget.buckets[0].closed, { at: null, note: 'Done' });
+  const other = buildMonthBudget(base({ buckets, month: '2026-10', itemsByBucket: { b1: [item('hotel')] } }));
+  assert.equal(other.itemsByKey.get('hotel@2026-10')!.closed, false);
 });
 
 test('pool = planned income − planned outflow, moved by pool allocations only', () => {

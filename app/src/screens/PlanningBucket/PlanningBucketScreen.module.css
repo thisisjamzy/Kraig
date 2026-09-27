@@ -398,3 +398,32 @@ a.lineRow:focus-visible {
     font-size: 20px;
   }
 }
+
+/* Closed for the month — with the household's note. */
+.closedBanner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: var(--p-item);
+  color: var(--p-muted);
+}
+
+.closedText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  font-size: 0.8125rem;
+}
+
+.closedText strong {
+  color: var(--p-navy);
+}
+
+.closedText span {
+  overflow-wrap: anywhere;
+}

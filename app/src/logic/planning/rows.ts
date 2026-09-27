@@ -1,6 +1,7 @@
 // The History row — one transaction or transfer as the Planning screens
 // show it (History tab, a bucket's latest transactions, an item's payments).
 
+import { recordedAt } from '@/src/shared/time/recordedAt';
 import { toDisplay, type CurrencyContext } from '@/src/shared/firestore/currency';
 import type { MonthBudget } from '@/src/shared/budget/monthBudget';
 import type { FirestoreAccount, FirestoreCategory, FirestoreTransaction, FirestoreTransfer } from '@/src/shared/firestore/types';
@@ -18,7 +19,10 @@ export interface HistoryRow {
   method: string;
   /** Signed for transactions (+ in, − out); plain for transfers. */
   amount: number;
+  /** With the best-known time of day (src/shared/time/recordedAt.ts). */
   date: Date;
+  /** False when only the day is known — no time is shown. */
+  timeKnown?: boolean;
   bucketId: string | null;
   bucketName: string | null;
   /** A transaction that can still be tied to a bucket item. */
@@ -71,7 +75,10 @@ export function buildRows(
       note: t.description,
       method: account.get(t.accountId)?.name ?? '',
       amount: t.direction === 'Inflow' ? value : -value,
-      date: t.date.toDate(),
+      ...(() => {
+        const at = recordedAt(t.date, t.createdAt);
+        return { date: at.date, timeKnown: at.timeKnown };
+      })(),
       bucketId,
       bucketName: bucketId ? bucketName.get(bucketId) ?? null : null,
       assignable: !bucketId && !t.isDebtRepayment && !t.isUnjustifiedAdjustment && Boolean(t.categoryId),
@@ -92,7 +99,10 @@ export function buildRows(
       note: t.description || t.notes || '',
       method: `${account.get(t.fromAccountId)?.name ?? ''} → ${account.get(t.toAccountId)?.name ?? ''}`,
       amount: toDisplay(ctx, t.amount, currency),
-      date: t.date.toDate(),
+      ...(() => {
+        const at = recordedAt(t.date, t.createdAt);
+        return { date: at.date, timeKnown: at.timeKnown };
+      })(),
       bucketId,
       bucketName: bucketId ? bucketName.get(bucketId) ?? null : null,
       assignable: false,

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { ChevronLeft, RotateCcw, Trash2 } from 'lucide-react';
 import { useLogic } from '@/src/logic/archivedBuckets/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
@@ -37,12 +38,13 @@ export function ArchivedBucketsScreen() {
         <div className={styles.list}>
           {buckets.map((bucket) => (
             <div key={bucket.id} className={styles.row}>
-              <div className={styles.rowText}>
+              {/* Opens the bucket — its items and recorded payments are all still there. */}
+              <Link href={`/buckets/${bucket.id}`} className={styles.rowText}>
                 <span className={styles.rowName}>{bucket.name}</span>
                 <span className={styles.rowAmount}>
                   {formatAmount(bucket.total)} {bucket.currency}
                 </span>
-              </div>
+              </Link>
               <div className={styles.rowActions}>
                 <button
                   type="button"

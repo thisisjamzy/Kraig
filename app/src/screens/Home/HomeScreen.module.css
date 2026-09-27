@@ -511,7 +511,7 @@
 
 /* Axis + gridlines — same "3 indicators, clearly shows distance from zero"
    shape every bar/line chart in the app now follows (see
-   src/screens/Statistics/StatisticsScreen.module.css's own barChart* set). */
+   the old Statistics screen's barChart* set). */
 .breakdownRow {
   display: flex;
   align-items: stretch;

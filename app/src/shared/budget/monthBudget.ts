@@ -26,6 +26,16 @@ import type {
 export type BudgetItemType = 'Expense' | 'Income' | 'Savings' | 'Transfer';
 export type BudgetItemStatus = 'under' | 'on' | 'over';
 
+/**
+ * Budgets v2 (explicit bucket-item links on transactions) started in this
+ * month. Before it, transactions were never linked to a budget item, so
+ * they'd all read as unplanned. For those months only, an unlinked
+ * transaction paying a recurring item — same category and type as an item
+ * in a Fixed (recurring) bucket that month — counts against that item
+ * (the one whose planned amount is closest, when there are several).
+ */
+export const BUDGETS_V2_START = '2026-09';
+
 export function monthKeyOf(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 }
@@ -129,7 +139,13 @@ export interface ItemMonth {
   actual: number; // spent (Expense/Savings/Transfer) or received (Income)
   remaining: number; // available - actual
   status: BudgetItemStatus;
-  unfunded: number; // an overspend no allocation has covered yet, >= 0
+  // This item's part of its BUCKET's overspend no allocation has covered
+  // yet, >= 0. A bucket is only over when its spending items together
+  // spend more than planned — an item past its own amount while the
+  // bucket still has room is just a mis-estimate (remaining < 0,
+  // unfunded 0). The bucket's net overspend is shared among its items
+  // that went over, in proportion to how far over each went.
+  unfunded: number;
   // The part of that overspend explained instead ("justified"), and why —
   // FirestoreBucketLineItem.monthJustifications. unfunded − justified.amount
   // is what still needs action.
@@ -138,7 +154,11 @@ export interface ItemMonth {
   // reverted): their ids, and how much of the overspend each left open
   // ("not covered yet") — still counted in unfunded − justified.amount.
   settlement: { ids: string[]; reason: string; open: number; discoveredLater: boolean } | null;
-  // Planned items only — the household marked it closed. Leftover on a
+  // Its bucket is archived — kept only for what was recorded against it
+  // this month; never flagged as needing action.
+  archived: boolean;
+  // Done with: a Planned item marked closed, or any item of a bucket
+  // closed for this month (FirestoreBucket.closedMonths). Leftover on a
   // closed item is money that can be reallocated right now.
   closed: boolean;
   transactionIds: string[];
@@ -166,6 +186,10 @@ export interface BucketGroup {
   actual: number;
   remaining: number;
   items: ItemMonth[];
+  /** Closed for this month, with the household's note. */
+  closed: { at: Date | null; note: string } | null;
+  /** Archived — shown only for what was recorded against it. */
+  archived: boolean;
 }
 
 export interface MonthBudget {
@@ -188,7 +212,10 @@ export interface MonthBudget {
 
 export interface MonthBudgetInput {
   month: string;
-  buckets: Pick<FirestoreBucket, 'id' | 'name' | 'currency' | 'type' | 'kind'>[];
+  // Archived buckets may be passed too: their items then only appear in a
+  // month where something was recorded against them (payments, moves), so
+  // archiving never hides money that was actually spent or received.
+  buckets: (Pick<FirestoreBucket, 'id' | 'name' | 'currency' | 'type' | 'kind' | 'closedMonths'> & { archived?: boolean })[];
   itemsByBucket: Record<string, BudgetItemLike[]>;
   // Every transaction dated in `month` AND every transaction linked to an
   // occurrence in `month` (bucketItem.month) — the two can differ for an
@@ -266,7 +293,8 @@ export function buildMonthBudget(input: MonthBudgetInput): MonthBudget {
         unfunded: 0,
         justified: null,
         settlement: null,
-        closed: kind === 'Planned' && item.completed,
+        archived: Boolean(bucket.archived),
+        closed: (kind === 'Planned' && item.completed) || Boolean(bucket.closedMonths?.[month]),
         transactionIds: [],
         transferIds: [],
         allocationIds: [],
@@ -275,6 +303,18 @@ export function buildMonthBudget(input: MonthBudgetInput): MonthBudget {
       itemsByKey.set(entry.key, entry);
       rawItems.set(entry.key, item);
     }
+  }
+
+  // Pre-Budgets-v2 months: the recurring item an unlinked transaction paid.
+  function recurringMatch(t: MonthBudgetInput['transactions'][number], amount: number): ItemMonth | undefined {
+    if (!t.categoryId) return undefined;
+    const type = t.type === 'Income' ? 'Income' : t.type === 'Savings' ? 'Savings' : 'Expense';
+    let best: ItemMonth | undefined;
+    for (const entry of items) {
+      if (entry.kind !== 'Fixed' || entry.archived || entry.categoryId !== t.categoryId || entry.type !== type) continue;
+      if (!best || Math.abs(entry.planned - amount) < Math.abs(best.planned - amount)) best = entry;
+    }
+    return best;
   }
 
   // Linked spend, plus category-only (unplanned) spend by category.
@@ -288,7 +328,8 @@ export function buildMonthBudget(input: MonthBudgetInput): MonthBudget {
     seenTransactions.add(t.id);
     const amount = toDisplay(progressOf(t.type, t.direction, t.amount), accountCurrency.get(t.accountId) ?? baseCurrency);
     const link = resolveLink(t, legacyLinks);
-    const linkedEntry = link && link.month === month ? itemsByKey.get(itemMonthKey(link.itemId, month)) : undefined;
+    let linkedEntry = link && link.month === month ? itemsByKey.get(itemMonthKey(link.itemId, month)) : undefined;
+    if (!link && t.month === month && month < BUDGETS_V2_START) linkedEntry = recurringMatch(t, amount);
     if (linkedEntry) {
       linkedEntry.actual += amount;
       linkedEntry.transactionIds.push(t.id);
@@ -347,6 +388,15 @@ export function buildMonthBudget(input: MonthBudgetInput): MonthBudget {
     }
   }
 
+  // An archived bucket's items stay only where something was recorded.
+  for (let i = items.length - 1; i >= 0; i--) {
+    const entry = items[i];
+    if (!entry.archived) continue;
+    if (entry.transactionIds.length || entry.transferIds.length || entry.allocationIds.length) continue;
+    items.splice(i, 1);
+    itemsByKey.delete(entry.key);
+  }
+
   // Settlements: the part of an overspend paid for outside the plan
   // (savings, a loan, extra income, ...) is explained; a "not covered yet"
   // part stays open.
@@ -377,27 +427,50 @@ export function buildMonthBudget(input: MonthBudgetInput): MonthBudget {
     // an overspend, and there's nothing to "fund".
     if (entry.type === 'Income') {
       entry.status = entry.actual > entry.available ? 'over' : entry.actual === entry.available ? 'on' : 'under';
-      entry.unfunded = 0;
     } else {
       entry.status = entry.remaining > 0 ? 'under' : entry.remaining === 0 ? 'on' : 'over';
-      entry.unfunded = round2(Math.max(0, -entry.remaining));
-      // Legacy per-item justification (monthJustifications) plus any
-      // settlement's explained part — together, never more than unfunded.
-      const note = rawItems.get(entry.key)?.monthJustifications?.[month];
-      const settlement = settled.get(entry.key);
-      const explained = (note ? input.toDisplay(note.amount, note.currency) : 0) + (settlement?.explained ?? 0);
-      entry.justified =
-        (note || settlement) && entry.unfunded > 0
-          ? {
-              reason: settlement?.reason ?? note!.reason,
-              note: settlement?.note || note?.note || '',
-              amount: round2(Math.min(entry.unfunded, explained)),
-            }
-          : null;
-      entry.settlement = settlement
-        ? { ids: settlement.ids, reason: settlement.reason, open: round2(settlement.open), discoveredLater: settlement.later }
-        : null;
     }
+  }
+
+  // A bucket is over only when its spending items TOGETHER spent more than
+  // planned: leftover on one item covers another's overspend. The net
+  // overspend is shared among the items that went over.
+  const spendingByBucket = new Map<string, ItemMonth[]>();
+  for (const entry of items) {
+    if (entry.type === 'Income' || entry.archived) continue;
+    spendingByBucket.set(entry.bucketId, [...(spendingByBucket.get(entry.bucketId) ?? []), entry]);
+  }
+  for (const list of spendingByBucket.values()) {
+    const net = round2(-list.reduce((total, entry) => total + entry.remaining, 0));
+    const overs = list.filter((entry) => entry.remaining < 0);
+    const totalOver = overs.reduce((total, entry) => total - entry.remaining, 0);
+    if (net <= 0 || totalOver <= 0) continue;
+    let assigned = 0;
+    overs.forEach((entry, index) => {
+      const share = index === overs.length - 1 ? round2(net - assigned) : round2((-entry.remaining / totalOver) * net);
+      entry.unfunded = share;
+      assigned = round2(assigned + share);
+    });
+  }
+
+  for (const entry of items) {
+    if (entry.type === 'Income') continue;
+    // Legacy per-item justification (monthJustifications) plus any
+    // settlement's explained part — together, never more than unfunded.
+    const note = rawItems.get(entry.key)?.monthJustifications?.[month];
+    const settlement = settled.get(entry.key);
+    const explained = (note ? input.toDisplay(note.amount, note.currency) : 0) + (settlement?.explained ?? 0);
+    entry.justified =
+      (note || settlement) && entry.unfunded > 0
+        ? {
+            reason: settlement?.reason ?? note!.reason,
+            note: settlement?.note || note?.note || '',
+            amount: round2(Math.min(entry.unfunded, explained)),
+          }
+        : null;
+    entry.settlement = settlement
+      ? { ids: settlement.ids, reason: settlement.reason, open: round2(settlement.open), discoveredLater: settlement.later }
+      : null;
   }
 
   // Category lens — read-only groups over the items, plus unplanned spend.
@@ -438,7 +511,18 @@ export function buildMonthBudget(input: MonthBudgetInput): MonthBudget {
   for (const entry of items) {
     let group = bucketGroups.get(entry.bucketId);
     if (!group) {
-      group = { bucketId: entry.bucketId, name: entry.bucketName, planned: 0, available: 0, actual: 0, remaining: 0, items: [] };
+      const closed = bucketById.get(entry.bucketId)?.closedMonths?.[month];
+      group = {
+        bucketId: entry.bucketId,
+        name: entry.bucketName,
+        planned: 0,
+        available: 0,
+        actual: 0,
+        remaining: 0,
+        items: [],
+        closed: closed ? { at: closed.at?.toDate() ?? null, note: closed.note ?? '' } : null,
+        archived: entry.archived,
+      };
       bucketGroups.set(entry.bucketId, group);
     }
     group.items.push(entry);
