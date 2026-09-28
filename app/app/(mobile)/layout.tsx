@@ -13,9 +13,13 @@ import { ActualTimePrompt } from '@/src/widgets/ActualTimePrompt/ActualTimePromp
 import { InsightsNotifier } from '@/src/shared/insights/InsightsNotifier';
 import { CalendarSyncRunner } from '@/src/shared/calendarSync/CalendarSyncRunner';
 import { useLayout } from '@/src/shared/hooks/useLayout';
-import { AppShell } from '@/src/widgets/AppShell/AppShell';
+import dynamic from 'next/dynamic';
 import { PanelHost } from '@/src/widgets/AppShell/PanelHost';
 import styles from './layout.module.css';
+
+// Medium screens and up only — its own chunk, so phones never download the
+// drawer, top bar or page templates.
+const AppShell = dynamic(() => import('@/src/widgets/AppShell/AppShell').then((m) => m.AppShell), { ssr: false });
 
 // Two shells, chosen by device class (useLayout):
 //   - compact (phones, under 768px): AppHeader, the bottom navs and the

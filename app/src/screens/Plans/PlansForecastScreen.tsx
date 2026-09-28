@@ -16,10 +16,19 @@ import { monthKey, monthLabel, remaining, shiftMonth } from '@/src/viewmodels/pl
 import type { Scenario } from '@/src/viewmodels/plans/forecast';
 import { AXIS_TICK, COLORS, Card, Chip, Figure, Legend, STATUS_TEXT, STATUS_TONE, Segmented, TooltipBox, Visual, compact, full, monthShort } from './parts';
 import styles from './Plans.module.css';
+import { Fragment, type ReactNode } from 'react';
+import { useHasTopBar } from '@/src/widgets/AppShell/TopBarSlot';
+import { GridCard, PageGrid, type CardSize } from '@/src/widgets/Layout/PageGrid';
 
 export function PlansForecastScreen() {
   const v = useLogic();
   const [howOpen, setHowOpen] = useState(false);
+  // Medium screens and up: the cards on the dashboard grid (affordability
+  // XL beside the schedule, month by month and set-aside side by side,
+  // what-if full width). Plain fragments on a phone.
+  const inShell = useHasTopBar();
+  const Grid = inShell ? PageGrid : Fragment;
+
   return (
     <div className={styles.page}>
       <ScreenHeader
@@ -95,12 +104,24 @@ export function PlansForecastScreen() {
             </div>
           )}
           {v.error && <p className={styles.error}>{v.error}</p>}
-          <AffordCard v={v} />
-          <ScheduleCard v={v} />
-          <MonthlyCard v={v} />
-          <SetAsideCard v={v} />
-          <WhatIfCard v={v} />
+          <Grid>
+          <Cell on={inShell} size="XL">
+            <AffordCard v={v} />
+          </Cell>
+          <Cell on={inShell} size="M">
+            <ScheduleCard v={v} />
+          </Cell>
+          <Cell on={inShell} size="L">
+            <MonthlyCard v={v} />
+          </Cell>
+          <Cell on={inShell} size="L">
+            <SetAsideCard v={v} />
+          </Cell>
+          <Cell on={inShell} size="Full">
+            <WhatIfCard v={v} />
+          </Cell>
           {v.tips.length > 0 && (
+            <Cell on={inShell} size="L">
             <Card title="What could help?">
               <ul className={styles.tips}>
                 {v.tips.map((t) => (
@@ -113,11 +134,18 @@ export function PlansForecastScreen() {
                 ))}
               </ul>
             </Card>
+            </Cell>
           )}
+          </Grid>
         </>
       )}
     </div>
   );
+}
+
+/** A dashboard cell on wide screens; nothing extra on a phone. */
+function Cell({ on, size, children }: { on: boolean; size: CardSize; children: ReactNode }) {
+  return on ? <GridCard size={size}>{children}</GridCard> : <>{children}</>;
 }
 
 const name = (m: string) => monthLabel(m, true).split(' ')[0];

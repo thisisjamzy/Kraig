@@ -10,7 +10,10 @@ import { useEffect } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useLayout } from '@/src/shared/hooks/useLayout';
 import { TASK_PARAM, PREFILL_PARAMS, taskPageHref, withoutTaskPanel } from '@/src/shared/navigation/taskPanel';
-import { TaskEditScreen } from '@/src/screens/TaskEdit/TaskEditScreen';
+import dynamic from 'next/dynamic';
+
+// Loaded only when a panel actually opens.
+const TaskEditScreen = dynamic(() => import('@/src/screens/TaskEdit/TaskEditScreen').then((m) => m.TaskEditScreen), { ssr: false });
 
 export function PanelHost() {
   const params = useSearchParams();

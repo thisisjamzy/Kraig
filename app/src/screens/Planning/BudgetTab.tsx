@@ -15,6 +15,9 @@ import { Bar, IconCircle, Pair } from './PlanningParts';
 import { BucketCardView } from './BucketCardView';
 import styles from './Planning.module.css';
 import tab from './PlanningTabs.module.css';
+import { Fragment } from 'react';
+import { useHasTopBar } from '@/src/widgets/AppShell/TopBarSlot';
+import wide from './Planning.wide.module.css';
 
 function SummaryRow({
   label,
@@ -75,8 +78,16 @@ export function BudgetTab({ month, data }: { month: string; data: PlanningData }
       : null;
   const overPlanned = summary.leftToBudget < 0;
 
+  // Medium screens and up: the month's budget summary on the left, the
+  // bucket list beside it. Fragments on a phone.
+  const inShell = useHasTopBar();
+  const Column = inShell ? 'div' : Fragment;
+  const col = (className: string) => (inShell ? { className } : {});
+
   return (
     <>
+      <Column {...col(wide.split)}>
+      <Column {...col(wide.left)}>
       <p className={styles.label}>Total budget</p>
       <section className={tab.summary} aria-label="This month's budget">
         <div className={tab.summaryHead}>
@@ -120,6 +131,8 @@ export function BudgetTab({ month, data }: { month: string; data: PlanningData }
         </Link>
       </section>
 
+      </Column>
+      <Column {...col(wide.right)}>
       <div className={tab.sectionHead}>
         <h2 className={tab.sectionTitle}>{view === 'bucket' ? 'Buckets' : 'Categories'}</h2>
         <div className={tab.sectionTools}>
@@ -176,6 +189,8 @@ export function BudgetTab({ month, data }: { month: string; data: PlanningData }
           ))}
         </div>
       )}
+      </Column>
+      </Column>
     </>
   );
 }

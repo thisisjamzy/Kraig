@@ -13,6 +13,9 @@ import { money, monthTitle, shiftMonth, dayMonth } from '@/src/viewmodels/planni
 import { IconCircle } from './PlanningParts';
 import styles from './Planning.module.css';
 import tab from './PlanningTabs.module.css';
+import { Fragment } from 'react';
+import { useHasTopBar } from '@/src/widgets/AppShell/TopBarSlot';
+import wide from './Planning.wide.module.css';
 
 const WEEKDAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 
@@ -73,6 +76,7 @@ export function PaymentsTab({
   setBucket: (bucket: string | null) => void;
 }) {
   const p = usePaymentsTab(month, data, bucket);
+  const inShell = useHasTopBar();
   const [y, m] = month.split('-').map(Number);
   const first = new Date(y, m - 1, 1);
   const lead = first.getDay();
@@ -84,8 +88,15 @@ export function PaymentsTab({
     ? dayMonth(new Date(`${p.selectedDay}T00:00:00`))
     : null;
 
+  // Medium screens and up: the calendar card on the left, the payments
+  // for the chosen day or month beside it. Fragments on a phone.
+  const Column = inShell ? 'div' : Fragment;
+  const col = (className: string) => (inShell ? { className } : {});
+
   return (
     <>
+      <Column {...col(wide.split)}>
+      <Column {...col(wide.left)}>
       <section className={tab.calendar} aria-label={`Payments in ${monthTitle(month)}`}>
         <header className={tab.calHead}>
           <button type="button" onClick={() => onMonth(shiftMonth(month, -1))} aria-label="Previous month">
@@ -140,6 +151,8 @@ export function PaymentsTab({
           </li>
         </ul>
       </section>
+      </Column>
+      <Column {...col(wide.right)}>
 
       <div className={tab.sectionHead}>
         <h2 className={tab.sectionTitle}>{selectedLabel ? `Payments on ${selectedLabel}` : 'Upcoming payments'}</h2>
@@ -188,6 +201,8 @@ export function PaymentsTab({
           </div>
         </details>
       )}
+      </Column>
+      </Column>
 
       {p.paying && (
         <Modal title="Mark as paid" onClose={p.cancelPaying}>
