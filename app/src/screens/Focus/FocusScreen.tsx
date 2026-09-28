@@ -12,6 +12,7 @@ import { ActionMenu } from '@/src/widgets/ActionMenu/ActionMenu';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import { FocusKanban } from './FocusKanban';
+import { TopBarControls, useHasTopBar } from '@/src/widgets/AppShell/TopBarSlot';
 import styles from './FocusScreen.module.css';
 
 export function FocusScreen() {
@@ -22,10 +23,25 @@ export function FocusScreen() {
  * presentational so it can also be rendered with sample tasks. */
 export function FocusView({ search, setSearch, columns, moveToQuadrant, newTask, loading }: ReturnType<typeof useLogic>) {
   const router = useRouter();
+  // Medium screens and up: the view links, search and "+ New task" move
+  // into the shell's top bar; the page's own header is dropped.
+  const inShell = useHasTopBar();
 
   return (
-    <div className={styles.page}>
-      <ScreenHeader
+    <div className={styles.page} data-shell={inShell || undefined}>
+      {inShell && (
+        <TopBarControls>
+          <button type="button" className={styles.topNew} onClick={() => newTask()}>
+            <Plus size={16} strokeWidth={2.5} aria-hidden />
+            New task
+          </button>
+          <button type="button" className={styles.topLink} onClick={() => router.push('/tasks?filter=all')}>
+            <List size={16} strokeWidth={2.25} aria-hidden />
+            List
+          </button>
+        </TopBarControls>
+      )}
+      {!inShell && <ScreenHeader
         className={styles.header}
         sticky={false}
         large
@@ -67,7 +83,7 @@ export function FocusView({ search, setSearch, columns, moveToQuadrant, newTask,
               <Plus size={18} strokeWidth={2.5} />
             </button>
         }
-      />
+      />}
 
       <ScreenState loading={loading} />
 
@@ -78,6 +94,7 @@ export function FocusView({ search, setSearch, columns, moveToQuadrant, newTask,
           setSearch={setSearch}
           onMove={moveToQuadrant}
           onAdd={(quadrant) => newTask(quadrant)}
+          searchSlot={inShell ? (field) => <TopBarControls>{field}</TopBarControls> : undefined}
         />
       )}
     </div>
