@@ -14,43 +14,23 @@
 // never even mounts a web-shell component; this is what makes the parallel
 // build structurally incapable of regressing the existing mobile UX.
 //
-// Breakpoints come from the app's own already-approved scale
-// (src/styles/tokens/breakpoints.ts), not the numbers in PRD Files/webview
-// — that file's own header comment says to keep every responsive rule
-// aligned to it, and until now nothing actually did.
+// Now derived from useLayout() (device classes at 768 / 1024 / 1440, see
+// src/styles/tokens/breakpoints.ts's deviceBreakpoints). It used to switch
+// at 640px, which put 640–767px windows on the web shell; those now get
+// the phone app, like every other compact width.
 
-import { useSyncExternalStore } from 'react';
-import { breakpoints } from '@/src/styles/tokens/breakpoints';
+import { useLayout } from './useLayout';
 
 export type ViewportMode = 'mobile' | 'tablet' | 'desktop';
 
-function getSnapshot(): ViewportMode {
-  if (window.matchMedia(`(min-width: ${breakpoints.laptop}px)`).matches) return 'desktop';
-  if (window.matchMedia(`(min-width: ${breakpoints.tablet}px)`).matches) return 'tablet';
-  return 'mobile';
-}
-
-function getServerSnapshot(): ViewportMode {
-  return 'mobile';
-}
-
-function subscribe(onStoreChange: () => void): () => void {
-  const tabletQuery = window.matchMedia(`(min-width: ${breakpoints.tablet}px)`);
-  const laptopQuery = window.matchMedia(`(min-width: ${breakpoints.laptop}px)`);
-  tabletQuery.addEventListener('change', onStoreChange);
-  laptopQuery.addEventListener('change', onStoreChange);
-  return () => {
-    tabletQuery.removeEventListener('change', onStoreChange);
-    laptopQuery.removeEventListener('change', onStoreChange);
-  };
-}
-
 export function useViewportMode(): ViewportMode {
-  return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  const { deviceClass } = useLayout();
+  if (deviceClass === 'compact') return 'mobile';
+  return deviceClass === 'medium' ? 'tablet' : 'desktop';
 }
 
 // Convenience for the common case — most call sites only care whether the
-// web shell/layout should be showing at all, not which of its two tiers.
+// web shell/layout should be showing at all, not which of its tiers.
 export function useIsWeb(): boolean {
-  return useViewportMode() !== 'mobile';
+  return useLayout().isWide;
 }

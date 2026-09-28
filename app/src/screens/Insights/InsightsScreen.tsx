@@ -36,6 +36,8 @@ import {
   ProductiveHours,
   RecurringHeatmaps,
 } from './InsightCharts';
+import { TopBarControls, useHasTopBar } from '@/src/widgets/AppShell/TopBarSlot';
+import { GridCard, PageGrid } from '@/src/widgets/Layout/PageGrid';
 import styles from './InsightsScreen.module.css';
 import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 
@@ -64,26 +66,165 @@ export function InsightsView({
   open,
   loading,
 }: ReturnType<typeof useLogic>) {
-  return (
-    <div className={styles.page}>
-      <ScreenHeader
-        sticky={false}
-        large
-        title="Insights"
-        right={
-          <Link href="/settings/insights" className={styles.iconLink} aria-label="Insights settings">
-            <Settings2 size={20} strokeWidth={2} />
-          </Link>
-        }
-      />
-
-      <div className={styles.ranges} role="radiogroup" aria-label="Date range">
-        {RANGES.map((r) => (
-          <button key={r.id} type="button" role="radio" aria-checked={kind === r.id} onClick={() => setKind(r.id)}>
-            {r.label}
-          </button>
+  // Medium screens and up: a dashboard grid (PageGrid), the range and
+  // settings in the top bar, cards in the dashboard's reading order. The
+  // phone keeps its order and markup — each card is built once below.
+  const inShell = useHasTopBar();
+  const ranges = (
+    <div className={styles.ranges} role="radiogroup" aria-label="Date range">
+      {RANGES.map((r) => (
+        <button key={r.id} type="button" role="radio" aria-checked={kind === r.id} onClick={() => setKind(r.id)}>
+          {r.label}
+        </button>
+      ))}
+    </div>
+  );
+  // Alerts most severe first; projects most at risk first.
+  const cards = result && {
+    alerts: (
+      <div className={styles.alerts} data-hscroll="true" aria-label="Alerts">
+        {result.alerts.map((alert) => (
+          <AlertCard key={alert.id} alert={alert} onOpen={() => open(alert.href)} />
         ))}
       </div>
+    ),
+    tiles: (
+      <div className={styles.tiles}>
+        <SummaryTile label="Completion rate" tile={result.tiles.completion} percent onOpen={() => openTasks({ status: 'done', title: 'Completed' })} />
+        <SummaryTile label="On time" tile={result.tiles.onTime} percent onOpen={() => openTasks({ status: 'done', title: 'Completed' })} />
+        <SummaryTile label="Overdue" tile={result.tiles.overdue} onOpen={() => open('/tasks?filter=overdue')} lowerIsBetter />
+        <SummaryTile label="Day streak" tile={result.tiles.streak} suffix={result.tiles.streak.value === 1 ? ' day' : ' days'} />
+      </div>
+    ),
+    trend: (
+      <ChartCard
+        title="Completion trend"
+        takeaway={result.completionTrend.takeaway}
+        empty={result.completionTrend.empty}
+        emptyText="Complete a few tasks to see your trend."
+      >
+        <CompletionTrend
+          data={result.completionTrend.data}
+          kind={kind}
+          target={settings.thresholds.streakPercent}
+          onPickDay={(date) => openTasks({ date })}
+        />
+      </ChartCard>
+    ),
+    planned: (
+      <ChartCard
+        title="Planned vs done"
+        takeaway={result.plannedVsDone.takeaway}
+        empty={result.plannedVsDone.empty}
+        emptyText="Plan a few tasks to compare them with what gets done."
+      >
+        <PlannedVsDone data={result.plannedVsDone.data} kind={kind} onPickDay={(date) => openTasks({ date })} />
+      </ChartCard>
+    ),
+    load: (
+      <ChartCard
+        title="Daily load"
+        takeaway={result.dailyLoad.takeaway}
+        empty={result.dailyLoad.empty}
+        emptyText="Give your tasks a time to see how full your days are."
+      >
+        {kind === 'today' ? (
+          <DayTimeline
+            load={result.dailyLoad.data[0]}
+            workStart={settings.workStart}
+            workEnd={settings.workEnd}
+            onOpen={(id) => open(`/tasks/${id}/edit`)}
+          />
+        ) : (
+          <DailyLoad
+            data={result.dailyLoad.data}
+            kind={kind}
+            capacityHours={settings.capacityHours}
+            onPickDay={(date) => open(`/projects/calendar?date=${toKey(date)}`)}
+          />
+        )}
+      </ChartCard>
+    ),
+    mix: (
+      <ChartCard
+        title="Priority mix"
+        takeaway={result.priorityMix.takeaway}
+        empty={result.priorityMix.empty}
+        emptyText="Plan tasks to see where your time goes."
+      >
+        <PriorityMix mix={result.priorityMix.data} onPick={(quadrant) => openTasks({ quadrant })} />
+      </ChartCard>
+    ),
+    productive: (
+      <ChartCard
+        title="Productive hours"
+        takeaway={result.productiveHours.takeaway}
+        empty={result.productiveHours.empty}
+        emptyText="Complete a few tasks to find your most productive hours."
+      >
+        <ProductiveHours
+          counts={result.productiveHours.data.counts}
+          top={result.productiveHours.data.top}
+          onPickHour={(hour) => openTasks({ hour, status: 'done', title: `Completed around ${String(hour).padStart(2, '0')}:00` })}
+        />
+      </ChartCard>
+    ),
+    recurring: (
+      <ChartCard
+        title="Recurring consistency"
+        takeaway={result.recurring.takeaway}
+        empty={result.recurring.empty}
+        emptyText="Recurring tasks will show here once they are due."
+      >
+        <RecurringHeatmaps series={result.recurring.data} onOpen={(id) => open(`/tasks/${id}/edit`)} />
+      </ChartCard>
+    ),
+    estimate: (
+      <ChartCard
+        title="Estimate accuracy"
+        takeaway={result.estimate.takeaway}
+        empty={result.estimate.empty}
+        emptyText="Finish timed tasks to compare real time with your plans."
+      >
+        <EstimateGauge accuracy={result.estimate.data} />
+      </ChartCard>
+    ),
+    projects: (
+      <section className={styles.projects}>
+        <h2 className={styles.sectionTitle}>Projects</h2>
+        {result.projects.length === 0 ? (
+          <p className={styles.emptyLine}>No active projects. Create one to track its progress here.</p>
+        ) : (
+          result.projects.map((stat) => <ProjectRiskCard key={stat.project.id} stat={stat} />)
+        )}
+      </section>
+    ),
+  };
+
+  return (
+    <div className={styles.page} data-shell={inShell || undefined}>
+      {inShell ? (
+        <TopBarControls>
+          {/* The page's colour tokens, for the ranges up in the top bar. */}
+          <div className={`${styles.topVars} ${styles.topRanges}`}>{ranges}</div>
+          <Link href="/settings/insights" className={styles.iconLink} aria-label="Insights settings" title="Insights settings">
+            <Settings2 size={20} strokeWidth={2} />
+          </Link>
+        </TopBarControls>
+      ) : (
+        <ScreenHeader
+          sticky={false}
+          large
+          title="Insights"
+          right={
+            <Link href="/settings/insights" className={styles.iconLink} aria-label="Insights settings">
+              <Settings2 size={20} strokeWidth={2} />
+            </Link>
+          }
+        />
+      )}
+
+      {!inShell && ranges}
       {kind === 'custom' && custom && (
         <div className={styles.customRange}>
           <label>
@@ -99,124 +240,45 @@ export function InsightsView({
 
       <ScreenState loading={loading} />
 
-      {result && (
+      {cards && !inShell && (
         <>
-          {/* Alerts, most severe first */}
-          <div className={styles.alerts} data-hscroll="true" aria-label="Alerts">
-            {result.alerts.map((alert) => (
-              <AlertCard key={alert.id} alert={alert} onOpen={() => open(alert.href)} />
-            ))}
-          </div>
-
-          {/* Summary */}
-          <div className={styles.tiles}>
-            <SummaryTile label="Completion rate" tile={result.tiles.completion} percent onOpen={() => openTasks({ status: 'done', title: 'Completed' })} />
-            <SummaryTile label="On time" tile={result.tiles.onTime} percent onOpen={() => openTasks({ status: 'done', title: 'Completed' })} />
-            <SummaryTile label="Overdue" tile={result.tiles.overdue} onOpen={() => open('/tasks?filter=overdue')} lowerIsBetter />
-            <SummaryTile label="Day streak" tile={result.tiles.streak} suffix={result.tiles.streak.value === 1 ? ' day' : ' days'} />
-          </div>
-
-          <ChartCard
-            title="Completion trend"
-            takeaway={result.completionTrend.takeaway}
-            empty={result.completionTrend.empty}
-            emptyText="Complete a few tasks to see your trend."
-          >
-            <CompletionTrend
-              data={result.completionTrend.data}
-              kind={kind}
-              target={settings.thresholds.streakPercent}
-              onPickDay={(date) => openTasks({ date })}
-            />
-          </ChartCard>
-
-          <ChartCard
-            title="Planned vs done"
-            takeaway={result.plannedVsDone.takeaway}
-            empty={result.plannedVsDone.empty}
-            emptyText="Plan a few tasks to compare them with what gets done."
-          >
-            <PlannedVsDone data={result.plannedVsDone.data} kind={kind} onPickDay={(date) => openTasks({ date })} />
-          </ChartCard>
-
-          <ChartCard
-            title="Daily load"
-            takeaway={result.dailyLoad.takeaway}
-            empty={result.dailyLoad.empty}
-            emptyText="Give your tasks a time to see how full your days are."
-          >
-            {kind === 'today' ? (
-              <DayTimeline
-                load={result.dailyLoad.data[0]}
-                workStart={settings.workStart}
-                workEnd={settings.workEnd}
-                onOpen={(id) => open(`/tasks/${id}/edit`)}
-              />
-            ) : (
-              <DailyLoad
-                data={result.dailyLoad.data}
-                kind={kind}
-                capacityHours={settings.capacityHours}
-                onPickDay={(date) => open(`/projects/calendar?date=${toKey(date)}`)}
-              />
-            )}
-          </ChartCard>
-
-          <ChartCard
-            title="Priority mix"
-            takeaway={result.priorityMix.takeaway}
-            empty={result.priorityMix.empty}
-            emptyText="Plan tasks to see where your time goes."
-          >
-            <PriorityMix mix={result.priorityMix.data} onPick={(quadrant) => openTasks({ quadrant })} />
-          </ChartCard>
-
-          <ChartCard
-            title="Productive hours"
-            takeaway={result.productiveHours.takeaway}
-            empty={result.productiveHours.empty}
-            emptyText="Complete a few tasks to find your most productive hours."
-          >
-            <ProductiveHours
-              counts={result.productiveHours.data.counts}
-              top={result.productiveHours.data.top}
-              onPickHour={(hour) => openTasks({ hour, status: 'done', title: `Completed around ${String(hour).padStart(2, '0')}:00` })}
-            />
-          </ChartCard>
-
-          <ChartCard
-            title="Recurring consistency"
-            takeaway={result.recurring.takeaway}
-            empty={result.recurring.empty}
-            emptyText="Recurring tasks will show here once they are due."
-          >
-            <RecurringHeatmaps series={result.recurring.data} onOpen={(id) => open(`/tasks/${id}/edit`)} />
-          </ChartCard>
-
-          <ChartCard
-            title="Estimate accuracy"
-            takeaway={result.estimate.takeaway}
-            empty={result.estimate.empty}
-            emptyText="Finish timed tasks to compare real time with your plans."
-          >
-            <EstimateGauge accuracy={result.estimate.data} />
-          </ChartCard>
-
-          {/* Projects, most at risk first */}
-          <section className={styles.projects}>
-            <h2 className={styles.sectionTitle}>Projects</h2>
-            {result.projects.length === 0 ? (
-              <p className={styles.emptyLine}>No active projects. Create one to track its progress here.</p>
-            ) : (
-              result.projects.map((stat) => <ProjectRiskCard key={stat.project.id} stat={stat} />)
-            )}
-          </section>
+          {cards.alerts}
+          {cards.tiles}
+          {cards.trend}
+          {cards.planned}
+          {cards.load}
+          {cards.mix}
+          {cards.productive}
+          {cards.recurring}
+          {cards.estimate}
+          {cards.projects}
 
           <Link href="/projects/analytics" className={styles.moreLink}>
             Area and reschedule stats
             <ChevronRight size={16} strokeWidth={2} aria-hidden />
           </Link>
         </>
+      )}
+
+      {cards && inShell && (
+        <PageGrid>
+          <GridCard size="Full">{cards.alerts}</GridCard>
+          <GridCard size="Full">{cards.tiles}</GridCard>
+          <GridCard size="XL" wideOnMedium>{cards.trend}</GridCard>
+          <GridCard size="M" wideOnMedium>{cards.mix}</GridCard>
+          <GridCard size="L">{cards.load}</GridCard>
+          <GridCard size="L">{cards.productive}</GridCard>
+          <GridCard size="L">{cards.recurring}</GridCard>
+          <GridCard size="L">{cards.projects}</GridCard>
+          <GridCard size="L">{cards.planned}</GridCard>
+          <GridCard size="L">{cards.estimate}</GridCard>
+          <GridCard size="Full">
+            <Link href="/projects/analytics" className={styles.moreLink}>
+              Area and reschedule stats
+              <ChevronRight size={16} strokeWidth={2} aria-hidden />
+            </Link>
+          </GridCard>
+        </PageGrid>
       )}
     </div>
   );

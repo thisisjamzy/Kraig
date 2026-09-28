@@ -1,0 +1,521 @@
+/* Today (medium screens and up only — see TodayScreen.tsx). Light page,
+   white rounded cards, the black month card, brand accents. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---- Top bar controls ---- */
+.dateNav {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+}
+
+.navButton {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.dateLabel {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 10px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+/* The native date picker, invisible over the label — tapping the date
+   opens it. */
+.dateInput {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.todayButton {
+  min-height: 36px;
+  margin-left: 4px;
+  padding: 0 14px;
+  border: none;
+  border-radius: var(--radius-full);
+  background: var(--color-background);
+  color: var(--color-brand);
+  font-family: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.sync {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .sync {
+    display: inline-flex;
+    margin-left: 8px;
+  }
+}
+
+/* ---- Cards ---- */
+.card,
+.stats {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
+  border-radius: var(--radius-lg);
+  background: var(--color-background);
+  box-shadow: 0 1px 2px rgba(27, 27, 57, 0.04), 0 6px 18px rgba(27, 27, 57, 0.05);
+}
+
+@media (min-width: 1024px) {
+  .card,
+  .stats {
+    padding: 24px;
+  }
+}
+
+:global([data-theme='dark']) .card,
+:global([data-theme='dark']) .stats {
+  background: var(--color-surface);
+  box-shadow: none;
+}
+
+/* The progress card already draws its own card — sit it flush. */
+.stats {
+  padding: 0;
+  overflow: hidden;
+}
+
+.cardTitle {
+  margin: 0;
+  font-family: var(--font-family-heading);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.muted {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+}
+
+.figures {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border-top: 1px solid var(--color-border);
+}
+
+.figure {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 16px;
+}
+
+.figure + .figure {
+  border-left: 1px solid var(--color-border);
+}
+
+.figureValue {
+  font-family: var(--font-family-heading);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.figure[data-alert] .figureValue {
+  color: var(--color-danger);
+}
+
+.figureLabel {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+/* ---- Mini month (the black calendar card) ---- */
+.monthCard {
+  padding: 18px 16px 14px;
+  border-radius: var(--radius-lg);
+  background: var(--ink-bg);
+  color: #ffffff;
+}
+
+.monthHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  padding-left: 4px;
+}
+
+.monthTitle {
+  font-family: var(--font-family-heading);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.monthNav {
+  display: flex;
+  gap: 2px;
+}
+
+.monthNav button {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.monthGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  row-gap: 2px;
+}
+
+.weekday {
+  padding-bottom: 6px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.day {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: 38px;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: #ffffff;
+  font-family: var(--font-family-heading);
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.day[data-outside] {
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.day[data-today] {
+  color: var(--color-brand-soft);
+}
+
+.day[aria-selected='true'] {
+  background: var(--color-brand);
+  color: #ffffff;
+}
+
+.dot {
+  position: absolute;
+  bottom: 4px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--color-brand-soft);
+}
+
+.day[aria-selected='true'] .dot {
+  background: #ffffff;
+}
+
+/* ---- Next up ---- */
+.nextList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.nextItem {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+}
+
+.nextTime {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.nextTitle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 0.875rem;
+  color: var(--color-text-primary);
+  text-decoration: none;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.join {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: var(--radius-full);
+  background: var(--color-brand);
+  color: #ffffff;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+/* ---- Timeline ---- */
+.timelineWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 16px 24px;
+  border-radius: var(--radius-lg);
+  background: var(--color-background);
+  box-shadow: 0 1px 2px rgba(27, 27, 57, 0.04), 0 6px 18px rgba(27, 27, 57, 0.05);
+}
+
+:global([data-theme='dark']) .timelineWrap {
+  background: var(--color-surface);
+  box-shadow: none;
+}
+
+.timeline {
+  margin-top: 16px;
+}
+
+.allDay {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.nowLine {
+  position: absolute;
+  left: 46px;
+  right: 0;
+  z-index: 3;
+  height: 2px;
+  background: var(--color-danger);
+  pointer-events: none;
+}
+
+.nowDot {
+  position: absolute;
+  top: -4px;
+  left: -5px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-danger);
+}
+
+.week {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+
+.weekDay {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-height: 64px;
+  padding: 8px 4px;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: none;
+  color: var(--color-text-primary);
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.weekDay[aria-pressed='true'] {
+  border-color: var(--color-brand);
+  background: var(--color-brand-tint);
+  color: var(--color-brand);
+}
+
+.weekDay[data-today] .weekNum {
+  color: var(--color-brand);
+}
+
+.weekName {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+}
+
+.weekNum {
+  font-family: var(--font-family-heading);
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.weekCount {
+  font-size: 0.6875rem;
+  color: var(--color-text-secondary);
+}
+
+/* ---- Tasks ---- */
+.taskPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.segmented {
+  display: flex;
+  flex-shrink: 0;
+  gap: 4px;
+  padding: 4px;
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+}
+
+.segment {
+  flex: 1;
+  min-height: 40px;
+  border: none;
+  border-radius: var(--radius-full);
+  background: none;
+  color: var(--color-text-secondary);
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.segment[aria-selected='true'] {
+  background: var(--color-background);
+  color: var(--color-text-primary);
+  box-shadow: 0 1px 3px rgba(27, 27, 57, 0.12);
+}
+
+.count {
+  margin-left: 2px;
+  color: var(--color-text-secondary);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.taskList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.taskRow {
+  border-radius: var(--radius-lg);
+  transition: box-shadow var(--duration-popover) ease;
+}
+
+.taskRow[data-lit] {
+  box-shadow: 0 0 0 2px var(--color-brand);
+}
+
+.anytime {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.anytimeHead {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 4px;
+  border: none;
+  background: none;
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.chevron {
+  transition: transform var(--duration-popover) ease;
+}
+
+.anytimeHead[aria-expanded='false'] .chevron {
+  transform: rotate(-90deg);
+}
+
+/* ---- Focus and hover ---- */
+.navButton:focus-visible,
+.todayButton:focus-visible,
+.segment:focus-visible,
+.day:focus-visible,
+.monthNav button:focus-visible,
+.weekDay:focus-visible,
+.anytimeHead:focus-visible,
+.nextTitle:focus-visible,
+.join:focus-visible,
+.dateLabel:focus-within {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .navButton:hover,
+  .anytimeHead:hover {
+    background: var(--color-background);
+  }
+
+  .day:not([aria-selected='true']):hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  .weekDay:not([aria-pressed='true']):hover {
+    background: var(--color-surface);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .taskRow,
+  .chevron {
+    transition: none;
+  }
+}

@@ -26,6 +26,8 @@ export interface GoogleCardEvent {
   startTime: Date;
   dueDate: Date;
   allDay: boolean;
+  /** Join link (Meet, Zoom…) — shown by Today's "Next up". */
+  meetingLink?: string | null;
 }
 
 /** Tentative, or not answered yet. */

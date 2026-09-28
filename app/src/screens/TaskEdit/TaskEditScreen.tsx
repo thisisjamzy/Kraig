@@ -144,7 +144,7 @@ export function AvailabilityRow({
 
 type Sheet = 'date' | 'start' | 'end' | 'project' | 'priority' | 'quadrant' | 'repeat' | 'customRepeat' | null;
 
-export function TaskEditScreen({ taskId }: { taskId: string | null }) {
+export function TaskEditScreen({ taskId, onClose }: { taskId: string | null; onClose?: () => void }) {
   const {
     isEditing,
     projects,
@@ -208,7 +208,7 @@ export function TaskEditScreen({ taskId }: { taskId: string | null }) {
     goBack,
     loading,
     error,
-  } = useLogic(taskId);
+  } = useLogic(taskId, { onDone: onClose });
   const isWeb = useIsWeb();
 
   const [sheet, setSheet] = useState<Sheet>(null);

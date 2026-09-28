@@ -1,0 +1,21 @@
+/* See ListDetail.tsx. */
+
+.wrap {
+  display: grid;
+  gap: 24px;
+  height: calc(100dvh - 64px - var(--safe-top) - 2 * var(--content-pad, 24px) - var(--safe-bottom));
+  min-height: 480px;
+}
+
+.list,
+.detail {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  min-height: 0;
+  padding: 4px;
+  margin: -4px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}

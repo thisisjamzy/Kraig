@@ -15,6 +15,8 @@ import { ListQueryBar, ListQueryEmpty } from '@/src/widgets/ListQuery/ListQueryB
 import { money, signedMoney, weekdayDayMonth } from '@/src/viewmodels/planning';
 import { round2 } from '@/src/shared/firestore/currency';
 import { HistoryRowView } from './PlanningParts';
+import { useLayout } from '@/src/shared/hooks/useLayout';
+import { HistoryTable } from './HistoryTable';
 import styles from './Planning.module.css';
 import tab from './PlanningTabs.module.css';
 
@@ -40,6 +42,9 @@ export function HistoryView({
   onClear?: () => void;
 }) {
   const { query } = list;
+  // Expanded and large screens: a sortable table instead of the cards.
+  const { deviceClass } = useLayout();
+  const asTable = deviceClass === 'expanded' || deviceClass === 'large';
   const shown = useMemo(() => applyQuery(rows, query, fields, new Date()), [rows, query, fields]);
   const byDate = query.sorts[0]?.field === 'date';
   const groups = byDate ? groupByDay(shown) : null;
@@ -89,6 +94,8 @@ export function HistoryView({
             onClear?.();
           }}
         />
+      ) : asTable ? (
+        <HistoryTable rows={shown} fields={fields} query={query} setQuery={list.setQuery} currency={currency} />
       ) : groups ? (
         groups.map((g) => (
           <section key={g.key} className={tab.dayGroup}>

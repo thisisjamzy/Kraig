@@ -5,7 +5,7 @@
 // to another column moves it there (and keeps its importance in line).
 
 import { useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useTaskPanel } from '@/src/shared/navigation/taskPanel';
 import { query } from 'firebase/firestore';
 import { useFirestoreCollection } from '@/src/shared/firestore/hooks';
 import { projectsRef } from '@/src/shared/firestore/refs';
@@ -36,7 +36,7 @@ export interface FocusTask {
 }
 
 export function useLogic() {
-  const router = useRouter();
+  const taskPanel = useTaskPanel();
   const { user } = useFirebaseUser();
   const uid = user?.uid;
   const { data: taskDocs, loading: tasksLoading } = useAllTasks();
@@ -98,7 +98,8 @@ export function useLogic() {
     await updateTaskQuadrant(uid, id, quadrant, priorityForQuadrant(task.priority, quadrant));
   }
   function newTask(quadrant?: Quadrant) {
-    router.push(quadrant ? `/tasks/new?quadrant=${quadrant}` : '/tasks/new');
+    // Same page as always on a phone; the side panel on wider screens.
+    taskPanel.open('new', quadrant ? { quadrant } : undefined);
   }
 
   return {

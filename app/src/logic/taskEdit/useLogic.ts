@@ -102,6 +102,18 @@ function projectIdFromSearch(): string {
 
 // The Calendar's "Add Event" opens this form on its selected day as an
 // Event (?date=YYYY-MM-DD&type=Event) — same no-Suspense read as above.
+// The wide Calendar's "click an empty slot" prefills the start
+// (?start=HH:mm); the task runs an hour. Never sent on a phone.
+function timesFromSearch(): { start: string; end: string } | null {
+  if (typeof window === 'undefined') return null;
+  const value = new URLSearchParams(window.location.search).get('start');
+  const m = value ? /^(\d{2}):(\d{2})$/.exec(value) : null;
+  if (!m) return null;
+  const hour = Math.min(22, Number(m[1]));
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return { start: `${pad(hour)}:${m[2]}`, end: `${pad(hour + 1)}:${m[2]}` };
+}
+
 function dateFromSearch(): string | null {
   if (typeof window === 'undefined') return null;
   const value = new URLSearchParams(window.location.search).get('date');
@@ -182,7 +194,13 @@ export interface ConflictSheet {
   scope: EditScope | null;
 }
 
-export function useLogic(taskId: string | null) {
+export interface TaskEditOptions {
+  /** Shown in the side panel (medium screens and up): leaving the form
+   * closes the panel instead of navigating. Phones never pass this. */
+  onDone?: () => void;
+}
+
+export function useLogic(taskId: string | null, { onDone }: TaskEditOptions = {}) {
   const router = useRouter();
   const { user } = useFirebaseUser();
   const uid = user?.uid;
@@ -241,12 +259,12 @@ export function useLogic(taskId: string | null) {
   // A new task defaults to today, starting at the next whole hour for an
   // hour (see defaultTimes) — only used once "set a time" is on.
   const [date, setDate] = useState(() => (taskId ? '' : dateFromSearch() ?? toDateOnly(new Date())));
-  const [startTimeOfDay, setStartTimeOfDay] = useState(() => (taskId ? '' : defaultTimes().start));
-  const [endTimeOfDay, setEndTimeOfDay] = useState(() => (taskId ? '' : defaultTimes().end));
+  const [startTimeOfDay, setStartTimeOfDay] = useState(() => (taskId ? '' : (timesFromSearch() ?? defaultTimes()).start));
+  const [endTimeOfDay, setEndTimeOfDay] = useState(() => (taskId ? '' : (timesFromSearch() ?? defaultTimes()).end));
   // Times are optional for a todo (the form's "set a time" toggle); a
   // meeting or event always has them. Off = a date-only task
   // (FirestoreTask.allDay).
-  const [timeEnabled, setTimeEnabled] = useState(false);
+  const [timeEnabled, setTimeEnabled] = useState(() => Boolean(!taskId && timesFromSearch()));
   // Time blocking (src/viewmodels/scheduling.ts). null = follow the type's
   // default (meetings/events blocked, to-dos free) until the user picks.
   const [timeModeChoice, setTimeModeChoice] = useState<TimeMode | null>(null);
@@ -508,6 +526,10 @@ export function useLogic(taskId: string | null) {
   }
 
   function finish(created: boolean) {
+    if (onDone) {
+      onDone();
+      return;
+    }
     if (created) {
       // Back to the Time home screen, where today's list picks it up.
       router.push('/projects');
@@ -593,7 +615,8 @@ export function useLogic(taskId: string | null) {
     if (!sheet || !uid || !existingTask || !occurrenceKey) return;
     if (sheet.action === 'delete') {
       await runWrites(uid, planDelete(existingTask, occurrenceKey, scope));
-      router.back();
+      if (onDone) onDone();
+      else router.back();
       return;
     }
     if (scope === 'this') {
@@ -652,14 +675,16 @@ export function useLogic(taskId: string | null) {
     if (!uid || !taskId) return;
     await archiveTask(uid, docId ?? taskId);
     setDeleteConfirmOpen(false);
-    router.back();
+    if (onDone) onDone();
+    else router.back();
   }
 
   // Closing the form returns to the page it was opened from (never another
   // form) — see src/shared/navigation/useGoBack.ts.
   const navigateBack = useGoBack();
   function goBack() {
-    navigateBack('/projects');
+    if (onDone) onDone();
+    else navigateBack('/projects');
   }
 
   return {

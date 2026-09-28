@@ -18,6 +18,9 @@ import { SECTION_LABEL } from '@/src/viewmodels/plans/overview';
 import planning from '@/src/screens/Planning/Planning.module.css';
 import { Card, Chip, Figure, full } from '@/src/screens/Plans/parts';
 import styles from '@/src/screens/Plans/Plans.module.css';
+import { Fragment } from 'react';
+import { useHasTopBar } from '@/src/widgets/AppShell/TopBarSlot';
+import wide from './BucketsScreen.wide.module.css';
 
 // Kept here for the screens that already import it from this file.
 export { formatAmount } from '@/src/viewmodels/format';
@@ -26,9 +29,14 @@ export function BucketsScreen() {
   const v = useLogic();
   const router = useRouter();
   const swipeRef = useSwipeModeSwitch('money');
+  // Medium screens and up: the plan cards in a sticky left column, the
+  // bucket sections beside them. Fragments on a phone (same markup).
+  const inShell = useHasTopBar();
+  const Column = inShell ? 'div' : Fragment;
+  const col = (className: string) => (inShell ? { className } : {});
 
   return (
-    <div className={styles.page} ref={swipeRef}>
+    <div className={inShell ? `${styles.page} ${wide.page}` : styles.page} ref={swipeRef}>
       <ScreenHeader
         left={
           <Link href="/home" className={styles.roundButton} aria-label="Back to Home">
@@ -52,10 +60,13 @@ export function BucketsScreen() {
       <ScreenState loading={v.loading} />
       {!v.loading && (
         <>
+          <Column {...col(wide.side)}>
           <MoneyPlanCard v={v} />
           <PlanCards v={v} />
           <MustCard v={v} />
           <IncomeCard v={v} />
+          </Column>
+          <Column {...col(wide.main)}>
           {SECTIONS.map((section) => {
               const list = v.cards.filter((c) => c.summary.section === section);
               if (!list.length) return null;
@@ -79,7 +90,10 @@ export function BucketsScreen() {
                     </span>
                   </button>
                   {open && (
-                    <div className={planning.tokens} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <div
+                      className={inShell ? `${planning.tokens} ${wide.cards}` : planning.tokens}
+                      style={inShell ? undefined : { display: 'flex', flexDirection: 'column', gap: 10 }}
+                    >
                       {list.map(({ card, summary }) => (
                         <BucketCardView
                           key={card.id}
@@ -100,6 +114,7 @@ export function BucketsScreen() {
                 </section>
               );
             })}
+          </Column>
         </>
       )}
     </div>

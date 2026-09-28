@@ -276,3 +276,102 @@
     transform: none;
   }
 }
+
+/* ============================================================
+   Medium screens and up (the app shell; never on a phone).
+   Medium: the true Eisenhower matrix, 2 by 2 — Do first top left,
+   Schedule top right, Delegate bottom left, Eliminate bottom right.
+   Expanded and up: four columns, no horizontal scroll. Each cell
+   scrolls on its own; the page itself doesn't.
+   ============================================================ */
+@media (min-width: 768px) {
+  .page[data-shell] {
+    min-height: 0;
+    margin: calc(-1 * var(--content-pad, 24px));
+    padding: var(--content-pad, 24px);
+    padding-bottom: 0;
+  }
+
+  .page[data-shell] .columns {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    height: calc(100dvh - 64px - var(--safe-top) - var(--content-pad, 24px) - var(--safe-bottom));
+    margin: 0;
+    padding: 0 0 var(--content-pad, 24px);
+    overflow: visible;
+    scroll-snap-type: none;
+  }
+
+  .page[data-shell] .column {
+    min-height: 0;
+    scroll-snap-align: none;
+  }
+
+  .page[data-shell] .columnCards {
+    flex: 1;
+    min-height: 0;
+    margin: 0 -6px;
+    padding: 2px 6px 6px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  /* The search lives in the top bar here. */
+  .page[data-shell] .search {
+    width: 220px;
+    box-shadow: none;
+    background: var(--color-surface);
+  }
+
+  .page[data-shell] .search input {
+    height: 40px;
+    font-size: 0.875rem;
+  }
+
+  .topNew,
+  .topLink {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 40px;
+    padding: 0 14px;
+    border: none;
+    border-radius: var(--radius-full);
+    font-family: inherit;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .topNew {
+    background: var(--color-brand);
+    color: #ffffff;
+  }
+
+  .topLink {
+    background: var(--color-surface);
+    color: var(--color-text-primary);
+  }
+
+  .topNew:focus-visible,
+  .topLink:focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .page[data-shell] .columns {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-rows: minmax(0, 1fr);
+    gap: 20px;
+  }
+}
+
+@media (min-width: 768px) and (hover: hover) and (pointer: fine) {
+  .page[data-shell] .kCard:hover {
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-brand) 35%, transparent);
+  }
+}

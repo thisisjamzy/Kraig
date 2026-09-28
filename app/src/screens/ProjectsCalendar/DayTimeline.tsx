@@ -47,7 +47,8 @@ function clock(min: number) {
   return `${Math.floor(min / 60) % 24}:${String(min % 60).padStart(2, '0')}`;
 }
 
-function Card({ item, style }: { item: TimelineItem; style: CSSProperties }) {
+function Card({ item, style, highlight }: { item: TimelineItem; style: CSSProperties; highlight?: string | null }) {
+  const lit = highlight !== undefined && highlight === item.id;
   if (item.google) {
     return (
       <GoogleEventCard
@@ -64,13 +65,23 @@ function Card({ item, style }: { item: TimelineItem; style: CSSProperties }) {
       task={{ ...item, context: detail }}
       timeOnly
       density={densityFor(item.minutes)}
-      className={styles.card}
+      className={lit ? `${styles.card} ${styles.highlight}` : styles.card}
       style={{ ...style, height: Math.max(20, item.height - CARD_INSET * 2) }}
+      highlightKey={highlight !== undefined ? item.id : undefined}
     />
   );
 }
 
-export function DayTimeline({ items, groups }: { items: TimelineItem[]; groups: OverlapGroup[] }) {
+export function DayTimeline({
+  items,
+  groups,
+  highlight,
+}: {
+  items: TimelineItem[];
+  groups: OverlapGroup[];
+  /** Wide Today screen only: the task to ring (hovered in its list). */
+  highlight?: string | null;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
 
@@ -94,12 +105,12 @@ export function DayTimeline({ items, groups }: { items: TimelineItem[]; groups: 
           const members = group.itemIds.map((id) => byId.get(id)!).filter(Boolean);
           if (members.length === 1) {
             const item = members[0];
-            return <Card key={group.id} item={item} style={{ top: item.top + CARD_INSET, left: 0, right: 0 }} />;
+            return <Card key={group.id} item={item} highlight={highlight} style={{ top: item.top + CARD_INSET, left: 0, right: 0 }} />;
           }
           const fits = group.columnCount * MIN_CARD_WIDTH + (group.columnCount - 1) * GAP <= width;
           const nudge = !fits && !nudgeUsed;
           if (!fits) nudgeUsed = true;
-          return <Group key={group.id} group={group} members={members} width={width} fits={fits} nudge={nudge} />;
+          return <Group key={group.id} group={group} members={members} width={width} fits={fits} nudge={nudge} highlight={highlight} />;
         })}
     </div>
   );
@@ -111,12 +122,14 @@ function Group({
   width,
   fits,
   nudge,
+  highlight,
 }: {
   group: OverlapGroup;
   members: TimelineItem[];
   width: number;
   fits: boolean;
   nudge: boolean;
+  highlight?: string | null;
 }) {
   const n = group.columnCount;
   const label = `${members.length} overlapping activities from ${clock(group.startMin)} to ${clock(group.endMin)}`;
@@ -160,6 +173,7 @@ function Group({
     <Card
       key={item.id}
       item={item}
+      highlight={highlight}
       style={{ top: item.top - group.top + CARD_INSET, left: item.column * step, width: column }}
     />
   ));

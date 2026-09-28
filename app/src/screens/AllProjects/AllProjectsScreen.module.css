@@ -193,3 +193,140 @@
 .toolbarSlot {
   margin-top: calc(-1 * var(--space-lg));
 }
+
+/* ============================================================
+   Medium screens and up (the app shell; never on a phone): a grid of
+   project cards — 2 columns on medium, 3 on expanded, 4 on large — each
+   with a progress ring, deadline and health chip.
+   ============================================================ */
+@media (min-width: 768px) {
+  .page[data-shell] {
+    padding: 0;
+  }
+
+  .page[data-shell] .list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    margin: 0;
+    border-top: none;
+  }
+
+  .page[data-shell] .listItem {
+    overflow: hidden;
+    border-bottom: none;
+    border-radius: var(--radius-lg);
+    box-shadow: 0 1px 2px rgba(27, 27, 57, 0.04), 0 6px 18px rgba(27, 27, 57, 0.05);
+  }
+
+  .page[data-shell] .card {
+    gap: 8px;
+    height: 100%;
+    box-sizing: border-box;
+    padding: 20px;
+  }
+
+  .page[data-shell] .description {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    white-space: normal;
+  }
+
+  .ring {
+    flex-shrink: 0;
+  }
+
+  .ringTrack {
+    stroke: var(--color-surface);
+  }
+
+  .ringValue {
+    stroke: var(--color-brand);
+  }
+
+  .ringText {
+    fill: var(--color-text-primary);
+    font-family: var(--font-family-heading);
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .health {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.75rem;
+  }
+
+  .healthChip {
+    padding: 2px 8px;
+    border-radius: var(--radius-full);
+    background: color-mix(in srgb, var(--color-success) 14%, transparent);
+    color: var(--color-success);
+    font-weight: 600;
+  }
+
+  .healthChip[data-health='watch'] {
+    background: color-mix(in srgb, #e8a33d 18%, transparent);
+    color: #9a6415;
+  }
+
+  .healthChip[data-health='at risk'] {
+    background: color-mix(in srgb, var(--color-danger) 12%, transparent);
+    color: var(--color-danger);
+  }
+
+  .overdue {
+    font-weight: 600;
+    color: var(--color-danger);
+  }
+
+  .taskCount {
+    color: var(--color-text-secondary);
+  }
+
+  .topPrimary,
+  .topLink {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 40px;
+    padding: 0 14px;
+    border-radius: var(--radius-full);
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  .topPrimary {
+    background: var(--color-brand);
+    color: #ffffff;
+  }
+
+  .topLink {
+    background: var(--color-surface);
+    color: var(--color-text-primary);
+  }
+
+  .topPrimary:focus-visible,
+  .topLink:focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .page[data-shell] .list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 24px;
+  }
+}
+
+@media (min-width: 1440px) {
+  .page[data-shell] .list {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}

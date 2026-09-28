@@ -1,0 +1,105 @@
+/* See SidePanel.tsx. */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 95;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.backdrop {
+  position: absolute;
+  inset: 0;
+  border: none;
+  background: rgba(10, 12, 24, 0.4);
+  cursor: pointer;
+}
+
+.panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  max-width: 92vw;
+  height: 100dvh;
+  background: var(--color-background);
+  box-shadow: -16px 0 40px rgba(0, 0, 0, 0.18);
+  animation: slideIn 200ms var(--ease-out);
+}
+
+.panel:focus {
+  outline: none;
+}
+
+.panel[data-pinned] {
+  position: sticky;
+  top: calc(64px + var(--safe-top));
+  flex-shrink: 0;
+  height: calc(100dvh - 64px - var(--safe-top));
+  border-left: 1px solid var(--color-border);
+  box-shadow: none;
+  animation: none;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: calc(var(--safe-top) + 12px) 16px 8px 24px;
+}
+
+.panel[data-pinned] .head {
+  padding-top: 12px;
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-family-heading);
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.close {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.close:focus-visible {
+  outline: 2px solid var(--color-brand);
+}
+
+.body {
+  flex: 1;
+  min-height: 0;
+  padding: 0 24px calc(24px + var(--safe-bottom));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .close:hover {
+    background: var(--color-surface);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel {
+    animation: none;
+  }
+}

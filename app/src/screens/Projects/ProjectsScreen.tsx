@@ -11,15 +11,24 @@ import { ProjectCard } from '@/src/widgets/ProjectCard/ProjectCard';
 import { TaskCheckRow } from '@/src/widgets/TaskCheckRow/TaskCheckRow';
 import { DailyProgressCard } from '@/src/widgets/DailyProgressCard/DailyProgressCard';
 import { Modal } from '@/src/widgets/Modal/Modal';
-import { useIsWeb } from '@/src/shared/hooks/useViewportMode';
+import dynamic from 'next/dynamic';
+import { useLayout } from '@/src/shared/hooks/useLayout';
 import { priorityLabel } from '@/src/viewmodels/projects';
 import styles from './ProjectsScreen.module.css';
-import webStyles from './ProjectsScreen.web.module.css';
+
+// Medium screens and up: the Today planner instead of the phone hub. Split
+// into its own chunk, so phones never download it.
+const TodayScreen = dynamic(() => import('@/src/screens/Today/TodayScreen').then((m) => m.TodayScreen), { ssr: false });
+
+export function ProjectsScreen() {
+  const { isWide } = useLayout();
+  return isWide ? <TodayScreen /> : <ProjectsHub />;
+}
 
 // The Time hub: active projects as a horizontal strip, then today's tasks
 // as a checklist. Nothing else — areas and performance analytics live on
 // their own screens (/areas, /projects/analytics).
-export function ProjectsScreen() {
+function ProjectsHub() {
   const strings = useStrings();
   const {
     todayTasks,
@@ -37,7 +46,6 @@ export function ProjectsScreen() {
 
   const swipeRef = useSwipeModeSwitch('projects');
   const router = useRouter();
-  const isWeb = useIsWeb();
   // Soonest-starting first — the order the old Timeline sort defaulted to.
   const activeProjects = projects
     .filter((project) => project.status === 'Active')
@@ -45,7 +53,7 @@ export function ProjectsScreen() {
   const todayLabel = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 
   return (
-    <div className={`${styles.page} ${isWeb ? webStyles.page : ''}`} ref={swipeRef}>
+    <div className={`${styles.page} `} ref={swipeRef}>
       <ScreenState loading={loading} error={error} />
 
       <section className={styles.hubSection}>
@@ -128,7 +136,7 @@ export function ProjectsScreen() {
             <p className={styles.emptyText}>{strings.projects.todayEmptyHint}</p>
           </div>
         ) : (
-          <div className={`${styles.taskList} ${isWeb ? webStyles.taskList : ''}`}>
+          <div className={`${styles.taskList} `}>
             {todayTasks.map((task) => (
               <TaskCheckRow key={task.id} task={task} />
             ))}

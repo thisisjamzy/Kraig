@@ -5,7 +5,7 @@
 // items above it are covered, items below say when they'd fit. Swipe right
 // to mark paid, left to postpone; tap for the item.
 
-import { useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { Fragment, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Check, GripVertical, Info, MoreHorizontal } from 'lucide-react';
@@ -22,6 +22,8 @@ import { URGENCY_LABEL, dueText, monthLabel, remaining, statusOf, urgency, type 
 import { type SortMode, type WalkRow } from '@/src/viewmodels/plans/priorities';
 import { Card, Figure, Segmented, full, monthShort } from './parts';
 import styles from './Plans.module.css';
+import { useHasTopBar } from '@/src/widgets/AppShell/TopBarSlot';
+import wide from './Priorities.wide.module.css';
 
 const SORTS: { value: SortMode; label: string }[] = [
   { value: 'recommended', label: 'Recommended' },
@@ -80,8 +82,14 @@ export function PrioritiesScreen() {
     }
   }
 
+  // Medium screens and up: "Can I cover it?" and the order controls in a
+  // sticky left column, the list beside it. Fragments on a phone.
+  const inShell = useHasTopBar();
+  const Column = inShell ? 'div' : Fragment;
+  const col = (className: string) => (inShell ? { className } : {});
+
   return (
-    <div className={styles.page}>
+    <div className={inShell ? `${styles.page} ${wide.page}` : styles.page}>
       <ScreenHeader
         left={
           <Link href="/buckets" className={styles.roundButton} aria-label="Back to Buckets">
@@ -125,6 +133,7 @@ export function PrioritiesScreen() {
 
       {!v.loading && (
         <>
+          <Column {...col(wide.side)}>
           <Card
             navy
             title="Can I cover it?"
@@ -191,7 +200,9 @@ export function PrioritiesScreen() {
               className={styles.staticBar}
             />
           </div>
+          </Column>
 
+          <Column {...col(wide.main)}>
           {w.mustShort > 0 && (
             <div className={styles.strip} role="alert">
               <span>
@@ -242,6 +253,7 @@ export function PrioritiesScreen() {
               </button>
             </div>
           )}
+          </Column>
         </>
       )}
 

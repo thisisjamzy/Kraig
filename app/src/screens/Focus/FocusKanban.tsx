@@ -105,7 +105,10 @@ export function FocusKanban({
   setSearch,
   onMove,
   onAdd,
+  searchSlot,
 }: {
+  /** Wide screens: render the search here (the top bar) instead. */
+  searchSlot?: (search: React.ReactNode) => React.ReactNode;
   columns: (QuadrantMeta & { tasks: FocusTask[] })[];
   search: string;
   setSearch: (value: string) => void;
@@ -136,17 +139,21 @@ export function FocusKanban({
     if (isQuadrant(target)) onMove(String(event.active.id), target);
   }
 
+  const searchField = (
+    <label className={styles.search}>
+      <Search size={18} strokeWidth={2} aria-hidden />
+      <input
+        value={search}
+        onChange={(event) => setSearch(event.target.value)}
+        placeholder="Search task"
+        aria-label="Search task"
+      />
+    </label>
+  );
+
   return (
     <div className={styles.kanban}>
-      <label className={styles.search}>
-        <Search size={18} strokeWidth={2} aria-hidden />
-        <input
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          placeholder="Search task"
-          aria-label="Search task"
-        />
-      </label>
+      {searchSlot ? searchSlot(searchField) : searchField}
 
       <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd} onDragCancel={() => setActiveId(null)}>
         <div className={styles.columns} data-hscroll="true">
