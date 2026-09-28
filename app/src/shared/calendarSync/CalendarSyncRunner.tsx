@@ -3,7 +3,9 @@
 // Runs Google Calendar sync on its own — mounted once in the app shell,
 // renders nothing. When (reason in brackets, see runner.ts):
 //   - after sign-in, or app start with a restored session, once the first
-//     screen has rendered — never delaying it (login);
+//     screen has rendered — never delaying it (login). A login sync that
+//     fails for a passing reason (network, timeout, another device busy)
+//     is retried after 30 seconds and again after 2 minutes;
 //   - the app becoming visible again when the last sync is over 5 minutes
 //     old (resume);
 //   - every 10 minutes while visible, paused while hidden (interval);
@@ -11,7 +13,8 @@
 //     switched between blocked and free — debounced 2 seconds so a drag is
 //     one push (block-change). Detected from the live task list itself, so
 //     every write path counts, whichever screen made it;
-//   - back online with a change still pending (block-change).
+//   - back online with a change still pending (block-change), or when no
+//     sync has succeeded yet this session (resume).
 // The Calendar screen adds its own (calendar-open), and Sync now (manual).
 // Changes made in Google reach the app only through these syncs — the
 // bridge can't notify the app.
@@ -29,6 +32,8 @@ import { isCalendarSyncEnabled, lastSyncEndedAt, runCalendarSync } from './runne
 import { getSyncStatus, setSyncStatus, useCalendarSyncStatus } from './status';
 
 const LOGIN_DELAY_MS = 1500;
+const LOGIN_RETRY_MS = [30_000, 120_000];
+const RETRYABLE = ['NETWORK', 'TIMEOUT', 'INTERNAL', 'BAD_RESPONSE', 'BUSY'];
 const RESUME_AFTER_MS = 5 * 60_000;
 const INTERVAL_MS = 10 * 60_000;
 const BLOCK_CHANGE_DEBOUNCE_MS = 2000;
@@ -57,8 +62,22 @@ export function CalendarSyncRunner() {
   // ---- Login / restored session ----
   useEffect(() => {
     if (!uid) return;
-    const timer = setTimeout(() => void runCalendarSync({ reason: 'login' }), LOGIN_DELAY_MS);
-    return () => clearTimeout(timer);
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const attempt = (n: number) => {
+      timer = setTimeout(async () => {
+        const result = await runCalendarSync({ reason: 'login' });
+        if (cancelled || n >= LOGIN_RETRY_MS.length) return;
+        // Skipped (offline, throttled) is picked up by the online and
+        // interval triggers; only a failed attempt is retried here.
+        if (result.status === 'failed' && RETRYABLE.includes(result.error?.code ?? '')) attempt(n + 1);
+      }, n === 0 ? LOGIN_DELAY_MS : LOGIN_RETRY_MS[n - 1]);
+    };
+    attempt(0);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
   }, [uid]);
 
   // ---- Resume and interval ----
@@ -121,9 +140,13 @@ export function CalendarSyncRunner() {
   useEffect(() => {
     if (!uid) return;
     const onOnline = () => {
-      if (!hasPending && !changedOffline.current) return;
-      changedOffline.current = false;
-      void runCalendarSync({ reason: 'block-change' });
+      if (hasPending || changedOffline.current) {
+        changedOffline.current = false;
+        void runCalendarSync({ reason: 'block-change' });
+      } else if (!getSyncStatus().lastSuccessAt || getSyncStatus().lastError) {
+        // Signed in while offline, or the last sync failed.
+        void runCalendarSync({ reason: 'resume' });
+      }
     };
     window.addEventListener('online', onOnline);
     return () => window.removeEventListener('online', onOnline);
