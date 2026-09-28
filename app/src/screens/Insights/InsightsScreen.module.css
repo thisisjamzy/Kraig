@@ -827,3 +827,82 @@ button.tile:focus-visible {
     transition: none;
   }
 }
+
+/* ============================================================
+   Medium screens and up (the app shell; never on a phone): a
+   dashboard grid (src/widgets/Layout/PageGrid). Alerts wrap across
+   the top instead of scrolling; the four KPI tiles sit in one row;
+   cards get their spacing from the grid gap.
+   ============================================================ */
+@media (min-width: 768px) {
+  .page[data-shell] {
+    margin: calc(-1 * var(--content-pad, 24px));
+    padding: var(--content-pad, 24px);
+  }
+
+  .topVars {
+    --i-card: var(--color-background);
+    --i-shadow: 0 1px 2px rgba(27, 27, 57, 0.04), 0 8px 24px rgba(27, 27, 57, 0.05);
+  }
+
+  :global([data-theme='dark']) .topVars {
+    --i-card: var(--color-surface);
+    --i-shadow: none;
+  }
+
+  .topRanges .ranges {
+    width: 340px;
+  }
+
+  .page[data-shell] .alerts {
+    flex-wrap: wrap;
+    margin: 0;
+    padding: 0;
+    overflow: visible;
+    scroll-snap-type: none;
+  }
+
+  .page[data-shell] .alerts:empty {
+    display: none;
+  }
+
+  .page[data-shell] .alert {
+    flex: 1 1 280px;
+    max-width: 420px;
+  }
+
+  .page[data-shell] .tiles {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
+    margin: 0;
+  }
+
+  .page[data-shell] .card,
+  .page[data-shell] .projects {
+    margin: 0;
+  }
+
+  .page[data-shell] .card {
+    padding: 20px;
+  }
+
+  /* Charts keep their shape — never a tall empty box. */
+  .page[data-shell] .chart {
+    max-height: 360px;
+    overflow: hidden;
+  }
+
+  .page[data-shell] .moreLink {
+    margin-top: 0;
+  }
+}
+
+@media (min-width: 1024px) {
+  .page[data-shell] .card {
+    padding: 24px;
+  }
+
+  .page[data-shell] .tiles {
+    gap: 24px;
+  }
+}
