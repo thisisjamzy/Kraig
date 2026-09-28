@@ -48,7 +48,7 @@ actually be a Google Sheet to bind to it.
 
 ## 5. Wire up the Next.js app
 
-In `app/.env.local` (copy from `.env.local.example` if you haven't already):
+In `app/.env.local`:
 
 ```
 APPS_SCRIPT_WEB_APP_URL=<the /exec URL from step 4>

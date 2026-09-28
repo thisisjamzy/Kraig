@@ -41,6 +41,7 @@ import { TimeWheel } from '@/src/widgets/CardForm/TimeWheel';
 import type { Availability, Slot } from '@/src/viewmodels/scheduling';
 import { keyToDate } from '@/src/viewmodels/recurrence';
 import { ConflictSheet, CustomRepeatSheet, RepeatSheet, ScopeSheet } from './RepeatSheets';
+import { GoogleMark } from '@/src/widgets/GoogleEventCard/GoogleMark';
 import repeatStyles from './RepeatSheets.module.css';
 
 const TYPE_ICON: Record<string, LucideIcon> = { ToDo: SquareCheck, Meeting: Users, Event: CalendarDays };
@@ -83,14 +84,17 @@ export function AvailabilityRow({
   if (status === 'available') message = 'This time is free';
   else if (status === 'shared') message = `You'll share this window with ${count} free ${count === 1 ? 'task' : 'tasks'}`;
   else {
-    message = `Conflicts with ‘${first.title}’ ${hhmm(first.start!)} to ${hhmm(first.end!)} (${first.mode})`;
+    // A pulled Google Calendar event names where it's from.
+    const from = first.source === 'google' ? 'Google Calendar' : first.mode;
+    message = `Conflicts with ‘${first.title}’ ${hhmm(first.start!)} to ${hhmm(first.end!)} (${from})`;
     if (count > 1) message += ` +${count - 1} more`;
   }
+  const fromGoogle = status === 'conflict' && first?.source === 'google';
 
   return (
     <div className={styles.availability} data-status={status} aria-live="polite">
       <div className={styles.availabilityPill}>
-        <span className={styles.availabilityDot} aria-hidden />
+        {fromGoogle ? <GoogleMark size={14} /> : <span className={styles.availabilityDot} aria-hidden />}
         <span className={styles.availabilityText}>{message}</span>
         {status === 'shared' && (
           <button type="button" className={styles.availabilityLink} onClick={() => setShowTasks((v) => !v)} aria-expanded={showTasks}>

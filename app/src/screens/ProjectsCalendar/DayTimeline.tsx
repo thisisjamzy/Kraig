@@ -13,6 +13,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { TaskCheckRow, type TaskCheckRowTask } from '@/src/widgets/TaskCheckRow/TaskCheckRow';
+import { GoogleEventCard, type GoogleCardEvent } from '@/src/widgets/GoogleEventCard/GoogleEventCard';
 import { densityFor, type OverlapGroup } from '@/src/viewmodels/dayLayout';
 import styles from './DayTimeline.module.css';
 
@@ -23,7 +24,7 @@ const STRIP_COLUMN = 0.75;
 const CARD_INSET = 2;
 const NUDGE_KEY = 'dreda.calendarStripNudged';
 
-export type TimelineItem = TaskCheckRowTask & {
+interface TimelineLayout {
   column: number;
   columnCount: number;
   groupId: string;
@@ -32,15 +33,31 @@ export type TimelineItem = TaskCheckRowTask & {
   minutes: number;
   startMin: number;
   endMin: number;
-  projectName?: string | null;
-  description?: string;
-};
+}
+
+/** A card on the timeline: an app task, or an event pulled from Google
+ * Calendar (drawn by GoogleEventCard, same size rules). */
+export type TimelineItem = TimelineLayout &
+  (
+    | (TaskCheckRowTask & { google?: undefined; projectName?: string | null; description?: string })
+    | { id: string; google: GoogleCardEvent }
+  );
 
 function clock(min: number) {
   return `${Math.floor(min / 60) % 24}:${String(min % 60).padStart(2, '0')}`;
 }
 
 function Card({ item, style }: { item: TimelineItem; style: CSSProperties }) {
+  if (item.google) {
+    return (
+      <GoogleEventCard
+        event={item.google}
+        density={densityFor(item.minutes)}
+        className={styles.card}
+        style={{ ...style, height: Math.max(20, item.height - CARD_INSET * 2) }}
+      />
+    );
+  }
   const detail = item.projectName || item.description?.split('\n')[0] || null;
   return (
     <TaskCheckRow

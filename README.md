@@ -436,10 +436,15 @@ Cloud Functions, so the two never drift.
 ```bash
 # from the repo root
 npm install                        # installs all workspaces (app, functions, packages/*)
-cp app/.env.local.example app/.env.local
-# fill in NEXT_PUBLIC_FIREBASE_* from your Firebase project's web app config
-# (Project Settings > General > Your apps) — see PRD-AUTH-FIREBASE.md section 3
-# for creating the project and enabling Auth providers.
+# create app/.env.local (never committed) with:
+#   NEXT_PUBLIC_FIREBASE_API_KEY / _AUTH_DOMAIN / _PROJECT_ID / _APP_ID
+#     from your Firebase project's web app config (Project Settings > General >
+#     Your apps) — see PRD-AUTH-FIREBASE.md section 3 for creating the project
+#     and enabling Auth providers
+#   NEXT_PUBLIC_FIREBASE_USE_EMULATOR   optional, "true" for the local emulators
+#   NEXT_PUBLIC_CALENDAR_BRIDGE_URL     optional, the Google Calendar bridge's
+#     /exec URL (PRD Files/CALENDAR-BRIDGE.md); empty = calendar sync off
+#   FIREBASE_ADMIN_*                    only for the Admin SDK scripts in scripts/
 
 cd app
 npm run dev                        # next dev, http://localhost:3000

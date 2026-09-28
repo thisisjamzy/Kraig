@@ -12,5 +12,5 @@ npm run build    # next build --webpack (required for @ducanh2912/next-pwa's
 npm run lint     # eslint
 ```
 
-Requires `.env.local` (copy `.env.local.example`) with your Firebase web app
+Requires `.env.local` with your Firebase web app
 config — see the root README's [Getting started](../README.md#getting-started).

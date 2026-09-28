@@ -1,0 +1,146 @@
+/* Settings > Google Calendar — extras on top of the card form
+   (CardForm.module.css provides the page, cards and --tf-* tokens). */
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 18px;
+  line-height: 1.3;
+  color: var(--tf-text);
+}
+
+.status[data-tone='ok'] svg {
+  color: var(--color-success);
+}
+
+.status[data-tone='error'] {
+  color: var(--color-danger);
+}
+
+.status[data-tone='off'] {
+  color: var(--tf-label);
+}
+
+.big {
+  font-size: 22px;
+  color: var(--tf-text);
+}
+
+.hint {
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--tf-label);
+}
+
+.error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--color-danger);
+}
+
+.counts {
+  flex-direction: row;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.count {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.countValue {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--tf-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.countLabel {
+  font-size: 12px;
+  line-height: 1.3;
+  color: var(--tf-label);
+}
+
+.buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.button {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 52px;
+  border: none;
+  border-radius: 20px;
+  background: var(--tf-accent);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.button[data-variant='secondary'] {
+  background: var(--tf-card);
+  color: var(--tf-accent);
+}
+
+.button:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.button:focus-visible {
+  outline: 2px solid var(--tf-accent);
+  outline-offset: 2px;
+}
+
+.testResult {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 6px;
+  font-size: 14px;
+  color: var(--color-danger);
+}
+
+.testResult[data-ok] {
+  color: var(--tf-text);
+}
+
+.switchLabel {
+  font-size: 17px;
+}
+
+.note {
+  margin: 4px 6px 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--tf-label);
+}
+
+.spin {
+  animation: spin 900ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation: none;
+  }
+}

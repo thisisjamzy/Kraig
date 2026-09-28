@@ -23,6 +23,11 @@ export const env = {
     // signal why sign-in stopped working — an explicit flag avoids that footgun).
     useEmulator: process.env.NEXT_PUBLIC_FIREBASE_USE_EMULATOR === 'true',
   },
+  // The Google Calendar bridge (an Apps Script web app, its URL ends in
+  // /exec) — see src/shared/calendarBridge. Optional: empty means calendar
+  // sync is quietly off. Public like the Firebase config above; access is
+  // checked by the bridge itself from the Firebase ID token in each request.
+  calendarBridgeUrl: (process.env.NEXT_PUBLIC_CALENDAR_BRIDGE_URL ?? '').trim(),
 };
 
 export { required };

@@ -63,7 +63,7 @@ coordination.)
 
 ## Still manual
 
-- Fill in .env.local from .env.local.example (Firebase config).
+- Fill in .env.local (Firebase config — see the root README's Getting started).
 - Create the Firebase project, enable the Authentication providers you need (see
   `PRD-AUTH-FIREBASE.md` section 3), enable Firestore, and deploy firestore.rules /
   firestore.indexes.json / functions (see `PRD-FIREBASE.md`).

@@ -15,6 +15,14 @@ import { arrayUnion, deleteField, FieldPath, getDoc, setDoc, updateDoc, serverTi
 import { taskRef } from './refs';
 import type { TaskException, TaskType, Priority, TaskStatus, Quadrant, TimeMode } from './types';
 import { parseOccurrenceId } from '@/src/shared/tasks/recurringTasks';
+import { isPushableNow, touchesGoogleCopy } from '@/src/shared/calendarSync/pending';
+
+// Google Calendar sync (src/shared/calendarSync): a write that creates a
+// pushable task, or changes its time, title or mode, also sets
+// googleSync.state to 'pending' — in the same write, so the task shows
+// "syncing" until the next push lands. Deleting just deletes (archives);
+// the next full push removes it from Google.
+const PENDING = 'pending' as const;
 
 // Recurring tasks: every quick write below also accepts an occurrence id
 // ("seriesId@YYYY-MM-DD", src/shared/tasks/recurringTasks.ts) and then
@@ -74,7 +82,9 @@ export async function writeOccurrence(
 
 /** Replaces one date's exception wholesale ("this task" edits). */
 export async function replaceOccurrence(uid: string, seriesId: string, key: string, exception: TaskException): Promise<void> {
-  await updateDoc(taskRef(uid, seriesId), new FieldPath('exceptions', key), exception, 'updatedAt', serverTimestamp());
+  const series = (await getDoc(taskRef(uid, seriesId)).catch(() => null))?.data();
+  const pending = series && isPushableNow({ ...series, ...exception, rrule: null }) ? ['googleSync.state', PENDING] : [];
+  await updateDoc(taskRef(uid, seriesId), new FieldPath('exceptions', key), exception, 'updatedAt', serverTimestamp(), ...pending);
 }
 
 export interface CreateTaskInput {
@@ -129,6 +139,15 @@ export async function createTask(uid: string, input: CreateTaskInput): Promise<s
     quadrant: input.quadrant ?? null,
     ...(input.timeMode ? { timeMode: input.timeMode } : {}),
     ...(input.rrule ? { rrule: input.rrule, exceptions: input.exceptions ?? {} } : {}),
+    ...(isPushableNow({
+      startTime: Timestamp.fromDate(input.startTime),
+      dueDate: Timestamp.fromDate(input.dueDate),
+      allDay: input.allDay ?? false,
+      timeMode: input.timeMode,
+      type: input.type,
+    })
+      ? { googleSync: { state: PENDING } }
+      : {}),
     originalDueDate: Timestamp.fromDate(input.dueDate),
     originalStartTime: Timestamp.fromDate(input.startTime),
     rescheduleCount: 0,
@@ -212,6 +231,16 @@ export async function updateTask(uid: string, taskId: string, input: UpdateTaskI
   if (!before?.originalStartTime) {
     update.originalStartTime = before?.startTime ?? Timestamp.fromDate(input.startTime);
   }
+  const after = {
+    title: input.title,
+    startTime: update.startTime as Timestamp,
+    dueDate: update.dueDate as Timestamp,
+    allDay: input.allDay ?? false,
+    timeMode: input.timeMode ?? before?.timeMode,
+    type: input.type,
+    rrule: input.rrule === undefined ? before?.rrule : input.rrule,
+  };
+  if (isPushableNow(after) && (touchesGoogleCopy(before, after) || !before?.googleSync)) update['googleSync.state'] = PENDING;
   if (input.done !== Boolean(before?.done)) update.statusLog = logEntry(input.done ? 'Done' : 'Pending');
   if (input.done && !before?.done) update.completedAt = serverTimestamp();
   else if (!input.done && before?.done) update.completedAt = null;
@@ -360,7 +389,8 @@ export async function rescheduleTask(uid: string, taskId: string, dateStr: strin
     const due = moved(exception.dueDate ?? series?.dueDate);
     if (start) fields.startTime = start;
     if (due) fields.dueDate = due;
-    if (Object.keys(fields).length) await writeOccurrence(uid, occurrence.seriesId, occurrence.key, fields);
+    const pending = series && isPushableNow({ ...series, ...exception, rrule: null }) ? { 'googleSync.state': PENDING } : {};
+    if (Object.keys(fields).length) await writeOccurrence(uid, occurrence.seriesId, occurrence.key, fields, pending);
     return;
   }
   const beforeSnap = await getDoc(taskRef(uid, taskId));
@@ -379,6 +409,7 @@ export async function rescheduleTask(uid: string, taskId: string, dateStr: strin
   const dueDateChanged = newDueDate !== null && beforeDueMs !== null && newDueDate.toMillis() > beforeDueMs;
 
   const update: Record<string, unknown> = { updatedAt: serverTimestamp() };
+  if (before && isPushableNow(before)) update['googleSync.state'] = PENDING;
   if (newStartTime) update.startTime = newStartTime;
   if (newDueDate) update.dueDate = newDueDate;
   if (!before?.originalDueDate && newDueDate) {

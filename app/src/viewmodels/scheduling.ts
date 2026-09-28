@@ -10,6 +10,8 @@
 //    existingStart — touching edges (10:00 end / 10:00 start) don't.
 //  - A blocked task can't overlap anything; a free task can overlap other
 //    free tasks but not a blocked one.
+//  - Google Calendar events (pulled mirrors) take part as blocked windows
+//    when they block time in Google; ones marked Free there are left out.
 //  - A NEW task over one or more free tasks (and no blocked one) is
 //    switched to free automatically (forcedMode), whatever was chosen.
 //    When editing, the task itself is excluded, and choosing blocked over
@@ -30,6 +32,9 @@ export interface ScheduledTask {
   /** An occurrence of a recurring series: the series' id. Excluding a
    * series by id excludes every date of it. */
   seriesId?: string;
+  /** A pulled Google Calendar event (src/shared/calendarSync/availability.ts)
+   * rather than an app task — always blocked. */
+  source?: 'google';
 }
 
 function excluded(task: ScheduledTask, excludeTaskId: string | null) {
