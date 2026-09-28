@@ -31,7 +31,7 @@ export function WebFormPanel({ children, onClose }: { children: ReactNode; onClo
   }
 
   return (
-    <div className={styles.backdrop} onClick={handleBackdropClick}>
+    <div className={styles.backdrop} onClick={handleBackdropClick} data-panel-open>
       <div className={styles.panel}>{children}</div>
     </div>
   );

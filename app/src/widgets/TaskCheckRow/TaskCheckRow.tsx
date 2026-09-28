@@ -99,6 +99,7 @@ export function TaskCheckRow({
   density,
   className,
   style,
+  highlightKey,
 }: {
   task: TaskCheckRowTask;
   // Show just the time, not the day — the listing is already one day.
@@ -110,6 +111,9 @@ export function TaskCheckRow({
   density?: 'line' | 'short' | 'full';
   className?: string;
   style?: React.CSSProperties;
+  /** Wide Today screen: marks the row so list and timeline can highlight
+   * each other. Absent everywhere else. */
+  highlightKey?: string;
 }) {
   const { user } = useFirebaseUser();
   const uid = user?.uid;
@@ -139,6 +143,7 @@ export function TaskCheckRow({
       className={`${styles.row} ${className ?? ''}`}
       data-done={task.done || undefined}
       data-density={density}
+      data-highlight-key={highlightKey}
       style={style}
     >
       <button

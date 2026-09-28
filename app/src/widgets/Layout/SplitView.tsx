@@ -10,14 +10,17 @@ import styles from './SplitView.module.css';
 
 export interface SplitPanel {
   key: string;
-  width: number | 'flex';
+  /** Pixels, 'flex' (the rest), or a share like '45fr'. */
+  width: number | 'flex' | `${number}fr`;
   /** Accessible name for the region. */
   label: string;
   content: ReactNode;
 }
 
 export function SplitView({ panels, className }: { panels: SplitPanel[]; className?: string }) {
-  const columns = panels.map((p) => (p.width === 'flex' ? 'minmax(0, 1fr)' : `${p.width}px`)).join(' ');
+  const columns = panels
+    .map((p) => (p.width === 'flex' ? 'minmax(0, 1fr)' : typeof p.width === 'number' ? `${p.width}px` : `minmax(0, ${p.width})`))
+    .join(' ');
   return (
     <div className={`${styles.split} ${className ?? ''}`} style={{ gridTemplateColumns: columns }}>
       {panels.map((p) => (

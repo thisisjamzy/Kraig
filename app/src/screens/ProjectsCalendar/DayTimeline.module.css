@@ -190,3 +190,9 @@ button.badge:focus-visible {
     transition: none;
   }
 }
+
+/* Wide Today screen: the task hovered in the list, ringed here. Never set
+   on the phone Calendar. */
+.card.highlight {
+  box-shadow: 0 0 0 2px var(--color-brand), 0 6px 18px rgba(27, 27, 57, 0.12);
+}
