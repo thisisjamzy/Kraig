@@ -25,6 +25,9 @@ import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import { useIsWeb } from '@/src/shared/hooks/useViewportMode';
 import styles from './ProjectsCalendarScreen.module.css';
 import webStyles from './ProjectsCalendarScreen.web.module.css';
+import dynamic from 'next/dynamic';
+
+const CalendarWide = dynamic(() => import('./CalendarWide').then((m) => m.CalendarWide), { ssr: false });
 
 const WEEKDAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
 
@@ -35,6 +38,9 @@ function hourLabel(hour: number) {
 export function ProjectsCalendarScreen() {
   const logic = useLogic();
   const isWeb = useIsWeb();
+  // Medium screens and up: Day / Week / Month (its own chunk, so phones
+  // never download it). Phones keep this view exactly as it was.
+  if (isWeb) return <CalendarWide logic={logic} />;
   return <ProjectsCalendarView {...logic} isWeb={isWeb} />;
 }
 

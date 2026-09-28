@@ -163,7 +163,7 @@ function MediumRight({ tasks, timeline }: { tasks: React.ReactNode; timeline: Re
 
 // ---- Left column ----
 
-function MiniMonth({ logic }: { logic: Logic }) {
+export function MiniMonth({ logic }: { logic: Logic }) {
   const { monthCursor, monthGrid, selectedDate, todayIso, daysWithItems, pickDate, shiftMonth } = logic;
   return (
     <section className={styles.monthCard} aria-label="Month">
@@ -282,7 +282,7 @@ function NextUp({ logic }: { logic: Logic }) {
 
 // ---- Center: the day timeline ----
 
-type Hover = {
+export type Hover = {
   onMouseOver: (e: React.MouseEvent) => void;
   onFocus: (e: React.FocusEvent) => void;
   onMouseLeave: () => void;
@@ -292,8 +292,22 @@ function hourLabel(hour: number) {
   return `${String(hour % 24).padStart(2, '0')}.00`;
 }
 
-function TimelinePanel({ logic, highlight, hover, showWeek }: { logic: Logic; highlight: string | null; hover: Hover; showWeek: boolean }) {
-  const { schedule, allDayGoogle, allDayTasks, selectedDate, todayIso } = logic;
+export function TimelinePanel({
+  logic,
+  highlight = null,
+  hover,
+  showWeek,
+  override,
+}: {
+  logic: Logic;
+  highlight?: string | null;
+  hover?: Hover;
+  showWeek: boolean;
+  /** The Calendar's filters: a narrowed schedule and all-day items. */
+  override?: Pick<Logic, 'schedule' | 'allDayGoogle' | 'allDayTasks'>;
+}) {
+  const { schedule, allDayGoogle, allDayTasks } = override ?? logic;
+  const { selectedDate, todayIso } = logic;
   const minute = useNowMinute();
   const scrollRef = useRef<HTMLDivElement>(null);
   const now = new Date(minute * 60000);
