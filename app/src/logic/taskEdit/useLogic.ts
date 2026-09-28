@@ -182,7 +182,13 @@ export interface ConflictSheet {
   scope: EditScope | null;
 }
 
-export function useLogic(taskId: string | null) {
+export interface TaskEditOptions {
+  /** Shown in the side panel (medium screens and up): leaving the form
+   * closes the panel instead of navigating. Phones never pass this. */
+  onDone?: () => void;
+}
+
+export function useLogic(taskId: string | null, { onDone }: TaskEditOptions = {}) {
   const router = useRouter();
   const { user } = useFirebaseUser();
   const uid = user?.uid;
@@ -508,6 +514,10 @@ export function useLogic(taskId: string | null) {
   }
 
   function finish(created: boolean) {
+    if (onDone) {
+      onDone();
+      return;
+    }
     if (created) {
       // Back to the Time home screen, where today's list picks it up.
       router.push('/projects');
@@ -593,7 +603,8 @@ export function useLogic(taskId: string | null) {
     if (!sheet || !uid || !existingTask || !occurrenceKey) return;
     if (sheet.action === 'delete') {
       await runWrites(uid, planDelete(existingTask, occurrenceKey, scope));
-      router.back();
+      if (onDone) onDone();
+      else router.back();
       return;
     }
     if (scope === 'this') {
@@ -652,14 +663,16 @@ export function useLogic(taskId: string | null) {
     if (!uid || !taskId) return;
     await archiveTask(uid, docId ?? taskId);
     setDeleteConfirmOpen(false);
-    router.back();
+    if (onDone) onDone();
+    else router.back();
   }
 
   // Closing the form returns to the page it was opened from (never another
   // form) — see src/shared/navigation/useGoBack.ts.
   const navigateBack = useGoBack();
   function goBack() {
-    navigateBack('/projects');
+    if (onDone) onDone();
+    else navigateBack('/projects');
   }
 
   return {

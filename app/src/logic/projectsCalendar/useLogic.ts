@@ -29,6 +29,7 @@ import { syncBadgeFor } from '@/src/shared/calendarSync/badge';
 import type { SyncWindow } from '@/src/shared/calendarSync/blocks';
 import type { GoogleCardEvent } from '@/src/widgets/GoogleEventCard/GoogleEventCard';
 import type { FirestoreCalendarEvent } from '@/src/shared/firestore/types';
+import { useTaskPanel } from '@/src/shared/navigation/taskPanel';
 
 // Payments are "upcoming from today," not tied to the month being browsed
 // (see upcomingPayments.ts's own header — same forward-looking model the
@@ -117,6 +118,7 @@ function toGoogleCard(event: FirestoreCalendarEvent): GoogleCardEvent {
     startTime: event.startAt.toDate(),
     dueDate: event.endAt.toDate(),
     allDay: event.allDay,
+    meetingLink: event.meetingLink,
   };
 }
 
@@ -134,6 +136,7 @@ function dateFromSearch(): Date | null {
 
 export function useLogic() {
   const router = useRouter();
+  const taskPanel = useTaskPanel();
   const { user } = useFirebaseUser();
   const uid = user?.uid;
 
@@ -222,13 +225,11 @@ export function useLogic() {
   // payments arrays, no extra Firestore reads either way.
   function buildAgendaForDate(dateIso: string) {
     const now = new Date();
-    const taskItems = tasks
-      .filter((t) => {
-        if (t.status === 'Cancelled') return false;
-        const anchor = t.startTime ?? t.dueDate;
-        return anchor !== null && anchor !== undefined && isoDate(anchor.toDate()) === dateIso;
-      })
-      .map((t) => ({
+    const onThisDay = tasks.filter((t) => {
+      const anchor = t.startTime ?? t.dueDate;
+      return anchor !== null && anchor !== undefined && isoDate(anchor.toDate()) === dateIso;
+    });
+    const toItem = (t: (typeof tasks)[number]) => ({
         kind: 'task' as const,
         id: t.id,
         title: t.title,
@@ -248,10 +249,12 @@ export function useLogic() {
         bucketName: t.bucketId ? bucketName.get(t.bucketId) ?? null : null,
         areaName: t.areaId ? areaName.get(t.areaId) ?? null : null,
         sync: syncEnabled ? syncBadgeFor(t, { includeFree, now }) : null,
-      }))
-      .sort(
-        (a, b) => ((a.startTime ?? a.dueDate)?.getTime() ?? 0) - ((b.startTime ?? b.dueDate)?.getTime() ?? 0)
-      );
+      });
+    const byTime = (a: ReturnType<typeof toItem>, b: ReturnType<typeof toItem>) =>
+      ((a.startTime ?? a.dueDate)?.getTime() ?? 0) - ((b.startTime ?? b.dueDate)?.getTime() ?? 0);
+    const taskItems = onThisDay.filter((t) => t.status !== 'Cancelled').map(toItem).sort(byTime);
+    // Only the wide Today screen lists these (its Cancelled filter).
+    const cancelledTaskItems = onThisDay.filter((t) => t.status === 'Cancelled').map(toItem).sort(byTime);
     const projectItems = projects
       .filter(
         (p) =>
@@ -276,7 +279,7 @@ export function useLogic() {
       });
     const paymentItems = payments.filter((payment) => payment.dueDate === dateIso);
     const googleItems = googleDocs.filter((e) => onDay(e, dateIso)).map(toGoogleCard);
-    return { taskItems, projectItems, paymentItems, googleItems };
+    return { taskItems, cancelledTaskItems, projectItems, paymentItems, googleItems };
   }
 
   const agenda = useMemo(
@@ -326,7 +329,9 @@ export function useLogic() {
 
   // "Add Event" — the new task form, on the selected day, as an Event.
   function openAddEvent() {
-    router.push(`/tasks/new?date=${selectedDate}&type=Event`);
+    // The full page on a phone (same address as always); the side panel on
+    // wider screens.
+    taskPanel.open('new', { date: selectedDate, type: 'Event' });
   }
 
 

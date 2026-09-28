@@ -24,6 +24,7 @@ import { priorityLabel } from '@/src/viewmodels/projects';
 import type { Priority, TimeMode } from '@/src/shared/firestore/types';
 import type { TaskSyncBadge } from '@/src/shared/calendarSync/badge';
 import { SyncBadge } from '@/src/widgets/SyncBadge/SyncBadge';
+import { useTaskPanel } from '@/src/shared/navigation/taskPanel';
 import styles from './TaskCheckRow.module.css';
 
 export interface TaskCheckRowTask {
@@ -113,6 +114,8 @@ export function TaskCheckRow({
   const { user } = useFirebaseUser();
   const uid = user?.uid;
   const [saving, setSaving] = useState(false);
+  // The full page on a phone; the side panel on wider screens.
+  const { hrefFor, isPanel } = useTaskPanel();
   const when = taskWhen(task.startTime, task.dueDate, task.allDay, timeOnly);
   const overdue = Boolean(task.overdue) && !task.done;
 
@@ -150,7 +153,7 @@ export function TaskCheckRow({
       >
         <Check size={14} strokeWidth={3} className={styles.checkIcon} />
       </button>
-      <Link href={`/tasks/${task.id}/edit`} className={styles.body}>
+      <Link href={hrefFor(task.id)} scroll={isPanel ? false : undefined} className={styles.body}>
         {!density && (
           <span className={styles.badges}>
             <span className={styles.priority} data-priority={task.priority}>

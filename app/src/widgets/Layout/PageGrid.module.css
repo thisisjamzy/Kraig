@@ -1,0 +1,61 @@
+/* See PageGrid.tsx. Only ever rendered on medium screens and up. */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  align-items: start;
+  gap: 16px;
+}
+
+@media (min-width: 1024px) {
+  .grid {
+    gap: 24px;
+  }
+}
+
+.cell {
+  container-type: inline-size;
+  min-width: 0;
+  grid-column: span 12;
+}
+
+.cell[data-equal] {
+  align-self: stretch;
+}
+
+/* The card inside fills an equal-height cell. */
+.cell[data-equal] > * {
+  height: 100%;
+  box-sizing: border-box;
+}
+
+/* Medium: two across at most. */
+.cell[data-size='S'],
+.cell[data-size='M'],
+.cell[data-size='L'] {
+  grid-column: span 6;
+}
+
+.cell[data-medium-wide] {
+  grid-column: span 12;
+}
+
+@media (min-width: 1024px) {
+  .cell[data-size='S'] {
+    grid-column: span 3;
+  }
+
+  .cell[data-size='M'],
+  .cell[data-size='M'][data-medium-wide] {
+    grid-column: span 4;
+  }
+
+  .cell[data-size='L'],
+  .cell[data-size='L'][data-medium-wide] {
+    grid-column: span 6;
+  }
+
+  .cell[data-size='XL'] {
+    grid-column: span 8;
+  }
+}

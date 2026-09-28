@@ -1,0 +1,117 @@
+/* The medium-and-up app shell (never rendered on a phone). */
+
+.shell {
+  --content-pad: 24px;
+  display: flex;
+  width: 100%;
+  min-height: 100dvh;
+  background: var(--color-page);
+}
+
+.shell[data-device='expanded'],
+.shell[data-device='large'] {
+  --content-pad: 32px;
+}
+
+/* The docked drawer stays put while the page scrolls. */
+.drawer {
+  position: sticky;
+  top: 0;
+  flex-shrink: 0;
+  height: 100dvh;
+}
+
+.main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.content {
+  flex: 1;
+  box-sizing: border-box;
+  width: 100%;
+  padding: var(--content-pad);
+  padding-bottom: calc(var(--content-pad) + var(--safe-bottom));
+  /* Never a horizontal page scroll; wide tables scroll inside themselves. */
+  overflow-x: clip;
+}
+
+.content:focus {
+  outline: none;
+}
+
+.page {
+  width: 100%;
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+/* Pages without a wide layout yet: their phone layout, centred. */
+.column {
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+/* ---- Overlay drawer ---- */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+}
+
+.backdrop {
+  position: absolute;
+  inset: 0;
+  border: none;
+  background: rgba(10, 12, 24, 0.4);
+  cursor: pointer;
+  animation: fadeIn 160ms ease;
+}
+
+.overlayDrawer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  box-shadow: 16px 0 40px rgba(0, 0, 0, 0.18);
+  animation: slideIn 200ms var(--ease-out);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(-100%);
+  }
+}
+
+.skip {
+  position: absolute;
+  top: -100px;
+  left: 16px;
+  z-index: 100;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--color-brand);
+  color: #ffffff;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.skip:focus {
+  top: calc(var(--safe-top) + 8px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .backdrop,
+  .overlayDrawer {
+    animation: none;
+  }
+}
