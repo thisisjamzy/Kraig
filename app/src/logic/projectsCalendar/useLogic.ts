@@ -1,13 +1,13 @@
 'use client';
 
 // A month grid over a day schedule — tasks (placed on an hour timeline by
-// their start/end), and projects/payments as all-day items — the Google
-// Calendar bridge and the dedicated calendarEvents collection PRD
-// Files/PRD-PROJECTS.md section 16 specs are later build steps; this reads
-// directly off tasks/projects, which is everything a household's own
-// schedule actually needs for now. "Add Event" opens the new task form.
+// their start/end), projects/payments as all-day items, and events pulled
+// from Google Calendar (calendarEvents, src/shared/calendarSync) beside the
+// tasks, in the same overlap layout. Opening the screen (and moving to
+// another month) syncs with Google for the range on screen. "Add Event"
+// opens the new task form.
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { query } from 'firebase/firestore';
 import { useFirestoreCollection } from '@/src/shared/firestore/hooks';
@@ -22,6 +22,13 @@ import type { FirestoreProject, FirestoreArea, FirestorePlannedPayment } from '@
 import { effectiveTimeMode } from '@/src/viewmodels/scheduling';
 import { expandTasks } from '@/src/shared/tasks/recurringTasks';
 import { layoutDay } from '@/src/viewmodels/dayLayout';
+import { useCalendarEvents } from '@/src/shared/hooks/useCalendarEvents';
+import { isCalendarSyncEnabled, runCalendarSync } from '@/src/shared/calendarSync/runner';
+import { useCalendarSyncStatus } from '@/src/shared/calendarSync/status';
+import { syncBadgeFor } from '@/src/shared/calendarSync/badge';
+import type { SyncWindow } from '@/src/shared/calendarSync/blocks';
+import type { GoogleCardEvent } from '@/src/widgets/GoogleEventCard/GoogleEventCard';
+import type { FirestoreCalendarEvent } from '@/src/shared/firestore/types';
 
 // Payments are "upcoming from today," not tied to the month being browsed
 // (see upcomingPayments.ts's own header — same forward-looking model the
@@ -89,6 +96,30 @@ export function buildSchedule<T extends ScheduleTask>(taskItems: T[], selectedDa
   return { hours, firstHour, items, groups: layout.groups, height: (lastHour - firstHour) * HOUR_HEIGHT };
 }
 
+/** Does a Google event belong on this day? Timed: by its start. All-day:
+ * every day it covers (its end date is exclusive, so endAt is the
+ * midnight after its last day). */
+function onDay(event: FirestoreCalendarEvent, dateIso: string): boolean {
+  const start = event.startAt.toDate();
+  if (!event.allDay) return isoDate(start) === dateIso;
+  const [y, m, d] = dateIso.split('-').map(Number);
+  const dayStart = new Date(y, m - 1, d).getTime();
+  return start.getTime() < dayStart + 86_400_000 && event.endAt.toMillis() > dayStart;
+}
+
+function toGoogleCard(event: FirestoreCalendarEvent): GoogleCardEvent {
+  return {
+    id: event.id,
+    title: event.title,
+    kind: event.kind,
+    blocksTime: event.blocksTime,
+    selfResponse: event.selfResponse,
+    startTime: event.startAt.toDate(),
+    dueDate: event.endAt.toDate(),
+    allDay: event.allDay,
+  };
+}
+
 export function isoDate(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
@@ -116,17 +147,28 @@ export function useLogic() {
   const [selectedDate, setSelectedDate] = useState(() => isoDate(initialDay ?? today));
 
   const { data: taskDocs, loading: tasksLoading } = useAllTasks();
-  // Recurring tasks as their dates, for the month on screen and one either
-  // side (the grid's padding days and the web week view stay covered).
-  const tasks = useMemo(
-    () =>
-      expandTasks(
-        taskDocs,
-        new Date(monthCursor.getFullYear(), monthCursor.getMonth() - 1, 1),
-        new Date(monthCursor.getFullYear(), monthCursor.getMonth() + 2, 0, 23, 59, 59, 999)
-      ),
-    [taskDocs, monthCursor]
+  // The month on screen and one either side (the grid's padding days and
+  // the web week view stay covered) — for recurring tasks' dates, Google
+  // events, and the range a calendar-open sync covers.
+  const range: SyncWindow = useMemo(
+    () => ({
+      from: new Date(monthCursor.getFullYear(), monthCursor.getMonth() - 1, 1),
+      to: new Date(monthCursor.getFullYear(), monthCursor.getMonth() + 2, 1),
+    }),
+    [monthCursor]
   );
+  const tasks = useMemo(
+    () => expandTasks(taskDocs, range.from, new Date(range.to.getTime() - 1)),
+    [taskDocs, range]
+  );
+
+  // ---- Google Calendar ----
+  const syncEnabled = isCalendarSyncEnabled();
+  const { includeFree } = useCalendarSyncStatus();
+  const { data: googleDocs } = useCalendarEvents(range.from.getTime(), range.to.getTime());
+  useEffect(() => {
+    if (uid) void runCalendarSync({ reason: 'calendar-open', window: range });
+  }, [uid, range]);
   const projectsQuery = useMemo(() => (uid ? query(projectsRef(uid)) : null), [uid]);
   const { data: projectDocs, loading: projectsLoading } = useFirestoreCollection<FirestoreProject>(projectsQuery);
   const projects = projectDocs.filter((p) => p.status !== 'Archived');
@@ -169,8 +211,9 @@ export function useLogic() {
     for (const payment of payments) {
       set.add(payment.dueDate);
     }
+    for (const event of googleDocs) set.add(isoDate(event.startAt.toDate()));
     return set;
-  }, [tasks, projects, payments]);
+  }, [tasks, projects, payments, googleDocs]);
 
   // Pulled out of the `agenda` useMemo below so the same computation can
   // also serve the web week-grid (ProjectsCalendarScreen.web.module.css's
@@ -204,6 +247,7 @@ export function useLogic() {
         projectName: t.projectId ? projectName.get(t.projectId) ?? null : null,
         bucketName: t.bucketId ? bucketName.get(t.bucketId) ?? null : null,
         areaName: t.areaId ? areaName.get(t.areaId) ?? null : null,
+        sync: syncEnabled ? syncBadgeFor(t, { includeFree, now }) : null,
       }))
       .sort(
         (a, b) => ((a.startTime ?? a.dueDate)?.getTime() ?? 0) - ((b.startTime ?? b.dueDate)?.getTime() ?? 0)
@@ -231,13 +275,14 @@ export function useLogic() {
         };
       });
     const paymentItems = payments.filter((payment) => payment.dueDate === dateIso);
-    return { taskItems, projectItems, paymentItems };
+    const googleItems = googleDocs.filter((e) => onDay(e, dateIso)).map(toGoogleCard);
+    return { taskItems, projectItems, paymentItems, googleItems };
   }
 
   const agenda = useMemo(
     () => buildAgendaForDate(selectedDate),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [tasks, projects, payments, selectedDate, projectName, bucketName, areaName]
+    [tasks, projects, payments, googleDocs, includeFree, selectedDate, projectName, bucketName, areaName]
   );
 
   // The selected day's timeline (buildSchedule above) — recomputed only
@@ -245,8 +290,20 @@ export function useLogic() {
   // Date-only tasks (FirestoreTask.allDay) sit with the day's all-day items,
   // not on the hour timeline.
   const allDayTasks = useMemo(() => agenda.taskItems.filter((task) => task.allDay), [agenda]);
+  // All-day Google events sit in the all-day row too.
+  const allDayGoogle = useMemo(() => agenda.googleItems.filter((e) => e.allDay), [agenda]);
   const schedule = useMemo(
-    () => buildSchedule(agenda.taskItems.filter((task) => !task.allDay), selectedDate),
+    () =>
+      // Tasks and Google events share one overlap layout.
+      buildSchedule(
+        [
+          ...agenda.taskItems.filter((task) => !task.allDay).map((task) => ({ ...task, google: undefined })),
+          ...agenda.googleItems
+            .filter((e) => !e.allDay)
+            .map((e) => ({ id: `google:${e.id}`, startTime: e.startTime, dueDate: e.dueDate, google: e })),
+        ],
+        selectedDate
+      ),
     [agenda, selectedDate]
   );
 
@@ -296,7 +353,9 @@ export function useLogic() {
     selectDay,
     agenda,
     allDayTasks,
+    allDayGoogle,
     schedule,
+    syncRange: range,
     monthGrid,
     shiftMonth,
     pickDate,

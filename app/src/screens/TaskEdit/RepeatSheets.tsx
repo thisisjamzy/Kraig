@@ -381,7 +381,9 @@ export function ConflictSheet({
                 {shortDay(c.start)}, {hhmm(c.start)}
               </span>
               <span className={styles.conflictWith}>
-                {c.clashWith ? `${c.clashWith.title} ${hhmm(c.clashWith.start!)} to ${hhmm(c.clashWith.end!)}` : 'Busy'}
+                {c.clashWith
+                  ? `${c.clashWith.title} ${hhmm(c.clashWith.start!)} to ${hhmm(c.clashWith.end!)}${c.clashWith.source === 'google' ? ' (Google Calendar)' : ''}`
+                  : 'Busy'}
               </span>
             </li>
           ))}

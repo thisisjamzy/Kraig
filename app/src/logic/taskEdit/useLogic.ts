@@ -77,6 +77,8 @@ import {
 import { planDelete, planEdit, type EditScope, type TaskForm } from '@/src/shared/tasks/recurringPlan';
 import { runWrites } from '@/src/shared/tasks/recurringWrites';
 import { useAllTasks } from '@/src/shared/hooks/useAllTasks';
+import { useCalendarEvents } from '@/src/shared/hooks/useCalendarEvents';
+import { googleEventsAsScheduled } from '@/src/shared/calendarSync/availability';
 import { showToast } from '@/src/widgets/Toast/Toast';
 import type {
   FirestoreProject,
@@ -352,8 +354,16 @@ export function useLogic(taskId: string | null) {
   // Recurring tasks take part as their dates, over the window any check
   // can look at (a little before today to CONFLICT_HORIZON_MONTHS ahead of
   // the chosen date).
+  // Google Calendar events (pulled mirrors, from yesterday on) count too:
+  // one that blocks time in Google is a blocked window here, one marked
+  // Free there is ignored — src/shared/calendarSync/availability.ts.
+  const [googleFromMs] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1).getTime();
+  });
+  const { data: googleDocs } = useCalendarEvents(googleFromMs, null);
   // (Memoized by the React Compiler on its inputs.)
-  const scheduledTasks = buildScheduledTasks(allTaskDocs, date);
+  const scheduledTasks = [...buildScheduledTasks(allTaskDocs, date), ...googleEventsAsScheduled(googleDocs)];
   // Whatever this form is editing — a task, or every date of a series.
   const excludeId = isEditing ? docId : null;
   const timeMode: TimeMode = timeModeChoice ?? defaultTimeMode(type);

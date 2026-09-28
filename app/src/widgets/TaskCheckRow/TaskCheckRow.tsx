@@ -22,6 +22,8 @@ import { updateTaskDone } from '@/src/shared/firestore/taskWrites';
 import { askActualTime } from '@/src/widgets/ActualTimePrompt/ActualTimePrompt';
 import { priorityLabel } from '@/src/viewmodels/projects';
 import type { Priority, TimeMode } from '@/src/shared/firestore/types';
+import type { TaskSyncBadge } from '@/src/shared/calendarSync/badge';
+import { SyncBadge } from '@/src/widgets/SyncBadge/SyncBadge';
 import styles from './TaskCheckRow.module.css';
 
 export interface TaskCheckRowTask {
@@ -45,6 +47,9 @@ export interface TaskCheckRowTask {
   // "Project · Section · Area" — for listings that mix tasks from many
   // places (All tasks); leave out where it's already obvious.
   context?: string | null;
+  // Google Calendar sync state (src/shared/calendarSync/badge.ts) — a tiny
+  // badge beside the card's text; null/absent when synced or not pushed.
+  sync?: TaskSyncBadge | null;
 }
 
 function formatTime(date: Date) {
@@ -165,6 +170,7 @@ export function TaskCheckRow({
         )}
         {task.context && (!density || density === 'full') && <span className={styles.context}>{task.context}</span>}
       </Link>
+      {task.sync && <SyncBadge badge={task.sync} compact={density === 'line' || density === 'short'} />}
     </div>
   );
 }

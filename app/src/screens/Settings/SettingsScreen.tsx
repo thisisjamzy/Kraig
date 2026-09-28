@@ -20,7 +20,7 @@ import {
   Scale,
   CalendarClock,
   LayoutTemplate,
-  Archive, ChartNoAxesCombined } from 'lucide-react';
+  Archive, ChartNoAxesCombined, CalendarSync } from 'lucide-react';
 import Link from 'next/link';
 import { Modal } from '@/src/widgets/Modal/Modal';
 import { useLogic } from '@/src/logic/settings/useLogic';
@@ -133,6 +133,17 @@ export function SettingsScreen() {
         <span className={styles.actionRowText}>
           <span className={styles.actionRowLabel}>Insights</span>
           <span className={styles.actionRowMeta}>Daily capacity, working hours, alerts and notifications</span>
+        </span>
+        <ChevronRight size={16} strokeWidth={2} className={styles.actionRowChevron} />
+      </Link>
+
+      <Link href="/settings/google-calendar" className={styles.actionRow}>
+        <span className={styles.actionRowIcon} style={{ background: iconTint(5) }}>
+          <CalendarSync size={18} strokeWidth={1.75} />
+        </span>
+        <span className={styles.actionRowText}>
+          <span className={styles.actionRowLabel}>Google Calendar</span>
+          <span className={styles.actionRowMeta}>Meetings in, blocked tasks out as Busy</span>
         </span>
         <ChevronRight size={16} strokeWidth={2} className={styles.actionRowChevron} />
       </Link>

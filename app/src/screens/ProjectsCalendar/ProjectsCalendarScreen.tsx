@@ -11,11 +11,15 @@
 // route (chromeVisibility.ts) — this header replaces it.
 
 import { useRef } from 'react';
-import { ChevronLeft, ChevronRight, CalendarClock, FolderKanban, ListPlus, Target, Wallet } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CalendarClock, FolderKanban, ListPlus, RefreshCw, Target, Wallet } from 'lucide-react';
 import { useLogic, HOUR_HEIGHT } from '@/src/logic/projectsCalendar/useLogic';
 import { ActionMenu } from '@/src/widgets/ActionMenu/ActionMenu';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { TaskCheckRow } from '@/src/widgets/TaskCheckRow/TaskCheckRow';
+import { GoogleEventCard } from '@/src/widgets/GoogleEventCard/GoogleEventCard';
+import { CalendarSyncStatus } from '@/src/widgets/CalendarSyncStatus/CalendarSyncStatus';
+import { syncNow } from '@/src/widgets/CalendarSyncStatus/syncNow';
+import { isCalendarSyncEnabled } from '@/src/shared/calendarSync/runner';
 import { DayTimeline } from './DayTimeline';
 import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import { useIsWeb } from '@/src/shared/hooks/useViewportMode';
@@ -42,7 +46,9 @@ export type ProjectsCalendarViewProps = Pick<
   | 'todayIso'
   | 'agenda'
   | 'allDayTasks'
+  | 'allDayGoogle'
   | 'schedule'
+  | 'syncRange'
   | 'monthGrid'
   | 'shiftMonth'
   | 'pickDate'
@@ -63,7 +69,9 @@ export function ProjectsCalendarView({
   todayIso,
   agenda,
   allDayTasks,
+  allDayGoogle,
   schedule,
+  syncRange,
   monthGrid,
   shiftMonth,
   pickDate,
@@ -96,7 +104,9 @@ export function ProjectsCalendarView({
     month: 'long',
     day: 'numeric',
   });
-  const hasAllDay = agenda.projectItems.length > 0 || agenda.paymentItems.length > 0 || allDayTasks.length > 0;
+  const hasAllDay =
+    agenda.projectItems.length > 0 || agenda.paymentItems.length > 0 || allDayTasks.length > 0 || allDayGoogle.length > 0;
+  const syncEnabled = isCalendarSyncEnabled();
 
   return (
     <div className={`${styles.page} ${isWeb ? webStyles.page : ''}`}>
@@ -137,6 +147,16 @@ export function ProjectsCalendarView({
                   icon: <ListPlus size={14} strokeWidth={2} />,
                   onSelect: openAddEvent,
                 },
+                ...(syncEnabled
+                  ? [
+                      {
+                        key: 'sync',
+                        label: 'Sync with Google Calendar',
+                        icon: <RefreshCw size={14} strokeWidth={2} />,
+                        onSelect: () => void syncNow(syncRange),
+                      },
+                    ]
+                  : []),
               ]}
             />
         }
@@ -184,6 +204,7 @@ export function ProjectsCalendarView({
               <div>
                 <h2 className={styles.scheduleTitle}>Schedule</h2>
                 <p className={styles.scheduleDate}>{selectedLabel}</p>
+                <CalendarSyncStatus range={syncRange} />
               </div>
               <button type="button" className={styles.addLink} onClick={openAddEvent}>
                 Add Event
@@ -196,6 +217,9 @@ export function ProjectsCalendarView({
               <div className={styles.allDay}>
                 {allDayTasks.map((task) => (
                   <TaskCheckRow key={task.id} task={task} timeOnly />
+                ))}
+                {allDayGoogle.map((event) => (
+                  <GoogleEventCard key={event.id} event={event} />
                 ))}
                 {agenda.projectItems.map((item) => (
                   <button

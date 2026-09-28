@@ -389,6 +389,47 @@ describe('materialized stats — client-maintained (Spark plan, see firestore.ru
   });
 });
 
+describe('calendarEvents (Google Calendar sync mirrors)', () => {
+  beforeEach(async () => {
+    await seedActiveUser(ACTIVE_UID);
+  });
+
+  const mirror = (extra: Record<string, unknown> = {}) => ({
+    googleEventId: 'g1',
+    title: 'Client call',
+    kind: 'meeting',
+    source: 'google',
+    allDay: false,
+    blocksTime: true,
+    startAt: new Date('2026-09-29T10:00:00Z'),
+    endAt: new Date('2026-09-29T11:00:00Z'),
+    ...extra,
+  });
+
+  it('lets an active user write, edit app fields on, and delete their own mirrors', async () => {
+    const db = testEnv.authenticatedContext(ACTIVE_UID).firestore();
+    const ref = doc(db, 'users', ACTIVE_UID, 'calendarEvents', 'g1');
+    await assertSucceeds(setDoc(ref, mirror()));
+    await assertSucceeds(updateDoc(ref, { notes: 'Bring the plan', linkedTaskId: 't1', linkedProjectId: null }));
+    await assertSucceeds(getDoc(ref));
+    await assertSucceeds(deleteDoc(ref));
+  });
+
+  it('rejects a mirror with wrong field types', async () => {
+    const db = testEnv.authenticatedContext(ACTIVE_UID).firestore();
+    await assertFails(setDoc(doc(db, 'users', ACTIVE_UID, 'calendarEvents', 'g2'), mirror({ startAt: '2026-09-29' })));
+    await assertFails(setDoc(doc(db, 'users', ACTIVE_UID, 'calendarEvents', 'g3'), mirror({ kind: 'party' })));
+    await assertFails(setDoc(doc(db, 'users', ACTIVE_UID, 'calendarEvents', 'g4'), mirror({ notes: 42 })));
+  });
+
+  it('denies another user\'s mirrors', async () => {
+    await seedActiveUser(OTHER_UID);
+    const db = testEnv.authenticatedContext(ACTIVE_UID).firestore();
+    await assertFails(setDoc(doc(db, 'users', OTHER_UID, 'calendarEvents', 'g1'), mirror()));
+    await assertFails(getDoc(doc(db, 'users', OTHER_UID, 'calendarEvents', 'g1')));
+  });
+});
+
 describe('settings and exchangeRates', () => {
   beforeEach(async () => {
     await seedActiveUser(ACTIVE_UID);

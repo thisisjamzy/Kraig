@@ -963,6 +963,83 @@ export interface FirestoreTask {
   // ("YYYY-MM-DD", local) — even when that date's task was moved to another
   // day.
   exceptions?: Record<string, TaskException>;
+  // Google Calendar sync (src/shared/calendarSync) — only on tasks pushed to
+  // Google as Busy blocks. Absent = never pushed.
+  googleSync?: TaskGoogleSync;
+}
+
+/** A pushed task's Google Calendar state. `pending` is set in the same
+ * write that creates a pushable task or changes its time, title or mode
+ * (taskWrites.ts); the sync engine sets synced/error after each push. */
+export interface TaskGoogleSync {
+  state: 'pending' | 'synced' | 'error';
+  // Occurrence id (the task id, or taskId__yyyyMMdd for one date of a
+  // recurring task) → its Google event id.
+  googleEventIds?: Record<string, string>;
+  lastSyncedAt?: Timestamp | null;
+  error?: string | null;
+  // Real Google events the block overlaps (a meeting booked in the seconds
+  // before the block reached Google).
+  conflicts?: TaskGoogleConflict[];
+}
+
+export interface TaskGoogleConflict {
+  googleEventId: string;
+  title: string;
+  start: string; // ISO
+  end: string; // ISO
+  // Which occurrence it hit (the task id, or taskId__yyyyMMdd).
+  blockId?: string;
+}
+
+/** users/{uid}/calendarEvents/{googleEventId} — a read-only mirror of one
+ * Google Calendar event, written by the sync engine's pull (merge, Google
+ * fields only). The app never edits title or time; linkedTaskId,
+ * linkedProjectId and notes are the app's own and a pull never touches
+ * them. */
+export interface FirestoreCalendarEvent {
+  id: string;
+  googleEventId: string;
+  recurringEventId: string | null;
+  kind: 'meeting' | 'event';
+  source: 'google' | 'booking';
+  title: string;
+  description: string | null;
+  location: string | null;
+  allDay: boolean;
+  // Raw, as Google sent them: { dateTime } or { date } (all-day end date
+  // exclusive).
+  start: { dateTime?: string | null; date?: string | null; timeZone?: string | null };
+  end: { dateTime?: string | null; date?: string | null; timeZone?: string | null };
+  // All-day events: midnight in the calendar's time zone.
+  startAt: Timestamp;
+  endAt: Timestamp;
+  blocksTime: boolean;
+  selfResponse: string | null;
+  organizer: { email: string | null; name: string | null; self: boolean } | null;
+  attendees: { email: string | null; name: string | null; responseStatus: string | null; optional: boolean }[];
+  eventType: string | null; // 'default', 'focusTime', 'outOfOffice', ...
+  meetingLink: string | null;
+  htmlLink: string | null;
+  updated: string | null;
+  syncedAt: Timestamp;
+  // App-owned, editable in the app.
+  linkedTaskId?: string | null;
+  linkedProjectId?: string | null;
+  notes?: string;
+}
+
+/** users/{uid}/settings/calendarSync — the last sync's outcome, and the
+ * one Google Calendar setting. */
+export interface FirestoreCalendarSyncState {
+  lastSyncAt?: Timestamp | null;
+  lastSuccessAt?: Timestamp | null;
+  lastError?: { code: string; message: string; at: Timestamp } | null;
+  calendarName?: string | null;
+  calendarTimeZone?: string | null;
+  lastCounts?: { meetings: number; events: number; blocksPushed: number; deleted: number; conflicts: number } | null;
+  // "Also mark free tasks as busy on Google" — off by default.
+  markFreeAsBusy?: boolean;
 }
 
 export interface TaskStatusChange {

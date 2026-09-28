@@ -1,0 +1,104 @@
+/* See SyncBadge.tsx. */
+
+.badge {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 7px;
+  border: none;
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--color-text-secondary) 14%, transparent);
+  color: var(--color-text-secondary);
+  font-family: var(--font-family-body);
+  font-size: 0.625rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.badge[data-compact] {
+  padding: 3px;
+}
+
+/* A 44px tap area around the small pill. */
+.badge::after {
+  content: '';
+  position: absolute;
+  inset: -14px -8px;
+}
+
+.badge[data-kind='error'],
+.badge[data-kind='conflict'] {
+  background: color-mix(in srgb, var(--color-danger) 12%, transparent);
+  color: var(--color-danger);
+}
+
+.badge:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+}
+
+.sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-bottom: calc(var(--space-md) + var(--safe-bottom));
+}
+
+.text {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: var(--color-text-primary);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.list li {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  column-gap: 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--color-surface);
+}
+
+.listTitle {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.listTime {
+  grid-column: 2;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.primary {
+  min-height: 48px;
+  border: none;
+  border-radius: var(--radius-full);
+  background: var(--color-brand);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.primary:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}

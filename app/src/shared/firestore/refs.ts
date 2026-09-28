@@ -42,6 +42,8 @@ import type {
   FirestoreReconciliation,
   FirestoreAllocation,
   FirestoreOverspendJustification,
+  FirestoreCalendarEvent,
+  FirestoreCalendarSyncState,
 } from './types';
 import type { FirestoreAuditReport } from './auditReport';
 
@@ -204,6 +206,25 @@ export function financeSettingsRef(uid: string): DocumentReference<FirestoreFina
 
 export function taskTypesRef(uid: string): DocumentReference<FirestoreTaskTypesSettings> {
   return subDoc(uid, 'settings', 'taskTypes') as DocumentReference<FirestoreTaskTypesSettings>;
+}
+
+// Google Calendar sync (src/shared/calendarSync): mirrored Google events,
+// keyed by their Google event id so a re-pull updates instead of
+// duplicating, and the sync's own state doc.
+export function calendarEventsRef(uid: string): CollectionReference<FirestoreCalendarEvent> {
+  return sub(uid, 'calendarEvents') as CollectionReference<FirestoreCalendarEvent>;
+}
+export function calendarEventRef(uid: string, googleEventId: string): DocumentReference<Omit<FirestoreCalendarEvent, 'id'>> {
+  return subDoc(uid, 'calendarEvents', calendarEventDocId(googleEventId)) as DocumentReference<Omit<FirestoreCalendarEvent, 'id'>>;
+}
+/** Google event ids are base32hex (plus "_20260928T090000Z" on a recurring
+ * instance), so they're already valid doc ids — a "/" is replaced just in
+ * case, since it would split the path. */
+export function calendarEventDocId(googleEventId: string): string {
+  return googleEventId.replace(/\//g, '_');
+}
+export function calendarSyncStateRef(uid: string): DocumentReference<FirestoreCalendarSyncState> {
+  return subDoc(uid, 'settings', 'calendarSync') as DocumentReference<FirestoreCalendarSyncState>;
 }
 
 export function exchangeRatesRef(uid: string): CollectionReference<FirestoreExchangeRate> {

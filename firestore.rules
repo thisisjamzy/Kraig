@@ -261,8 +261,36 @@ service cloud.firestore {
         allow delete: if activeUser() && request.auth.uid == uid;
       }
 
+      // Also covers settings/calendarSync (Google Calendar sync's state and
+      // its one setting, src/shared/calendarSync).
       match /settings/{docId} {
         allow read, write: if activeUser() && request.auth.uid == uid;
+      }
+
+      // Read-only mirrors of Google Calendar events, written by the owner's
+      // own client during a sync (src/shared/calendarSync/firestoreIO.ts —
+      // no server, Spark plan). The doc id is the Google event id. The app
+      // never edits a mirror's title or time, only its own fields
+      // (linkedTaskId, linkedProjectId, notes); deleting is how a sync
+      // removes an event gone from Google.
+      function validCalendarEvent(d) {
+        return d.googleEventId is string
+          && d.title is string
+          && d.kind in ['meeting', 'event']
+          && d.source in ['google', 'booking']
+          && d.allDay is bool
+          && d.blocksTime is bool
+          && d.startAt is timestamp
+          && d.endAt is timestamp
+          && (!('linkedTaskId' in d) || d.linkedTaskId == null || d.linkedTaskId is string)
+          && (!('linkedProjectId' in d) || d.linkedProjectId == null || d.linkedProjectId is string)
+          && (!('notes' in d) || d.notes is string);
+      }
+      match /calendarEvents/{eventId} {
+        allow read: if activeUser() && request.auth.uid == uid;
+        allow create, update: if activeUser() && request.auth.uid == uid
+          && validCalendarEvent(request.resource.data);
+        allow delete: if activeUser() && request.auth.uid == uid;
       }
 
       // One doc per month (yyyy-mm) — the Budget screen's total-budget /

@@ -1,0 +1,48 @@
+/* One small line under the Calendar's date — see CalendarSyncStatus.tsx. */
+
+.line {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 44px;
+  margin: -12px 0 -14px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--color-text-secondary);
+  font-family: inherit;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+span.line {
+  cursor: default;
+}
+
+.line[data-tone='error'] {
+  color: var(--color-danger);
+}
+
+.line:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: -8px;
+  border-radius: var(--radius-sm);
+}
+
+.spin {
+  animation: spin 900ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation: none;
+  }
+}
