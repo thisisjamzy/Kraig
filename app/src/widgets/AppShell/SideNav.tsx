@@ -21,6 +21,7 @@ import { MODE_HOME, WIDE_NAV, isNavItemActive, modeOfPath, type AppMode } from '
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { useTaskPanel } from '@/src/shared/navigation/taskPanel';
 import { CalendarSyncStatus } from '@/src/widgets/CalendarSyncStatus/CalendarSyncStatus';
+import { OPEN_TAB_EVENT, useLocationSearch } from '@/src/shared/navigation/locationSearch';
 import styles from './SideNav.module.css';
 
 const MODE_KEY = 'dreda.mode';
@@ -52,6 +53,7 @@ export function SideNav({
   const { user } = useFirebaseUser();
   const taskPanel = useTaskPanel();
   const rail = variant === 'rail';
+  const search = useLocationSearch(pathname);
 
   // A shared route (Settings, Notifications) keeps the last mode shown —
   // "adjust state during render", not an effect.
@@ -137,7 +139,7 @@ export function SideNav({
 
       <ul className={styles.items}>
         {items.map((item) => {
-          const active = isNavItemActive(item, items, pathname);
+          const active = isNavItemActive(item, items, pathname, search);
           const Icon = item.icon;
           // In the rail, Planning's parent row is dropped — its pages
           // show as ordinary icons.
@@ -151,7 +153,11 @@ export function SideNav({
                 aria-current={active ? 'page' : undefined}
                 aria-label={rail && !touch ? item.label : undefined}
                 title={rail ? item.label : undefined}
-                onClick={onNavigate}
+                onClick={() => {
+                  // Already on Planning: switch its tab in place.
+                  if (item.tab && pathname === '/budget') window.dispatchEvent(new CustomEvent(OPEN_TAB_EVENT, { detail: item.tab }));
+                  onNavigate?.();
+                }}
               >
                 <Icon size={18} strokeWidth={2} aria-hidden />
                 {itemLabel(item.label)}

@@ -29,6 +29,7 @@ import { ForecastSection } from './ForecastSection';
 import { HabitsSection, IncomeSection, MoneySection } from './DetailSections';
 import { KeyCharts } from './KeyCharts';
 import { Pills, Section } from './parts';
+import { useHasTopBar } from '@/src/widgets/AppShell/TopBarSlot';
 import styles from './FinanceInsights.module.css';
 
 const RANGES: { value: RangeKind; label: string }[] = [
@@ -60,6 +61,10 @@ export function FinanceInsightsScreen() {
   const [reordering, setReordering] = useState(false);
   const c = v.currency;
 
+  // Medium screens and up: the sections on a 12-column dashboard grid, in
+  // the user's own order (FinanceInsights.module.css, data-shell).
+  const inShell = useHasTopBar();
+
   const sections: Record<SectionId, { show: boolean; takeaway?: string; details?: string; detailsLabel?: string; body: ReactNode; print?: boolean; highlight?: boolean }> = {
     attention: { show: true, body: <AttentionStrip alerts={v.attention} /> },
     snapshot: { show: true, takeaway: snapshotTakeaway(v.totals, c), details: v.historyHref(), body: <Snapshot v={v} />, print: true },
@@ -85,7 +90,7 @@ export function FinanceInsightsScreen() {
   };
 
   return (
-    <div className={styles.page} ref={swipeRef} data-print-page="insights">
+    <div className={styles.page} ref={swipeRef} data-print-page="insights" data-shell={inShell || undefined}>
       <div className={styles.top} data-print="hide">
         <div className={styles.titleRow}>
           <h1 className={styles.title}>Insights</h1>

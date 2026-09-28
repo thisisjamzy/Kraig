@@ -1509,6 +1509,75 @@ tr[data-short] .gapCell span {
 
 /* The app's own nav and header bars are hidden for print in globals.css
    (scoped to [data-print-page='insights']). */
+/* ============================================================
+   Medium screens and up (the app shell; never on a phone): a
+   dashboard grid. The user's section order is kept; "things need
+   attention" and the key charts run full width, every other section
+   is L (half) on expanded and up, full width on medium. The page's
+   own title is the top bar's.
+   ============================================================ */
+@media (min-width: 768px) {
+  .page[data-shell] {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    align-items: start;
+    gap: 16px;
+    margin: calc(-1 * var(--content-pad, 24px));
+    padding: var(--content-pad, 24px);
+  }
+
+  .page[data-shell] > * {
+    grid-column: 1 / -1;
+    min-width: 0;
+  }
+
+  .page[data-shell] .title {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+
+  .page[data-shell] .top {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px 20px;
+  }
+
+  .page[data-shell] .titleRow {
+    order: 9;
+    margin-left: auto;
+  }
+
+  .page[data-shell] > .card {
+    container-type: inline-size;
+    padding: 20px;
+  }
+
+  /* Multi-part sections: the parts side by side once the card is wide. */
+  .page[data-shell] .keyGrid {
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .page[data-shell] {
+    gap: 24px;
+  }
+
+  .page[data-shell] > .card {
+    grid-column: span 6;
+    padding: 24px;
+  }
+
+  .page[data-shell] > .card[id='attention'],
+  .page[data-shell] > .card[id='keycharts'] {
+    grid-column: 1 / -1;
+  }
+}
+
 @media print {
   .page {
     padding: 0;

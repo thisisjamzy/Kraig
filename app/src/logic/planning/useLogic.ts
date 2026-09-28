@@ -6,7 +6,8 @@
 // a bucket or transaction lands on the same view. Every tab reads the same
 // month budget (useMonthBudget), loaded once here.
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { OPEN_TAB_EVENT, URL_EVENT } from '@/src/shared/navigation/locationSearch';
 import { useMonthBudget } from '@/src/shared/hooks/useMonthBudget';
 import { monthOf, shiftMonth } from '@/src/viewmodels/planning';
 
@@ -50,10 +51,23 @@ function writeUrl(state: UrlState) {
   if (state.bucket && state.tab !== 'budget') params.set('bucket', state.bucket);
   if (state.category && state.tab === 'history') params.set('category', state.category);
   window.history.replaceState(window.history.state, '', `${window.location.pathname}?${params.toString()}`);
+  // The wide-screen drawer highlights the current tab (src/shared/
+  // navigation/locationSearch.ts); nothing listens on a phone.
+  window.dispatchEvent(new Event(URL_EVENT));
 }
 
 export function useLogic(defaultTab: PlanningTab = 'budget') {
   const [state, setState] = useState<UrlState>(() => fromUrl(defaultTab));
+  // The drawer's Budget / Payments / History links (wide screens) change
+  // ?tab= while this page stays mounted — follow them.
+  useEffect(() => {
+    function onOpenTab(event: Event) {
+      const tab = (event as CustomEvent<string>).detail;
+      if (TABS.includes(tab as PlanningTab)) setState((s) => (s.tab === tab ? s : { ...s, tab: tab as PlanningTab }));
+    }
+    window.addEventListener(OPEN_TAB_EVENT, onOpenTab);
+    return () => window.removeEventListener(OPEN_TAB_EVENT, onOpenTab);
+  }, []);
   function update(patch: Partial<UrlState>) {
     const next = { ...state, ...patch };
     setState(next);

@@ -29,6 +29,8 @@ export interface WideNavItem {
   child?: boolean;
   /** Other paths that light this item up (its drill-downs). */
   also?: string[];
+  /** Planning's pages are tabs of /budget (?tab=). */
+  tab?: 'budget' | 'payments' | 'history';
 }
 
 export const WIDE_NAV: Record<AppMode, WideNavItem[]> = {
@@ -44,9 +46,9 @@ export const WIDE_NAV: Record<AppMode, WideNavItem[]> = {
     { href: '/buckets', label: 'Buckets', icon: LayoutGrid },
     { href: '/buckets/items', label: 'Priorities', icon: ListOrdered },
     { href: '/budget', label: 'Planning', icon: SlidersHorizontal },
-    { href: '/budget', label: 'Budget', icon: Wallet, child: true },
-    { href: '/payments', label: 'Payments', icon: CalendarDays, child: true },
-    { href: '/transactions', label: 'History', icon: History, child: true, also: ['/edit-transaction', '/edit-transfer'] },
+    { href: '/budget', label: 'Budget', icon: Wallet, child: true, tab: 'budget' },
+    { href: '/budget?tab=payments', label: 'Payments', icon: CalendarDays, child: true, tab: 'payments', also: ['/payments'] },
+    { href: '/budget?tab=history', label: 'History', icon: History, child: true, tab: 'history', also: ['/transactions', '/edit-transaction', '/edit-transfer'] },
     { href: '/statistics', label: 'Insights', icon: PieChart, also: ['/buckets/analytics'] },
     { href: '/buckets/forecast', label: 'Plans forecast', icon: TrendingUp },
   ],
@@ -67,9 +69,17 @@ export function modeOfPath(pathname: string | null): AppMode | null {
 
 /** Is this item the current page? Planning's parent never lights up on
  * its own — its child items do. */
-export function isNavItemActive(item: WideNavItem, items: WideNavItem[], pathname: string | null): boolean {
+export function isNavItemActive(item: WideNavItem, items: WideNavItem[], pathname: string | null, search = ''): boolean {
   if (!pathname) return false;
-  const matches = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+  // On /budget, the ?tab= decides between Planning's pages.
+  if (pathname === '/budget') {
+    const tab = new URLSearchParams(search).get('tab') ?? 'budget';
+    return item.tab === tab;
+  }
+  const matches = (href: string) => {
+    const path = href.split('?')[0];
+    return pathname === path || pathname.startsWith(`${path}/`);
+  };
   // The longest matching href in the list wins, so /buckets/items lights
   // Priorities, not Buckets.
   const score = (i: WideNavItem) =>
