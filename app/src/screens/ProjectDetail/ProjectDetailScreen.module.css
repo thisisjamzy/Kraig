@@ -249,3 +249,39 @@
   flex-direction: column;
   gap: var(--space-sm);
 }
+
+/* ============================================================
+   Medium screens and up (the app shell; never on a phone): the
+   project summary in a sticky left column, its tasks on the right.
+   ============================================================ */
+@media (min-width: 768px) {
+  .page[data-shell] {
+    display: grid;
+    grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
+    align-items: start;
+    column-gap: 24px;
+  }
+
+  .page[data-shell] > :not(.wideSide):not(.wideMain) {
+    grid-column: 1 / -1;
+  }
+
+  .wideSide,
+  .wideMain {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+    min-width: 0;
+  }
+
+  .wideSide {
+    position: sticky;
+    top: calc(64px + var(--safe-top) + 16px);
+  }
+}
+
+@media (min-width: 1024px) {
+  .page[data-shell] {
+    column-gap: 32px;
+  }
+}

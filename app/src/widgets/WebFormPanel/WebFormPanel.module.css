@@ -9,7 +9,7 @@
 }
 
 .panel {
-  width: min(560px, 92vw);
+  width: min(480px, 92vw);
   height: 100%;
   overflow-y: auto;
   /* Solid, not --color-page (that token carries alpha for the page-scroll

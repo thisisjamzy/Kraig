@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { ChevronLeft, ChevronDown, Pencil, Plus } from 'lucide-react';
 import { useLogic, type TaskFilterTab } from '@/src/logic/projectDetail/useLogic';
 import { DonutChart } from '@/src/widgets/DonutChart/DonutChart';
@@ -10,6 +10,7 @@ import { TaskCheckRow } from '@/src/widgets/TaskCheckRow/TaskCheckRow';
 import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import { projectCoverImageUrl } from '@/src/viewmodels/projects';
 import type { ProjectStatus } from '@/src/shared/firestore/types';
+import { useHasTopBar } from '@/src/widgets/AppShell/TopBarSlot';
 import styles from './ProjectDetailScreen.module.css';
 
 const STATUS_LABEL: Record<ProjectStatus, string> = {
@@ -64,8 +65,14 @@ export function ProjectDetailScreen({ projectId }: { projectId: string }) {
   const descriptionShown =
     !descriptionIsLong || descriptionExpanded ? description : `${description.slice(0, DESCRIPTION_PREVIEW_LENGTH)}…`;
 
+  // Medium screens and up: the project summary in a left column, its tasks
+  // beside it. A Fragment on a phone, so the phone markup is unchanged.
+  const inShell = useHasTopBar();
+  const Column = inShell ? 'div' : Fragment;
+  const columnProps = (className: string) => (inShell ? { className } : {});
+
   return (
-    <div className={styles.page}>
+    <div className={styles.page} data-shell={inShell || undefined}>
       <ScreenHeader
         left={
           <button type="button" className={styles.backButton} onClick={goBack} aria-label="Back">
@@ -86,6 +93,7 @@ export function ProjectDetailScreen({ projectId }: { projectId: string }) {
 
       {!loading && !error && project && (
         <>
+          <Column {...columnProps(styles.wideSide)}>
           <div
             className={styles.cover}
             style={{ backgroundImage: `url(${projectCoverImageUrl(project.id)})` }}
@@ -180,7 +188,9 @@ export function ProjectDetailScreen({ projectId }: { projectId: string }) {
               <DonutChart segments={activitySegments} legendPosition="bottom" />
             </div>
           )}
+          </Column>
 
+          <Column {...columnProps(styles.wideMain)}>
           <div className={styles.sectionTitleRow}>
             <h2 className={styles.sectionTitle}>Tasks</h2>
             <div className={styles.taskActions}>
@@ -223,6 +233,7 @@ export function ProjectDetailScreen({ projectId }: { projectId: string }) {
               ))}
             </div>
           )}
+          </Column>
         </>
       )}
     </div>

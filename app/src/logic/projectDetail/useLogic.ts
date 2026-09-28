@@ -9,6 +9,7 @@
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTaskPanel } from '@/src/shared/navigation/taskPanel';
 import { query, updateDoc, serverTimestamp, where } from 'firebase/firestore';
 import { useFirestoreCollection, useFirestoreDoc } from '@/src/shared/firestore/hooks';
 import { projectRef, tasksRef, areaRef, areasRef } from '@/src/shared/firestore/refs';
@@ -48,6 +49,7 @@ function withCompletedDates<T extends { id: string }>(
 
 export function useLogic(projectId: string) {
   const router = useRouter();
+  const taskPanel = useTaskPanel();
   const { user } = useFirebaseUser();
   const uid = user?.uid;
 
@@ -164,7 +166,8 @@ export function useLogic(projectId: string) {
     router.push(`/projects/${projectId}/edit`);
   }
   function openAddTask() {
-    router.push(`/tasks/new?projectId=${projectId}`);
+    // Same page as always on a phone; the side panel on wider screens.
+    taskPanel.open('new', { projectId });
   }
 
   return {
