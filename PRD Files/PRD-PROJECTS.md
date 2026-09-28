@@ -54,6 +54,10 @@ column layout inside `--app-max-width` (480px), touch targets sized for a thumb,
 this document that only makes sense on a wide screen (see section 4 on the desktop split-screen
 idea specifically).
 
+> **Update (September 2026):** the single-column rule now applies to phones (under 768px)
+> only. From 768px up the app has its own shell and layouts, including a split-screen Today
+> planner and Calendar. See `docs/ARCHITECTURE-RESPONSIVE.md`.
+
 ## 3. Non-goals
 
 Not a team tool. This stays one household's own projects and tasks, the same single-account-per-
@@ -127,7 +131,9 @@ team's time.
 **A split-screen desktop layout, schedule on the left, calendar availability on the right.** Not
 adopted, on grounds that apply to every feature in this document, not only this one: Dreda is
 mobile-first, single column, `--app-max-width` locked. Section 16's month-plus-agenda view is the
-same information in the one-column shape the rest of the app already uses.
+same information in the one-column shape the rest of the app already uses. *(Reversed for screens
+768px and wider, see `docs/ARCHITECTURE-RESPONSIVE.md`: the Today screen puts the day timeline
+beside the day's tasks there. Phones are unchanged.)*
 
 ## 5. The organizing model: PARA, mapped to Dreda
 
