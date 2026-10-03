@@ -10,7 +10,7 @@ import { linesOf, lineStatus, monthTotals } from '../app/src/shared/budget/month
 import { monthLines, monthsToSetUp, setupBannerText, setupCounts } from '../app/src/shared/budget/monthSetup';
 import { incomePrompts, preparePayments, proposeQueue, queueId } from '../app/src/shared/budget/automation';
 import { classifyItem, planFlowMigration, type MigrationInput } from '../app/src/shared/budget/flowMigration';
-import { savingsSign, incomeSubtypeOfTransaction } from '../app/src/shared/budget/flow';
+import { inferExpenseKind, savingsSign, incomeSubtypeOfTransaction } from '../app/src/shared/budget/flow';
 
 const ts = (iso: string) => ({ toDate: () => new Date(`${iso}T00:00:00`) }) as never;
 
@@ -352,6 +352,14 @@ describe('flow-type migration', () => {
     assert.deepEqual(second.itemMoves, []);
     assert.deepEqual(second.itemPatches, []);
     assert.deepEqual(second.transactionPatches, []);
+  });
+
+  test('expense kind: a set amount on a set date is fixed, a limit used through the month is variable', () => {
+    assert.equal(inferExpenseKind({ name: 'Rent', recurring: true, hasDueDate: true }).kind, 'fixed');
+    assert.equal(inferExpenseKind({ name: 'Bunk bed', recurring: false, hasDueDate: true }).kind, 'fixed');
+    assert.equal(inferExpenseKind({ name: 'Food', recurring: true, hasDueDate: true }).kind, 'variable');
+    assert.equal(inferExpenseKind({ name: 'Household', recurring: true, hasDueDate: true, hasSubItems: true }).kind, 'variable');
+    assert.equal(inferExpenseKind({ name: 'Someday', recurring: false, hasDueDate: false }).kind, 'variable');
   });
 
   test('a transfer into a savings account is savings; a fee in a transfers bucket is an expense', () => {

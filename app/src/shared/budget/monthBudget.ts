@@ -97,6 +97,7 @@ export type BudgetItemLike = Pick<
       | 'savingsMode'
       | 'automation'
       | 'rollover'
+      | 'subItems'
     >
   >;
 

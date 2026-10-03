@@ -80,22 +80,30 @@ export interface KindSignals {
   categoryName?: string | null;
   recurring: boolean;
   hasDueDate: boolean;
+  /** A shopping list of sub-items: a limit spent through the month. */
+  hasSubItems?: boolean;
 }
 
 /**
- * fixed when it repeats with a set date, else variable — except that a
- * name or category reading like day-to-day spending (food, transport...)
- * is variable even when it repeats. `guessed` says the name decided it.
+ * Fixed is a set amount on a set date (rent, a one-off purchase on its
+ * day); variable is a limit used through the month (food). So: variable
+ * when there's no date, when it carries a shopping list, or when its name
+ * or category reads like day-to-day spending (food, transport...) — even
+ * if it repeats; otherwise fixed. `guessed` says the name decided it.
  */
 export function inferExpenseKind(signals: KindSignals): { kind: ExpenseKind; guessed: boolean } {
   if (VARIABLE_WORDS.test(signals.name) || (signals.categoryName && VARIABLE_WORDS.test(signals.categoryName))) {
     return { kind: 'variable', guessed: true };
   }
-  return { kind: signals.recurring && signals.hasDueDate ? 'fixed' : 'variable', guessed: false };
+  if (signals.hasSubItems) return { kind: 'variable', guessed: false };
+  return { kind: signals.hasDueDate ? 'fixed' : 'variable', guessed: false };
 }
 
-export function expenseKindOf(item: { expenseKind?: ExpenseKind | null; name: string }, signals: Omit<KindSignals, 'name'>): ExpenseKind {
-  return item.expenseKind ?? inferExpenseKind({ ...signals, name: item.name }).kind;
+export function expenseKindOf(
+  item: { expenseKind?: ExpenseKind | null; name: string; subItems?: unknown[] | null },
+  signals: Omit<KindSignals, 'name' | 'hasSubItems'>
+): ExpenseKind {
+  return item.expenseKind ?? inferExpenseKind({ ...signals, name: item.name, hasSubItems: Boolean(item.subItems?.length) }).kind;
 }
 
 /** Must have savings are absolute by default, the rest flexible. */

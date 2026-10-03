@@ -51,6 +51,7 @@ export interface MigrationItem {
   expenseKind?: ExpenseKind | null;
   savingsMode?: SavingsMode | null;
   monthOverrides?: Record<string, { amount: number }>;
+  subItems?: unknown[] | null;
 }
 
 export interface MigrationInput {
@@ -167,7 +168,13 @@ export function planFlowMigration(input: MigrationInput): MigrationPlan {
         plan.report.push({ kind: 'subtype', subject: item.name, detail: `Income subtype set to ${subtype === 'debt_financing' ? 'debt financing' : subtype}.` });
       }
       if (flow === 'Expense' && !item.expenseKind) {
-        const { kind, guessed } = inferExpenseKind({ name: item.name, categoryName: category?.name, recurring, hasDueDate: Boolean(item.dueDate) });
+        const { kind, guessed } = inferExpenseKind({
+          name: item.name,
+          categoryName: category?.name,
+          recurring,
+          hasDueDate: Boolean(item.dueDate),
+          hasSubItems: Boolean(item.subItems?.length),
+        });
         patch.expenseKind = kind;
         plan.report.push({
           kind: guessed ? 'kind-guessed' : 'subtype',
