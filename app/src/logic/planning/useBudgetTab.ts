@@ -38,7 +38,7 @@ function today() {
 export function useBudgetTab(month: string, data: PlanningData) {
   const { user } = useFirebaseUser();
   const uid = user?.uid;
-  const { budget, totals, transactionsById, transfersById, buckets, accounts, ctx } = data;
+  const { budget, totals, buckets, accounts, ctx } = data;
   const [view, setView] = useState<BudgetView>('bucket');
   // The phone's type tabs: one flow type at a time, never mixed.
   const [flow, setFlow] = useState<FlowType>('Expense');
@@ -48,7 +48,6 @@ export function useBudgetTab(month: string, data: PlanningData) {
 
   // ---- Savings ----
   const isPast = monthPhase(month, today()) === 'past';
-  const { start, end } = monthBounds(month);
   const sinceTxQuery = useMemo(
     () => (uid && isPast ? query(transactionsRef(uid), where('date', '>', Timestamp.fromDate(monthBounds(month).end))) : null),
     [uid, isPast, month]
@@ -60,15 +59,13 @@ export function useBudgetTab(month: string, data: PlanningData) {
   );
   const { data: sinceTransfers, loading: sinceTrLoading } = useFirestoreCollection<FirestoreTransfer>(sinceTrQuery);
 
-  const inMonth = (d: Date) => d >= start && d <= end;
-  const monthTransactions = [...transactionsById.values()].filter((t) => (t.month ?? '') === month || (!t.month && inMonth(t.date.toDate())));
-  const monthTransfers = [...transfersById.values()].filter((t) => inMonth(t.date.toDate()));
+  // "Total saved": today's savings account balances, rewound to the
+  // month's end for a past month (every savings flow after it undone).
   const flowOf = (txs: FirestoreTransaction[], trs: FirestoreTransfer[]) =>
     round2(
       txs.reduce((s, t) => s + toDisplay(ctx, savingsTransactionFlow(t, accountType), accountCurrency.get(t.accountId) ?? ctx.base), 0) +
         trs.reduce((s, t) => s + toDisplay(ctx, savingsTransferFlow(t, accountType), accountCurrency.get(t.fromAccountId) ?? ctx.base), 0)
     );
-  const savingsThisMonth = flowOf(monthTransactions, monthTransfers);
   const liveSavings = round2(
     accounts.filter(isSavingsAccount).reduce((s, a) => s + toDisplay(ctx, a.currentBalance, a.currency), 0)
   );

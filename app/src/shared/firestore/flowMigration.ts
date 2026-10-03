@@ -145,7 +145,8 @@ async function applyPlan(
   for (const move of plan.itemMoves) {
     const item = itemsByBucket[move.from]?.find((i) => i.id === move.itemId);
     if (!item) continue;
-    const { id: _id, ...data } = item;
+    const data: Record<string, unknown> = { ...item };
+    delete data.id;
     const patch = patchOf.get(`${move.to}/${move.itemId}`) ?? {};
     patchOf.delete(`${move.to}/${move.itemId}`);
     await writes.set(bucketLineItemRef(uid, move.to, move.itemId), { ...data, ...patch, goalId: move.to, updatedAt: serverTimestamp() });

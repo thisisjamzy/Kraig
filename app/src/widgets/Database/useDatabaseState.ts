@@ -43,7 +43,6 @@ export function useDatabaseState(id: string, defaults: { view: string; group: st
       setLoadedFor(id);
     });
     return () => cancelAnimationFrame(frame);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   useEffect(() => {

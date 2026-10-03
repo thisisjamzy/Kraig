@@ -11,7 +11,7 @@
 //   needs doing, and the automation card.
 // The phone keeps PlanningBucketView (with its sticky bottom bar).
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowRight, Lock, LockOpen, MoreHorizontal, Pencil, Plus, Zap } from 'lucide-react';
@@ -366,14 +366,12 @@ export function NotesBlock({ bucketId, itemId, initial }: { bucketId: string; it
   const { user } = useFirebaseUser();
   const [text, setText] = useState(initial);
   const [saved, setSaved] = useState(initial);
-  // Follow edits from another device while not typing here.
-  useEffect(() => {
-    if (text === saved) {
-      setText(initial);
-      setSaved(initial);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initial]);
+  // Follow edits from another device while not typing here — "adjust
+  // state during render", not an effect.
+  if (initial !== saved && text === saved) {
+    setText(initial);
+    setSaved(initial);
+  }
   return (
     <textarea
       className={styles.notes}

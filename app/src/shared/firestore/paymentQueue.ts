@@ -37,9 +37,10 @@ export async function queuePayments(uid: string, drafts: QueueDraft[], currency:
     const snaps = await Promise.all(drafts.map((d) => tx.get(paymentQueueEntryRef(uid, d.id))));
     drafts.forEach((d, index) => {
       if (snaps[index].exists()) return;
-      const { id: _id, due, ...rest } = d;
+      // The draft's own id is stored too; it's always the doc id.
+      const { due, ...fields } = d;
       tx.set(paymentQueueEntryRef(uid, d.id), {
-        ...rest,
+        ...fields,
         currency,
         dueDate: due ? Timestamp.fromDate(due) : null,
         status: 'ready',
