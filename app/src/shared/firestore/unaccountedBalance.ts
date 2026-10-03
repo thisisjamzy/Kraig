@@ -57,7 +57,7 @@ export async function ensureUnjustifiedWallet(uid: string, defaultCurrency: stri
     startingBalance: 0,
     currentBalance: 0,
     notes:
-      'Tracks the gap between what the ledger records and what a reconciliation check reports as real — see Settings > Reconciliation. Not a real spendable account.',
+      'Tracks the gap between what the ledger records and what a reconciliation check reports as real, see Settings > Reconciliation. Not a real spendable account.',
     archived: false,
     isSystemWallet: true,
     systemType: 'unjustified',
@@ -151,6 +151,8 @@ export async function listReconciliations(uid: string, take = 50): Promise<Fires
 export interface ExplainHistoricEntryInput {
   date: Date;
   type: string;
+  // Income only — see FirestoreTransaction.incomeSubtype.
+  incomeSubtype?: import('./types').IncomeSubtype | null;
   description: string;
   accountId: string;
   categoryId: string | null;
@@ -295,7 +297,7 @@ export function previewBackfillSpread(input: BackfillSpreadInput): BackfillOccur
   }
 
   if (occurrences.length > BACKFILL_MAX_OCCURRENCES) {
-    throw new Error(`A backfill spread covers at most ${BACKFILL_MAX_OCCURRENCES} occurrences — narrow the range and try again.`);
+    throw new Error(`A backfill spread covers at most ${BACKFILL_MAX_OCCURRENCES} occurrences, narrow the range and try again.`);
   }
   return occurrences;
 }

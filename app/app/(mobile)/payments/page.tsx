@@ -1,6 +1,10 @@
-import { redirect } from 'next/navigation';
+import type { Metadata } from 'next';
+import { PaymentsScreen } from '@/src/screens/Payments/PaymentsScreen';
 
-// Payments now live in Planning's Payments tab.
+export const metadata: Metadata = {
+  title: 'Payments · Dreda',
+};
+
 export default function PaymentsPage() {
-  redirect('/budget?tab=payments');
+  return <PaymentsScreen />;
 }

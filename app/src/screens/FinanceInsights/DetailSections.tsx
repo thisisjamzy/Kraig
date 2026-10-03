@@ -89,7 +89,7 @@ export function MoneySection({ v }: { v: FinanceInsights }) {
                   <Line dataKey="value" stroke={COLORS.income} strokeWidth={2} dot={false} isAnimationActive={false} />
                 </LineChart>
                 <span className={styles.sparkChange} data-tone={t.change === null ? undefined : t.change > 0.1 ? 'bad' : t.change < -0.1 ? 'good' : undefined}>
-                  {t.change === null ? '—' : `${t.change > 0 ? '+' : ''}${Math.round(t.change * 100)}%`}
+                  {t.change === null ? '' : `${t.change > 0 ? '+' : ''}${Math.round(t.change * 100)}%`}
                 </span>
               </li>
             ))}

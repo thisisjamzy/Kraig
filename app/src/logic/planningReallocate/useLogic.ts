@@ -95,7 +95,7 @@ export function useLogic() {
   if (amount > 0) {
     if (destination === 'bucket' && target) summary = `Move ${money(amount)} ${ctx.display} from ${fromName} to ${target.name} (${target.bucketName}).`;
     if (destination === 'savings' && savingsAccount && wallet)
-      summary = `Move ${money(amount)} ${ctx.display} from ${fromName} into ${savingsAccount.name} — a real transfer out of ${wallet.name}.`;
+      summary = `Move ${money(amount)} ${ctx.display} from ${fromName} into ${savingsAccount.name}, a real transfer out of ${wallet.name}.`;
     if (destination === 'next') summary = `Add ${money(amount)} ${ctx.display} to ${fromName} in ${monthTitle(nextMonth)}.`;
   }
 

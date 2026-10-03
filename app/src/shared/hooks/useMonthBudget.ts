@@ -20,6 +20,7 @@ import { toDisplay } from '@/src/shared/firestore/currency';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { useBucketLineItemsByBucket } from '@/src/shared/hooks/useBucketLineItemsByBucket';
 import { buildMonthBudget, monthKeyOf } from '@/src/shared/budget/monthBudget';
+import { monthTotals } from '@/src/shared/budget/monthTotals';
 import type {
   FirestoreAllocation,
   FirestoreBucket,
@@ -99,11 +100,15 @@ export function useMonthBudget(monthOrNull: string | null) {
       allocations,
       justifications,
       accountCurrency,
+      accountType: new Map(accounts.map((account) => [account.id, account.type])),
       categories,
       baseCurrency: ctx.base,
       toDisplay: (amount, currency) => toDisplay(ctx, amount, currency),
     });
   }, [month, buckets, itemsByBucket, linkedTransactions, datedTransactions, linkedTransfers, datedTransfers, allocations, justifications, accounts, categoryDocs, ctx]);
+
+  // Per flow type: expected, received, spent, saved, moved, available.
+  const totals = useMemo(() => monthTotals(budget, new Date()), [budget]);
 
   // For the item sheet's own payment list — ItemMonth only carries ids.
   const transactionsById = useMemo(
@@ -117,6 +122,7 @@ export function useMonthBudget(monthOrNull: string | null) {
 
   return {
     budget,
+    totals,
     transactionsById,
     transfersById,
     buckets,

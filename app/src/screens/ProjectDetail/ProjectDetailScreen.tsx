@@ -167,9 +167,9 @@ export function ProjectDetailScreen({ projectId }: { projectId: string }) {
           )}
 
           <p className={styles.dateRange}>
-            {project.startDate ? formatDate(project.startDate.toDate()) : '—'}
+            {project.startDate ? formatDate(project.startDate.toDate()) : ''}
             {' - '}
-            {project.endDate ? formatDate(project.endDate.toDate()) : '—'}
+            {project.endDate ? formatDate(project.endDate.toDate()) : ''}
           </p>
 
           <div>

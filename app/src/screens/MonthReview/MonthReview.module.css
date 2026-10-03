@@ -1,0 +1,213 @@
+/* Month review. A table per flow type on wide screens; on a phone each row
+   stacks into a small card (labels from data-label). */
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.section h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 1.0625rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.section h2 span {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--color-surface);
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.empty {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+}
+
+.scroll {
+  overflow-x: auto;
+  border: 1px solid #e9e9e7;
+  background: var(--color-background);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  color: var(--color-text-primary);
+}
+
+.table th {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--color-border);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: middle;
+  overflow-wrap: anywhere;
+}
+
+.table [data-align='right'] {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.table td strong {
+  display: block;
+  font-weight: 600;
+}
+
+.note {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--color-success);
+}
+
+.table input[type='date'],
+.table input[inputmode] {
+  min-height: 40px;
+  padding: 0 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-background);
+  color: inherit;
+  font: inherit;
+  font-size: 1rem;
+}
+
+.table input[inputmode] {
+  width: 140px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.table tfoot td {
+  font-weight: 700;
+  border-bottom: 0;
+}
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.footer {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-border);
+}
+
+.footer p {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  margin: 0;
+  text-align: right;
+  color: var(--color-text-secondary);
+}
+
+.footer strong {
+  font-size: 1.375rem;
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.footer strong[data-tone='bad'] {
+  color: var(--color-danger);
+}
+
+.footer span {
+  font-size: 0.8125rem;
+}
+
+.error {
+  color: var(--color-danger) !important;
+}
+
+.primary {
+  min-height: 44px;
+  padding: 0 22px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--color-brand);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.primary:disabled {
+  opacity: 0.55;
+}
+
+/* Phone: rows become cards. */
+@media (max-width: 767px) {
+  .scroll {
+    border: 0;
+    background: none;
+    overflow: visible;
+  }
+  .table thead {
+    display: none;
+  }
+  .table,
+  .table tbody,
+  .table tfoot,
+  .table tr,
+  .table td {
+    display: block;
+    width: 100%;
+  }
+  .table tbody tr {
+    margin-bottom: 8px;
+    padding: 10px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 0;
+    background: var(--color-background);
+  }
+  .table td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 6px 0;
+    border: 0;
+  }
+  .table td::before {
+    content: attr(data-label);
+    font-size: 0.75rem;
+    color: var(--color-text-secondary);
+  }
+  .table td[data-label='Name'] {
+    display: block;
+  }
+  .table td[data-label='Name']::before {
+    content: none;
+  }
+  .table tfoot tr {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 4px 0;
+  }
+  .table tfoot td {
+    width: auto;
+  }
+}

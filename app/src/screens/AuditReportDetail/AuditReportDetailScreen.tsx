@@ -288,7 +288,7 @@ export function AuditReportDetailScreen({ reportId }: { reportId: string }) {
                       <AlertTriangle size={16} strokeWidth={2} className={styles.alertIcon} />
                       <div>
                         <p className={styles.alertTitle}>
-                          {alert.category} — {formatPercent(alert.percent)}
+                          {alert.category}, {formatPercent(alert.percent)}
                         </p>
                         <p className={styles.alertMessage}>{alert.message}</p>
                       </div>
@@ -324,7 +324,7 @@ export function AuditReportDetailScreen({ reportId }: { reportId: string }) {
                       <td className={styles.numCol}>
                         <Badge status={row.status}>{formatPercent(row.cv)}</Badge>
                       </td>
-                      <td>{row.issue ?? '—'}</td>
+                      <td>{row.issue ?? ''}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -469,7 +469,7 @@ export function AuditReportDetailScreen({ reportId }: { reportId: string }) {
 
             <h3 className={styles.subTitle}>{s.bucketsTableTitle}</h3>
             {data.bucketsDebt.buckets.length === 0 ? (
-              <p className={styles.footnote}>—</p>
+              <p className={styles.footnote}></p>
             ) : (
               <div className={styles.tableWrap}>
                 <table className={styles.table}>
@@ -489,7 +489,7 @@ export function AuditReportDetailScreen({ reportId }: { reportId: string }) {
                         <td className={styles.numCol}>{formatAmount(g.totalAmount)}</td>
                         <td className={styles.numCol}>{formatAmount(g.amountCompleted)}</td>
                         <td className={styles.numCol}>{formatPercent(g.percent)}</td>
-                        <td>{g.deadline ?? '—'}</td>
+                        <td>{g.deadline ?? ''}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -499,7 +499,7 @@ export function AuditReportDetailScreen({ reportId }: { reportId: string }) {
 
             <h3 className={styles.subTitle}>{s.debtsTableTitle}</h3>
             {data.bucketsDebt.debts.length === 0 ? (
-              <p className={styles.footnote}>—</p>
+              <p className={styles.footnote}></p>
             ) : (
               <div className={styles.tableWrap}>
                 <table className={styles.table}>
@@ -516,7 +516,7 @@ export function AuditReportDetailScreen({ reportId }: { reportId: string }) {
                       <tr key={d.debtId}>
                         <td>{d.name}</td>
                         <td className={styles.numCol}>{formatAmount(d.currentBalance)}</td>
-                        <td className={styles.numCol}>{d.monthsToPayoff ?? '—'}</td>
+                        <td className={styles.numCol}>{d.monthsToPayoff ?? ''}</td>
                         <td>{d.priority}</td>
                       </tr>
                     ))}

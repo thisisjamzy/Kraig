@@ -19,6 +19,7 @@ import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import styles from './AddTransactionScreen.module.css';
+import type { IncomeSubtype } from '@/src/shared/budget/flow';
 
 const TYPE_ICONS: Record<TransactionType, typeof ArrowUpRight> = {
   expense: ArrowUpRight,
@@ -27,9 +28,17 @@ const TYPE_ICONS: Record<TransactionType, typeof ArrowUpRight> = {
   savings: PiggyBank,
 };
 
+const INCOME_SUBTYPES: { value: IncomeSubtype; label: string }[] = [
+  { value: 'earned', label: 'Earned' },
+  { value: 'other', label: 'Other' },
+  { value: 'debt_financing', label: 'Borrowed' },
+];
+
 export function AddTransactionScreen() {
   const strings = useStrings();
   const {
+    incomeSubtype,
+    setIncomeSubtype,
     step,
     type,
     savingsMode,
@@ -420,11 +429,11 @@ export function AddTransactionScreen() {
           <h2 className={styles.reviewTitle}>{strings.addTransaction.reviewTitle}</h2>
           <div className={styles.reviewRow}>
             <span className={styles.reviewLabel}>{strings.addTransaction.reviewDescription}</span>
-            <span className={styles.reviewValue}>{description || '—'}</span>
+            <span className={styles.reviewValue}>{description || ''}</span>
           </div>
           <div className={styles.reviewRow}>
             <span className={styles.reviewLabel}>{strings.addTransaction.reviewCategory}</span>
-            <span className={styles.reviewValue}>{categoryName || '—'}</span>
+            <span className={styles.reviewValue}>{categoryName || ''}</span>
           </div>
           <div className={styles.reviewRow}>
             <span className={styles.reviewLabel}>{strings.addTransaction.reviewAmount}</span>
@@ -442,6 +451,21 @@ export function AddTransactionScreen() {
               {type.charAt(0).toUpperCase() + type.slice(1)}
             </span>
           </div>
+          {type === 'income' && (
+            <div className={styles.reviewRow}>
+              <span className={styles.reviewLabel}>Income type</span>
+              <span className={styles.subtypeChips} role="radiogroup" aria-label="Income type">
+                {INCOME_SUBTYPES.map((s) => (
+                  <button key={s.value} type="button" role="radio" aria-checked={incomeSubtype === s.value} onClick={() => setIncomeSubtype(s.value)}>
+                    {s.label}
+                  </button>
+                ))}
+              </span>
+            </div>
+          )}
+          {type === 'income' && incomeSubtype === 'debt_financing' && (
+            <p className={styles.subtypeNote}>Counted as income this month, and saved as a debt to pay back.</p>
+          )}
           <div className={styles.reviewRow}>
             <span className={styles.reviewLabel}>{strings.addTransaction.reviewAccounts}</span>
             <span className={styles.reviewValueWithAction}>

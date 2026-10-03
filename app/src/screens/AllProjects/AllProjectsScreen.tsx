@@ -123,9 +123,9 @@ export function AllProjectsScreen() {
                     </div>
 
                     <p className={styles.timeline}>
-                      {project.startDate ? formatDate(project.startDate) : '—'}
+                      {project.startDate ? formatDate(project.startDate) : ''}
                       {' - '}
-                      {project.endDate ? formatDate(project.endDate) : '—'}
+                      {project.endDate ? formatDate(project.endDate) : ''}
                     </p>
 
                     {project.description && <p className={styles.description}>{project.description}</p>}

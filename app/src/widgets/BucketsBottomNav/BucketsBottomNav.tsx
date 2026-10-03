@@ -3,13 +3,14 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, ChartNoAxesCombined, ListOrdered, Plus, FolderPlus, ListPlus, HandCoins, CalendarPlus } from 'lucide-react';
+import { Home, ChartNoAxesCombined, ListOrdered, Menu, Plus, FolderPlus, ListPlus, HandCoins, CalendarPlus } from 'lucide-react';
 import { query, where } from 'firebase/firestore';
 import { navMode } from '@/src/shared/config/chromeVisibility';
 import { useFirestoreCollection } from '@/src/shared/firestore/hooks';
 import { bucketsRef } from '@/src/shared/firestore/refs';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { Modal } from '@/src/widgets/Modal/Modal';
+import { MoreSheet } from '@/src/widgets/AppShell/MoreSheet';
 import type { FirestoreBucket } from '@/src/shared/firestore/types';
 import styles from './BucketsBottomNav.module.css';
 
@@ -33,6 +34,7 @@ export function BucketsBottomNav() {
   const uid = user?.uid;
   const [open, setOpen] = useState(false);
   const [picking, setPicking] = useState<Create | null>(null);
+  const [more, setMore] = useState(false);
   const shown = navMode(pathname) === 'buckets';
   const { data: buckets } = useFirestoreCollection<FirestoreBucket>(
     useMemo(() => (uid && shown ? query(bucketsRef(uid), where('archived', '==', false)) : null), [uid, shown])
@@ -67,7 +69,11 @@ export function BucketsBottomNav() {
             </Link>
           );
         })}
+        <button type="button" className={`${styles.item} ${styles.itemButton}`} aria-label="More" aria-haspopup="dialog" onClick={() => setMore(true)}>
+          <Menu size={20} strokeWidth={2} />
+        </button>
       </div>
+      {more && <MoreSheet onClose={() => setMore(false)} />}
       <button type="button" className={styles.addButton} aria-label="Add" aria-haspopup="dialog" onClick={() => setOpen(true)}>
         <Plus size={24} strokeWidth={2.25} />
       </button>

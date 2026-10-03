@@ -124,7 +124,7 @@ export function monthPayments(
           itemId: item.id,
           name: item.name || cat?.name || 'Payment',
           categoryId: item.categoryId ?? null,
-          categoryName: cat?.name ?? (bucket.type === 'Transfer' ? (item.categoryId ?? 'Transfer') : '—'),
+          categoryName: cat?.name ?? (bucket.type === 'Transfer' ? (item.categoryId ?? 'Transfer') : ''),
           categoryType: bucket.type === 'Transfer' ? 'Transfer' : (cat?.transactionType ?? 'Expense'),
           frequency: frequencyLabel(bucket.kind === 'Fixed' ? item.recurrence : null),
           method: (item.accountId && accountName.get(item.accountId)) || 'No wallet set',

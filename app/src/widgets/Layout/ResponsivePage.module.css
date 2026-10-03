@@ -1,0 +1,35 @@
+/* See ResponsivePage.tsx. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 8px var(--space-lg) 120px;
+  min-width: 0;
+}
+
+.page[data-wide] {
+  gap: 20px;
+  width: 100%;
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 0 0 48px;
+}
+
+.back {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.phoneActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}

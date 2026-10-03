@@ -27,6 +27,10 @@ export interface FinTx {
   savingsFlow: number;
   /** Repays a loan / debt. */
   debtRepayment: boolean;
+  /** Income that was borrowed (debt financing): counted as income, but
+   * left out of savings rate and income consistency, which use earned
+   * income only. */
+  borrowed: boolean;
 }
 
 export interface FinTransfer {
@@ -112,6 +116,8 @@ export interface FinData {
   transfers: FinTransfer[];
   /** A month's budget (memoized by the caller). */
   plan: (month: string) => FinMonthPlan;
+  /** The month's full budget (src/shared/budget/monthBudget.ts), for flow types and totals. */
+  budget?: (month: string) => import('../../shared/budget/monthBudget').MonthBudget;
   allocations: FinAllocation[];
   justifications: FinJustification[];
   /** Planned payments of the current and next month. */

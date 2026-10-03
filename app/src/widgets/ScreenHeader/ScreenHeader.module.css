@@ -77,3 +77,35 @@
   font-size: 2rem;
   letter-spacing: -0.02em;
 }
+
+/* Medium screens and up: the page's one title, Notion style. */
+.wide {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 8px 0 16px;
+}
+
+.wideTitle {
+  margin: 0;
+  font-family: var(--font-family-heading);
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--color-text-primary);
+  overflow-wrap: anywhere;
+}
+
+@media (min-width: 1024px) {
+  .wideTitle {
+    font-size: 2.5rem;
+  }
+}
+
+.wideActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 6px;
+}

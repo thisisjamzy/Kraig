@@ -79,9 +79,11 @@ export function plannedVsActual(occurrences: Occurrence[], month: string): PlanR
     return { key, label, planned, soFar, left: r2(planned - soFar) };
   };
   const income = row('income', 'Coming in', 'income');
-  const fixed = row('fixed', 'Fixed & recurring', 'fixed');
+  const fixed = row('fixed', 'Fixed expenses', 'fixed');
   const variable = row('variable', 'Variable spending', 'variable');
   const savings = row('savings', 'Savings & goals', 'savings');
+  // Moved between own accounts: shown on its own, never in money out.
+  const transfers = row('transfer', 'Transfers', 'transfer');
   const outPlanned = fixed.planned + variable.planned + savings.planned;
   const outSoFar = fixed.soFar + variable.soFar + savings.soFar;
   const unallocated = {
@@ -92,7 +94,7 @@ export function plannedVsActual(occurrences: Occurrence[], month: string): PlanR
     left: 0,
   };
   unallocated.left = r2(unallocated.planned - unallocated.soFar);
-  return [income, fixed, variable, savings, unallocated];
+  return [income, fixed, variable, savings, transfers, unallocated];
 }
 
 export type CoverStatus = 'covered' | 'tight' | 'short';
@@ -161,13 +163,14 @@ export function incomeSources(occurrences: Occurrence[], today: Date): IncomeSou
 // ---------------------------------------------------------------------------
 // Bucket sections and cards
 
-export type Section = 'fixed' | 'variable' | 'savings' | 'income';
+export type Section = 'fixed' | 'variable' | 'savings' | 'income' | 'transfer';
 
 export const SECTION_LABEL: Record<Section, string> = {
-  fixed: 'Fixed & recurring',
+  fixed: 'Fixed expenses',
   variable: 'Variable spending',
   savings: 'Savings & goals',
   income: 'Income',
+  transfer: 'Transfers',
 };
 
 export interface BucketSummary {
@@ -228,7 +231,7 @@ export function bucketSummaries(occurrences: Occurrence[], month: string, today:
       available: r2(Math.max(0, planned - spent)),
       topNeed: list.some((o) => o.need === 'must') ? 'must' : list.length ? 'nice' : null,
       line,
-      overdue: all.filter((o) => urgency(o, today) === 'overdue' && isOpen(o) && relevant(o, today) && o.kind !== 'income'),
+      overdue: all.filter((o) => urgency(o, today) === 'overdue' && isOpen(o) && relevant(o, today) && o.kind !== 'income' && o.kind !== 'transfer'),
     });
   }
   return out.sort((a, b) => b.planned - a.planned);
@@ -266,7 +269,7 @@ export function allTime(occurrences: Occurrence[], today: Date, count = 12): All
   const rows = (tables[0] ?? plannedVsActual([], current)).map((r, i) => {
     const values = tables.map((t) => t[i]);
     const a = (pick: (x: PlanRowFigures) => number) => r2(values.length ? values.reduce((s, x) => s + pick(x), 0) / values.length : 0);
-    const monthsOver = r.key === 'income' || r.key === 'unallocated' ? 0 : values.filter((x) => x.soFar > x.planned + 0.5).length;
+    const monthsOver = r.key === 'income' || r.key === 'unallocated' || r.key === 'transfer' ? 0 : values.filter((x) => x.soFar > x.planned + 0.5).length;
     return { ...r, planned: a((x) => x.planned), soFar: a((x) => x.soFar), left: a((x) => x.left), monthsOver };
   });
   const onTime = months.map((m) => {

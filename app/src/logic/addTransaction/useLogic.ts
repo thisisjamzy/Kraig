@@ -8,7 +8,8 @@ import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { useFirestoreCollection, useFirestoreDoc } from '@/src/shared/firestore/hooks';
 import { categoryRef, bucketsRef, transactionTemplateRef, unjustifiedWalletRef } from '@/src/shared/firestore/refs';
 import { useAccounts, useCategories, useCurrencyContext } from '@/src/shared/firestore/queries';
-import { createTransferWithAggregation, recordBucketLineItemPayment } from '@/src/shared/firestore/aggregation';
+import { createDebt, createTransferWithAggregation, recordBucketLineItemPayment } from '@/src/shared/firestore/aggregation';
+import { inferIncomeSubtype, type IncomeSubtype } from '@/src/shared/budget/flow';
 import { recordHistoricEntry } from '@/src/shared/firestore/unaccountedBalance';
 import { useBucketLineItemsByBucket } from '@/src/shared/hooks/useBucketLineItemsByBucket';
 import { addMonths, itemOccurrence, monthLabel } from '@/src/shared/budget/monthBudget';
@@ -136,6 +137,9 @@ export function useLogic() {
   const [step, setStep] = useState<Step>(() => (prefillCategoryId || prefillTemplateId ? 'details' : 'type'));
   const [type, setType] = useState<TransactionType>('expense');
   const [savingsMode, setSavingsModeState] = useState<SavingsMode>('moved');
+  // Income: earned, other, or borrowed (debt financing). Suggested from the
+  // description and category until the household picks one.
+  const [chosenIncomeSubtype, setIncomeSubtype] = useState<IncomeSubtype | null>(null);
   const [category, setCategory] = useState(''); // categoryId, or a TRANSFER_CATEGORIES value for transfers
   const [showUnplanned, setShowUnplanned] = useState(false);
   const [description, setDescription] = useState('');
@@ -297,6 +301,7 @@ export function useLogic() {
   // the same string as both id and name) — the review step must never show
   // that raw id to the user, only the resolved category name.
   const categoryName = categoriesForType.find((option) => option.id === category)?.name ?? category;
+  const incomeSubtype: IncomeSubtype = chosenIncomeSubtype ?? inferIncomeSubtype(description, categoryName);
   const budgetedCategoriesForType = categoriesForType.filter((option) => budgetedCategoryIds.has(option.id));
 
   // Recording an Expense, Income, or Savings can be linked to an incomplete
@@ -550,7 +555,35 @@ export function useLogic() {
     const date = new Date(`${dateValue}T00:00:00`);
 
     try {
-      if (linkedBucketItem) {
+      if (type === 'income' && incomeSubtype === 'debt_financing') {
+        // Borrowed money is income for this month, and a cash debt to pay
+        // back: createDebt credits the wallet with this income (tagged as
+        // debt financing and linked to the new debt) in one transaction.
+        const account = accounts.find((a) => a.id === fromAccountId);
+        await createDebt(
+          uid,
+          {
+            name: description.trim() || categoryName || 'Loan',
+            description: '',
+            debtType: 'cash',
+            accountId: fromAccountId,
+            principalAmount: Number(amountString),
+            currency: account?.currency ?? ctx.base,
+            priority: 'medium',
+            startDate: date,
+            notes: 'Recorded as income (debt financing).',
+            credit: {
+              transactionId: clientId,
+              categoryId: category || linkedBucketItem?.categoryId || null,
+              description,
+              bucketItem: linkedBucketItem
+                ? { bucketId: linkedBucketItem.goalId, itemId: linkedBucketItem.itemId, month: linkedBucketItem.occurrenceMonth ?? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}` }
+                : null,
+            },
+          },
+          ctx
+        );
+      } else if (linkedBucketItem) {
         // A Fixed item's occurrence never closes the item (the write path
         // ignores fullyPaid for Fixed buckets); a Planned item closes once
         // what's paid covers its planned amount. A Transfer item records a
@@ -576,6 +609,7 @@ export function useLogic() {
                   : 'Expense',
             toAccountId: linkedBucketItem.isTransfer ? toAccountId : null,
             charges: linkedBucketItem.isTransfer ? Number(chargesString) || 0 : null,
+            incomeSubtype: type === 'income' ? incomeSubtype : null,
           },
           ctx
         );
@@ -616,6 +650,7 @@ export function useLogic() {
             direction,
             createdBy: uid,
             isFrozenSavings: isSavingsFrozen || undefined,
+            incomeSubtype: type === 'income' ? incomeSubtype : null,
           },
           canExplainUnjustifiedBalance && explainsUnjustifiedBalance,
           ctx
@@ -640,6 +675,8 @@ export function useLogic() {
   return {
     step,
     type,
+    incomeSubtype,
+    setIncomeSubtype,
     savingsMode,
     chooseSavingsMode,
     isTransferLike: isEffectivelyTransferLike,

@@ -12,6 +12,7 @@ import { ToastHost } from '@/src/widgets/Toast/Toast';
 import { ActualTimePrompt } from '@/src/widgets/ActualTimePrompt/ActualTimePrompt';
 import { InsightsNotifier } from '@/src/shared/insights/InsightsNotifier';
 import { CalendarSyncRunner } from '@/src/shared/calendarSync/CalendarSyncRunner';
+import { BudgetRunner } from '@/src/shared/budget/BudgetRunner';
 import { useLayout } from '@/src/shared/hooks/useLayout';
 import dynamic from 'next/dynamic';
 import { PanelHost } from '@/src/widgets/AppShell/PanelHost';
@@ -41,6 +42,7 @@ export default function AppShellLayout({ children }: { children: ReactNode }) {
       <ActualTimePrompt />
       <InsightsNotifier />
       <CalendarSyncRunner />
+      <BudgetRunner />
       <AuthGuard>
         {isWide ? (
           <AppShell>{children}</AppShell>

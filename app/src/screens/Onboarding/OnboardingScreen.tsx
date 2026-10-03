@@ -288,7 +288,7 @@ export function OnboardingScreen() {
               </button>
             </div>
           ) : (
-            <p className={styles.subtitle}>No expense categories yet — add one back in step 2 to budget it.</p>
+            <p className={styles.subtitle}>No expense categories yet, add one back in step 2 to budget it.</p>
           )}
         </section>
       )}

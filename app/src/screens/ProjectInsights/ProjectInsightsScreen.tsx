@@ -17,6 +17,8 @@ import type { MilestoneState } from '@/src/viewmodels/insights/metrics';
 import { ProgressRing, RiskChip } from '@/src/screens/Insights/InsightsScreen';
 import insightStyles from '@/src/screens/Insights/InsightsScreen.module.css';
 import styles from './ProjectInsightsScreen.module.css';
+import { useHasTopBar } from '@/src/widgets/AppShell/TopBarSlot';
+import { useOwnsTitle } from '@/src/widgets/AppShell/breadcrumb';
 
 const MILESTONE_TEXT: Record<MilestoneState, string> = {
   done: 'Done',
@@ -32,6 +34,8 @@ const MILESTONE_COLOR: Record<MilestoneState, string> = {
 };
 
 export function ProjectInsightsScreen({ projectId }: { projectId: string }) {
+  // Draws its own title: the shell adds none on wide screens.
+  useOwnsTitle(useHasTopBar());
   const {
     project,
     stat,
@@ -85,13 +89,13 @@ export function ProjectInsightsScreen({ projectId }: { projectId: string }) {
             <Stat label="Velocity" value={`${stat.velocity.toFixed(1)}/day`} sub="Tasks done, last 14 days" />
             <Stat
               label="Forecast finish"
-              value={stat.forecast ? shortDate(stat.forecast) : '—'}
+              value={stat.forecast ? shortDate(stat.forecast) : ''}
               sub={stat.forecast ? `${stat.remaining} tasks left` : 'Nothing done lately'}
               tone={late ? 'bad' : undefined}
             />
             <Stat
               label="Slack"
-              value={stat.slackDays === null ? '—' : `${stat.slackDays > 0 ? '+' : ''}${stat.slackDays} ${Math.abs(stat.slackDays) === 1 ? 'day' : 'days'}`}
+              value={stat.slackDays === null ? '' : `${stat.slackDays > 0 ? '+' : ''}${stat.slackDays} ${Math.abs(stat.slackDays) === 1 ? 'day' : 'days'}`}
               sub={project.endDate ? `Deadline ${shortDate(project.endDate.toDate())}` : 'No deadline set'}
               tone={stat.slackDays !== null && stat.slackDays < 0 ? 'bad' : undefined}
             />
@@ -122,7 +126,7 @@ export function ProjectInsightsScreen({ projectId }: { projectId: string }) {
                   <Tooltip
                     contentStyle={{ background: 'var(--color-background)', border: '1px solid var(--color-border)', borderRadius: 12, fontSize: 12 }}
                     labelFormatter={(k) => shortDate(new Date(`${k}T00:00:00`))}
-                    formatter={(value, name) => [value === null || value === undefined ? '—' : Math.round(Number(value) * 10) / 10, name]}
+                    formatter={(value, name) => [value === null || value === undefined ? '' : Math.round(Number(value) * 10) / 10, name]}
                   />
                   <ReferenceLine x={dayKey(new Date())} stroke="var(--color-text-secondary)" strokeDasharray="2 3" label={{ value: 'Today', position: 'insideTopLeft', fill: 'var(--color-text-secondary)', fontSize: 11 }} />
                   <Line dataKey="ideal" name="Ideal" stroke="var(--i-planned)" strokeWidth={2} strokeDasharray="6 5" dot={false} connectNulls isAnimationActive={false} />
@@ -173,7 +177,7 @@ export function ProjectInsightsScreen({ projectId }: { projectId: string }) {
               </button>
             </header>
             {stat.milestones.length === 0 ? (
-              <p className={insightStyles.takeaway}>Add checkpoints on the way to the deadline — each is forecast from its linked tasks.</p>
+              <p className={insightStyles.takeaway}>Add checkpoints on the way to the deadline, each is forecast from its linked tasks.</p>
             ) : (
               <ol className={styles.timeline}>
                 {stat.milestones.map((m) => (

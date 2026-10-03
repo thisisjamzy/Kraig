@@ -76,6 +76,22 @@ section 4 for screens 768px and wider. Phones are unchanged.
 | C. List and detail | `ListDetail` + `useUrlSelection` | (available; Priorities, Buckets and Planning use sticky side columns) |
 | D. Board | CSS grid | Focus (2×2 on medium, four columns from expanded) |
 | E. Form | `WebFormPanel` / `SidePanel` | task form (480px panel) |
+| F. Notion page and database | `NotionPageHeader`, `PropertiesBlock`, `Database` (Table / Cards), `SidePeek` in `src/widgets/Database` | Budget, Buckets, Bucket, budget line and transaction pages |
+
+### Notion pages and databases (`src/widgets/Database`)
+
+- One header only: the page sets a breadcrumb with `useBreadcrumb` and the top bar shows
+  it in place of the title; the page itself has no back arrow on wide screens.
+  `ResponsivePage` (`src/widgets/Layout`) gives a page the phone header on phones and
+  the Notion title on wide screens.
+- `Database` takes rows and column definitions once and shows them as a Table or as
+  Cards, with view tabs (Table, Cards, built-in views, saved views), the shared filter /
+  sort / search toolbar (`ListQueryBar`'s `leading` / `trailing` slots), Group,
+  Properties and New. Tables: sticky header, resizable remembered columns, inline cell
+  editors, grouping with subtotals, footer calculations, column menu, bulk actions and
+  a quick-entry new row. Cards: 2 / 3 / 4 columns at medium / expanded / large.
+- Settings per database live in localStorage (`dreda.db.<id>`); the peek mode (side,
+  center, full page) is remembered for all of them.
 
 ## Screens
 
@@ -88,7 +104,10 @@ section 4 for screens 768px and wider. Phones are unchanged.
 | Project | summary beside tasks | same |
 | Time insights | dashboard grid | same |
 | Money insights | full-width sections | sections half width, attention and key charts full |
-| Buckets | bucket cards two across | plan cards in a sticky left column |
+| Budget (`/budget`) | Notion page: properties, 2 × 2 summary cards, type tabs, one database per flow type | summary cards four across |
+| Buckets | Notion page: type tabs, a database of that type's buckets (Cards default) | same; cards 3 / 4 across |
+| Bucket (`/budget/bucket/:id`) | one column | two columns: main (properties, items, transactions, adjustments, notes) and a sticky side (summary, action, automation) |
+| Budget line, transaction | Notion page with properties and related databases | same |
 | Priorities | one column | controls in a sticky left column |
-| Planning | Budget and Payments split | History as a sortable table |
+| Planning | Payments split | History as a sortable table (the Budget tab is the Budget page above) |
 | Plans forecast | dashboard grid | same |

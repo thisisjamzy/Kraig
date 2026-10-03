@@ -20,6 +20,41 @@
   animation: toastIn 220ms var(--ease-out);
 }
 
+.toast[data-action] {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  text-align: left;
+  pointer-events: auto;
+}
+
+.action {
+  flex: none;
+  min-height: 32px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* Wide screens: small, at the bottom centre (no bottom nav there). */
+@media (min-width: 768px) {
+  .region {
+    bottom: 24px;
+    width: auto;
+    max-width: min(480px, calc(100vw - 48px));
+  }
+  .toast {
+    padding: 8px 14px;
+    border-radius: 6px;
+  }
+}
+
 @keyframes toastIn {
   from {
     opacity: 0;

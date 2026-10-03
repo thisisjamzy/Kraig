@@ -47,7 +47,7 @@ export function CreateSectionScreen({ areaId }: { areaId: string }) {
       <ScreenState loading={loading} error={error} />
 
       {!hasAreaId && !loading && (
-        <p className={styles.formError}>A section needs an area — open it from that area&apos;s own page.</p>
+        <p className={styles.formError}>A section needs an area, open it from that area&apos;s own page.</p>
       )}
 
       {hasAreaId && !loading && !error && (

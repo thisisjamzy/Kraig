@@ -125,3 +125,10 @@
   font-size: 0.875rem;
   color: var(--color-text-secondary);
 }
+
+.itemButton {
+  border: 0;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+}

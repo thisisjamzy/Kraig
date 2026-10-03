@@ -1,379 +1,191 @@
 'use client';
 
-// Priorities — "What should I pay next?". The open items in a reasoned
-// order, grouped by urgency, with a clear line where the money runs out:
-// items above it are covered, items below say when they'd fit. Swipe right
-// to mark paid, left to postpone; tap for the item.
+// Priorities — "What should I pay next?", as a page on every screen size:
+// the title, properties (Month, Scope, Available now, Can pay now, Waiting
+// for income, Not covered), a callout in a sentence or two, then a database
+// of expense and savings lines. Default view: a Table grouped by coverage
+// (Can pay now, Waiting for income, Not covered), each group in the chosen
+// order (Recommended, Deadline, Priority, Smallest first or Manual, in the
+// Sort menu), with the amount left summed per group. Rows: Mark paid,
+// Postpone, Open. Board shows the coverage columns; a card can only be
+// dragged to Postponed (which asks for a date).
 
-import { Fragment, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
-import Link from 'next/link';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Check, GripVertical, Info, MoreHorizontal } from 'lucide-react';
-import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
-import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-import { useLogic, type PrioritiesLogic } from '@/src/logic/priorities/useLogic';
-import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
-import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
-import { ActionMenu } from '@/src/widgets/ActionMenu/ActionMenu';
+import { AlertCircle, CheckCircle2, Clock, ListOrdered } from 'lucide-react';
+import { useLogic, type PriorityRow, type PrioritiesLogic } from '@/src/logic/priorities/useLogic';
+import { COVERAGE_LABEL } from '@/src/shared/budget/coverage';
 import { Modal } from '@/src/widgets/Modal/Modal';
-import { ListQueryBar } from '@/src/widgets/ListQuery/ListQueryBar';
-import { URGENCY_LABEL, dueText, monthLabel, remaining, statusOf, urgency, type Occurrence } from '@/src/viewmodels/plans/model';
-import { type SortMode, type WalkRow } from '@/src/viewmodels/plans/priorities';
-import { Card, Figure, Segmented, full, monthShort } from './parts';
+import { Database } from '@/src/widgets/Database/Database';
+import { Callout, NotionPage } from '@/src/widgets/Database/NotionPage';
+import { MonthPicker } from '@/src/widgets/Database/MonthPicker';
+import { formatNumber } from '@/src/widgets/Database/format';
+import type { ColumnDef } from '@/src/widgets/Database/types';
+import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
+import { monthLabel, remaining, type Occurrence } from '@/src/viewmodels/plans/model';
+import type { SortMode } from '@/src/viewmodels/plans/priorities';
+import { full } from './parts';
+import bm from '@/src/screens/BudgetMonth/BudgetMonth.module.css';
 import styles from './Plans.module.css';
-import { useHasTopBar } from '@/src/widgets/AppShell/TopBarSlot';
-import wide from './Priorities.wide.module.css';
-
-const SORTS: { value: SortMode; label: string }[] = [
-  { value: 'recommended', label: 'Recommended' },
-  { value: 'deadline', label: 'Deadline' },
-  { value: 'priority', label: 'Priority' },
-  { value: 'smallest', label: 'Smallest first' },
-  { value: 'mine', label: 'My order' },
-];
 
 const REASONS = ['No money', 'Not urgent', 'Waiting on someone', 'Price changed'];
+const GROUP_ORDER = ['now', 'waiting', 'not', 'postponed'];
+const GROUP_LABEL: Record<string, string> = { ...COVERAGE_LABEL, postponed: 'Postponed' };
+const SORTS: { id: SortMode; label: string }[] = [
+  { id: 'recommended', label: 'Recommended' },
+  { id: 'deadline', label: 'Deadline' },
+  { id: 'priority', label: 'Priority' },
+  { id: 'smallest', label: 'Smallest first' },
+  { id: 'mine', label: 'Manual' },
+];
+
+function CoverageCell({ row }: { row: PriorityRow }) {
+  if (row.coverage === 'now') {
+    return (
+      <span className={styles.coverage} data-tone="good">
+        <CheckCircle2 size={14} strokeWidth={2.25} aria-hidden /> Can pay now
+      </span>
+    );
+  }
+  if (row.coverage === 'waiting') {
+    return (
+      <span className={styles.coverage} data-tone="watch">
+        <Clock size={14} strokeWidth={2.25} aria-hidden /> {row.waitsFor ? `Waits for ${row.waitsFor}` : 'Waiting for income'}
+      </span>
+    );
+  }
+  if (row.coverage === 'postponed') return <span className={styles.coverage}>Postponed</span>;
+  return (
+    <span className={styles.coverage} data-tone="bad">
+      <AlertCircle size={14} strokeWidth={2.25} aria-hidden /> Not covered
+    </span>
+  );
+}
+
+function columns(v: PrioritiesLogic): ColumnDef<PriorityRow>[] {
+  const buckets = [...new Set(v.rows.map((r) => r.o.bucketName))].map((b) => ({ value: b, label: b }));
+  const list: ColumnDef<PriorityRow>[] = [
+    { id: 'name', label: 'Name', type: 'text', width: 240, value: (r) => r.o.name },
+    { id: 'bucket', label: 'Bucket', type: 'relation', width: 170, value: (r) => r.o.bucketName, options: buckets },
+    {
+      id: 'need',
+      label: 'Need',
+      type: 'select',
+      width: 120,
+      onCard: true,
+      value: (r) => r.o.need,
+      options: [
+        { value: 'must', label: 'Must have' },
+        { value: 'nice', label: 'Nice to have' },
+      ],
+    },
+    { id: 'priority', label: 'Priority', type: 'select', width: 100, value: (r) => r.o.priority, options: ['High', 'Medium', 'Low'].map((p) => ({ value: p, label: p })) },
+    { id: 'type', label: 'Type', type: 'select', width: 100, hidden: true, value: (r) => (r.o.kind === 'savings' ? 'Savings' : 'Expense'), options: [{ value: 'Expense', label: 'Expense' }, { value: 'Savings', label: 'Savings' }] },
+    { id: 'due', label: 'Due', type: 'date', width: 110, value: (r) => r.o.due, onCard: true },
+    { id: 'late', label: 'Days late', type: 'number', width: 100, value: (r) => r.daysLate, tone: (r) => (r.daysLate ? 'bad' : undefined) },
+    { id: 'left', label: 'Amount left', type: 'currency', width: 130, value: (r) => r.left, calc: 'sum', onCard: true },
+    { id: 'paidFrom', label: 'Paid from', type: 'text', width: 150, value: (r) => r.accountName || null },
+    { id: 'coverage', label: 'Coverage', type: 'select', width: 210, onCard: true, value: (r) => r.coverage, options: GROUP_ORDER.map((k) => ({ value: k, label: GROUP_LABEL[k] })), render: (r) => <CoverageCell row={r} /> },
+    { id: 'status', label: 'Status', type: 'select', width: 120, value: (r) => r.status, options: ['Open', 'Partly paid', 'Postponed'].map((s) => ({ value: s, label: s })) },
+    { id: 'automation', label: 'Automation', type: 'text', width: 200, hidden: true, value: (r) => r.o.automationText ?? null },
+  ];
+  return list;
+}
 
 export function PrioritiesScreen() {
   const v = useLogic();
   const router = useRouter();
-  const [howOpen, setHowOpen] = useState(false);
-  const c = v.currency;
-  const w = v.walk;
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
-
-  const scrollToDivider = () => document.getElementById('money-divider')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-
-  // The due total split by need, and where the available money reaches.
-  const must = w.rows.filter((r) => r.item.need === 'must').reduce((s, r) => s + r.remaining, 0);
-  const nice = w.due - must;
-  const scale = Math.max(w.due, w.available, 1);
-  const rowOf = (row: WalkRow, index: number) => (
-    <PriorityRow key={row.item.key} row={row} index={index} v={v} draggable={v.mode === 'mine'} onOpen={() => router.push(itemHref(row.item))} />
-  );
-
-  // Rows in display order, with the divider where the money runs out.
-  function renderRows(rows: WalkRow[], offset: number) {
-    const out: ReactNode[] = [];
-    rows.forEach((row, i) => {
-      const index = offset + i;
-      if (index === w.divider) {
-        out.push(
-          <div key="divider" id="money-divider" className={styles.divider} role="separator">
-            Money runs out · {full(Math.max(0, w.spare), c)} left
-          </div>
-        );
-      }
-      out.push(rowOf(row, index));
-    });
-    return out;
-  }
-
-  let offset = 0;
-  const groups: { label: string; rows: WalkRow[]; start: number; overdue: boolean }[] = [];
-  if (v.mode !== 'mine') {
-    for (const row of w.rows) {
-      const u = urgency(row.item, v.today);
-      const last = groups[groups.length - 1];
-      if (last && last.label === URGENCY_LABEL[u]) last.rows.push(row);
-      else groups.push({ label: URGENCY_LABEL[u], rows: [row], start: offset, overdue: u === 'overdue' });
-      offset++;
-    }
-  }
-
-  // Medium screens and up: "Can I cover it?" and the order controls in a
-  // sticky left column, the list beside it. Fragments on a phone.
-  const inShell = useHasTopBar();
-  const Column = inShell ? 'div' : Fragment;
-  const col = (className: string) => (inShell ? { className } : {});
+  const money = (n: number) => `${formatNumber(Math.round(n))} ${v.currency}`;
+  const open = (o: Occurrence) => router.push(itemHref(o));
 
   return (
-    <div className={inShell ? `${styles.page} ${wide.page}` : styles.page}>
-      <ScreenHeader
-        left={
-          <Link href="/buckets" className={styles.roundButton} aria-label="Back to Buckets">
-            <ArrowLeft size={20} strokeWidth={2} />
-          </Link>
-        }
-        title="Priorities"
-        right={
-          <button type="button" className={styles.roundButton} aria-label="How is this ordered?" aria-expanded={howOpen} onClick={() => setHowOpen((o) => !o)}>
-            <Info size={18} strokeWidth={2} />
-          </button>
-        }
-      />
-
-      <div className={styles.controls}>
-        <Segmented
-          label="Which items"
-          value={v.view}
-          onChange={v.setView}
-          options={[
-            { value: 'month', label: 'This month' },
-            { value: 'open', label: 'All open' },
+    <NotionPage
+      title="Priorities"
+      icon={<ListOrdered strokeWidth={1.75} />}
+      crumbs={[{ label: 'Money', href: '/home' }, { label: 'Priorities' }]}
+      properties={[
+        { id: 'month', label: 'Month', display: <MonthPicker value={v.month} onChange={v.setMonth} /> },
+        {
+          id: 'scope',
+          label: 'Scope',
+          edit: {
+            type: 'select',
+            value: v.view,
+            options: [
+              { value: 'month', label: 'This month' },
+              { value: 'open', label: 'All open' },
+            ],
+            onSave: (next) => v.setView(next === 'open' ? 'open' : 'month'),
+          },
+        },
+        { id: 'available', label: 'Available now', display: money(v.availableNow) },
+        { id: 'now', label: 'Can pay now', display: money(v.totals.canPayNow) },
+        { id: 'waiting', label: 'Waiting for income', display: money(v.totals.waiting) },
+        { id: 'not', label: 'Not covered', display: <span className={bm.toneText} data-tone={v.totals.notCovered ? 'bad' : undefined}>{money(v.totals.notCovered)}</span> },
+      ]}
+    >
+      <Callout tone={v.totals.notCovered ? 'bad' : v.totals.waiting ? 'watch' : undefined}>
+        <p>{v.summary}</p>
+      </Callout>
+      {v.error && <p className={styles.error}>{v.error}</p>}
+      {v.loading ? (
+        <ScreenState loading />
+      ) : (
+        <Database<PriorityRow>
+          id="priorities"
+          label={`What to pay in ${v.monthText}`}
+          noun={['line', 'lines']}
+          rows={v.rows}
+          rowKey={(r) => r.key}
+          columns={columns(v)}
+          views={[
+            { id: 'table', name: 'Table', layout: 'table' },
+            { id: 'board', name: 'Board', layout: 'board' },
+            { id: 'cards', name: 'Cards', layout: 'cards' },
           ]}
+          groups={[
+            { id: 'coverage', label: 'Coverage', key: (r) => ({ key: r.coverage, label: GROUP_LABEL[r.coverage] }), order: GROUP_ORDER },
+            { id: 'need', label: 'Need', key: (r) => ({ key: r.o.need, label: r.o.need === 'must' ? 'Must have' : 'Nice to have' }) },
+            { id: 'bucket', label: 'Bucket', key: (r) => ({ key: r.o.bucketId, label: r.o.bucketName }) },
+          ]}
+          defaultGroup="coverage"
+          subtotalColumn="left"
+          currency={v.currency}
+          sortPresets={SORTS.map((s) => ({ id: s.id, label: s.label, compare: v.sortWith(s.id) }))}
+          card={{ title: (r) => r.o.name }}
+          list={{
+            title: (r) => r.o.name,
+            secondary: (r) => [r.o.bucketName, r.o.need === 'must' ? 'Must have' : null].filter(Boolean).join(' · '),
+            amount: (r) => formatNumber(r.left),
+            status: (r) => <CoverageCell row={r} />,
+          }}
+          board={{
+            group: 'coverage',
+            onMove: (r, to) => {
+              if (to === 'postponed') {
+                v.setPostponing(r.o);
+                return;
+              }
+              throw new Error('Coverage follows the money received and expected, so it can’t be changed by moving a card. Mark it paid or postpone it instead.');
+            },
+            header: (key, rows) => `${formatNumber(rows.reduce((s, r) => s + r.left, 0))} ${v.currency}`,
+          }}
+          rowActions={[
+            { id: 'paid', label: 'Mark paid', run: (r) => v.setPaying(r.o) },
+            { id: 'postpone', label: 'Postpone', run: (r) => v.setPostponing(r.o) },
+          ]}
+          onOpen={(r) => open(r.o)}
+          emptyText="Nothing left to pay in this scope."
         />
-      </div>
-      {howOpen && (
-        <div className={styles.infoBox}>
-          Items are grouped by when they&apos;re due. Inside each group, Recommended ranks:
-          <ol>
-            <li>Overdue first.</li>
-            <li>Must have before Nice to have.</li>
-            <li>Priority: High, Medium, Low.</li>
-            <li>Items with a penalty if late.</li>
-            <li>Smaller amounts first, then earlier dates.</li>
-          </ol>
-          The line shows where the money you have runs out, walking down the list in this order.
-        </div>
       )}
-
-      <ScreenState loading={v.loading} />
-
-      {!v.loading && (
-        <>
-          <Column {...col(wide.side)}>
-          <Card
-            navy
-            title="Can I cover it?"
-            chip={
-              <Segmented
-                dark
-                label="Money to use"
-                value={v.includeExpected ? 'expected' : 'now'}
-                onChange={(x) => v.setIncludeExpected(x === 'expected')}
-                options={[
-                  { value: 'now', label: 'Now' },
-                  { value: 'expected', label: 'Month end' },
-                ]}
-              />
-            }
-            action={{ label: 'Forecast', href: '/buckets/forecast' }}
-          >
-            <div className={styles.figureGrid} data-cols="3">
-              <Figure label="Due" value={w.due} />
-              <Figure label="Available" value={w.available} />
-              <Figure label={w.gap < 0 ? 'Gap' : 'Spare'} value={Math.abs(w.gap)} tone={w.gap < 0 ? 'bad' : undefined} />
-            </div>
-            {w.due > 0 && (
-              <>
-                <div className={styles.stack} role="img" aria-label={`Must haves ${full(must)}, nice to haves ${full(nice)}, available ${full(w.available)}`}>
-                  <span style={{ width: `${(must / scale) * 100}%`, background: '#ffffff' }} />
-                  <span style={{ width: `${(nice / scale) * 100}%`, background: '#b9c9fb' }} />
-                  <i className={styles.stackMarker} style={{ left: `${Math.min(100, (Math.max(0, w.available) / scale) * 100)}%` }} aria-hidden />
-                </div>
-                <ul className={styles.legend}>
-                  <li>
-                    <span className={styles.swatch} style={{ '--c': '#ffffff' } as React.CSSProperties} aria-hidden />
-                    Must have {full(must)}
-                  </li>
-                  <li>
-                    <span className={styles.swatch} style={{ '--c': '#b9c9fb' } as React.CSSProperties} aria-hidden />
-                    Nice to have {full(nice)}
-                  </li>
-                  <li>
-                    <span className={styles.swatch} data-style="marker" aria-hidden />
-                    Available
-                  </li>
-                </ul>
-              </>
-            )}
-          </Card>
-
-          <div className={styles.sticky}>
-            <div className={styles.sortChips} role="group" aria-label="Order">
-              {SORTS.map((s) => (
-                <button key={s.value} type="button" aria-pressed={v.mode === s.value} onClick={() => v.setMode(s.value)}>
-                  {s.label}
-                </button>
-              ))}
-            </div>
-            <ListQueryBar
-              fields={v.fields}
-              query={v.list.query}
-              setQuery={v.list.setQuery}
-              onClear={v.list.clear}
-              count={w.rows.length}
-              noun={['item', 'items']}
-              hideSort
-              className={styles.staticBar}
-            />
-          </div>
-          </Column>
-
-          <Column {...col(wide.main)}>
-          {w.mustShort > 0 && (
-            <div className={styles.strip} role="alert">
-              <span>
-                {w.mustShort} must-{w.mustShort === 1 ? 'have' : 'haves'} short · {full(w.mustShortAmount, c)}
-              </span>
-              <span>
-                {v.suggestions.length > 0 ? (
-                  <button type="button" onClick={() => v.setPostponing(v.suggestions[0])}>
-                    Postpone one →
-                  </button>
-                ) : (
-                  <Link href="/budget">Reallocate →</Link>
-                )}
-              </span>
-            </div>
-          )}
-
-          {w.rows.length === 0 ? (
-            <p className={styles.muted}>Nothing left to pay.</p>
-          ) : v.mode === 'mine' ? (
-            <DndContext
-              sensors={sensors}
-              onDragEnd={(e: DragEndEvent) => {
-                if (!e.over || e.active.id === e.over.id) return;
-                v.move(String(e.active.id), w.rows.findIndex((r) => r.item.key === e.over!.id));
-              }}
-            >
-              <SortableContext items={w.rows.map((r) => r.item.key)} strategy={verticalListSortingStrategy}>
-                <div className={styles.list}>{renderRows(w.rows, 0)}</div>
-              </SortableContext>
-            </DndContext>
-          ) : (
-            groups.map((g) => (
-              <section key={g.label} className={styles.group} aria-label={g.label}>
-                <h2 className={styles.groupHead} data-overdue={g.overdue || undefined}>
-                  {g.label} · {g.rows.length}
-                  <span>{full(g.rows.reduce((s, r) => s + r.remaining, 0), c)}</span>
-                </h2>
-                <div className={styles.list}>{renderRows(g.rows, g.start)}</div>
-              </section>
-            ))
-          )}
-
-          {w.rows.length > 0 && (
-            <div className={styles.footer}>
-              <button type="button" data-tone={w.gap < 0 ? 'bad' : undefined} onClick={scrollToDivider}>
-                {w.coveredCount}/{w.rows.length} covered · {w.gap < 0 ? `${full(-w.gap)} short` : `${full(w.spare)} spare`}
-              </button>
-            </div>
-          )}
-          </Column>
-        </>
-      )}
-
       {v.paying && <PaySheet v={v} item={v.paying} />}
       {v.postponing && <PostponeSheet v={v} item={v.postponing} />}
-    </div>
+    </NotionPage>
   );
 }
 
 function itemHref(o: Occurrence) {
   return `/budget/item/${o.bucketId}/${o.itemId}?month=${o.month}`;
-}
-
-/** One item: swipe right to mark paid, left to postpone; tap to open. */
-function PriorityRow({ row, index, v, draggable, onOpen }: { row: WalkRow; index: number; v: PrioritiesLogic; draggable: boolean; onOpen: () => void }) {
-  const o = row.item;
-  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: o.key, disabled: !draggable });
-  const [dx, setDx] = useState(0);
-  const start = useRef<{ x: number; y: number; axis: 'x' | 'y' | null } | null>(null);
-  const status = statusOf(o);
-  const overdue = urgency(o, v.today) === 'overdue';
-  const faded = !row.covered;
-
-  function down(e: ReactPointerEvent) {
-    if (draggable || (e.pointerType === 'mouse' && e.button !== 0)) return;
-    start.current = { x: e.clientX, y: e.clientY, axis: null };
-  }
-  function moveHandler(e: ReactPointerEvent) {
-    const s = start.current;
-    if (!s) return;
-    const x = e.clientX - s.x;
-    const y = e.clientY - s.y;
-    if (!s.axis && Math.hypot(x, y) > 6) s.axis = Math.abs(x) > Math.abs(y) ? 'x' : 'y';
-    if (s.axis === 'x') setDx(Math.max(-120, Math.min(120, x)));
-  }
-  function up() {
-    const s = start.current;
-    start.current = null;
-    if (s?.axis === 'x') {
-      if (dx > 70) v.setPaying(o);
-      else if (dx < -70) v.setPostponing(o);
-    }
-    setDx(0);
-  }
-
-  const body = (
-    <div
-      className={styles.row}
-      data-need={o.need}
-      data-faded={faded || undefined}
-      style={{ transform: dx ? `translateX(${dx}px)` : draggable ? CSS.Transform.toString(transform) : undefined, transition: dx ? 'none' : transition }}
-      onPointerDown={down}
-      onPointerMove={moveHandler}
-      onPointerUp={up}
-      onPointerCancel={up}
-    >
-      {draggable && (
-        <button type="button" className={styles.dragHandle} aria-label={`Drag ${o.name}`} {...attributes} {...listeners}>
-          <GripVertical size={16} strokeWidth={2} />
-        </button>
-      )}
-      <button
-        type="button"
-        className={`${styles.rowMain} ${styles.rowButton}`}
-        onClick={() => {
-          if (!dx) onOpen();
-        }}
-      >
-        <span className={styles.rowPlan}>{o.bucketName}</span>
-        <span className={styles.rowName}>{o.name}</span>
-        <span className={styles.rowChips}>
-          <span data-need={o.need}>{o.need === 'must' ? 'Must have' : 'Nice to have'}</span>
-          <span data-priority={o.priority}>{o.priority}</span>
-          {status === 'postponed' && <span data-need="nice">Postponed</span>}
-        </span>
-      </button>
-      <span className={styles.rowSide}>
-        <span className={styles.rowAmount}>{full(row.remaining, v.currency)}</span>
-        {o.paid > 0 && <span className={styles.rowSub}>of {full(o.planned)}</span>}
-        <span className={styles.rowSub} data-tone={overdue ? 'bad' : undefined}>
-          {dueText(o.due, v.today)}
-        </span>
-        {row.covered ? (
-          <span className={styles.rowSub} data-tone="good">
-            <Check size={11} strokeWidth={3} aria-hidden /> covered
-          </span>
-        ) : (
-          <span className={styles.rowSub}>{row.fitsIn ? `Fits in ${monthShort(row.fitsIn, v.today)}` : 'Beyond forecast'}</span>
-        )}
-      </span>
-      <span className={styles.rowMenu}>
-        <ActionMenu
-          ariaLabel={`Actions for ${o.name}`}
-          triggerIcon={<MoreHorizontal size={16} strokeWidth={2} />}
-          items={[
-            { key: 'paid', label: 'Mark paid', icon: <Check size={14} strokeWidth={2} />, onSelect: () => v.setPaying(o) },
-            { key: 'postpone', label: o.recurring ? 'Skip this month' : 'Postpone', icon: <MoreHorizontal size={14} strokeWidth={2} />, onSelect: () => v.setPostponing(o) },
-            { key: 'drop', label: o.recurring ? 'Drop this month' : 'Drop it', icon: <MoreHorizontal size={14} strokeWidth={2} />, onSelect: () => v.drop(o), danger: true },
-            { key: 'open', label: 'Open item', icon: <MoreHorizontal size={14} strokeWidth={2} />, onSelect: onOpen },
-          ]}
-        />
-      </span>
-    </div>
-  );
-
-  return (
-    <div ref={setNodeRef} className={styles.swipe} data-index={index}>
-      {dx > 0 && (
-        <span className={styles.swipeAction} data-side="left" aria-hidden>
-          Paid
-        </span>
-      )}
-      {dx < 0 && (
-        <span className={styles.swipeAction} data-side="right" aria-hidden>
-          Postpone
-        </span>
-      )}
-      {body}
-    </div>
-  );
 }
 
 function PaySheet({ v, item }: { v: PrioritiesLogic; item: Occurrence }) {

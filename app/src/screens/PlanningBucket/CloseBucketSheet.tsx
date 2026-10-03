@@ -36,7 +36,7 @@ export function CloseBucketSheet({
       <div className={styles.form}>
         <p className={styles.hint}>
           {over > 0
-            ? `It's ${money(over)} ${currency} over plan overall. Closing doesn't cover that — you can still cover or justify it.`
+            ? `It's ${money(over)} ${currency} over plan overall. Closing doesn't cover that, you can still cover or justify it.`
             : leftover > 0
               ? `${money(leftover)} ${currency} is left over. Once it's closed you can move it to another bucket, savings or next month.`
               : 'It came out exactly on plan.'}{' '}

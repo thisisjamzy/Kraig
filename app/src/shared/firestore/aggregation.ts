@@ -67,6 +67,7 @@ import type {
   BucketLineItemSubItem,
   BucketItemLink,
   FirestoreTransaction,
+  IncomeSubtype,
 } from './types';
 
 function monthKey(date: Date) {
@@ -86,7 +87,7 @@ function assertNotBelowLocked(account: { currentBalance?: number; lockedAmount?:
   const currentBalance = account?.currentBalance ?? 0;
   const lockedAmount = account?.lockedAmount ?? 0;
   if (currentBalance + delta < lockedAmount) {
-    throw new Error('This would dip into the amount locked in this wallet — unlock some of it first, or use a smaller amount.');
+    throw new Error('This would dip into the amount locked in this wallet, unlock some of it first, or use a smaller amount.');
   }
 }
 
@@ -120,6 +121,9 @@ export interface CreateTransactionInput {
   // PRD-BUDGETS-V2.md section 4.3 — the bucket item occurrence this pays
   // for, see FirestoreTransaction.bucketItem.
   bucketItem?: BucketItemLink | null;
+  // Income only — see FirestoreTransaction.incomeSubtype. Debt financing
+  // also stores linkedDebtId (the cash debt it created or adds to).
+  incomeSubtype?: IncomeSubtype | null;
 }
 
 /**
@@ -143,7 +147,7 @@ export function writeTransactionContribution(
 ): number {
   const signedAmount = input.direction === 'Inflow' ? input.amount : -input.amount;
   if (accountData?.frozen) {
-    throw new Error('This wallet is frozen — unfreeze it before recording a transaction against it.');
+    throw new Error('This wallet is frozen, unfreeze it before recording a transaction against it.');
   }
   if (input.isFrozenSavings) {
     // Money never leaves the account — only lockedAmount grows. This isn't
@@ -183,6 +187,8 @@ export function writeTransactionContribution(
       ? { isUnjustifiedAdjustment: true, pairedTransferId: input.pairedTransferId ?? null }
       : {}),
     ...(input.isFrozenSavings ? { isFrozenSavings: true } : {}),
+    ...(input.type === 'Income' && input.incomeSubtype ? { incomeSubtype: input.incomeSubtype } : {}),
+    ...(input.incomeSubtype === 'debt_financing' && input.linkedDebtId && !input.isDebtRepayment ? { linkedDebtId: input.linkedDebtId } : {}),
     bucketItem: input.bucketItem ?? null,
     createdBy: input.createdBy,
     createdAt: dateTimestamp,
@@ -234,7 +240,7 @@ export function writeTransactionContribution(
  * PRD-BUDGETS-V2.md section 4.3). `amount: null` removes the payment;
  * otherwise it's upserted. A missing item (deleted since) is ignored.
  */
-async function syncLinkedItemPayment(
+export async function syncLinkedItemPayment(
   uid: string,
   link: BucketItemLink,
   paymentId: string,
@@ -344,7 +350,7 @@ export async function updateTransactionWithAggregation(
       await Promise.all(accountIds.map(async (id) => [id, await tx.get(accountRef(uid, id))] as const))
     );
     if (accountIds.some((id) => accountSnaps.get(id)?.data()?.frozen)) {
-      throw new Error('One of these wallets is frozen — unfreeze it before editing this transaction.');
+      throw new Error('One of these wallets is frozen, unfreeze it before editing this transaction.');
     }
 
     tx.update(transactionRef(uid, input.id), {
@@ -539,7 +545,7 @@ export async function deleteTransactionWithAggregation(uid: string, transactionI
     const accountSnap = await tx.get(accountRef(uid, accountId));
     const accountData = accountSnap.data();
     if (accountData?.frozen) {
-      throw new Error('This wallet is frozen — unfreeze it before deleting this transaction.');
+      throw new Error('This wallet is frozen, unfreeze it before deleting this transaction.');
     }
 
     tx.delete(transactionRef(uid, transactionId));
@@ -774,7 +780,7 @@ export function writeTransferContribution(
   const dateTimestamp = Timestamp.fromDate(input.date);
   const charges = input.charges ?? 0;
   if (fromData?.frozen || toData?.frozen) {
-    throw new Error('One of these wallets is frozen — unfreeze it before transferring.');
+    throw new Error('One of these wallets is frozen, unfreeze it before transferring.');
   }
   // Only fromAccountId is ever debited (below) — toAccountId only
   // receives, so it never needs the locked-amount check.
@@ -876,7 +882,7 @@ export async function updateTransferWithAggregation(uid: string, input: UpdateTr
       await Promise.all(accountIds.map(async (id) => [id, await tx.get(accountRef(uid, id))] as const))
     );
     if (accountIds.some((id) => accountSnaps.get(id)?.data()?.frozen)) {
-      throw new Error('One of these wallets is frozen — unfreeze it before editing this transfer.');
+      throw new Error('One of these wallets is frozen, unfreeze it before editing this transfer.');
     }
 
     tx.update(transferRef(uid, input.id), {
@@ -982,7 +988,7 @@ export async function deleteTransferWithAggregation(uid: string, transferId: str
     const fromData = fromSnap.data();
     const toData = toSnap.data();
     if (fromData?.frozen || toData?.frozen) {
-      throw new Error('One of these wallets is frozen — unfreeze it before deleting this transfer.');
+      throw new Error('One of these wallets is frozen, unfreeze it before deleting this transfer.');
     }
     // Reversing toAccountId's credit is a real outflow from its balance
     // (money leaving), so it gets the same "would this dip below what's
@@ -1097,10 +1103,10 @@ async function assertNothingLinked(uid: string, scope: { itemId: string } | { bu
     getDocs(query(allocationsRef(uid), where(`to.${field}`, '==', value), limit(1))),
   ]);
   if (!transactionsSnap.empty || !transfersSnap.empty) {
-    throw new Error('Payments are linked to this — unlink them first, or archive the bucket instead.');
+    throw new Error('Payments are linked to this, unlink them first, or archive the bucket instead.');
   }
   if (!fromSnap.empty || !toSnap.empty) {
-    throw new Error('Budget was moved into or out of this — undo those moves first, or archive the bucket instead.');
+    throw new Error('Budget was moved into or out of this, undo those moves first, or archive the bucket instead.');
   }
 }
 
@@ -1347,6 +1353,8 @@ export interface MarkBucketLineItemCompleteInput {
   // the payment settles (yyyy-MM). Defaults to the payment date's own month;
   // differs for an early/late payment (September's rent paid Aug 30).
   occurrenceMonth?: string;
+  // Income items only — see FirestoreTransaction.incomeSubtype.
+  incomeSubtype?: IncomeSubtype | null;
 }
 
 /**
@@ -1407,7 +1415,7 @@ export async function recordBucketLineItemPayment(
       // Per-month status is derived instead (src/shared/budget/monthBudget.ts).
       const closes = fullyPaid && bucketSnap.data()?.kind !== 'Fixed';
       if (fromSnap.data()?.frozen || toSnap.data()?.frozen) {
-        throw new Error('One of these wallets is frozen — unfreeze it before transferring.');
+        throw new Error('One of these wallets is frozen, unfreeze it before transferring.');
       }
       assertNotBelowLocked(fromSnap.data(), -(paymentAmount + charges));
 
@@ -1476,6 +1484,7 @@ export async function recordBucketLineItemPayment(
         direction,
         createdBy: uid,
         bucketItem,
+        incomeSubtype: categoryType === 'Income' ? (input.incomeSubtype ?? null) : null,
       },
       accountSnap.data(),
       ctx
@@ -1521,6 +1530,10 @@ export interface CreateDebtInput {
     interval: 'weekly' | 'biweekly' | 'monthly' | 'yearly';
     nextPaymentDate: Date;
   } | null;
+  // The "Loan received" income credit, when it comes from recording debt
+  // financing as income (Add Transaction): its id, category and the
+  // income line it's received against.
+  credit?: { transactionId?: string; categoryId?: string | null; description?: string; bucketItem?: BucketItemLink | null } | null;
 }
 
 export async function createDebt(uid: string, input: CreateDebtInput, ctx: CurrencyContext): Promise<string> {
@@ -1568,15 +1581,20 @@ export async function createDebt(uid: string, input: CreateDebtInput, ctx: Curre
         tx,
         uid,
         {
-          id: crypto.randomUUID(),
+          id: input.credit?.transactionId ?? crypto.randomUUID(),
           date: input.startDate,
           type: 'Income',
-          description: `Loan received: ${input.name}`,
+          description: input.credit?.description || `Loan received: ${input.name}`,
           accountId,
-          categoryId: null,
+          categoryId: input.credit?.categoryId ?? null,
           amount: input.principalAmount,
           direction: 'Inflow',
           createdBy: uid,
+          // Borrowed money is income for its month, as debt financing,
+          // linked to the debt that tracks paying it back.
+          incomeSubtype: 'debt_financing',
+          linkedDebtId: id,
+          bucketItem: input.credit?.bucketItem ?? null,
         },
         accountSnap.data(),
         ctx

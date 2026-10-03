@@ -26,8 +26,8 @@ import { ensureUnjustifiedWallet } from './unaccountedBalance';
 const DEFAULT_EXCHANGE_RATES: Record<string, { rateToBase: number; notes: string }> = {
   XAF: { rateToBase: 1, notes: 'base currency' },
   EUR: { rateToBase: 655.957, notes: 'fixed peg' },
-  USD: { rateToBase: 605, notes: 'approximate — update periodically' },
-  GBP: { rateToBase: 765, notes: 'approximate — update periodically' },
+  USD: { rateToBase: 605, notes: 'approximate, update periodically' },
+  GBP: { rateToBase: 765, notes: 'approximate, update periodically' },
 };
 
 // Returns whether this call just created users/{uid} (a genuinely new

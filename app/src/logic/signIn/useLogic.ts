@@ -49,7 +49,7 @@ export function useLogic() {
     setResetNotice(null);
     try {
       await sendPasswordResetEmail(getFirebaseAuth(), email);
-      setResetNotice('Password reset email sent — check your inbox.');
+      setResetNotice('Password reset email sent, check your inbox.');
     } catch (err) {
       setError(firebaseErrorMessage(err));
     }

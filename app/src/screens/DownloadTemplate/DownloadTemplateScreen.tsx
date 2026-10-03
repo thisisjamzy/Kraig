@@ -21,7 +21,7 @@ export function DownloadTemplateScreen() {
       />
 
       <p className={styles.helperText}>
-        Pick what you plan to fill in. You&rsquo;ll get one Excel file with a tab per entity — a header row plus a
+        Pick what you plan to fill in. You&rsquo;ll get one Excel file with a tab per entity, a header row plus a
         couple of example rows to follow.
       </p>
 

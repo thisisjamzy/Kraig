@@ -91,7 +91,7 @@ export function CalendarEventDetailScreen({ eventId }: { eventId: string }) {
             <span className={form.label}>When</span>
             <span className={form.value}>{longDate(event.startAt.toDate())}</span>
             <span className={styles.sub}>{taskWhen(event.startAt.toDate(), event.endAt.toDate(), event.allDay, true)}</span>
-            <span className={styles.note}>Title and time can&apos;t be changed here — edit this in Google Calendar.</span>
+            <span className={styles.note}>Title and time can&apos;t be changed here, edit this in Google Calendar.</span>
           </div>
 
           {(meetingLink || htmlLink) && (
@@ -167,7 +167,7 @@ export function CalendarEventDetailScreen({ eventId }: { eventId: string }) {
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               onBlur={() => void saveNotes()}
-              placeholder="Only you see these — they stay in Dreda"
+              placeholder="Only you see these, they stay in Dreda"
             />
           </label>
           <p className={styles.note}>Changes made in Google Calendar show up here the next time the app syncs.</p>

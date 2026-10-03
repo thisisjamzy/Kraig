@@ -184,7 +184,7 @@
   max-height: 60dvh;
   overflow-y: auto;
   overscroll-behavior: contain;
-  border-radius: 12px;
+  border-radius: 6px;
   background: var(--color-background);
   box-shadow:
     0 0 0 1px var(--color-border),
@@ -211,7 +211,7 @@
   }
 }
 
-/* Under 360px: the same content as a bottom sheet. */
+/* Phones: the same content as a bottom sheet. */
 .popover[data-sheet] {
   top: auto;
   right: 0;
@@ -219,7 +219,7 @@
   left: 0;
   width: auto;
   max-width: none;
-  max-height: 75dvh;
+  max-height: 85dvh;
   padding-bottom: var(--safe-bottom);
   border-radius: 18px 18px 0 0;
   animation: sheet 200ms var(--ease-out);
@@ -242,6 +242,52 @@
   z-index: 89;
   display: block;
   background: rgba(15, 17, 21, 0.35);
+}
+
+/* The sheet's own header: handle, title, Done (sheets only). */
+.sheetHead {
+  display: none;
+}
+
+.popover[data-sheet] .sheetHead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 4px 8px;
+  padding: 6px 12px 8px 16px;
+  background: inherit;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.sheetHandle {
+  grid-column: 1 / -1;
+  justify-self: center;
+  width: 40px;
+  height: 5px;
+  margin: 2px 0 4px;
+  border-radius: 3px;
+  background: var(--color-border);
+  touch-action: none;
+  cursor: grab;
+}
+
+.sheetTitle {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.sheetDone {
+  min-height: 44px;
+  padding: 0 12px;
+  border: 0;
+  background: none;
+  color: var(--color-brand);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
 }
 
 /* ---- Menu content ---- */

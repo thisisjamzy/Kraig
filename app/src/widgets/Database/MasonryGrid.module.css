@@ -1,0 +1,27 @@
+.grid {
+  position: relative;
+  container-type: inline-size;
+}
+
+/* Until every block is measured, blocks stack (so they can be measured)
+   and stay invisible. */
+.grid:not([data-ready]) {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  visibility: hidden;
+}
+
+.grid[data-ready] .item {
+  position: absolute;
+}
+
+.item {
+  min-width: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .grid[data-ready] .item {
+    transition: top 160ms ease, left 160ms ease;
+  }
+}

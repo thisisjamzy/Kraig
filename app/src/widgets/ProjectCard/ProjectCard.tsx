@@ -103,9 +103,9 @@ export function ProjectCard({
 
         <div className={styles.timelineRow}>
           <p className={styles.timeline}>
-            {project.startDate ? formatDate(project.startDate) : '—'}
+            {project.startDate ? formatDate(project.startDate) : ''}
             {' - '}
-            {project.endDate ? formatDate(project.endDate) : '—'}
+            {project.endDate ? formatDate(project.endDate) : ''}
           </p>
           <CircularProgress percent={project.completionPercent} />
         </div>

@@ -47,7 +47,7 @@ export function ImportDataScreen() {
       {step === 'upload' && (
         <div className={styles.form}>
           <p className={styles.helperText}>
-            Upload a Dreda export or template (.xlsx or .csv). Each sheet is matched by name — Areas, Buckets,
+            Upload a Dreda export or template (.xlsx or .csv). Each sheet is matched by name, Areas, Buckets,
             Accounts, Categories, Budgets, Projects, Tasks, Buckets, Bucket Items, Debts, Repayments, Transactions,
             Transfers.
           </p>
@@ -97,7 +97,7 @@ export function ImportDataScreen() {
 
           {autoCreateRefs.length > 0 && (
             <div className={styles.reviewGroup}>
-              <p className={styles.reviewGroupTitle}>These don&rsquo;t exist yet — create them automatically?</p>
+              <p className={styles.reviewGroupTitle}>These don&rsquo;t exist yet, create them automatically?</p>
               {autoCreateRefs.map((m) => (
                 <label key={m.key} className={styles.checkboxRow}>
                   <input
@@ -114,7 +114,7 @@ export function ImportDataScreen() {
 
           {hardRequiredRefs.length > 0 && (
             <div className={styles.reviewGroup}>
-              <p className={styles.reviewGroupTitle}>Not found — rows needing these will be skipped:</p>
+              <p className={styles.reviewGroupTitle}>Not found, rows needing these will be skipped:</p>
               {hardRequiredRefs.map((m) => (
                 <p key={m.key} className={styles.warningText}>
                   {ENTITY_DEFS[m.entityKey].label.replace(/s$/, '')}: {m.name}

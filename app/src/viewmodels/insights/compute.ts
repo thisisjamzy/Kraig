@@ -166,7 +166,7 @@ export function computeInsights({
   else if (kind === 'today') {
     loadTakeaway = `${hoursText(heaviest.scheduledMinutes)} scheduled today against ${hoursText(capacity)} capacity${heaviest.multitaskMinutes ? `, ${hoursText(heaviest.multitaskMinutes)} of it stacked` : ''}.`;
   } else if (over.length) {
-    loadTakeaway = `${over.length} ${over.length === 1 ? 'day goes' : 'days go'} over your ${hoursText(capacity)} capacity — ${weekdayName(heaviest.date)} is heaviest at ${hoursText(heaviest.scheduledMinutes)}.`;
+    loadTakeaway = `${over.length} ${over.length === 1 ? 'day goes' : 'days go'} over your ${hoursText(capacity)} capacity. ${weekdayName(heaviest.date)} is heaviest at ${hoursText(heaviest.scheduledMinutes)}.`;
   } else {
     loadTakeaway = `Every day fits your ${hoursText(capacity)} capacity; ${weekdayName(heaviest.date)} is busiest at ${hoursText(heaviest.scheduledMinutes)}.`;
   }
@@ -176,7 +176,7 @@ export function computeInsights({
   let mixTakeaway: string;
   if (!mix.totalTasks) mixTakeaway = 'Plan tasks to see where your time goes.';
   else if (mix.firefighting !== null && mix.firefighting * 100 > t.firefightingWatchPercent) {
-    mixTakeaway = `Do-first work takes ${Math.round(mix.firefighting * 100)}% of your time — that's firefighting.`;
+    mixTakeaway = `Do-first work takes ${Math.round(mix.firefighting * 100)}% of your time, which is firefighting.`;
   } else {
     const basis = mix.totalMinutes ? 'hourShare' : 'taskShare';
     const top = [...mix.shares].sort((a, b) => b[basis] - a[basis])[0];

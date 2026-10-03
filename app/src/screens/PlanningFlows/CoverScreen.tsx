@@ -349,7 +349,7 @@ export function CoverScreen() {
       <section className={c.review} aria-label="Review">
         <h2 className={c.reviewTitle}>Review</h2>
         {v.review.lines.length === 0 ? (
-          <p className={c.reviewLine}>Choose how it was covered and why — a summary appears here.</p>
+          <p className={c.reviewLine}>Choose how it was covered and why, a summary appears here.</p>
         ) : (
           v.review.lines.map((line) => (
             <p key={line} className={c.reviewLine}>

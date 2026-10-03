@@ -206,7 +206,7 @@ export function useLogic({ entry, month, budget, buckets, itemsByBucket, allocat
         id: `item:${other.key}`,
         label:
           other.unfunded > 0
-            ? `${other.name} — over by ${formatNumber(other.unfunded)}`
+            ? `${other.name}, over by ${formatNumber(other.unfunded)}`
             : `${other.name} (${other.bucketName})`,
         available: null,
         endpoint: { kind: 'item', bucketId: other.bucketId, itemId: other.itemId, month },

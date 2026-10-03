@@ -195,7 +195,7 @@ export function useLogic() {
         id: `savings:${a.id}`,
         kind: 'savings',
         name: `Savings · ${a.name}`,
-        sub: 'Current balance — a real withdrawal',
+        sub: 'Current balance, a real withdrawal',
         available: r2(toDisplay(ctx, free, a.currency)),
         sameBucket: false,
         item: null,
@@ -299,7 +299,7 @@ export function useLogic() {
   if (overLimit) problem = 'One of the amounts is more than that budget has available.';
   else if (covered > need + EPS) problem = 'That moves more than the overspend.';
   else if (difference < -EPS) problem = `That's ${money(-difference)} ${currency} more than the overspend.`;
-  else if (difference > EPS) problem = `${money(difference)} ${currency} still needs a source — move it, say how it was paid, or mark it “Not covered yet”.`;
+  else if (difference > EPS) problem = `${money(difference)} ${currency} still needs a source, move it, say how it was paid, or mark it “Not covered yet”.`;
   else if (!reason) problem = 'Pick why it went over.';
   else if (!awareness) problem = 'Say when this was dealt with.';
   else if (awareness === 'discovered_later' && !noticedOn) problem = 'Add the date you noticed it.';

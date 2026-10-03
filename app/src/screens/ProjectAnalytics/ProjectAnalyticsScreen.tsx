@@ -5,8 +5,12 @@ import { TrendChart } from '@/src/widgets/TrendChart/TrendChart';
 import { DonutChart } from '@/src/widgets/DonutChart/DonutChart';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import styles from './ProjectAnalyticsScreen.module.css';
+import { useHasTopBar } from '@/src/widgets/AppShell/TopBarSlot';
+import { useOwnsTitle } from '@/src/widgets/AppShell/breadcrumb';
 
 export function ProjectAnalyticsScreen() {
+  // Draws its own title: the shell adds none on wide screens.
+  useOwnsTitle(useHasTopBar());
   const {
     overdue,
     today,

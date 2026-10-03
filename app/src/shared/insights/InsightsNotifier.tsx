@@ -103,7 +103,7 @@ export function InsightsNotifier() {
         const left = all.length - done;
         notify(
           `${Math.round(rate * 100)}% of today's tasks done`,
-          `${left} unfinished — tap to move them to tomorrow.`,
+          `${left} unfinished, tap to move them to tomorrow.`,
           '/tasks?filter=today',
           `evening-${today}`
         );

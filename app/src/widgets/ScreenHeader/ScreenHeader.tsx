@@ -1,4 +1,8 @@
+'use client';
+
 import type { ReactNode } from 'react';
+import { useHasTopBar } from '@/src/widgets/AppShell/TopBarSlot';
+import { useOwnsTitle } from '@/src/widgets/AppShell/breadcrumb';
 import styles from './ScreenHeader.module.css';
 
 // The one top bar every full-screen page uses (everything except the hub
@@ -18,6 +22,11 @@ import styles from './ScreenHeader.module.css';
 //
 // `large` is the big hub-style title (Focus, Insights); `center` centers
 // the title between the slots (close / title / save forms, Calendar).
+//
+// Medium screens and up (inside the app shell): no back arrow or close
+// button (the top bar's breadcrumb navigates), the title as the page's one
+// Notion-style title, and the actions on its right. The shell then adds no
+// title of its own.
 export function ScreenHeader({
   left,
   title,
@@ -35,6 +44,17 @@ export function ScreenHeader({
   sticky?: boolean;
   className?: string;
 }) {
+  const inShell = useHasTopBar();
+  useOwnsTitle(inShell);
+  if (inShell) {
+    if (title == null && !right) return null;
+    return (
+      <header className={`${styles.wide} ${className ?? ''}`}>
+        {title != null ? <h1 className={styles.wideTitle}>{title}</h1> : <span />}
+        {right && <div className={styles.wideActions}>{right}</div>}
+      </header>
+    );
+  }
   return (
     <header
       className={`${styles.header} ${className ?? ''}`}

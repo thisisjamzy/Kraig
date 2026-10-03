@@ -108,7 +108,7 @@ export function ReconcileBalancesScreen() {
                   <div key={`${entry.kind}-${entry.id}-${entry.role}-${index}`} className={styles.orphanedItem}>
                     <span className={styles.orphanedKind}>{entry.kind === 'transfer' ? 'Transfer' : 'Transaction'}</span>
                     <span>
-                      {entry.description || '(no description)'} — {formatAmount(entry.amount)}
+                      {entry.description || '(no description)'}, {formatAmount(entry.amount)}
                     </span>
                     <span className={styles.orphanedReason}>
                       {entry.role === 'from'

@@ -143,7 +143,7 @@ function parseEnum<T extends string>(value: string, options: readonly T[], fallb
   const match = options.find((o) => o.toLowerCase() === value.trim().toLowerCase());
   if (match) return { value: match };
   if (!value.trim()) return { value: fallback };
-  return { value: fallback, error: `must be one of ${options.join(', ')} — got "${value}"` };
+  return { value: fallback, error: `must be one of ${options.join(', ')}, got "${value}"` };
 }
 
 function isRowBlank(row: Record<string, unknown>, columns: string[]): boolean {

@@ -258,7 +258,7 @@ export function ValueEditor<T>({
             .map((x) => (
               <button key={x} type="button" className={styles.row} data-row data-missing onClick={() => onChange(chosen.filter((y) => y !== x))}>
                 <X size={14} strokeWidth={2.5} aria-hidden />
-                <span className={styles.rowLabel}>Missing value — remove</span>
+                <span className={styles.rowLabel}>Missing value, remove</span>
               </button>
             ))}
         </div>

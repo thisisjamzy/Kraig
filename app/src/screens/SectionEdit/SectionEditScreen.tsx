@@ -123,7 +123,7 @@ export function SectionEditScreen({ bucketId }: { bucketId: string }) {
 
           {section.isDefault ? (
             <p className={styles.sectionCaption}>
-              This is the area&apos;s default section — every project here without one of its own lives in it, so it
+              This is the area&apos;s default section, every project here without one of its own lives in it, so it
               can&apos;t be archived.
             </p>
           ) : (

@@ -74,11 +74,12 @@ test('addMonths crosses year boundaries', () => {
 });
 
 test('itemOccurrence applies skips, overrides, and unscheduled items', () => {
-  assert.deepEqual(itemOccurrence(item('rent'), '2026-09'), { planned: 100, isOverride: false });
+  assert.deepEqual(itemOccurrence(item('rent'), '2026-09'), { planned: 100, isOverride: false, due: new Date(2026, 8, 1) });
   assert.equal(itemOccurrence(item('rent', { excludedMonths: ['2026-09'] }), '2026-09'), null);
   assert.deepEqual(itemOccurrence(item('rent', { monthOverrides: { '2026-09': { amount: 140 } } }), '2026-09'), {
     planned: 140,
     isOverride: true,
+    due: new Date(2026, 8, 1),
   });
   assert.equal(itemOccurrence(item('wish', { dueDate: null, recurrence: null }), '2026-09'), null);
   // A one-off (Planned) item applies only to its own due month.

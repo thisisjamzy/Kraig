@@ -11,6 +11,8 @@ import { money, monthTitle } from '@/src/viewmodels/planning';
 import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import p from '@/src/screens/Planning/Planning.module.css';
 import f from './Flows.module.css';
+import { useHasTopBar } from '@/src/widgets/AppShell/TopBarSlot';
+import { useOwnsTitle } from '@/src/widgets/AppShell/breadcrumb';
 
 const DESTINATIONS: { id: Destination; label: string; icon: typeof Layers }[] = [
   { id: 'bucket', label: 'Another bucket', icon: Layers },
@@ -21,6 +23,8 @@ const DESTINATIONS: { id: Destination; label: string; icon: typeof Layers }[] = 
 const QUICK = [0.25, 0.5, 1] as const;
 
 export function ReallocateScreen() {
+  // Draws its own title: the shell adds none on wide screens.
+  useOwnsTitle(useHasTopBar());
   const r = useLogic();
 
   return (
@@ -120,7 +124,7 @@ export function ReallocateScreen() {
 
           {r.destination === 'next' && (
             <p className={f.hint}>
-              {money(r.nextTotal)} {r.currency} can roll into {monthTitle(r.nextMonth)} — items that repeat next month.
+              {money(r.nextTotal)} {r.currency} can roll into {monthTitle(r.nextMonth)}, items that repeat next month.
             </p>
           )}
 

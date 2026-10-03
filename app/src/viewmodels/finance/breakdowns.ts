@@ -82,7 +82,7 @@ export function moneyFlow(data: FinData, p: Period, bucketName: (id: string) => 
     variable: r2(sum(spend.filter((t) => !t.fixed), (t) => t.amount)),
     trends,
     trendMonths,
-    payees: topSlices(tally(spend, (t) => t.payee.trim().toLowerCase() || '—', (t) => t.payee.trim() || 'Unnamed', (t) => t.amount), 5).filter((s) => s.key !== 'other'),
+    payees: topSlices(tally(spend, (t) => t.payee.trim().toLowerCase() || '', (t) => t.payee.trim() || 'Unnamed', (t) => t.amount), 5).filter((s) => s.key !== 'other'),
     methods: topSlices(tally(spend, (t) => t.accountId, (t) => t.accountName, (t) => t.amount), 5),
     transferFees: r2(sum(data.transfers.filter((t) => inPeriod(t.date, p)), (t) => t.charges)),
   };
@@ -151,7 +151,7 @@ export function unplannedInsights(data: FinData, p: Period, splits: Map<string, 
     share: expense > 0 ? total / expense : null,
     byKind,
     categories: topSlices(tally(flagged, (x) => x.tx.categoryId ?? 'none', (x) => x.tx.categoryName, (x) => x.amount), 5).filter((s) => s.key !== 'other'),
-    payees: topSlices(tally(flagged, (x) => x.tx.payee.trim().toLowerCase() || '—', (x) => x.tx.payee.trim() || 'Unnamed', (x) => x.amount), 5).filter((s) => s.key !== 'other'),
+    payees: topSlices(tally(flagged, (x) => x.tx.payee.trim().toLowerCase() || '', (x) => x.tx.payee.trim() || 'Unnamed', (x) => x.amount), 5).filter((s) => s.key !== 'other'),
     largest: [...flagged].sort((a, b) => b.amount - a.amount).slice(0, 8),
     notes,
   };

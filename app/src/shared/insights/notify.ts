@@ -42,5 +42,5 @@ export async function notify(title: string, body: string, url: string, tag: stri
       // Fall through to the in-app toast.
     }
   }
-  showToast(`${title} — ${body}`);
+  showToast(`${title}, ${body}`);
 }

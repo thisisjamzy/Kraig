@@ -5,6 +5,7 @@
 // toward, the note — and, for a transaction not tied to any bucket, the
 // "Assign to bucket" picker (?assign=1 opens straight on it).
 
+import { INCOME_SUBTYPE_LABEL, incomeSubtypeOfTransaction } from '@/src/shared/budget/flow';
 import { recordedAt } from '@/src/shared/time/recordedAt';
 import { useMemo, useState } from 'react';
 import { query } from 'firebase/firestore';
@@ -30,10 +31,12 @@ function dateValue(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-export function useLogic(id: string) {
+/** `transfer` says which collection the id is in when it isn't the page's
+ * own URL (a side peek); otherwise ?kind=transfer does. */
+export function useLogic(id: string, opts: { transfer?: boolean } = {}) {
   const { user } = useFirebaseUser();
   const uid = user?.uid;
-  const [{ transfer: isTransfer, assign }] = useState(flagsFromSearch);
+  const [{ transfer: isTransfer, assign }] = useState(() => (opts.transfer !== undefined ? { transfer: opts.transfer, assign: false } : flagsFromSearch()));
   const { data: transaction, loading: txLoading } = useFirestoreDoc<FirestoreTransaction>(
     useMemo(() => (uid && !isTransfer ? transactionRef(uid, id) : null), [uid, id, isTransfer])
   );
@@ -86,22 +89,25 @@ export function useLogic(id: string) {
     /** False when only the day is known (no time recorded). */
     timeKnown: boolean;
     type: string;
+    /** Income only: earned, other, or debt financing (borrowed). */
+    subtype: string | null;
     category: string;
     method: string;
     editHref: string;
   };
   if (transaction) {
     const currency = account.get(transaction.accountId)?.currency ?? ctx.base;
-    const category = categories.find((c) => c.id === transaction.categoryId)?.name ?? '—';
+    const category = categories.find((c) => c.id === transaction.categoryId)?.name ?? '';
     view = {
-      title: category !== '—' ? category : transaction.description || 'Transaction',
+      title: category !== '' ? category : transaction.description || 'Transaction',
       note: transaction.description,
       flow: transaction.direction === 'Inflow' ? 'in' : 'out',
       amount: toDisplay(ctx, transaction.amount, currency),
       ...recordedAt(transaction.date, transaction.createdAt),
       type: transaction.type,
+      subtype: transaction.type === 'Income' ? INCOME_SUBTYPE_LABEL[incomeSubtypeOfTransaction(transaction)] : null,
       category,
-      method: account.get(transaction.accountId)?.name ?? '—',
+      method: account.get(transaction.accountId)?.name ?? '',
       editHref: `/edit-transaction/${transaction.id}`,
     };
   } else if (transferDoc) {
@@ -113,6 +119,7 @@ export function useLogic(id: string) {
       amount: toDisplay(ctx, transferDoc.amount, currency),
       ...recordedAt(transferDoc.date, transferDoc.createdAt),
       type: 'Transfer',
+      subtype: null,
       category: transferDoc.kind,
       method: `${account.get(transferDoc.fromAccountId)?.name ?? ''} → ${account.get(transferDoc.toAccountId)?.name ?? ''}`,
       editHref: `/edit-transfer/${transferDoc.id}`,
@@ -136,7 +143,7 @@ export function useLogic(id: string) {
     assignTo,
     busy,
     error,
-    goBack: () => navigateBack('/budget?tab=history'),
+    goBack: () => navigateBack('/transactions'),
     loading: txLoading || trLoading,
     missing: !txLoading && !trLoading && !view,
   };

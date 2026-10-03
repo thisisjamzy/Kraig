@@ -27,7 +27,12 @@ export function useLogic() {
   // Transfer, which account-to-account moves) its line items may use. Not
   // editable after creation (same as kind) — changing it would leave
   // already-created items pointed at categories the new type disallows.
-  const [type, setType] = useState<'Expense' | 'Income' | 'Savings' | 'Transfer'>('Expense');
+  // ?type= (from a type tab's "New bucket") starts the form on that type.
+  const [type, setType] = useState<'Expense' | 'Income' | 'Savings' | 'Transfer'>(() => {
+    if (typeof window === 'undefined') return 'Expense';
+    const wanted = new URLSearchParams(window.location.search).get('type');
+    return wanted === 'Income' || wanted === 'Savings' || wanted === 'Transfer' ? wanted : 'Expense';
+  });
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 

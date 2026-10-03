@@ -93,6 +93,8 @@ export function useLogic(goalId: string) {
   // defaults to 'Expense', same convention as `kind`.
   const bucketType = bucket?.type ?? 'Expense';
   const isTransferBucket = bucketType === 'Transfer';
+  // Need and priority belong to expenses and savings only.
+  const hasNeed = bucketType === 'Expense' || bucketType === 'Savings';
   const { data: allCategories, loading: categoriesLoading } = useCategories();
   const categories = useMemo(
     () => allCategories.filter((category) => category.transactionType === bucketType),
@@ -577,6 +579,7 @@ export function useLogic(goalId: string) {
     accounts,
     categories,
     categoryOptions,
+    hasNeed,
     isTransferBucket,
 
     addOpen,

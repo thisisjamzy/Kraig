@@ -63,6 +63,7 @@ export function BucketDetailScreen({ goalId }: { goalId: string }) {
     setBucketKind,
     bucketTypeEdit,
     setBucketTypeEdit,
+    hasNeed,
     savingBucket,
     bucketSaveError,
     handleSaveBucket,
@@ -161,7 +162,7 @@ export function BucketDetailScreen({ goalId }: { goalId: string }) {
       {archived && (
         <div className={styles.archivedBanner}>
           <Archive size={16} strokeWidth={2} aria-hidden />
-          <span>Archived — its recorded payments still count in your history and payments calendar.</span>
+          <span>Archived, its recorded payments still count in your history and payments calendar.</span>
           <button type="button" onClick={() => unarchiveBucket()}>
             Unarchive
           </button>
@@ -341,10 +342,14 @@ export function BucketDetailScreen({ goalId }: { goalId: string }) {
 
                   <div className={styles.lineItemTagRow}>
                     <span className={kindBadgeClass}>{kindBadgeLabel}</span>
-                    <span className={styles.priorityTag}>{item.priority}</span>
-                    <span className={item.necessity === 'MustHave' ? styles.necessityTagMust : styles.necessityTagNice}>
-                      {NECESSITY_LABEL[item.necessity]}
-                    </span>
+                    {hasNeed && (
+                      <>
+                        <span className={styles.priorityTag}>{item.priority}</span>
+                        <span className={item.necessity === 'MustHave' ? styles.necessityTagMust : styles.necessityTagNice}>
+                          {NECESSITY_LABEL[item.necessity]}
+                        </span>
+                      </>
+                    )}
                     {isFixedBucket ? null : item.completed ? (
                       <span className={styles.doneTag}>{strings.bucketDetail.completedTag}</span>
                     ) : item.isPartial ? (

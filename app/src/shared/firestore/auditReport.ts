@@ -552,7 +552,7 @@ export async function generateAuditReport(uid: string, selection: AuditReportSel
     .sort((a, b) => b.value - a.value);
   const highestPriorityDebt = [...debts].sort((a, b) => b.currentBalance - a.currentBalance)[0];
   const debtPayoffOpportunity = highestPriorityDebt
-    ? `Paying an extra amount toward "${highestPriorityDebt.name}" (largest balance) shortens its payoff timeline the most per unit paid — see Buckets & Debt Summary for its current pace.`
+    ? `Paying an extra amount toward "${highestPriorityDebt.name}" (largest balance) shortens its payoff timeline the most per unit paid, see Buckets & Debt Summary for its current pace.`
     : null;
 
   // ---- Cash flow trend (trailing 12 + period sums) ----
@@ -607,10 +607,10 @@ export async function generateAuditReport(uid: string, selection: AuditReportSel
       status: diningPercent > 12 ? 'red' : diningPercent > 8 ? 'yellow' : 'yellow',
       message:
         diningPercent > 12
-          ? 'Excessive — dining/entertainment spend is crowding out other buckets.'
+          ? 'Excessive, dining/entertainment spend is crowding out other buckets.'
           : diningPercent > 8
-            ? 'High — worth capping.'
-            : 'Watch — creeping up.',
+            ? 'High, worth capping.'
+            : 'Watch, creeping up.',
     });
   }
   const shoppingPercent = expenseBreakdown.filter((row) => matchesKeyword(row.name, SHOPPING_KEYWORDS)).reduce((s, row) => s + row.percent, 0);
@@ -619,12 +619,12 @@ export async function generateAuditReport(uid: string, selection: AuditReportSel
       category: 'Shopping',
       percent: round2(shoppingPercent),
       status: shoppingPercent > 7 ? 'red' : shoppingPercent > 5 ? 'yellow' : 'yellow',
-      message: shoppingPercent > 7 ? 'Excessive — review discretionary purchases.' : shoppingPercent > 5 ? 'Elevated.' : 'Watch.',
+      message: shoppingPercent > 7 ? 'Excessive, review discretionary purchases.' : shoppingPercent > 5 ? 'Elevated.' : 'Watch.',
     });
   }
   const subscriptionTotal = expenseBreakdown.filter((row) => matchesKeyword(row.name, SUBSCRIPTION_KEYWORDS)).reduce((s, row) => s + row.amount, 0);
   if (subscriptionTotal > 15000) {
-    wastefulAlerts.push({ category: 'Subscriptions', percent: round2(pct(subscriptionTotal, periodExpense)), status: 'yellow', message: `Bloated — ${Math.round(subscriptionTotal).toLocaleString()} ${ctx.display}/period across subscriptions, review for unused ones.` });
+    wastefulAlerts.push({ category: 'Subscriptions', percent: round2(pct(subscriptionTotal, periodExpense)), status: 'yellow', message: `Bloated, ${Math.round(subscriptionTotal).toLocaleString()} ${ctx.display}/period across subscriptions, review for unused ones.` });
   }
 
   // ---- Spending habits: top categories, volatility, top descriptions ----
@@ -658,7 +658,7 @@ export async function generateAuditReport(uid: string, selection: AuditReportSel
       stdDev: round2(sd),
       cv,
       status,
-      issue: cv > 40 ? 'Chaotic — highly unpredictable spend' : cv > 30 ? 'Highly variable' : null,
+      issue: cv > 40 ? 'Chaotic, highly unpredictable spend' : cv > 30 ? 'Highly variable' : null,
     };
   });
 
@@ -694,7 +694,7 @@ export async function generateAuditReport(uid: string, selection: AuditReportSel
   }
   const mostVolatile = [...volatility].sort((a, b) => b.cv - a.cv)[0];
   if (mostVolatile && mostVolatile.cv > 15) {
-    notes.push(`"${mostVolatile.name}" is the least predictable category (${mostVolatile.cv}% coefficient of variation) — a candidate for a fixed weekly cap.`);
+    notes.push(`"${mostVolatile.name}" is the least predictable category (${mostVolatile.cv}% coefficient of variation), a candidate for a fixed weekly cap.`);
   }
 
   // ---- Budget adherence ----
@@ -840,10 +840,10 @@ export async function generateAuditReport(uid: string, selection: AuditReportSel
   const overallStatus: Status = metrics.reduce((worst, m) => (statusRank[m.status] > statusRank[worst] ? m.status : worst), 'green' as Status);
   const overallSummary =
     overallStatus === 'green'
-      ? 'Overall financial health looks solid this period — every core metric is in a healthy range.'
+      ? 'Overall financial health looks solid this period, every core metric is in a healthy range.'
       : overallStatus === 'yellow'
-        ? 'Overall financial health is mixed — some metrics need attention before they become a real problem.'
-        : 'Overall financial health needs attention now — at least one core metric is in the red.';
+        ? 'Overall financial health is mixed, some metrics need attention before they become a real problem.'
+        : 'Overall financial health needs attention now, at least one core metric is in the red.';
   const incomeLossContingency = Number.isFinite(monthsOfExpenses)
     ? `If income stopped today, current liquid assets would cover about ${monthsOfExpenses.toFixed(1)} months of expenses at the recent average spend rate.`
     : 'No recent expense history to estimate an income-loss runway from yet.';
@@ -855,21 +855,21 @@ export async function generateAuditReport(uid: string, selection: AuditReportSel
   const redFlags: RedFlag[] = [];
   const discretionaryPercent = round2(diningPercent + shoppingPercent);
   if (netWorth < 0 && expenseRatio > 75) {
-    redFlags.push({ id: 'net-worth-expense-ratio', title: 'Debt is growing', message: `Net worth is negative and expenses are ${expenseRatio}% of income — debt is growing because expenses are too high.` });
+    redFlags.push({ id: 'net-worth-expense-ratio', title: 'Debt is growing', message: `Net worth is negative and expenses are ${expenseRatio}% of income, debt is growing because expenses are too high.` });
   }
   if (Number.isFinite(monthsOfExpenses) && monthsOfExpenses < 2 && discretionaryPercent > 8) {
     redFlags.push({ id: 'emergency-fund-discretionary', title: 'Underfunded emergency fund, high discretionary spend', message: `Only ${monthsOfExpenses.toFixed(1)} months of expenses saved, but ${discretionaryPercent}% of spend is discretionary (dining/shopping).` });
   }
   const last3SavingsRates = trend.slice(-3).map((p) => p.savingsRate);
   if (last3SavingsRates.length === 3 && last3SavingsRates[2] < last3SavingsRates[1] && last3SavingsRates[1] < last3SavingsRates[0]) {
-    redFlags.push({ id: 'savings-declining', title: 'Savings rate declining', message: 'Savings rate has fallen for two months running — creeping expenses detected.' });
+    redFlags.push({ id: 'savings-declining', title: 'Savings rate declining', message: 'Savings rate has fallen for two months running, creeping expenses detected.' });
   }
   for (const overage of chronicOverages) {
-    redFlags.push({ id: `chronic-${overage.ruleId}`, title: `Chronic overspend: ${overage.name}`, message: `Over budget by more than 25% for ${overage.months.length} consecutive month(s) — a pattern, not a one-off, worth intervening on.` });
+    redFlags.push({ id: `chronic-${overage.ruleId}`, title: `Chronic overspend: ${overage.name}`, message: `Over budget by more than 25% for ${overage.months.length} consecutive month(s), a pattern, not a one-off, worth intervening on.` });
   }
   const discretionaryVolatile = volatility.find((v) => (matchesKeyword(v.name, DINING_ENTERTAINMENT_KEYWORDS) || matchesKeyword(v.name, SHOPPING_KEYWORDS)) && v.cv > 30);
   if (discretionaryVolatile) {
-    redFlags.push({ id: `volatile-${discretionaryVolatile.categoryId}`, title: `"${discretionaryVolatile.name}" is a budget black hole`, message: `${discretionaryVolatile.cv}% coefficient of variation — enforce a weekly cap rather than a monthly one.` });
+    redFlags.push({ id: `volatile-${discretionaryVolatile.categoryId}`, title: `"${discretionaryVolatile.name}" is a budget black hole`, message: `${discretionaryVolatile.cv}% coefficient of variation, enforce a weekly cap rather than a monthly one.` });
   }
 
   // ---- Executive summary stat cards + net worth sparkline ----
@@ -962,9 +962,9 @@ export async function generateAuditReport(uid: string, selection: AuditReportSel
   }));
   const fastestPayoff = [...debtRows].filter((d) => d.monthsToPayoff != null).sort((a, b) => (a.monthsToPayoff ?? Infinity) - (b.monthsToPayoff ?? Infinity))[0];
   const payoffOpportunity = fastestPayoff
-    ? `"${fastestPayoff.name}" is on pace to be paid off in about ${fastestPayoff.monthsToPayoff} month(s) at its current recurring payment — the closest win available.`
+    ? `"${fastestPayoff.name}" is on pace to be paid off in about ${fastestPayoff.monthsToPayoff} month(s) at its current recurring payment, the closest win available.`
     : debtRows.length > 0
-      ? 'No debt here has an active recurring payment plan set — setting one up is the first step toward a real payoff timeline.'
+      ? 'No debt here has an active recurring payment plan set, setting one up is the first step toward a real payoff timeline.'
       : null;
 
   // ---- Appendix ----
@@ -976,7 +976,7 @@ export async function generateAuditReport(uid: string, selection: AuditReportSel
     date: t.date.toDate().toISOString().slice(0, 10),
     description: t.description,
     account: accountById.get(t.accountId)?.name ?? t.accountId,
-    category: categoryById.get(t.categoryId ?? '')?.name ?? '—',
+    category: categoryById.get(t.categoryId ?? '')?.name ?? '',
     type: t.type,
     amount: round2(toDisplay(ctx, t.amount, accountById.get(t.accountId)?.currency ?? ctx.base)),
   }));
@@ -1006,7 +1006,7 @@ export async function generateAuditReport(uid: string, selection: AuditReportSel
       statCards,
       redFlags,
       netWorthSparkline: sparkline,
-      netWorthSparklineNote: "Estimated by working backward from today's actual net worth using each month's recorded net cash flow — not a stored historical balance.",
+      netWorthSparklineNote: "Estimated by working backward from today's actual net worth using each month's recorded net cash flow, not a stored historical balance.",
       bucketsStatus,
       debtStatus,
     },

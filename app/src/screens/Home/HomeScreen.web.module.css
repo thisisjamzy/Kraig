@@ -52,6 +52,29 @@
   background: var(--color-page);
 }
 
+/* The month's budget notices (Ready to pay, income prompts, the setup
+   banner) across the top, only when there are any. */
+.dashboard:has(.notices > *) {
+  grid-template-areas:
+    'notices   notices   notices'
+    'stats     stats     aside'
+    'highlight highlight aside'
+    'budget    chart     aside'
+    'wallets   trans     aside';
+}
+
+.notices {
+  grid-area: notices;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  min-width: 0;
+}
+
+.notices:empty {
+  display: none;
+}
+
 /* Four equal stat cards (Lunacy/Images/Time Dashboaard.png's own "Active
    Areas/Ongoing Projects/Pending Task/Overdue Task" row) — a big bold
    figure, a pastel rounded-square icon badge pinned to the top-right

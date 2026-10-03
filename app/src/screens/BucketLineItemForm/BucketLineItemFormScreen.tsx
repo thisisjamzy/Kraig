@@ -65,6 +65,7 @@ export function BucketLineItemFormScreen({ goalId, itemId }: { goalId: string; i
     bucket,
     isFixedBucket,
     isTransferBucket,
+    hasNeed,
     lineItems,
     categoryOptions,
 
@@ -315,6 +316,8 @@ export function BucketLineItemFormScreen({ goalId, itemId }: { goalId: string; i
             )}
           </div>
 
+          {hasNeed && (
+            <>
           <div className={styles.listGroup}>
             <button type="button" className={styles.listRow} onClick={() => setPriorityPickerOpen((c) => !c)}>
               <span className={styles.listRowIcon}>
@@ -374,6 +377,8 @@ export function BucketLineItemFormScreen({ goalId, itemId }: { goalId: string; i
               </div>
             )}
           </div>
+            </>
+          )}
 
           <div className={styles.listGroup}>
             <button type="button" className={styles.listRow} onClick={() => setAccountPickerOpen((c) => !c)}>

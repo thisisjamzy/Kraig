@@ -117,7 +117,7 @@ export function AvailabilityRow({
       )}
 
       {status === 'conflict' && unchangedSchedule && (
-        <p className={styles.hint}>This task already overlapped before — you can still save other changes.</p>
+        <p className={styles.hint}>This task already overlapped before, you can still save other changes.</p>
       )}
 
       {status === 'conflict' && !unchangedSchedule && (
@@ -615,7 +615,7 @@ export function TaskEditScreen({ taskId, onClose }: { taskId: string | null; onC
       {deleteConfirmOpen && (
         <ConfirmDialog
           title="Delete this task?"
-          message="It'll be removed from every list — this can't be undone."
+          message="It'll be removed from every list, this can't be undone."
           confirmLabel="Delete"
           cancelLabel="Cancel"
           onConfirm={confirmDelete}

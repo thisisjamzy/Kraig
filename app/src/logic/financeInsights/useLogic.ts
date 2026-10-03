@@ -160,7 +160,13 @@ export function useLogic() {
   const totals = useMemo(() => rangeTotals(data, period, splits), [data, period, splits]);
   const previous = useMemo(() => rangeTotals(data, comparison, splits), [data, comparison, splits]);
   const safe = useMemo(() => safeToSpend(data), [data]);
-  const flow = useMemo(() => cashFlow(data, period, splits), [data, period, splits]);
+  // Starts at the first interval with money in or out: no run of zeros
+  // before the household's history begins.
+  const flow = useMemo(() => {
+    const points = cashFlow(data, period, splits);
+    const first = points.findIndex((p) => p.income !== 0 || p.expense !== 0);
+    return first > 0 ? points.slice(first) : points;
+  }, [data, period, splits]);
   // Pace: the month in view, or the current month in longer views.
   const paceMonth = kind === 'month' ? monthKey(period.start) : monthKey(data.today);
   const pace = useMemo(() => spendingPace(data, paceMonth), [data, paceMonth]);
@@ -207,7 +213,7 @@ export function useLogic() {
 
   // Where "see details" goes: the History tab for the month in view.
   const historyMonth = kind === 'day' || kind === 'week' || kind === 'month' ? monthKey(period.start) : current;
-  const historyHref = (extra = '') => `/budget?tab=history&month=${historyMonth}${extra}`;
+  const historyHref = (extra = '') => `/transactions?month=${historyMonth}${extra}`;
 
   return {
     loading: fin.loading,
@@ -224,6 +230,18 @@ export function useLogic() {
     custom,
     setCustom,
     step,
+    /** Jump to the period starting at this date (the Showing property). */
+    setPeriodStart: (start: Date) => setAnchor(start),
+    recentPeriods: (count = 12) => {
+      const out: { start: Date; label: string }[] = [];
+      if (kind === 'custom' || kind === 'all') return [{ start: period.start, label: periodLabel(period) }];
+      let p = periodFor(kind, data.today);
+      for (let i = 0; i < count && p.start <= data.today; i++) {
+        out.push({ start: p.start, label: periodLabel(p) });
+        p = shiftPeriod(p, -1);
+      }
+      return out;
+    },
     canStep,
     canStepForward: canStep && shiftPeriod(period, 1).start <= data.today,
     granularity,

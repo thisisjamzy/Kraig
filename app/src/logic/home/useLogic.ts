@@ -348,7 +348,7 @@ export function useLogic() {
     () =>
       recentTransactionDocs.map((transaction) => {
         const nativeCurrency = accountCurrency.get(transaction.accountId) ?? ctx.base;
-        const title = categoryName.get(transaction.categoryId ?? '') ?? transaction.categoryId ?? '—';
+        const title = categoryName.get(transaction.categoryId ?? '') ?? transaction.categoryId ?? '';
         return {
           id: transaction.id,
           title,

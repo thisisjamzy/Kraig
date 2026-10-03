@@ -1,70 +1,85 @@
 'use client';
 
-// Priorities ("What should I pay next?") — the open items of a view, in a
-// chosen order, grouped by urgency, and where the money runs out. The
-// displayed order IS the walk order: urgency sections in order, the chosen
-// sort inside each ("My order" is one flat list, dragged by hand). Items
-// past the line say when they'd fit, from the Plans forecast.
+// Priorities ("What should I pay next?") — the open expense and savings
+// lines of a scope (this month, or everything open), each with its
+// coverage: what the money already received pays now, what waits for
+// income still expected (and which income), and what isn't covered. The
+// figures use the shared definitions: available now is received income
+// minus what was spent and saved, never expected income.
 
 import { useMemo, useState } from 'react';
 import { usePlansData } from '@/src/logic/plans/usePlansData';
-import { useListQuery } from '@/src/shared/listQuery/useListQuery';
-import { applyQuery, EMPTY_QUERY, type FieldDef, type ListQuery } from '@/src/shared/listQuery/engine';
-import {
-  affordabilityWalk,
-  itemsFor,
-  postponeSuggestions,
-  sortItems,
-  type SortMode,
-  type View,
-} from '@/src/viewmodels/plans/priorities';
-import { URGENCY_LABEL, URGENCY_ORDER, remaining, statusOf, urgency, type Occurrence } from '@/src/viewmodels/plans/model';
-import { capacityAfterCurrent, plansForecast } from '@/src/viewmodels/plans/forecast';
+import { coverageOf, type Coverage } from '@/src/shared/budget/coverage';
+import { useMonthParam } from '@/src/shared/navigation/useMonthParam';
+import { isOpen, monthKey, monthLabel, remaining, startOfDay, statusOf, urgency, type Occurrence } from '@/src/viewmodels/plans/model';
+import { compareRecommended, itemsFor, sortItems, type SortMode, type View } from '@/src/viewmodels/plans/priorities';
 import { isSavingsAccount } from '@/src/viewmodels/wallets';
 
-const KIND_LABEL = { fixed: 'Fixed', variable: 'Variable', savings: 'Savings', income: 'Income' };
+export interface PriorityRow {
+  key: string;
+  o: Occurrence;
+  left: number;
+  coverage: Coverage | 'postponed';
+  waitsFor: string | null;
+  daysLate: number | null;
+  status: string;
+  accountName: string;
+}
+
 const STATUS_LABEL = { open: 'Open', partly: 'Partly paid', paid: 'Paid', postponed: 'Postponed', dropped: 'Dropped' };
+const DAY = 86_400_000;
 
 export function useLogic() {
   const plans = usePlansData();
   const { occurrences, today, money } = plans;
-
+  const [month, setMonth] = useMonthParam();
   const [view, setView] = useState<View>('month');
-  const [mode, setMode] = useState<SortMode>('recommended');
-  const [includeExpected, setIncludeExpected] = useState(true);
 
-  // ---- Filters (the shared toolbar; ordering is the chips) ----
-  const fields = useMemo<FieldDef<Occurrence>[]>(() => {
-    const buckets = [...new Map(occurrences.map((o) => [o.bucketId, o.bucketName])).entries()];
-    const tags = [...new Set(occurrences.map((o) => o.tag).filter(Boolean))];
-    return [
-      { id: 'name', label: 'Name', type: 'text', get: (o) => o.name, searchable: true, sortable: false },
-      { id: 'bucket', label: 'Bucket / plan', type: 'select', get: (o) => o.bucketId, options: buckets.map(([value, label]) => ({ value, label })), sortable: false },
-      { id: 'need', label: 'Need', type: 'select', get: (o) => o.need, options: [{ value: 'must', label: 'Must have' }, { value: 'nice', label: 'Nice to have' }], sortable: false },
-      { id: 'priority', label: 'Priority', type: 'select', get: (o) => o.priority, options: ['High', 'Medium', 'Low'].map((p) => ({ value: p, label: p })), sortable: false },
-      { id: 'tag', label: 'Tag', type: 'select', get: (o) => o.tag, options: tags.map((t) => ({ value: t, label: t })), sortable: false },
-      { id: 'kind', label: 'Kind', type: 'select', get: (o) => o.kind, options: (['fixed', 'savings'] as const).map((k) => ({ value: k, label: KIND_LABEL[k] })), sortable: false },
-      { id: 'urgency', label: 'Urgency', type: 'select', get: (o) => urgency(o, today), options: URGENCY_ORDER.map((u) => ({ value: u, label: URGENCY_LABEL[u] })), sortable: false },
-      { id: 'status', label: 'Status', type: 'select', get: (o) => statusOf(o), options: (['open', 'partly', 'postponed'] as const).map((s) => ({ value: s, label: STATUS_LABEL[s] })), sortable: false },
-    ];
-  }, [occurrences, today]);
-  const list = useListQuery<Occurrence>({ listId: 'priorities', fields, defaults: EMPTY_QUERY as ListQuery });
+  const accountName = useMemo(() => new Map(plans.accounts.map((a) => [a.id, a.name])), [plans.accounts]);
+  const isCurrent = month === monthKey(today);
+  // The scope's "today": the browsed month's own when it isn't this one.
+  const asOf = useMemo(() => {
+    if (isCurrent) return today;
+    const [y, m] = month.split('-').map(Number);
+    return month < monthKey(today) ? new Date(y, m, 0, 23, 59) : new Date(y, m - 1, 1, 9);
+  }, [isCurrent, month, today]);
 
-  // ---- The list and the walk ----
-  const forecast = useMemo(() => plansForecast(money.forecastInput, 12, 'expected'), [money.forecastInput]);
-  const availableAmount = includeExpected ? money.available.byMonthEnd : money.available.now;
-  const { ordered, walk } = useMemo(() => {
-    const items = applyQuery(itemsFor(view, occurrences, today), list.query, fields, today);
-    let ordered: Occurrence[];
-    if (mode === 'mine') ordered = sortItems(items, 'mine', today);
-    else {
-      ordered = URGENCY_ORDER.flatMap((u) => sortItems(items.filter((o) => urgency(o, today) === u), mode, today));
-    }
-    return { ordered, walk: affordabilityWalk(ordered, availableAmount, capacityAfterCurrent(forecast)) };
-  }, [view, occurrences, today, list.query, fields, mode, availableAmount, forecast]);
+  const { rows, totals } = useMemo(() => {
+    const scope = itemsFor(view, occurrences, asOf).filter((o) => o.kind !== 'income' && o.kind !== 'transfer');
+    const ordered = [...scope].sort((a, b) => compareRecommended(a, b, asOf));
+    const expected = occurrences
+      .filter((o) => o.kind === 'income' && o.month === month && isOpen(o))
+      .map((o) => ({ name: o.name, amount: remaining(o), due: o.due }));
+    const live = ordered.filter((o) => !o.postponed);
+    const result = coverageOf(live, remaining, isCurrent ? money.available.now : 0, expected);
+    const byKey = new Map(result.rows.map((r) => [r.line.key, r]));
+    const out: PriorityRow[] = ordered.map((o) => {
+      const c = byKey.get(o.key);
+      const late = o.due && startOfDay(o.due) < startOfDay(asOf) ? Math.round((startOfDay(asOf).getTime() - startOfDay(o.due).getTime()) / DAY) : null;
+      return {
+        key: o.key,
+        o,
+        left: remaining(o),
+        coverage: o.postponed ? 'postponed' : (c?.coverage ?? 'not'),
+        waitsFor: c?.waitsFor ?? null,
+        daysLate: late,
+        status: STATUS_LABEL[statusOf(o)],
+        accountName: o.accountId ? (accountName.get(o.accountId) ?? '') : '',
+      };
+    });
+    return { rows: out, totals: result };
+  }, [view, occurrences, asOf, month, isCurrent, money.available.now, accountName]);
 
-  const suggestions = useMemo(() => (walk.mustShort ? postponeSuggestions(walk, walk.mustShortAmount) : []), [walk]);
-  const mustDue = walk.rows.filter((r) => r.item.need === 'must').reduce((s, r) => s + r.remaining, 0);
+  const must = rows.filter((r) => r.o.need === 'must' && r.coverage !== 'postponed');
+  const mustDue = must.reduce((s, r) => s + r.left, 0);
+  const mustNow = must.filter((r) => r.coverage === 'now').reduce((s, r) => s + r.left, 0);
+  const firstWait = rows.find((r) => r.coverage === 'waiting')?.waitsFor ?? null;
+  const fmt = (n: number) => Math.round(n).toLocaleString('en-US');
+  const summary = !rows.length
+    ? 'Nothing is left to pay in this scope.'
+    : mustDue > 0
+      ? `${fmt(mustDue)} of must-haves ${mustDue === 1 ? 'is' : 'are'} due. ${fmt(mustNow)} can be paid now${mustNow < mustDue ? (firstWait ? `; the rest waits for ${firstWait}.` : '; the rest isn’t covered yet.') : '.'}`
+      : `${fmt(totals.canPayNow)} can be paid now${totals.waiting ? `, ${fmt(totals.waiting)} waits for income` : ''}${totals.notCovered ? ` and ${fmt(totals.notCovered)} isn’t covered` : ''}.`;
 
   // ---- Actions ----
   const [paying, setPaying] = useState<Occurrence | null>(null);
@@ -84,36 +99,31 @@ export function useLogic() {
       setBusy(false);
     }
   }
-  const walletsFor = (o: Occurrence) => plans.accounts.filter((a) => (o.kind === 'savings' ? isSavingsAccount(a) : !isSavingsAccount(a)));
+  const walletsFor = (o: Occurrence) => plans.accounts.filter((a) => !a.archived && (o.kind === 'savings' ? isSavingsAccount(a) : !isSavingsAccount(a)));
 
-  async function move(id: string, to: number) {
-    const from = ordered.findIndex((o) => o.key === id);
-    if (from < 0 || to < 0 || to >= ordered.length) return;
-    const next = [...ordered];
-    const [item] = next.splice(from, 1);
-    next.splice(to, 0, item);
-    await plans.saveOrder(next);
+  /** "Manual" order: saved as the items' rank. */
+  async function saveOrder(list: Occurrence[]) {
+    await plans.saveOrder(list);
   }
 
   return {
     loading: plans.loading,
     currency: plans.currency,
     today,
+    month,
+    setMonth,
+    monthText: monthLabel(month, true),
     view,
     setView,
-    mode,
-    setMode,
-    includeExpected,
-    setIncludeExpected,
-    available: money.available,
-    fields,
-    list,
-    ordered,
-    walk,
-    mustDue,
-    suggestions,
-    remaining,
-    // actions
+    rows,
+    totals,
+    availableNow: isCurrent ? money.available.now : 0,
+    summary,
+    sortWith: (mode: SortMode) => (a: PriorityRow, b: PriorityRow) => {
+      const order = sortItems([a.o, b.o], mode, asOf);
+      return order[0] === a.o ? -1 : 1;
+    },
+    urgencyOf: (o: Occurrence) => urgency(o, asOf),
     paying,
     setPaying: (o: Occurrence | null) => {
       setError(null);
@@ -128,7 +138,7 @@ export function useLogic() {
     pay: (o: Occurrence, amount: number, accountId: string) => run(() => plans.recordPayment(o, amount, accountId, amount >= remaining(o) - 0.5)),
     postpone: (o: Occurrence, to: Date, reason: string) => run(() => plans.postpone(o, to, reason)),
     drop: (o: Occurrence) => run(() => plans.drop(o)),
-    move,
+    saveOrder,
     busy,
     error,
   };

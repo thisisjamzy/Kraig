@@ -1388,11 +1388,15 @@
   flex-direction: column;
   gap: 12px;
   padding: 16px;
+  border: 0;
   border-radius: 20px;
   background: var(--pl-card);
   box-shadow: var(--pl-shadow);
   color: inherit;
+  font: inherit;
+  text-align: left;
   text-decoration: none;
+  cursor: pointer;
   scroll-snap-align: start;
 }
 
@@ -1445,6 +1449,12 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
   margin: 20px 0 24px;
+}
+
+.planNote {
+  margin: -16px 0 16px;
+  font-size: 0.75rem;
+  opacity: 0.7;
 }
 
 .planFigures .figure {
@@ -1517,4 +1527,26 @@
 
 .planBar span[data-tone='bad'] {
   background: #ff9aa4;
+}
+
+/* Priorities: the Coverage cell. */
+.coverage {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.coverage[data-tone='good'] {
+  color: #1f7a4d;
+}
+
+.coverage[data-tone='watch'] {
+  color: #93600c;
+}
+
+.coverage[data-tone='bad'] {
+  color: #b42d3c;
 }

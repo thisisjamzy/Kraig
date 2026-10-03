@@ -379,7 +379,7 @@ function WeekStrip({ logic }: { logic: Logic }) {
           >
             <span className={styles.weekName}>{dateOf(iso).toLocaleDateString('en-GB', { weekday: 'short' })}</span>
             <span className={styles.weekNum}>{dateOf(iso).getDate()}</span>
-            <span className={styles.weekCount}>{count ? `${count} item${count === 1 ? '' : 's'}` : '—'}</span>
+            <span className={styles.weekCount}>{count ? `${count} item${count === 1 ? '' : 's'}` : ''}</span>
           </button>
         );
       })}

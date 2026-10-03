@@ -1,124 +1,157 @@
 'use client';
 
-// The app shell for medium screens and up: side drawer (SideNav) beside a
-// content column with the top bar (TopBar) and the page. Phones never
-// render this — app/(mobile)/layout.tsx keeps AppHeader, the bottom navs
-// and the floating button for compact screens, untouched.
+// The app shell for medium screens and up: the sidebar beside a content
+// column with the top bar and the page. Phones never render this —
+// app/(mobile)/layout.tsx keeps the app header and bottom navs there.
 //
-// Drawer states per device class (drawerState.ts):
-//   expanded / large: full ⇄ rail ⇄ hidden; hidden opens as an overlay
-//   medium: rail or hidden; "full" is always the overlay (no room beside)
-// "[" toggles it on devices with a keyboard. The page area is capped at
-// 1600px and centred; pages that aren't laid out for wide screens yet
-// render in a centred reading column instead of stretching.
+// Sidebar (Sidebar.tsx), per device class:
+//   expanded / large: docked and resizable (200 to 400px); collapsed with
+//     "«" or Ctrl/Cmd + \, then hovering the left screen edge slides it out
+//     as a floating panel and the top bar's "»" docks it again;
+//   medium: collapsed by default, "»" opens it as a 280px overlay over the
+//     content with a dim backdrop (tap it, Escape or swipe left to close).
+// Ctrl/Cmd + K opens search (fine pointers only; the sidebar's Search row
+// works everywhere).
+//
+// Pages draw their own title (useBreadcrumb / useOwnsTitle); a page that
+// doesn't gets one from the page tree here, so every page has exactly one.
+// Page controls (TopBarControls) render in a row under that title, not in
+// the top bar. The page area is full width (capped at 1600px) or, for
+// pages without a wide layout, the standard 900px column; the top bar's
+// "..." switches it per page.
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
 import { useLayout } from '@/src/shared/hooks/useLayout';
-import { SideNav } from './SideNav';
+import { fallbackTitle } from '@/src/shared/config/pageTree';
+import { useLocationSearch } from '@/src/shared/navigation/locationSearch';
+import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
 import { TopBarSlotContext } from './TopBarSlot';
-import { useDrawerPref } from './drawerState';
+import { SearchPalette } from './SearchPalette';
+import { usePageMeta, usePageWidth } from './breadcrumb';
+import { useSidebarCollapsed, useSidebarWidth } from './sidebarState';
 import { isWideLayoutRoute } from './wideRoutes';
 import styles from './AppShell.module.css';
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { deviceClass, finePointer } = useLayout();
   const pathname = usePathname();
-  const [pref, setPref] = useDrawerPref(deviceClass);
-  const [overlayOpen, setOverlayOpen] = useState(false);
+  const search = useLocationSearch(pathname);
+  const [width, setWidth] = useSidebarWidth();
+  const [collapsed, setCollapsed] = useSidebarCollapsed(deviceClass);
+  const [peek, setPeek] = useState(false);
+  const [overlay, setOverlay] = useState(false);
+  const [searching, setSearching] = useState(false);
   const [slot, setSlot] = useState<HTMLDivElement | null>(null);
-  const searchRef = useRef<HTMLInputElement>(null);
+  const meta = usePageMeta();
+  const medium = deviceClass === 'medium';
+  const touch = !finePointer;
 
-  // Medium never docks the full drawer.
-  const docked: 'full' | 'rail' | 'hidden' = deviceClass === 'medium' && pref === 'full' ? 'rail' : pref;
+  const wide = isWideLayoutRoute(pathname);
+  const pageWidth = usePageWidth(pathname, wide ? 'full' : 'standard');
 
-  // Close the overlay on navigation — "adjust state during render".
+  // Close the overlay and the hover peek on navigation — "adjust state
+  // during render".
   const [lastPath, setLastPath] = useState(pathname);
   if (pathname !== lastPath) {
     setLastPath(pathname);
-    if (overlayOpen) setOverlayOpen(false);
+    if (overlay) setOverlay(false);
+    if (peek) setPeek(false);
   }
 
-  const openMenu = useCallback(() => {
-    if (docked === 'hidden' || deviceClass === 'medium') setOverlayOpen(true);
-    else setPref('full');
-  }, [docked, deviceClass, setPref]);
-
   const toggle = useCallback(() => {
-    if (overlayOpen) return setOverlayOpen(false);
-    if (deviceClass === 'medium') return setPref(docked === 'rail' ? 'hidden' : 'rail');
-    setPref(docked === 'full' ? 'rail' : 'full');
-  }, [overlayOpen, deviceClass, docked, setPref]);
+    if (medium) setOverlay((o) => !o);
+    else setCollapsed(!collapsed);
+  }, [medium, collapsed, setCollapsed]);
 
-  // "[" toggles the drawer; "/" focuses search (not while typing).
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      const t = e.target as HTMLElement | null;
-      const typing = t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName));
-      if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
-      if (e.key === '[') {
+      if (!finePointer) return;
+      const mod = e.metaKey || e.ctrlKey;
+      if (mod && e.key === '\\') {
         e.preventDefault();
         toggle();
-      } else if (e.key === '/' && !document.querySelector('[role="dialog"], [data-panel-open]')) {
+      } else if (mod && (e.key === 'k' || e.key === 'K')) {
         e.preventDefault();
-        searchRef.current?.focus();
-      } else if (e.key === 'Escape' && overlayOpen) {
-        setOverlayOpen(false);
+        setSearching(true);
+      } else if (e.key === 'Escape' && overlay) {
+        setOverlay(false);
       }
     }
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [toggle, overlayOpen]);
+  }, [toggle, overlay, finePointer]);
 
-  const touch = !finePointer;
-  const wide = isWideLayoutRoute(pathname);
+  // Swipe left on the overlay closes it.
+  const swipe = useRef<number | null>(null);
+  const docked = !medium && !collapsed;
 
   return (
     <div className={styles.shell} data-device={deviceClass}>
       <a href="#main-content" className={styles.skip}>
         Skip to content
       </a>
-      {docked !== 'hidden' && (
+      {docked && (
         <div className={styles.drawer}>
-          <SideNav
-            variant={docked === 'full' ? 'full' : 'rail'}
-            touch={touch}
-            onCollapse={() => (deviceClass === 'medium' || docked === 'rail' ? setPref('hidden') : setPref('rail'))}
-            collapseLabel={docked === 'full' ? 'Collapse' : 'Hide'}
-          />
+          <Sidebar variant="docked" width={width} onResize={setWidth} touch={touch} onCollapse={() => setCollapsed(true)} onSearch={() => setSearching(true)} />
         </div>
       )}
 
-      {overlayOpen && (
+      {/* Collapsed (expanded / large): hovering the left edge slides it out. */}
+      {!medium && collapsed && (
+        <>
+          <div className={styles.edge} onMouseEnter={() => setPeek(true)} aria-hidden />
+          {peek && (
+            <div className={styles.floating} onMouseLeave={() => setPeek(false)}>
+              <Sidebar variant="floating" width={width} touch={touch} onCollapse={() => setPeek(false)} onSearch={() => setSearching(true)} />
+            </div>
+          )}
+        </>
+      )}
+
+      {medium && overlay && (
         <div className={styles.overlay} role="dialog" aria-modal="true" aria-label="Navigation">
-          <button type="button" className={styles.backdrop} aria-label="Close navigation" onClick={() => setOverlayOpen(false)} />
-          <div className={styles.overlayDrawer}>
-            <SideNav
+          <button type="button" className={styles.backdrop} aria-label="Close navigation" onClick={() => setOverlay(false)} />
+          <div
+            className={styles.overlayDrawer}
+            onPointerDown={(e) => {
+              swipe.current = e.clientX;
+            }}
+            onPointerUp={(e) => {
+              if (swipe.current !== null && e.clientX - swipe.current < -60) setOverlay(false);
+              swipe.current = null;
+            }}
+          >
+            <Sidebar
               variant="overlay"
+              width={280}
               touch={touch}
-              onNavigate={() => setOverlayOpen(false)}
-              onCollapse={() => setOverlayOpen(false)}
-              collapseLabel="Close"
+              onNavigate={() => setOverlay(false)}
+              onCollapse={() => setOverlay(false)}
+              onSearch={() => {
+                setOverlay(false);
+                setSearching(true);
+              }}
             />
           </div>
         </div>
       )}
 
       <div className={styles.main}>
-        <TopBar
-          showMenu={docked !== 'full'}
-          onMenu={openMenu}
-          showProfile={docked === 'hidden'}
-          slotRef={setSlot}
-          searchRef={searchRef}
-        />
+        <TopBar showExpand={!docked} onExpand={() => (medium ? setOverlay(true) : setCollapsed(false))} compactCrumbs={medium} defaultWidth={wide ? 'full' : 'standard'} />
         <TopBarSlotContext.Provider value={slot}>
-          <main id="main-content" className={styles.content} data-wide={wide || undefined} tabIndex={-1}>
-            <div className={wide ? styles.page : styles.column}>{children}</div>
+          <main id="main-content" className={styles.content} tabIndex={-1}>
+            <div className={pageWidth === 'full' ? styles.page : styles.column}>
+              {!meta.titled && <h1 className={styles.fallbackTitle}>{fallbackTitle(pathname, search)}</h1>}
+              <div ref={setSlot} className={styles.controls} />
+              {children}
+            </div>
           </main>
         </TopBarSlotContext.Provider>
       </div>
+
+      {searching && <SearchPalette onClose={() => setSearching(false)} />}
     </div>
   );
 }

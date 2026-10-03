@@ -188,7 +188,7 @@ function Group({
       className={styles.badge}
       style={{ top: group.top }}
       onClick={() => scrollToColumn((active + 1) % n)}
-      aria-label={`${label} — show the next one`}
+      aria-label={`${label}, show the next one`}
     >
       {members.length}
     </button>

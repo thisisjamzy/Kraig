@@ -319,7 +319,7 @@ function Radio({
 const SCOPE_TEXT: Record<EditScope, { label: string; hint: string }> = {
   this: { label: 'This task', hint: 'Only this date' },
   following: { label: 'This and following tasks', hint: 'This date and every one after it' },
-  all: { label: 'All tasks', hint: 'Every date — done ones stay done' },
+  all: { label: 'All tasks', hint: 'Every date, done ones stay done' },
 };
 
 export function ScopeSheet({
