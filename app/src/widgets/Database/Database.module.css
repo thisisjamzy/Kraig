@@ -201,7 +201,8 @@
   min-width: 0;
 }
 
-.toolbar {
+/* Beats ListQueryBar's own sticky .bar whatever order the sheets load in. */
+.database .toolbar {
   position: static;
   margin: 0;
   padding: 0;

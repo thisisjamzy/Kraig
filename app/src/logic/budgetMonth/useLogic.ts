@@ -81,6 +81,10 @@ export function useBudgetMonth(month: string, data: PlanningData) {
     if (!accountId) throw new Error(`Choose an account for "${line.name}" first.`);
     if (amount <= 0) return;
     const item = rawItem(line);
+    // Savings with a savings account to move into (from a wallet) are a
+    // real transfer into it; otherwise the savings account itself is
+    // credited (the bucket item payment's own Savings branch).
+    const savingsMove = line.type === 'Savings' && Boolean(line.toAccountId) && line.toAccountId !== accountId;
     await recordBucketLineItemPayment(
       need(),
       line.bucketId,
@@ -89,12 +93,12 @@ export function useBudgetMonth(month: string, data: PlanningData) {
       true,
       {
         accountId,
-        categoryId: item?.categoryId ?? line.categoryId,
+        categoryId: savingsMove ? 'Wallet to savings' : (item?.categoryId ?? line.categoryId),
         date: new Date(),
         description: line.name,
-        categoryType: line.type,
+        categoryType: savingsMove ? 'Transfer' : line.type,
         toAccountId: line.toAccountId,
-        charges: item?.charges ?? null,
+        charges: line.type === 'Transfer' ? (item?.charges ?? null) : null,
         occurrenceMonth: line.month,
       },
       ctx

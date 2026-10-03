@@ -111,8 +111,9 @@ async function confirmOne(uid: string, request: ConfirmRequest, ctx: CurrencyCon
       );
     } else {
       const accountSnap = await tx.get(accountRef(uid, accountId));
-      // Savings credit a savings account, or are set aside out of a
-      // spending wallet (flow.ts's savingsSign reads both as saved).
+      // Savings credit a savings account, or are set aside inside a
+      // spending wallet as "frozen" savings (its locked amount grows, the
+      // money never leaves). flow.ts's savingsSign reads both as saved.
       const intoSavings = accountType.get(accountId) === SAVINGS_ACCOUNT_TYPE;
       writeTransactionContribution(
         tx,
@@ -126,6 +127,7 @@ async function confirmOne(uid: string, request: ConfirmRequest, ctx: CurrencyCon
           categoryId: entry.categoryId,
           amount,
           direction: entry.flow === 'Savings' && intoSavings ? 'Inflow' : 'Outflow',
+          isFrozenSavings: entry.flow === 'Savings' && !intoSavings ? true : undefined,
           createdBy: uid,
           bucketItem,
         },
