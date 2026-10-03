@@ -38,7 +38,7 @@ import webStyles from './HomeScreen.web.module.css';
 // directly rather than duplicating them (same convention Budget's own
 // month-transactions panel already uses).
 import cardStyles from '@/src/screens/TransactionHistory/TransactionHistoryScreen.module.css';
-import { ReadyToPayCard } from '@/src/widgets/ReadyToPay/ReadyToPayCard';
+import { BudgetNotices } from '@/src/screens/BudgetMonth/BudgetNotices';
 
 // A zeroed-out unaccounted balance is displayed as six asterisks rather than
 // "0" — a deliberate "nothing to see here" placeholder distinct from the
@@ -468,7 +468,9 @@ export function HomeScreen() {
 
         {!loading && !error && (
           <>
-            <ReadyToPayCard />
+            <div className={webStyles.notices}>
+              <BudgetNotices />
+            </div>
             {/* Four equal stat cards (Lunacy/Images' own "Active Areas/
                 Ongoing Projects/Pending Task/Overdue Task" row) — a big bold
                 figure, a pastel rounded-square icon badge, a title and a
@@ -832,7 +834,7 @@ export function HomeScreen() {
     <div className={styles.page} ref={swipeRef}>
       <ScreenState loading={loading} error={error} />
 
-      {!loading && <ReadyToPayCard />}
+      {!loading && <BudgetNotices />}
 
       {renderBalanceCard()}
 
