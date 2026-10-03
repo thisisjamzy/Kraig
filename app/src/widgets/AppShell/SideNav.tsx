@@ -22,6 +22,7 @@ import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { useTaskPanel } from '@/src/shared/navigation/taskPanel';
 import { CalendarSyncStatus } from '@/src/widgets/CalendarSyncStatus/CalendarSyncStatus';
 import { OPEN_TAB_EVENT, useLocationSearch } from '@/src/shared/navigation/locationSearch';
+import { useReadyToPayCount } from '@/src/shared/hooks/useReadyToPay';
 import styles from './SideNav.module.css';
 
 const MODE_KEY = 'dreda.mode';
@@ -70,6 +71,8 @@ export function SideNav({
   const mode = routeMode ?? storedMode;
   const items = WIDE_NAV[mode];
   const name = user?.displayName || user?.email || 'You';
+  const readyToPay = useReadyToPayCount();
+  const labelOf = (item: (typeof items)[number]) => (item.count === 'readyToPay' && readyToPay ? `${item.label} (${readyToPay})` : item.label);
 
   const itemLabel = (label: string) =>
     rail ? (touch ? <span className={styles.railLabel}>{label}</span> : null) : <span className={styles.label}>{label}</span>;
@@ -151,8 +154,8 @@ export function SideNav({
                 className={styles.item}
                 data-child={(!rail && item.child) || undefined}
                 aria-current={active ? 'page' : undefined}
-                aria-label={rail && !touch ? item.label : undefined}
-                title={rail ? item.label : undefined}
+                aria-label={rail && !touch ? labelOf(item) : undefined}
+                title={rail ? labelOf(item) : undefined}
                 onClick={() => {
                   // Already on Planning: switch its tab in place.
                   if (item.tab && pathname === '/budget') window.dispatchEvent(new CustomEvent(OPEN_TAB_EVENT, { detail: item.tab }));
@@ -160,7 +163,7 @@ export function SideNav({
                 }}
               >
                 <Icon size={18} strokeWidth={2} aria-hidden />
-                {itemLabel(item.label)}
+                {itemLabel(labelOf(item))}
               </Link>
             </li>
           );

@@ -38,8 +38,23 @@ export async function dismissMonthBanner(uid: string, month: string) {
   await updateDoc(budgetMonthRef(uid, month), { bannerDismissedAt: serverTimestamp() });
 }
 
+/** Reviewed — creating the month's doc when it was never set up (an older month). */
 export async function markMonthReviewed(uid: string, month: string) {
-  await updateDoc(budgetMonthRef(uid, month), { reviewedAt: serverTimestamp(), bannerDismissedAt: serverTimestamp() });
+  const ref = budgetMonthRef(uid, month);
+  await runTransaction(getFirebaseFirestore(), async (tx) => {
+    const snap = await tx.get(ref);
+    if (snap.exists()) {
+      tx.update(ref, { reviewedAt: serverTimestamp(), bannerDismissedAt: serverTimestamp() });
+      return;
+    }
+    tx.set(ref, {
+      setupAt: serverTimestamp() as Timestamp,
+      counts: { income: 0, expense: 0, savings: 0, transfer: 0 },
+      lineKeys: [],
+      reviewedAt: serverTimestamp() as Timestamp,
+      bannerDismissedAt: serverTimestamp() as Timestamp,
+    });
+  });
 }
 
 /** "Not yet": ask about this income line again from tomorrow. */

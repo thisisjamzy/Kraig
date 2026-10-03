@@ -3,6 +3,7 @@
 // ProjectsBottomNav, BucketsBottomNav — untouched.
 
 import {
+  BadgeCheck,
   CalendarDays,
   ChartNoAxesCombined,
   FolderKanban,
@@ -31,6 +32,8 @@ export interface WideNavItem {
   also?: string[];
   /** Planning's pages are tabs of /budget (?tab=). */
   tab?: 'budget' | 'payments' | 'history';
+  /** A live count after the label ("Ready to pay (4)"). */
+  count?: 'readyToPay';
 }
 
 export const WIDE_NAV: Record<AppMode, WideNavItem[]> = {
@@ -46,7 +49,8 @@ export const WIDE_NAV: Record<AppMode, WideNavItem[]> = {
     { href: '/buckets', label: 'Buckets', icon: LayoutGrid },
     { href: '/buckets/items', label: 'Priorities', icon: ListOrdered },
     { href: '/budget', label: 'Planning', icon: SlidersHorizontal },
-    { href: '/budget', label: 'Budget', icon: Wallet, child: true, tab: 'budget' },
+    { href: '/budget', label: 'Budget', icon: Wallet, child: true, tab: 'budget', also: ['/budget/bucket', '/budget/item', '/budget/review', '/budget/migration'] },
+    { href: '/budget/ready', label: 'Ready to pay', icon: BadgeCheck, child: true, count: 'readyToPay' },
     { href: '/budget?tab=payments', label: 'Payments', icon: CalendarDays, child: true, tab: 'payments', also: ['/payments'] },
     { href: '/budget?tab=history', label: 'History', icon: History, child: true, tab: 'history', also: ['/transactions', '/edit-transaction', '/edit-transfer'] },
     { href: '/statistics', label: 'Insights', icon: PieChart, also: ['/buckets/analytics'] },
@@ -110,6 +114,7 @@ const TITLES: [string, string][] = [
   ['/buckets/forecast', 'Plans forecast'],
   ['/buckets/analytics', 'Insights'],
   ['/buckets', 'Buckets'],
+  ['/budget/ready', 'Ready to pay'],
   ['/budget', 'Budget'],
   ['/payments', 'Payments'],
   ['/transactions', 'History'],

@@ -16,6 +16,8 @@ import { monthCaption, monthTitle } from '@/src/viewmodels/planning';
 import { BudgetTab } from './BudgetTab';
 import { PaymentsTab } from './PaymentsTab';
 import { HistoryTab } from './HistoryTab';
+import { useHasTopBar } from '@/src/widgets/AppShell/TopBarSlot';
+import { BudgetMonthPage } from '@/src/screens/BudgetMonth/BudgetMonthPage';
 import styles from './Planning.module.css';
 import tabStyles from './PlanningTabs.module.css';
 
@@ -33,6 +35,11 @@ export function PlanningScreen({ defaultTab = 'budget' }: { defaultTab?: Plannin
   const [pickerYear, setPickerYear] = useState<number | null>(null);
   const [planPicker, setPlanPicker] = useState(false);
   const [year, monthNum] = month.split('-').map(Number);
+  // Medium screens and up: the Budget tab is its own Notion-style page
+  // (title, properties, type tabs) — the top bar's breadcrumb and the
+  // drawer's Budget / Payments / History replace this page's month row and
+  // tabs there.
+  const inShell = useHasTopBar();
 
   useAppBarAction(
     tab === 'budget'
@@ -46,6 +53,10 @@ export function PlanningScreen({ defaultTab = 'budget' }: { defaultTab?: Plannin
             href: `/add-transaction?month=${monthNum - 1}&year=${year}`,
           }
   );
+
+  if (inShell && tab === 'budget') {
+    return <BudgetMonthPage month={month} data={data} onPrevious={previousMonth} onNext={nextMonth} />;
+  }
 
   return (
     <div className={styles.page}>

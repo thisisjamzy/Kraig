@@ -189,3 +189,29 @@ async function applyPlan(
 export async function markFlowMigrationReviewed(uid: string) {
   await setDoc(migrationRef(uid, FLOW_MIGRATION_ID), { reviewedAt: serverTimestamp() }, { merge: true });
 }
+
+/**
+ * Moves one item to another bucket (of the same flow type): copies it
+ * under the new bucket with the same id, deletes the old copy, and points
+ * its payments and budget moves at the new bucket. Used by the Budget
+ * page's "Move to bucket".
+ */
+export async function moveBucketItem(uid: string, itemId: string, from: string, to: string) {
+  if (from === to) return;
+  const snap = await getDoc(bucketLineItemRef(uid, from, itemId));
+  if (!snap.exists()) throw new Error('That item no longer exists.');
+  const writes = new Batcher();
+  await writes.set(bucketLineItemRef(uid, to, itemId), { ...snap.data(), goalId: to, updatedAt: serverTimestamp() });
+  await writes.delete(bucketLineItemRef(uid, from, itemId));
+  const [txSnap, trSnap, fromSnap, toSnap] = await Promise.all([
+    getDocs(query(transactionsRef(uid), where('bucketItem.itemId', '==', itemId))),
+    getDocs(query(transfersRef(uid), where('bucketItem.itemId', '==', itemId))),
+    getDocs(query(allocationsRef(uid), where('from.itemId', '==', itemId))),
+    getDocs(query(allocationsRef(uid), where('to.itemId', '==', itemId))),
+  ]);
+  for (const d of [...txSnap.docs, ...trSnap.docs]) await writes.update(d.ref, { 'bucketItem.bucketId': to });
+  for (const d of fromSnap.docs) await writes.update(d.ref, { 'from.bucketId': to });
+  for (const d of toSnap.docs) await writes.update(d.ref, { 'to.bucketId': to });
+  await writes.flush();
+  await Promise.all([recalcBucketTotals(uid, from), recalcBucketTotals(uid, to)]);
+}
