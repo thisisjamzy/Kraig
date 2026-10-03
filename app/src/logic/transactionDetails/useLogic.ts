@@ -5,6 +5,7 @@
 // toward, the note — and, for a transaction not tied to any bucket, the
 // "Assign to bucket" picker (?assign=1 opens straight on it).
 
+import { INCOME_SUBTYPE_LABEL, incomeSubtypeOfTransaction } from '@/src/shared/budget/flow';
 import { recordedAt } from '@/src/shared/time/recordedAt';
 import { useMemo, useState } from 'react';
 import { query } from 'firebase/firestore';
@@ -86,6 +87,8 @@ export function useLogic(id: string) {
     /** False when only the day is known (no time recorded). */
     timeKnown: boolean;
     type: string;
+    /** Income only: earned, other, or debt financing (borrowed). */
+    subtype: string | null;
     category: string;
     method: string;
     editHref: string;
@@ -100,6 +103,7 @@ export function useLogic(id: string) {
       amount: toDisplay(ctx, transaction.amount, currency),
       ...recordedAt(transaction.date, transaction.createdAt),
       type: transaction.type,
+      subtype: transaction.type === 'Income' ? INCOME_SUBTYPE_LABEL[incomeSubtypeOfTransaction(transaction)] : null,
       category,
       method: account.get(transaction.accountId)?.name ?? '—',
       editHref: `/edit-transaction/${transaction.id}`,
@@ -113,6 +117,7 @@ export function useLogic(id: string) {
       amount: toDisplay(ctx, transferDoc.amount, currency),
       ...recordedAt(transferDoc.date, transferDoc.createdAt),
       type: 'Transfer',
+      subtype: null,
       category: transferDoc.kind,
       method: `${account.get(transferDoc.fromAccountId)?.name ?? ''} → ${account.get(transferDoc.toAccountId)?.name ?? ''}`,
       editHref: `/edit-transfer/${transferDoc.id}`,
