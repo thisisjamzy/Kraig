@@ -1,61 +1,65 @@
 'use client';
 
-// "See all areas" — reached from the Projects hub's Areas section (see
-// src/screens/Projects/ProjectsScreen.tsx). Same archive semantics as
-// areaForm/useLogic.ts's own archiveArea, just without that hook's
-// redirect-after-archive (this list stays put and the live query drops the
-// row the instant it archives).
+// Areas: each area with its active projects, open and overdue tasks, at
+// risk projects and last activity, from the shared Projects and Tasks
+// databases (logic/projectsDb, logic/tasksDb).
 
 import { useMemo } from 'react';
-import { query, updateDoc, serverTimestamp, where } from 'firebase/firestore';
-import { useFirestoreCollection } from '@/src/shared/firestore/hooks';
-import { areasRef, areaRef, projectsRef } from '@/src/shared/firestore/refs';
-import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
-import type { FirestoreArea, FirestoreProject } from '@/src/shared/firestore/types';
-import { useGoBack } from '@/src/shared/navigation/useGoBack';
+import { serverTimestamp, updateDoc } from 'firebase/firestore';
+import { areaRef } from '@/src/shared/firestore/refs';
+import { useProjectsDb } from '@/src/logic/projectsDb/useProjectsDb';
+
+export interface AreaRow {
+  id: string;
+  name: string;
+  emoji: string | null;
+  color: string;
+  description: string;
+  projects: number;
+  openTasks: number;
+  overdue: number;
+  atRisk: number;
+  lastActivity: Date | null;
+}
 
 export function useLogic() {
-  const { user } = useFirebaseUser();
-  const uid = user?.uid;
+  const { db, rows: projects, loading } = useProjectsDb();
 
-  const areasQuery = useMemo(() => (uid ? query(areasRef(uid), where('archived', '==', false)) : null), [uid]);
-  const { data: areaDocs, loading: areasLoading, error: areasError } = useFirestoreCollection<FirestoreArea>(areasQuery);
-
-  const projectsQuery = useMemo(() => (uid ? query(projectsRef(uid)) : null), [uid]);
-  const { data: projectDocs, loading: projectsLoading } = useFirestoreCollection<FirestoreProject>(projectsQuery);
-
-  const areas = useMemo(
-    () =>
-      areaDocs
-        .map((area) => ({
-          id: area.id,
-          name: area.name,
-          emoji: area.emoji ?? null,
-          color: area.color,
-          description: area.description,
-          projectCount: projectDocs.filter((p) => p.areaId === area.id && p.status !== 'Archived').length,
-        }))
-        .sort((a, b) => a.name.localeCompare(b.name)),
-    [areaDocs, projectDocs]
-  );
-
-  // Back to the page the user came from (skipping forms); '/projects' only
-  // when there's no history — see src/shared/navigation/useGoBack.ts.
-  const navigateBack = useGoBack();
-  function goBack() {
-    navigateBack('/projects');
-  }
+  const areas = useMemo<AreaRow[]>(() => {
+    return db.areaDocs
+      .filter((a) => !a.archived)
+      .map((a) => {
+        const mine = projects.filter((p) => p.areaId === a.id && p.status === 'Active');
+        const tasks = db.actionable.filter((t) => t.areaId === a.id && t.status === 'Pending');
+        const last = Math.max(0, ...projects.filter((p) => p.areaId === a.id).map((p) => p.lastActivity?.getTime() ?? 0));
+        return {
+          id: a.id,
+          name: a.name,
+          emoji: a.emoji ?? null,
+          color: a.color,
+          description: a.description ?? '',
+          projects: mine.length,
+          openTasks: tasks.length,
+          overdue: tasks.filter((t) => t.overdue).length,
+          atRisk: mine.filter((p) => p.health === 'At risk').length,
+          lastActivity: last ? new Date(last) : null,
+        };
+      })
+      .sort((x, y) => x.name.localeCompare(y.name));
+  }, [db.areaDocs, db.actionable, projects]);
 
   async function archiveArea(id: string) {
-    if (!uid) return;
-    await updateDoc(areaRef(uid, id), { archived: true, updatedAt: serverTimestamp() });
+    if (!db.uid) return;
+    await updateDoc(areaRef(db.uid, id), { archived: true, updatedAt: serverTimestamp() });
   }
 
+  const activeProjects = projects.filter((p) => p.status === 'Active');
   return {
     areas,
+    activeProjects: activeProjects.length,
+    atRiskProjects: activeProjects.filter((p) => p.health === 'At risk').length,
+    openTasks: db.actionable.filter((t) => t.status === 'Pending').length,
     archiveArea,
-    goBack,
-    loading: areasLoading || projectsLoading,
-    error: areasError,
+    loading,
   };
 }

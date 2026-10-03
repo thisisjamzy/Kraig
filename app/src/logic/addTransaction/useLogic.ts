@@ -99,6 +99,14 @@ function retroTargetFromSearch(): { year: number; month: number } | null {
 // screen (or its month transaction panel) deep-links here with
 // ?categoryId=... so this flow can open straight on the 'details' step
 // with that category (and its type) already selected.
+// ?type=income|expense|transfer|savings opens on that type (Home's
+// "Transfer" and "Record income").
+function typeFromSearch(): TransactionType {
+  if (typeof window === 'undefined') return 'expense';
+  const t = new URLSearchParams(window.location.search).get('type');
+  return t === 'income' || t === 'transfer' || t === 'savings' ? t : 'expense';
+}
+
 function categoryIdFromSearch(): string {
   if (typeof window === 'undefined') return '';
   return new URLSearchParams(window.location.search).get('categoryId') ?? '';
@@ -135,7 +143,7 @@ export function useLogic() {
   const [prefillTemplateId] = useState(templateIdFromSearch);
   const [prefillBucketItem] = useState(bucketItemFromSearch);
   const [step, setStep] = useState<Step>(() => (prefillCategoryId || prefillTemplateId ? 'details' : 'type'));
-  const [type, setType] = useState<TransactionType>('expense');
+  const [type, setType] = useState<TransactionType>(typeFromSearch);
   const [savingsMode, setSavingsModeState] = useState<SavingsMode>('moved');
   // Income: earned, other, or borrowed (debt financing). Suggested from the
   // description and category until the household picks one.

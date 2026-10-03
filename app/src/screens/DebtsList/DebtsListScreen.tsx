@@ -1,209 +1,252 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { ChevronLeft, Plus, Trash2 } from 'lucide-react';
-import { useLogic } from '@/src/logic/debtsList/useLogic';
-import { useStrings } from '@/src/strings/useStrings';
-import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
-import { TrendChart } from '@/src/widgets/TrendChart/TrendChart';
-import { DonutChart } from '@/src/widgets/DonutChart/DonutChart';
-import { ConfirmDialog } from '@/src/widgets/ConfirmDialog/ConfirmDialog';
-import { ActionMenu } from '@/src/widgets/ActionMenu/ActionMenu';
-import { Logo } from '@/src/widgets/Logo/Logo';
-import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
-import { formatAmount } from '@/src/screens/Buckets/BucketsScreen';
-import styles from './DebtsListScreen.module.css';
-import { useGoBack } from '@/src/shared/navigation/useGoBack';
+// Debt: a Notion page, full width.
+//   Properties: Total owed, High priority, Next payment, Repaid this year,
+//   Borrowed this year, Debts; Borrowed (all time) and Repaid (all time)
+//   behind "Show more".
+//   A callout: "You owe 3,971,122. The next payment is 50,000 to Momokash
+//   on 28 Sep, now 5 days late."
+//   Blocks: is my debt going down (total owed by month), where is my debt
+//   (one stacked bar by priority) and borrowed vs repaid (bars by month).
+//   Then the debts database (Table and Cards) with "New debt".
 
-const PRIORITY_LABEL_KEY = { high: 'priorityHigh', medium: 'priorityMedium', low: 'priorityLow' } as const;
+import { useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { HandCoins } from 'lucide-react';
+import { useLogic } from '@/src/logic/debtsList/useLogic';
+import { useAmountsHidden, HIDDEN_AMOUNT } from '@/src/shared/hooks/usePrivacy';
+import { debtSentence } from '@/src/viewmodels/debt';
+import { Callout, NotionPage } from '@/src/widgets/Database/NotionPage';
+import { ChartBlock } from '@/src/widgets/Database/ChartBlock';
+import { MasonryGrid } from '@/src/widgets/Database/MasonryGrid';
+import { Database } from '@/src/widgets/Database/Database';
+import { CompactProgress } from '@/src/widgets/Database/PropertiesBlock';
+import type { ColumnDef } from '@/src/widgets/Database/types';
+import { ConfirmDialog } from '@/src/widgets/ConfirmDialog/ConfirmDialog';
+import { Money, formatMoney } from '@/src/widgets/Money/Money';
+import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
+import { Tag, type TagColor } from '@/src/widgets/TaskDb/Tag';
+import styles from './DebtsListScreen.module.css';
+
+type DebtRow = ReturnType<typeof useLogic>['debts'][number];
+
+const PRIORITY_LABEL = { high: 'High', medium: 'Medium', low: 'Low' } as const;
+const PRIORITY_COLOR: Record<DebtRow['priority'], TagColor> = { high: 'red', medium: 'yellow', low: 'gray' };
+const PRIORITY_FILL = { high: '#d44c47', medium: '#cb912f', low: '#9b9a97' } as const;
+const TYPE_LABEL = { cash: 'Cash', existing: 'Existing' } as const;
+
+const shortDate = (d: Date | null) => (d ? d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : null);
 
 export function DebtsListScreen() {
+  const v = useLogic();
   const router = useRouter();
-  const navigateBack = useGoBack();
-  const strings = useStrings();
-  const { currency, debts, debtSummary, totalDebtTrend, archiveDebt, loading, error } = useLogic();
+  const [hidden] = useAmountsHidden();
+  const [archiving, setArchiving] = useState<DebtRow | null>(null);
+  const fmt = (n: number) => (hidden ? HIDDEN_AMOUNT : formatMoney(n));
+  const axis = (n: number) => (hidden ? '' : Math.abs(n) >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : Math.abs(n) >= 1000 ? `${Math.round(n / 1000)}k` : String(n));
+  const s = v.debtSummary;
+  const today = new Date();
 
-  const [confirmDebtId, setConfirmDebtId] = useState<string | null>(null);
+  const next = useMemo(
+    () => [...v.debts].filter((d) => d.nextPaymentDate && d.balance > 0).sort((a, b) => a.nextPaymentDate!.getTime() - b.nextPaymentDate!.getTime())[0] ?? null,
+    [v.debts]
+  );
+  const nextLate = next ? next.nextPaymentDate! < new Date(today.getFullYear(), today.getMonth(), today.getDate()) : false;
+  const sentence = debtSentence(s.totalDebt, next ? { name: next.name, amount: next.nextPaymentAmount, date: next.nextPaymentDate! } : null, today, fmt);
 
-  // Lighter tints of the same three priority colors used everywhere else
-  // (danger red / amber / brand teal) — a full-strength donut ring read as
-  // too dark against the page.
-  const prioritySegments = [
-    { label: strings.buckets[PRIORITY_LABEL_KEY.high], value: debtSummary.byPriority.high, color: '#f3948c' },
-    { label: strings.buckets[PRIORITY_LABEL_KEY.medium], value: debtSummary.byPriority.medium, color: '#f2c680' },
-    { label: strings.buckets[PRIORITY_LABEL_KEY.low], value: debtSummary.byPriority.low, color: '#7fe4bf' },
+  const columns: ColumnDef<DebtRow>[] = [
+    { id: 'name', label: 'Name', type: 'text', width: 200, value: (d) => d.name },
+    { id: 'type', label: 'Type', type: 'select', width: 110, value: (d) => d.debtType, options: [{ value: 'cash', label: 'Cash' }, { value: 'existing', label: 'Existing' }] },
+    {
+      id: 'priority',
+      label: 'Priority',
+      type: 'select',
+      width: 110,
+      value: (d) => d.priority,
+      options: (['high', 'medium', 'low'] as const).map((p) => ({ value: p, label: PRIORITY_LABEL[p] })),
+      render: (d) => <Tag color={PRIORITY_COLOR[d.priority]}>{PRIORITY_LABEL[d.priority]}</Tag>,
+    },
+    { id: 'borrowed', label: 'Borrowed', type: 'currency', width: 130, value: (d) => d.principal, calc: 'sum' },
+    { id: 'repaid', label: 'Repaid', type: 'currency', width: 130, value: (d) => d.repaid, calc: 'sum' },
+    { id: 'balance', label: 'Balance', type: 'currency', width: 130, value: (d) => d.balance, calc: 'sum', onCard: true },
+    { id: 'progress', label: 'Progress', type: 'progress', width: 160, value: (d) => d.percent / 100, render: (d) => <CompactProgress value={d.percent / 100} />, onCard: true },
+    {
+      id: 'next',
+      label: 'Next payment',
+      type: 'date',
+      width: 140,
+      value: (d) => d.nextPaymentDate,
+      tone: (d) => (d.nextPaymentDate && d.nextPaymentDate < today && d.balance > 0 ? 'bad' : undefined),
+      onCard: true,
+    },
+    { id: 'plan', label: 'Payment plan', type: 'text', width: 150, value: (d) => d.planText, render: (d) => (d.planText ? <span>{hidden ? HIDDEN_AMOUNT : d.planText}</span> : null) },
+    {
+      id: 'status',
+      label: 'Status',
+      type: 'select',
+      width: 110,
+      value: (d) => (d.balance <= 0 ? 'Repaid' : d.nextPaymentDate && d.nextPaymentDate < today ? 'Late' : 'Active'),
+      options: ['Active', 'Late', 'Repaid'].map((x) => ({ value: x, label: x })),
+      render: (d) => {
+        const st = d.balance <= 0 ? 'Repaid' : d.nextPaymentDate && d.nextPaymentDate < today ? 'Late' : 'Active';
+        return <Tag color={st === 'Repaid' ? 'green' : st === 'Late' ? 'red' : 'blue'}>{st}</Tag>;
+      },
+    },
+    { id: 'started', label: 'Started', type: 'date', width: 120, hidden: true, value: (d) => d.startDate },
   ];
 
+  const priorities = (['high', 'medium', 'low'] as const).filter((p) => s.byPriority[p] > 0);
+  const firstWithDebt = Math.max(0, v.totalDebtTrend.findIndex((p) => p.total > 0));
+  const trend = v.totalDebtTrend.slice(firstWithDebt);
+
   return (
-    <div className={styles.page}>
-      <ScreenHeader
-        left={
-          <button type="button" className={styles.backButton} onClick={() => navigateBack('/home')} aria-label="Back">
-            <ChevronLeft size={18} strokeWidth={2} />
-          </button>
-        }
-        title={strings.buckets.tabDebt}
-      />
-
-      <ScreenState loading={loading} error={error} />
-
-      {!loading && !error && (
-        <>
-          {debtSummary.debtCount > 0 && (
+    <NotionPage
+      title="Debt"
+      icon={<HandCoins strokeWidth={1.75} />}
+      crumbs={[{ label: 'Money', href: '/home' }, { label: 'Debt', href: '/debts' }]}
+      menu={[{ label: 'New debt', href: '/debts/new' }]}
+      properties={[
+        { id: 'owed', label: 'Total owed', tone: s.totalDebt > 0 ? 'bad' : 'good', display: <Money value={s.totalDebt} currency={v.currency} /> },
+        { id: 'high', label: 'High priority', tone: s.byPriority.high > 0 ? 'watch' : 'neutral', display: <Money value={s.byPriority.high} /> },
+        {
+          id: 'next',
+          label: 'Next payment',
+          tone: nextLate ? 'bad' : 'neutral',
+          display: next ? shortDate(next.nextPaymentDate) : 'No plan set',
+          sub: next ? (
             <>
-              <div className={styles.heroCardWrap}>
-                <div className={styles.heroCard}>
-                  <div className={styles.heroTopRow}>
-                    <span className={styles.heroLabel}>{strings.buckets.totalDebtLabel}</span>
-                    <div data-theme="dark">
-                      <Logo height={14} className={styles.heroLogo} />
-                    </div>
-                  </div>
-                  <p className={styles.heroAmount}>
-                    {formatAmount(debtSummary.totalDebt)} {currency}
-                  </p>
-                  <div className={styles.heroInfoRow}>
-                    <div className={styles.heroInfoCol}>
-                      <span className={styles.heroInfoLabel}>High priority</span>
-                      <span className={styles.heroInfoValue}>
-                        {formatAmount(debtSummary.byPriority.high)} {currency}
-                      </span>
-                    </div>
-                    <div className={styles.heroInfoCol}>
-                      <span className={styles.heroInfoLabel}>Next payment</span>
-                      <span className={styles.heroInfoValue}>
-                        {debtSummary.nextPaymentDate
-                          ? debtSummary.nextPaymentDate.toLocaleDateString('en-US', { month: 'short', day: '2-digit' })
-                          : ''}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <button type="button" className={styles.heroAddButton} onClick={() => router.push('/debts/new')}>
-                  <Plus size={16} strokeWidth={2.5} />
-                  {strings.buckets.addDebt}
-                </button>
-              </div>
-
-              <div className={styles.summaryGrid}>
-                <div className={styles.statCard}>
-                  <span className={styles.statLabel}>Total debt financing</span>
-                  <p className={styles.statValue}>
-                    {formatAmount(debtSummary.totalFinanced)} {currency}
-                  </p>
-                </div>
-                <div className={styles.statCard}>
-                  <span className={styles.statLabel}>Total debt refunded</span>
-                  <p className={styles.statValue}>
-                    {formatAmount(debtSummary.totalRefunded)} {currency}
-                  </p>
-                </div>
-                {debtSummary.totalDebt > 0 && (
-                  <div className={styles.priorityChartCard}>
-                    <p className={styles.chartTitle}>Debt by priority</p>
-                    {/* thickness === size/2 makes the ring's inner edge meet
-                        the center exactly — a full pie, no donut hole. */}
-                    <DonutChart segments={prioritySegments} size={112} thickness={56} legendPosition="bottom" />
-                  </div>
-                )}
-              </div>
+              {next.nextPaymentAmount ? <Money value={next.nextPaymentAmount} /> : null} to {next.name}
+              {nextLate ? ', late' : ''}
             </>
-          )}
-          {totalDebtTrend.length > 0 && (
-            <div className={styles.chartCard}>
-              <p className={styles.chartTitle}>{strings.buckets.totalDebtTrendTitle}</p>
-              <TrendChart
-                points={totalDebtTrend.map((point) => ({ label: point.label, value: point.total }))}
-                color="var(--color-danger)"
+          ) : undefined,
+        },
+        { id: 'repaidYear', label: 'Repaid this year', tone: 'good', display: <Money value={v.repaidThisYear} /> },
+        { id: 'borrowedYear', label: 'Borrowed this year', tone: 'in', display: <Money value={v.borrowedThisYear} /> },
+        { id: 'count', label: 'Debts', display: String(s.debtCount) },
+        { id: 'borrowedAll', label: 'Borrowed (all time)', display: <Money value={s.totalFinanced} /> },
+        { id: 'repaidAll', label: 'Repaid (all time)', display: <Money value={s.totalRefunded} /> },
+        { id: 'cash', label: 'Cash debts', display: <Money value={s.byType.cash} />, sub: 'Borrowed money that landed in an account' },
+        { id: 'existing', label: 'Existing debts', display: <Money value={s.byType.existing} />, sub: 'Loans that were already there' },
+      ]}
+    >
+      {v.loading ? (
+        <ScreenState loading />
+      ) : (
+        <>
+          <Callout tone={nextLate ? 'bad' : s.totalDebt > 0 ? 'watch' : 'good'}>
+            <p>{sentence}</p>
+          </Callout>
+
+          {v.debts.length > 0 && (
+            <div className={styles.charts}>
+              <MasonryGrid
+                label="Debt charts"
+                items={[
+                  {
+                    id: 'trend',
+                    node: (
+                      <ChartBlock id="trend" title="Is my debt going down?" summary={trend.length > 1 ? `${trend[trend.length - 1].total < trend[0].total ? 'Down' : 'Up'} from ${fmt(trend[0].total)} in ${trend[0].label} to ${fmt(trend[trend.length - 1].total)} now.` : null} empty={trend.length < 2 ? 'Needs two months of history.' : null}>
+                        <ResponsiveContainer width="100%" height={220}>
+                          <LineChart data={trend} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
+                            <CartesianGrid vertical={false} stroke="#edf0f6" />
+                            <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 12 }} />
+                            <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 12 }} width={48} tickFormatter={axis} />
+                            <Tooltip formatter={(n) => fmt(Number(n ?? 0))} />
+                            <Line dataKey="total" name="Owed" stroke="#c62f3e" strokeWidth={2.5} dot={{ r: 3 }} />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </ChartBlock>
+                    ),
+                  },
+                  {
+                    id: 'priority',
+                    node: (
+                      <ChartBlock id="priority" title="Where is my debt?" summary={priorities.length ? `${PRIORITY_LABEL[priorities[0]]} priority holds ${Math.round((s.byPriority[priorities[0]] / Math.max(1, s.totalDebt)) * 100)}% of it.` : null}>
+                        <div className={styles.stacked} role="img" aria-label="Debt by priority">
+                          {priorities.map((p) => (
+                            <span key={p} style={{ flexGrow: s.byPriority[p], background: PRIORITY_FILL[p] }} title={`${PRIORITY_LABEL[p]}: ${fmt(s.byPriority[p])}`} />
+                          ))}
+                        </div>
+                        <ul className={styles.stackLegend}>
+                          {priorities.map((p) => (
+                            <li key={p}>
+                              <span className={styles.swatch} style={{ background: PRIORITY_FILL[p] }} aria-hidden />
+                              {PRIORITY_LABEL[p]}
+                              <strong>{fmt(s.byPriority[p])}</strong>
+                            </li>
+                          ))}
+                        </ul>
+                      </ChartBlock>
+                    ),
+                  },
+                  {
+                    id: 'flow',
+                    node: (
+                      <ChartBlock id="flow" title="Borrowed vs repaid" summary={`${fmt(v.repaidThisYear)} repaid and ${fmt(v.borrowedThisYear)} borrowed this year.`}>
+                        <ResponsiveContainer width="100%" height={220}>
+                          <BarChart data={v.monthly} margin={{ top: 8, right: 4, bottom: 0, left: 0 }}>
+                            <CartesianGrid vertical={false} stroke="#edf0f6" />
+                            <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 12 }} />
+                            <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 12 }} width={48} tickFormatter={axis} />
+                            <Tooltip formatter={(n) => fmt(Number(n ?? 0))} />
+                            <Bar dataKey="borrowed" name="Borrowed" fill="#3965fa" />
+                            <Bar dataKey="repaid" name="Repaid" fill="#448361" />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </ChartBlock>
+                    ),
+                  },
+                ]}
               />
             </div>
           )}
-          {debts.length === 0 ? (
-            <p className={styles.emptyText}>{strings.buckets.emptyDebt}</p>
-          ) : (
-            <div className={styles.list}>
-              {debts.map((debt) => (
-                <div
-                  key={debt.id}
-                  role="button"
-                  tabIndex={0}
-                  className={styles.card}
-                  onClick={() => router.push(`/debts/${debt.id}`)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
-                      event.preventDefault();
-                      router.push(`/debts/${debt.id}`);
-                    }
-                  }}
-                >
-                  <div className={styles.cardHeaderRow}>
-                    <div className={styles.cardText}>
-                      <p className={styles.cardName}>{debt.name}</p>
-                      <p className={styles.cardCategory}>
-                        <span className={`${styles.priorityDot} ${styles[`priorityDot_${debt.priority}`]}`} />{' '}
-                        {strings.buckets[PRIORITY_LABEL_KEY[debt.priority]]}
-                      </p>
-                    </div>
-                    <span onClick={(event) => event.stopPropagation()}>
-                      <ActionMenu
-                        title={debt.name}
-                        ariaLabel={`Actions for ${debt.name}`}
-                        items={[
-                          {
-                            key: 'archive',
-                            label: strings.buckets.archiveAction,
-                            icon: <Trash2 size={16} strokeWidth={1.75} />,
-                            onSelect: () => setConfirmDebtId(debt.id),
-                            danger: true,
-                          },
-                        ]}
-                      />
-                    </span>
-                  </div>
-                  <div className={styles.track}>
-                    <div className={styles.fill} style={{ width: `${debt.percent}%` }} />
-                  </div>
-                  <div className={styles.amountRow}>
-                    <span className={styles.amountValue}>
-                      {formatAmount(debt.balance)} {currency}
-                    </span>
-                    <span className={styles.amountMuted}>{debt.percent}%</span>
-                  </div>
-                  {debt.nextPaymentDate && (
-                    <div className={styles.metaRow}>
-                      <span>
-                        {strings.buckets.nextPaymentPrefix}{' '}
-                        {debt.nextPaymentDate.toLocaleDateString('en-US', { month: 'short', day: '2-digit' })}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-          {debtSummary.debtCount === 0 && (
-            <button type="button" className={styles.addButton} onClick={() => router.push('/debts/new')}>
-              <Plus size={18} strokeWidth={2.25} />
-              {strings.buckets.addDebt}
-            </button>
-          )}
+
+          <Database<DebtRow>
+            id="money.debts"
+            label="Debts"
+            noun={['debt', 'debts']}
+            rows={v.debts}
+            rowKey={(d) => d.id}
+            columns={columns}
+            views={[
+              { id: 'table', name: 'Table', layout: 'table' },
+              { id: 'cards', name: 'Cards', layout: 'cards' },
+            ]}
+            groups={[
+              { id: 'priority', label: 'Priority', key: (d) => ({ key: d.priority, label: PRIORITY_LABEL[d.priority] }), order: ['high', 'medium', 'low'] },
+              { id: 'type', label: 'Type', key: (d) => ({ key: d.debtType, label: TYPE_LABEL[d.debtType] }) },
+            ]}
+            defaultGroup="none"
+            subtotalColumn="balance"
+            currency={v.currency}
+            card={{ title: (d) => d.name, progress: (d) => ({ value: d.percent / 100 }) }}
+            rowActions={[
+              { id: 'repay', label: 'Record a repayment', show: (d) => d.balance > 0, run: (d) => router.push(`/debts/${d.id}/repay`) },
+              { id: 'plan', label: 'Payment plan', run: (d) => router.push(`/debts/${d.id}/plan`) },
+              { id: 'archive', label: 'Archive', run: (d) => setArchiving(d) },
+            ]}
+            onOpen={(d) => router.push(`/debts/${d.id}`)}
+            onNew={() => router.push('/debts/new')}
+            newLabel="New debt"
+            emptyText="No debts. Nice."
+          />
         </>
       )}
-
-      {confirmDebtId && (
+      {archiving && (
         <ConfirmDialog
-          title={strings.buckets.archiveDebtConfirmTitle}
-          message={strings.buckets.archiveDebtConfirmMessage}
-          confirmLabel={strings.buckets.archiveAction}
-          cancelLabel={strings.common.cancel}
+          title={`Archive ${archiving.name}?`}
+          message="It leaves the list and the totals. Its repayments stay in your transactions."
+          confirmLabel="Archive"
+          cancelLabel="Keep"
+          onCancel={() => setArchiving(null)}
           onConfirm={() => {
-            archiveDebt(confirmDebtId);
-            setConfirmDebtId(null);
+            const d = archiving;
+            setArchiving(null);
+            void v.archiveDebt(d.id);
           }}
-          onCancel={() => setConfirmDebtId(null)}
         />
       )}
-    </div>
+    </NotionPage>
   );
 }

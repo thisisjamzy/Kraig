@@ -111,8 +111,8 @@ export function TransactionsScreen() {
       crumbs={[{ label: 'Money', href: '/home' }, { label: 'Transactions', href: '/transactions' }, { label: v.title }]}
       properties={[
         { id: 'month', label: 'Month', display: <MonthPicker value={v.month} onChange={v.setMonth} /> },
-        { id: 'in', label: 'Money in', display: money(v.moneyIn) },
-        { id: 'out', label: 'Money out', display: money(v.moneyOut) },
+        { id: 'in', label: 'Money in', display: money(v.moneyIn), tone: 'in' },
+        { id: 'out', label: 'Money out', display: money(v.moneyOut), tone: 'out' },
         { id: 'count', label: 'Count', display: String(v.count) },
       ]}
     >

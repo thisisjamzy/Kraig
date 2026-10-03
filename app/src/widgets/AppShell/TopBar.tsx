@@ -19,6 +19,7 @@ import { useLocationSearch } from '@/src/shared/navigation/locationSearch';
 import { Popover } from '@/src/widgets/ListQuery/Popover';
 import { showToast } from '@/src/widgets/Toast/Toast';
 import { setPageWidth, usePageMeta, usePageWidth, type Crumb } from './breadcrumb';
+import { PageMenuRows } from './PageMenuRows';
 import menu from './Sidebar.module.css';
 import styles from './TopBar.module.css';
 
@@ -127,6 +128,7 @@ export function TopBar({
       {options && (
         <Popover anchor={options} label="Page options" onClose={() => setOptions(null)}>
           <div className={menu.menu}>
+            <PageMenuRows onDone={() => setOptions(null)} />
             <button
               type="button"
               className={menu.menuRow}

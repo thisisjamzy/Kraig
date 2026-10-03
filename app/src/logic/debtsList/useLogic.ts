@@ -48,6 +48,13 @@ export function useLogic() {
               debt.paymentPlan.type === 'recurring' && debt.paymentPlan.recurring
                 ? debt.paymentPlan.recurring.nextPaymentDate.toDate()
                 : null,
+            nextPaymentAmount:
+              debt.paymentPlan.type === 'recurring' && debt.paymentPlan.recurring ? round2(toDisplay(ctx, debt.paymentPlan.recurring.amount, debt.currency)) : null,
+            planText:
+              debt.paymentPlan.type === 'recurring' && debt.paymentPlan.recurring
+                ? `${Math.round(debt.paymentPlan.recurring.amount).toLocaleString('en-US')} ${debt.paymentPlan.recurring.interval}`
+                : null,
+            startDate: debt.startDate.toDate(),
           };
         })
         .sort((a, b) => PRIORITY_ORDER.indexOf(a.priority) - PRIORITY_ORDER.indexOf(b.priority)),
@@ -92,10 +99,8 @@ export function useLogic() {
   const [repaymentsByDebt, setRepaymentsByDebt] = useState<Record<string, FirestoreRepayment[]>>({});
   const debtIdsKey = debtDocs.map((debt) => debt.id).sort().join(',');
   useEffect(() => {
-    if (!uid || debtDocs.length === 0) {
-      setRepaymentsByDebt({});
-      return;
-    }
+    // Stale entries for removed debts are never read (everything walks debtDocs).
+    if (!uid || debtDocs.length === 0) return;
     const unsubscribers = debtDocs.map((debt) =>
       onSnapshot(repaymentsRef(uid, debt.id), (snap) => {
         setRepaymentsByDebt((current) => ({
@@ -138,6 +143,34 @@ export function useLogic() {
     });
   }, [debtDocs, repaymentsByDebt, ctx]);
 
+  // Borrowed and repaid per month, from the first month with debt, and
+  // this year's totals.
+  const monthly = useMemo(() => {
+    if (debtDocs.length === 0) return [];
+    const now = new Date();
+    const first = new Date(Math.min(...debtDocs.map((d) => d.startDate.toDate().getTime())));
+    const out: { key: string; label: string; borrowed: number; repaid: number }[] = [];
+    for (let m = new Date(first.getFullYear(), first.getMonth(), 1); m <= now; m = new Date(m.getFullYear(), m.getMonth() + 1, 1)) {
+      const next = new Date(m.getFullYear(), m.getMonth() + 1, 1);
+      let borrowed = 0;
+      let repaid = 0;
+      for (const d of debtDocs) {
+        const start = d.startDate.toDate();
+        if (start >= m && start < next) borrowed += toDisplay(ctx, d.principalAmount, d.currency);
+        for (const r of repaymentsByDebt[d.id] ?? []) {
+          const at = r.date.toDate();
+          if (at >= m && at < next) repaid += toDisplay(ctx, r.amount, d.currency);
+        }
+      }
+      out.push({ key: `${m.getFullYear()}-${m.getMonth()}`, label: m.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' }), borrowed: round2(borrowed), repaid: round2(repaid) });
+    }
+    return out;
+  }, [debtDocs, repaymentsByDebt, ctx]);
+  const year = new Date().getFullYear();
+  const thisYear = monthly.filter((m) => m.key.startsWith(`${year}-`));
+  const borrowedThisYear = round2(thisYear.reduce((s, m) => s + m.borrowed, 0));
+  const repaidThisYear = round2(thisYear.reduce((s, m) => s + m.repaid, 0));
+
   async function archiveDebt(id: string) {
     if (!uid) return;
     await archiveDebtWrite(uid, id);
@@ -148,6 +181,9 @@ export function useLogic() {
     debts,
     debtSummary,
     totalDebtTrend,
+    monthly,
+    borrowedThisYear,
+    repaidThisYear,
     archiveDebt,
     loading: ctxLoading || debtsLoading,
     error: debtsError,

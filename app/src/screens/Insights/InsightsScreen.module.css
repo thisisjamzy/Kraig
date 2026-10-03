@@ -264,7 +264,7 @@ button.tile:focus-visible {
   margin-top: auto;
   padding: 2px 7px;
   border-radius: 999px;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: var(--color-text-secondary);
   background: color-mix(in srgb, var(--color-text-secondary) 12%, transparent);
@@ -405,7 +405,7 @@ button.tile:focus-visible {
   background: var(--i-free);
   color: var(--color-text-primary);
   font-family: inherit;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   text-align: left;
   white-space: nowrap;
@@ -432,7 +432,7 @@ button.tile:focus-visible {
 .timelineAxis {
   position: relative;
   height: 16px;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--color-text-secondary);
   font-variant-numeric: tabular-nums;
 }
@@ -490,7 +490,7 @@ button.tile:focus-visible {
   display: grid;
   grid-column: 1 / -1;
   grid-template-columns: 1fr 1fr;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -776,7 +776,7 @@ button.tile:focus-visible {
 }
 
 .ringLabel {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
@@ -791,7 +791,7 @@ button.tile:focus-visible {
   border-radius: 999px;
   background: color-mix(in srgb, var(--c) 14%, transparent);
   color: var(--c);
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 700;
   white-space: nowrap;
 }
@@ -1107,4 +1107,51 @@ button.summaryBlock:hover {
 .riskMeta {
   color: #787774;
   font-variant-numeric: tabular-nums;
+}
+
+/* Priority mix as horizontal bars (the alternative to the matrix). */
+.mixBars {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mixBars button {
+  display: grid;
+  grid-template-columns: 90px minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  gap: 2px 10px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mixLabel {
+  grid-row: span 2;
+  align-self: center;
+  font-size: 0.8125rem;
+}
+
+.mixTrack {
+  display: block;
+  height: 10px;
+  background: var(--i-grid);
+}
+
+.mixTrack span {
+  display: block;
+  height: 100%;
+}
+
+.mixValue {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
 }

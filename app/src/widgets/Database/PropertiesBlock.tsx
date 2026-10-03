@@ -1,20 +1,26 @@
 'use client';
 
-// A Notion page's properties: label and value rows under the title — the
-// label muted on the left (160px), the value on the right, editable in
-// place by clicking when the property allows it. An empty value reads
-// "Empty" in light grey. On phones each label sits above its value, the
-// first four show, and "Show more properties" opens the rest; editing
-// there happens on the item page or in a sheet.
+// A page's properties as a grid of tiles under its title: the label on top
+// (small, muted, sentence case), the value below (18px semibold, 16px on
+// phones), an optional sub-line. Tiles are colored by meaning, always with
+// the label: money in (pale blue), money out (navy value), on track (pale
+// green), watch (pale amber), a problem (pale red), neutral otherwise.
+// Select and status values come in as chips inside a neutral tile. A
+// progress value is a compact bar (at most 200px) with its percentage.
+//
+// 4 columns on large screens, 3 on expanded, 2 on medium and phones; the
+// first 8 tiles show, the rest behind "Show N more properties". Clicking an
+// editable tile opens its editor (a popover, a bottom sheet on phones).
 
 import { useState, type ReactNode } from 'react';
 import { useLayout } from '@/src/shared/hooks/useLayout';
-import { Plus } from 'lucide-react';
 import type { FieldOption, FieldValue } from '@/src/shared/listQuery/engine';
 import { CellEditor } from './CellEditor';
 import { formatValue } from './format';
 import type { CellType } from './types';
-import styles from './Database.module.css';
+import styles from './PropertiesGrid.module.css';
+
+export type PropertyTone = 'neutral' | 'in' | 'out' | 'good' | 'watch' | 'bad';
 
 export interface Property {
   id: string;
@@ -22,6 +28,16 @@ export interface Property {
   /** What's shown; when absent the edit value is formatted by type. */
   display?: ReactNode;
   empty?: boolean;
+  /** The tile's color by meaning (default neutral). */
+  tone?: PropertyTone;
+  /** A small line under the value ("of 1,013,381 expected"). */
+  sub?: ReactNode;
+  /** 0 to 1: drawn as a compact bar with its percentage. */
+  progress?: number;
+  /** Shown before the label. */
+  icon?: ReactNode;
+  /** A tooltip for the whole tile. */
+  title?: string;
   edit?: {
     type: CellType;
     value: FieldValue;
@@ -30,12 +46,28 @@ export interface Property {
   };
 }
 
-export function PropertiesBlock({ properties, onAdd, label = 'Properties' }: { properties: Property[]; onAdd?: () => void; label?: string }) {
+const VISIBLE = 8;
+
+/** A compact progress bar with its percentage ("63%"), never full width. */
+export function CompactProgress({ value, tone }: { value: number; tone?: PropertyTone }) {
+  const pct = Math.round(Math.max(0, value) * 100);
+  return (
+    <span className={styles.progress} data-tone={tone}>
+      <span className={styles.progressTrack} role="img" aria-label={`${pct}%`}>
+        <span style={{ width: `${Math.min(100, pct)}%` }} />
+      </span>
+      <span className={styles.progressPct}>{pct}%</span>
+    </span>
+  );
+}
+
+export function PropertiesGrid({ properties, label = 'Properties' }: { properties: Property[]; label?: string }) {
   const [editing, setEditing] = useState<{ id: string; anchor: HTMLElement } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [all, setAll] = useState(false);
-  const compact = useLayout().deviceClass === 'compact';
-  const shown = compact && !all ? properties.slice(0, 4) : properties;
+  const { deviceClass } = useLayout();
+  const columns = deviceClass === 'large' ? 4 : deviceClass === 'expanded' ? 3 : 2;
+  const shown = all ? properties : properties.slice(0, VISIBLE);
 
   async function save(property: Property, next: FieldValue) {
     setEditing(null);
@@ -49,40 +81,53 @@ export function PropertiesBlock({ properties, onAdd, label = 'Properties' }: { p
   }
 
   return (
-    <dl className={styles.properties} aria-label={label}>
-      {shown.map((property) => {
-        const isEditing = editing?.id === property.id;
-        const text = property.display ?? (property.edit ? formatValue(property.edit.type, property.edit.value, property.edit.options) : null);
-        const empty = property.empty ?? (text === null || text === '' || text === undefined);
-        const inline = isEditing && property.edit && property.edit.type !== 'select' && property.edit.type !== 'relation';
-        return (
-          <div key={property.id} className={styles.property}>
-            <dt>{property.label}</dt>
-            <dd>
-              {inline ? (
-                <CellEditor
-                  type={property.edit!.type}
-                  value={property.edit!.value}
-                  label={property.label}
-                  anchor={editing.anchor}
-                  onSave={(next) => save(property, next)}
-                  onCancel={() => setEditing(null)}
-                />
-              ) : property.edit ? (
+    <div className={styles.wrap}>
+      <dl className={styles.grid} style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }} aria-label={label}>
+        {shown.map((property) => {
+          const isEditing = editing?.id === property.id;
+          const text =
+            property.display ??
+            (property.progress !== undefined ? <CompactProgress value={property.progress} tone={property.tone} /> : property.edit ? formatValue(property.edit.type, property.edit.value, property.edit.options) : null);
+          const empty = property.empty ?? (text === null || text === '' || text === undefined);
+          const inline = isEditing && property.edit && property.edit.type !== 'select' && property.edit.type !== 'relation';
+          const value = empty ? <span className={styles.empty}>Empty</span> : text;
+          const body = (
+            <>
+              <dt className={styles.label}>
+                {property.icon && <span className={styles.icon}>{property.icon}</span>}
+                {property.label}
+              </dt>
+              <dd className={styles.value}>
+                {inline ? (
+                  <CellEditor
+                    type={property.edit!.type}
+                    value={property.edit!.value}
+                    label={property.label}
+                    anchor={editing.anchor}
+                    onSave={(next) => save(property, next)}
+                    onCancel={() => setEditing(null)}
+                  />
+                ) : (
+                  value
+                )}
+              </dd>
+              {property.sub && <dd className={styles.sub}>{property.sub}</dd>}
+            </>
+          );
+          return (
+            <div key={property.id} className={styles.tile} data-tone={property.tone ?? 'neutral'} title={property.title}>
+              {property.edit && !inline ? (
                 <button
                   type="button"
-                  className={styles.propertyValue}
-                  data-editable
+                  className={styles.editable}
+                  aria-label={`${property.label}: edit`}
                   onClick={(e) => {
                     if (property.edit!.type === 'checkbox') void save(property, !property.edit!.value);
                     else setEditing({ id: property.id, anchor: e.currentTarget });
                   }}
-                >
-                  {empty ? <span className={styles.emptyValue}>Empty</span> : text}
-                </button>
-              ) : (
-                <span className={styles.propertyValue}>{empty ? <span className={styles.emptyValue}>Empty</span> : text}</span>
-              )}
+                />
+              ) : null}
+              {body}
               {isEditing && property.edit && (property.edit.type === 'select' || property.edit.type === 'relation') && (
                 <CellEditor
                   type={property.edit.type}
@@ -94,19 +139,13 @@ export function PropertiesBlock({ properties, onAdd, label = 'Properties' }: { p
                   onCancel={() => setEditing(null)}
                 />
               )}
-            </dd>
-          </div>
-        );
-      })}
-      {compact && properties.length > 4 && (
-        <button type="button" className={styles.moreProperties} onClick={() => setAll((a) => !a)}>
-          {all ? 'Show fewer properties' : `Show more properties (${properties.length - 4})`}
-        </button>
-      )}
-      {onAdd && (
-        <button type="button" className={styles.addProperty} onClick={onAdd}>
-          <Plus size={14} strokeWidth={2.25} aria-hidden />
-          Add property
+            </div>
+          );
+        })}
+      </dl>
+      {properties.length > VISIBLE && (
+        <button type="button" className={styles.more} onClick={() => setAll((a) => !a)}>
+          {all ? 'Show fewer properties' : `Show ${properties.length - VISIBLE} more ${properties.length - VISIBLE === 1 ? 'property' : 'properties'}`}
         </button>
       )}
       {error && (
@@ -114,6 +153,11 @@ export function PropertiesBlock({ properties, onAdd, label = 'Properties' }: { p
           {error}
         </p>
       )}
-    </dl>
+    </div>
   );
+}
+
+/** The same grid; kept under its older name for existing pages. */
+export function PropertiesBlock({ properties, label }: { properties: Property[]; onAdd?: () => void; label?: string }) {
+  return <PropertiesGrid properties={properties} label={label} />;
 }

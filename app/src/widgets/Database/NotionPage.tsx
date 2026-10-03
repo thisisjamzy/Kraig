@@ -3,9 +3,10 @@
 // The page standard every rebuilt page follows, at every size:
 //   - the title once, in the body (28px on phones, 32px on medium, 40px
 //     from expanded up), an optional icon beside it and a muted kind;
-//   - the page's primary actions on the right of the title (never a
-//     floating bottom bar on wide screens);
-//   - the properties block, then content blocks (callouts, databases,
+//   - no buttons beside the title: the page's actions live in the top
+//     bar's "..." menu (the `menu` prop), and editing happens on the
+//     property tiles;
+//   - the properties grid (PropertiesBlock.tsx), then content blocks (callouts, databases,
 //     chart blocks) at the content area's width.
 // On wide screens the top bar's breadcrumb navigates (no back arrow). On a
 // phone, a page that isn't a hub gets a compact header with its parent as
@@ -18,10 +19,11 @@ import { usePathname } from 'next/navigation';
 import { Bell, ChevronLeft, Lightbulb, MoreHorizontal } from 'lucide-react';
 import { hasAppHeader } from '@/src/shared/config/chromeVisibility';
 import { useHasTopBar } from '@/src/widgets/AppShell/TopBarSlot';
-import { useBreadcrumb, type Crumb } from '@/src/widgets/AppShell/breadcrumb';
+import { useBreadcrumb, usePageMenu, type Crumb, type PageMenuItem } from '@/src/widgets/AppShell/breadcrumb';
+import { PageMenuRows } from '@/src/widgets/AppShell/PageMenuRows';
 import { Popover } from '@/src/widgets/ListQuery/Popover';
 import { showToast } from '@/src/widgets/Toast/Toast';
-import { PropertiesBlock, type Property } from './PropertiesBlock';
+import { PropertiesGrid, type Property } from './PropertiesBlock';
 import styles from './Database.module.css';
 import frame from './NotionPage.module.css';
 
@@ -107,6 +109,7 @@ function CompactHeader({ parent }: { parent: Crumb | null }) {
       {menu && (
         <Popover anchor={menu} label="Page options" onClose={() => setMenu(null)}>
           <div className={styles.menu}>
+            <PageMenuRows onDone={() => setMenu(null)} />
             <button
               type="button"
               className={styles.menuRow}
@@ -140,30 +143,36 @@ export function NotionPage({
   title,
   icon,
   kind,
+  sub,
   crumbs,
   properties,
-  actions,
+  menu,
   children,
 }: {
   title: string;
   icon?: ReactNode;
   kind?: string;
+  /** A muted line under the title ("Saturday 3 October · 28 days left"). */
+  sub?: ReactNode;
   /** The breadcrumb; its last entry is this page, the one before is "up". */
   crumbs: Crumb[];
   properties?: Property[];
-  actions?: ReactNode;
+  /** The page's actions, in the top bar's "..." menu (no buttons by the title). */
+  menu?: PageMenuItem[];
   children: ReactNode;
 }) {
   const wide = useHasTopBar();
   const pathname = usePathname();
   useBreadcrumb(crumbs);
+  usePageMenu(menu);
   const parent = [...crumbs.slice(0, -1)].reverse().find((c) => c.href) ?? null;
   const showCompactHeader = !wide && !hasAppHeader(pathname);
   return (
     <div className={frame.page} data-wide={wide || undefined}>
       {showCompactHeader && <CompactHeader parent={parent} />}
-      <NotionPageHeader icon={icon} title={title} kind={kind} actions={actions}>
-        {properties && properties.length > 0 && <PropertiesBlock properties={properties} />}
+      <NotionPageHeader icon={icon} title={title} kind={kind}>
+        {sub && <p className={frame.sub}>{sub}</p>}
+        {properties && properties.length > 0 && <PropertiesGrid properties={properties} />}
       </NotionPageHeader>
       {children}
     </div>

@@ -171,12 +171,13 @@ export function TodayScreen() {
           label: 'Date',
           display: <DateDropdown label={isToday ? `Today, ${dayFromIso(selected).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })}` : longDate(selected)} selected={selected} today={today} onPick={pick} hasItems={logic.hasItems} />,
         },
-        { id: 'tasks', label: 'Tasks', display: `${figures.pending} pending · ${figures.done} done · ${figures.cancelled} cancelled` },
+        { id: 'tasks', label: 'Tasks', display: `${figures.pending} pending`, sub: `${figures.done} done · ${figures.cancelled} cancelled` },
         { id: 'focus', label: 'Focus time', display: `${hoursText(figures.blockedMinutes)} blocked` },
         { id: 'meetings', label: 'Meetings', display: String(figures.meetings) },
         {
           id: 'overdue',
           label: 'Overdue',
+          tone: overdue ? 'bad' : 'neutral',
           display: overdue ? (
             <Link href="/projects/focus?view=overdue" className={styles.overdueLink}>
               {overdue}

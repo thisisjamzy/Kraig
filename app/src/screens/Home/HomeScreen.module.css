@@ -1,800 +1,949 @@
-.page {
+/* Money Home: square white blocks with 1px borders, navy text, brand blue
+   for actions and money in, a lime block for what needs doing. Buttons and
+   chips keep a small radius. */
+
+.dash,
+.stack {
+  --h-line: #e9e9e7;
+  --h-navy: #1b1b39;
+  --h-muted: #6b7085;
+  --h-blue: var(--color-brand, #3965fa);
+  --h-lime: #e3f59b;
+  --h-green: #1f6b3a;
+  --h-red: #c62f3e;
+  --h-bg: var(--color-background, #fff);
   display: flex;
   flex-direction: column;
-  gap: var(--space-xl);
-  padding: var(--space-lg);
+  gap: 16px;
+  min-width: 0;
+  color: var(--h-navy);
 }
 
-/* Balance card — Design/screen 6.jpg's first frame: amount + label stacked
-   top-left, currency switcher top-right, a month-progress bar, the
-   unaccounted figure below it, and the wordmark bottom-left. Gradient
-   background is hardcoded dark regardless of app theme, so its own text/logo
-   always render in their light-on-dark variants rather than following
-   data-theme. Recolored onto the Money redesign's own brand blue (Lunacy/
-   Images/colors.png's #0052FF/#80B1ED pairing) in place of the older
-   indigo-to-violet gradient. */
-.balanceCard {
+:global([data-theme='dark']) .dash,
+:global([data-theme='dark']) .stack {
+  --h-line: rgba(255, 255, 255, 0.09);
+  --h-navy: var(--color-text-primary);
+  --h-muted: rgba(255, 255, 255, 0.6);
+  --h-lime: #4a5a14;
+}
+
+.row1 {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 16px;
+}
+
+.row1[data-stacked] {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.row2 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+.row2[data-cols='2'] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.row3 {
+  display: grid;
+  gap: 16px;
+  align-items: start;
+}
+
+.stackCol {
   display: flex;
   flex-direction: column;
-  gap: var(--space-md);
-  border-radius: var(--radius-lg);
-  padding: var(--space-lg);
-  background: linear-gradient(135deg, var(--money-ink) 0%, var(--money-blue) 65%, var(--money-blue-soft) 100%);
-  color: #ffffff;
+  gap: 16px;
+  min-width: 0;
 }
 
-.balanceCardTop {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-md);
-}
-
-.balanceLabel {
-  display: block;
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.7);
-}
-
-.currencyMenuWrap {
-  position: relative;
-  flex-shrink: 0;
-}
-
-.currencyChip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 10px;
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  border-radius: var(--radius-full);
-  background: none;
-  font-family: inherit;
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  color: #ffffff;
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: transform var(--duration-press) var(--ease-out);
-}
-
-.currencyChip:active {
-  transform: scale(0.97);
-}
-
-/* Anchored right next to the currency chip — a context menu, not a
-   full-screen Modal — so it needs its own opaque, normal-contrast surface
-   independent of the dark gradient card behind it. */
-.currencyPopover {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  z-index: 30;
+.block,
+.balance,
+.ready {
   display: flex;
   flex-direction: column;
-  width: 240px;
-  max-width: calc(100vw - 2 * var(--space-lg));
-  padding: var(--space-sm);
-  border-radius: var(--radius-lg);
-  background: var(--color-background);
-  border: 1px solid var(--color-border);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.24);
-  color: var(--color-text-primary);
-  text-align: left;
-  transform-origin: top right;
-  transition:
-    transform var(--duration-popover) var(--ease-out),
-    opacity var(--duration-popover) var(--ease-out);
+  gap: 10px;
+  min-width: 0;
+  padding: 18px 20px;
+  border: 1px solid var(--h-line);
+  background: var(--h-bg);
 }
 
-@starting-style {
-  .currencyPopover {
-    opacity: 0;
-    transform: scale(0.97);
+@media (max-width: 767px) {
+  .block,
+  .balance,
+  .ready {
+    padding: 16px;
   }
 }
 
-.balanceAmount {
-  font-family: var(--font-family-heading);
-  font-size: 2.25rem;
-  font-weight: 800;
-  color: #ffffff;
-  margin: 0;
-}
-
-.balanceAmountRow {
+.blockHead {
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
+  gap: 8px;
+  min-height: 28px;
 }
 
-.balanceVisibilityToggle {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
+.blockIcon {
+  display: grid;
+  place-items: center;
   width: 28px;
   height: 28px;
-  border: none;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.16);
-  color: #ffffff;
-  cursor: pointer;
+  border-radius: 6px;
+  background: rgba(57, 101, 250, 0.1);
+  color: var(--h-blue);
 }
 
-.progressTrack {
-  width: 100%;
-  height: 6px;
-  border-radius: var(--radius-full);
-  background: rgba(255, 255, 255, 0.2);
-  overflow: hidden;
-}
-
-.progressFill {
-  height: 100%;
-  border-radius: inherit;
-  background: #ffffff;
-}
-
-.unjustifiedBlock {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-xs);
-  text-decoration: none;
-}
-
-.unjustifiedLabel {
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.7);
-}
-
-/* Value + logo share this row, space-between — the value on the left, the
-   wordmark on the right, same as the label sits above them on its own row. */
-.balanceCardFooter {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-sm);
-}
-
-.unjustifiedValue {
-  font-size: var(--font-size-sm);
-  font-weight: 700;
-  color: #ffffff;
-  white-space: nowrap;
-}
-
-.balanceLogo {
-  opacity: 0.9;
-}
-
-/* Savings / Spendable pair below the balance card */
-
-.summaryRow {
-  display: flex;
-  gap: var(--space-md);
-}
-
-.summaryCard {
+.blockTitle {
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-  padding: var(--space-md);
-  border-radius: var(--radius-lg);
-  background: var(--color-surface);
-}
-
-.summaryIcon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  margin-bottom: 2px;
-  border-radius: 50%;
-  background: var(--money-blue);
-  color: #ffffff;
-}
-
-.summaryLabel {
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  color: var(--color-text-secondary);
-}
-
-.summaryValue {
-  font-size: var(--font-size-sm);
-  font-weight: 700;
-  color: var(--color-text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.quickActions {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--space-sm);
-  width: 100%;
-}
-
-.quickAction {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  border: none;
-  background: none;
-  font-family: inherit;
-  font-size: 0.6875rem;
-  font-weight: 600;
-  color: var(--color-text-secondary);
-  text-decoration: none;
-  cursor: pointer;
-}
-
-.quickActionIcon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  background: var(--color-surface);
-  color: var(--color-text-primary);
-}
-
-/* Shared section chrome */
-
-.section {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-md);
-}
-
-.sectionHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: var(--space-sm);
-}
-
-.headerControls {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-}
-
-.sectionTitle {
   margin: 0;
-  font-size: var(--font-size-sm);
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--color-text-primary);
+  font-size: 0.9375rem;
+  font-weight: 600;
 }
 
-.viewAllButton {
+.blockRight {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.8125rem;
+}
+
+.blockRight a,
+.seeAll,
+.gap a {
+  color: var(--h-blue);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.muted {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--h-muted);
+}
+
+/* ---- Balance ---- */
+
+.chipRow {
   display: flex;
   align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: var(--money-blue);
-  color: #ffffff;
-  text-decoration: none;
-  flex-shrink: 0;
-  transition: transform var(--duration-press) var(--ease-out);
+  gap: 8px;
+  min-width: 0;
 }
 
-.viewAllButton:active {
-  transform: scale(0.97);
-}
-
-/* Wallet cards — Design/card design.jpg's layout (type+name top, a
-   generated "wallet number" mid-card, available/required stats + logo on
-   the bottom row) repurposed as a horizontally-scrolling row, one real
-   card per wallet, in that wallet's own existing color. */
-.walletCardsRow {
+.chips {
   display: flex;
-  align-items: stretch;
-  gap: var(--space-md);
+  flex: 1;
+  gap: 6px;
+  min-width: 0;
   overflow-x: auto;
-  margin: 0 calc(-1 * var(--space-lg));
-  padding: 4px var(--space-lg) 8px;
+  scrollbar-width: none;
 }
 
-/* Height is left to the content, not a fixed aspect-ratio — a strict
-   credit-card ratio (1.586) fights the card's own text on a narrow phone
-   viewport and forces it taller/squarer than intended. Letting height stay
-   auto while width stays a wide percentage keeps every card reliably
-   landscape (wide, short) regardless of screen width. */
-.walletCard {
-  display: flex;
-  flex: 0 0 auto;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: var(--space-lg);
-  width: 50%;
-  padding: var(--space-md) var(--space-lg);
-  border-radius: var(--radius-lg);
-  color: #14141c;
-  text-decoration: none;
+.chips::-webkit-scrollbar {
+  display: none;
+}
+
+.chip,
+.currencyChip {
+  flex: none;
+  min-height: 30px;
+  padding: 0 12px;
+  border: 1px solid var(--h-line);
+  border-radius: 999px;
+  background: none;
+  color: var(--h-navy);
+  font: inherit;
+  font-size: 0.8125rem;
+  white-space: nowrap;
   cursor: pointer;
 }
 
-.walletCardTop {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
+.chip[aria-checked='true'] {
+  border-color: var(--h-navy);
+  background: var(--h-navy);
+  color: #fff;
 }
 
-.walletCardType {
-  margin: 0;
-  font-size: 0.6875rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: rgba(20, 20, 28, 0.7);
-}
-
-.walletCardName {
-  margin: 0;
-  font-size: var(--font-size-sm);
-  font-weight: 700;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.walletCardLabel {
-  margin: 0 0 2px;
-  font-size: 0.625rem;
+.currencyChip {
   font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: rgba(20, 20, 28, 0.6);
 }
 
-.walletCardNumberBlock {
-  margin: var(--space-md) 0;
+.eye {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--h-line);
+  border-radius: 6px;
+  background: none;
+  color: var(--h-navy);
+  cursor: pointer;
 }
 
-.walletCardNumber {
+.eye[aria-pressed='true'] {
+  background: var(--h-navy);
+  color: #fff;
+}
+
+@media (pointer: coarse) {
+  .chip,
+  .currencyChip {
+    min-height: 40px;
+  }
+  .eye {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+.balanceLabel {
+  margin: 8px 0 0;
+  font-size: 0.875rem;
+  color: var(--h-muted);
+}
+
+.balanceValue {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 10px;
   margin: 0;
-  font-size: var(--font-size-sm);
+  font-size: 3.5rem;
   font-weight: 700;
-  letter-spacing: 0.02em;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
 }
 
-.walletCardBottomRow {
-  display: flex;
-  align-items: flex-end;
-  gap: var(--space-md);
+@media (max-width: 1023px) {
+  .balanceValue {
+    font-size: 2.75rem;
+  }
 }
 
-.walletCardStat {
-  min-width: 0;
+@media (max-width: 767px) {
+  .balanceValue {
+    font-size: 2.25rem;
+  }
 }
 
-.walletCardStatValue {
+.balanceUnit {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--h-muted);
+  letter-spacing: 0;
+}
+
+.balanceSub {
   margin: 0;
-  font-size: var(--font-size-sm);
-  font-weight: 700;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: 0.875rem;
+  color: var(--h-muted);
+  font-variant-numeric: tabular-nums;
 }
 
-.walletCardLogoRow {
-  display: flex;
-  justify-content: flex-end;
-}
-
-.walletCardLogo {
-  opacity: 0.85;
-}
-
-/* Colorless placeholder shapes — same geometry as the real bars, no data yet */
-
-.placeholderBreakdownBar {
-  width: 7px;
-  border-radius: 2px;
-  background: color-mix(in srgb, var(--color-text-secondary) 22%, transparent);
-}
-
-.placeholderLabel {
-  display: inline-block;
-  width: 24px;
-  height: 8px;
-  border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--color-text-secondary) 14%, transparent);
-}
-
-/* Upcoming payments preview */
-
-.emptyText {
+.gap {
   margin: 0;
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
+  padding: 8px 10px;
+  border-left: 3px solid #cb912f;
+  background: #fdf4e3;
+  font-size: 0.8125rem;
+  color: #5a3d00;
 }
 
-.paymentsList {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
-}
-
-.paymentRow {
+.balanceActions {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-md);
-  padding: var(--space-md);
-  border-radius: var(--radius-lg);
-  background: var(--color-surface);
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 8px;
+}
+
+.primary,
+.outline,
+.outlineIcon,
+.readyButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 0 16px;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
   text-decoration: none;
-}
-
-.paymentInfo {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.paymentTitle {
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  color: var(--color-text-primary);
-}
-
-.paymentMeta {
-  font-size: 0.6875rem;
-  color: var(--color-brand);
-  font-weight: 600;
-}
-
-.paymentRight {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 2px;
-  flex-shrink: 0;
-}
-
-.paymentAmount {
-  font-size: var(--font-size-sm);
-  font-weight: 700;
-  color: var(--color-text-primary);
-  white-space: nowrap;
-}
-
-.paymentDate {
-  font-size: 0.6875rem;
-  color: var(--color-text-secondary);
-}
-
-/* Spending breakdown chart */
-
-.periodTabs {
-  display: flex;
-  gap: 2px;
-  padding: 3px;
-  background: var(--color-surface);
-  border-radius: var(--radius-full);
-}
-
-.periodTab {
-  border: none;
-  background: none;
-  font-family: inherit;
-  padding: 4px 10px;
-  border-radius: var(--radius-full);
-  font-size: 0.6875rem;
-  font-weight: 600;
-  color: var(--color-text-secondary);
   cursor: pointer;
 }
 
-.periodTabActive {
-  background: var(--money-blue);
-  color: #ffffff;
+.primary {
+  border: 1px solid var(--h-navy);
+  background: var(--h-navy);
+  color: #fff;
 }
 
-/* Axis + gridlines — same "3 indicators, clearly shows distance from zero"
-   shape every bar/line chart in the app now follows (see
-   the old Statistics screen's barChart* set). */
-.breakdownRow {
-  display: flex;
-  align-items: stretch;
-  gap: var(--space-sm);
+.outline,
+.outlineIcon {
+  border: 1px solid var(--h-line);
+  background: var(--h-bg);
+  color: var(--h-navy);
 }
 
-.breakdownAxis {
+.outlineIcon {
+  width: 38px;
+  padding: 0;
+}
+
+.arrow {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  margin-left: auto;
+  border-radius: 50%;
+  background: var(--h-blue);
+  color: #fff;
+}
+
+@media (pointer: coarse) {
+  .primary,
+  .outline,
+  .outlineIcon,
+  .readyButton {
+    min-height: 44px;
+  }
+  .outlineIcon {
+    width: 44px;
+  }
+  .arrow {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+.menu {
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  padding-bottom: var(--space-sm);
-  font-size: 0.625rem;
-  font-weight: 600;
-  color: var(--color-text-secondary);
+  min-width: 200px;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: 4px;
 }
 
-.breakdownArea {
-  position: relative;
-  flex: 1;
-  min-width: 0;
-}
-
-.breakdownGridlines {
-  position: absolute;
-  inset: 0 0 var(--space-sm) 0;
+.menu a,
+.menu button {
   display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  pointer-events: none;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 0.875rem;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
 }
 
-.breakdownGridline {
-  display: block;
-  border-top: 1px solid var(--color-border);
+.menu a:hover,
+.menu button:hover,
+.menu button[aria-pressed='true'] {
+  background: rgba(55, 53, 47, 0.06);
 }
 
-.breakdownChart {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: var(--space-xs);
-  height: 220px;
-  padding-bottom: var(--space-sm);
-  border-bottom: 1px solid var(--color-border);
+/* ---- Ready to pay / Spend today (lime) ---- */
+
+.ready {
+  border-color: transparent;
+  background: var(--h-lime);
 }
 
-.breakdownColumn {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
+.readyChip {
+  align-self: flex-start;
+  display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 100%;
-  justify-content: flex-end;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--h-navy);
+  color: #fff;
+  font-size: 0.8125rem;
+  font-weight: 500;
 }
 
-.breakdownBars {
+.readyValue {
+  margin: 4px 0 0;
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.readyNote {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #3a4410;
+}
+
+:global([data-theme='dark']) .readyNote {
+  color: inherit;
+}
+
+.readyTiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.readyTiles > div {
   display: flex;
-  align-items: flex-end;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.6);
+}
+
+:global([data-theme='dark']) .readyTiles > div {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.readyTiles span {
+  font-size: 0.75rem;
+  color: #3a4410;
+}
+
+:global([data-theme='dark']) .readyTiles span {
+  color: inherit;
+}
+
+.readyTiles strong {
+  font-size: 1.0625rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.readyTiles strong[data-tone='bad'] {
+  color: var(--h-red);
+}
+
+.readyTiles em {
+  font-size: 0.75rem;
+  font-style: normal;
+  overflow-wrap: anywhere;
+}
+
+.readyButton {
+  margin-top: auto;
+  border: 1px solid var(--h-navy);
+  background: var(--h-navy);
+  color: #fff;
+}
+
+/* ---- Spending ---- */
+
+.monthChip {
+  padding: 2px 8px;
+  border: 1px solid var(--h-line);
+  border-radius: 999px;
+  font-size: 0.75rem;
+}
+
+.ring {
+  position: relative;
+  display: grid;
+  place-items: center;
+  align-self: center;
+  width: 148px;
+  height: 148px;
+}
+
+.ringTrack {
+  stroke: rgba(27, 27, 57, 0.08);
+}
+
+.ringValue {
+  stroke: var(--h-blue);
+  stroke-linecap: butt;
+}
+
+.ringValue[data-over] {
+  stroke: var(--h-red);
+}
+
+.ringCenter {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   justify-content: center;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.ringCenter strong {
+  font-size: 1.125rem;
+}
+
+.ringCenter span {
+  font-size: 0.75rem;
+  color: var(--h-muted);
+}
+
+.change {
+  margin: 0;
+  font-size: 0.8125rem;
+  text-align: center;
+}
+
+.change[data-tone='bad'] {
+  color: var(--h-red);
+}
+
+.change[data-tone='good'] {
+  color: var(--h-green);
+}
+
+.insight {
+  align-self: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: var(--h-blue);
+  font-size: 0.8125rem;
+  text-align: center;
+}
+
+.catGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.catGrid li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--h-line);
+}
+
+.catGrid span {
+  font-size: 0.75rem;
+  color: var(--h-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.catGrid strong {
+  font-size: 0.9375rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Income ---- */
+
+.expected {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
   gap: 3px;
-  width: 100%;
+  font-size: 0.75rem;
+  color: var(--h-muted);
+}
+
+.underline {
+  display: block;
+  width: 90px;
+  height: 3px;
+  background: rgba(27, 27, 57, 0.08);
+}
+
+.underline span {
+  display: block;
   height: 100%;
+  background: var(--h-blue);
 }
 
-.breakdownBarIncome,
-.breakdownBarExpense {
-  width: 7px;
-  border-radius: 2px;
-  transition: height var(--duration-morph) var(--ease-in-out);
+.bigFigure {
+  margin: 4px 0 0;
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
 }
 
-.breakdownBarIncome {
-  background: var(--money-blue-soft);
+.bigFigure[data-tone='in'] {
+  color: var(--h-blue);
 }
 
-.breakdownBarExpense {
-  background: var(--money-blue);
+.bigFigure[data-tone='bad'] {
+  color: var(--h-red);
 }
 
-/* A period with no transactions at all — shown as a flat grey line rather
-   than just omitting the column, so the timeline doesn't look shorter than
-   it really is. */
-.breakdownBarEmpty {
-  width: 16px;
-  height: 4%;
-  border-radius: 2px;
-  background: var(--color-border);
+.sources {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
 }
 
-.breakdownLabel {
-  font-size: 0.625rem;
+.sources li {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.sourceHead {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 0.8125rem;
+}
+
+.sourceAmounts {
+  margin-left: auto;
+  color: var(--h-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.pill {
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--h-lime);
+  color: #3a4410;
+  font-size: 0.75rem;
   font-weight: 600;
-  color: var(--color-text-secondary);
+}
+
+.bar {
+  display: block;
+  height: 8px;
+  background: rgba(27, 27, 57, 0.07);
+}
+
+.bar > span {
+  display: block;
+  height: 100%;
+  background: var(--h-blue);
+}
+
+.bar[data-kind='expenses'] > span {
+  background: var(--h-navy);
+}
+
+.bar[data-kind='savings'] > span {
+  background: #448361;
+}
+
+.bar[data-kind='transfers'] > span {
+  background: #9b9a97;
+}
+
+.bar > span[data-over] {
+  background: var(--h-red);
+}
+
+/* ---- Transactions ---- */
+
+.iconButton {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--h-muted);
+  cursor: pointer;
+}
+
+.txList {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.txRow,
+.txWaiting {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--h-line);
+  color: inherit;
+  text-decoration: none;
+}
+
+.txWaiting {
+  background: #fffaf0;
+  padding: 4px 6px;
+  margin: 0 -6px;
+}
+
+:global([data-theme='dark']) .txWaiting {
+  background: rgba(203, 145, 47, 0.12);
+}
+
+.txIcon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: rgba(27, 27, 57, 0.06);
+  color: var(--h-navy);
+}
+
+.txIcon[data-kind='income'] {
+  background: #eef2ff;
+  color: var(--h-blue);
+}
+
+.txIcon[data-kind='savings'] {
+  background: #edf7ee;
+  color: var(--h-green);
+}
+
+.txMain {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.txName {
+  font-size: 0.875rem;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.txWhen {
+  font-size: 0.75rem;
+  color: var(--h-muted);
+  white-space: nowrap;
+}
+
+.txNote {
+  font-size: 0.75rem;
+  color: #8a5a00;
+}
+
+/* Amounts never truncate: the name gives way. */
+.txAmount {
+  flex: none;
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.txAmount[data-kind='income'] {
+  color: var(--h-blue);
+}
+
+.txAmount[data-kind='savings'] {
+  color: var(--h-green);
+}
+
+.txAmount[data-kind='transfer'] {
+  color: var(--h-muted);
+}
+
+.confirm,
+.dismiss {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--h-line);
+  border-radius: 6px;
+  background: var(--h-bg);
+  cursor: pointer;
+}
+
+.confirm {
+  color: var(--h-green);
+}
+
+.dismiss {
+  color: var(--h-red);
+}
+
+@media (pointer: coarse) {
+  .confirm,
+  .dismiss {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+.seeAll {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  align-self: flex-start;
+  font-size: 0.875rem;
+}
+
+/* ---- Row 3 ---- */
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.upRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  border-bottom: 1px solid var(--h-line);
+  color: inherit;
+  text-decoration: none;
+}
+
+.upSide {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.upSide strong {
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+.upSide span {
+  font-size: 0.75rem;
+  color: var(--h-muted);
+  white-space: nowrap;
+}
+
+.upSide span[data-late] {
+  color: var(--h-red);
+  font-weight: 600;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.table th {
+  padding: 6px 4px;
+  border-bottom: 1px solid var(--h-line);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--h-muted);
+  text-align: left;
+}
+
+.table td {
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--h-line);
+}
+
+.table [data-num] {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.table td[data-tone='bad'] {
+  color: var(--h-red);
+}
+
+.dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 8px;
+  border-radius: 50%;
+  vertical-align: 1px;
+}
+
+.segment {
+  display: inline-flex;
+  padding: 2px;
+  border-radius: 6px;
+  background: rgba(27, 27, 57, 0.06);
+}
+
+.segment button {
+  min-height: 26px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--h-muted);
+  font: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.segment button[aria-checked='true'] {
+  background: var(--h-bg);
+  color: var(--h-navy);
+  font-weight: 600;
+}
+
+.chart {
+  min-width: 0;
 }
 
 .legend {
   display: flex;
-  gap: var(--space-md);
-}
-
-.legendItem {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
-}
-
-.legendDot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-}
-
-.legendDotIncome {
-  background: var(--money-blue-soft);
-}
-
-.legendDotExpense {
-  background: var(--money-blue);
-}
-
-/* Savings trend chart */
-
-.trendChip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 8px;
-  border-radius: var(--radius-full);
-  font-size: 0.6875rem;
-  font-weight: 700;
-}
-
-.trendChipUp {
-  background: color-mix(in srgb, var(--color-brand) 16%, transparent);
-  color: var(--color-brand);
-}
-
-.trendChipDown {
-  background: color-mix(in srgb, var(--color-danger) 14%, transparent);
-  color: var(--color-danger);
-}
-
-.trendCard {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
-  padding: var(--space-lg);
-  background: var(--color-surface);
-  border-radius: var(--radius-lg);
-}
-
-.trendAmount {
-  margin: 0;
-  font-family: var(--font-family-heading);
-  font-size: var(--font-size-lg);
-  font-weight: 800;
-  color: var(--color-text-primary);
-}
-
-.trendChart {
-  width: 100%;
-  height: 90px;
-  display: block;
-  overflow: visible;
-}
-
-.trendLabels {
-  display: flex;
-  justify-content: space-between;
-}
-
-.trendLabel {
-  font-size: 0.625rem;
-  font-weight: 600;
-  color: var(--color-text-secondary);
-}
-
-/* Currency picker modal */
-
-.searchRow {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  padding: var(--space-sm) var(--space-md);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
-}
-
-.searchIcon {
-  flex-shrink: 0;
-  color: var(--color-text-secondary);
-}
-
-.searchInput {
-  flex: 1;
-  min-width: 0;
-  border: none;
-  background: none;
-  font-family: inherit;
-  font-size: var(--font-size-sm);
-  color: var(--color-text-primary);
-  outline: none;
-}
-
-.currencyList {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-xs);
-  max-height: 240px;
-  overflow-y: auto;
-  margin-top: var(--space-sm);
-}
-
-.currencyRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--space-sm) var(--space-md);
-  border: none;
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
-  font-family: inherit;
-  color: var(--color-text-primary);
-  cursor: pointer;
-}
-
-.currencyRow:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.currencyErrorText {
-  margin: 0 0 var(--space-sm);
-  font-size: var(--font-size-sm);
-  color: var(--color-danger);
-}
-
-.currencyLabelGroup {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-}
-
-.currencyCode {
-  font-size: var(--font-size-sm);
-  font-weight: 700;
-}
-
-.currencyName {
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 4px 0 0;
   font-size: 0.75rem;
-  color: var(--color-text-secondary);
 }
 
-/* Reduced motion — keep the popover's fade, drop scale and size changes. */
-@media (prefers-reduced-motion: reduce) {
-  .currencyPopover {
-    transition: opacity var(--duration-popover) var(--ease-out);
-  }
-
-  .breakdownBarIncome,
-  .breakdownBarExpense {
-    transition: none;
-  }
-
-  .currencyChip,
-  .viewAllButton {
-    transition: none;
-  }
-
-  .currencyChip:active,
-  .viewAllButton:active {
-    transform: none;
-  }
+.legend span[data-kind]::before {
+  content: '';
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 5px;
+  vertical-align: -1px;
+  background: var(--h-blue);
 }
 
-@media (prefers-reduced-motion: reduce) {
-  @starting-style {
-    .currencyPopover {
-      opacity: 0;
-      transform: none;
-    }
-  }
+.legend span[data-kind='out']::before {
+  background: var(--h-navy);
+}
+
+.nextDebt {
+  margin: 0;
+  font-size: 0.875rem;
 }

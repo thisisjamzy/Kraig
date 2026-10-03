@@ -8,6 +8,7 @@ const WIDE_ROUTES = [
   '/projects/focus',
   '/projects/all',
   '/projects/insights',
+  '/projects/analytics',
   '/home',
   '/statistics',
   '/buckets',
@@ -18,6 +19,9 @@ const WIDE_ROUTES = [
   '/budget/review',
   '/budget/migration',
   '/transactions',
+  '/debts',
+  '/areas',
+  '/resources',
 ];
 // Drill-downs with a wide layout: a project's page (not its edit form).
 // Money: a bucket's page, a budget line's page and a transaction's page.

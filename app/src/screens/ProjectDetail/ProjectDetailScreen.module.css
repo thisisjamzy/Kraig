@@ -70,3 +70,58 @@
   resize: vertical;
   outline: none;
 }
+
+.iconDot {
+  width: 14px;
+  height: 14px;
+}
+
+.more {
+  align-self: flex-start;
+  font-size: 0.875rem;
+}
+
+.insights {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.insights li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px;
+  border: 1px solid #e9e9e7;
+}
+
+.insights li[data-tone='bad'] {
+  background: #fdecee;
+}
+
+.insights li[data-tone='good'] {
+  background: #edf7ee;
+}
+
+.insights li[data-tone='watch'] {
+  background: #fdf4e3;
+}
+
+.insights span {
+  font-size: 0.75rem;
+  color: #6b7085;
+}
+
+.insights strong {
+  font-size: 1.125rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.insights em {
+  font-size: 0.75rem;
+  font-style: normal;
+  color: #6b7085;
+}

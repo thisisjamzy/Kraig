@@ -14,7 +14,7 @@ import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import p from '@/src/screens/Planning/Planning.module.css';
 import styles from './TransactionDetailsScreen.module.css';
 import { useHasTopBar } from '@/src/widgets/AppShell/TopBarSlot';
-import { useBreadcrumb } from '@/src/widgets/AppShell/breadcrumb';
+import { useBreadcrumb, usePageMenu } from '@/src/widgets/AppShell/breadcrumb';
 import { Block, NotionPageHeader } from '@/src/widgets/Database/NotionPage';
 import { PropertiesBlock } from '@/src/widgets/Database/PropertiesBlock';
 import bm from '@/src/screens/BudgetMonth/BudgetMonth.module.css';
@@ -153,6 +153,8 @@ type TxLogic = ReturnType<typeof useLogic>;
 export function TransactionPage({ t, inPeek = false }: { t: TxLogic; inPeek?: boolean }) {
   const v = t.view;
   useBreadcrumb(inPeek ? null : [{ label: 'Money', href: '/home' }, { label: 'Transactions', href: '/transactions' }, { label: v?.title ?? 'Transaction' }]);
+  // As a page, Edit lives in the top bar's "..." menu; a peek keeps its button.
+  usePageMenu(!inPeek && v ? [{ label: 'Edit transaction', href: v.editHref }] : undefined);
   if (!v) return <ScreenState loading={t.loading} error={t.missing ? 'This transaction could not be found.' : null} />;
   const Icon = v.flow === 'in' ? ArrowDownLeft : v.flow === 'out' ? ArrowUpRight : ArrowLeftRight;
   const sign = v.flow === 'in' ? '+' : v.flow === 'out' ? '-' : '';
@@ -163,9 +165,11 @@ export function TransactionPage({ t, inPeek = false }: { t: TxLogic; inPeek?: bo
         title={v.title}
         kind={`${v.type} · ${sign}${money(v.amount)} ${t.currency}`}
         actions={
-          <Link href={v.editHref} className={bm.ghostButton}>
-            <Pencil size={14} strokeWidth={2.25} aria-hidden /> Edit
-          </Link>
+          inPeek ? (
+            <Link href={v.editHref} className={bm.ghostButton}>
+              <Pencil size={14} strokeWidth={2.25} aria-hidden /> Edit
+            </Link>
+          ) : undefined
         }
       >
         <PropertiesBlock

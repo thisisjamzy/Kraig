@@ -1,121 +1,145 @@
 'use client';
 
+// Area and reschedule stats, under Insights: a Notion page. Properties:
+// Completed, Overdue, Due today, Rescheduled. Chart blocks in the
+// staggered grid: completed per week (from the first week with data),
+// projects and completion per area, and on time against rescheduled.
+// A donut only for up to 3 slices; more read as horizontal bars. Axis and
+// legend text 12px or more.
+
+import Link from 'next/link';
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { ChartNoAxesCombined } from 'lucide-react';
 import { useLogic } from '@/src/logic/projectAnalytics/useLogic';
-import { TrendChart } from '@/src/widgets/TrendChart/TrendChart';
-import { DonutChart } from '@/src/widgets/DonutChart/DonutChart';
+import { DonutChart, type DonutSegment } from '@/src/widgets/DonutChart/DonutChart';
+import { ChartBlock } from '@/src/widgets/Database/ChartBlock';
+import { MasonryGrid } from '@/src/widgets/Database/MasonryGrid';
+import { NotionPage } from '@/src/widgets/Database/NotionPage';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import styles from './ProjectAnalyticsScreen.module.css';
-import { useHasTopBar } from '@/src/widgets/AppShell/TopBarSlot';
-import { useOwnsTitle } from '@/src/widgets/AppShell/breadcrumb';
+
+function Shares({ segments }: { segments: DonutSegment[] }) {
+  if (segments.length <= 3) return <DonutChart segments={segments} legendPosition="bottom" />;
+  const total = segments.reduce((s, x) => s + x.value, 0) || 1;
+  return (
+    <ul className={styles.bars}>
+      {[...segments]
+        .sort((a, b) => b.value - a.value)
+        .map((x) => (
+          <li key={x.label}>
+            <span className={styles.barLabel}>{x.label}</span>
+            <span className={styles.barTrack}>
+              <span style={{ width: `${(x.value / total) * 100}%`, background: x.color }} />
+            </span>
+            <span className={styles.barValue}>{x.value}</span>
+          </li>
+        ))}
+    </ul>
+  );
+}
 
 export function ProjectAnalyticsScreen() {
-  // Draws its own title: the shell adds none on wide screens.
-  useOwnsTitle(useHasTopBar());
-  const {
-    overdue,
-    today,
-    completedTotal,
-    completedTrend,
-    taskReschedule,
-    projectReschedule,
-    projectsPerAreaSegments,
-    completionPerArea,
-    rescheduledByAreaSegments,
-    loading,
-  } = useLogic();
+  const { overdue, today, completedTotal, completedTrend, taskReschedule, projectReschedule, projectsPerAreaSegments, completionPerArea, rescheduledByAreaSegments, loading } = useLogic();
+  const first = completedTrend.findIndex((p) => p.value > 0);
+  const weeks = first < 0 ? [] : completedTrend.slice(first);
+
+  const items = [
+    {
+      id: 'weekly',
+      span: 2 as const,
+      node: (
+        <ChartBlock id="weekly" title="Completed per week" summary={weeks.length ? `${weeks[weeks.length - 1].value} completed in the latest week.` : null} empty={weeks.length ? null : 'Complete a few tasks to see this.'}>
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={weeks} margin={{ top: 8, right: 4, bottom: 0, left: 0 }}>
+              <CartesianGrid vertical={false} stroke="#edf0f6" />
+              <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 12 }} />
+              <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 12 }} width={32} allowDecimals={false} />
+              <Tooltip />
+              <Bar dataKey="value" name="Completed" fill="#3965fa" />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartBlock>
+      ),
+    },
+    {
+      id: 'areas',
+      node: (
+        <ChartBlock id="areas" title="Ongoing projects per area" empty={projectsPerAreaSegments.length ? null : 'No ongoing projects.'}>
+          <Shares segments={projectsPerAreaSegments} />
+        </ChartBlock>
+      ),
+    },
+    {
+      id: 'completion',
+      node: (
+        <ChartBlock id="completion" title="Task completion per area" empty={completionPerArea.length ? null : 'No tasks in areas yet.'}>
+          <ul className={styles.bars}>
+            {completionPerArea.map((a) => (
+              <li key={a.areaName}>
+                <span className={styles.barLabel}>{a.areaName}</span>
+                <span className={styles.barTrack}>
+                  <span style={{ width: `${a.percent}%` }} />
+                </span>
+                <span className={styles.barValue}>{a.percent}%</span>
+              </li>
+            ))}
+          </ul>
+        </ChartBlock>
+      ),
+    },
+    {
+      id: 'projectsOnTime',
+      node: (
+        <ChartBlock id="projectsOnTime" title="Finished projects: on time vs rescheduled" empty={projectReschedule.onTime + projectReschedule.rescheduled ? null : 'No finished projects yet.'}>
+          <Shares
+            segments={[
+              { label: 'On time', value: projectReschedule.onTime, color: '#3965fa' },
+              { label: 'Rescheduled', value: projectReschedule.rescheduled, color: '#cb912f' },
+            ]}
+          />
+        </ChartBlock>
+      ),
+    },
+    {
+      id: 'tasksOnTime',
+      node: (
+        <ChartBlock id="tasksOnTime" title="Finished tasks: on time vs rescheduled" empty={taskReschedule.onTime + taskReschedule.rescheduled ? null : 'No finished tasks yet.'}>
+          <Shares
+            segments={[
+              { label: 'On time', value: taskReschedule.onTime, color: '#3965fa' },
+              { label: 'Rescheduled', value: taskReschedule.rescheduled, color: '#cb912f' },
+            ]}
+          />
+        </ChartBlock>
+      ),
+    },
+    {
+      id: 'rescheduledAreas',
+      node: (
+        <ChartBlock id="rescheduledAreas" title="Rescheduled projects by area" empty={rescheduledByAreaSegments.length ? null : 'No rescheduled projects.'}>
+          <Shares segments={rescheduledByAreaSegments} />
+        </ChartBlock>
+      ),
+    },
+  ];
 
   return (
-    <div className={styles.page}>
-      <h1 className={styles.pageTitle}>Analytics</h1>
-
-      <ScreenState loading={loading} />
-
-      {!loading && (
-        <>
-          <div className={styles.statGrid}>
-            <div className={`${styles.statTile} ${styles.tileGreen}`}>
-              <span className={styles.statLabel}>Completed</span>
-              <p className={styles.statValue}>{completedTotal}</p>
-            </div>
-            <div className={`${styles.statTile} ${styles.tileOrange}`}>
-              <span className={styles.statLabel}>Overdue</span>
-              <p className={overdue.length > 0 ? styles.statValueDanger : styles.statValue}>{overdue.length}</p>
-            </div>
-            <div className={`${styles.statTile} ${styles.tilePurple}`}>
-              <span className={styles.statLabel}>Due today</span>
-              <p className={styles.statValue}>{today.length}</p>
-            </div>
-            <div className={`${styles.statTile} ${styles.tileBlue}`}>
-              <span className={styles.statLabel}>Rescheduled</span>
-              <p className={styles.statValue}>{taskReschedule.rescheduled}</p>
-            </div>
-          </div>
-
-          {completedTrend.some((p) => p.value > 0) && (
-            <div className={styles.chartCard}>
-              <p className={styles.chartTitle}>Completed per week</p>
-              <TrendChart points={completedTrend} color="var(--color-brand)" />
-            </div>
-          )}
-
-          {projectsPerAreaSegments.length > 0 && (
-            <div className={styles.chartCard}>
-              <p className={styles.chartTitle}>Ongoing projects per area</p>
-              <DonutChart segments={projectsPerAreaSegments} legendPosition="bottom" />
-            </div>
-          )}
-
-          {completionPerArea.length > 0 && (
-            <div className={styles.chartCard}>
-              <p className={styles.chartTitle}>Task completion per area</p>
-              <div className={styles.barList}>
-                {completionPerArea.map((bucket) => (
-                  <div key={bucket.areaName} className={styles.barRow}>
-                    <div className={styles.barRowHeader}>
-                      <span className={styles.barRowLabel}>{bucket.areaName}</span>
-                      <span className={styles.barRowValue}>{bucket.percent}%</span>
-                    </div>
-                    <div className={styles.barTrack}>
-                      <div className={styles.barFill} style={{ width: `${bucket.percent}%` }} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {(projectReschedule.onTime > 0 || projectReschedule.rescheduled > 0) && (
-            <div className={styles.chartCard}>
-              <p className={styles.chartTitle}>Finished projects: on time vs rescheduled</p>
-              <DonutChart
-                segments={[
-                  { label: 'On time', value: projectReschedule.onTime, color: 'var(--color-brand)' },
-                  { label: 'Rescheduled', value: projectReschedule.rescheduled, color: '#e8a33d' },
-                ]}
-              />
-            </div>
-          )}
-
-          {(taskReschedule.onTime > 0 || taskReschedule.rescheduled > 0) && (
-            <div className={styles.chartCard}>
-              <p className={styles.chartTitle}>Finished tasks: on time vs rescheduled</p>
-              <DonutChart
-                segments={[
-                  { label: 'On time', value: taskReschedule.onTime, color: 'var(--color-brand)' },
-                  { label: 'Rescheduled', value: taskReschedule.rescheduled, color: '#e8a33d' },
-                ]}
-              />
-            </div>
-          )}
-
-          {rescheduledByAreaSegments.length > 0 && (
-            <div className={styles.chartCard}>
-              <p className={styles.chartTitle}>Rescheduled projects by area</p>
-              <DonutChart segments={rescheduledByAreaSegments} />
-            </div>
-          )}
-        </>
-      )}
-    </div>
+    <NotionPage
+      title="Area and reschedule stats"
+      icon={<ChartNoAxesCombined strokeWidth={1.75} />}
+      crumbs={[
+        { label: 'Time', href: '/projects' },
+        { label: 'Insights', href: '/projects/insights' },
+        { label: 'Area and reschedule stats', href: '/projects/analytics' },
+      ]}
+      properties={[
+        { id: 'completed', label: 'Completed', tone: 'good', display: String(completedTotal) },
+        { id: 'overdue', label: 'Overdue', tone: overdue.length ? 'bad' : 'neutral', display: overdue.length ? <Link href="/projects/focus?view=overdue">{overdue.length}</Link> : '0' },
+        { id: 'today', label: 'Due today', tone: 'in', display: String(today.length) },
+        { id: 'rescheduled', label: 'Rescheduled', tone: taskReschedule.rescheduled ? 'watch' : 'neutral', display: String(taskReschedule.rescheduled) },
+      ]}
+    >
+      {loading ? <ScreenState loading /> : <MasonryGrid label="Stats" items={items} />}
+    </NotionPage>
   );
 }

@@ -19,6 +19,7 @@ import { CellEditor } from './CellEditor';
 import { CALC_LABEL, calculate, calcsFor, defaultCalc, fieldTypeOf, formatNumber, formatValue, fromInputDate } from './format';
 import type { BulkAction, ColumnDef, GroupDef, RowAction } from './types';
 import type { DatabaseStateApi } from './useDatabaseState';
+import { Money } from '@/src/widgets/Money/Money';
 import styles from './Database.module.css';
 
 export interface TableGroup<T> {
@@ -586,6 +587,7 @@ export function DefaultCell<T>({ column, value }: { column: ColumnDef<T>; value:
   if (column.type === 'checkbox') {
     return <input type="checkbox" checked={value === true} readOnly tabIndex={-1} aria-label={column.label} className={styles.checkbox} />;
   }
+  if (column.type === 'currency' && typeof value === 'number') return <Money value={value} />;
   if (column.type === 'progress') {
     if (typeof value !== 'number') return null;
     return (

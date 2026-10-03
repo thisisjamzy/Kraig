@@ -6,9 +6,8 @@
 // a resources block.
 
 import { useMemo } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Map as MapIcon, Pencil } from 'lucide-react';
+import { Map as MapIcon } from 'lucide-react';
 import { useLogic } from '@/src/logic/areaDetail/useLogic';
 import { useProjectsDb, type ProjectRow } from '@/src/logic/projectsDb/useProjectsDb';
 import { useTaskPanel } from '@/src/shared/navigation/taskPanel';
@@ -57,14 +56,12 @@ export function AreaDetailScreen({ areaId }: { areaId: string }) {
         { label: 'Areas', href: '/areas' },
         { label: area.name, href: `/areas/${areaId}` },
       ]}
-      actions={
-        <Link href={`/areas/${areaId}/edit`} className={styles.ghost}>
-          <Pencil size={14} strokeWidth={2} aria-hidden /> Edit
-        </Link>
-      }
+      menu={[{ label: 'Edit area', href: `/areas/${areaId}/edit` }]}
       properties={[
-        { id: 'projects', label: 'Active projects', display: String(active.length) },
+        { id: 'projects', label: 'Projects', display: String(active.length), sub: projects.length > active.length ? `${projects.length - active.length} completed or archived` : undefined },
         { id: 'tasks', label: 'Open tasks', display: String(open.length) },
+        { id: 'overdue', label: 'Overdue', tone: open.some((t) => t.overdue) ? 'bad' : 'neutral', display: String(open.filter((t) => t.overdue).length) },
+        { id: 'resources', label: 'Resources', display: 'None yet', sub: 'Resources is coming soon' },
         { id: 'description', label: 'Description', display: area.description || undefined, empty: !area.description },
       ]}
     >

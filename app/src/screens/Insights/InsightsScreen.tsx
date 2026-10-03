@@ -13,7 +13,7 @@
 
 import { useEffect, useState, type ReactNode } from 'react';
 import Link from 'next/link';
-import { AlertOctagon, AlertTriangle, ArrowDown, ArrowUp, ChartNoAxesCombined, CheckCircle2, ChevronDown, Settings2, type LucideIcon } from 'lucide-react';
+import { AlertOctagon, AlertTriangle, ChartNoAxesCombined, CheckCircle2, ChevronDown, type LucideIcon } from 'lucide-react';
 import { useLogic } from '@/src/logic/insights/useLogic';
 import { useLayout } from '@/src/shared/hooks/useLayout';
 import { attentionLines, type AttentionLine } from '@/src/viewmodels/insights/attention';
@@ -21,6 +21,7 @@ import type { Tile } from '@/src/viewmodels/insights/compute';
 import type { ProjectRisk } from '@/src/viewmodels/insights/metrics';
 import type { RangeKind } from '@/src/viewmodels/insights/types';
 import { Callout, NotionPage } from '@/src/widgets/Database/NotionPage';
+import type { Property } from '@/src/widgets/Database/PropertiesBlock';
 import { ChartBlock, type BlockStatus } from '@/src/widgets/Database/ChartBlock';
 import { MasonryGrid } from '@/src/widgets/Database/MasonryGrid';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
@@ -88,7 +89,7 @@ export function InsightsScreen() {
           title: 'Completion trend',
           summary: result.completionTrend.takeaway,
           empty: result.completionTrend.empty ? 'Complete a few tasks to see your trend.' : null,
-          body: <CompletionTrend data={result.completionTrend.data} kind={kind} target={settings.thresholds.streakPercent} onPickDay={(date) => openTasks({ date })} />,
+          body: <CompletionTrend data={fromFirstData(result.completionTrend.data)} kind={kind} target={settings.thresholds.streakPercent} onPickDay={(date) => openTasks({ date })} />,
         },
         {
           id: 'mix',
@@ -114,7 +115,7 @@ export function InsightsScreen() {
           title: 'Planned vs done',
           summary: result.plannedVsDone.takeaway,
           empty: result.plannedVsDone.empty ? 'Plan a few tasks to compare them with what gets done.' : null,
-          body: <PlannedVsDone data={result.plannedVsDone.data} kind={kind} onPickDay={(date) => openTasks({ date })} />,
+          body: <PlannedVsDone data={fromFirstData(result.plannedVsDone.data)} kind={kind} onPickDay={(date) => openTasks({ date })} />,
         },
         {
           id: 'productive',
@@ -181,17 +182,34 @@ export function InsightsScreen() {
       title="Insights"
       icon={<ChartNoAxesCombined strokeWidth={1.75} />}
       crumbs={[{ label: 'Time', href: '/projects' }, { label: 'Insights', href: '/projects/insights' }]}
-      actions={
-        <Link href="/settings/insights" className={styles.settingsLink} aria-label="Insights settings" title="Insights settings">
-          <Settings2 size={18} strokeWidth={2} />
-        </Link>
-      }
+      menu={[{ label: 'Insights settings', href: '/settings/insights' }]}
       properties={[
         {
           id: 'period',
           label: 'Period',
           edit: { type: 'select', value: kind, options: PERIODS, onSave: (v) => setKind(v as RangeKind) },
         },
+        ...(result
+          ? ([
+              { id: 'completed', label: 'Completed', tone: 'good', display: String(result.counts.completed) },
+              { id: 'overdue', label: 'Overdue', tone: result.counts.overdue ? 'bad' : 'neutral', display: result.counts.overdue ? <Link href="/projects/focus?view=overdue">{result.counts.overdue}</Link> : '0' },
+              { id: 'dueToday', label: 'Due today', tone: 'in', display: String(result.counts.dueToday) },
+              { id: 'rescheduled', label: 'Rescheduled', tone: result.counts.rescheduled ? 'watch' : 'neutral', display: String(result.counts.rescheduled) },
+              {
+                id: 'completion',
+                label: 'Completion rate',
+                display: result.tiles.completion.value === null ? 'No tasks due yet' : `${Math.round(result.tiles.completion.value * 100)}%`,
+                sub: changeText(result.tiles.completion, true, result.compareWith),
+              },
+              {
+                id: 'onTime',
+                label: 'On time',
+                display: result.tiles.onTime.value === null ? 'Nothing finished yet' : `${Math.round(result.tiles.onTime.value * 100)}%`,
+                sub: changeText(result.tiles.onTime, true, result.compareWith),
+              },
+              { id: 'streak', label: 'Streak', display: result.tiles.streak.value ? `${result.tiles.streak.value} ${result.tiles.streak.value === 1 ? 'day' : 'days'}` : 'No streak yet' },
+            ] as Property[])
+          : []),
         { id: 'compare', label: 'Compare to', display: result ? sentence(result.compareWith) : 'Previous period' },
       ]}
     >
@@ -230,12 +248,6 @@ export function InsightsScreen() {
             </Callout>
           )}
 
-          <div className={styles.summary}>
-            <SummaryBlock label="Completion rate" tile={result.tiles.completion} percent emptyText="No tasks due yet" compareWith={result.compareWith} onOpen={() => openTasks({ status: 'done', title: 'Completed' })} />
-            <SummaryBlock label="On time" tile={result.tiles.onTime} percent emptyText="Nothing finished yet" compareWith={result.compareWith} onOpen={() => openTasks({ status: 'done', title: 'Completed' })} />
-            <SummaryBlock label="Overdue" tile={result.tiles.overdue} emptyText="Nothing overdue" lowerIsBetter compareWith={result.compareWith} onOpen={() => open('/projects/focus?view=overdue')} />
-            <SummaryBlock label="Streak" tile={result.tiles.streak} suffix={result.tiles.streak.value === 1 ? ' day' : ' days'} emptyText="No streak yet" compareWith={result.compareWith} />
-          </div>
 
           <div className={styles.tokens}>
             <MasonryGrid
@@ -305,50 +317,18 @@ function AttentionRow({ line }: { line: AttentionLine }) {
   );
 }
 
-function SummaryBlock({
-  label,
-  tile,
-  percent = false,
-  suffix = '',
-  lowerIsBetter = false,
-  emptyText,
-  compareWith,
-  onOpen,
-}: {
-  label: string;
-  tile: Tile;
-  percent?: boolean;
-  suffix?: string;
-  lowerIsBetter?: boolean;
-  emptyText: string;
-  compareWith: string;
-  onOpen?: () => void;
-}) {
-  const value = tile.value === null ? null : percent ? `${Math.round(tile.value * 100)}%` : `${tile.value}${suffix}`;
-  const change = tile.change;
-  const rounded = change === null ? 0 : Math.round(change * (percent ? 100 : 1));
-  const tone = tile.better === null ? 'flat' : tile.better ? 'better' : 'worse';
-  const body = (
-    <>
-      <span className={styles.summaryLabel}>{label}</span>
-      {value === null ? <span className={styles.summaryEmpty}>{emptyText}</span> : <span className={styles.summaryValue}>{value}</span>}
-      {rounded !== 0 && (
-        <span className={styles.summaryChange} data-tone={tone}>
-          {rounded > 0 ? <ArrowUp size={12} strokeWidth={2.5} aria-hidden /> : <ArrowDown size={12} strokeWidth={2.5} aria-hidden />}
-          {Math.abs(rounded)}
-          {percent ? ' pts' : ''} vs {compareWith}
-          {lowerIsBetter && <span className={styles.srOnly}> (lower is better)</span>}
-        </span>
-      )}
-    </>
-  );
-  return onOpen ? (
-    <button type="button" className={styles.summaryBlock} onClick={onOpen}>
-      {body}
-    </button>
-  ) : (
-    <div className={styles.summaryBlock}>{body}</div>
-  );
+/** "+5 pts vs last week" for a rate tile, or nothing. */
+function changeText(tile: Tile, percent: boolean, compareWith: string): string | undefined {
+  if (tile.change === null) return undefined;
+  const n = Math.round(tile.change * (percent ? 100 : 1));
+  if (n === 0) return `Same as ${compareWith}`;
+  return `${n > 0 ? 'Up' : 'Down'} ${Math.abs(n)}${percent ? ' pts' : ''} vs ${compareWith}`;
+}
+
+/** Charts start at the first day (or week) with data. */
+function fromFirstData<T extends { planned: number; done: number; cancelled: number }>(days: T[]): T[] {
+  const first = days.findIndex((d) => d.planned || d.done || d.cancelled);
+  return first <= 0 ? days : days.slice(Math.min(first, Math.max(0, days.length - 2)));
 }
 
 // Shared with the project insights page.
