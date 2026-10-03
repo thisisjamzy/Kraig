@@ -136,4 +136,6 @@ export interface BoardSpec<T> {
   onMove?: (row: T, toKey: string) => Promise<unknown> | void;
   /** A column's header figures. */
   header?: (key: string, rows: T[]) => ReactNode;
+  /** More actions in a card's "..." menu (after "Move to"). */
+  actions?: RowAction<T>[];
 }

@@ -101,7 +101,7 @@ export function BoardView<T>({
             </dl>
           </>
         )}
-        {board.onMove && (
+        {(board.onMove || board.actions?.length) && (
           <button type="button" className={styles.boardMore} aria-label="Card actions" onClick={(e) => setMenu({ row, anchor: e.currentTarget })}>
             <MoreHorizontal size={15} strokeWidth={2} />
           </button>
@@ -166,9 +166,9 @@ export function BoardView<T>({
       {menu && (
         <Popover anchor={menu.anchor} label="Move to" onClose={() => setMenu(null)}>
           <div className={styles.menu}>
-            <p className={styles.menuTitle}>Move to</p>
+            {board.onMove && <p className={styles.menuTitle}>Move to</p>}
             {list
-              .filter((col) => col.key !== group.key(menu.row).key)
+              .filter((col) => Boolean(board.onMove) && col.key !== group.key(menu.row).key)
               .map((col) => (
                 <button
                   key={col.key}
@@ -182,6 +182,28 @@ export function BoardView<T>({
                   }}
                 >
                   {col.label}
+                </button>
+              ))}
+            {(board.actions ?? [])
+              .filter((a) => !a.show || a.show(menu.row))
+              .map((a) => (
+                <button
+                  key={a.id}
+                  type="button"
+                  className={styles.menuRow}
+                  data-row
+                  onClick={async () => {
+                    const row = menu.row;
+                    setMenu(null);
+                    setError(null);
+                    try {
+                      await a.run(row);
+                    } catch (caught) {
+                      setError(caught instanceof Error ? caught.message : 'Could not do that.');
+                    }
+                  }}
+                >
+                  {a.label}
                 </button>
               ))}
             {onOpen && (

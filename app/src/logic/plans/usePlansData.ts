@@ -235,6 +235,8 @@ export function usePlansData() {
     buckets,
     accounts,
     occurrences,
+    itemsByBucket,
+    ctx,
     money,
     today: data.today,
     postpone,

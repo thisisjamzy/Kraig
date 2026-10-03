@@ -128,22 +128,18 @@ export function dailyGuide(input: GuideInput): DailyGuide {
 }
 
 /**
- * Variable spending per day this month: expense transactions dated this
- * month, except those paying a fixed line (rent isn't day-to-day spending).
+ * Variable spending per day this month: expense spending dated this month
+ * (`spend` positive, a refund negative), except what paid a fixed line
+ * (rent isn't day-to-day spending).
  */
-export function variableSpendByDay(
-  budget: MonthBudget,
-  transactions: { id: string; type: string; direction: 'Inflow' | 'Outflow'; amount: number; date: Date; month: string }[],
-  toDisplay: (amount: number, id: string) => number
-): Map<string, number> {
+export function variableSpendByDay(budget: MonthBudget, expenses: { id: string; spend: number; date: Date; month: string }[]): Map<string, number> {
   const fixed = new Set<string>();
   for (const item of budget.items) if (item.type === 'Expense' && item.expenseKind === 'fixed') item.transactionIds.forEach((id) => fixed.add(id));
   const out = new Map<string, number>();
-  for (const t of transactions) {
-    if (t.month !== budget.month || t.type !== 'Expense' || fixed.has(t.id)) continue;
-    const value = toDisplay(t.amount, t.id) * (t.direction === 'Outflow' ? 1 : -1);
+  for (const t of expenses) {
+    if (t.month !== budget.month || fixed.has(t.id)) continue;
     const key = dayKey(t.date);
-    out.set(key, r2((out.get(key) ?? 0) + value));
+    out.set(key, r2((out.get(key) ?? 0) + t.spend));
   }
   return out;
 }

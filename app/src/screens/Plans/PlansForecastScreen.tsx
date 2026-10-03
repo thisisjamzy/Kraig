@@ -1,527 +1,523 @@
 'use client';
 
-// Plans forecast — "Where are my plans heading?". Can I afford what's
-// planned, which plans are on schedule, what's due month by month, what to
-// set aside each month, and what if I move things around. Horizon and
-// scenario apply to every card.
+// Plan and forecast — a page, on every screen size:
+//   1. Where do I stand today? A callout and four blocks: cash in accounts
+//      (with a per-account table), savings, still expected this month,
+//      still to pay this month (of which overdue).
+//   2. Plan the next months: a board with a column per month in the
+//      horizon (and Unscheduled), the month's income as a fixed header and
+//      its figures (expected income, planned out, left, daily for variable
+//      spending). Moving, re-pricing, splitting or dropping a line changes
+//      a DRAFT; "Apply plan" writes it, "Discard draft" resets it.
+//   3. How much can I spend each day? The daily allowance and the cash-safe
+//      amount, today, this week, and the month's spending against the path.
+//   4. Where is this heading? The running balance, month by month, and plans
+//      on schedule.
+// While a draft exists, every figure shows the draft, labelled "draft".
 
-import { useState } from 'react';
-import Link from 'next/link';
-import { ArrowLeft, Info, X } from 'lucide-react';
-import { Bar, BarChart, CartesianGrid, LabelList, Line, LineChart, ReferenceArea, ReferenceLine, Tooltip, XAxis, YAxis } from 'recharts';
-import { useLogic, type PlansForecastLogic } from '@/src/logic/plansForecast/useLogic';
-import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
+import { useState, type ReactNode } from 'react';
+import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { AlertTriangle, Info, TrendingUp } from 'lucide-react';
+import { useLogic, type PlanForecastLogic } from '@/src/logic/plansForecast/useLogic';
+import { useLayout } from '@/src/shared/hooks/useLayout';
+import { monthLabel } from '@/src/viewmodels/plans/model';
+import { SCENARIO_FACTOR, UNSCHEDULED, type PlanLine, type PlanScenario } from '@/src/viewmodels/plans/planDraft';
+import { Block, Callout, NotionPage } from '@/src/widgets/Database/NotionPage';
+import { Database } from '@/src/widgets/Database/Database';
+import { formatNumber } from '@/src/widgets/Database/format';
+import type { ColumnDef } from '@/src/widgets/Database/types';
+import { Modal } from '@/src/widgets/Modal/Modal';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
-import { monthKey, monthLabel, remaining, shiftMonth } from '@/src/viewmodels/plans/model';
-import type { Scenario } from '@/src/viewmodels/plans/forecast';
-import { AXIS_TICK, COLORS, Card, Chip, Figure, Legend, STATUS_TEXT, STATUS_TONE, Segmented, TooltipBox, Visual, compact, full, monthShort } from './parts';
-import styles from './Plans.module.css';
-import { Fragment, type ReactNode } from 'react';
-import { useHasTopBar } from '@/src/widgets/AppShell/TopBarSlot';
-import { GridCard, PageGrid, type CardSize } from '@/src/widgets/Layout/PageGrid';
+import { useScopeChooser } from '@/src/screens/BudgetMonth/ScopeChooser';
+import bm from '@/src/screens/BudgetMonth/BudgetMonth.module.css';
+import styles from './PlanForecast.module.css';
 
-export function PlansForecastScreen() {
-  const v = useLogic();
-  const [howOpen, setHowOpen] = useState(false);
-  // Medium screens and up: the cards on the dashboard grid (affordability
-  // XL beside the schedule, month by month and set-aside side by side,
-  // what-if full width). Plain fragments on a phone.
-  const inShell = useHasTopBar();
-  const Grid = inShell ? PageGrid : Fragment;
+const money = (n: number) => formatNumber(Math.round(n));
+const SCENARIO_LABEL: Record<PlanScenario, string> = { cautious: 'Cautious', expected: 'Expected', optimistic: 'Optimistic' };
+const STATUS = { on_track: { label: 'On track', tone: 'good' }, watch: { label: 'Watch', tone: 'watch' }, off_track: { label: 'Off track', tone: 'bad' } } as const;
 
+function Draft({ on }: { on: boolean }) {
+  return on ? <span className={styles.draft}>draft</span> : null;
+}
+
+function Figure({ label, value, sub, tone, draft }: { label: string; value: string; sub?: ReactNode; tone?: 'bad'; draft?: boolean }) {
   return (
-    <div className={styles.page}>
-      <ScreenHeader
-        left={
-          <Link href="/buckets" className={styles.roundButton} aria-label="Back to Buckets">
-            <ArrowLeft size={20} strokeWidth={2} />
-          </Link>
-        }
-        title="Plans forecast"
-        right={
-          <button type="button" className={styles.roundButton} aria-label="How is this calculated?" aria-expanded={howOpen} onClick={() => setHowOpen((o) => !o)}>
-            <Info size={18} strokeWidth={2} />
-          </button>
-        }
-      />
-      <div className={styles.controls}>
-        <Segmented
-          label="Horizon"
-          value={String(v.horizon)}
-          onChange={(x) => v.setHorizon(Number(x))}
-          options={[3, 6, 12].map((n) => ({ value: String(n), label: `${n}m` }))}
-        />
-        <Segmented<Scenario>
-          label="Scenario"
-          value={v.scenario}
-          onChange={v.setScenario}
-          options={[
-            { value: 'cautious', label: 'Cautious' },
-            { value: 'expected', label: 'Expected' },
-            { value: 'optimistic', label: 'Optimistic' },
-          ]}
-        />
-        {v.forecast.lowConfidence && (
-          <Chip tone="watch">Low confidence</Chip>
-        )}
-      </div>
-      {howOpen && (
-        <div className={styles.infoBox}>
-          {v.forecast.lowConfidence && (
-            <p>
-              <strong>Low confidence:</strong> under 3 months of history so far.
-            </p>
-          )}
-        <p>
-          <strong>Income</strong> each month is what your budget expects (salary and other income items, plus one-offs), plus an estimate for irregular
-          income: your last 6 months, recent ones counting more.
-        </p>
-        <p>
-          <strong>Committed</strong> is fixed items and savings still to pay that month. <strong>Usual variable spending</strong> is the month&apos;s variable
-          plan if set, otherwise your last 6 months of variable and unplanned spending.
-        </p>
-        <p>
-          <strong>Free money</strong> = income − committed − variable. <strong>Plan payments</strong> are what your plans still owe that month. The balance
-          starts from what&apos;s available now and carries forward. Cautious uses your lower recent income and higher spending; Optimistic the reverse.
-        </p>
-        </div>
-      )}
-
-      <ScreenState loading={v.loading} />
-      {!v.loading && (
-        <>
-          {v.whatIfActive && (
-            <div className={styles.whatIfBanner} role="status">
-              <span>What-if on</span>
-              <div>
-                <button type="button" className={styles.ghost} onClick={v.reset}>
-                  Reset
-                </button>
-                <button type="button" className={styles.primary} disabled={v.applying} onClick={v.apply}>
-                  {v.applying ? 'Applying…' : 'Apply changes'}
-                </button>
-              </div>
-            </div>
-          )}
-          {v.error && <p className={styles.error}>{v.error}</p>}
-          <Grid>
-          <Cell on={inShell} size="XL">
-            <AffordCard v={v} />
-          </Cell>
-          <Cell on={inShell} size="M">
-            <ScheduleCard v={v} />
-          </Cell>
-          <Cell on={inShell} size="L">
-            <MonthlyCard v={v} />
-          </Cell>
-          <Cell on={inShell} size="L">
-            <SetAsideCard v={v} />
-          </Cell>
-          <Cell on={inShell} size="Full">
-            <WhatIfCard v={v} />
-          </Cell>
-          {v.tips.length > 0 && (
-            <Cell on={inShell} size="L">
-            <Card title="What could help?">
-              <ul className={styles.tips}>
-                {v.tips.map((t) => (
-                  <li key={t.text}>
-                    <p>{t.text}</p>
-                    <Link href={t.href} className={styles.tipAction}>
-                      {t.action}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </Card>
-            </Cell>
-          )}
-          </Grid>
-        </>
-      )}
+    <div className={styles.figure}>
+      <span className={styles.figureLabel}>
+        {label} <Draft on={Boolean(draft)} />
+      </span>
+      <strong data-tone={tone}>{value}</strong>
+      {sub && <span className={styles.figureSub}>{sub}</span>}
     </div>
   );
 }
 
-/** A dashboard cell on wide screens; nothing extra on a phone. */
-function Cell({ on, size, children }: { on: boolean; size: CardSize; children: ReactNode }) {
-  return on ? <GridCard size={size}>{children}</GridCard> : <>{children}</>;
-}
-
-const name = (m: string) => monthLabel(m, true).split(' ')[0];
-
-function AffordCard({ v }: { v: PlansForecastLogic }) {
-  const f = v.forecast;
+export function PlansForecastScreen() {
+  const v = useLogic();
+  const scope = useScopeChooser();
+  const compact = useLayout().deviceClass === 'compact';
+  const [perAccount, setPerAccount] = useState(false);
+  const [editing, setEditing] = useState<{ kind: 'amount' | 'split' | 'account'; line: PlanLine } | null>(null);
+  const [expanded, setExpanded] = useState<string | null>(null);
   const c = v.currency;
-  const need = f.months.reduce((s, m) => s + m.planPayments, 0);
-  const free = f.months.reduce((s, m) => s + Math.max(0, m.free), 0) + Math.max(0, f.startBalance);
-  const lowest = f.months.reduce((low, m) => (m.balance < low.balance ? m : low), f.months[0]);
-  const short = Math.max(0, -(lowest?.balance ?? 0));
-  const rows = f.months.map((m) => ({ ...m, label: monthShort(m.month, v.today) }));
-  const negatives = rows.filter((r) => r.balance < 0);
-  return (
-    <>
-      <Card title="Can I afford my plans?" chip={<Chip tone={STATUS_TONE[v.affordStatus]}>{STATUS_TEXT[v.affordStatus]}</Chip>}>
-        <div className={styles.figureGrid} data-cols="3">
-          <Figure label="Plans need" value={need} />
-          <Figure label="Free" value={free} />
-          <Figure label={short > 0 ? 'Short' : 'Lowest balance'} value={short > 0 ? short : lowest?.balance ?? 0} tone={short > 0 ? 'bad' : undefined} />
-        </div>
-        <Visual>
-          <BarChart responsive style={{ width: '100%', height: 190 }} data={rows} margin={{ top: 8, right: 4, bottom: 0, left: -6 }} accessibilityLayer>
-            <CartesianGrid vertical={false} stroke="var(--pl-divider)" />
-            <XAxis dataKey="label" tick={AXIS_TICK} tickLine={false} axisLine={false} />
-            <YAxis tick={AXIS_TICK} tickLine={false} axisLine={false} tickFormatter={compact} width={44} />
-            <ReferenceLine y={0} stroke="var(--pl-light)" />
-            <Tooltip
-              content={({ active, payload }) => {
-                const p = payload?.[0]?.payload as (typeof rows)[number] | undefined;
-                return p ? (
-                  <TooltipBox
-                    active={active}
-                    title={monthLabel(p.month, true)}
-                    rows={[
-                      { label: 'Free money', value: full(p.free, c), color: COLORS.blue },
-                      { label: 'Plan payments', value: full(p.planPayments, c), color: COLORS.navy },
-                      ...(p.incomeEstimated > 0 ? [{ label: 'Income (estimated part)', value: full(p.incomeEstimated, c) }] : []),
-                    ]}
-                  />
-                ) : null;
-              }}
-            />
-            <Bar dataKey="free" name="Free money" fill={COLORS.blue} radius={[4, 4, 0, 0]} />
-            <Bar dataKey="planPayments" name="Plan payments" fill={COLORS.navy} radius={[4, 4, 0, 0]} />
-          </BarChart>
-          <Legend items={[{ label: 'Free money', color: COLORS.blue }, { label: 'Plan payments', color: COLORS.navy }]} />
-        </Visual>
-        <Visual>
-          <LineChart responsive style={{ width: '100%', height: 150 }} data={rows} margin={{ top: 8, right: 8, bottom: 0, left: -6 }} accessibilityLayer>
-            <CartesianGrid vertical={false} stroke="var(--pl-divider)" />
-            <XAxis dataKey="label" tick={AXIS_TICK} tickLine={false} axisLine={false} />
-            <YAxis tick={AXIS_TICK} tickLine={false} axisLine={false} tickFormatter={compact} width={44} />
-            {negatives.map((r) => (
-              <ReferenceArea key={r.month} x1={r.label} x2={r.label} fill="var(--pl-red)" fillOpacity={0.1} />
-            ))}
-            <ReferenceLine y={0} stroke="var(--pl-red)" strokeDasharray="4 3" />
-            <Tooltip content={({ active, payload }) => (payload?.[0] ? <TooltipBox active={active} title={String(payload[0].payload.label)} rows={[{ label: 'Balance after', value: full(Number(payload[0].value), c) }]} /> : null)} />
-            <Line dataKey="balance" name="Balance" stroke={COLORS.navy} strokeWidth={2.5} dot={{ r: 3 }} />
-          </LineChart>
-          <Legend items={[{ label: 'Balance', color: COLORS.navy, style: 'line' }]} />
-        </Visual>
-      </Card>
-      <section className={styles.band} aria-label="Month by month">
-        <h2 className={styles.bandTitle}>Month by month</h2>
-        <table className={styles.table}>
-          <thead>
-            <tr>
-              <th scope="col">
-                <span className={styles.srOnly}>Month</span>
-              </th>
-              <th scope="col">Free</th>
-              <th scope="col">Plans</th>
-              <th scope="col">Balance</th>
-            </tr>
-          </thead>
-          <tbody>
-            {f.months.map((m) => (
-              <tr key={m.month}>
-                <th scope="row">{monthShort(m.month, v.today)}</th>
-                <td data-negative={m.free < 0 || undefined}>{full(m.free)}</td>
-                <td>{full(m.planPayments)}</td>
-                <td data-negative={m.balance < 0 || undefined}>{full(m.balance)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
-    </>
-  );
-}
+  const draft = v.hasDraft;
 
-function ScheduleCard({ v }: { v: PlansForecastLogic }) {
-  const rows = v.schedule.filter((r) => r.remaining > 0);
-  const onTime = rows.filter((r) => r.monthsLate === 0).length;
-  const late = rows.filter((r) => r.monthsLate > 0).map((r) => r.name);
-  return (
-    <Card
-      title="Plans on schedule"
-      chip={rows.length ? <Chip tone={STATUS_TONE[v.scheduleStatus]}>{STATUS_TEXT[v.scheduleStatus]}</Chip> : undefined}
-      summary={late.length ? `Running late: ${late.join(', ')}.` : undefined}
-    >
-      {rows.length === 0 ? (
-        <p className={styles.muted}>No plans with money left to pay.</p>
-      ) : (
-        <>
-          <div className={styles.figureGrid} data-cols="3">
-            <Figure label="On time" value={onTime} />
-            <Figure label="Late" value={rows.length - onTime} tone={rows.length > onTime ? 'bad' : undefined} />
-            <Figure label="Left to pay" value={rows.reduce((s, r) => s + r.remaining, 0)} />
-          </div>
-          <ul className={styles.hbars}>
-            {rows.map((r) => {
-              const total = r.paid + r.remaining || 1;
-              return (
-                <li key={r.bucketId}>
-                  <span className={styles.hbarTop}>
-                    <Link href={`/budget/bucket/${r.bucketId}`} className={styles.hbarName}>
-                      {r.name}
-                    </Link>
-                    <strong>{full(r.remaining)}</strong>
-                  </span>
-                  <span className={styles.hbarTrack} role="img" aria-label={`${full(r.paid)} paid, ${full(r.remaining)} remaining`}>
-                    <span style={{ width: `${(r.paid / total) * 100}%` }} />
-                  </span>
-                  <span className={styles.hbarSub} data-tone={r.monthsLate > 0 ? 'bad' : undefined}>
-                    {r.forecastEnd ? `Done ${monthShort(r.forecastEnd, v.today)}` : 'Beyond forecast'}
-                    {r.targetEnd ? ` · target ${monthShort(r.targetEnd, v.today)}` : ''}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        </>
-      )}
-    </Card>
-  );
-}
+  const monthName = (m: string) => monthLabel(m, true).split(' ')[0];
+  const nowName = monthName(v.current);
 
-function MonthlyCard({ v }: { v: PlansForecastLogic }) {
-  const rows = v.forecast.months.map((m) => ({ label: monthShort(m.month, v.today), month: m.month, must: m.mustPlan, nice: m.nicePlan, total: m.mustPlan + m.nicePlan }));
-  const top = v.upcoming.slice(0, 3);
-  return (
-    <Card title="Due each month">
-      <Visual>
-        <BarChart responsive style={{ width: '100%', height: 190 }} data={rows} margin={{ top: 18, right: 4, bottom: 0, left: -6 }} accessibilityLayer>
-          <CartesianGrid vertical={false} stroke="var(--pl-divider)" />
-          <XAxis dataKey="label" tick={AXIS_TICK} tickLine={false} axisLine={false} />
-          <YAxis tick={AXIS_TICK} tickLine={false} axisLine={false} tickFormatter={compact} width={44} />
-          <Tooltip
-            content={({ active, payload }) => {
-              const p = payload?.[0]?.payload as (typeof rows)[number] | undefined;
-              return p ? (
-                <TooltipBox
-                  active={active}
-                  title={monthLabel(p.month, true)}
-                  rows={[
-                    { label: 'Must have', value: full(p.must, v.currency), color: COLORS.navy },
-                    { label: 'Nice to have', value: full(p.nice, v.currency), color: COLORS.light },
-                  ]}
-                />
-              ) : null;
-            }}
-          />
-          <Bar dataKey="must" stackId="s" name="Must have" fill={COLORS.navy} />
-          <Bar dataKey="nice" stackId="s" name="Nice to have" fill={COLORS.light} radius={[4, 4, 0, 0]}>
-            <LabelList dataKey="total" position="top" formatter={(x: unknown) => (Number(x) > 0 ? compact(Number(x)) : '')} fontSize={10} fill="var(--pl-navy)" />
-          </Bar>
-        </BarChart>
-        <Legend items={[{ label: 'Must have', color: COLORS.navy }, { label: 'Nice to have', color: COLORS.light }]} />
-      </Visual>
-      {top.length > 0 && (
-        <Visual>
-          <ul className={styles.incomeList}>
-            {top.map((o) => (
-              <li key={o.key}>
-                <span>
-                  <strong>{o.name}</strong>
-                  <span className={styles.muted}>
-                    {o.due ? o.due.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'No date'}
-                  </span>
-                </span>
-                <strong>{full(remaining(o))}</strong>
-              </li>
-            ))}
-          </ul>
-        </Visual>
-      )}
-    </Card>
-  );
-}
+  const lineColumns: ColumnDef<PlanLine>[] = [
+    { id: 'name', label: 'Name', type: 'text', width: 220, value: (l) => l.name },
+    { id: 'bucket', label: 'Bucket', type: 'text', width: 160, value: (l) => l.bucketName, onCard: true },
+    { id: 'amount', label: 'Amount', type: 'currency', width: 120, value: (l) => l.amount, calc: 'sum', onCard: true },
+    { id: 'need', label: 'Need', type: 'select', width: 120, value: (l) => l.need, options: [{ value: 'must', label: 'Must have' }, { value: 'nice', label: 'Nice to have' }], onCard: true },
+    { id: 'due', label: 'Due', type: 'date', width: 110, value: (l) => l.due, onCard: true },
+    { id: 'month', label: 'Month', type: 'text', width: 130, value: (l) => (l.month ? monthLabel(l.month, true) : 'Unscheduled') },
+    { id: 'paidFrom', label: 'Paid from', type: 'text', width: 140, value: (l) => v.accounts.find((a) => a.id === l.accountId)?.name ?? null, onCard: true },
+    {
+      id: 'flags',
+      label: 'Changes',
+      type: 'text',
+      width: 160,
+      noQuery: true,
+      onCard: true,
+      value: (l) => [l.changed ? 'draft' : null, ...(l.warnings ?? [])].filter(Boolean).join(', ') || null,
+      render: (l) => (
+        <span className={styles.flags}>
+          {l.changed && <span className={styles.draft}>draft</span>}
+          {(l.warnings ?? []).map((w) => (
+            <span key={w} className={bm.chip} data-tone="watch">
+              {w}
+            </span>
+          ))}
+        </span>
+      ),
+    },
+  ];
 
-function SetAsideCard({ v }: { v: PlansForecastLogic }) {
-  const rows = v.schedule.filter((r) => r.remaining > 0);
-  const total = rows.reduce((s, r) => s + r.setAside, 0);
-  return (
-    <Card title="Set aside monthly" chip={rows.length ? <span className={styles.headFigure}>{full(total, v.currency)} / mo</span> : undefined}>
-      {rows.length === 0 ? (
-        <p className={styles.muted}>Nothing to set aside.</p>
-      ) : (
-        <>
-          <Visual>
-            <table className={styles.table}>
-              <thead>
-                <tr>
-                  <th scope="col">
-                    <span className={styles.srOnly}>Plan</span>
-                  </th>
-                  <th scope="col">Left</th>
-                  <th scope="col">Months</th>
-                  <th scope="col">Per month</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r) => (
-                  <tr key={r.bucketId}>
-                    <th scope="row">{r.name}</th>
-                    <td>{full(r.remaining)}</td>
-                    <td>{r.monthsLeft}</td>
-                    <td>{full(r.setAside)}</td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr>
-                  <th scope="row">Total</th>
-                  <td>{full(rows.reduce((s, r) => s + r.remaining, 0))}</td>
-                  <td />
-                  <td>{full(total)}</td>
-                </tr>
-              </tfoot>
-            </table>
-          </Visual>
-          <button type="button" className={styles.primary} disabled={v.savingPlan || v.savedPlan} onClick={v.createSavingsPlan}>
-            {v.savedPlan ? 'Savings plan created' : v.savingPlan ? 'Creating…' : 'Create savings plan'}
-          </button>
-        </>
-      )}
-    </Card>
-  );
-}
+  const columnKeys = [...v.months, UNSCHEDULED];
 
-function WhatIfCard({ v }: { v: PlansForecastLogic }) {
-  const [pick, setPick] = useState('');
-  const [date, setDate] = useState(() => {
-    const d = new Date(v.today.getFullYear(), v.today.getMonth() + 3, 1);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
-  });
-  const [extraKind, setExtraKind] = useState<'income' | 'expense'>('expense');
-  const [extraName, setExtraName] = useState('');
-  const [extraMonth, setExtraMonth] = useState(shiftMonth(monthKey(v.today), 1));
-  const [extraAmount, setExtraAmount] = useState('');
-  const item = v.changeable.find((o) => o.key === pick);
-
-  // Compare with the plan as it stands.
-  const shortNow = v.baseline.months.find((m) => m.balance < 0);
-  const shortThen = v.forecast.months.find((m) => m.balance < 0);
-  const changed = [...Object.keys(v.whatIf.moves), ...v.whatIf.drops].map(v.nameOf);
-  let summary: string | undefined;
-  if (v.whatIfActive) {
-    const who = changed.length ? `${changed.slice(0, 2).join(' and ')}${changed.length > 2 ? ` and ${changed.length - 2} more` : ''}` : 'These changes';
-    if (shortNow && !shortThen) summary = `${who} removes ${name(shortNow.month)}'s shortfall.`;
-    else if (!shortNow && shortThen) summary = `${who} creates a shortfall in ${name(shortThen.month)}.`;
-    else {
-      const end = (f: typeof v.forecast) => f.months[f.months.length - 1]?.balance ?? 0;
-      const delta = end(v.forecast) - end(v.baseline);
-      summary = `${who} ${delta >= 0 ? 'leaves' : 'costs'} ${full(Math.abs(delta), v.currency)} ${delta >= 0 ? 'more' : ''} by the end of the horizon.`.replace('  ', ' ');
+  async function moveLine(line: PlanLine, to: string) {
+    const toMonth = to === UNSCHEDULED ? null : to;
+    if (line.recurring && line.month) {
+      const choice = await scope.ask(line.name, line.month);
+      if (!choice) return;
+      await v.move(line.key, toMonth, choice);
+    } else {
+      await v.move(line.key, toMonth);
     }
   }
-  const months = Array.from({ length: 12 }, (_, i) => shiftMonth(monthKey(v.today), i));
+
+  const draftBar = draft && (
+    <div className={styles.draftActions} data-compact={compact || undefined}>
+      <span>
+        Draft with {v.changes.length} {v.changes.length === 1 ? 'change' : 'changes'}
+      </span>
+      <button type="button" className={bm.ghostButton} onClick={() => void v.discard()} disabled={v.applying}>
+        Discard draft
+      </button>
+      <button type="button" className={bm.primaryButton} onClick={() => void v.apply()} disabled={v.applying}>
+        {v.applying ? 'Applying…' : 'Apply plan'}
+      </button>
+    </div>
+  );
 
   return (
-    <Card id="whatif" title="What if…" summary={summary}>
-      <div className={styles.form}>
-        <label className={styles.field}>
-          Item
-          <select value={pick} onChange={(e) => setPick(e.target.value)}>
-            <option value="">Move or drop an item</option>
-            {v.changeable.map((o) => (
-              <option key={o.key} value={o.key}>
-                {o.name} · {full(remaining(o))} · {o.due ? o.due.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'no date'}
-              </option>
-            ))}
-          </select>
-        </label>
-        {item && (
-          <>
-            <label className={styles.field}>
-              Move to
-              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-            </label>
-            <div className={styles.sheetActions}>
-              <button type="button" className={styles.ghost} onClick={() => v.dropItem(item)}>
-                Drop it
-              </button>
-              <button type="button" className={styles.primary} disabled={!date} onClick={() => v.postponeItem(item, new Date(`${date}T12:00`))}>
-                Move
-              </button>
+    <NotionPage
+      title="Plan and forecast"
+      icon={<TrendingUp strokeWidth={1.75} />}
+      crumbs={[{ label: 'Money', href: '/home' }, { label: 'Plan and forecast' }]}
+      properties={[
+        {
+          id: 'horizon',
+          label: 'Planning horizon',
+          edit: {
+            type: 'select',
+            value: String(v.horizon),
+            options: [
+              { value: '2', label: 'This month and next' },
+              { value: '3', label: 'This month and the next two' },
+            ],
+            onSave: (next) => v.setHorizon(next === '3' ? 3 : 2),
+          },
+        },
+        {
+          id: 'scenario',
+          label: 'Scenario',
+          edit: {
+            type: 'select',
+            value: v.scenario,
+            options: (Object.keys(SCENARIO_FACTOR) as PlanScenario[]).map((s) => ({ value: s, label: SCENARIO_LABEL[s] })),
+            onSave: (next) => v.setScenario(next as PlanScenario),
+          },
+        },
+        {
+          id: 'status',
+          label: 'Plan status',
+          display: draft ? (
+            <span className={bm.chip} data-tone="watch">
+              Draft with {v.changes.length} {v.changes.length === 1 ? 'change' : 'changes'}
+            </span>
+          ) : (
+            'No changes'
+          ),
+        },
+        { id: 'applied', label: 'Last applied', display: v.lastApplied ? v.lastApplied.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : null },
+      ]}
+    >
+      {v.loading ? (
+        <ScreenState loading />
+      ) : (
+        <>
+          {v.error && (
+            <Callout tone="bad" icon={<AlertTriangle size={18} strokeWidth={2} />}>
+              <p>{v.error}</p>
+            </Callout>
+          )}
+
+          {/* 1 */}
+          <Block title="Where do I stand today?">
+            <Callout>
+              <p>
+                You have {money(v.cash)} in your accounts and {money(v.savings)} in savings. {money(v.stillToPay)} is still to pay this month and {money(v.stillExpected)} is still
+                expected. If everything arrives, you&apos;ll end {nowName} with about {money(v.endOfMonth)}.{draft ? ' These figures include your draft.' : ''}
+              </p>
+            </Callout>
+            <div className={styles.standRow}>
+              <div className={styles.standBlock}>
+                <Figure label="Cash in accounts" value={`${money(v.cash)} ${c}`} />
+                <button type="button" className={styles.toggle} aria-expanded={perAccount} onClick={() => setPerAccount((p) => !p)}>
+                  {perAccount ? 'Hide accounts' : 'Per account'}
+                </button>
+                {perAccount && (
+                  <table className={styles.smallTable}>
+                    <tbody>
+                      {v.perAccount.map((a) => (
+                        <tr key={a.id}>
+                          <td>
+                            {a.name}
+                            {a.savings ? ' (savings)' : ''}
+                          </td>
+                          <td data-num>{money(a.amount)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+              <div className={styles.standBlock}>
+                <Figure label="Savings" value={`${money(v.savings)} ${c}`} />
+              </div>
+              <div className={styles.standBlock}>
+                <Figure label="Still expected this month" value={`${money(v.stillExpected)} ${c}`} sub={v.expectedNow.map((i) => i.name).join(', ') || 'Nothing else expected'} />
+              </div>
+              <div className={styles.standBlock}>
+                <Figure label="Still to pay this month" value={`${money(v.stillToPay)} ${c}`} sub={`of which ${money(v.overdue)} overdue`} tone={v.overdue ? 'bad' : undefined} draft={draft} />
+              </div>
             </div>
-          </>
+          </Block>
+
+          {/* 2 */}
+          <Block title="Plan the next months" actions={compact ? null : draftBar}>
+            <Database<PlanLine>
+              id="plan.board"
+              label="Plan the next months"
+              noun={['line', 'lines']}
+              rows={v.applied}
+              rowKey={(l) => l.key}
+              columns={lineColumns}
+              views={[
+                { id: 'board', name: 'Board', layout: 'board' },
+                { id: 'table', name: 'Table', layout: 'table', group: 'month' },
+              ]}
+              groups={[
+                {
+                  id: 'month',
+                  label: 'Month',
+                  key: (l) => ({ key: l.month ?? UNSCHEDULED, label: l.month ? monthLabel(l.month, true) : 'Unscheduled' }),
+                  order: columnKeys,
+                },
+              ]}
+              defaultGroup="month"
+              subtotalColumn="amount"
+              currency={c}
+              card={{
+                title: (l) => l.name,
+              }}
+              board={{
+                group: 'month',
+                onMove: (l, to) => moveLine(l, to),
+                header: (key) => {
+                  if (key === UNSCHEDULED) return <span>Lines without a date, or moved out of the plan</span>;
+                  const col = v.columns.find((x) => x.month === key);
+                  if (!col) return null;
+                  const income = v.income.filter((i) => i.month === key);
+                  return (
+                    <span className={styles.colHead}>
+                      {income.length > 0 && (
+                        <span className={styles.colIncome}>
+                          {income.map((i) => (
+                            <span key={i.key}>
+                              {i.name} <strong>{money(i.amount)}</strong>
+                            </span>
+                          ))}
+                        </span>
+                      )}
+                      <span>
+                        Expected income <strong>{money(col.expectedIncome)}</strong>
+                      </span>
+                      <span>
+                        Planned out <strong>{money(col.plannedOut)}</strong> <Draft on={draft} />
+                      </span>
+                      <span>
+                        Left <strong data-tone={col.left < 0 ? 'bad' : undefined}>{money(col.left)}</strong>
+                      </span>
+                      <span>
+                        Daily for variable spending <strong>{money(col.daily)}</strong>
+                      </span>
+                    </span>
+                  );
+                },
+                actions: [
+                  { id: 'amount', label: 'Change amount', run: (l) => setEditing({ kind: 'amount', line: l }) },
+                  { id: 'split', label: 'Split across months', show: (l) => l.month !== null, run: (l) => setEditing({ kind: 'split', line: l }) },
+                  { id: 'account', label: 'Change paid from', run: (l) => setEditing({ kind: 'account', line: l }) },
+                  { id: 'drop', label: 'Drop', run: (l) => v.drop(l.key) },
+                ],
+              }}
+              emptyText="Nothing left to plan in these months."
+            />
+          </Block>
+
+          {/* 3 */}
+          {v.guide && (
+            <Block
+              title="How much can I spend each day?"
+              actions={
+                <span className={bm.chip} data-tone={STATUS[v.guide.status].tone}>
+                  {STATUS[v.guide.status].label}
+                </span>
+              }
+            >
+              <Callout tone={v.guide.status === 'off_track' ? 'bad' : v.guide.status === 'watch' ? 'watch' : undefined}>
+                <p>
+                  Keep to about <strong>{money(v.guide.follow)} {c}</strong> a day for variable spending for the rest of {nowName} ({v.guide.daysLeft} {v.guide.daysLeft === 1 ? 'day' : 'days'} left).
+                  {v.guide.followReason === 'cash'
+                    ? ` That's the cash-safe amount: your variable budget allows ${money(v.guide.allowance)} a day, but the money you have and expect only covers ${money(v.guide.safePerDay)} once the bills are paid.`
+                    : ` Your money covers ${money(v.guide.safePerDay)} a day once the bills are paid, so the budget is the limit.`}
+                  {v.guide.message ? ` ${v.guide.message}` : ''}
+                </p>
+              </Callout>
+              <div className={styles.standRow}>
+                <div className={styles.standBlock}>
+                  <Figure label="Allowed today" value={money(v.guide.today.allowance)} draft={draft} />
+                </div>
+                <div className={styles.standBlock}>
+                  <Figure label="Spent today" value={money(v.guide.today.spent)} />
+                </div>
+                <div className={styles.standBlock}>
+                  <Figure label="Left today" value={money(v.guide.today.left)} tone={v.guide.today.left < 0 ? 'bad' : undefined} />
+                </div>
+                <div className={styles.standBlock}>
+                  <Figure
+                    label={`This week (${v.guide.week.days} ${v.guide.week.days === 1 ? 'day' : 'days'})`}
+                    value={`${money(v.guide.week.spent)} of ${money(v.guide.week.allowance)}`}
+                    sub={v.guide.week.difference >= 0 ? `${money(v.guide.week.difference)} under` : `${money(-v.guide.week.difference)} over`}
+                    tone={v.guide.week.difference < 0 ? 'bad' : undefined}
+                  />
+                </div>
+              </div>
+              <div className={styles.chart}>
+                <ResponsiveContainer width="100%" height={compact ? 220 : 260}>
+                  <LineChart data={v.guide.path} margin={{ top: 12, right: 72, bottom: 0, left: 0 }}>
+                    <CartesianGrid vertical={false} stroke="#edf0f6" />
+                    <XAxis dataKey="day" tickLine={false} axisLine={false} tick={{ fontSize: 12 }} interval={compact ? 6 : 3} />
+                    <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 12 }} width={56} tickFormatter={(n: number) => (n >= 1000 ? `${Math.round(n / 1000)}k` : String(n))} />
+                    <Tooltip formatter={(value) => money(Number(value ?? 0))} labelFormatter={(d) => `${nowName} ${d}`} />
+                    <Line dataKey="allowance" name="Allowance path" stroke="#a5a49f" strokeDasharray="6 4" dot={false} strokeWidth={2} />
+                    <Line dataKey="spent" name="Spent so far" stroke="#3965fa" dot={false} strokeWidth={2.5} connectNulls={false} />
+                    <ReferenceLine x={v.today.getDate()} stroke="#37352f" strokeDasharray="2 3" label={{ value: 'Today', position: 'top', fontSize: 11, fill: '#37352f' }} />
+                  </LineChart>
+                </ResponsiveContainer>
+                <p className={styles.legend}>
+                  <span data-kind="spent">Variable spending so far</span>
+                  <span data-kind="path">Allowance path</span>
+                </p>
+              </div>
+              {v.columns.length > 1 && (
+                <p className={styles.note}>
+                  Planned daily allowance:{' '}
+                  {v.columns
+                    .slice(1)
+                    .map((col) => `${monthName(col.month)} ${money(col.daily)}`)
+                    .join(', ')}
+                  {draft ? ' (draft)' : ''}.
+                </p>
+              )}
+            </Block>
+          )}
+
+          {/* 4 */}
+          <Block title="Where is this heading?">
+            <div className={styles.chart}>
+              <ResponsiveContainer width="100%" height={compact ? 200 : 240}>
+                <LineChart data={v.forecast.map((f) => ({ ...f, label: monthLabel(f.month) }))} margin={{ top: 12, right: 24, bottom: 0, left: 0 }}>
+                  <CartesianGrid vertical={false} stroke="#edf0f6" />
+                  <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 12 }} interval={compact ? 1 : 0} />
+                  <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 12 }} width={56} tickFormatter={(n: number) => (Math.abs(n) >= 1000 ? `${Math.round(n / 1000)}k` : String(n))} />
+                  <Tooltip formatter={(value) => money(Number(value ?? 0))} />
+                  <ReferenceLine y={0} stroke="#d6404f" strokeDasharray="3 3" />
+                  <Line dataKey="balanceAfter" name="Balance after" stroke="#3965fa" strokeWidth={2.5} dot={{ r: 3 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+            {compact ? (
+              <ul className={styles.monthList}>
+                {v.forecast.map((f) => (
+                  <li key={f.month}>
+                    <button type="button" aria-expanded={expanded === f.month} onClick={() => setExpanded((e) => (e === f.month ? null : f.month))}>
+                      <span>{monthLabel(f.month, true)}</span>
+                      <strong data-tone={f.left < 0 ? 'bad' : 'good'}>{money(f.left)}</strong>
+                      <span>{money(f.balanceAfter)}</span>
+                    </button>
+                    {expanded === f.month && (
+                      <p>
+                        Expected income {money(f.expectedIncome)} · Planned out {money(f.plannedOut)}
+                      </p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <table className={styles.table}>
+                <thead>
+                  <tr>
+                    <th>Month</th>
+                    <th data-num>Expected income</th>
+                    <th data-num>Planned out</th>
+                    <th data-num>Left</th>
+                    <th data-num>Balance after</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {v.forecast.map((f) => (
+                    <tr key={f.month}>
+                      <td>
+                        {monthLabel(f.month, true)} {v.months.includes(f.month) && <Draft on={draft} />}
+                      </td>
+                      <td data-num>{money(f.expectedIncome)}</td>
+                      <td data-num>{money(f.plannedOut)}</td>
+                      <td data-num data-tone={f.left < 0 ? 'bad' : undefined}>
+                        {money(f.left)}
+                      </td>
+                      <td data-num>{money(f.balanceAfter)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+            <p className={styles.note} title="Expected income minus planned expenses and savings, added up over the planning horizon. It's what the plan leaves unassigned, not cash you'll have on one day.">
+              Left over the period <strong data-tone={v.leftOverPeriod < 0 ? 'bad' : undefined}>{money(v.leftOverPeriod)} {c}</strong>{' '}
+              <Info size={13} strokeWidth={2} aria-hidden /> <span className={styles.noteMuted}>expected income minus planned expenses and savings across the planning horizon</span>
+            </p>
+
+            {v.schedule.length > 0 && (
+              <>
+                <h3 className={styles.subTitle}>Plans on schedule</h3>
+                <table className={styles.table}>
+                  <thead>
+                    <tr>
+                      <th>Plan</th>
+                      <th data-num>Remaining</th>
+                      <th>Target end</th>
+                      <th>Forecast end</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {v.schedule.map((p) => (
+                      <tr key={p.bucketId}>
+                        <td>{p.name}</td>
+                        <td data-num>{money(p.remaining)}</td>
+                        <td>{p.targetEnd ? monthLabel(p.targetEnd, true) : ''}</td>
+                        <td data-tone={p.monthsLate > 0 ? 'bad' : undefined}>{p.forecastEnd ? monthLabel(p.forecastEnd, true) : 'Beyond the forecast'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </>
+            )}
+          </Block>
+
+          {compact && draftBar}
+        </>
+      )}
+
+      {editing && <EditSheet v={v} kind={editing.kind} line={editing.line} onClose={() => setEditing(null)} />}
+      {scope.dialog}
+    </NotionPage>
+  );
+}
+
+function EditSheet({ v, kind, line, onClose }: { v: PlanForecastLogic; kind: 'amount' | 'split' | 'account'; line: PlanLine; onClose: () => void }) {
+  const [amount, setAmount] = useState(String(Math.round(line.amount)));
+  const [first, setFirst] = useState(String(Math.round(line.amount / 2)));
+  const [account, setAccount] = useState(line.accountId ?? '');
+  const nextMonth = line.month ? v.months[v.months.indexOf(line.month) + 1] ?? null : null;
+  const n = (s: string) => Number(s.replace(/[\s,]/g, ''));
+  return (
+    <Modal title={kind === 'amount' ? `Amount for ${line.name}` : kind === 'split' ? `Split ${line.name}` : `Pay ${line.name} from`} onClose={onClose}>
+      <div className={styles.form}>
+        {kind === 'amount' && (
+          <label>
+            Amount ({v.currency})
+            <input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} autoFocus />
+          </label>
         )}
-        <Segmented
-          label="Add an expected"
-          value={extraKind}
-          onChange={setExtraKind}
-          options={[
-            { value: 'expense', label: 'Expense' },
-            { value: 'income', label: 'Income' },
-          ]}
-        />
-        <label className={styles.field}>
-          What
-          <input value={extraName} onChange={(e) => setExtraName(e.target.value)} placeholder="e.g. School fees" />
-        </label>
-        <div className={styles.figures}>
-          <label className={styles.field}>
-            Month
-            <select value={extraMonth} onChange={(e) => setExtraMonth(e.target.value)}>
-              {months.map((m) => (
-                <option key={m} value={m}>
-                  {monthLabel(m, true)}
+        {kind === 'split' &&
+          (nextMonth ? (
+            <>
+              <label>
+                In {monthLabel(line.month!, true)}
+                <input inputMode="decimal" value={first} onChange={(e) => setFirst(e.target.value)} autoFocus />
+              </label>
+              <p className={styles.noteMuted}>
+                The rest, {Math.round(line.amount - n(first)).toLocaleString('en-US')}, moves to {monthLabel(nextMonth, true)}.
+              </p>
+            </>
+          ) : (
+            <p className={styles.noteMuted}>Choose a longer planning horizon to split this across months.</p>
+          ))}
+        {kind === 'account' && (
+          <label>
+            Paid from
+            <select value={account} onChange={(e) => setAccount(e.target.value)}>
+              <option value="">Choose account</option>
+              {v.accounts.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name}
                 </option>
               ))}
             </select>
           </label>
-          <label className={styles.field} style={{ gridColumn: 'span 2' }}>
-            Amount
-            <input inputMode="decimal" value={extraAmount} onChange={(e) => setExtraAmount(e.target.value.replace(/[^\d.]/g, ''))} />
-          </label>
+        )}
+        <div className={styles.formActions}>
+          <button type="button" className={bm.ghostButton} onClick={onClose}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            className={bm.primaryButton}
+            disabled={(kind === 'amount' && !(n(amount) >= 0)) || (kind === 'split' && (!nextMonth || !(n(first) > 0 && n(first) < line.amount))) || (kind === 'account' && !account)}
+            onClick={async () => {
+              if (kind === 'amount') await v.setAmount(line.key, n(amount));
+              if (kind === 'split' && nextMonth) await v.split(line.key, [{ month: line.month!, amount: n(first) }, { month: nextMonth, amount: Math.round(line.amount - n(first)) }]);
+              if (kind === 'account') await v.setAccount(line.key, account);
+              onClose();
+            }}
+          >
+            Save to draft
+          </button>
         </div>
-        <button
-          type="button"
-          className={styles.ghost}
-          disabled={!extraName.trim() || !(Number(extraAmount) > 0)}
-          onClick={() => {
-            v.addExtra({ name: extraName.trim(), month: extraMonth, kind: extraKind, amount: Number(extraAmount) });
-            setExtraName('');
-            setExtraAmount('');
-          }}
-        >
-          + Add to what-if
-        </button>
       </div>
-      {v.whatIfActive && (
-        <ul className={styles.whatIfList}>
-          {Object.entries(v.whatIf.moves).map(([key, d]) => (
-            <li key={key}>
-              <span>
-                Move {v.nameOf(key)} to {d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-              </span>
-              <button type="button" className={styles.ghost} onClick={() => v.removeChange('move', key)} aria-label="Remove">
-                <X size={14} />
-              </button>
-            </li>
-          ))}
-          {v.whatIf.drops.map((key) => (
-            <li key={key}>
-              <span>Drop {v.nameOf(key)}</span>
-              <button type="button" className={styles.ghost} onClick={() => v.removeChange('drop', key)} aria-label="Remove">
-                <X size={14} />
-              </button>
-            </li>
-          ))}
-          {v.whatIf.extras.map((x) => (
-            <li key={x.id}>
-              <span>
-                {x.kind === 'income' ? '+' : '−'}
-                {full(x.amount)} {x.name} · {monthShort(x.month, v.today)} (preview only)
-              </span>
-              <button type="button" className={styles.ghost} onClick={() => v.removeChange('extra', x.id)} aria-label="Remove">
-                <X size={14} />
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </Card>
+    </Modal>
   );
 }
