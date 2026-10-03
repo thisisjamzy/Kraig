@@ -134,6 +134,8 @@ export function useLogic(bucketId: string) {
 
   return {
     month,
+    // The month's data, for the wide page's editable line database.
+    data,
     currency: ctx.display,
     bucket,
     closed: group?.closed ?? null,
