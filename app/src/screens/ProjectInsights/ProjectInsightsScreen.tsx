@@ -17,6 +17,8 @@ import type { MilestoneState } from '@/src/viewmodels/insights/metrics';
 import { ProgressRing, RiskChip } from '@/src/screens/Insights/InsightsScreen';
 import insightStyles from '@/src/screens/Insights/InsightsScreen.module.css';
 import styles from './ProjectInsightsScreen.module.css';
+import { useHasTopBar } from '@/src/widgets/AppShell/TopBarSlot';
+import { useOwnsTitle } from '@/src/widgets/AppShell/breadcrumb';
 
 const MILESTONE_TEXT: Record<MilestoneState, string> = {
   done: 'Done',
@@ -32,6 +34,8 @@ const MILESTONE_COLOR: Record<MilestoneState, string> = {
 };
 
 export function ProjectInsightsScreen({ projectId }: { projectId: string }) {
+  // Draws its own title: the shell adds none on wide screens.
+  useOwnsTitle(useHasTopBar());
   const {
     project,
     stat,

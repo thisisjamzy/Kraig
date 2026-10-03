@@ -1,8 +1,9 @@
 'use client';
 
-// The top bar's breadcrumb ("Money / Budget / October 2026"). A page sets
-// it with useBreadcrumb while it's mounted; the top bar shows it in place
-// of the plain page title. Wide screens only — on a phone nothing reads it.
+// The current page's metadata, set by the page while it's mounted and read
+// by the shell: its breadcrumb ("Money / Buckets / Running Douala"), whether
+// the page draws its own title (so the shell doesn't add one), and a key
+// for page-level preferences (Favorites, full or standard width).
 
 import { useEffect, useSyncExternalStore } from 'react';
 
@@ -11,30 +12,89 @@ export interface Crumb {
   href?: string;
 }
 
-let current: Crumb[] | null = null;
+export interface PageMeta {
+  crumbs: Crumb[] | null;
+  /** The page draws its own title in its body. */
+  titled: boolean;
+}
+
+let current: PageMeta = { crumbs: null, titled: false };
 const listeners = new Set<() => void>();
 
-function set(next: Crumb[] | null) {
-  current = next;
+function set(patch: Partial<PageMeta>) {
+  current = { ...current, ...patch };
   listeners.forEach((l) => l());
 }
 
+/** Sets the breadcrumb; a page that calls this draws its own title too. */
 export function useBreadcrumb(crumbs: Crumb[] | null) {
   const key = crumbs ? JSON.stringify(crumbs) : '';
   useEffect(() => {
     if (!key) return;
-    set(JSON.parse(key) as Crumb[]);
-    return () => set(null);
+    set({ crumbs: JSON.parse(key) as Crumb[], titled: true });
+    return () => set({ crumbs: null, titled: false });
   }, [key]);
 }
 
+/** For a page that draws its own title without setting a breadcrumb. */
+export function useOwnsTitle(owns: boolean) {
+  useEffect(() => {
+    if (!owns) return;
+    set({ titled: true });
+    return () => set({ titled: false });
+  }, [owns]);
+}
+
+function subscribe(l: () => void) {
+  listeners.add(l);
+  return () => {
+    listeners.delete(l);
+  };
+}
+
+export function usePageMeta(): PageMeta {
+  return useSyncExternalStore(subscribe, () => current, () => current);
+}
+
 export function useCurrentBreadcrumb(): Crumb[] | null {
+  return usePageMeta().crumbs;
+}
+
+// ---- Page width (Notion's "Full width"), remembered per page ----
+
+export type PageWidth = 'full' | 'standard';
+const widthListeners = new Set<() => void>();
+const WIDTH_KEY = 'dreda.pageWidth';
+let widths: Record<string, PageWidth> | null = null;
+
+function readWidths(): Record<string, PageWidth> {
+  if (widths) return widths;
+  try {
+    widths = JSON.parse(localStorage.getItem(WIDTH_KEY) ?? '{}');
+  } catch {
+    widths = {};
+  }
+  return widths!;
+}
+
+export function setPageWidth(path: string, width: PageWidth) {
+  widths = { ...readWidths(), [path]: width };
+  try {
+    localStorage.setItem(WIDTH_KEY, JSON.stringify(widths));
+  } catch {
+    // Not remembered.
+  }
+  widthListeners.forEach((l) => l());
+}
+
+/** Full width unless the household chose Standard for this page. */
+export function usePageWidth(path: string | null, fallback: PageWidth = 'full'): PageWidth {
   return useSyncExternalStore(
     (l) => {
-      listeners.add(l);
-      return () => listeners.delete(l);
+      widthListeners.add(l);
+      return () => widthListeners.delete(l);
     },
-    () => current,
-    () => null
+    () => (path ? (readWidths()[path] ?? fallback) : fallback),
+    () => fallback
   );
 }

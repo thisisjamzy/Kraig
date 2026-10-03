@@ -11,11 +11,15 @@ import { Modal } from '@/src/widgets/Modal/Modal';
 import { PROJECT_COLORS, PRIORITY_LEVELS, priorityLabel } from '@/src/viewmodels/projects';
 import type { Priority } from '@/src/shared/firestore/types';
 import styles from './CardForm.module.css';
+import { useHasTopBar } from '@/src/widgets/AppShell/TopBarSlot';
+import { useOwnsTitle } from '@/src/widgets/AppShell/breadcrumb';
 
 export const cardFormStyles = styles;
 
 /** The screen: surface-toned page, big faint watermark title, close button. */
 export function CardFormPage({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+  // Draws its own title: the shell adds none on wide screens.
+  useOwnsTitle(useHasTopBar());
   return (
     <div className={styles.page}>
       <div className={styles.top}>

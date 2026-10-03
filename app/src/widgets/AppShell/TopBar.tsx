@@ -1,151 +1,186 @@
 'use client';
 
-// The top bar for medium screens and up — inside the content area (not
-// across the drawer), 64px plus the top safe area, sticky. Left: the menu
-// button (drawer hidden or in rail), the page title, then whatever the page
-// puts in its slot (TopBarSlot.tsx). Right: quick search, notifications,
-// and the profile when the drawer isn't showing it.
+// The top bar for medium screens and up, in Notion's style: 44px, white,
+// a 1px bottom border. Left: "»" when the sidebar is collapsed, then the
+// page's breadcrumb with small icons, every part a link (on medium, the
+// middle parts fold into "..." when there are more than three). Right,
+// small and quiet: the sync status, notifications, a star to add the page
+// to Favorites, and "..." for page options (full or standard width, export,
+// copy link, page info). No search field, title, back arrow or buttons.
 
-import { useMemo, useRef, useState, type Ref } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
-import { Bell, ChevronRight, Menu, Search } from 'lucide-react';
-import { pageTitle, WIDE_NAV } from '@/src/shared/config/wideNav';
-import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
-import { useCurrentBreadcrumb } from './breadcrumb';
+import { usePathname } from 'next/navigation';
+import { Bell, ChevronsRight, Copy, FileText, Info, MoreHorizontal, Printer, Star, StretchHorizontal } from 'lucide-react';
+import { defaultCrumbs, PAGE_TREE, pageForPath } from '@/src/shared/config/pageTree';
+import { useFavorites } from '@/src/shared/hooks/useFavorites';
+import { useSyncStatus } from '@/src/shared/hooks/useSyncStatus';
+import { useLocationSearch } from '@/src/shared/navigation/locationSearch';
+import { Popover } from '@/src/widgets/ListQuery/Popover';
+import { showToast } from '@/src/widgets/Toast/Toast';
+import { setPageWidth, usePageMeta, usePageWidth, type Crumb } from './breadcrumb';
+import menu from './Sidebar.module.css';
 import styles from './TopBar.module.css';
 
-const SEARCHABLE = [
-  ...WIDE_NAV.time,
-  ...WIDE_NAV.money,
-  { href: '/tasks', label: 'All tasks' },
-  { href: '/wallets', label: 'Wallets' },
-  { href: '/debts', label: 'Debts' },
-  { href: '/add-transaction', label: 'Add transaction' },
-  { href: '/settings', label: 'Settings' },
-  { href: '/settings/google-calendar', label: 'Google Calendar' },
-].filter((item, i, all) => all.findIndex((x) => x.label === item.label) === i);
+function iconFor(crumb: Crumb, index: number) {
+  if (index === 0) return null;
+  const page = crumb.href ? [...PAGE_TREE.money, ...PAGE_TREE.time].find((p) => p.href === crumb.href) : null;
+  return page?.icon ?? FileText;
+}
 
 export function TopBar({
-  showMenu,
-  onMenu,
-  showProfile,
-  slotRef,
-  searchRef,
+  showExpand,
+  onExpand,
+  compactCrumbs,
+  defaultWidth,
 }: {
-  showMenu: boolean;
-  onMenu: () => void;
-  showProfile: boolean;
-  slotRef: Ref<HTMLDivElement>;
-  searchRef: Ref<HTMLInputElement>;
+  showExpand: boolean;
+  onExpand: () => void;
+  /** Medium: fold the middle of a long breadcrumb into "...". */
+  compactCrumbs: boolean;
+  defaultWidth: 'full' | 'standard';
 }) {
   const pathname = usePathname();
-  const router = useRouter();
-  const { user } = useFirebaseUser();
-  const [query, setQuery] = useState('');
-  const [open, setOpen] = useState(false);
-  const wrapRef = useRef<HTMLDivElement>(null);
-  // A page's breadcrumb ("Money / Budget / October 2026") replaces the title.
-  const crumbs = useCurrentBreadcrumb();
-  const matches = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return (q ? SEARCHABLE.filter((r) => r.label.toLowerCase().includes(q)) : SEARCHABLE).slice(0, 8);
-  }, [query]);
+  const search = useLocationSearch(pathname);
+  const meta = usePageMeta();
+  const sync = useSyncStatus();
+  const favorites = useFavorites();
+  const width = usePageWidth(pathname, defaultWidth);
+  const [options, setOptions] = useState<HTMLElement | null>(null);
+  const [info, setInfo] = useState(false);
 
-  function go(href: string) {
-    router.push(href);
-    setQuery('');
-    setOpen(false);
-  }
+  const crumbs = meta.crumbs ?? defaultCrumbs(pathname, search);
+  const here = `${pathname ?? ''}${search}`;
+  const title = crumbs[crumbs.length - 1]?.label ?? 'Page';
+  const starred = favorites.isFavorite(here);
+  const shown: (Crumb | 'fold')[] = compactCrumbs && crumbs.length > 3 ? [crumbs[0], 'fold', crumbs[crumbs.length - 1]] : crumbs;
 
   return (
     <header className={styles.bar}>
       <div className={styles.left}>
-        {showMenu && (
-          <button type="button" className={styles.iconButton} onClick={onMenu} aria-label="Open navigation" title="Open navigation ( [ )">
-            <Menu size={20} strokeWidth={2} />
+        {showExpand && (
+          <button type="button" className={styles.iconButton} onClick={onExpand} aria-label="Open sidebar" title="Open sidebar (Ctrl or Cmd + \)">
+            <ChevronsRight size={18} strokeWidth={2} />
           </button>
         )}
-        {crumbs?.length ? (
-          <nav aria-label="Breadcrumb" className={styles.crumbs}>
-            <ol>
-              {crumbs.map((crumb, index) => {
-                const last = index === crumbs.length - 1;
+        <nav aria-label="Breadcrumb" className={styles.crumbs}>
+          <ol>
+            {shown.map((crumb, index) => {
+              if (crumb === 'fold') {
+                const hidden = crumbs.slice(1, -1);
                 return (
-                  <li key={`${crumb.label}-${index}`}>
-                    {index > 0 && <ChevronRight size={14} strokeWidth={2} aria-hidden className={styles.crumbSep} />}
-                    {crumb.href && !last ? (
-                      <Link href={crumb.href} className={styles.crumbLink}>
-                        {crumb.label}
-                      </Link>
-                    ) : (
-                      <span className={styles.crumbText} aria-current={last ? 'page' : undefined}>
-                        {crumb.label}
-                      </span>
-                    )}
+                  <li key="fold">
+                    <span className={styles.sep}>/</span>
+                    <span className={styles.crumbText} title={hidden.map((c) => c.label).join(' / ')}>
+                      ...
+                    </span>
                   </li>
                 );
-              })}
-            </ol>
-          </nav>
-        ) : (
-          <h1 className={styles.title}>{pageTitle(pathname)}</h1>
-        )}
-        <div ref={slotRef} className={styles.slot} />
+              }
+              const last = index === shown.length - 1;
+              const Icon = iconFor(crumb, crumbs.indexOf(crumb));
+              const body = (
+                <>
+                  {Icon && <Icon size={14} strokeWidth={2} aria-hidden />}
+                  <span>{crumb.label}</span>
+                </>
+              );
+              return (
+                <li key={`${crumb.label}-${index}`}>
+                  {index > 0 && <span className={styles.sep}>/</span>}
+                  {crumb.href && !last ? (
+                    <Link href={crumb.href} className={styles.crumbLink}>
+                      {body}
+                    </Link>
+                  ) : (
+                    <span className={styles.crumbText} aria-current={last ? 'page' : undefined}>
+                      {body}
+                    </span>
+                  )}
+                </li>
+              );
+            })}
+          </ol>
+        </nav>
       </div>
 
       <div className={styles.right}>
-        <div
-          className={styles.search}
-          ref={wrapRef}
-          onBlur={(e) => {
-            if (!wrapRef.current?.contains(e.relatedTarget as Node)) setOpen(false);
-          }}
-        >
-          <Search size={16} strokeWidth={2} className={styles.searchIcon} aria-hidden />
-          <input
-            ref={searchRef}
-            className={styles.searchInput}
-            placeholder="Search"
-            aria-label="Search pages"
-            role="combobox"
-            aria-expanded={open}
-            aria-controls="topbar-search-results"
-            value={query}
-            onChange={(e) => {
-              setQuery(e.target.value);
-              setOpen(true);
-            }}
-            onFocus={() => setOpen(true)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && matches[0]) go(matches[0].href);
-              if (e.key === 'Escape') {
-                setOpen(false);
-                (e.target as HTMLInputElement).blur();
-              }
-            }}
-          />
-          {open && matches.length > 0 && (
-            <ul id="topbar-search-results" className={styles.results} role="listbox">
-              {matches.map((m) => (
-                <li key={m.href + m.label} role="option" aria-selected={false}>
-                  <button type="button" className={styles.result} onMouseDown={(e) => e.preventDefault()} onClick={() => go(m.href)}>
-                    {m.label}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+        <span className={styles.sync}>{sync}</span>
         <Link href="/notifications" className={styles.iconButton} aria-label="Notifications" title="Notifications">
-          <Bell size={19} strokeWidth={1.9} />
+          <Bell size={17} strokeWidth={1.9} />
         </Link>
-        {showProfile && (
-          <Link href="/settings" className={styles.avatar} aria-label="Profile and settings" title="Profile and settings">
-            {(user?.displayName || user?.email || 'Y').charAt(0).toUpperCase()}
-          </Link>
-        )}
+        <button
+          type="button"
+          className={styles.iconButton}
+          aria-pressed={starred}
+          aria-label={starred ? 'Remove from Favorites' : 'Add to Favorites'}
+          title={starred ? 'Remove from Favorites' : 'Add to Favorites'}
+          onClick={() => void favorites.toggle({ href: here, label: title, kind: pageForPath(pathname, search)?.id ?? 'page' })}
+        >
+          <Star size={17} strokeWidth={1.9} fill={starred ? 'currentColor' : 'none'} />
+        </button>
+        <button type="button" className={styles.iconButton} aria-label="Page options" title="Page options" onClick={(e) => setOptions(e.currentTarget)}>
+          <MoreHorizontal size={18} strokeWidth={2} />
+        </button>
       </div>
+
+      {options && (
+        <Popover anchor={options} label="Page options" onClose={() => setOptions(null)}>
+          <div className={menu.menu}>
+            <button
+              type="button"
+              className={menu.menuRow}
+              data-row
+              onClick={() => {
+                if (pathname) setPageWidth(pathname, width === 'full' ? 'standard' : 'full');
+                setOptions(null);
+              }}
+            >
+              <StretchHorizontal size={15} strokeWidth={2} aria-hidden />
+              {width === 'full' ? 'Standard width' : 'Full width'}
+            </button>
+            <button
+              type="button"
+              className={menu.menuRow}
+              data-row
+              onClick={() => {
+                setOptions(null);
+                window.setTimeout(() => window.print(), 50);
+              }}
+            >
+              <Printer size={15} strokeWidth={2} aria-hidden /> Export as PDF
+            </button>
+            <button
+              type="button"
+              className={menu.menuRow}
+              data-row
+              onClick={() => {
+                void navigator.clipboard?.writeText(window.location.href).then(() => showToast('Link copied'));
+                setOptions(null);
+              }}
+            >
+              <Copy size={15} strokeWidth={2} aria-hidden /> Copy link
+            </button>
+            <button
+              type="button"
+              className={menu.menuRow}
+              data-row
+              onClick={() => {
+                setInfo((i) => !i);
+              }}
+            >
+              <Info size={15} strokeWidth={2} aria-hidden /> Page info
+            </button>
+            {info && (
+              <p className={styles.info}>
+                {title}
+                <br />
+                {here}
+              </p>
+            )}
+          </div>
+        </Popover>
+      )}
     </header>
   );
 }
