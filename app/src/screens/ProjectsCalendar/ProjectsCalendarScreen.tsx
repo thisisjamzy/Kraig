@@ -1,291 +1,222 @@
 'use client';
 
-// Calendar + daily schedule, per the Time module brief: a header (menu icon,
-// month title), a Monday-first month grid in its own tinted panel with
-// rounded top corners, then "Schedule" / "Add Event" over an hour timeline
-// (08.00 labels, faint guide lines) with each task placed at its start time.
-// Tasks render with exactly the Time hub's own card (TaskCheckRow): the radio
-// completes the task, anything else on the card opens its edit page. On web
-// the grid sits beside the schedule. "Add Event" opens the new task form on
-// the selected day. The generic AppHeader is off on this
-// route (chromeVisibility.ts) — this header replaces it.
+// Calendar: a Notion page with a Calendar-layout database of everything
+// dated: the Tasks database's tasks, Google Calendar events, project start
+// and end dates and planned payments.
+//   Properties: Calendar (the Google calendar's name), Sync (shown only
+//   here), Showing (the sources on).
+//   Toolbar: on the left a date range dropdown ("28 Sep to 4 Oct 2026")
+//   and "Today"; on the right the view selector (Day, Week, Month as
+//   views), filter (Source, Free tasks, Project, Area, Type), search, view
+//   settings and New.
+//   Large: a 260px left column with the mini calendar and a "Calendars"
+//   checklist (Dreda tasks, Google, Project dates). Smaller screens keep
+//   these in the date dropdown and the filter.
+//   Medium: Day view by default (with a 7-day strip), Week with narrow
+//   bars. Phones: Day (with the strip) or Month (dots, the tapped day's
+//   list below); no Week.
 
-import { useRef } from 'react';
-import { ChevronLeft, ChevronRight, CalendarClock, FolderKanban, ListPlus, RefreshCw, Target, Wallet } from 'lucide-react';
-import { useLogic, HOUR_HEIGHT } from '@/src/logic/projectsCalendar/useLogic';
-import { ActionMenu } from '@/src/widgets/ActionMenu/ActionMenu';
+import { useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { CalendarDays } from 'lucide-react';
+import { ALL_SOURCES, useLogic, type CalendarSources } from '@/src/logic/timeCalendar/useLogic';
+import { useLayout } from '@/src/shared/hooks/useLayout';
+import { useTaskPanel } from '@/src/shared/navigation/taskPanel';
+import { dayFromIso, isoDay, mondayOf, shiftDay, weekRangeLabel, type CalItem } from '@/src/viewmodels/calendarItems';
+import { NotionPage } from '@/src/widgets/Database/NotionPage';
+import { ColumnBlocks, Column } from '@/src/widgets/Database/ColumnBlocks';
+import { Database } from '@/src/widgets/Database/Database';
+import type { ColumnDef, DefaultView, Layout } from '@/src/widgets/Database/types';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
-import { TaskCheckRow } from '@/src/widgets/TaskCheckRow/TaskCheckRow';
-import { GoogleEventCard } from '@/src/widgets/GoogleEventCard/GoogleEventCard';
 import { CalendarSyncStatus } from '@/src/widgets/CalendarSyncStatus/CalendarSyncStatus';
-import { syncNow } from '@/src/widgets/CalendarSyncStatus/syncNow';
-import { isCalendarSyncEnabled } from '@/src/shared/calendarSync/runner';
-import { DayTimeline } from './DayTimeline';
-import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
-import { useIsWeb } from '@/src/shared/hooks/useViewportMode';
+import { DateDropdown } from '@/src/widgets/TimeCalendar/DateDropdown';
+import { DayStrip } from '@/src/widgets/TimeCalendar/DayStrip';
+import { MiniCalendar } from '@/src/widgets/TimeCalendar/MiniCalendar';
+import { MonthGrid } from '@/src/widgets/TimeCalendar/MonthGrid';
+import { TimeGrid } from '@/src/widgets/TimeCalendar/TimeGrid';
 import styles from './ProjectsCalendarScreen.module.css';
-import webStyles from './ProjectsCalendarScreen.web.module.css';
-import dynamic from 'next/dynamic';
 
-const CalendarWide = dynamic(() => import('./CalendarWide').then((m) => m.CalendarWide), { ssr: false });
+type Source = 'Dreda tasks' | 'Google' | 'Project dates';
 
-const WEEKDAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
-
-function hourLabel(hour: number) {
-  return `${String(hour % 24).padStart(2, '0')}.00`;
+interface CalRow extends CalItem {
+  rowKey: string;
+  iso: string;
+  source: Source;
+  area: string | null;
+  type: string;
 }
+
+const VIEWS: DefaultView<CalRow>[] = [
+  { id: 'week', name: 'Week', layout: 'week' },
+  { id: 'day', name: 'Day', layout: 'day' },
+  { id: 'month', name: 'Month', layout: 'month' },
+];
+
+const TYPE_OF: Record<CalItem['kind'], string> = { todo: 'Todo', meeting: 'Meeting', event: 'Event', google: 'Google event', project: 'Project date', payment: 'Payment' };
+
+const COLUMNS: ColumnDef<CalRow>[] = [
+  { id: 'title', label: 'Name', type: 'text', value: (r) => r.title },
+  {
+    id: 'source',
+    label: 'Source',
+    type: 'select',
+    value: (r) => r.source,
+    options: (['Dreda tasks', 'Google', 'Project dates'] as Source[]).map((s) => ({ value: s, label: s })),
+  },
+  { id: 'free', label: 'Free task', type: 'checkbox', value: (r) => r.source === 'Dreda tasks' && r.free },
+  { id: 'project', label: 'Project', type: 'text', value: (r) => r.project },
+  { id: 'area', label: 'Area', type: 'text', value: (r) => r.area },
+  {
+    id: 'type',
+    label: 'Type',
+    type: 'select',
+    value: (r) => r.type,
+    options: Object.values(TYPE_OF).map((t) => ({ value: t, label: t })),
+  },
+  { id: 'date', label: 'Date', type: 'date', value: (r) => dayFromIso(r.iso) },
+];
 
 export function ProjectsCalendarScreen() {
-  const logic = useLogic();
-  const isWeb = useIsWeb();
-  // Medium screens and up: Day / Week / Month (its own chunk, so phones
-  // never download it). Phones keep this view exactly as it was.
-  if (isWeb) return <CalendarWide logic={logic} />;
-  return <ProjectsCalendarView {...logic} isWeb={isWeb} />;
-}
+  const [sources, setSources] = useState<CalendarSources>(ALL_SOURCES);
+  const logic = useLogic({ sources });
+  const router = useRouter();
+  const taskPanel = useTaskPanel();
+  const { deviceClass } = useLayout();
+  const compact = deviceClass === 'compact';
+  const { selected, today, pick, range } = logic;
 
-export type ProjectsCalendarViewProps = Pick<
-  ReturnType<typeof useLogic>,
-  | 'monthCursor'
-  | 'daysWithItems'
-  | 'selectedDate'
-  | 'todayIso'
-  | 'agenda'
-  | 'allDayTasks'
-  | 'allDayGoogle'
-  | 'schedule'
-  | 'syncRange'
-  | 'monthGrid'
-  | 'shiftMonth'
-  | 'pickDate'
-  | 'jumpToToday'
-  | 'openAddEvent'
-  | 'openProject'
-  | 'openPayment'
-  | 'loading'
-> & { isWeb: boolean };
+  // Every item in the loaded range, one row per day it's on.
+  const areaOf = useMemo(() => new Map(logic.rows.map((r) => [r.id, r.areaName])), [logic.rows]);
+  const rows = useMemo(() => {
+    const out: CalRow[] = [];
+    for (let d = new Date(range.from); d < range.to; d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1)) {
+      const iso = isoDay(d);
+      for (const item of logic.itemsOn(iso)) {
+        out.push({
+          ...item,
+          rowKey: `${iso}|${item.key}`,
+          iso,
+          source: item.taskId ? 'Dreda tasks' : item.kind === 'google' ? 'Google' : 'Project dates',
+          area: item.taskId ? (areaOf.get(item.taskId) ?? null) : null,
+          type: TYPE_OF[item.kind],
+        });
+      }
+    }
+    return out;
+  }, [logic, range, areaOf]);
 
-/** The whole calendar UI, fed by props — ProjectsCalendarScreen wires it to
- * live data; keeping it presentational means it can also be rendered with
- * fixed sample data to check its layout. */
-export function ProjectsCalendarView({
-  monthCursor,
-  daysWithItems,
-  selectedDate,
-  todayIso,
-  agenda,
-  allDayTasks,
-  allDayGoogle,
-  schedule,
-  syncRange,
-  monthGrid,
-  shiftMonth,
-  pickDate,
-  jumpToToday,
-  openAddEvent,
-  openProject,
-  openPayment,
-  loading,
-  isWeb,
-}: ProjectsCalendarViewProps) {
-
-  // Swipe the month panel left/right to change month — the brief's header
-  // carries only the menu and the title, so there are no arrow buttons.
-  const touchStartX = useRef<number | null>(null);
-  function onPanelTouchStart(event: React.TouchEvent) {
-    touchStartX.current = event.touches[0]?.clientX ?? null;
+  function open(item: CalItem) {
+    if (item.taskId) taskPanel.open(item.taskId);
+    else if (item.href) router.push(item.href);
   }
-  function onPanelTouchEnd(event: React.TouchEvent) {
-    const startX = touchStartX.current;
-    touchStartX.current = null;
-    const endX = event.changedTouches[0]?.clientX;
-    if (startX === null || endX === undefined) return;
-    const dx = endX - startX;
-    if (Math.abs(dx) > 50) shiftMonth(dx < 0 ? 1 : -1);
+  const newAt = (iso: string, minute?: number) =>
+    taskPanel.open('new', minute === undefined ? { date: iso } : { date: iso, start: `${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}` });
+
+  function rangeLabel(layout: Layout) {
+    const d = dayFromIso(selected);
+    if (layout === 'day') return d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    if (layout === 'month') return d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+    return weekRangeLabel(selected);
   }
 
-  const monthLabel = monthCursor.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-  const selectedLabel = new Date(`${selectedDate}T00:00:00`).toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-  });
-  const hasAllDay =
-    agenda.projectItems.length > 0 || agenda.paymentItems.length > 0 || allDayTasks.length > 0 || allDayGoogle.length > 0;
-  const syncEnabled = isCalendarSyncEnabled();
+  function render(layout: Layout, shown: CalRow[]) {
+    const byDay = new Map<string, CalRow[]>();
+    for (const r of shown) byDay.set(r.iso, [...(byDay.get(r.iso) ?? []), r]);
+    const itemsOn = (iso: string) => byDay.get(iso) ?? [];
+    if (layout === 'month') return <MonthGrid selected={selected} today={today} itemsOn={itemsOn} onOpen={open} onDay={(iso) => pick(iso)} compact={compact} />;
+    const common = {
+      itemsOn,
+      today,
+      onOpen: open,
+      onEmpty: newAt,
+      onMove: (item: CalItem, iso: string, startMin: number, endMin: number) => (item.taskId ? logic.scheduleAt(item.taskId, iso, startMin, endMin) : undefined),
+      onDropTask: (id: string, iso: string, minute: number) => logic.scheduleAt(id, iso, minute),
+      maxHeight: compact ? undefined : 'calc(100dvh - 300px)',
+    };
+    if (layout === 'week') {
+      const monday = mondayOf(selected);
+      return <TimeGrid mode="week" days={Array.from({ length: 7 }, (_, i) => shiftDay(monday, i))} selected={selected} onPickDay={pick} barsBelow={deviceClass === 'medium' ? 90 : undefined} {...common} />;
+    }
+    return (
+      <div className={styles.day}>
+        {deviceClass !== 'large' && <DayStrip selected={selected} today={today} onPick={pick} countOf={(iso) => itemsOn(iso).length} scrollable={compact} />}
+        <TimeGrid mode="day" days={[selected]} {...common} />
+      </div>
+    );
+  }
+
+  const showing = [sources.tasks && 'Tasks', sources.google && 'Google events', sources.projectDates && 'Project dates'].filter(Boolean).join(', ') || 'Nothing';
+
+  const database = (
+    <Database<CalRow>
+      id="time.calendar"
+      label="Calendar"
+      noun={['item', 'items']}
+      rows={rows}
+      rowKey={(r) => r.rowKey}
+      columns={COLUMNS}
+      views={VIEWS}
+      card={{ title: (r) => r.title }}
+      extraLayouts={['day', 'week', 'month']}
+      phoneLayouts={['day', 'month']}
+      openView={deviceClass === 'medium' ? 'day' : null}
+      renderLayout={(layout, shown) => render(layout, shown)}
+      tabs={(view) => (
+        <span className={styles.range}>
+          <DateDropdown label={rangeLabel(view.layout)} selected={selected} today={today} onPick={pick} hasItems={logic.hasItems} className={styles.rangeButton} />
+          {selected !== today && (
+            <button type="button" className={styles.todayButton} onClick={logic.goToday}>
+              Today
+            </button>
+          )}
+        </span>
+      )}
+      onNew={() => newAt(selected)}
+      emptyText="Nothing scheduled."
+    />
+  );
 
   return (
-    <div className={`${styles.page} ${isWeb ? webStyles.page : ''}`}>
-      <ScreenHeader
-        center
-        left={
-            <ActionMenu
-              ariaLabel="Calendar menu"
-              triggerClassName={styles.menuButton}
-              triggerIcon={
-                <span className={styles.menuIcon} aria-hidden>
-                  <span />
-                  <span />
-                </span>
-              }
-              items={[
-                {
-                  key: 'today',
-                  label: 'Jump to today',
-                  icon: <CalendarClock size={14} strokeWidth={2} />,
-                  onSelect: jumpToToday,
-                },
-                {
-                  key: 'previous',
-                  label: 'Previous month',
-                  icon: <ChevronLeft size={14} strokeWidth={2} />,
-                  onSelect: () => shiftMonth(-1),
-                },
-                {
-                  key: 'next',
-                  label: 'Next month',
-                  icon: <ChevronRight size={14} strokeWidth={2} />,
-                  onSelect: () => shiftMonth(1),
-                },
-                {
-                  key: 'add',
-                  label: 'Add event',
-                  icon: <ListPlus size={14} strokeWidth={2} />,
-                  onSelect: openAddEvent,
-                },
-                ...(syncEnabled
-                  ? [
-                      {
-                        key: 'sync',
-                        label: 'Sync with Google Calendar',
-                        icon: <RefreshCw size={14} strokeWidth={2} />,
-                        onSelect: () => void syncNow(syncRange),
-                      },
-                    ]
-                  : []),
-              ]}
-            />
-        }
-        title={monthLabel}
-      />
-
-        <div className={`${styles.layout} ${isWeb ? webStyles.layout : ''}`}>
-          <section
-            className={`${styles.calendarPanel} ${isWeb ? webStyles.calendarPanel : ''}`}
-            aria-label={monthLabel}
-            onTouchStart={onPanelTouchStart}
-            onTouchEnd={onPanelTouchEnd}
-          >
-            <div className={styles.weekdays}>
-              {WEEKDAYS.map((day) => (
-                <span key={day}>{day}</span>
+    <NotionPage
+      title="Calendar"
+      icon={<CalendarDays strokeWidth={1.75} />}
+      crumbs={[{ label: 'Time', href: '/projects' }, { label: 'Calendar', href: '/projects/calendar' }]}
+      properties={[
+        { id: 'calendar', label: 'Calendar', display: logic.syncEnabled ? `Google: ${logic.calendarName ?? 'Primary calendar'}` : 'Google Calendar not connected' },
+        ...(logic.syncEnabled ? [{ id: 'sync', label: 'Sync', display: <CalendarSyncStatus range={range} /> }] : []),
+        { id: 'showing', label: 'Showing', display: showing },
+      ]}
+    >
+      <ScreenState loading={logic.loading} />
+      {deviceClass === 'large' ? (
+        <ColumnBlocks template="260px minmax(0, 1fr)">
+          <Column label="Month and calendars">
+            <MiniCalendar selected={selected} today={today} onPick={pick} hasItems={logic.hasItems} />
+            <section className={styles.calendars} aria-label="Calendars">
+              <p className={styles.calendarsTitle}>Calendars</p>
+              {(
+                [
+                  ['tasks', 'Dreda tasks', '#337ea9'],
+                  ['google', 'Google', '#448361'],
+                  ['projectDates', 'Project dates', '#9f6b53'],
+                ] as [keyof CalendarSources, string, string][]
+              ).map(([key, label, color]) => (
+                <label key={key} className={styles.calendarRow}>
+                  <input type="checkbox" checked={sources[key]} onChange={(e) => setSources((s) => ({ ...s, [key]: e.target.checked }))} style={{ accentColor: color }} />
+                  {label}
+                </label>
               ))}
-            </div>
-            <div className={styles.grid} role="grid">
-              {monthGrid.map((cell) => {
-                const isSelected = cell.iso === selectedDate;
-                const isToday = cell.iso === todayIso;
-                return (
-                  <button
-                    key={cell.iso}
-                    type="button"
-                    role="gridcell"
-                    aria-selected={isSelected}
-                    aria-label={new Date(`${cell.iso}T00:00:00`).toDateString()}
-                    className={styles.day}
-                    data-outside={!cell.inMonth || undefined}
-                    data-today={isToday || undefined}
-                    onClick={() => pickDate(cell.iso)}
-                  >
-                    <span className={styles.dayNumber}>{cell.day}</span>
-                    {daysWithItems.has(cell.iso) && !isSelected && <span className={styles.dayDot} aria-hidden />}
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-
-          <section className={styles.schedule}>
-            <div className={styles.scheduleHead}>
-              <div>
-                <h2 className={styles.scheduleTitle}>Schedule</h2>
-                <p className={styles.scheduleDate}>{selectedLabel}</p>
-                <CalendarSyncStatus range={syncRange} />
-              </div>
-              <button type="button" className={styles.addLink} onClick={openAddEvent}>
-                Add Event
-              </button>
-            </div>
-
-            <ScreenState loading={loading} />
-
-            {hasAllDay && (
-              <div className={styles.allDay}>
-                {allDayTasks.map((task) => (
-                  <TaskCheckRow key={task.id} task={task} timeOnly />
-                ))}
-                {allDayGoogle.map((event) => (
-                  <GoogleEventCard key={event.id} event={event} />
-                ))}
-                {agenda.projectItems.map((item) => (
-                  <button
-                    key={`${item.id}-${item.label}`}
-                    type="button"
-                    className={styles.allDayItem}
-                    onClick={() => openProject(item.id)}
-                  >
-                    <span className={styles.allDayIcon} data-kind="project">
-                      {item.isMilestone ? <Target size={14} strokeWidth={2} /> : <FolderKanban size={14} strokeWidth={2} />}
-                    </span>
-                    <span className={styles.allDayText}>
-                      <span className={styles.allDayTitle}>{item.title}</span>
-                      <span className={styles.allDayMeta}>{item.label}</span>
-                    </span>
-                  </button>
-                ))}
-                {agenda.paymentItems.map((payment) => (
-                  <button key={payment.id} type="button" className={styles.allDayItem} onClick={openPayment}>
-                    <span className={styles.allDayIcon} data-kind="payment">
-                      <Wallet size={14} strokeWidth={2} />
-                    </span>
-                    <span className={styles.allDayText}>
-                      <span className={styles.allDayTitle}>{payment.title}</span>
-                      <span className={styles.allDayMeta}>
-                        Payment due · {payment.amount.toLocaleString()} {payment.currency}
-                      </span>
-                    </span>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {!loading && (
-              <div className={styles.timeline} style={{ height: schedule.height + 24 }}>
-                {schedule.hours.map((hour) => (
-                  <div
-                    key={hour}
-                    className={styles.hourRow}
-                    style={{ top: (hour - schedule.firstHour) * HOUR_HEIGHT }}
-                    aria-hidden
-                  >
-                    <span className={styles.hourLabel}>{hourLabel(hour)}</span>
-                    <span className={styles.hourLine} />
-                  </div>
-                ))}
-                <DayTimeline items={schedule.items} groups={schedule.groups} />
-                {schedule.items.length === 0 && (
-                  <p className={styles.emptyDay}>
-                    Nothing scheduled.{' '}
-                    <button type="button" className={styles.addLink} onClick={openAddEvent}>
-                      Add an event
-                    </button>
-                  </p>
-                )}
-              </div>
-            )}
-          </section>
-        </div>
-
-    </div>
+              <label className={styles.calendarRow}>
+                <input type="checkbox" checked={sources.freeTasks} disabled={!sources.tasks} onChange={(e) => setSources((s) => ({ ...s, freeTasks: e.target.checked }))} />
+                Free tasks
+              </label>
+            </section>
+          </Column>
+          <Column label="Calendar">{database}</Column>
+        </ColumnBlocks>
+      ) : (
+        database
+      )}
+    </NotionPage>
   );
 }

@@ -78,8 +78,8 @@ export function taskWhen(startTime: Date | null, dueDate: Date | null, allDay = 
   const time =
     startTime && dueDate
       ? startTime.toDateString() === dueDate.toDateString()
-        ? `${formatTime(startTime)} – ${formatTime(dueDate)}`
-        : `${formatTime(startTime)} – ${dayLabel(dueDate)} ${formatTime(dueDate)}`
+        ? `${formatTime(startTime)} to ${formatTime(dueDate)}`
+        : `${formatTime(startTime)} to ${dayLabel(dueDate)} ${formatTime(dueDate)}`
       : formatTime(anchor);
   return timeOnly ? time : `${dayLabel(anchor)} · ${time}`;
 }

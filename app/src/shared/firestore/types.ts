@@ -885,6 +885,8 @@ export interface FirestoreProject {
   // each from its linked tasks. Absent on projects written before them.
   milestones?: ProjectMilestone[];
   description: string; // required
+  // The project page's free-text notes block. Absent on older projects.
+  notes?: string;
   // No separate `archived: boolean` — deliberately, so there's only ever
   // one source of truth for whether a project is active: `status`. A
   // second boolean that could drift out of sync with it (archived:false but
@@ -922,6 +924,12 @@ export type Quadrant = 'do' | 'schedule' | 'delegate' | 'eliminate';
 // effectiveTimeMode, which defaults by type (meetings/events blocked,
 // to-dos free).
 export type TimeMode = 'blocked' | 'free';
+
+export interface TaskSubtask {
+  id: string;
+  title: string;
+  done: boolean;
+}
 
 export interface FirestoreTask {
   id: string;
@@ -989,6 +997,9 @@ export interface FirestoreTask {
   linkedTransactionId: string | null; // a later build step (PRD section 15)
   notes: string; // required — every task says what it actually needs
   tags: string[];
+  // The task page's checklist (subtasks as lines, not tasks). Absent on
+  // older tasks.
+  subtasks?: TaskSubtask[];
   archived: boolean;
   createdBy: string;
   createdAt?: Timestamp;

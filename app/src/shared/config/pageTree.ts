@@ -60,8 +60,8 @@ export const PAGE_TREE: Record<AppMode, TreePage[]> = {
   ],
   time: [
     { id: 'today', href: '/projects', label: 'Today', icon: Sun, also: ['/tasks'] },
-    { id: 'calendar', href: '/projects/calendar', label: 'Calendar', icon: CalendarCheck },
     { id: 'focus', href: '/projects/focus', label: 'Focus', icon: Target },
+    { id: 'calendar', href: '/projects/calendar', label: 'Calendar', icon: CalendarCheck },
     {
       id: 'projects',
       href: '/projects/all',

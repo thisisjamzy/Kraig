@@ -1,0 +1,155 @@
+/* Project cards, rows and the continuous progress bar. */
+
+.nameCell {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.nameText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dot {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  margin-top: 1px;
+  border-radius: 50%;
+}
+
+/* One continuous bar: the filled part in the health color, the rest
+   light grey, the percentage as text beside it. */
+.progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 80px;
+}
+
+.track {
+  position: relative;
+  flex: 1;
+  height: 4px;
+  overflow: hidden;
+  background: rgba(55, 53, 47, 0.1);
+}
+
+.track > span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  display: block;
+}
+
+.pct {
+  flex: none;
+  min-width: 34px;
+  font-size: 0.75rem;
+  color: #787774;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-width: 0;
+  border: 1px solid #e9e9e7;
+  background: var(--color-background);
+  cursor: pointer;
+}
+
+.card:hover {
+  background: rgba(55, 53, 47, 0.02);
+}
+
+:global([data-theme='dark']) .card {
+  border-color: rgba(255, 255, 255, 0.09);
+}
+
+.cardBody {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px 10px;
+  min-width: 0;
+}
+
+.cardTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  min-width: 0;
+}
+
+.cardTitle button {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.muted {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: #787774;
+}
+
+.muted[data-alert] {
+  color: #787774;
+}
+
+.description {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary, #5f5e5b);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.chips:empty {
+  display: none;
+}
+
+/* The bar along the bottom edge, spanning the card's full width. */
+.cardFoot {
+  padding: 8px 14px 10px;
+  border-top: 1px solid #f1f1ef;
+}
+
+.listMeta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.8125rem;
+  color: #787774;
+}
+
+.listMeta .progress {
+  max-width: 140px;
+}

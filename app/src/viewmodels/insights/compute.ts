@@ -47,6 +47,10 @@ export interface Chart<T> {
 export interface InsightsResult {
   range: DateRange;
   tiles: { completion: Tile; onTime: Tile; overdue: Tile; streak: Tile };
+  /** What the tiles' changes compare with ("the 7-day average", "last week"). */
+  compareWith: string;
+  /** Overdue tasks now in Do first. */
+  overdueDoFirst: number;
   /** Over the range — or the last 7 days when the range is a single day. */
   completionTrend: Chart<DayStat[]>;
   plannedVsDone: Chart<DayStat[]>;
@@ -110,12 +114,16 @@ export function computeInsights({
 }): InsightsResult {
   const prev = previousRange(range);
   const t = settings.thresholds;
+  // A single day compares with the 7 days before it, not with one day.
+  const singleDay = rangeDays(range) < 2;
+  const week = { from: addDays(startOfDay(range.from), -7), to: endOfDay(addDays(startOfDay(range.from), -1)) };
+  const compareRange = singleDay ? week : prev;
 
   // ---- Tiles ----
   const completion = completionRate(tasks, range, now);
-  const prevCompletion = completionRate(tasks, prev, now);
+  const prevCompletion = completionRate(tasks, compareRange, now);
   const onTime = onTimeRate(tasks, range, now);
-  const prevOnTime = onTimeRate(tasks, prev, now);
+  const prevOnTime = onTimeRate(tasks, compareRange, now);
   const overdueNow = overdueTasks(tasks, now).length;
   // Overdue as it stood at the end of the previous period.
   const prevEnd = prev.to < now ? prev.to : now;
@@ -135,7 +143,18 @@ export function computeInsights({
   const doneNow = days.reduce((s, d) => s + d.done, 0);
   const donePrev = prevDays.reduce((s, d) => s + d.done, 0);
   let trendTakeaway: string;
-  if (doneNow === 0 && donePrev === 0) trendTakeaway = 'Complete a few tasks to see your trend.';
+  if (singleDay) {
+    // Today against the 7-day average, never against one other day.
+    const weekDone = dayStats(tasks, week, now).reduce((s, d) => s + d.done, 0);
+    const avg = Math.round((weekDone / 7) * 10) / 10;
+    const avgText = `${avg} ${avg === 1 ? 'task' : 'tasks'} a day`;
+    const when = kind === 'today' ? 'today' : 'on this day';
+    if (doneNow === 0 && weekDone === 0) trendTakeaway = 'Complete a few tasks to see your trend.';
+    else if (doneNow === 0) trendTakeaway = `Nothing completed yet ${when}. Your 7-day average is ${avgText}.`;
+    else if (weekDone === 0) trendTakeaway = `You finished ${doneNow} ${doneNow === 1 ? 'task' : 'tasks'} ${when}, the first in a week.`;
+    else if (Math.abs(doneNow - avg) < 0.5) trendTakeaway = `You finished ${doneNow} ${doneNow === 1 ? 'task' : 'tasks'} ${when}, in line with your 7-day average.`;
+    else trendTakeaway = `You finished ${doneNow} ${doneNow === 1 ? 'task' : 'tasks'} ${when}, ${doneNow > avg ? 'above' : 'below'} your 7-day average of ${avgText}.`;
+  } else if (doneNow === 0 && donePrev === 0) trendTakeaway = 'Complete a few tasks to see your trend.';
   else if (donePrev === 0) trendTakeaway = `You finished ${doneNow} ${doneNow === 1 ? 'task' : 'tasks'} ${periodWord(kind)}.`;
   else {
     const pct = Math.round(((doneNow - donePrev) / donePrev) * 100);
@@ -174,16 +193,24 @@ export function computeInsights({
   // ---- Priority mix ----
   const mix = quadrantMix(tasks, range);
   let mixTakeaway: string;
+  const when = periodWord(kind);
+  const scheduled = hoursText(mix.totalMinutes).replace('h', '');
+  const hoursWord = `${scheduled} scheduled ${mix.totalMinutes === 60 ? 'hour' : 'hours'}`;
   if (!mix.totalTasks) mixTakeaway = 'Plan tasks to see where your time goes.';
   else if (mix.firefighting !== null && mix.firefighting * 100 > t.firefightingWatchPercent) {
-    mixTakeaway = `Do-first work takes ${Math.round(mix.firefighting * 100)}% of your time, which is firefighting.`;
+    const pct = Math.round(mix.firefighting * 100);
+    mixTakeaway =
+      pct >= 100
+        ? `All ${hoursWord} ${when} are Do first work, so there's no time for planned work.`
+        : `${pct}% of the ${hoursWord} ${when} is Do first work, which leaves little time for planned work.`;
   } else {
     const basis = mix.totalMinutes ? 'hourShare' : 'taskShare';
+    const of = mix.totalMinutes ? `of the ${hoursWord} ${when}` : `of the ${mix.totalTasks} planned ${mix.totalTasks === 1 ? 'task' : 'tasks'} ${when}`;
     const top = [...mix.shares].sort((a, b) => b[basis] - a[basis])[0];
     mixTakeaway =
       top.quadrant === 'schedule'
-        ? `Most of your time goes to planned, important work (${Math.round(top[basis] * 100)}%). Nice.`
-        : `${QUADRANT_LABEL[top.quadrant]} takes the biggest share: ${Math.round(top[basis] * 100)}%.`;
+        ? `${Math.round(top[basis] * 100)}% ${of} goes to planned, important work. Nice.`
+        : `${QUADRANT_LABEL[top.quadrant]} takes the biggest share: ${Math.round(top[basis] * 100)}% ${of}.`;
   }
 
   // ---- Productive hours ----
@@ -230,6 +257,8 @@ export function computeInsights({
       overdue: { value: overdueNow, change: overdueChange, better: overdueChange === 0 ? null : overdueChange < 0 },
       streak: { value: streak, change: null, better: null },
     },
+    compareWith: singleDay ? 'the 7-day average' : previousWord(kind),
+    overdueDoFirst: overdueTasks(tasks, now).filter((x) => x.quadrant === 'do').length,
     completionTrend: { data: trendDays, takeaway: trendTakeaway, empty: !trendDays.some((d) => d.rate !== null) },
     plannedVsDone: { data: days, takeaway: plannedTakeaway, empty: !hasTasks },
     dailyLoad: { data: loads, takeaway: loadTakeaway, empty: !loads.some((l) => l.scheduledMinutes > 0) },

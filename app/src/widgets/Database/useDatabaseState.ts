@@ -18,7 +18,7 @@ interface Stored {
 }
 
 export function blankView(
-  base: { id: string; name: string; layout: ViewConfig['layout']; basedOn?: string | null; group?: string; hidden?: string[] | null },
+  base: { id: string; name: string; layout: ViewConfig['layout']; basedOn?: string | null; group?: string; hidden?: string[] | null; collapsed?: string[] },
   group: string
 ): ViewConfig {
   return {
@@ -32,7 +32,7 @@ export function blankView(
     widths: {},
     group: base.group ?? group,
     hideEmptyGroups: true,
-    collapsed: [],
+    collapsed: base.collapsed ?? [],
     calcs: {},
     cardSize: 'medium',
     cardPreview: 'progress',
@@ -53,7 +53,7 @@ function read(id: string): Stored | null {
   }
 }
 
-export function useDatabaseState<T>(id: string, defaults: DefaultView<T>[], defaultGroup: string, defaultSortPreset: string | null = null) {
+export function useDatabaseState<T>(id: string, defaults: DefaultView<T>[], defaultGroup: string, defaultSortPreset: string | null = null, openView: string | null = null) {
   const initial = (): Stored => ({
     active: defaults[0]?.id ?? 'table',
     views: defaults.map((d) => ({ ...blankView({ ...d, basedOn: d.id }, defaultGroup), sortPreset: defaultSortPreset })),
@@ -72,7 +72,10 @@ export function useDatabaseState<T>(id: string, defaults: DefaultView<T>[], defa
           ...stored.views.map((v) => ({ ...blankView(v, defaultGroup), ...v })),
           ...missing.map((d) => ({ ...blankView({ ...d, basedOn: d.id }, defaultGroup), sortPreset: defaultSortPreset })),
         ];
-        setState({ active: views.some((v) => v.id === stored.active) ? stored.active : views[0].id, views });
+        const wanted = openView && views.some((v) => v.id === openView) ? openView : null;
+        setState({ active: wanted ?? (views.some((v) => v.id === stored.active) ? stored.active : views[0].id), views });
+      } else if (openView && defaults.some((d) => d.id === openView)) {
+        setState((s) => ({ ...s, active: openView }));
       }
       setLoadedFor(id);
     });

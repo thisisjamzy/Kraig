@@ -17,7 +17,7 @@ import { useRef, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { BadgeCheck, Check, ChevronDown, ChevronsLeft, Home, LogOut, Plus, Search, Settings, User } from 'lucide-react';
+import { BadgeCheck, Check, ChevronDown, ChevronsLeft, Home, Inbox, LogOut, Plus, Search, Settings, Sun, User } from 'lucide-react';
 import { signOut } from 'firebase/auth';
 import logomark from '@/public/logos/black_logomark.png';
 import { MODE_HOME, MODE_LABEL, modeOfPath, type AppMode } from '@/src/shared/config/pageTree';
@@ -127,15 +127,21 @@ export function Sidebar({
             <span className={styles.rowLabel}>Search</span>
             {!touch && <kbd className={styles.kbd}>{isMac() ? '⌘K' : 'Ctrl K'}</kbd>}
           </button>
-          {row(MODE_HOME[mode], 'Home', Home)}
-          {row('/budget/ready', 'Ready to pay', BadgeCheck, ready ? <span className={styles.count}>{ready}</span> : null)}
           {mode === 'money' ? (
-            row('/add-transaction', 'Add transaction', Plus)
+            <>
+              {row(MODE_HOME[mode], 'Home', Home)}
+              {row('/budget/ready', 'Ready to pay', BadgeCheck, ready ? <span className={styles.count}>{ready}</span> : null)}
+              {row('/add-transaction', 'Add transaction', Plus)}
+            </>
           ) : (
-            <Link href={taskPanel.hrefFor('new')} scroll={false} className={styles.quickRow} onClick={onNavigate}>
-              <Plus size={18} strokeWidth={1.75} aria-hidden className={styles.rowGlyph} />
-              <span className={styles.rowLabel}>New task</span>
-            </Link>
+            <>
+              {row('/projects', 'Today', Sun)}
+              {row('/notifications', 'Inbox', Inbox)}
+              <Link href={taskPanel.hrefFor('new')} scroll={false} className={styles.quickRow} onClick={onNavigate}>
+                <Plus size={18} strokeWidth={1.75} aria-hidden className={styles.rowGlyph} />
+                <span className={styles.rowLabel}>New task</span>
+              </Link>
+            </>
           )}
         </div>
 

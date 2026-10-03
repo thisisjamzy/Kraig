@@ -906,3 +906,205 @@ button.tile:focus-visible {
     gap: 24px;
   }
 }
+
+/* ---- The Notion page (InsightsScreen) ---- */
+
+/* The chart colors, without the old page's layout. */
+.tokens {
+  --i-card: var(--color-background);
+  --i-shadow: none;
+  --i-done: var(--color-success);
+  --i-blocked: var(--color-success);
+  --i-free: color-mix(in srgb, var(--color-success) 38%, var(--color-background));
+  --i-planned: color-mix(in srgb, var(--color-text-secondary) 26%, var(--color-background));
+  --i-cancel: var(--color-danger);
+  --i-amber: #d98a1c;
+  --i-grid: color-mix(in srgb, var(--color-text-secondary) 14%, transparent);
+  --i-q-do: #d44c47;
+  --i-q-schedule: var(--color-brand);
+  --i-q-delegate: #cb912f;
+  --i-q-eliminate: #9b9a97;
+  min-width: 0;
+}
+
+:global([data-theme='dark']) .tokens {
+  --i-free: color-mix(in srgb, var(--color-success) 40%, var(--color-background));
+  --i-planned: color-mix(in srgb, var(--color-text-secondary) 30%, var(--color-background));
+  --i-amber: #f0a948;
+}
+
+.settingsLink {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  color: #787774;
+}
+
+.settingsLink:hover {
+  background: rgba(55, 53, 47, 0.06);
+  color: var(--color-text-primary);
+}
+
+.attentionTitle {
+  margin: 0 0 4px;
+  font-weight: 600;
+}
+
+.attention {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0 0 0 18px;
+}
+
+.attention > li {
+  line-height: 1.45;
+}
+
+.attention > li[data-severity='red']::marker {
+  color: #d44c47;
+}
+
+.attention a {
+  color: inherit;
+}
+
+.attentionToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: -18px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.attentionItems {
+  margin: 4px 0 2px;
+  padding-left: 18px;
+  font-size: 0.875rem;
+}
+
+.textButton {
+  align-self: flex-start;
+  margin-top: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #787774;
+  font: inherit;
+  font-size: 0.875rem;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 767px) {
+  .summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.summaryBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid #e9e9e7;
+  border-radius: 0;
+  background: var(--color-background);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+button.summaryBlock {
+  cursor: pointer;
+}
+
+button.summaryBlock:hover {
+  background: rgba(55, 53, 47, 0.02);
+}
+
+.summaryLabel {
+  font-size: 0.8125rem;
+  color: #787774;
+}
+
+.summaryValue {
+  font-size: 1.5rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.summaryEmpty {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: #787774;
+  padding: 6px 0 4px;
+}
+
+.summaryChange {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.75rem;
+  color: #787774;
+}
+
+.summaryChange[data-tone='better'] {
+  color: #448361;
+}
+
+.summaryChange[data-tone='worse'] {
+  color: #d44c47;
+}
+
+.riskList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.riskRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0 4px;
+  border-bottom: 1px solid #f1f1ef;
+  color: inherit;
+  font-size: 0.875rem;
+  text-decoration: none;
+}
+
+.riskRow:hover {
+  background: rgba(55, 53, 47, 0.04);
+}
+
+.riskName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.riskMeta {
+  color: #787774;
+  font-variant-numeric: tabular-nums;
+}

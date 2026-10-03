@@ -17,7 +17,10 @@ export type Calc = 'none' | 'sum' | 'average' | 'count' | 'count_values' | 'perc
 
 export type Tone = 'bad' | 'good' | 'watch' | 'neutral';
 
-export type Layout = 'table' | 'cards' | 'list' | 'board';
+/** Table, Cards, List and Board come with every database; Day, Week,
+ * Month (calendar) and Timeline only where the database renders them
+ * (Database's renderLayout). */
+export type Layout = 'table' | 'cards' | 'list' | 'board' | 'day' | 'week' | 'month' | 'timeline';
 
 export interface ColumnDef<T> {
   id: string;
@@ -67,6 +70,8 @@ export interface DefaultView<T> {
   filter?: (row: T) => boolean;
   group?: string;
   hidden?: string[];
+  /** Groups collapsed until opened (Done and Cancelled on Today). */
+  collapsed?: string[];
 }
 
 export interface ViewConfig {
@@ -84,6 +89,8 @@ export interface ViewConfig {
   group: string;
   hideEmptyGroups: boolean;
   collapsed: string[];
+  /** Board columns hidden from this view ("..." > Hide group). */
+  hiddenGroups?: string[];
   calcs: Record<string, Calc>;
   cardSize: 'small' | 'medium' | 'large';
   cardPreview: 'none' | 'progress' | 'chart';
@@ -124,9 +131,19 @@ export interface NewTemplate {
 /** How a row reads as a two-line list item (List view, and Table on phones). */
 export interface ListSpec<T> {
   title: (row: T) => string;
-  secondary?: (row: T) => string | null;
+  /** The second line; `shown` holds the view's visible property ids. */
+  secondary?: (row: T, shown: Set<string>) => ReactNode;
   amount?: (row: T) => ReactNode;
-  status?: (row: T) => ReactNode;
+  status?: (row: T, shown: Set<string>) => ReactNode;
+  /** Before the title (a task's circle checkbox). */
+  leading?: (row: T) => ReactNode;
+  /** The spec draws the visible properties itself (no third line). */
+  ownsProperties?: boolean;
+  /** Marks a row (data-row-key) so a page can highlight it from elsewhere. */
+  highlight?: string | null;
+  onHover?: (row: T | null) => void;
+  /** Rows can be dragged out (onto a timeline), carrying this data. */
+  drag?: { type: string; data: (row: T) => string };
 }
 
 export interface BoardSpec<T> {
@@ -138,4 +155,12 @@ export interface BoardSpec<T> {
   header?: (key: string, rows: T[]) => ReactNode;
   /** More actions in a card's "..." menu (after "Move to"). */
   actions?: RowAction<T>[];
+  /** A muted one-line hint under a column's name ("Urgent and important"). */
+  hint?: (key: string) => string | null;
+  /** A colored dot before a column's name. */
+  dot?: (key: string) => string | null;
+  /** Medium screens: four columns as a 2 by 2 grid (the Focus matrix). */
+  matrix?: boolean;
+  /** Columns share the width (at least 260px each, then the board scrolls). */
+  fill?: boolean;
 }

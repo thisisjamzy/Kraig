@@ -15,7 +15,7 @@ import { ChevronRight, Copy, ExternalLink, FileText, MoreHorizontal, Pencil, Plu
 import { query, updateDoc, where, serverTimestamp } from 'firebase/firestore';
 import { PAGE_TREE, MODE_LABEL, pageForPath, type AppMode, type TreePage } from '@/src/shared/config/pageTree';
 import { useFirestoreCollection } from '@/src/shared/firestore/hooks';
-import { bucketsRef, projectRef, projectsRef } from '@/src/shared/firestore/refs';
+import { areasRef, bucketsRef, projectRef, projectsRef } from '@/src/shared/firestore/refs';
 import { updateBucketFields } from '@/src/shared/firestore/bucketBudget';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { useFavorites, type Favorite } from '@/src/shared/hooks/useFavorites';
@@ -23,7 +23,7 @@ import { FLOW_LABEL, FLOW_TYPES } from '@/src/shared/budget/flow';
 import { useLocationSearch } from '@/src/shared/navigation/locationSearch';
 import { Popover } from '@/src/widgets/ListQuery/Popover';
 import { showToast } from '@/src/widgets/Toast/Toast';
-import type { FirestoreBucket, FirestoreProject } from '@/src/shared/firestore/types';
+import type { FirestoreArea, FirestoreBucket, FirestoreProject } from '@/src/shared/firestore/types';
 import styles from './Sidebar.module.css';
 
 const ORDER_KEY = (mode: AppMode) => `dreda.tree.order.${mode}`;
@@ -80,6 +80,21 @@ export function PageTree({ mode, touch, onNavigate }: { mode: AppMode; touch: bo
   const { data: projects } = useFirestoreCollection<FirestoreProject>(
     useMemo(() => (uid && mode === 'time' ? query(projectsRef(uid), where('status', '==', 'Active')) : null), [uid, mode])
   );
+  const { data: areas } = useFirestoreCollection<FirestoreArea>(useMemo(() => (uid && mode === 'time' ? query(areasRef(uid)) : null), [uid, mode]));
+  // Active projects grouped by area (areas by name, "No area" last).
+  const projectGroups = useMemo(() => {
+    const name = new Map(areas.map((a) => [a.id, a.name]));
+    const groups = new Map<string, { label: string; list: FirestoreProject[] }>();
+    for (const p of projects) {
+      const key = p.areaId && name.has(p.areaId) ? p.areaId : 'none';
+      const g = groups.get(key) ?? { label: key === 'none' ? 'No area' : name.get(key)!, list: [] };
+      g.list.push(p);
+      groups.set(key, g);
+    }
+    return [...groups.entries()]
+      .sort(([a, x], [b, y]) => (a === 'none' ? 1 : b === 'none' ? -1 : x.label.localeCompare(y.label)))
+      .map(([key, g]) => ({ key, label: g.label, list: g.list.sort((a, b) => a.name.localeCompare(b.name)) }));
+  }, [projects, areas]);
 
   const pages = useMemo(() => {
     const base = PAGE_TREE[mode];
@@ -214,13 +229,18 @@ export function PageTree({ mode, touch, onNavigate }: { mode: AppMode; touch: bo
               )}
               {expanded && page.children === 'projects' && (
                 <ul className={styles.list}>
-                  {[...projects]
-                    .sort((a, b) => a.name.localeCompare(b.name))
-                    .map((p) =>
-                      subRow(p.id, `/projects/${p.id}`, p.name, 'project', async (name) => {
-                        if (uid) await updateDoc(projectRef(uid, p.id), { name, updatedAt: serverTimestamp() });
-                      })
-                    )}
+                  {projectGroups.map((g) => (
+                    <li key={g.key}>
+                      {projectGroups.length > 1 && <p className={styles.groupLabel}>{g.label}</p>}
+                      <ul className={styles.list}>
+                        {g.list.map((p) =>
+                          subRow(p.id, `/projects/${p.id}`, p.name, 'project', async (name) => {
+                            if (uid) await updateDoc(projectRef(uid, p.id), { name, updatedAt: serverTimestamp() });
+                          })
+                        )}
+                      </ul>
+                    </li>
+                  ))}
                   {!projects.length && <li className={styles.emptyChild}>No active projects</li>}
                 </ul>
               )}

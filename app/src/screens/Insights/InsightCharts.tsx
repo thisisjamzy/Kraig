@@ -7,7 +7,7 @@
 // series is labelled (legend + tooltip), never told apart by color alone,
 // and tapping a bar or point opens the tasks behind it.
 
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import {
   Area,
   AreaChart,
@@ -30,33 +30,6 @@ import styles from './InsightsScreen.module.css';
 
 // ---------------------------------------------------------------------------
 // Shared bits
-
-export function ChartCard({
-  title,
-  takeaway,
-  empty,
-  emptyText,
-  action,
-  children,
-}: {
-  title: string;
-  takeaway: string;
-  empty: boolean;
-  emptyText: string;
-  action?: ReactNode;
-  children: ReactNode;
-}) {
-  return (
-    <section className={styles.card}>
-      <header className={styles.cardHead}>
-        <h2 className={styles.cardTitle}>{title}</h2>
-        {action}
-      </header>
-      <p className={styles.takeaway}>{empty ? emptyText : takeaway}</p>
-      {!empty && <div className={styles.chart}>{children}</div>}
-    </section>
-  );
-}
 
 function Legend({ items }: { items: { label: string; color: string; pattern?: 'dashed' }[] }) {
   return (

@@ -37,6 +37,7 @@ export function useTaskPanel() {
       if (!isWide) return taskPageHref(id, params);
       const sp = new URLSearchParams(window.location.search);
       for (const p of PREFILL_PARAMS) sp.delete(p);
+      sp.delete('form');
       sp.set(TASK_PARAM, id);
       for (const [k, v] of Object.entries(params ?? {})) sp.set(k, v);
       return `${pathname}?${sp.toString()}`;
@@ -59,6 +60,7 @@ export function withoutTaskPanel(pathname: string, search: string): string {
   const sp = new URLSearchParams(search);
   const wasNew = sp.get(TASK_PARAM) === 'new';
   sp.delete(TASK_PARAM);
+  sp.delete('form');
   if (wasNew) for (const p of PREFILL_PARAMS) sp.delete(p);
   const s = sp.toString();
   return s ? `${pathname}?${s}` : pathname;

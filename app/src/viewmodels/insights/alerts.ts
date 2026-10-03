@@ -49,7 +49,7 @@ export function dayAlerts(tasks: InsightTask[], settings: InsightsSettings, now:
     if (load.scheduledMinutes > capacity) {
       red.push(`${name} is overloaded: ${hours(load.scheduledMinutes)} scheduled against ${hours(capacity)} capacity`);
     }
-    if (load.doFirstCount > t.doFirstRedCount) red.push(`${name} has ${load.doFirstCount} do-first tasks`);
+    if (load.doFirstCount > t.doFirstRedCount) red.push(`${name} has ${load.doFirstCount} Do first tasks`);
     if (load.multitaskMinutes > t.stackedFreeRedHours * 60) {
       red.push(`${name} stacks ${hours(load.multitaskMinutes)} of free tasks on top of each other`);
     }
@@ -66,7 +66,7 @@ export function dayAlerts(tasks: InsightTask[], settings: InsightsSettings, now:
       severity: red.length ? 'red' : 'amber',
       kind: 'day',
       headline: lines[0],
-      detail: lines.length > 1 ? lines.slice(1).join(' · ') : `${hours(load.scheduledMinutes)} scheduled · ${load.doFirstCount} do-first`,
+      detail: lines.length > 1 ? lines.slice(1).join(' · ') : `${hours(load.scheduledMinutes)} scheduled · ${load.doFirstCount} Do first`,
       href: `/projects/calendar?date=${load.key}`,
     });
   }
@@ -85,9 +85,9 @@ export function overdueAlert(tasks: InsightTask[], settings: InsightsSettings, n
     kind: 'overdue',
     headline: `${overdue.length} overdue ${overdue.length === 1 ? 'task' : 'tasks'}`,
     detail: doFirst.length
-      ? `${doFirst.length} ${doFirst.length === 1 ? 'is' : 'are'} do-first · oldest “${oldest.title}”`
+      ? `${doFirst.length} ${doFirst.length === 1 ? 'is' : 'are'} in Do first · oldest “${oldest.title}”`
       : `Oldest: “${oldest.title}”, due ${shortDate(dueAt(oldest) as Date)}`,
-    href: '/tasks?filter=overdue',
+    href: '/projects/focus?view=overdue',
   };
 }
 
@@ -169,7 +169,7 @@ export function habitAlerts(tasks: InsightTask[], range: DateRange, settings: In
       id: 'firefighting',
       severity: 'amber',
       kind: 'habit',
-      headline: `Firefighting: do-first work is ${Math.round(mix.firefighting * 100)}% of your time`,
+      headline: `Do first work is ${Math.round(mix.firefighting * 100)}% of your scheduled time`,
       detail: 'Schedule important work before it becomes urgent',
       href: '/projects/focus',
     });
