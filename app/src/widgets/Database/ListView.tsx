@@ -31,6 +31,7 @@ export function ListView<T>({
   rowKey,
   extras,
   spec,
+  shown,
   db,
   subtotal,
   currency,
@@ -49,6 +50,8 @@ export function ListView<T>({
   /** Up to two more visible properties, for the third line. */
   extras: ColumnDef<T>[];
   spec: ListSpec<T>;
+  /** The view's visible property ids. */
+  shown: Set<string>;
   db: DatabaseStateApi;
   subtotal?: ColumnDef<T>;
   currency?: string;
@@ -158,7 +161,7 @@ export function ListView<T>({
                     const key = rowKey(row);
                     const actions = actionsFor(row);
                     const dx = swiping?.key === key ? swiping.dx : 0;
-                    const secondary = spec.secondary?.(row);
+                    const secondary = spec.secondary?.(row, shown);
                     return (
                       <li key={key} className={styles.listItemWrap}>
                         {dx !== 0 && (
@@ -168,6 +171,16 @@ export function ListView<T>({
                         )}
                         <div
                           className={styles.listItem}
+                          data-row-key={key}
+                          data-lit={spec.highlight === key || undefined}
+                          draggable={!compact && Boolean(spec.drag) && !selecting}
+                          onDragStart={(e) => {
+                            if (!spec.drag) return;
+                            e.dataTransfer.setData(spec.drag.type, spec.drag.data(row));
+                            e.dataTransfer.effectAllowed = 'move';
+                          }}
+                          onMouseEnter={spec.onHover ? () => spec.onHover!(row) : undefined}
+                          onMouseLeave={spec.onHover ? () => spec.onHover!(null) : undefined}
                           data-selected={selected.has(key) || undefined}
                           style={dx ? { transform: `translateX(${dx}px)` } : undefined}
                           onPointerDown={(e) => pointerDown(e, key)}
@@ -193,6 +206,7 @@ export function ListView<T>({
                           }}
                         >
                           {selecting && <input type="checkbox" className={styles.checkbox} checked={selected.has(key)} onChange={() => toggle(key)} aria-label="Select" />}
+                          {!selecting && spec.leading?.(row)}
                           <span className={styles.listMain}>
                             <span className={styles.listTitle}>{spec.title(row)}</span>
                             {secondary && <span className={styles.listSecondary}>{secondary}</span>}
@@ -206,7 +220,7 @@ export function ListView<T>({
                           </span>
                           <span className={styles.listSide}>
                             {spec.amount && <span className={styles.listAmount}>{spec.amount(row)}</span>}
-                            {spec.status && <span>{spec.status(row)}</span>}
+                            {spec.status && <span className={styles.listStatus}>{spec.status(row, shown)}</span>}
                           </span>
                           {actions.length > 0 && !selecting && (
                             <button type="button" className={styles.listMore} aria-label="Actions" onClick={(e) => setMenu({ row, anchor: e.currentTarget })}>

@@ -1,10 +1,11 @@
 'use client';
 
 // Renders the task side panel from the URL (?task=<id> or ?task=new, see
-// src/shared/navigation/taskPanel.ts) on medium screens and up. The panel
-// is the task form itself (TaskEditScreen), which already draws as a right
-// side panel over the page there (WebFormPanel). On a phone, a link like
-// that goes to the full page instead — phones never show panels.
+// src/shared/navigation/taskPanel.ts) on medium screens and up. An
+// existing task opens as its Notion page in a side peek (TaskPeek, edited
+// in place); a new task, or ?form=1, opens the task form (TaskEditScreen,
+// drawn as a right panel by WebFormPanel). On a phone, a link like that
+// goes to the full page instead; phones never show panels.
 
 import { useEffect } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
@@ -14,6 +15,7 @@ import dynamic from 'next/dynamic';
 
 // Loaded only when a panel actually opens.
 const TaskEditScreen = dynamic(() => import('@/src/screens/TaskEdit/TaskEditScreen').then((m) => m.TaskEditScreen), { ssr: false });
+const TaskPeek = dynamic(() => import('@/src/screens/TaskPage/TaskPage').then((m) => m.TaskPeek), { ssr: false });
 
 export function PanelHost() {
   const params = useSearchParams();
@@ -38,5 +40,10 @@ export function PanelHost() {
 
   if (!task || !isWide) return null;
   const close = () => router.replace(withoutTaskPanel(pathname, params.toString()), { scroll: false });
+  if (task !== 'new' && !params.get('form')) {
+    const sp = new URLSearchParams(params.toString());
+    sp.set('form', '1');
+    return <TaskPeek key={task} taskId={task} onClose={close} fullHref={taskPageHref(task)} formHref={`${pathname}?${sp.toString()}`} />;
+  }
   return <TaskEditScreen key={task} taskId={task === 'new' ? null : task} onClose={close} />;
 }

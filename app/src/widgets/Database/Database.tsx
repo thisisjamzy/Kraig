@@ -26,7 +26,7 @@ import { BoardView } from './BoardView';
 import { ViewSelector, ViewSettings } from './ViewMenus';
 import { fieldTypeOf, formatNumber, formatValue } from './format';
 import { useDatabaseState } from './useDatabaseState';
-import type { BoardSpec, BulkAction, ColumnDef, DefaultView, GroupDef, ListSpec, NewTemplate, RowAction } from './types';
+import type { BoardSpec, BulkAction, ColumnDef, DefaultView, GroupDef, Layout, ListSpec, NewTemplate, RowAction, ViewConfig } from './types';
 import styles from './Database.module.css';
 
 const DEFAULT_VIEWS: DefaultView<never>[] = [
@@ -58,8 +58,8 @@ export interface DatabaseProps<T> {
   card: CardSpec<T>;
   list?: ListSpec<T>;
   board?: BoardSpec<T>;
-  /** The page's type tabs, on the toolbar row. */
-  tabs?: ReactNode;
+  /** The page's type tabs (or a date range), on the toolbar row's left. */
+  tabs?: ReactNode | ((view: ViewConfig) => ReactNode);
   onOpen?: (row: T) => void;
   onNew?: (groupKey: string | null) => void;
   onCreate?: (values: Record<string, FieldValue>, groupKey: string | null) => Promise<unknown>;
@@ -74,14 +74,24 @@ export interface DatabaseProps<T> {
   above?: ReactNode;
   /** For the phone's total bar. */
   currency?: string;
+  /** Layouts this database draws itself (Day, Week, Month, Timeline):
+   * they're offered in the view menus, and drawn by renderLayout with the
+   * view's filtered, searched and sorted rows. */
+  extraLayouts?: Layout[];
+  renderLayout?: (layout: Layout, rows: T[], view: ViewConfig) => ReactNode;
+  /** Layouts not offered on phones (Week, Timeline). */
+  phoneLayouts?: Layout[];
+  /** Open on this view (a link like "Review overdue"). */
+  openView?: string | null;
 }
 
 export function Database<T>(props: DatabaseProps<T>) {
   const { id, label, noun, rows, rowKey, columns, groups = [], card } = props;
+  const tabsFor = (v: ViewConfig) => (typeof props.tabs === 'function' ? props.tabs(v) : props.tabs);
   const { deviceClass } = useLayout();
   const compact = deviceClass === 'compact';
   const defaults = (props.views ?? (DEFAULT_VIEWS as DefaultView<T>[])) as DefaultView<T>[];
-  const db = useDatabaseState<T>(id, defaults, props.defaultGroup ?? groups[0]?.id ?? 'none', props.sortPresets?.[0]?.id ?? null);
+  const db = useDatabaseState<T>(id, defaults, props.defaultGroup ?? groups[0]?.id ?? 'none', props.sortPresets?.[0]?.id ?? null, props.openView ?? null);
   const view = db.view;
   const [settings, setSettings] = useState<HTMLElement | null>(null);
   const [newMenu, setNewMenu] = useState<HTMLElement | null>(null);
@@ -156,7 +166,15 @@ export function Database<T>(props: DatabaseProps<T>) {
   // What each layout becomes on a phone.
   let layout = view.layout;
   if (layout === 'board' && !boardGroup) layout = 'table';
+  const extraLayouts = props.extraLayouts ?? [];
+  if (!['table', 'cards', 'list', 'board'].includes(layout) && (!extraLayouts.includes(layout) || !props.renderLayout)) layout = 'table';
+  if (compact && props.phoneLayouts && extraLayouts.includes(layout) && !props.phoneLayouts.includes(layout)) layout = props.phoneLayouts[0] ?? 'list';
   if (compact && layout === 'table') layout = 'list';
+  const layouts: Layout[] = [
+    ...(['table', 'cards', 'list', 'board'] as Layout[]).filter((l) => l !== 'board' || boardGroup),
+    ...extraLayouts.filter((l) => !compact || !props.phoneLayouts || props.phoneLayouts.includes(l)),
+  ];
+  const shownIds = new Set(visible.map((c) => c.id));
 
   const amountCol = visible.find((c) => c.type === 'currency');
   const statusCol = visible.find((c) => c.id === 'status');
@@ -169,7 +187,7 @@ export function Database<T>(props: DatabaseProps<T>) {
     amount: amountCol ? (row) => (amountCol.render ? amountCol.render(row) : formatNumber(Number(amountCol.value(row)) || 0)) : undefined,
     status: statusCol ? (row) => (statusCol.render ? statusCol.render(row) : formatValue(statusCol.type, statusCol.value(row), statusCol.options)) : undefined,
   };
-  const listExtras = visible.slice(1).filter((c) => c !== amountCol && c !== statusCol).slice(1, 3);
+  const listExtras = props.list?.ownsProperties ? [] : visible.slice(1).filter((c) => c !== amountCol && c !== statusCol).slice(1, 3);
 
   const hasNew = Boolean(props.onNew || props.onCreate || props.newTemplates?.length);
   const newButton = hasNew && !compact && (
@@ -192,11 +210,11 @@ export function Database<T>(props: DatabaseProps<T>) {
     </span>
   );
 
-  const selector = <ViewSelector db={db} compact={compact} onSettings={setSettings} boardAvailable={Boolean(boardGroup)} />;
+  const selector = <ViewSelector db={db} compact={compact} onSettings={setSettings} layouts={layouts} />;
 
   return (
     <section className={styles.database} aria-label={label} data-compact={compact || undefined}>
-      {compact && props.tabs && <div className={styles.tabsRow}>{props.tabs}</div>}
+      {compact && props.tabs && <div className={styles.tabsRow}>{tabsFor(view)}</div>}
       <ListQueryBar
         fields={fields}
         query={view.query}
@@ -205,7 +223,7 @@ export function Database<T>(props: DatabaseProps<T>) {
         count={shown.length}
         noun={noun}
         className={styles.toolbar}
-        leading={compact ? selector : (props.tabs ?? <span />)}
+        leading={compact ? selector : (tabsFor(view) ?? <span />)}
         beforeTools={compact ? undefined : selector}
         sortPresets={props.sortPresets?.map((p) => ({ id: p.id, label: p.label }))}
         sortPreset={view.sortPreset}
@@ -222,12 +240,28 @@ export function Database<T>(props: DatabaseProps<T>) {
         }
       />
       {props.above}
-      {shown.length === 0 && rows.length > 0 ? (
+      {extraLayouts.includes(layout) && props.renderLayout ? (
+        props.renderLayout(layout, shown, view)
+      ) : shown.length === 0 && rows.length > 0 ? (
         <ListQueryEmpty onClear={db.clearQuery} />
       ) : layout === 'cards' ? (
         <CardsView label={label} rows={limited} groups={grouped} rowKey={rowKey} properties={cardProps} card={card} db={db} subtotal={subtotalCol} onOpen={props.onOpen} emptyText={emptyText} more={more} />
       ) : layout === 'board' && boardGroup && props.board ? (
-        <BoardView label={label} rows={shown} rowKey={rowKey} group={boardGroup} board={props.board} properties={cardProps} card={card} onOpen={props.onOpen} compact={compact} emptyText={emptyText} />
+        <BoardView
+          label={label}
+          rows={shown}
+          rowKey={rowKey}
+          group={boardGroup}
+          board={props.board}
+          properties={cardProps.filter((c) => c.id !== boardGroup.id)}
+          card={card}
+          db={db}
+          onOpen={props.onOpen}
+          onNew={props.onNew}
+          compact={compact}
+          medium={deviceClass === 'medium'}
+          emptyText={emptyText}
+        />
       ) : layout === 'list' ? (
         <ListView
           label={label}
@@ -237,6 +271,7 @@ export function Database<T>(props: DatabaseProps<T>) {
           rowKey={rowKey}
           extras={listExtras}
           spec={listSpec}
+          shown={shownIds}
           db={db}
           subtotal={subtotalCol}
           currency={props.currency}
@@ -291,7 +326,7 @@ export function Database<T>(props: DatabaseProps<T>) {
           columns={ordered}
           groups={groups}
           isHidden={isHidden}
-          boardAvailable={Boolean(boardGroup)}
+          layouts={layouts}
           groupKeys={grouped?.map((g) => g.key) ?? []}
         />
       )}

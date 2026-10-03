@@ -1597,10 +1597,33 @@
 
 .board {
   display: flex;
+  align-items: flex-start;
   gap: 12px;
   overflow-x: auto;
   padding-bottom: 6px;
   overscroll-behavior-x: contain;
+}
+
+/* Medium screens: four columns as a 2 by 2 matrix, each cell scrolling. */
+.board[data-fill] .boardColumn {
+  flex: 1 1 260px;
+  min-width: 240px;
+}
+
+.database[data-compact] .board[data-fill] .boardColumn {
+  flex-basis: 100%;
+}
+
+.board[data-matrix] {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  overflow: visible;
+}
+
+.board[data-matrix] .boardColumn {
+  flex: none;
+  max-height: calc((100dvh - 240px) / 2);
+  min-height: 220px;
 }
 
 .boardColumn {
@@ -1608,6 +1631,7 @@
   flex-direction: column;
   gap: 8px;
   flex: 0 0 300px;
+  max-height: calc(100dvh - 200px);
   min-width: 0;
   padding: 8px;
   border: 1px solid var(--db-line);
@@ -1616,6 +1640,15 @@
 
 .database[data-compact] .boardColumn {
   flex-basis: 100%;
+}
+
+.boardColumn[data-collapsed] {
+  flex-basis: 44px;
+  writing-mode: vertical-rl;
+}
+
+.boardColumn[data-collapsed] .boardHead {
+  border-bottom: 0;
 }
 
 .boardColumn[data-over] {
@@ -1643,7 +1676,131 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  min-height: 60px;
+  min-height: 40px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.boardHint {
+  flex-basis: 100%;
+  font-size: 0.8125rem;
+  color: var(--db-muted);
+}
+
+.boardDot {
+  flex: none;
+  align-self: center;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.boardColumnMore,
+.boardExpand {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  margin-left: auto;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--db-light);
+  cursor: pointer;
+}
+
+.boardExpand {
+  margin-left: 0;
+}
+
+.boardColumnMore:hover,
+.boardExpand:hover {
+  background: var(--db-hover);
+  color: var(--db-text);
+}
+
+.boardNew {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--db-muted);
+  font: inherit;
+  font-size: 0.875rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.boardNew:hover {
+  background: var(--db-hover);
+  color: var(--db-text);
+}
+
+@media (pointer: coarse) {
+  .boardNew {
+    min-height: 44px;
+  }
+}
+
+.boardSwitch[data-even] button {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 0 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Task cards and rows: a circle checkbox before the title. */
+.cardTitle[data-leading] {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  -webkit-line-clamp: unset;
+}
+
+.cardTitle[data-leading] > span,
+.cardTitle[data-leading] > button[data-card-title] {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.cardProps[data-bare] {
+  gap: 4px;
+}
+
+.cardProps[data-bare] .cardProp {
+  justify-content: flex-start;
+}
+
+.cardProps[data-bare] dt {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+.cardProps[data-bare] dd {
+  justify-content: flex-start;
+  text-align: left;
+  color: var(--db-muted);
+}
+
+.listStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.listItem[data-lit] {
+  background: var(--db-blue-tint);
 }
 
 .boardCard {

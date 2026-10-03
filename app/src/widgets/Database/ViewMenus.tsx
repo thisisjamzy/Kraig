@@ -11,32 +11,50 @@
 //   the load limit. Everything is saved per view.
 
 import { useState, type DragEvent } from 'react';
-import { ChevronDown, Copy, Eye, EyeOff, GripVertical, Kanban, LayoutGrid, List, MoreHorizontal, Pencil, Plus, SlidersHorizontal, Table2, Trash2 } from 'lucide-react';
+import { CalendarDays, CalendarRange, ChevronDown, Copy, Eye, EyeOff, GanttChart, GripVertical, Kanban, LayoutGrid, List, MoreHorizontal, Pencil, Plus, SlidersHorizontal, Square, Table2, Trash2 } from 'lucide-react';
 import { Popover } from '@/src/widgets/ListQuery/Popover';
 import { CALC_LABEL, calcsFor, defaultCalc } from './format';
 import type { ColumnDef, GroupDef, Layout, ViewConfig } from './types';
 import type { DatabaseStateApi } from './useDatabaseState';
 import styles from './Database.module.css';
 
-export const LAYOUT_ICON: Record<Layout, typeof Table2> = { table: Table2, cards: LayoutGrid, list: List, board: Kanban };
-const LAYOUT_LABEL: Record<Layout, string> = { table: 'Table', cards: 'Cards', list: 'List', board: 'Board' };
-const LAYOUTS: Layout[] = ['table', 'cards', 'list', 'board'];
+export const LAYOUT_ICON: Record<Layout, typeof Table2> = {
+  table: Table2,
+  cards: LayoutGrid,
+  list: List,
+  board: Kanban,
+  day: Square,
+  week: CalendarRange,
+  month: CalendarDays,
+  timeline: GanttChart,
+};
+export const LAYOUT_LABEL: Record<Layout, string> = {
+  table: 'Table',
+  cards: 'Cards',
+  list: 'List',
+  board: 'Board',
+  day: 'Day',
+  week: 'Week',
+  month: 'Month',
+  timeline: 'Timeline',
+};
 
 export function ViewSelector({
   db,
   compact,
   onSettings,
-  boardAvailable,
+  layouts,
 }: {
   db: DatabaseStateApi;
   compact: boolean;
   onSettings: (anchor: HTMLElement) => void;
-  boardAvailable: boolean;
+  /** The layouts this database offers. */
+  layouts: Layout[];
 }) {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const [mode, setMode] = useState<'list' | 'add' | { rename: string }>('list');
   const [name, setName] = useState('');
-  const [layout, setLayout] = useState<Layout>('table');
+  const [layout, setLayout] = useState<Layout>(layouts[0] ?? 'table');
   const [rowMenu, setRowMenu] = useState<{ id: string; anchor: HTMLElement } | null>(null);
   const Icon = LAYOUT_ICON[db.view.layout];
   const close = () => {
@@ -113,7 +131,7 @@ export function ViewSelector({
               <p className={styles.menuTitle}>New view</p>
               <input className={styles.menuInput} autoFocus placeholder="View name" value={name} onChange={(e) => setName(e.target.value)} aria-label="View name" />
               <div className={styles.segmented} role="radiogroup" aria-label="Layout">
-                {LAYOUTS.filter((l) => l !== 'board' || boardAvailable).map((l) => (
+                {layouts.map((l) => (
                   <button key={l} type="button" role="radio" aria-checked={layout === l} onClick={() => setLayout(l)}>
                     {LAYOUT_LABEL[l]}
                   </button>
@@ -195,7 +213,7 @@ export function ViewSettings<T>({
   columns,
   groups,
   isHidden,
-  boardAvailable,
+  layouts,
   groupKeys,
 }: {
   anchor: HTMLElement;
@@ -207,7 +225,7 @@ export function ViewSettings<T>({
   columns: ColumnDef<T>[];
   groups: GroupDef<T>[];
   isHidden: (c: ColumnDef<T>) => boolean;
-  boardAvailable: boolean;
+  layouts: Layout[];
 }) {
   const v = db.view;
   const [dragging, setDragging] = useState<string | null>(null);
@@ -236,7 +254,7 @@ export function ViewSettings<T>({
       <div className={styles.menu}>
         <p className={styles.menuTitle}>Layout</p>
         <div className={styles.segmented} role="radiogroup" aria-label="Layout">
-          {LAYOUTS.filter((l) => l !== 'board' || boardAvailable).map((l) => {
+          {layouts.map((l) => {
             const Icon = LAYOUT_ICON[l];
             return (
               <button key={l} type="button" role="radio" aria-checked={v.layout === l} onClick={() => db.patchView({ layout: l })}>

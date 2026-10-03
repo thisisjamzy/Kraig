@@ -1,11 +1,11 @@
 import type { Metadata } from 'next';
-import { TaskEditScreen } from '@/src/screens/TaskEdit/TaskEditScreen';
+import { TaskRoute } from '@/src/screens/TaskPage/TaskRoute';
 
 export const metadata: Metadata = {
-  title: 'Edit task · Dreda',
+  title: 'Task · Dreda',
 };
 
 export default async function EditTaskPage({ params }: PageProps<'/tasks/[id]/edit'>) {
   const { id } = await params;
-  return <TaskEditScreen taskId={decodeURIComponent(id)} />;
+  return <TaskRoute taskId={decodeURIComponent(id)} />;
 }

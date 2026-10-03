@@ -13,7 +13,7 @@
 
 import { arrayUnion, deleteField, FieldPath, getDoc, setDoc, updateDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { taskRef } from './refs';
-import type { TaskException, TaskType, Priority, TaskStatus, Quadrant, TimeMode } from './types';
+import type { TaskException, TaskType, Priority, TaskStatus, Quadrant, TimeMode, TaskSubtask } from './types';
 import { parseOccurrenceId } from '@/src/shared/tasks/recurringTasks';
 import { isPushableNow, touchesGoogleCopy } from '@/src/shared/calendarSync/pending';
 
@@ -440,4 +440,75 @@ export async function setActualMinutes(uid: string, taskId: string, minutes: num
     return;
   }
   await updateDoc(taskRef(uid, taskId), { actualMinutes: value, updatedAt: serverTimestamp() });
+}
+
+/** A new time window for a task (dragging or resizing it on a timeline,
+ * or dropping it there from a list): start and end, optionally turning a
+ * date-only task into a timed one. Same originalDueDate/rescheduleCount
+ * bookkeeping and Google push as rescheduleTask. */
+export async function updateTaskTimes(uid: string, taskId: string, start: Date, end: Date, allDay = false): Promise<void> {
+  const occurrence = parseOccurrenceId(taskId);
+  if (occurrence) {
+    const snap = await getDoc(taskRef(uid, occurrence.seriesId));
+    const series = snap.data();
+    const exception = series?.exceptions?.[occurrence.key] ?? {};
+    const pending = series && isPushableNow({ ...series, ...exception, rrule: null }) ? { 'googleSync.state': PENDING } : {};
+    await writeOccurrence(uid, occurrence.seriesId, occurrence.key, { startTime: Timestamp.fromDate(start), dueDate: Timestamp.fromDate(end), allDay }, pending);
+    return;
+  }
+  const beforeSnap = await getDoc(taskRef(uid, taskId));
+  const before = beforeSnap.data();
+  const beforeDueMs = before?.dueDate ? before.dueDate.toMillis() : null;
+  const update: Record<string, unknown> = {
+    startTime: Timestamp.fromDate(start),
+    dueDate: Timestamp.fromDate(end),
+    allDay,
+    updatedAt: serverTimestamp(),
+  };
+  if (before && isPushableNow({ ...before, allDay })) update['googleSync.state'] = PENDING;
+  if (!before?.originalDueDate) update.originalDueDate = Timestamp.fromDate(end);
+  else if (beforeDueMs !== null && end.getTime() > beforeDueMs) update.rescheduleCount = (before?.rescheduleCount ?? 0) + 1;
+  await updateDoc(taskRef(uid, taskId), update);
+}
+
+/** Inline property edits on a task page or a database cell: the fields
+ * that need no bookkeeping. A project change brings its area and bucket
+ * along (they mirror the project's, see FirestoreTask). */
+export interface TaskFieldsPatch {
+  title?: string;
+  type?: TaskType;
+  timeMode?: TimeMode;
+  notes?: string;
+  project?: { id: string | null; areaId: string | null; bucketId: string | null };
+}
+
+export async function updateTaskFields(uid: string, taskId: string, patch: TaskFieldsPatch): Promise<void> {
+  const fields: Record<string, unknown> = {};
+  if (patch.title !== undefined) fields.title = patch.title;
+  if (patch.type !== undefined) fields.type = patch.type;
+  if (patch.timeMode !== undefined) fields.timeMode = patch.timeMode;
+  if (patch.notes !== undefined) fields.notes = patch.notes;
+  if (patch.project) {
+    fields.projectId = patch.project.id;
+    fields.areaId = patch.project.id ? patch.project.areaId : null;
+    fields.bucketId = patch.project.id ? patch.project.bucketId : null;
+  }
+  const occurrence = parseOccurrenceId(taskId);
+  if (occurrence) {
+    // A date of a series keeps the series' project; its own type, mode and title can differ.
+    const own = Object.fromEntries(Object.entries(fields).filter(([k]) => k !== 'projectId' && k !== 'areaId' && k !== 'bucketId'));
+    if (Object.keys(own).length) await writeOccurrence(uid, occurrence.seriesId, occurrence.key, own);
+    return;
+  }
+  const beforeSnap = await getDoc(taskRef(uid, taskId));
+  const before = beforeSnap.data();
+  const update: Record<string, unknown> = { ...fields, updatedAt: serverTimestamp() };
+  if (before && (fields.title !== undefined || fields.timeMode !== undefined) && isPushableNow({ ...before, ...fields })) update['googleSync.state'] = PENDING;
+  await updateDoc(taskRef(uid, taskId), update);
+}
+
+/** The task page's checklist. A date of a series keeps the series' list. */
+export async function updateTaskSubtasks(uid: string, taskId: string, subtasks: TaskSubtask[]): Promise<void> {
+  const occurrence = parseOccurrenceId(taskId);
+  await updateDoc(taskRef(uid, occurrence ? occurrence.seriesId : taskId), { subtasks, updatedAt: serverTimestamp() });
 }

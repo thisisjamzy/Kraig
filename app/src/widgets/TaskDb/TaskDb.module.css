@@ -1,0 +1,151 @@
+/* The Tasks database's pieces: tags, the circle checkbox, a task's time
+   line and the project label. */
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  padding: 0 6px;
+  border-radius: 4px;
+  font-size: 0.8125rem;
+  font-weight: 400;
+  line-height: 1.5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: rgba(227, 226, 224, 0.7);
+  color: #32302c;
+}
+
+.tag[data-color='brown'] { background: #eee0da; color: #442a1e; }
+.tag[data-color='orange'] { background: #fadec9; color: #49290e; }
+.tag[data-color='yellow'] { background: #fdecc8; color: #402c1b; }
+.tag[data-color='green'] { background: #dbeddb; color: #1c3829; }
+.tag[data-color='blue'] { background: #d3e5ef; color: #183347; }
+.tag[data-color='purple'] { background: #e8deee; color: #412454; }
+.tag[data-color='pink'] { background: #f5e0e9; color: #4c2337; }
+.tag[data-color='red'] { background: #ffe2dd; color: #5d1715; }
+
+:global([data-theme='dark']) .tag { background: #373737; color: rgba(255, 255, 255, 0.81); }
+:global([data-theme='dark']) .tag[data-color='brown'] { background: #4a3228; }
+:global([data-theme='dark']) .tag[data-color='orange'] { background: #5c3b23; }
+:global([data-theme='dark']) .tag[data-color='yellow'] { background: #564328; }
+:global([data-theme='dark']) .tag[data-color='green'] { background: #243d30; }
+:global([data-theme='dark']) .tag[data-color='blue'] { background: #143a4e; }
+:global([data-theme='dark']) .tag[data-color='purple'] { background: #3c2d49; }
+:global([data-theme='dark']) .tag[data-color='pink'] { background: #4e2c3c; }
+:global([data-theme='dark']) .tag[data-color='red'] { background: #522e2a; }
+
+.tagDot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.check {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  padding: 0;
+  border: 1.5px solid #a5a49f;
+  border-radius: 50%;
+  background: none;
+  color: #fff;
+  cursor: pointer;
+  position: relative;
+}
+
+/* A 44px touch target around the 18px circle. */
+.check::after {
+  content: '';
+  position: absolute;
+  inset: -13px;
+}
+
+.check:hover {
+  border-color: var(--color-brand, #3965fa);
+}
+
+.check[aria-checked='true'] {
+  border-color: var(--color-brand, #3965fa);
+  background: var(--color-brand, #3965fa);
+}
+
+.check[data-cancelled] {
+  border-style: dashed;
+}
+
+.check svg {
+  opacity: 0;
+}
+
+.check[aria-checked='true'] svg {
+  opacity: 1;
+}
+
+.check:disabled {
+  opacity: 0.6;
+}
+
+.title[data-done] {
+  color: #a5a49f;
+  text-decoration: line-through;
+}
+
+.when {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.when[data-overdue] {
+  color: #d44c47;
+}
+
+.meta {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  min-width: 0;
+  font-size: 0.8125rem;
+  color: #787774;
+}
+
+.project {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #787774;
+}
+
+.projectDot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.nameCell {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.nameText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

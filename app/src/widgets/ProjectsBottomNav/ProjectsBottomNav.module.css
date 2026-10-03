@@ -99,3 +99,10 @@
 .fabButton:active {
   transform: scale(0.96);
 }
+
+.itemButton {
+  border: 0;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+}

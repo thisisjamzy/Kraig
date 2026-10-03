@@ -58,3 +58,25 @@
   color: var(--color-text-secondary);
   cursor: pointer;
 }
+
+/* ---- Column blocks ---- */
+
+.columns {
+  display: grid;
+  grid-template-columns: var(--cols, 1fr);
+  gap: 24px;
+  align-items: start;
+  min-width: 0;
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.column[data-sticky] {
+  position: sticky;
+  top: 60px;
+}

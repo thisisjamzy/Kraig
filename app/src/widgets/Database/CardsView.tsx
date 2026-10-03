@@ -24,8 +24,12 @@ export interface CardSpec<T> {
   chart?: (row: T) => number[] | null;
   /** A strip along the card's bottom edge (the one action it needs). */
   footer?: (row: T) => ReactNode;
-  /** Replaces the default card entirely. */
-  render?: (row: T) => ReactNode;
+  /** Replaces the default card entirely; `shown` holds the view's visible property ids. */
+  render?: (row: T, shown: Set<string>) => ReactNode;
+  /** Before the title (a task's circle checkbox). */
+  leading?: (row: T) => ReactNode;
+  /** Property values only, stacked, without their labels (task cards). */
+  bare?: boolean;
 }
 
 export function CardsView<T>({
@@ -57,6 +61,7 @@ export function CardsView<T>({
   if (!rows.length) return <p className={styles.emptyCards}>{emptyText}</p>;
   const view = db.view;
   const sections = groups ?? [{ key: '__all', label: '', rows }];
+  const shown = new Set(properties.map((c) => c.id));
   return (
     <div className={styles.cardGridWrap}>
       <div className={styles.cardGrid} role="list" aria-label={label} data-size={view.cardSize}>
@@ -77,7 +82,7 @@ export function CardsView<T>({
                 section.rows.map((row) =>
                   card.render ? (
                     <div key={rowKey(row)} role="listitem" className={styles.cardSlot}>
-                      {card.render(row)}
+                      {card.render(row, shown)}
                     </div>
                   ) : (
                     <DefaultCard key={rowKey(row)} row={row} card={card} properties={properties} onOpen={onOpen} preview={view.cardPreview} fit={view.fitProperties} />
@@ -133,7 +138,8 @@ function DefaultCard<T>({
         onOpen(row);
       }}
     >
-      <h3 className={styles.cardTitle}>
+      <h3 className={styles.cardTitle} data-leading={card.leading ? true : undefined}>
+        {card.leading?.(row)}
         {onOpen ? (
           <button type="button" data-card-title onClick={() => onOpen(row)}>
             {card.title(row)}
@@ -151,7 +157,7 @@ function DefaultCard<T>({
           </span>
         )
       )}
-      <dl className={styles.cardProps}>
+      <dl className={styles.cardProps} data-bare={card.bare || undefined}>
         {properties.map((column) => {
           const tone = column.tone?.(row);
           return (

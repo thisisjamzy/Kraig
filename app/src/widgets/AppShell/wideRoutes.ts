@@ -23,6 +23,9 @@ const WIDE_ROUTES = [
 // Money: a bucket's page, a budget line's page and a transaction's page.
 const WIDE_PATTERNS = [
   /^\/projects\/(?!new$|all$|calendar|focus|insights|analytics|control-panel)[^/]+$/,
+  // Time: an area's page and a task's page (its form stays narrow).
+  /^\/areas\/(?!new$)[^/]+$/,
+  /^\/tasks\/[^/]+\/edit$/,
   /^\/budget\/bucket\/[^/]+$/,
   /^\/budget\/item\/[^/]+\/[^/]+$/,
   /^\/transactions\/[^/]+$/,

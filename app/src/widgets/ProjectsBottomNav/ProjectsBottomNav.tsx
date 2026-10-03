@@ -1,8 +1,10 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, CalendarDays, Target, ChartNoAxesCombined, Wallet, Layers, FolderKanban, ListChecks } from 'lucide-react';
+import { Sun, CalendarDays, Target, Menu, Wallet, Layers, FolderKanban, ListChecks } from 'lucide-react';
+import { MoreSheet } from '@/src/widgets/AppShell/MoreSheet';
 import { navMode } from '@/src/shared/config/chromeVisibility';
 import { useAllTasks } from '@/src/shared/hooks/useAllTasks';
 import { overdueTasks, dueTodayTasks } from '@/src/shared/firestore/taskInsights';
@@ -12,10 +14,9 @@ import { actionableTasks } from '@/src/shared/tasks/recurringTasks';
 // Exported for WebSidebar (src/widgets/WebSidebar) — reused verbatim so
 // mobile and web can never drift apart on what Projects mode contains.
 export const NAV_ITEMS = [
-  { href: '/projects', label: 'Home', icon: Home },
-  { href: '/projects/calendar', label: 'Calendar', icon: CalendarDays },
+  { href: '/projects', label: 'Today', icon: Sun },
   { href: '/projects/focus', label: 'Focus', icon: Target },
-  { href: '/projects/insights', label: 'Insights', icon: ChartNoAxesCombined },
+  { href: '/projects/calendar', label: 'Calendar', icon: CalendarDays },
 ];
 
 // Still exported for WebTopBar (src/widgets/WebTopBar) — its own "+" button
@@ -36,6 +37,7 @@ export const CREATE_OPTIONS = [
 // not the one you're in — mirrors BottomNav's own switch button.
 export function ProjectsBottomNav() {
   const pathname = usePathname();
+  const [more, setMore] = useState(false);
   const { data: taskDocs } = useAllTasks();
   // Recurring tasks count by their own dates (today's and overdue ones).
   const tasks = actionableTasks(taskDocs);
@@ -58,12 +60,16 @@ export function ProjectsBottomNav() {
               aria-current={isActive ? 'page' : undefined}
             >
               <Icon size={20} strokeWidth={2} />
-              {href === '/projects/insights' && hasNotifications && <span className={styles.badge} />}
+              {href === '/projects' && hasNotifications && <span className={styles.badge} />}
               <span className={styles.srLabel}>{label}</span>
             </Link>
           );
         })}
+        <button type="button" className={`${styles.item} ${styles.itemButton}`} aria-label="More" aria-haspopup="dialog" onClick={() => setMore(true)}>
+          <Menu size={20} strokeWidth={2} />
+        </button>
       </div>
+      {more && <MoreSheet onClose={() => setMore(false)} />}
       <Link href="/home" className={styles.fabButton} aria-label="Switch to Money mode">
         <Wallet size={22} strokeWidth={2.25} />
       </Link>
