@@ -40,6 +40,10 @@ export interface Occurrence {
   dropped: boolean;
   /** Its bucket is closed for the month or it's a closed one-off. */
   closed: boolean;
+  /** The account it's paid from, when the item names one. */
+  accountId?: string | null;
+  /** How it's prepared for payment ("Prepare when income arrives"). */
+  automationText?: string;
 }
 
 export const r2 = (n: number) => Math.round(n * 100) / 100;

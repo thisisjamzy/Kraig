@@ -1528,3 +1528,25 @@
 .planBar span[data-tone='bad'] {
   background: #ff9aa4;
 }
+
+/* Priorities: the Coverage cell. */
+.coverage {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.coverage[data-tone='good'] {
+  color: #1f7a4d;
+}
+
+.coverage[data-tone='watch'] {
+  color: #93600c;
+}
+
+.coverage[data-tone='bad'] {
+  color: #b42d3c;
+}

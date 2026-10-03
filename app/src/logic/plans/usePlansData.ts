@@ -15,7 +15,7 @@ import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { bucketLineItemRef } from '@/src/shared/firestore/refs';
 import { toDisplay } from '@/src/shared/firestore/currency';
 import { itemOccurrence } from '@/src/shared/budget/monthBudget';
-import { expenseKindOf } from '@/src/shared/budget/flow';
+import { automationLabel, automationOf, expenseKindOf, savingsModeOf, type FlowType } from '@/src/shared/budget/flow';
 import { skipItemMonth } from '@/src/shared/firestore/bucketBudget';
 import {
   createBucket,
@@ -100,6 +100,8 @@ export function usePlansData() {
             postponed: Boolean(item.postponeHistory?.length),
             dropped: item.status === 'dropped',
             closed: (bucket.kind !== 'Fixed' && item.completed && item.status !== 'dropped') || Boolean(bucket.closedMonths?.[month]),
+            accountId: item.accountId ?? null,
+            automationText: automationLabel(automationOf(type as FlowType, item, type === 'Savings' ? savingsModeOf(item) : null)),
           });
         }
       }
