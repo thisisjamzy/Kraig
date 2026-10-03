@@ -1,17 +1,51 @@
 'use client';
 
-// A database's view state, remembered per database on this device: the
-// open view and the household's saved views, column widths, order and
-// visibility, grouping and collapsed groups, footer calculations, the
-// properties cards show, and each view's own filters, sorts and search.
+// A database's views, remembered per database on this device: which view
+// is open, and each view's own layout, filters, sorts and search,
+// properties (shown, hidden, order, widths), grouping, calculations, card
+// and table options and load limit. Changing one view never touches
+// another (hiding "Next due" on Cards leaves Table alone).
 
 import { useEffect, useState } from 'react';
-import { EMPTY_QUERY, type ListQuery } from '@/src/shared/listQuery/engine';
-import type { Calc, DatabaseState, SavedView } from './types';
+import { EMPTY_QUERY, newId, type ListQuery } from '@/src/shared/listQuery/engine';
+import type { Calc, DefaultView, ViewConfig } from './types';
 
-const KEY = (id: string) => `dreda.db.${id}`;
+const KEY = (id: string) => `dreda.db2.${id}`;
 
-function read(id: string): Partial<DatabaseState> | null {
+interface Stored {
+  active: string;
+  views: ViewConfig[];
+}
+
+export function blankView(
+  base: { id: string; name: string; layout: ViewConfig['layout']; basedOn?: string | null; group?: string; hidden?: string[] | null },
+  group: string
+): ViewConfig {
+  return {
+    id: base.id,
+    name: base.name,
+    layout: base.layout,
+    basedOn: base.basedOn ?? null,
+    query: EMPTY_QUERY,
+    hidden: base.hidden ?? null,
+    order: [],
+    widths: {},
+    group: base.group ?? group,
+    hideEmptyGroups: true,
+    collapsed: [],
+    calcs: {},
+    cardSize: 'medium',
+    cardPreview: 'progress',
+    fitProperties: 'wrap',
+    wrapCells: false,
+    rowNumbers: false,
+    freezeFirst: true,
+    limit: 50,
+    sortPreset: null,
+  };
+}
+
+function read(id: string): Stored | null {
   try {
     return JSON.parse(localStorage.getItem(KEY(id)) ?? 'null');
   } catch {
@@ -19,30 +53,32 @@ function read(id: string): Partial<DatabaseState> | null {
   }
 }
 
-export function useDatabaseState(id: string, defaults: { view: string; group: string }) {
-  const initial: DatabaseState = {
-    view: defaults.view,
-    saved: [],
-    widths: {},
-    hidden: null,
-    order: [],
-    group: defaults.group,
-    collapsed: [],
-    calcs: {},
-    cardProps: null,
-    queries: {},
-  };
-  const [state, setState] = useState<DatabaseState>(initial);
+export function useDatabaseState<T>(id: string, defaults: DefaultView<T>[], defaultGroup: string, defaultSortPreset: string | null = null) {
+  const initial = (): Stored => ({
+    active: defaults[0]?.id ?? 'table',
+    views: defaults.map((d) => ({ ...blankView({ ...d, basedOn: d.id }, defaultGroup), sortPreset: defaultSortPreset })),
+  });
+  const [state, setState] = useState<Stored>(initial);
   const [loadedFor, setLoadedFor] = useState<string | null>(null);
 
-  // Restore after mount (localStorage isn't there on the server).
+  // Restore after mount (localStorage isn't there on the server); default
+  // views added to the code later appear for everyone.
   useEffect(() => {
     const stored = read(id);
     const frame = requestAnimationFrame(() => {
-      setState((s) => ({ ...s, ...(stored ?? {}) }));
+      if (stored?.views?.length) {
+        const missing = defaults.filter((d) => !stored.views.some((v) => v.basedOn === d.id || v.id === d.id));
+        const views = [
+          ...stored.views.map((v) => ({ ...blankView(v, defaultGroup), ...v })),
+          ...missing.map((d) => ({ ...blankView({ ...d, basedOn: d.id }, defaultGroup), sortPreset: defaultSortPreset })),
+        ];
+        setState({ active: views.some((v) => v.id === stored.active) ? stored.active : views[0].id, views });
+      }
       setLoadedFor(id);
     });
     return () => cancelAnimationFrame(frame);
+    // Restoring happens once per database id, on purpose.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   useEffect(() => {
@@ -54,28 +90,44 @@ export function useDatabaseState(id: string, defaults: { view: string; group: st
     }
   }, [id, state, loadedFor]);
 
-  const patch = (next: Partial<DatabaseState> | ((s: DatabaseState) => Partial<DatabaseState>)) =>
-    setState((s) => ({ ...s, ...(typeof next === 'function' ? next(s) : next) }));
+  const view = state.views.find((v) => v.id === state.active) ?? state.views[0];
 
-  const query = state.queries[state.view] ?? EMPTY_QUERY;
+  const patchView = (next: Partial<ViewConfig> | ((v: ViewConfig) => Partial<ViewConfig>)) =>
+    setState((s) => ({
+      ...s,
+      views: s.views.map((v) => (v.id === s.active ? { ...v, ...(typeof next === 'function' ? next(v) : next) } : v)),
+    }));
 
   return {
-    state,
-    patch,
-    query,
-    setQuery: (next: ListQuery | ((q: ListQuery) => ListQuery)) =>
-      patch((s) => {
-        const current = s.queries[s.view] ?? EMPTY_QUERY;
-        return { queries: { ...s.queries, [s.view]: typeof next === 'function' ? next(current) : next } };
+    view,
+    views: state.views,
+    patchView,
+    select: (viewId: string) => setState((s) => ({ ...s, active: viewId })),
+    setQuery: (next: ListQuery | ((q: ListQuery) => ListQuery)) => patchView((v) => ({ query: typeof next === 'function' ? next(v.query) : next })),
+    clearQuery: () => patchView({ query: EMPTY_QUERY }),
+    setWidth: (column: string, width: number) => patchView((v) => ({ widths: { ...v.widths, [column]: width } })),
+    setCalc: (column: string, calc: Calc) => patchView((v) => ({ calcs: { ...v.calcs, [column]: calc } })),
+    toggleGroup: (key: string) => patchView((v) => ({ collapsed: v.collapsed.includes(key) ? v.collapsed.filter((k) => k !== key) : [...v.collapsed, key] })),
+    addView: (name: string, layout: ViewConfig['layout']) =>
+      setState((s) => {
+        const viewId = newId('v');
+        const from = s.views.find((v) => v.id === s.active)!;
+        return { active: viewId, views: [...s.views, { ...from, id: viewId, name, layout, collapsed: [] }] };
       }),
-    clearQuery: () => patch((s) => ({ queries: { ...s.queries, [s.view]: EMPTY_QUERY } })),
-    setWidth: (column: string, width: number) => patch((s) => ({ widths: { ...s.widths, [column]: width } })),
-    setCalc: (column: string, calc: Calc) => patch((s) => ({ calcs: { ...s.calcs, [column]: calc } })),
-    toggleGroup: (key: string) =>
-      patch((s) => ({ collapsed: s.collapsed.includes(key) ? s.collapsed.filter((k) => k !== key) : [...s.collapsed, key] })),
-    addView: (view: SavedView) => patch((s) => ({ saved: [...s.saved, view], view: view.id })),
-    removeView: (viewId: string) =>
-      patch((s) => ({ saved: s.saved.filter((v) => v.id !== viewId), view: s.view === viewId ? defaults.view : s.view })),
+    duplicateView: (viewId: string) =>
+      setState((s) => {
+        const from = s.views.find((v) => v.id === viewId);
+        if (!from) return s;
+        const copy = { ...from, id: newId('v'), name: `${from.name} copy` };
+        return { active: copy.id, views: [...s.views, copy] };
+      }),
+    renameView: (viewId: string, name: string) => setState((s) => ({ ...s, views: s.views.map((v) => (v.id === viewId ? { ...v, name } : v)) })),
+    deleteView: (viewId: string) =>
+      setState((s) => {
+        if (s.views.length <= 1) return s;
+        const views = s.views.filter((v) => v.id !== viewId);
+        return { active: s.active === viewId ? views[0].id : s.active, views };
+      }),
   };
 }
 

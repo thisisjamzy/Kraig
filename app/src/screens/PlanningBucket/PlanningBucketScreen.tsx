@@ -127,7 +127,7 @@ export function PlanningBucketView({ bucketId, b }: { bucketId: string; b: Retur
                   key: 'history',
                   label: 'All transactions',
                   icon: <ArrowRight size={14} strokeWidth={2} />,
-                  onSelect: () => router.push(`/budget?tab=history&month=${b.month}&bucket=${bucketId}`),
+                  onSelect: () => router.push(`/transactions?month=${b.month}&bucket=${bucketId}`),
                 },
                 { key: 'edit', label: 'Edit bucket', icon: <Pencil size={14} strokeWidth={2} />, onSelect: () => router.push(`/buckets/${bucketId}`) },
               ]}
@@ -380,7 +380,7 @@ export function PlanningBucketView({ bucketId, b }: { bucketId: string; b: Retur
 
       <div className={p.sectionHead}>
         <h2>Transactions</h2>
-        <Link href={`/budget?tab=history&month=${b.month}&bucket=${bucketId}`} className={p.textButton}>
+        <Link href={`/transactions?month=${b.month}&bucket=${bucketId}`} className={p.textButton}>
           See all
         </Link>
       </div>

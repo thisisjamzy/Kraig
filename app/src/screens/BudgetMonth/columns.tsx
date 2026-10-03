@@ -15,7 +15,7 @@ import {
 } from '@/src/shared/budget/flow';
 import type { EditScope } from '@/src/shared/firestore/bucketBudget';
 import type { ItemAutomation } from '@/src/shared/firestore/types';
-import type { ColumnDef, GroupDef } from '@/src/widgets/Database/types';
+import type { ColumnDef, DefaultView, GroupDef } from '@/src/widgets/Database/types';
 import { formatNumber } from '@/src/widgets/Database/format';
 import { coverHref, reallocateHref } from '@/src/screens/Planning/PlanningParts';
 import type { LineRow } from '@/src/logic/budgetMonth/lines';
@@ -317,15 +317,11 @@ export function groupsFor(type: FlowType): GroupDef<LineRow>[] {
   return [BY_BUCKET, status];
 }
 
-/** Built-in views after Table and Cards. */
-export function presetsFor(type: FlowType, today: Date) {
-  const weekEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 7);
-  const open = (r: LineRow) => r.left > 0 && !r.closed;
-  if (type === 'Income') {
-    return [{ id: 'expected', name: 'Not received', layout: 'table' as const, filter: (r: LineRow) => r.state !== 'Received' }];
-  }
+/** A line database's views: Table (default), Cards, Needs attention. */
+export function viewsFor(attention: (r: LineRow) => boolean): DefaultView<LineRow>[] {
   return [
-    { id: 'unpaid', name: type === 'Savings' ? 'Not saved' : type === 'Transfer' ? 'Not moved' : 'Unpaid', layout: 'table' as const, filter: open },
-    { id: 'week', name: 'This week', layout: 'table' as const, filter: (r: LineRow) => open(r) && Boolean(r.due && r.due <= weekEnd) },
+    { id: 'table', name: 'Table', layout: 'table' },
+    { id: 'cards', name: 'Cards', layout: 'cards' },
+    { id: 'attention', name: 'Needs attention', layout: 'table', filter: attention },
   ];
 }

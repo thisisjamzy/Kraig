@@ -31,10 +31,12 @@ function dateValue(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-export function useLogic(id: string) {
+/** `transfer` says which collection the id is in when it isn't the page's
+ * own URL (a side peek); otherwise ?kind=transfer does. */
+export function useLogic(id: string, opts: { transfer?: boolean } = {}) {
   const { user } = useFirebaseUser();
   const uid = user?.uid;
-  const [{ transfer: isTransfer, assign }] = useState(flagsFromSearch);
+  const [{ transfer: isTransfer, assign }] = useState(() => (opts.transfer !== undefined ? { transfer: opts.transfer, assign: false } : flagsFromSearch()));
   const { data: transaction, loading: txLoading } = useFirestoreDoc<FirestoreTransaction>(
     useMemo(() => (uid && !isTransfer ? transactionRef(uid, id) : null), [uid, id, isTransfer])
   );
@@ -141,7 +143,7 @@ export function useLogic(id: string) {
     assignTo,
     busy,
     error,
-    goBack: () => navigateBack('/budget?tab=history'),
+    goBack: () => navigateBack('/transactions'),
     loading: txLoading || trLoading,
     missing: !txLoading && !trLoading && !view,
   };

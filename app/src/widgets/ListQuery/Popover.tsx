@@ -4,15 +4,16 @@
 // edge (flipping to the right edge when it would run off-screen, and above
 // the anchor when there's no room below — never under the top inset): 12px
 // corners, soft shadow, max 320px wide and 60% of the screen tall with its
-// own scroll; a quick fade and scale-up. Under 360px wide the same content
-// opens as a bottom sheet. Closes on a tap outside or Escape; arrow keys
+// own scroll; a quick fade and scale-up. On phones (under 768px) the same
+// content opens as a bottom sheet with a drag handle, its title and a
+// "Done" button, up to 85% of the screen tall; dragging it down closes it. Closes on a tap outside or Escape; arrow keys
 // move between rows ([data-row]).
 
 import { useEffect, useLayoutEffect, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import styles from './ListQuery.module.css';
 
-const SHEET_BELOW = 360;
+const SHEET_BELOW = 768;
 const GAP = 6;
 const MARGIN = 8;
 
@@ -43,6 +44,7 @@ export function Popover({
   children: ReactNode;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const dragFrom = useRef<number | null>(null);
   const onCloseRef = useRef(onClose);
   useEffect(() => {
     onCloseRef.current = onClose;
@@ -140,6 +142,24 @@ export function Popover({
         data-lq-portal
         onKeyDown={onKeyDown}
       >
+        <div className={styles.sheetHead}>
+          <span
+            className={styles.sheetHandle}
+            aria-hidden
+            onPointerDown={(e) => {
+              dragFrom.current = e.clientY;
+              e.currentTarget.setPointerCapture(e.pointerId);
+            }}
+            onPointerUp={(e) => {
+              if (dragFrom.current !== null && e.clientY - dragFrom.current > 80) onClose();
+              dragFrom.current = null;
+            }}
+          />
+          <span className={styles.sheetTitle}>{label}</span>
+          <button type="button" className={styles.sheetDone} onClick={onClose}>
+            Done
+          </button>
+        </div>
         {children}
       </div>
       {/* Dims the page behind the bottom-sheet form only (CSS). */}

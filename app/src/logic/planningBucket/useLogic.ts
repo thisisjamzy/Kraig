@@ -152,7 +152,7 @@ export function useLogic(bucketId: string) {
     lastActivity: rows[0] ? { date: rows[0].date, what: rows[0].note || rows[0].name } : null,
     upcomingCount: payments.filter((p) => p.status === 'upcoming').length,
     overdueCount: payments.filter((p) => p.status === 'overdue').length,
-    paymentsHref: `/budget?tab=payments&month=${month}&bucket=${bucketId}`,
+    paymentsHref: `/payments?month=${month}&bucket=${bucketId}`,
     addExpenseHref: target
       ? `/add-transaction?bucketItem=${encodeURIComponent(`${target.bucketId}:${target.itemId}:${month}`)}`
       : `/add-transaction?month=${Number(month.slice(5)) - 1}&year=${month.slice(0, 4)}`,

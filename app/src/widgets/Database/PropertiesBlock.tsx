@@ -3,9 +3,12 @@
 // A Notion page's properties: label and value rows under the title — the
 // label muted on the left (160px), the value on the right, editable in
 // place by clicking when the property allows it. An empty value reads
-// "Empty" in light grey.
+// "Empty" in light grey. On phones each label sits above its value, the
+// first four show, and "Show more properties" opens the rest; editing
+// there happens on the item page or in a sheet.
 
 import { useState, type ReactNode } from 'react';
+import { useLayout } from '@/src/shared/hooks/useLayout';
 import { Plus } from 'lucide-react';
 import type { FieldOption, FieldValue } from '@/src/shared/listQuery/engine';
 import { CellEditor } from './CellEditor';
@@ -30,6 +33,9 @@ export interface Property {
 export function PropertiesBlock({ properties, onAdd, label = 'Properties' }: { properties: Property[]; onAdd?: () => void; label?: string }) {
   const [editing, setEditing] = useState<{ id: string; anchor: HTMLElement } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [all, setAll] = useState(false);
+  const compact = useLayout().deviceClass === 'compact';
+  const shown = compact && !all ? properties.slice(0, 4) : properties;
 
   async function save(property: Property, next: FieldValue) {
     setEditing(null);
@@ -44,7 +50,7 @@ export function PropertiesBlock({ properties, onAdd, label = 'Properties' }: { p
 
   return (
     <dl className={styles.properties} aria-label={label}>
-      {properties.map((property) => {
+      {shown.map((property) => {
         const isEditing = editing?.id === property.id;
         const text = property.display ?? (property.edit ? formatValue(property.edit.type, property.edit.value, property.edit.options) : null);
         const empty = property.empty ?? (text === null || text === '' || text === undefined);
@@ -92,6 +98,11 @@ export function PropertiesBlock({ properties, onAdd, label = 'Properties' }: { p
           </div>
         );
       })}
+      {compact && properties.length > 4 && (
+        <button type="button" className={styles.moreProperties} onClick={() => setAll((a) => !a)}>
+          {all ? 'Show fewer properties' : `Show more properties (${properties.length - 4})`}
+        </button>
+      )}
       {onAdd && (
         <button type="button" className={styles.addProperty} onClick={onAdd}>
           <Plus size={14} strokeWidth={2.25} aria-hidden />

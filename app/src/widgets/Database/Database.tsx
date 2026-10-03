@@ -1,75 +1,93 @@
 'use client';
 
-// A Notion-style database: one list of rows, described once by its columns,
-// viewed as a full Table or a grid of Cards. Above it, Notion-style view
-// tabs ("Table", "Cards", the list's own built-in views such as "Unpaid",
-// and the household's saved views; "+" saves a new one) with the toolbar
-// on their right: the shared filter, sort and search (src/widgets/
-// ListQuery), Group, Properties, and a primary "New" with a menu of
-// templates. Each view keeps its own filters, sorts and search; widths,
-// grouping, calculations and card properties are remembered per database
-// (useDatabaseState). Used by the Budget, Buckets and Bucket pages, and
-// built to be reused on other pages next.
+// A Notion-style database: one list of rows, described once by its
+// columns, shown through VIEWS (Table, Cards, List, Board) picked from the
+// view selector. One tab level at most: a page's type tabs (Income,
+// Expenses, Savings, Transfers) sit on the left of the toolbar row, and the
+// toolbar on its right reads: view selector, filter, sort, search, view
+// settings, New (with its template menu). Active filters and sorts show as
+// chips under it.
+//
+// On phones the toolbar takes its own row under the tabs (view selector on
+// the left, filter, sort and search on the right, view settings inside the
+// view selector), "New" becomes the page's "+" button, menus open as bottom
+// sheets, a Table reads as a List, and Cards go one across.
 
 import { useMemo, useState, type ReactNode } from 'react';
-import { Check, ChevronDown, LayoutGrid, Plus, Rows3, SlidersHorizontal, Table2, X } from 'lucide-react';
-import { applyQuery, newId, type FieldDef, type FieldValue } from '@/src/shared/listQuery/engine';
+import { ChevronDown, Plus, SlidersHorizontal } from 'lucide-react';
+import { applyQuery, type FieldDef, type FieldValue } from '@/src/shared/listQuery/engine';
+import { useLayout } from '@/src/shared/hooks/useLayout';
 import { ListQueryBar, ListQueryEmpty } from '@/src/widgets/ListQuery/ListQueryBar';
 import { Popover } from '@/src/widgets/ListQuery/Popover';
 import { CardsView, type CardSpec } from './CardsView';
 import { TableView, type TableGroup } from './TableView';
-import { fieldTypeOf } from './format';
+import { ListView } from './ListView';
+import { BoardView } from './BoardView';
+import { ViewSelector, ViewSettings } from './ViewMenus';
+import { fieldTypeOf, formatNumber, formatValue } from './format';
 import { useDatabaseState } from './useDatabaseState';
-import type { BulkAction, ColumnDef, GroupDef, NewTemplate, PresetView } from './types';
+import type { BoardSpec, BulkAction, ColumnDef, DefaultView, GroupDef, ListSpec, NewTemplate, RowAction } from './types';
 import styles from './Database.module.css';
 
-const DEFAULT_PRESETS = [
-  { id: 'table', name: 'Table', layout: 'table' as const },
-  { id: 'cards', name: 'Cards', layout: 'cards' as const },
+const DEFAULT_VIEWS: DefaultView<never>[] = [
+  { id: 'table', name: 'Table', layout: 'table' },
+  { id: 'cards', name: 'Cards', layout: 'cards' },
 ];
 
+export interface SortPreset<T> {
+  id: string;
+  label: string;
+  compare: (a: T, b: T) => number;
+}
+
 export interface DatabaseProps<T> {
-  /** Remembers this database's views and settings under this id. */
+  /** Remembers this database's views under this id. */
   id: string;
   label: string;
   noun: [string, string];
   rows: T[];
   rowKey: (row: T) => string;
   columns: ColumnDef<T>[];
-  /** Built-in views after Table and Cards ("Unpaid", "This week"). */
-  presets?: PresetView<T>[];
-  /** Which view opens first (default "table"). */
-  defaultView?: string;
+  /** The starting views (default: Table and Cards). */
+  views?: DefaultView<T>[];
   groups?: GroupDef<T>[];
   /** A group id, or "none". */
   defaultGroup?: string;
-  /** The column a group header subtotals (default: the first amount). */
+  /** The column group headers and totals add up (default: the first amount). */
   subtotalColumn?: string;
   card: CardSpec<T>;
+  list?: ListSpec<T>;
+  board?: BoardSpec<T>;
+  /** The page's type tabs, on the toolbar row. */
+  tabs?: ReactNode;
   onOpen?: (row: T) => void;
-  /** "New" (and each group's "+ New" row) without inline quick entry. */
   onNew?: (groupKey: string | null) => void;
-  /** Inline quick entry: the "+ New" row asks for the columns marked newRow. */
   onCreate?: (values: Record<string, FieldValue>, groupKey: string | null) => Promise<unknown>;
   newLabel?: string;
   newTemplates?: NewTemplate[];
   bulkActions?: BulkAction<T>[];
+  rowActions?: RowAction<T>[];
+  /** Named orderings in the Sort menu; the first is the default. */
+  sortPresets?: SortPreset<T>[];
   emptyText?: string;
-  /** Shown between the toolbar and the rows (a summary card). */
+  /** Shown between the toolbar and the rows (a summary). */
   above?: ReactNode;
+  /** For the phone's total bar. */
+  currency?: string;
 }
 
 export function Database<T>(props: DatabaseProps<T>) {
   const { id, label, noun, rows, rowKey, columns, groups = [], card } = props;
-  const presets = useMemo<PresetView<T>[]>(() => [...DEFAULT_PRESETS, ...(props.presets ?? [])], [props.presets]);
-  const db = useDatabaseState(id, { view: props.defaultView ?? 'table', group: props.defaultGroup ?? groups[0]?.id ?? 'none' });
-  const { state } = db;
-  const [menu, setMenu] = useState<{ kind: 'group' | 'props' | 'new' | 'view'; anchor: HTMLElement } | null>(null);
-  const [viewName, setViewName] = useState('');
+  const { deviceClass } = useLayout();
+  const compact = deviceClass === 'compact';
+  const defaults = (props.views ?? (DEFAULT_VIEWS as DefaultView<T>[])) as DefaultView<T>[];
+  const db = useDatabaseState<T>(id, defaults, props.defaultGroup ?? groups[0]?.id ?? 'none', props.sortPresets?.[0]?.id ?? null);
+  const view = db.view;
+  const [settings, setSettings] = useState<HTMLElement | null>(null);
+  const [newMenu, setNewMenu] = useState<HTMLElement | null>(null);
+  const [extra, setExtra] = useState(0);
 
-  const saved = state.saved.find((v) => v.id === state.view) ?? null;
-  const preset = presets.find((p) => p.id === (saved?.basedOn ?? state.view)) ?? presets[0];
-  const layout = saved?.layout ?? preset.layout;
+  const base = defaults.find((d) => d.id === view.basedOn);
 
   const fields = useMemo<FieldDef<T>[]>(
     () =>
@@ -79,137 +97,165 @@ export function Database<T>(props: DatabaseProps<T>) {
     [columns]
   );
 
-  // Columns in the household's order, without the hidden ones.
+  // Properties in this view's order; the first (the name) always shows.
   const ordered = useMemo(() => {
-    const order = state.order.length ? state.order : columns.map((c) => c.id);
+    const order = view.order.length ? view.order : columns.map((c) => c.id);
     const rank = (c: ColumnDef<T>) => {
       const i = order.indexOf(c.id);
       return i < 0 ? order.length + columns.indexOf(c) : i;
     };
-    return [...columns].sort((a, b) => rank(a) - rank(b));
-  }, [columns, state.order]);
-  const isHidden = (c: ColumnDef<T>) => (state.hidden ? state.hidden.includes(c.id) : Boolean(c.hidden));
+    const sorted = [...columns].sort((a, b) => rank(a) - rank(b));
+    // The name column stays first.
+    const first = columns[0];
+    return first ? [first, ...sorted.filter((c) => c !== first)] : sorted;
+  }, [columns, view.order]);
+  const isHidden = (c: ColumnDef<T>) => c !== ordered[0] && (view.hidden ? view.hidden.includes(c.id) : Boolean(c.hidden));
   const visible = ordered.filter((c) => !isHidden(c));
-  // The first column (the name) always shows.
-  if (ordered[0] && !visible.includes(ordered[0])) visible.unshift(ordered[0]);
-  const cardProps = state.cardProps
-    ? ordered.filter((c) => state.cardProps!.includes(c.id))
-    : ordered.filter((c) => c.onCard);
 
+  const preset = props.sortPresets?.find((p) => p.id === view.sortPreset) ?? null;
   const shown = useMemo(() => {
-    const base = preset.filter ? rows.filter(preset.filter) : rows;
-    return applyQuery(base, db.query, fields, new Date());
-  }, [rows, preset, db.query, fields]);
+    const filtered = base?.filter ? rows.filter(base.filter) : rows;
+    const queried = applyQuery(filtered, view.query, fields, new Date());
+    return preset && !view.query.sorts.length ? [...queried].sort(preset.compare) : queried;
+  }, [rows, base, view.query, fields, preset]);
 
-  const group = groups.find((g) => g.id === state.group) ?? null;
+  const limit = view.limit ? view.limit + extra : Infinity;
+  const limited = shown.length > limit ? shown.slice(0, limit) : shown;
+  const more =
+    shown.length > limited.length ? (
+      <button type="button" className={styles.loadMore} onClick={() => setExtra((n) => n + (view.limit || 50))}>
+        Load more ({shown.length - limited.length})
+      </button>
+    ) : null;
+
+  const group = groups.find((g) => g.id === view.group) ?? null;
   const grouped = useMemo<TableGroup<T>[] | null>(() => {
     if (!group) return null;
     const map = new Map<string, TableGroup<T>>();
-    for (const row of shown) {
+    if (!view.hideEmptyGroups) for (const key of group.order ?? []) map.set(key, { key, label: key, rows: [] });
+    for (const row of limited) {
       const { key, label: groupLabel } = group.key(row);
-      if (!map.has(key)) map.set(key, { key, label: groupLabel, rows: [] });
-      map.get(key)!.rows.push(row);
+      const g = map.get(key) ?? { key, label: groupLabel, rows: [] };
+      g.label = groupLabel;
+      g.rows.push(row);
+      map.set(key, g);
     }
-    return [...map.values()];
-  }, [shown, group]);
+    const order = group.order ?? [];
+    return [...map.values()].sort((a, b) => {
+      const ia = order.indexOf(a.key);
+      const ib = order.indexOf(b.key);
+      return (ia < 0 ? Infinity : ia) - (ib < 0 ? Infinity : ib);
+    });
+  }, [limited, group, view.hideEmptyGroups]);
 
   const subtotalCol = columns.find((c) => c.id === props.subtotalColumn) ?? columns.find((c) => c.type === 'currency');
   const emptyText = props.emptyText ?? `No ${noun[1]} yet.`;
-  const tabs = [...presets.map((p) => ({ id: p.id, name: p.name, layout: p.layout, saved: false })), ...state.saved.map((v) => ({ ...v, saved: true }))];
+  const boardGroup = props.board ? (groups.find((g) => g.id === props.board!.group) ?? null) : null;
+  const cardProps = visible.slice(1);
 
-  const viewTabs = (
-    <div className={styles.viewTabs} role="tablist" aria-label={`${label} views`}>
-      {tabs.map((tab) => {
-        const Icon = tab.layout === 'cards' ? LayoutGrid : tab.id === 'table' ? Table2 : Rows3;
-        const active = state.view === tab.id;
-        return (
-          <span key={tab.id} className={styles.viewTabWrap}>
-            <button type="button" role="tab" aria-selected={active} className={styles.viewTab} onClick={() => db.patch({ view: tab.id })}>
-              <Icon size={14} strokeWidth={2.25} aria-hidden />
-              {tab.name}
-            </button>
-            {tab.saved && active && (
-              <button type="button" className={styles.viewTabRemove} aria-label={`Remove view ${tab.name}`} onClick={() => db.removeView(tab.id)}>
-                <X size={12} strokeWidth={2.5} />
-              </button>
-            )}
-          </span>
-        );
-      })}
-      <button type="button" className={styles.viewTabAdd} aria-label="Add a view" onClick={(e) => setMenu({ kind: 'view', anchor: e.currentTarget })}>
-        <Plus size={15} strokeWidth={2.25} />
+  // What each layout becomes on a phone.
+  let layout = view.layout;
+  if (layout === 'board' && !boardGroup) layout = 'table';
+  if (compact && layout === 'table') layout = 'list';
+
+  const amountCol = visible.find((c) => c.type === 'currency');
+  const statusCol = visible.find((c) => c.id === 'status');
+  const listSpec: ListSpec<T> = props.list ?? {
+    title: card.title,
+    secondary: (row) => {
+      const c = visible.slice(1).find((col) => col !== amountCol && col !== statusCol && col.type !== 'progress');
+      return c ? formatValue(c.type, c.value(row), c.options) || null : null;
+    },
+    amount: amountCol ? (row) => (amountCol.render ? amountCol.render(row) : formatNumber(Number(amountCol.value(row)) || 0)) : undefined,
+    status: statusCol ? (row) => (statusCol.render ? statusCol.render(row) : formatValue(statusCol.type, statusCol.value(row), statusCol.options)) : undefined,
+  };
+  const listExtras = visible.slice(1).filter((c) => c !== amountCol && c !== statusCol).slice(1, 3);
+
+  const hasNew = Boolean(props.onNew || props.onCreate || props.newTemplates?.length);
+  const newButton = hasNew && !compact && (
+    <span className={styles.newSplit}>
+      <button
+        type="button"
+        className={styles.newButton}
+        onClick={(e) => {
+          if (props.onNew) props.onNew(null);
+          else if (props.newTemplates?.length) setNewMenu(e.currentTarget);
+        }}
+      >
+        {props.newLabel ?? 'New'}
       </button>
-    </div>
-  );
-
-  const tools = (
-    <>
-      {groups.length > 0 && (
-        <button type="button" className={styles.toolText} data-active={group ? true : undefined} onClick={(e) => setMenu({ kind: 'group', anchor: e.currentTarget })}>
-          Group{group ? `: ${group.label}` : ''}
+      {props.newTemplates?.length ? (
+        <button type="button" className={styles.newArrow} aria-label="New from a template" onClick={(e) => setNewMenu(e.currentTarget)}>
+          <ChevronDown size={14} strokeWidth={2.5} />
         </button>
-      )}
-      <button type="button" className={styles.toolIcon} aria-label="Properties" title="Properties" onClick={(e) => setMenu({ kind: 'props', anchor: e.currentTarget })}>
-        <SlidersHorizontal size={18} strokeWidth={2} />
-      </button>
-      {(props.onNew || props.onCreate || props.newTemplates?.length) && (
-        <span className={styles.newSplit}>
-          <button
-            type="button"
-            className={styles.newButton}
-            onClick={(e) => {
-              if (props.onNew) props.onNew(null);
-              else if (props.newTemplates?.length) setMenu({ kind: 'new', anchor: e.currentTarget });
-            }}
-          >
-            {props.newLabel ?? 'New'}
-          </button>
-          {props.newTemplates?.length ? (
-            <button type="button" className={styles.newArrow} aria-label="New from a template" onClick={(e) => setMenu({ kind: 'new', anchor: e.currentTarget })}>
-              <ChevronDown size={14} strokeWidth={2.5} />
-            </button>
-          ) : null}
-        </span>
-      )}
-    </>
+      ) : null}
+    </span>
   );
+
+  const selector = <ViewSelector db={db} compact={compact} onSettings={setSettings} boardAvailable={Boolean(boardGroup)} />;
 
   return (
-    <section className={styles.database} aria-label={label}>
+    <section className={styles.database} aria-label={label} data-compact={compact || undefined}>
+      {compact && props.tabs && <div className={styles.tabsRow}>{props.tabs}</div>}
       <ListQueryBar
         fields={fields}
-        query={db.query}
+        query={view.query}
         setQuery={db.setQuery}
         onClear={db.clearQuery}
         count={shown.length}
         noun={noun}
         className={styles.toolbar}
-        leading={viewTabs}
-        trailing={tools}
+        leading={compact ? selector : (props.tabs ?? <span />)}
+        beforeTools={compact ? undefined : selector}
+        sortPresets={props.sortPresets?.map((p) => ({ id: p.id, label: p.label }))}
+        sortPreset={view.sortPreset}
+        onSortPreset={(sortPreset) => db.patchView({ sortPreset })}
+        trailing={
+          compact ? undefined : (
+            <>
+              <button type="button" className={styles.toolIcon} aria-label="View settings" title="View settings" onClick={(e) => setSettings(e.currentTarget)}>
+                <SlidersHorizontal size={18} strokeWidth={2} />
+              </button>
+              {newButton}
+            </>
+          )
+        }
       />
       {props.above}
       {shown.length === 0 && rows.length > 0 ? (
         <ListQueryEmpty onClear={db.clearQuery} />
       ) : layout === 'cards' ? (
-        <CardsView
+        <CardsView label={label} rows={limited} groups={grouped} rowKey={rowKey} properties={cardProps} card={card} db={db} subtotal={subtotalCol} onOpen={props.onOpen} emptyText={emptyText} more={more} />
+      ) : layout === 'board' && boardGroup && props.board ? (
+        <BoardView label={label} rows={shown} rowKey={rowKey} group={boardGroup} board={props.board} properties={cardProps} card={card} onOpen={props.onOpen} compact={compact} emptyText={emptyText} />
+      ) : layout === 'list' ? (
+        <ListView
           label={label}
-          rows={shown}
+          rows={limited}
+          allRows={shown}
           groups={grouped}
           rowKey={rowKey}
-          properties={cardProps}
-          card={card}
+          extras={listExtras}
+          spec={listSpec}
           db={db}
           subtotal={subtotalCol}
+          currency={props.currency}
           onOpen={props.onOpen}
+          rowActions={props.rowActions}
+          bulkActions={props.bulkActions}
+          compact={compact}
           emptyText={emptyText}
+          more={more}
         />
       ) : (
         <TableView
           label={label}
-          rows={shown}
+          rows={limited}
+          allRows={shown}
           groups={grouped}
           rowKey={rowKey}
           columns={visible}
+          allColumns={ordered}
           db={db}
           group={group}
           subtotalColumn={props.subtotalColumn}
@@ -217,73 +263,63 @@ export function Database<T>(props: DatabaseProps<T>) {
           onNew={props.onNew}
           onCreate={props.onCreate}
           bulkActions={props.bulkActions}
+          rowActions={props.rowActions}
           emptyText={emptyText}
+          more={more}
         />
       )}
 
-      {menu?.kind === 'group' && (
-        <Popover anchor={menu.anchor} label="Group by" onClose={() => setMenu(null)}>
+      {compact && hasNew && (
+        <button
+          type="button"
+          className={styles.fab}
+          aria-label={props.newLabel ?? 'New'}
+          onClick={(e) => {
+            if (props.newTemplates?.length) setNewMenu(e.currentTarget);
+            else props.onNew?.(null);
+          }}
+        >
+          <Plus size={24} strokeWidth={2.25} />
+        </button>
+      )}
+
+      {settings && (
+        <ViewSettings
+          anchor={settings}
+          onClose={() => setSettings(null)}
+          db={db}
+          columns={ordered}
+          groups={groups}
+          isHidden={isHidden}
+          boardAvailable={Boolean(boardGroup)}
+          groupKeys={grouped?.map((g) => g.key) ?? []}
+        />
+      )}
+
+      {newMenu && (
+        <Popover anchor={newMenu} label={props.newLabel ?? 'New'} onClose={() => setNewMenu(null)}>
           <div className={styles.menu}>
-            {[{ id: 'none', label: 'No grouping' }, ...groups].map((g) => (
+            {props.onNew && (
               <button
-                key={g.id}
                 type="button"
                 className={styles.menuRow}
                 data-row
                 onClick={() => {
-                  db.patch({ group: g.id });
-                  setMenu(null);
+                  setNewMenu(null);
+                  props.onNew?.(null);
                 }}
               >
-                <span>{g.label}</span>
-                {state.group === g.id && <Check size={14} strokeWidth={2.5} aria-hidden />}
+                <Plus size={15} strokeWidth={2} aria-hidden /> {props.newLabel ?? 'New'}
               </button>
-            ))}
-          </div>
-        </Popover>
-      )}
-
-      {menu?.kind === 'props' && (
-        <Popover anchor={menu.anchor} label="Properties" onClose={() => setMenu(null)}>
-          <div className={styles.menu}>
-            <p className={styles.menuTitle}>{layout === 'cards' ? 'Shown on cards' : 'Shown in the table'}</p>
-            {ordered.map((c, index) => {
-              const on = layout === 'cards' ? cardProps.includes(c) : !isHidden(c) || index === 0;
-              return (
-                <label key={c.id} className={styles.menuRow} data-row>
-                  <input
-                    type="checkbox"
-                    checked={on}
-                    disabled={layout === 'table' && index === 0}
-                    onChange={() => {
-                      if (layout === 'cards') {
-                        const current = cardProps.map((p) => p.id);
-                        db.patch({ cardProps: on ? current.filter((x) => x !== c.id) : [...current, c.id] });
-                      } else {
-                        const hidden = ordered.filter(isHidden).map((h) => h.id);
-                        db.patch({ hidden: on ? [...hidden, c.id] : hidden.filter((x) => x !== c.id) });
-                      }
-                    }}
-                  />
-                  <span>{c.label}</span>
-                </label>
-              );
-            })}
-          </div>
-        </Popover>
-      )}
-
-      {menu?.kind === 'new' && props.newTemplates && (
-        <Popover anchor={menu.anchor} label="New from a template" onClose={() => setMenu(null)}>
-          <div className={styles.menu}>
-            {props.newTemplates.map((t) => (
+            )}
+            {props.newTemplates?.map((t) => (
               <button
                 key={t.id}
                 type="button"
                 className={styles.menuRow}
                 data-row
                 onClick={() => {
-                  setMenu(null);
+                  setNewMenu(null);
                   t.onSelect();
                 }}
               >
@@ -291,41 +327,6 @@ export function Database<T>(props: DatabaseProps<T>) {
               </button>
             ))}
           </div>
-        </Popover>
-      )}
-
-      {menu?.kind === 'view' && (
-        <Popover anchor={menu.anchor} label="Add a view" onClose={() => setMenu(null)}>
-          <form
-            className={styles.menu}
-            onSubmit={(e) => {
-              e.preventDefault();
-              const layoutChoice = (new FormData(e.currentTarget).get('layout') as 'table' | 'cards') ?? 'table';
-              const name = viewName.trim() || `${preset.name} view`;
-              const viewId = newId('v');
-              // The new view starts from what's showing now.
-              db.addView({ id: viewId, name, layout: layoutChoice, basedOn: preset.id });
-              db.patch((s) => ({ queries: { ...s.queries, [viewId]: db.query } }));
-              setViewName('');
-              setMenu(null);
-            }}
-          >
-            <p className={styles.menuTitle}>New view from what&apos;s showing</p>
-            <input className={styles.menuInput} autoFocus placeholder="View name" value={viewName} onChange={(e) => setViewName(e.target.value)} aria-label="View name" />
-            <div className={styles.segmented} role="radiogroup" aria-label="Layout">
-              <label>
-                <input type="radio" name="layout" value="table" defaultChecked={layout === 'table'} />
-                Table
-              </label>
-              <label>
-                <input type="radio" name="layout" value="cards" defaultChecked={layout === 'cards'} />
-                Cards
-              </label>
-            </div>
-            <button type="submit" className={styles.newButton} data-block>
-              Add view
-            </button>
-          </form>
         </Popover>
       )}
     </section>

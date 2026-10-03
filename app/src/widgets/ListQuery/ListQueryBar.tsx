@@ -43,7 +43,11 @@ export function ListQueryBar<T>({
   hideSort = false,
   className,
   leading,
+  beforeTools,
   trailing,
+  sortPresets,
+  sortPreset,
+  onSortPreset,
 }: {
   fields: FieldDef<T>[];
   query: ListQuery;
@@ -64,8 +68,15 @@ export function ListQueryBar<T>({
   className?: string;
   /** Shown in place of the result count (a database's view tabs). */
   leading?: ReactNode;
-  /** After the filter / sort / search icons (a database's Group and New). */
+  /** Before the filter icon (a database's view selector). */
+  beforeTools?: ReactNode;
+  /** After the filter / sort / search icons (a database's view settings and New). */
   trailing?: ReactNode;
+  /** Named orderings offered at the top of the Sort menu (Priorities'
+   * Recommended, Deadline...). Picking one clears the field sorts. */
+  sortPresets?: { id: string; label: string }[];
+  sortPreset?: string | null;
+  onSortPreset?: (id: string) => void;
 }) {
   const [menu, setMenu] = useState<Menu | null>(null);
   const [searching, setSearching] = useState(query.search !== '');
@@ -154,6 +165,7 @@ export function ListQueryBar<T>({
                 </span>
               )}
               <div className={styles.tools}>
+                {beforeTools}
                 <button
                   type="button"
                   className={styles.tool}
@@ -265,6 +277,28 @@ export function ListQueryBar<T>({
 
       {menu?.kind === 'sort' && (
         <Popover anchor={menu.anchor} label="Sort" onClose={() => setMenu(null)}>
+          {sortPresets && sortPresets.length > 0 && (
+            <div className={styles.menu} role="radiogroup" aria-label="Order">
+              {sortPresets.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={nSorts === 0 && sortPreset === p.id}
+                  className={styles.row}
+                  data-row
+                  onClick={() => {
+                    setQuery((q) => ({ ...q, sorts: [] }));
+                    onSortPreset?.(p.id);
+                    setMenu(null);
+                  }}
+                >
+                  <span className={styles.rowLabel}>{p.label}</span>
+                  {nSorts === 0 && sortPreset === p.id && <span aria-hidden>✓</span>}
+                </button>
+              ))}
+            </div>
+          )}
           <SortMenu
             sorts={query.sorts}
             fields={fields}

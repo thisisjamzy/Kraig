@@ -16,6 +16,7 @@ import { bucketSummaries, type BucketSummary } from '@/src/viewmodels/plans/over
 import { monthKey, monthLabel, shiftMonth } from '@/src/viewmodels/plans/model';
 import { FLOW_TYPES, hasNeedAndPriority, type FlowType } from '@/src/shared/budget/flow';
 import { lineRows, mustHaves, type LineRow } from '@/src/logic/budgetMonth/lines';
+import { useMonthParam } from '@/src/shared/navigation/useMonthParam';
 
 export interface BucketRow {
   id: string;
@@ -50,9 +51,13 @@ export function useLogic() {
   const plans = usePlansData();
   const { occurrences, today } = plans;
   const current = monthKey(today);
-  const [month, setMonth] = useState(current);
+  const [month, setMonth] = useMonthParam();
   const { budget, totals, buckets, accounts, ctx, loading: budgetLoading } = useMonthBudget(month);
-  const [flow, setFlow] = useState<FlowType>('Expense');
+  // ?type= (the sidebar's Goals opens Savings) picks the first tab.
+  const [flow, setFlow] = useState<FlowType>(() => {
+    const wanted = typeof window === 'undefined' ? null : new URLSearchParams(window.location.search).get('type');
+    return wanted === 'Income' || wanted === 'Savings' || wanted === 'Transfer' ? wanted : 'Expense';
+  });
 
   // The browsed month's own "today": its last day when it's past, its first when it's ahead.
   const asOf = useMemo(() => {
@@ -109,8 +114,8 @@ export function useLogic() {
     month,
     monthText: monthLabel(month, true),
     setMonth,
-    previousMonth: () => setMonth((m) => shiftMonth(m, -1)),
-    nextMonth: () => setMonth((m) => shiftMonth(m, 1)),
+    previousMonth: () => setMonth(shiftMonth(month, -1)),
+    nextMonth: () => setMonth(shiftMonth(month, 1)),
     isCurrent: month === current,
     totals,
     lines,

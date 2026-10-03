@@ -18,11 +18,16 @@ export interface PageMeta {
   titled: boolean;
 }
 
+// A stack: the latest mounted page (or peek) wins; unmounting restores
+// whatever was there before it.
+const crumbStack: { id: number; crumbs: Crumb[] }[] = [];
+let titleOwners = 0;
+let nextId = 1;
 let current: PageMeta = { crumbs: null, titled: false };
 const listeners = new Set<() => void>();
 
-function set(patch: Partial<PageMeta>) {
-  current = { ...current, ...patch };
+function publish() {
+  current = { crumbs: crumbStack.at(-1)?.crumbs ?? null, titled: crumbStack.length > 0 || titleOwners > 0 };
   listeners.forEach((l) => l());
 }
 
@@ -31,8 +36,14 @@ export function useBreadcrumb(crumbs: Crumb[] | null) {
   const key = crumbs ? JSON.stringify(crumbs) : '';
   useEffect(() => {
     if (!key) return;
-    set({ crumbs: JSON.parse(key) as Crumb[], titled: true });
-    return () => set({ crumbs: null, titled: false });
+    const entry = { id: nextId++, crumbs: JSON.parse(key) as Crumb[] };
+    crumbStack.push(entry);
+    publish();
+    return () => {
+      const i = crumbStack.findIndex((e) => e.id === entry.id);
+      if (i >= 0) crumbStack.splice(i, 1);
+      publish();
+    };
   }, [key]);
 }
 
@@ -40,8 +51,12 @@ export function useBreadcrumb(crumbs: Crumb[] | null) {
 export function useOwnsTitle(owns: boolean) {
   useEffect(() => {
     if (!owns) return;
-    set({ titled: true });
-    return () => set({ titled: false });
+    titleOwners += 1;
+    publish();
+    return () => {
+      titleOwners -= 1;
+      publish();
+    };
   }, [owns]);
 }
 

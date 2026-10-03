@@ -35,7 +35,8 @@ import { coverHref, reallocateHref } from '@/src/screens/Planning/PlanningParts'
 import { FLOW_ICON } from '@/src/screens/BudgetMonth/BudgetMonthPage';
 import { LinePeekContent } from '@/src/screens/BudgetMonth/LinePeek';
 import { useScopeChooser } from '@/src/screens/BudgetMonth/ScopeChooser';
-import { lineColumns, presetsFor, type ColumnContext } from '@/src/screens/BudgetMonth/columns';
+import { lineColumns, viewsFor, type ColumnContext } from '@/src/screens/BudgetMonth/columns';
+import { needsAttention } from '@/src/logic/budgetMonth/lines';
 import bm from '@/src/screens/BudgetMonth/BudgetMonth.module.css';
 import { AdjustmentRow, AdjustmentSheet } from './Adjustments';
 import { CloseBucketSheet } from './CloseBucketSheet';
@@ -128,7 +129,7 @@ export function BucketPage({ bucketId, b }: { bucketId: string; b: BucketLogic }
                   b.closed
                     ? { key: 'reopen', label: 'Reopen bucket', icon: <LockOpen size={14} strokeWidth={2} />, onSelect: () => b.reopenBucket() }
                     : { key: 'close', label: `Close bucket for ${monthTitle(b.month)}`, icon: <Lock size={14} strokeWidth={2} />, onSelect: () => setClosing(true) },
-                  { key: 'history', label: 'All transactions', icon: <ArrowRight size={14} strokeWidth={2} />, onSelect: () => router.push(`/budget?tab=history&month=${b.month}&bucket=${bucketId}`) },
+                  { key: 'history', label: 'All transactions', icon: <ArrowRight size={14} strokeWidth={2} />, onSelect: () => router.push(`/transactions?month=${b.month}&bucket=${bucketId}`) },
                 ]}
               />
             </>
@@ -171,7 +172,7 @@ export function BucketPage({ bucketId, b }: { bucketId: string; b: BucketLogic }
             rows={lines}
             rowKey={(r) => r.key}
             columns={lineColumns(type, ctx, { bucket: false })}
-            presets={presetsFor(type, v.today)}
+            views={viewsFor((r) => needsAttention(r, v.coverage.byKey))}
             defaultGroup="none"
             card={{
               title: (r) => r.name,
@@ -193,7 +194,7 @@ export function BucketPage({ bucketId, b }: { bucketId: string; b: BucketLogic }
         <Block
           title="Transactions"
           actions={
-            <Link href={`/budget?tab=history&bucket=${bucketId}`} className={bm.inlineAction}>
+            <Link href={`/transactions?bucket=${bucketId}`} className={bm.inlineAction}>
               See all months
             </Link>
           }
@@ -205,7 +206,10 @@ export function BucketPage({ bucketId, b }: { bucketId: string; b: BucketLogic }
             rows={b.rows}
             rowKey={(r) => r.id}
             columns={txColumns}
-            presets={[]}
+            views={[
+              { id: 'table', name: 'Table', layout: 'table' },
+              { id: 'list', name: 'List', layout: 'list' },
+            ]}
             defaultGroup="none"
             card={{ title: (r) => r.note || r.name }}
             onOpen={(r) => router.push(r.href)}

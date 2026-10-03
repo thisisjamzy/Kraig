@@ -51,7 +51,7 @@ export function pct(x: number, digits = 0) {
 export function alerts({ data, currency, totals, forecast, pace, log, unassignedCount }: AlertInputs): Alert[] {
   const out: Alert[] = [];
   const month = monthKey(data.today);
-  const history = `/budget?tab=history&month=${month}`;
+  const history = `/transactions?month=${month}`;
 
   // ---- Red ----
   const short = forecast.months.find((m) => m.gap < 0);
@@ -105,7 +105,7 @@ export function alerts({ data, currency, totals, forecast, pace, log, unassigned
       icon: 'overdue',
       headline: `${overdue.length} planned ${overdue.length === 1 ? 'payment is' : 'payments are'} overdue`,
       detail: `${money(overdue.reduce((s, p) => s + p.amount, 0), currency)} still to pay.`,
-      href: `/budget?tab=payments&month=${month}`,
+      href: `/payments?month=${month}`,
     });
   }
 

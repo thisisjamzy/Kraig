@@ -148,14 +148,16 @@ export function TransactionDetailsScreen({ id }: { id: string }) {
 
 type TxLogic = ReturnType<typeof useLogic>;
 
-function TransactionPage({ t }: { t: TxLogic }) {
+/** The transaction as a page; `inPeek` when it's shown in a side peek
+ * over the Transactions page (no breadcrumb of its own then). */
+export function TransactionPage({ t, inPeek = false }: { t: TxLogic; inPeek?: boolean }) {
   const v = t.view;
-  useBreadcrumb([{ label: 'Money', href: '/home' }, { label: 'History', href: '/budget?tab=history' }, { label: v?.title ?? 'Transaction' }]);
+  useBreadcrumb(inPeek ? null : [{ label: 'Money', href: '/home' }, { label: 'Transactions', href: '/transactions' }, { label: v?.title ?? 'Transaction' }]);
   if (!v) return <ScreenState loading={t.loading} error={t.missing ? 'This transaction could not be found.' : null} />;
   const Icon = v.flow === 'in' ? ArrowDownLeft : v.flow === 'out' ? ArrowUpRight : ArrowLeftRight;
   const sign = v.flow === 'in' ? '+' : v.flow === 'out' ? '-' : '';
   return (
-    <div className={bm.page}>
+    <div className={inPeek ? undefined : bm.page}>
       <NotionPageHeader
         icon={<Icon size={24} strokeWidth={2} />}
         title={v.title}
@@ -222,4 +224,11 @@ function TransactionPage({ t }: { t: TxLogic }) {
       </Block>
     </div>
   );
+}
+
+
+/** A transaction in a side peek. */
+export function TransactionPeekContent({ id, transfer }: { id: string; transfer: boolean }) {
+  const t = useLogic(id, { transfer });
+  return <TransactionPage t={t} inPeek />;
 }

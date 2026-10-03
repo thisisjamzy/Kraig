@@ -34,13 +34,19 @@
   min-width: 0;
 }
 
+/* Medium: one column, the summary first. */
+@media (max-width: 1023px) {
+  .side {
+    order: -1;
+  }
+}
+
 .sideCard {
   display: flex;
   flex-direction: column;
   gap: 12px;
   padding: 16px;
-  border: 1px solid rgba(27, 27, 57, 0.09);
-  border-radius: 12px;
+  border: 1px solid #e9e9e7;
   background: var(--color-background);
 }
 
@@ -109,16 +115,14 @@
 .bar {
   position: relative;
   display: block;
-  height: 6px;
-  border-radius: 999px;
-  background: #eef1f8;
+  height: 4px;
+  background: rgba(55, 53, 47, 0.08);
   overflow: hidden;
 }
 
 .bar > span {
   position: absolute;
   inset: 0 auto 0 0;
-  border-radius: inherit;
   background: var(--color-brand);
 }
 
@@ -163,9 +167,9 @@
   width: 100%;
   min-height: 120px;
   padding: 12px 14px;
-  border: 1px solid transparent;
-  border-radius: 10px;
-  background: var(--color-surface);
+  border: 1px solid #e9e9e7;
+  border-radius: 0;
+  background: var(--color-background);
   color: var(--color-text-primary);
   font: inherit;
   font-size: 0.9375rem;

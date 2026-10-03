@@ -42,6 +42,19 @@
   cursor: pointer;
 }
 
+/* Wide screens: small, at the bottom centre (no bottom nav there). */
+@media (min-width: 768px) {
+  .region {
+    bottom: 24px;
+    width: auto;
+    max-width: min(480px, calc(100vw - 48px));
+  }
+  .toast {
+    padding: 8px 14px;
+    border-radius: 6px;
+  }
+}
+
 @keyframes toastIn {
   from {
     opacity: 0;

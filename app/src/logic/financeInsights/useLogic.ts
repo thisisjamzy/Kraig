@@ -207,7 +207,7 @@ export function useLogic() {
 
   // Where "see details" goes: the History tab for the month in view.
   const historyMonth = kind === 'day' || kind === 'week' || kind === 'month' ? monthKey(period.start) : current;
-  const historyHref = (extra = '') => `/budget?tab=history&month=${historyMonth}${extra}`;
+  const historyHref = (extra = '') => `/transactions?month=${historyMonth}${extra}`;
 
   return {
     loading: fin.loading,

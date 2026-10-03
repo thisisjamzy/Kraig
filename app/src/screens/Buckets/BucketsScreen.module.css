@@ -1,43 +1,37 @@
-/* Buckets on a phone: the four type tabs above the bucket cards (wide
-   screens use the Budget page's type tabs, BudgetMonth.module.css). */
+/* Buckets: a bucket card's figure and its action strip. */
 
-.typeTabs {
-  display: flex;
-  gap: 2px;
-  margin: 8px 0 12px;
-  padding: 3px;
-  border-radius: 999px;
-  background: var(--p-track);
-  overflow-x: auto;
-  scrollbar-width: none;
+.figure {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
-.typeTabs button {
-  display: inline-flex;
+.figure span {
+  font-weight: 400;
+  color: #787774;
+}
+
+.strip {
+  display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  flex: 1 0 auto;
   min-height: 36px;
-  padding: 0 12px;
-  border: none;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--p-muted);
-  font-family: inherit;
+  margin: 2px -14px -12px;
+  padding: 0 14px;
+  border-top: 1px solid #e9e9e7;
+  background: rgba(55, 53, 47, 0.03);
+  color: var(--color-brand);
   font-size: 0.8125rem;
   font-weight: 600;
-  white-space: nowrap;
-  cursor: pointer;
+  text-decoration: none;
 }
 
-.typeTabs button span {
-  font-size: 0.6875rem;
-  opacity: 0.7;
+.strip[data-tone='bad'] {
+  background: #fdecee;
+  color: #b42d3c;
 }
 
-.typeTabs button[aria-selected='true'] {
-  background: var(--p-card);
-  color: var(--p-navy);
-  box-shadow: 0 1px 4px rgba(28, 31, 58, 0.1);
+@media (pointer: coarse) {
+  .strip {
+    min-height: 44px;
+  }
 }

@@ -1,9 +1,10 @@
 'use client';
 
-// The month in four cards, one per flow type — planned, actual and left,
-// a thin bar and one line each — then "Left to plan · Available now ·
-// Estimated by month end". Four across on expanded and large screens,
-// 2 × 2 on medium. Clicking a card opens that type's tab.
+// The month in four blocks, one per flow type: the actual figure, "of"
+// what was planned, a thin bar and one line for what's left — then "Left
+// to plan · Available now · Estimated by month end". Four across on
+// expanded and large screens, 2 by 2 on medium screens and phones (never
+// scrolling sideways). Clicking a block opens that type's tab.
 
 import type { FlowType } from '@/src/shared/budget/flow';
 import type { MonthTotals } from '@/src/shared/budget/monthTotals';
@@ -14,7 +15,8 @@ const money = (n: number) => Math.round(n).toLocaleString('en-US');
 function Card({
   type,
   title,
-  headline,
+  actual,
+  of,
   sub,
   fill,
   over,
@@ -24,7 +26,8 @@ function Card({
 }: {
   type: FlowType;
   title: string;
-  headline: string;
+  actual: number;
+  of: string;
   sub: string;
   fill: number;
   over?: boolean;
@@ -42,7 +45,9 @@ function Card({
           </span>
         )}
       </span>
-      <span className={styles.sumHeadline}>{headline}</span>
+      <span className={styles.sumHeadline}>
+        {money(actual)} <span className={styles.sumOf}>{of}</span>
+      </span>
       <span className={styles.sumBar}>
         <span style={{ width: `${Math.max(0, Math.min(1, fill)) * 100}%` }} data-over={over || undefined} />
       </span>
@@ -74,7 +79,8 @@ export function SummaryCards({
         <Card
           type="Income"
           title="Income"
-          headline={`${money(income.received)} of ${money(income.expected)} received`}
+          actual={income.received}
+          of={`of ${money(income.expected)} received`}
           sub={`of which ${money(income.borrowed)} borrowed`}
           fill={ratio(income.received, income.expected)}
           chip={income.late ? { text: `${income.late} late`, tone: 'bad' } : null}
@@ -84,7 +90,8 @@ export function SummaryCards({
         <Card
           type="Expense"
           title="Expenses"
-          headline={`${money(expenses.spent)} of ${money(expenses.planned)} spent`}
+          actual={expenses.spent}
+          of={`of ${money(expenses.planned)} spent`}
           sub={expenses.left >= 0 ? `${money(expenses.left)} left` : `${money(-expenses.left)} over plan`}
           fill={ratio(expenses.spent, expenses.planned)}
           over={expenses.left < 0}
@@ -95,7 +102,8 @@ export function SummaryCards({
         <Card
           type="Savings"
           title="Savings"
-          headline={`${money(savings.saved)} of ${money(savings.planned)} saved`}
+          actual={savings.saved}
+          of={`of ${money(savings.planned)} saved`}
           sub={[totalSaved !== null ? `${money(totalSaved)} total saved` : null, savings.withdrawn ? `${money(savings.withdrawn)} withdrawn` : null].filter(Boolean).join(' · ') || `${money(savings.left)} still to save`}
           fill={ratio(savings.saved, savings.planned)}
           chip={overdue(savings.overdue)}
@@ -105,7 +113,8 @@ export function SummaryCards({
         <Card
           type="Transfer"
           title="Transfers"
-          headline={`${money(transfers.moved)} of ${money(transfers.planned)} moved`}
+          actual={transfers.moved}
+          of={`of ${money(transfers.planned)} moved`}
           sub={transfers.overdue ? `${transfers.overdue} overdue` : `${money(transfers.left)} still to move`}
           fill={ratio(transfers.moved, transfers.planned)}
           chip={overdue(transfers.overdue)}

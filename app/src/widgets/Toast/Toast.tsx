@@ -12,7 +12,7 @@ import styles from './Toast.module.css';
 
 const KEY = 'dreda.toast';
 const EVENT = 'dreda:toast';
-const DURATION_MS = 3200;
+const DURATION_MS = 4000;
 
 interface ToastDetail {
   message: string;

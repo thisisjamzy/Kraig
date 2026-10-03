@@ -22,7 +22,7 @@ import { daysLeftIn, monthPhase, monthTitle } from '@/src/viewmodels/planning';
 import { isSavingsAccount } from '@/src/viewmodels/wallets';
 import { showToast } from '@/src/widgets/Toast/Toast';
 import type { PlanningData } from '@/src/logic/planning/useLogic';
-import { lineRows, mustHaves, type LineRow } from './lines';
+import { lineRows, mustHaves, monthSummary, needsAttention, openCoverage, type LineRow } from './lines';
 
 export function useBudgetMonth(month: string, data: PlanningData) {
   const { user } = useFirebaseUser();
@@ -45,6 +45,8 @@ export function useBudgetMonth(month: string, data: PlanningData) {
   const prompts = useMemo(() => (phase === 'past' ? [] : incomePrompts(budget, today, monthDoc?.incomeSnoozed ?? {})), [budget, today, monthDoc, phase]);
 
   const must = mustHaves(rows.Expense.concat(rows.Savings), totals.availableNow, totals.availableByMonthEnd);
+  const coverage = useMemo(() => openCoverage(rows, totals.availableNowRaw), [rows, totals.availableNowRaw]);
+  const summary = monthSummary(month, totals, coverage, phase);
 
   const bucketsOf = (type: FlowType) =>
     buckets.filter((b) => !b.archived && (b.type ?? 'Expense') === type).sort((a, b) => a.name.localeCompare(b.name));
@@ -171,6 +173,9 @@ export function useBudgetMonth(month: string, data: PlanningData) {
     setTab,
     types: FLOW_TYPES,
     must,
+    coverage,
+    summary,
+    needsAttention,
     banner,
     reviewed: Boolean(monthDoc?.reviewedAt),
     dismissBanner: () => uid && dismissMonthBanner(uid, month),
