@@ -22,7 +22,8 @@
     "test:insights": "tsx --test test/financeInsights.test.ts test/keyCharts.test.ts",
     "test:plans": "tsx --test test/plans.test.ts",
     "test:nav": "tsx --test test/navHistory.test.ts",
-    "migrate:budgets-v2": "tsx scripts/migrate-budgets-v2.ts"
+    "migrate:budgets-v2": "tsx scripts/migrate-budgets-v2.ts",
+    "test:plan": "tsx --test test/planForecast.test.ts"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^5.0.2",
