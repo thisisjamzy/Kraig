@@ -112,7 +112,18 @@ export function KeyCharts({ v }: { v: FinanceInsights }) {
 
   // ---- 2. Money in vs out ----
   const flow = (k.flow.blocks[0].data as { points: FlowPoint[] }).points;
-  const flowRows = flow.map((p) => ({ label: p.interval.label, income: p.income, expense: p.expense, net: p.net, top: p.income === null ? null : Math.max(p.income, p.expense ?? 0), p }));
+  // Income is drawn as earned with borrowed stacked on top.
+  const flowRows = flow.map((p) => ({
+    label: p.interval.label,
+    income: p.income,
+    earned: p.income === null ? null : p.income - (p.borrowed ?? 0),
+    borrowed: p.borrowed ? p.borrowed : null,
+    expense: p.expense,
+    net: p.net,
+    top: p.income === null ? null : Math.max(p.income, p.expense ?? 0),
+    p,
+  }));
+  const anyBorrowed = flowRows.some((r) => (r.borrowed ?? 0) > 0);
 
   // ---- 3. Trend ----
   const trend = k.trend.blocks[0].data as TrendData;
@@ -234,6 +245,7 @@ export function KeyCharts({ v }: { v: FinanceInsights }) {
                         ? NO_DATA
                         : [
                             { label: 'Income', value: full(row.income!, c), color: COLORS.income },
+                            ...(row.borrowed ? [{ label: 'of which borrowed', value: full(row.borrowed, c), color: COLORS.amber }] : []),
                             { label: 'Expenses', value: full(row.expense!, c), color: COLORS.expense },
                             { label: 'Net', value: `${row.net < 0 ? '−' : '+'}${full(Math.abs(row.net), c)}`, color: row.net < 0 ? COLORS.bad : COLORS.income },
                           ]
@@ -242,11 +254,18 @@ export function KeyCharts({ v }: { v: FinanceInsights }) {
                 );
               }}
             />
-            <Bar dataKey="income" name="Income" radius={[3, 3, 0, 0]} barSize={9}>
+            <Bar dataKey="earned" name="Income" stackId="in" radius={anyBorrowed ? undefined : [3, 3, 0, 0]} barSize={9}>
               {flowRows.map((r) => (
                 <Cell key={r.p.interval.key} fill={COLORS.income} fillOpacity={opacity(r.p.interval)} {...outline(r.p.interval)} />
               ))}
             </Bar>
+            {anyBorrowed && (
+              <Bar dataKey="borrowed" name="Borrowed" stackId="in" radius={[3, 3, 0, 0]} barSize={9}>
+                {flowRows.map((r) => (
+                  <Cell key={r.p.interval.key} fill={COLORS.amber} fillOpacity={opacity(r.p.interval)} {...outline(r.p.interval)} />
+                ))}
+              </Bar>
+            )}
             <Bar dataKey="expense" name="Expenses" radius={[3, 3, 0, 0]} barSize={9}>
               {flowRows.map((r) => (
                 <Cell key={r.p.interval.key} fill={COLORS.expense} fillOpacity={opacity(r.p.interval)} {...outline(r.p.interval)} />
@@ -272,8 +291,9 @@ export function KeyCharts({ v }: { v: FinanceInsights }) {
           <Legend
             items={[
               { label: 'Income', color: COLORS.income },
+              ...(anyBorrowed ? [{ label: 'Borrowed (debt financing)', color: COLORS.amber }] : []),
               { label: 'Expenses', color: COLORS.expense },
-              { label: 'Net above each pair (red = deficit)', color: COLORS.bad, style: 'line' },
+              { label: 'Net above each pair (red = deficit)', color: COLORS.bad, style: 'line' as const },
             ]}
           />
         </Visual>

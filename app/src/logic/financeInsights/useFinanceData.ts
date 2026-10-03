@@ -21,6 +21,7 @@ import { useAccounts, useCategories, useCurrencyContext } from '@/src/shared/fir
 import { toDisplay } from '@/src/shared/firestore/currency';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { useBucketLineItemsByBucket } from '@/src/shared/hooks/useBucketLineItemsByBucket';
+import { incomeSubtypeOfTransaction, savingsSign } from '@/src/shared/budget/flow';
 import { BUDGETS_V2_START, buildLegacyLinks, buildMonthBudget, endpointKey, monthKeyOf, resolveLink } from '@/src/shared/budget/monthBudget';
 import { monthPayments } from '@/src/logic/planning/usePaymentsTab';
 import { isSavingsAccount } from '@/src/viewmodels/wallets';
@@ -86,7 +87,11 @@ export function useFinanceData() {
       const kind = KIND[t.type];
       if (!kind) continue;
       const native = t.direction === 'Outflow' ? t.amount : -t.amount;
-      const amount = display(kind === 'income' ? -native : native, currencyOf(t.accountId));
+      // Savings are "money put aside" whichever way they were recorded
+      // (src/shared/budget/flow.ts's savingsSign) — a bucket payment
+      // crediting a savings account is put aside, not negative.
+      const signed = kind === 'income' ? -native : kind === 'savings' ? savingsSign(t, accountType) * t.amount : native;
+      const amount = display(signed, currencyOf(t.accountId));
       const link = resolveLink(t, legacy);
       txs.push({
         id: t.id,
@@ -104,6 +109,7 @@ export function useFinanceData() {
         fixed: Boolean(link && bucketById.get(link.bucketId)?.kind === 'Fixed'),
         savingsFlow: display(savingsTransactionFlow(t, accountType), currencyOf(t.accountId)),
         debtRepayment: Boolean(t.isDebtRepayment),
+        borrowed: kind === 'income' && incomeSubtypeOfTransaction(t) === 'debt_financing',
       });
     }
     const monthedTransfers = transfers.map((t) => ({ ...t, month: monthKeyOf(t.date.toDate()) }));
@@ -134,6 +140,7 @@ export function useFinanceData() {
         allocations: allocations.filter((a) => a.months?.includes(month)),
         justifications: justifications.filter((j) => j.month === month),
         accountCurrency,
+        accountType,
         categories: categoryInfo,
         baseCurrency: ctx.base,
         toDisplay: display,
@@ -208,6 +215,7 @@ export function useFinanceData() {
         savingsFlow: display(savingsTransferFlow(t, accountType), currencyOf(t.fromAccountId)),
       })),
       plan: (month: string) => build(month).plan,
+      budget: (month: string) => build(month).budget,
       allocations: allocations
         .filter((a) => !a.revertedAt)
         .map((a) => ({

@@ -160,8 +160,8 @@ export function keyWindow(data: Pick<FinData, 'today' | 'txs' | 'firstMonth'>, p
   return { granularity, intervals, label: `${fmt(first.start)} to ${fmt(last.start)}`, note };
 }
 
-function sumIn(data: FinData, iv: KeyInterval, kind: 'income' | 'expense') {
-  return data.txs.filter((t) => t.kind === kind && inPeriod(t.date, iv)).reduce((s, t) => s + t.amount, 0);
+function sumIn(data: FinData, iv: KeyInterval, kind: 'income' | 'expense', earnedOnly = false) {
+  return data.txs.filter((t) => t.kind === kind && inPeriod(t.date, iv) && !(earnedOnly && t.borrowed)).reduce((s, t) => s + t.amount, 0);
 }
 
 function plannedIncomeIn(data: FinData, iv: KeyInterval) {
@@ -208,7 +208,8 @@ export interface IncomeConsistencyData {
 }
 
 export function incomeConsistency(data: FinData, w: KeyWindow): KeyChart<IncomeConsistencyData> {
-  const raw = w.intervals.map((iv) => ({ iv, income: iv.hasData ? r2(sumIn(data, iv, 'income')) : null, expected: r2(plannedIncomeIn(data, iv)) }));
+  // Consistency is about earned income: a loan in one month isn't a raise.
+  const raw = w.intervals.map((iv) => ({ iv, income: iv.hasData ? r2(sumIn(data, iv, 'income', true)) : null, expected: r2(plannedIncomeIn(data, iv)) }));
   const complete = raw.filter((x) => x.income !== null && !x.iv.current);
   const average = complete.length ? complete.reduce((s, x) => s + (x.income ?? 0), 0) / complete.length : 0;
   const low = average * 0.9;
@@ -252,16 +253,19 @@ export function incomeConsistency(data: FinData, w: KeyWindow): KeyChart<IncomeC
 export interface FlowPoint {
   interval: KeyInterval;
   income: number | null;
+  /** The borrowed part of `income` (debt financing), drawn as its own segment. */
+  borrowed: number | null;
   expense: number | null;
   net: number | null;
 }
 
 export function keyCashFlow(data: FinData, w: KeyWindow): KeyChart<{ points: FlowPoint[] }> {
   const points: FlowPoint[] = w.intervals.map((iv) => {
-    if (!iv.hasData) return { interval: iv, income: null, expense: null, net: null };
+    if (!iv.hasData) return { interval: iv, income: null, borrowed: null, expense: null, net: null };
     const income = r2(sumIn(data, iv, 'income'));
+    const borrowed = r2(income - sumIn(data, iv, 'income', true));
     const expense = r2(sumIn(data, iv, 'expense'));
-    return { interval: iv, income, expense, net: r2(income - expense) };
+    return { interval: iv, income, borrowed, expense, net: r2(income - expense) };
   });
   const withData = points.filter((p) => p.net !== null);
   const deficits = withData.filter((p) => p.net! < 0);

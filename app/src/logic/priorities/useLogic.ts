@@ -22,7 +22,7 @@ import { URGENCY_LABEL, URGENCY_ORDER, remaining, statusOf, urgency, type Occurr
 import { capacityAfterCurrent, plansForecast } from '@/src/viewmodels/plans/forecast';
 import { isSavingsAccount } from '@/src/viewmodels/wallets';
 
-const KIND_LABEL = { fixed: 'Fixed', variable: 'Variable', savings: 'Savings', income: 'Income' };
+const KIND_LABEL = { fixed: 'Fixed', variable: 'Variable', savings: 'Savings', income: 'Income', transfer: 'Transfer' };
 const STATUS_LABEL = { open: 'Open', partly: 'Partly paid', paid: 'Paid', postponed: 'Postponed', dropped: 'Dropped' };
 
 export function useLogic() {

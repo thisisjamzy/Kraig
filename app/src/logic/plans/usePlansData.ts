@@ -15,6 +15,7 @@ import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { bucketLineItemRef } from '@/src/shared/firestore/refs';
 import { toDisplay } from '@/src/shared/firestore/currency';
 import { itemOccurrence } from '@/src/shared/budget/monthBudget';
+import { expenseKindOf } from '@/src/shared/budget/flow';
 import { skipItemMonth } from '@/src/shared/firestore/bucketBudget';
 import {
   createBucket,
@@ -57,7 +58,16 @@ export function usePlansData() {
         const type = bucketType === 'Transfer' ? 'Transfer' : (category?.transactionType ?? bucketType);
         const recurring = bucket.kind === 'Fixed' && Boolean(item.recurrence) && item.recurrence!.frequency !== 'Once';
         const anchor = item.dueDate?.toDate() ?? null;
-        const kind: Kind = type === 'Income' ? 'income' : type === 'Savings' ? 'savings' : anchor || recurring ? 'fixed' : 'variable';
+        // Expenses are fixed or variable by their own kind (flow.ts), not
+        // by having a date: a monthly food limit is still variable.
+        const kind: Kind =
+          type === 'Income'
+            ? 'income'
+            : type === 'Savings'
+              ? 'savings'
+              : type === 'Transfer'
+                ? 'transfer'
+                : expenseKindOf(item, { categoryName: category?.name, recurring, hasDueDate: Boolean(anchor) });
         const need = item.necessity ? (item.necessity === 'MustHave' ? 'must' : 'nice') : kind === 'fixed' ? 'must' : 'nice';
         const priority = item.priority === 'Urgent' || item.priority === 'High' ? 'High' : item.priority === 'Low' ? 'Low' : 'Medium';
         // A one-off only in its own month; a repeating item around today.
@@ -84,7 +94,7 @@ export function usePlansData() {
             planned: r2(toDisplay(ctx, occurrence.planned, bucket.currency)),
             paid: planItem ? r2(Math.max(0, planItem.actual)) : 0,
             recurring,
-            inPlan: bucket.kind !== 'Fixed' && Boolean(anchor) && kind !== 'variable' && kind !== 'income',
+            inPlan: bucket.kind !== 'Fixed' && Boolean(anchor) && kind !== 'variable' && kind !== 'income' && kind !== 'transfer',
             consequence: Boolean(item.penaltyIfLate),
             manualRank: item.rank ?? 0,
             postponed: Boolean(item.postponeHistory?.length),

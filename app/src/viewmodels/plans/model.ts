@@ -5,7 +5,9 @@
 // it's due), and every screen computes from those, so the three always
 // agree. Money figures are in the display currency.
 
-export type Kind = 'fixed' | 'variable' | 'savings' | 'income';
+// One per flow type, with expenses split into fixed and variable.
+// Transfers are their own kind: never an expense, never a must-have.
+export type Kind = 'fixed' | 'variable' | 'savings' | 'income' | 'transfer';
 export type Need = 'must' | 'nice';
 export type Priority = 'High' | 'Medium' | 'Low';
 export type Urgency = 'overdue' | 'week' | 'month' | 'next' | 'later';

@@ -234,3 +234,70 @@ export async function reopenBucketMonth(uid: string, bucketId: string, month: st
     updatedAt: serverTimestamp(),
   });
 }
+
+export type EditScope = 'month' | 'future';
+
+/**
+ * Edits one month's line of an item. A recurring item (a template) asks
+ * which months it means:
+ *   - 'month': this month only — an exception (monthOverrides), the other
+ *     months keep the template's amount and date;
+ *   - 'future': this and future months — an effective-dated change
+ *     (changesFrom), earlier months keep what they had.
+ * A one-off item has only the one month, so its own fields change.
+ * Amounts are in the item's bucket currency.
+ */
+export async function editMonthLine(
+  uid: string,
+  bucketId: string,
+  itemId: string,
+  month: string,
+  change: { amount?: number; dueDate?: Date | null },
+  scope: EditScope,
+  current: { amount: number; due: Date | null; recurring: boolean }
+) {
+  const ref = bucketLineItemRef(uid, bucketId, itemId);
+  if (!current.recurring) {
+    await updateDoc(ref, {
+      ...(change.amount !== undefined ? { amount: round2(change.amount) } : {}),
+      ...(change.dueDate !== undefined ? { dueDate: change.dueDate ? Timestamp.fromDate(change.dueDate) : null } : {}),
+      updatedAt: serverTimestamp(),
+    });
+    return;
+  }
+  if (scope === 'month') {
+    const due = change.dueDate !== undefined ? change.dueDate : current.due;
+    await updateDoc(ref, {
+      [`monthOverrides.${month}`]: {
+        amount: round2(change.amount ?? current.amount),
+        ...(due ? { dueDate: Timestamp.fromDate(due) } : {}),
+      },
+      updatedAt: serverTimestamp(),
+    });
+    return;
+  }
+  // This and future months: merged into any change already starting this
+  // month. Later months' own exceptions stay, they were set on purpose.
+  const snap = await getDoc(ref);
+  const existing = snap.data()?.changesFrom?.[month] ?? {};
+  await updateDoc(ref, {
+    [`changesFrom.${month}`]: {
+      ...existing,
+      ...(change.amount !== undefined ? { amount: round2(change.amount) } : {}),
+      ...(change.dueDate ? { dueDay: change.dueDate.getDate() } : {}),
+    },
+    // This month's own exception would hide the change it was just given.
+    [`monthOverrides.${month}`]: deleteField(),
+    updatedAt: serverTimestamp(),
+  });
+}
+
+/** Inline property edits on an item (kind, need, priority, automation, notes, ...). */
+export async function updateItemFields(uid: string, bucketId: string, itemId: string, patch: Record<string, unknown>) {
+  await updateDoc(bucketLineItemRef(uid, bucketId, itemId), { ...patch, updatedAt: serverTimestamp() });
+}
+
+/** Inline property edits on a bucket (name, notes, ...). */
+export async function updateBucketFields(uid: string, bucketId: string, patch: Record<string, unknown>) {
+  await updateDoc(bucketRef(uid, bucketId), { ...patch, updatedAt: serverTimestamp() });
+}

@@ -52,6 +52,8 @@ export interface RangeTotals {
 export function rangeTotals(data: FinData, p: Period, splits: Map<string, TxPlanSplit>): RangeTotals {
   const txs = txsIn(data, p);
   const income = r2(sum(txs.filter((t) => t.kind === 'income'), (t) => t.amount));
+  // Savings rate is out of earned income: borrowed money isn't earnings.
+  const earned = r2(sum(txs.filter((t) => t.kind === 'income' && !t.borrowed), (t) => t.amount));
   const expense = r2(sum(txs.filter((t) => t.kind === 'expense'), (t) => t.amount));
   const savingsEntries = r2(sum(txs.filter((t) => t.kind === 'savings'), (t) => t.amount));
   // Savings tracked as its own entries; otherwise what moved into savings accounts.
@@ -86,7 +88,7 @@ export function rangeTotals(data: FinData, p: Period, splits: Map<string, TxPlan
     expense,
     savings,
     net: r2(income - expense),
-    savingsRate: income > 0 ? (savings > 0 ? savings / income : (income - expense) / income) : null,
+    savingsRate: earned > 0 ? (savings > 0 ? savings / earned : (earned - expense) / earned) : null,
     unplanned,
     unplannedShare: expense > 0 ? unplanned / expense : null,
     unplannedByKind: { no_budget: r2(byKind.no_budget), added_after: r2(byKind.added_after), over_plan: r2(byKind.over_plan) },

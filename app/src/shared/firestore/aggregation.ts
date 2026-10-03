@@ -67,6 +67,7 @@ import type {
   BucketLineItemSubItem,
   BucketItemLink,
   FirestoreTransaction,
+  IncomeSubtype,
 } from './types';
 
 function monthKey(date: Date) {
@@ -120,6 +121,9 @@ export interface CreateTransactionInput {
   // PRD-BUDGETS-V2.md section 4.3 — the bucket item occurrence this pays
   // for, see FirestoreTransaction.bucketItem.
   bucketItem?: BucketItemLink | null;
+  // Income only — see FirestoreTransaction.incomeSubtype. Debt financing
+  // also stores linkedDebtId (the cash debt it created or adds to).
+  incomeSubtype?: IncomeSubtype | null;
 }
 
 /**
@@ -183,6 +187,8 @@ export function writeTransactionContribution(
       ? { isUnjustifiedAdjustment: true, pairedTransferId: input.pairedTransferId ?? null }
       : {}),
     ...(input.isFrozenSavings ? { isFrozenSavings: true } : {}),
+    ...(input.type === 'Income' && input.incomeSubtype ? { incomeSubtype: input.incomeSubtype } : {}),
+    ...(input.incomeSubtype === 'debt_financing' && input.linkedDebtId && !input.isDebtRepayment ? { linkedDebtId: input.linkedDebtId } : {}),
     bucketItem: input.bucketItem ?? null,
     createdBy: input.createdBy,
     createdAt: dateTimestamp,
@@ -234,7 +240,7 @@ export function writeTransactionContribution(
  * PRD-BUDGETS-V2.md section 4.3). `amount: null` removes the payment;
  * otherwise it's upserted. A missing item (deleted since) is ignored.
  */
-async function syncLinkedItemPayment(
+export async function syncLinkedItemPayment(
   uid: string,
   link: BucketItemLink,
   paymentId: string,
@@ -1521,6 +1527,10 @@ export interface CreateDebtInput {
     interval: 'weekly' | 'biweekly' | 'monthly' | 'yearly';
     nextPaymentDate: Date;
   } | null;
+  // The "Loan received" income credit, when it comes from recording debt
+  // financing as income (Add Transaction): its id, category and the
+  // income line it's received against.
+  credit?: { transactionId?: string; categoryId?: string | null; description?: string; bucketItem?: BucketItemLink | null } | null;
 }
 
 export async function createDebt(uid: string, input: CreateDebtInput, ctx: CurrencyContext): Promise<string> {
@@ -1568,15 +1578,20 @@ export async function createDebt(uid: string, input: CreateDebtInput, ctx: Curre
         tx,
         uid,
         {
-          id: crypto.randomUUID(),
+          id: input.credit?.transactionId ?? crypto.randomUUID(),
           date: input.startDate,
           type: 'Income',
-          description: `Loan received: ${input.name}`,
+          description: input.credit?.description || `Loan received: ${input.name}`,
           accountId,
-          categoryId: null,
+          categoryId: input.credit?.categoryId ?? null,
           amount: input.principalAmount,
           direction: 'Inflow',
           createdBy: uid,
+          // Borrowed money is income for its month, as debt financing,
+          // linked to the debt that tracks paying it back.
+          incomeSubtype: 'debt_financing',
+          linkedDebtId: id,
+          bucketItem: input.credit?.bucketItem ?? null,
         },
         accountSnap.data(),
         ctx
