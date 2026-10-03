@@ -87,7 +87,7 @@ function assertNotBelowLocked(account: { currentBalance?: number; lockedAmount?:
   const currentBalance = account?.currentBalance ?? 0;
   const lockedAmount = account?.lockedAmount ?? 0;
   if (currentBalance + delta < lockedAmount) {
-    throw new Error('This would dip into the amount locked in this wallet — unlock some of it first, or use a smaller amount.');
+    throw new Error('This would dip into the amount locked in this wallet, unlock some of it first, or use a smaller amount.');
   }
 }
 
@@ -147,7 +147,7 @@ export function writeTransactionContribution(
 ): number {
   const signedAmount = input.direction === 'Inflow' ? input.amount : -input.amount;
   if (accountData?.frozen) {
-    throw new Error('This wallet is frozen — unfreeze it before recording a transaction against it.');
+    throw new Error('This wallet is frozen, unfreeze it before recording a transaction against it.');
   }
   if (input.isFrozenSavings) {
     // Money never leaves the account — only lockedAmount grows. This isn't
@@ -350,7 +350,7 @@ export async function updateTransactionWithAggregation(
       await Promise.all(accountIds.map(async (id) => [id, await tx.get(accountRef(uid, id))] as const))
     );
     if (accountIds.some((id) => accountSnaps.get(id)?.data()?.frozen)) {
-      throw new Error('One of these wallets is frozen — unfreeze it before editing this transaction.');
+      throw new Error('One of these wallets is frozen, unfreeze it before editing this transaction.');
     }
 
     tx.update(transactionRef(uid, input.id), {
@@ -545,7 +545,7 @@ export async function deleteTransactionWithAggregation(uid: string, transactionI
     const accountSnap = await tx.get(accountRef(uid, accountId));
     const accountData = accountSnap.data();
     if (accountData?.frozen) {
-      throw new Error('This wallet is frozen — unfreeze it before deleting this transaction.');
+      throw new Error('This wallet is frozen, unfreeze it before deleting this transaction.');
     }
 
     tx.delete(transactionRef(uid, transactionId));
@@ -780,7 +780,7 @@ export function writeTransferContribution(
   const dateTimestamp = Timestamp.fromDate(input.date);
   const charges = input.charges ?? 0;
   if (fromData?.frozen || toData?.frozen) {
-    throw new Error('One of these wallets is frozen — unfreeze it before transferring.');
+    throw new Error('One of these wallets is frozen, unfreeze it before transferring.');
   }
   // Only fromAccountId is ever debited (below) — toAccountId only
   // receives, so it never needs the locked-amount check.
@@ -882,7 +882,7 @@ export async function updateTransferWithAggregation(uid: string, input: UpdateTr
       await Promise.all(accountIds.map(async (id) => [id, await tx.get(accountRef(uid, id))] as const))
     );
     if (accountIds.some((id) => accountSnaps.get(id)?.data()?.frozen)) {
-      throw new Error('One of these wallets is frozen — unfreeze it before editing this transfer.');
+      throw new Error('One of these wallets is frozen, unfreeze it before editing this transfer.');
     }
 
     tx.update(transferRef(uid, input.id), {
@@ -988,7 +988,7 @@ export async function deleteTransferWithAggregation(uid: string, transferId: str
     const fromData = fromSnap.data();
     const toData = toSnap.data();
     if (fromData?.frozen || toData?.frozen) {
-      throw new Error('One of these wallets is frozen — unfreeze it before deleting this transfer.');
+      throw new Error('One of these wallets is frozen, unfreeze it before deleting this transfer.');
     }
     // Reversing toAccountId's credit is a real outflow from its balance
     // (money leaving), so it gets the same "would this dip below what's
@@ -1103,10 +1103,10 @@ async function assertNothingLinked(uid: string, scope: { itemId: string } | { bu
     getDocs(query(allocationsRef(uid), where(`to.${field}`, '==', value), limit(1))),
   ]);
   if (!transactionsSnap.empty || !transfersSnap.empty) {
-    throw new Error('Payments are linked to this — unlink them first, or archive the bucket instead.');
+    throw new Error('Payments are linked to this, unlink them first, or archive the bucket instead.');
   }
   if (!fromSnap.empty || !toSnap.empty) {
-    throw new Error('Budget was moved into or out of this — undo those moves first, or archive the bucket instead.');
+    throw new Error('Budget was moved into or out of this, undo those moves first, or archive the bucket instead.');
   }
 }
 
@@ -1415,7 +1415,7 @@ export async function recordBucketLineItemPayment(
       // Per-month status is derived instead (src/shared/budget/monthBudget.ts).
       const closes = fullyPaid && bucketSnap.data()?.kind !== 'Fixed';
       if (fromSnap.data()?.frozen || toSnap.data()?.frozen) {
-        throw new Error('One of these wallets is frozen — unfreeze it before transferring.');
+        throw new Error('One of these wallets is frozen, unfreeze it before transferring.');
       }
       assertNotBelowLocked(fromSnap.data(), -(paymentAmount + charges));
 

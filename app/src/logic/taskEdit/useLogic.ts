@@ -653,7 +653,7 @@ export function useLogic(taskId: string | null, { onDone }: TaskEditOptions = {}
     const trimmed = name.trim();
     if (!uid || !trimmed) return;
     if (!isValidCustomTaskType(trimmed)) {
-      setNewTaskTypeError('One capitalized word — e.g. "Errand".');
+      setNewTaskTypeError('One capitalized word, e.g. "Errand".');
       return;
     }
     setNewTaskTypeError(null);

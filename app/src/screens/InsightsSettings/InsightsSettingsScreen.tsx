@@ -118,9 +118,9 @@ export function InsightsSettingsScreen() {
             <button type="button" className={styles.permission} onClick={enableNotifications} disabled={permission === 'denied' || permission === 'unsupported'}>
               <Bell size={16} strokeWidth={2.25} aria-hidden />
               {permission === 'denied'
-                ? 'Notifications are blocked in your browser settings — alerts show in the app instead'
+                ? 'Notifications are blocked in your browser settings, alerts show in the app instead'
                 : permission === 'unsupported'
-                  ? 'This browser can’t show notifications — alerts show in the app instead'
+                  ? 'This browser can’t show notifications, alerts show in the app instead'
                   : 'Allow notifications'}
             </button>
           )}

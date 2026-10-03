@@ -80,7 +80,7 @@ export function useLogic(walletId: string, periods: readonly string[]) {
 
   const categoryName = useMemo(() => {
     const map = new Map(categories.map((category) => [category.id, category.name]));
-    return (categoryId: string | null) => (categoryId && map.get(categoryId)) || categoryId || '—';
+    return (categoryId: string | null) => (categoryId && map.get(categoryId)) || categoryId || '';
   }, [categories]);
 
   const transactions = transactionDocs.map((transaction, index) => ({

@@ -568,7 +568,7 @@ export function RecurringHeatmaps({ series, onOpen }: { series: SeriesConsistenc
             <span className={styles.heatmapHead}>
               <span className={styles.heatmapTitle}>{s.title}</span>
               <span className={styles.heatmapStats}>
-                {s.consistency === null ? '—' : `${Math.round(s.consistency * 100)}%`} · {s.streak}-day streak
+                {s.consistency === null ? '' : `${Math.round(s.consistency * 100)}%`} · {s.streak}-day streak
               </span>
             </span>
             <span className={styles.heatGrid} data-long={long || undefined} aria-hidden>

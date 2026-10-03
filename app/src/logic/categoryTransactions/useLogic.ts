@@ -145,7 +145,7 @@ export function useLogic(categoryId: string) {
   const accountCurrency = useMemo(() => new Map(accounts.map((a) => [a.id, a.currency])), [accounts]);
   const categoryNameFallback = useMemo(() => {
     const map = new Map(categories.map((category) => [category.id, category.name]));
-    return (id: string | null) => (id && map.get(id)) || id || '—';
+    return (id: string | null) => (id && map.get(id)) || id || '';
   }, [categories]);
 
   // The filter's own reference month: the URL's month/year when this

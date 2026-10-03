@@ -89,7 +89,7 @@ function Visual({ title, windowLabel, caption, note, children }: { title: string
 /** "Sep so far" note when the window's last interval is still running. */
 function soFarNote(intervals: KeyInterval[]) {
   const current = intervals.find((i) => i.current);
-  return current ? `${current.long} is so far — it isn't over yet.` : null;
+  return current ? `${current.long.split(' ')[0]} isn't over yet, so these figures will change.` : null;
 }
 
 function tipTitle(iv: KeyInterval) {
@@ -436,7 +436,7 @@ export function KeyCharts({ v }: { v: FinanceInsights }) {
           />
           <p className={styles.rating}>
             Savings rate this month <strong>{percent(contrib.rateThisMonth)}</strong> · Emergency cushion{' '}
-            <strong>{contrib.cushionMonths === null ? '—' : `${contrib.cushionMonths.toFixed(1)} months`}</strong>
+            <strong>{contrib.cushionMonths === null ? 'Not enough data' : `${contrib.cushionMonths.toFixed(1)} months`}</strong>
           </p>
           <TargetEditor target={v.data.savingsTarget} onSave={v.setSavingsTarget} />
         </Visual>

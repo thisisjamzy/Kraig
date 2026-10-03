@@ -147,7 +147,7 @@ export function computeUpcomingPaymentsFromBucketItems(
         id: item.id,
         goalId: bucket.id,
         title: item.name || categoryName.get(item.categoryId ?? '') || 'Payment',
-        category: categoryName.get(item.categoryId ?? '') ?? item.categoryId ?? '—',
+        category: categoryName.get(item.categoryId ?? '') ?? item.categoryId ?? '',
         categoryId: item.categoryId ?? '',
         accountId: item.accountId ?? null,
         account: (item.accountId && accountName.get(item.accountId)) || '',

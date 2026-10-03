@@ -38,7 +38,7 @@ type Sheet = 'area' | 'section' | 'color' | 'priority' | 'timeline' | 'status' |
 
 const STATUSES: { value: ProjectStatus; label: string; hint: string }[] = [
   { value: 'Active', label: 'Active', hint: 'In progress' },
-  { value: 'Completed', label: 'Completed', hint: 'Done — kept with your projects' },
+  { value: 'Completed', label: 'Completed', hint: 'Done, kept with your projects' },
   { value: 'Archived', label: 'Archived', hint: 'Hidden from Projects; can be restored any time' },
 ];
 
@@ -299,7 +299,7 @@ export function ProjectFormScreen({ projectId }: { projectId?: string }) {
       {sheet === 'delete' && (
         <Modal title="Delete this project?" onClose={() => setSheet(null)}>
           <p className={styles.hint}>
-            It&apos;s removed for good, with its milestones. This can&apos;t be undone — to hide it instead, set its status to Archived.
+            It&apos;s removed for good, with its milestones. This can&apos;t be undone, to hide it instead, set its status to Archived.
           </p>
           {taskCount > 0 && (
             <div className={styles.sheetList} role="radiogroup" aria-label="Its tasks">

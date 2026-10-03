@@ -156,7 +156,7 @@ export function useLogic() {
     try {
       const { sheets, unrecognizedSheetNames } = await readWorkbookFile(file);
       if (sheets.length === 0) {
-        setUploadError('No recognizable sheets found — check the sheet names match a Dreda template.');
+        setUploadError('No recognizable sheets found, check the sheet names match a Dreda template.');
         setLoading(false);
         return;
       }

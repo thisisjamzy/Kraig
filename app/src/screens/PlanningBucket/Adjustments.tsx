@@ -212,7 +212,7 @@ export function AdjustmentSheet({
         )}
         {entry.note && <p className={styles.note}>“{entry.note}”</p>}
         {entry.kind === 'move' && entry.justification && (
-          <p className={styles.hint}>Part of an overspend settlement — undoing it undoes the whole settlement.</p>
+          <p className={styles.hint}>Part of an overspend settlement, undoing it undoes the whole settlement.</p>
         )}
 
         {error && <p className={styles.error}>{error}</p>}

@@ -148,7 +148,7 @@ export function WalletsScreen() {
             >
               {currencyOptions.map((option) => (
                 <option key={option.code} value={option.code}>
-                  {option.code} — {option.name}
+                  {option.code}, {option.name}
                 </option>
               ))}
             </select>

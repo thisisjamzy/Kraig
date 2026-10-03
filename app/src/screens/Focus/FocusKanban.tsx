@@ -58,7 +58,7 @@ function KanbanCard({ task, suppressClick }: { task: FocusTask; suppressClick: (
       }}
       {...attributes}
       {...listeners}
-      aria-roledescription="draggable task — long press to move"
+      aria-roledescription="draggable task, long press to move"
     >
       <TaskCheckRow task={rowTask(task)} />
     </div>

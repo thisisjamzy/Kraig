@@ -162,7 +162,7 @@ export function BucketDetailScreen({ goalId }: { goalId: string }) {
       {archived && (
         <div className={styles.archivedBanner}>
           <Archive size={16} strokeWidth={2} aria-hidden />
-          <span>Archived — its recorded payments still count in your history and payments calendar.</span>
+          <span>Archived, its recorded payments still count in your history and payments calendar.</span>
           <button type="button" onClick={() => unarchiveBucket()}>
             Unarchive
           </button>

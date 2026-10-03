@@ -75,7 +75,7 @@ export function DebtsListScreen() {
                       <span className={styles.heroInfoValue}>
                         {debtSummary.nextPaymentDate
                           ? debtSummary.nextPaymentDate.toLocaleDateString('en-US', { month: 'short', day: '2-digit' })
-                          : '—'}
+                          : ''}
                       </span>
                     </div>
                   </div>

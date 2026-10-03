@@ -55,7 +55,7 @@ export function useLogic(bucketId: string) {
   // The bucket's category: its items' own, the most common one.
   const counts = new Map<string, number>();
   for (const { item } of items) counts.set(item.categoryName, (counts.get(item.categoryName) ?? 0) + 1);
-  const category = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? '—';
+  const category = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? '';
 
   const bucketName = new Map(buckets.map((b) => [b.id, b.name]));
   const transactionIds = new Set(items.flatMap(({ item }) => item.transactionIds));
@@ -94,7 +94,7 @@ export function useLogic(bucketId: string) {
     if (!uid) return;
     return run(
       () => (entry.justification ? revertJustification(uid, entry.justification.id) : revertAllocation(uid, entry.allocationId!)),
-      'Undone — kept in the history as reverted.'
+      'Undone, kept in the history as reverted.'
     );
   }
   function editJustification(

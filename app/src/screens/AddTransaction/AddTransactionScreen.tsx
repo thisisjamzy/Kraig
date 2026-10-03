@@ -429,11 +429,11 @@ export function AddTransactionScreen() {
           <h2 className={styles.reviewTitle}>{strings.addTransaction.reviewTitle}</h2>
           <div className={styles.reviewRow}>
             <span className={styles.reviewLabel}>{strings.addTransaction.reviewDescription}</span>
-            <span className={styles.reviewValue}>{description || '—'}</span>
+            <span className={styles.reviewValue}>{description || ''}</span>
           </div>
           <div className={styles.reviewRow}>
             <span className={styles.reviewLabel}>{strings.addTransaction.reviewCategory}</span>
-            <span className={styles.reviewValue}>{categoryName || '—'}</span>
+            <span className={styles.reviewValue}>{categoryName || ''}</span>
           </div>
           <div className={styles.reviewRow}>
             <span className={styles.reviewLabel}>{strings.addTransaction.reviewAmount}</span>

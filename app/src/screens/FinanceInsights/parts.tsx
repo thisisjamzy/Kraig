@@ -25,7 +25,7 @@ export function compact(n: number) {
 }
 
 export function percent(x: number | null, digits = 0) {
-  return x === null ? '—' : `${(x * 100).toFixed(digits)}%`;
+  return x === null ? '' : `${(x * 100).toFixed(digits)}%`;
 }
 
 export const AXIS_TICK = { fill: 'var(--fi-muted)', fontSize: 11 };
@@ -110,7 +110,7 @@ export function Section({
 
 /** "▲ 12%" — green when better, red when worse; arrow + sign, never color alone. */
 export function ChangeChip({ value, goodWhen, points }: { value: number | null; goodWhen: 'up' | 'down'; points?: boolean }) {
-  if (value === null || !Number.isFinite(value)) return <span className={styles.change}>— vs before</span>;
+  if (value === null || !Number.isFinite(value)) return <span className={styles.change}>No comparison yet</span>;
   if (Math.abs(value) < 0.005) return <span className={styles.change}>= same</span>;
   const up = value > 0;
   const good = (up && goodWhen === 'up') || (!up && goodWhen === 'down');

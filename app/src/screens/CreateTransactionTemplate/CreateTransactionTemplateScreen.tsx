@@ -165,7 +165,7 @@ export function CreateTransactionTemplateScreen({ templateId }: { templateId?: s
               <span className={styles.listRowLabel}>
                 {isTransferLike ? strings.transactionTemplates.kindLabel : strings.transactionTemplates.categoryLabel}
               </span>
-              <span className={styles.listRowValue}>{selectedCategory ? selectedCategory.name : '—'}</span>
+              <span className={styles.listRowValue}>{selectedCategory ? selectedCategory.name : ''}</span>
               <ChevronRight size={16} strokeWidth={2} className={styles.listRowChevron} />
             </button>
             {categoryPickerOpen && (
@@ -195,7 +195,7 @@ export function CreateTransactionTemplateScreen({ templateId }: { templateId?: s
               <span className={styles.listRowLabel}>
                 {isTransferLike ? strings.transactionTemplates.fromAccountLabel : strings.transactionTemplates.accountLabel}
               </span>
-              <span className={styles.listRowValue}>{selectedAccount ? selectedAccount.name : '—'}</span>
+              <span className={styles.listRowValue}>{selectedAccount ? selectedAccount.name : ''}</span>
               <ChevronRight size={16} strokeWidth={2} className={styles.listRowChevron} />
             </button>
             {accountPickerOpen && (
@@ -224,7 +224,7 @@ export function CreateTransactionTemplateScreen({ templateId }: { templateId?: s
                   <ArrowRight size={16} strokeWidth={2} />
                 </span>
                 <span className={styles.listRowLabel}>{strings.transactionTemplates.toAccountLabel}</span>
-                <span className={styles.listRowValue}>{selectedToAccount ? selectedToAccount.name : '—'}</span>
+                <span className={styles.listRowValue}>{selectedToAccount ? selectedToAccount.name : ''}</span>
                 <ChevronRight size={16} strokeWidth={2} className={styles.listRowChevron} />
               </button>
               {toAccountPickerOpen && (

@@ -175,7 +175,7 @@ export function TransactionPage({ t, inPeek = false }: { t: TxLogic; inPeek?: bo
             { id: 'time', label: 'Time', display: v.timeKnown ? v.date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : null },
             { id: 'type', label: 'Type', display: v.type },
             ...(v.subtype ? [{ id: 'subtype', label: 'Income subtype', display: v.subtype }] : []),
-            { id: 'category', label: t.isTransfer ? 'Kind' : 'Category', display: v.category === '—' ? null : v.category },
+            { id: 'category', label: t.isTransfer ? 'Kind' : 'Category', display: v.category === '' ? null : v.category },
             { id: 'account', label: t.isTransfer ? 'From and to' : 'Account', display: v.method },
             {
               id: 'bucket',

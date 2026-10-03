@@ -11,6 +11,6 @@ export async function syncNow(range?: SyncWindow | null): Promise<SyncRunResult>
   const result = await runCalendarSync({ reason: 'manual', window: range });
   if (result.status === 'ok') showToast('Synced with Google Calendar');
   else if (result.status === 'failed') showToast(result.error?.message ?? 'Sync failed');
-  else if (typeof navigator !== 'undefined' && navigator.onLine === false) showToast("You're offline — sync will run when you're back");
+  else if (typeof navigator !== 'undefined' && navigator.onLine === false) showToast("You're offline, sync will run when you're back");
   return result;
 }

@@ -124,7 +124,7 @@ export function ReallocateScreen() {
 
           {r.destination === 'next' && (
             <p className={f.hint}>
-              {money(r.nextTotal)} {r.currency} can roll into {monthTitle(r.nextMonth)} — items that repeat next month.
+              {money(r.nextTotal)} {r.currency} can roll into {monthTitle(r.nextMonth)}, items that repeat next month.
             </p>
           )}
 

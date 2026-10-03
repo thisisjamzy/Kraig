@@ -139,7 +139,7 @@ export function BucketPage({ bucketId, b }: { bucketId: string; b: BucketLogic }
             properties={[
               { id: 'type', label: 'Type', display: FLOW_LABEL[type] },
               { id: 'kind', label: 'Kind', display: bucket.kind === 'Fixed' ? 'Recurring' : 'One-off items' },
-              { id: 'category', label: 'Category', display: b.category === '—' ? null : b.category },
+              { id: 'category', label: 'Category', display: b.category === '' ? null : b.category },
               { id: 'month', label: 'Month', display: monthTitle(b.month) },
               ...(hasNeedAndPriority(type)
                 ? [

@@ -165,11 +165,11 @@ function ItemBody({ it, entry }: { it: ReturnType<typeof useLogic>; entry: ItemM
         <SpecRow>
           <SpecCell
             label="Next due"
-            value={it.nextDue ? dayMonth(it.nextDue.due) : '—'}
+            value={it.nextDue ? dayMonth(it.nextDue.due) : ''}
             tone={it.nextDue?.status === 'overdue' ? 'over' : undefined}
           />
-          <SpecCell label="Paid from" value={it.account ?? '—'} />
-          <SpecCell label="Moved" value={moved === 0 ? '—' : `${moved > 0 ? '+' : '-'}${money(Math.abs(moved))}`} />
+          <SpecCell label="Paid from" value={it.account ?? ''} />
+          <SpecCell label="Moved" value={moved === 0 ? '' : `${moved > 0 ? '+' : '-'}${money(Math.abs(moved))}`} />
         </SpecRow>
         <div className={p.healthRow}>
           <span className={p.specLabel}>Health</span>
@@ -181,7 +181,7 @@ function ItemBody({ it, entry }: { it: ReturnType<typeof useLogic>; entry: ItemM
                 : prompt?.kind === 'justified'
                   ? `Over, justified (${prompt.reason})`
                   : !income && left < 0
-                    ? `${money(-left)} above its estimate — the rest of the bucket covers it`
+                    ? `${money(-left)} above its estimate, the rest of the bucket covers it`
                     : entry.isOverride
                     ? 'On track · amount changed this month'
                     : 'On track'}
@@ -189,7 +189,7 @@ function ItemBody({ it, entry }: { it: ReturnType<typeof useLogic>; entry: ItemM
         </div>
       </section>
 
-      {entry.justified && <p className={styles.justifiedNote}>“{entry.justified.note || entry.justified.reason}” — {money(entry.justified.amount)} justified</p>}
+      {entry.justified && <p className={styles.justifiedNote}>“{entry.justified.note || entry.justified.reason}”, {money(entry.justified.amount)} justified</p>}
 
       {(over || leftover) && (
         <div className={p.promptCard} data-tone={over ? 'over' : 'leftover'}>
@@ -292,7 +292,7 @@ function ItemBody({ it, entry }: { it: ReturnType<typeof useLogic>; entry: ItemM
       {m.confirmUndoId && (
         <ConfirmDialog
           title="Undo this move?"
-          message="The money goes back where it came from (a savings move gets a reversing transfer). A move made while settling an overspend undoes that whole settlement. Nothing is deleted — it stays in the history as reverted."
+          message="The money goes back where it came from (a savings move gets a reversing transfer). A move made while settling an overspend undoes that whole settlement. Nothing is deleted, it stays in the history as reverted."
           confirmLabel="Undo"
           cancelLabel="Keep it"
           onConfirm={() => m.undo(m.confirmUndoId!)}

@@ -97,9 +97,9 @@ export function useLogic(id: string, opts: { transfer?: boolean } = {}) {
   };
   if (transaction) {
     const currency = account.get(transaction.accountId)?.currency ?? ctx.base;
-    const category = categories.find((c) => c.id === transaction.categoryId)?.name ?? '—';
+    const category = categories.find((c) => c.id === transaction.categoryId)?.name ?? '';
     view = {
-      title: category !== '—' ? category : transaction.description || 'Transaction',
+      title: category !== '' ? category : transaction.description || 'Transaction',
       note: transaction.description,
       flow: transaction.direction === 'Inflow' ? 'in' : 'out',
       amount: toDisplay(ctx, transaction.amount, currency),
@@ -107,7 +107,7 @@ export function useLogic(id: string, opts: { transfer?: boolean } = {}) {
       type: transaction.type,
       subtype: transaction.type === 'Income' ? INCOME_SUBTYPE_LABEL[incomeSubtypeOfTransaction(transaction)] : null,
       category,
-      method: account.get(transaction.accountId)?.name ?? '—',
+      method: account.get(transaction.accountId)?.name ?? '',
       editHref: `/edit-transaction/${transaction.id}`,
     };
   } else if (transferDoc) {

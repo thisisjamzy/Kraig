@@ -319,7 +319,7 @@ function SummaryTile({
   lowerIsBetter?: boolean;
   onOpen?: () => void;
 }) {
-  const value = tile.value === null ? '—' : percent ? `${Math.round(tile.value * 100)}%` : `${tile.value}${suffix}`;
+  const value = tile.value === null ? '' : percent ? `${Math.round(tile.value * 100)}%` : `${tile.value}${suffix}`;
   const change = tile.change;
   const Arrow = change === null || change === 0 ? Minus : change > 0 ? ArrowUp : ArrowDown;
   const changeText =
