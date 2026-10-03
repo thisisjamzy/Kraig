@@ -8,7 +8,7 @@
 // advanced filter as "N rules", then "+ Filter" and "Clear". Each chip
 // opens its own editor anchored under it.
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ArrowDownUp, ChevronDown, ListFilter, Plus, Search, X } from 'lucide-react';
 import {
   countRules,
@@ -42,6 +42,8 @@ export function ListQueryBar<T>({
   manualOrder = false,
   hideSort = false,
   className,
+  leading,
+  trailing,
 }: {
   fields: FieldDef<T>[];
   query: ListQuery;
@@ -60,6 +62,10 @@ export function ListQueryBar<T>({
   /** Placement tweaks from the screen (the bar must stay a direct child of
    * the scrolling content for sticky to work). */
   className?: string;
+  /** Shown in place of the result count (a database's view tabs). */
+  leading?: ReactNode;
+  /** After the filter / sort / search icons (a database's Group and New). */
+  trailing?: ReactNode;
 }) {
   const [menu, setMenu] = useState<Menu | null>(null);
   const [searching, setSearching] = useState(query.search !== '');
@@ -142,9 +148,11 @@ export function ListQueryBar<T>({
             </label>
           ) : (
             <>
-              <span className={styles.count} aria-live="polite">
-                {count} {count === 1 ? noun[0] : noun[1]}
-              </span>
+              {leading ?? (
+                <span className={styles.count} aria-live="polite">
+                  {count} {count === 1 ? noun[0] : noun[1]}
+                </span>
+              )}
               <div className={styles.tools}>
                 <button
                   type="button"
@@ -173,6 +181,7 @@ export function ListQueryBar<T>({
                 <button type="button" className={styles.tool} aria-label="Search" onClick={() => setSearching(true)}>
                   <Search size={20} strokeWidth={2} />
                 </button>
+                {trailing}
               </div>
             </>
           )}

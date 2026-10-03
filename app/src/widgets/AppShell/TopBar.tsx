@@ -9,9 +9,10 @@
 import { useMemo, useRef, useState, type Ref } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Bell, Menu, Search } from 'lucide-react';
+import { Bell, ChevronRight, Menu, Search } from 'lucide-react';
 import { pageTitle, WIDE_NAV } from '@/src/shared/config/wideNav';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
+import { useCurrentBreadcrumb } from './breadcrumb';
 import styles from './TopBar.module.css';
 
 const SEARCHABLE = [
@@ -44,6 +45,8 @@ export function TopBar({
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
+  // A page's breadcrumb ("Money / Budget / October 2026") replaces the title.
+  const crumbs = useCurrentBreadcrumb();
   const matches = useMemo(() => {
     const q = query.trim().toLowerCase();
     return (q ? SEARCHABLE.filter((r) => r.label.toLowerCase().includes(q)) : SEARCHABLE).slice(0, 8);
@@ -63,7 +66,31 @@ export function TopBar({
             <Menu size={20} strokeWidth={2} />
           </button>
         )}
-        <h1 className={styles.title}>{pageTitle(pathname)}</h1>
+        {crumbs?.length ? (
+          <nav aria-label="Breadcrumb" className={styles.crumbs}>
+            <ol>
+              {crumbs.map((crumb, index) => {
+                const last = index === crumbs.length - 1;
+                return (
+                  <li key={`${crumb.label}-${index}`}>
+                    {index > 0 && <ChevronRight size={14} strokeWidth={2} aria-hidden className={styles.crumbSep} />}
+                    {crumb.href && !last ? (
+                      <Link href={crumb.href} className={styles.crumbLink}>
+                        {crumb.label}
+                      </Link>
+                    ) : (
+                      <span className={styles.crumbText} aria-current={last ? 'page' : undefined}>
+                        {crumb.label}
+                      </span>
+                    )}
+                  </li>
+                );
+              })}
+            </ol>
+          </nav>
+        ) : (
+          <h1 className={styles.title}>{pageTitle(pathname)}</h1>
+        )}
         <div ref={slotRef} className={styles.slot} />
       </div>
 
