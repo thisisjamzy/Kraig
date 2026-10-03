@@ -12,8 +12,24 @@
 // entered in).
 
 import { bucketLineItemAppliesToMonth } from '../firestore/recurrence';
+import {
+  automationOf,
+  expenseKindOf,
+  incomeSubtypeOf,
+  incomeSubtypeOfTransaction,
+  itemFlow,
+  savingsModeOf,
+  savingsSign,
+  transferSavingsSign,
+} from './flow';
 import type {
   AllocationEndpoint,
+  BucketItemNecessity,
+  ExpenseKind,
+  IncomeSubtype,
+  ItemAutomation,
+  Priority,
+  SavingsMode,
   BucketItemLink,
   FirestoreAllocation,
   FirestoreBucket,
@@ -50,6 +66,12 @@ export function monthLabel(month: string): string {
   return new Date(year, monthNum - 1, 1).toLocaleString('en-US', { month: 'short', year: 'numeric' });
 }
 
+/** "October 2026" */
+export function monthTitleOf(month: string): string {
+  const [year, monthNum] = month.split('-').map(Number);
+  return new Date(year, monthNum - 1, 1).toLocaleString('en-US', { month: 'long', year: 'numeric' });
+}
+
 function round2(value: number) {
   return Math.round(value * 100) / 100;
 }
@@ -58,7 +80,25 @@ export type BudgetItemLike = Pick<
   FirestoreBucketLineItem,
   'id' | 'goalId' | 'name' | 'amount' | 'categoryId' | 'dueDate' | 'recurrence' | 'excludedMonths' | 'monthOverrides' | 'completed' | 'charges'
 > &
-  Partial<Pick<FirestoreBucketLineItem, 'payments' | 'expenseId' | 'transferId' | 'monthJustifications'>>;
+  Partial<
+    Pick<
+      FirestoreBucketLineItem,
+      | 'payments'
+      | 'expenseId'
+      | 'transferId'
+      | 'monthJustifications'
+      | 'changesFrom'
+      | 'necessity'
+      | 'priority'
+      | 'accountId'
+      | 'toAccountId'
+      | 'incomeSubtype'
+      | 'expenseKind'
+      | 'savingsMode'
+      | 'automation'
+      | 'rollover'
+    >
+  >;
 
 /**
  * Which item a transaction/transfer pays for — THE one attribution rule
@@ -100,14 +140,35 @@ export function resolveLink(
  * @dreda/shared-recurrence's effectiveBudgetedAmount played for rules. A
  * Planned item with no dueDate is unscheduled: in no month's budget.
  */
-export function itemOccurrence(item: BudgetItemLike, month: string): { planned: number; isOverride: boolean } | null {
+export function itemOccurrence(
+  item: BudgetItemLike,
+  month: string
+): { planned: number; isOverride: boolean; due: Date | null } | null {
   if (item.excludedMonths?.includes(month)) return null;
   const [year, monthNum] = month.split('-').map(Number);
   const occurrence = bucketLineItemAppliesToMonth(item, year, monthNum);
   if (!occurrence) return null;
+  // "This and future months" edits: the latest change on or before this month.
+  const change = latestChange(item.changesFrom, month);
+  const amount = change?.amount ?? item.amount;
+  const anchor = item.dueDate?.toDate() ?? null;
+  const recurring = Boolean(item.recurrence && item.recurrence.frequency !== 'Once');
+  const day = change?.dueDay ?? anchor?.getDate() ?? 1;
+  let due: Date | null = anchor && recurring ? new Date(year, monthNum - 1, Math.min(day, new Date(year, monthNum, 0).getDate())) : anchor;
   const override = item.monthOverrides?.[month];
-  if (override) return { planned: override.amount, isOverride: true };
-  return { planned: item.amount * occurrence.multiplier, isOverride: false };
+  if (override?.dueDate) due = override.dueDate.toDate();
+  if (override) return { planned: override.amount, isOverride: true, due };
+  return { planned: amount * occurrence.multiplier, isOverride: false, due };
+}
+
+function latestChange(changes: BudgetItemLike['changesFrom'], month: string) {
+  if (!changes) return null;
+  const keys = Object.keys(changes)
+    .filter((key) => key <= month)
+    .sort();
+  if (!keys.length) return null;
+  // Later changes override earlier ones field by field.
+  return keys.reduce<{ amount?: number; dueDay?: number }>((merged, key) => ({ ...merged, ...changes[key] }), {});
 }
 
 export function endpointKey(endpoint: AllocationEndpoint): string {
@@ -130,13 +191,33 @@ export interface ItemMonth {
   categoryName: string;
   type: BudgetItemType;
   kind: 'Fixed' | 'Planned';
+  // Flow subtype — only the one matching `type` is set.
+  incomeSubtype: IncomeSubtype | null;
+  expenseKind: ExpenseKind | null;
+  savingsMode: SavingsMode | null;
+  // Need and priority — expenses and savings only (null otherwise).
+  necessity: BucketItemNecessity | null;
+  priority: Priority | null;
+  automation: ItemAutomation;
+  recurring: boolean;
+  /** This month's due date (or expected date, for income). */
+  due: Date | null;
+  accountId: string | null;
+  toAccountId: string | null;
+  /** Transfer lines: the planned fee, an expense of its own. */
+  fee: number;
+  rollover: boolean;
   month: string;
   planned: number;
   isOverride: boolean;
   allocatedIn: number;
   allocatedOut: number;
   available: number; // planned + allocatedIn - allocatedOut
-  actual: number; // spent (Expense/Savings/Transfer) or received (Income)
+  actual: number; // spent (Expense), saved (Savings, always >= 0), moved (Transfer) or received (Income)
+  // Income: the part of `actual` that was borrowed (debt financing).
+  borrowed: number;
+  // Savings: money taken back out, shown separately from what was saved.
+  withdrawn: number;
   remaining: number; // available - actual
   status: BudgetItemStatus;
   // This item's part of its BUCKET's overspend no allocation has covered
@@ -202,6 +283,20 @@ export interface MonthBudget {
   actualIncome: number;
   plannedOutflow: number; // Expense + Savings items, plus planned Transfer charges
   actualOutflow: number; // linked + unplanned Expense/Savings, plus actual transfer charges
+  // Per flow type — src/shared/budget/monthTotals.ts turns these into the
+  // month's totals. Never mixed: transfers aren't expenses, savings aren't
+  // spending, borrowed money is income with its own sub-line.
+  flows: {
+    receivedBorrowed: number; // debt financing received (linked + unplanned)
+    unplannedIncome: number;
+    spent: number; // expenses: linked + unplanned + actual transfer fees
+    unplannedSpent: number;
+    plannedTransferFees: number;
+    actualTransferFees: number;
+    saved: number; // savings set aside: linked + unplanned + transfers into savings
+    withdrawn: number; // taken back out of savings
+    transferred: number; // moved between own accounts (not savings)
+  };
   // "Left to budget": planned income not yet claimed by any outflow item,
   // adjusted by every allocation into or out of this month's pool. Negative
   // means the plan itself overspends income.
@@ -220,10 +315,16 @@ export interface MonthBudgetInput {
   // Every transaction dated in `month` AND every transaction linked to an
   // occurrence in `month` (bucketItem.month) — the two can differ for an
   // early/late payment. Duplicates are fine, they're de-duplicated by id.
-  transactions: (Pick<FirestoreTransaction, 'id' | 'accountId' | 'amount' | 'direction' | 'type' | 'categoryId' | 'bucketItem'> & {
-    month: string;
-  })[];
-  transfers: (Pick<FirestoreTransfer, 'id' | 'fromAccountId' | 'amount' | 'charges' | 'kind' | 'bucketItem'> & { month: string })[];
+  transactions: (Pick<FirestoreTransaction, 'id' | 'accountId' | 'amount' | 'direction' | 'type' | 'categoryId' | 'bucketItem'> &
+    Partial<Pick<FirestoreTransaction, 'incomeSubtype' | 'linkedDebtId' | 'isDebtRepayment' | 'description' | 'isFrozenSavings'>> & {
+      month: string;
+    })[];
+  transfers: (Pick<FirestoreTransfer, 'id' | 'fromAccountId' | 'amount' | 'charges' | 'kind' | 'bucketItem'> &
+    Partial<Pick<FirestoreTransfer, 'toAccountId'>> & { month: string })[];
+  // Account id -> type, for which way a savings entry went (flow.ts's
+  // savingsSign). Optional for older callers; without it a Savings Inflow
+  // reads as a withdrawal.
+  accountType?: Map<string, string>;
   allocations: FirestoreAllocation[];
   // This month's overspend settlements (FirestoreOverspendJustification);
   // reverted ones are ignored. Optional so older callers/tests still work.
@@ -234,15 +335,7 @@ export interface MonthBudgetInput {
   toDisplay: (amount: number, currency: string) => number;
 }
 
-function itemType(
-  bucketType: BudgetItemType,
-  categoryId: string | null | undefined,
-  categories: MonthBudgetInput['categories']
-): BudgetItemType {
-  if (bucketType === 'Transfer') return 'Transfer';
-  const category = categoryId ? categories.get(categoryId) : undefined;
-  return category?.transactionType ?? bucketType;
-}
+const itemType = itemFlow;
 
 // "Progress" toward an item/category in its own direction: money out for
 // Expense/Savings, money in for Income. A refund against an Expense
@@ -271,6 +364,10 @@ export function buildMonthBudget(input: MonthBudgetInput): MonthBudget {
       if (!occurrence) continue;
       const type = itemType(bucketType, item.categoryId, categories);
       const planned = round2(toDisplay(occurrence.planned, bucket.currency));
+      const recurring = Boolean(item.recurrence && item.recurrence.frequency !== 'Once');
+      const categoryName = (item.categoryId && categories.get(item.categoryId)?.name) || null;
+      const savingsMode = type === 'Savings' ? savingsModeOf(item) : null;
+      const spending = type === 'Expense' || type === 'Savings';
       const entry: ItemMonth = {
         key: itemMonthKey(item.id, month),
         bucketId,
@@ -281,6 +378,19 @@ export function buildMonthBudget(input: MonthBudgetInput): MonthBudget {
         categoryName: (item.categoryId && categories.get(item.categoryId)?.name) || item.categoryId || 'Uncategorized',
         type,
         kind,
+        incomeSubtype: type === 'Income' ? incomeSubtypeOf(item, categoryName) : null,
+        expenseKind:
+          type === 'Expense' ? expenseKindOf(item, { categoryName, recurring: kind === 'Fixed' && recurring, hasDueDate: Boolean(item.dueDate) }) : null,
+        savingsMode,
+        necessity: spending ? (item.necessity ?? 'NiceToHave') : null,
+        priority: spending ? (item.priority ?? 'Medium') : null,
+        automation: automationOf(type, item, savingsMode),
+        recurring,
+        due: occurrence.due,
+        accountId: item.accountId ?? null,
+        toAccountId: item.toAccountId ?? null,
+        fee: type === 'Transfer' && item.charges ? round2(toDisplay(item.charges, bucket.currency)) : 0,
+        rollover: Boolean(item.rollover),
         month,
         planned,
         isOverride: occurrence.isOverride,
@@ -288,6 +398,8 @@ export function buildMonthBudget(input: MonthBudgetInput): MonthBudget {
         allocatedOut: 0,
         available: 0,
         actual: 0,
+        borrowed: 0,
+        withdrawn: 0,
         remaining: 0,
         status: 'on',
         unfunded: 0,
@@ -317,21 +429,58 @@ export function buildMonthBudget(input: MonthBudgetInput): MonthBudget {
     return best;
   }
 
+  // Received income an unlinked transaction most likely is: an expected
+  // income line from the same source (category) within 10% of its amount,
+  // not received yet — so recording the salary without picking its line
+  // still marks the line received (and fires its automations).
+  function incomeMatch(t: MonthBudgetInput['transactions'][number], amount: number): ItemMonth | undefined {
+    if (t.type !== 'Income' || !t.categoryId) return undefined;
+    return items.find(
+      (entry) =>
+        entry.type === 'Income' &&
+        !entry.archived &&
+        entry.categoryId === t.categoryId &&
+        entry.actual === 0 &&
+        entry.planned > 0 &&
+        Math.abs(amount - entry.planned) <= entry.planned * 0.1
+    );
+  }
+
   // Linked spend, plus category-only (unplanned) spend by category.
   const legacyLinks = buildLegacyLinks(input.itemsByBucket);
   const unplannedByCategory = new Map<string, number>();
   let unplannedIncome = 0;
   let unplannedOutflow = 0;
+  let unplannedSpent = 0;
+  let unplannedSaved = 0;
+  let withdrawnTotal = 0;
+  let borrowedTotal = 0;
   const seenTransactions = new Set<string>();
   for (const t of input.transactions) {
     if (seenTransactions.has(t.id)) continue;
     seenTransactions.add(t.id);
-    const amount = toDisplay(progressOf(t.type, t.direction, t.amount), accountCurrency.get(t.accountId) ?? baseCurrency);
+    const currency = accountCurrency.get(t.accountId) ?? baseCurrency;
+    // Savings are always positive "set aside" amounts; a withdrawal is
+    // counted on its own, never as negative savings.
+    const isSavings = t.type === 'Savings';
+    const sign = isSavings ? savingsSign(t, input.accountType) : 0;
+    const amount = isSavings ? toDisplay(t.amount, currency) : toDisplay(progressOf(t.type, t.direction, t.amount), currency);
+    const borrowed = t.type === 'Income' && t.direction === 'Inflow' && incomeSubtypeOfTransaction(t) === 'debt_financing';
     const link = resolveLink(t, legacyLinks);
     let linkedEntry = link && link.month === month ? itemsByKey.get(itemMonthKey(link.itemId, month)) : undefined;
     if (!link && t.month === month && month < BUDGETS_V2_START) linkedEntry = recurringMatch(t, amount);
+    if (!link && !linkedEntry && t.month === month) linkedEntry = incomeMatch(t, amount);
     if (linkedEntry) {
-      linkedEntry.actual += amount;
+      if (isSavings && sign < 0) {
+        linkedEntry.withdrawn += amount;
+        withdrawnTotal += amount;
+      } else {
+        linkedEntry.actual += amount;
+      }
+      if (borrowed) {
+        linkedEntry.borrowed += amount;
+        borrowedTotal += amount;
+      }
       linkedEntry.transactionIds.push(t.id);
       continue;
     }
@@ -340,26 +489,48 @@ export function buildMonthBudget(input: MonthBudgetInput): MonthBudget {
     // there instead. One linked to an occurrence in this month that no
     // longer exists (the item was skipped or deleted after paying) is still
     // real spend, so it falls through to unplanned rather than vanishing.
-    if (t.month !== month || !t.categoryId) continue;
+    if (t.month !== month) continue;
     if (link && link.month !== month) continue;
-    unplannedByCategory.set(t.categoryId, (unplannedByCategory.get(t.categoryId) ?? 0) + amount);
-    if (t.type === 'Income') unplannedIncome += amount;
-    else unplannedOutflow += amount;
+    if (isSavings) {
+      if (sign < 0) withdrawnTotal += amount;
+      else unplannedSaved += amount;
+    } else if (t.type === 'Income') {
+      unplannedIncome += amount;
+      if (borrowed) borrowedTotal += amount;
+    } else {
+      unplannedSpent += amount;
+    }
+    // The category lens only shows categorised spend; uncategorised money
+    // (a loan credit, say) still counts in the totals above.
+    if (!t.categoryId) continue;
+    const signed = isSavings ? sign * amount : amount;
+    unplannedByCategory.set(t.categoryId, (unplannedByCategory.get(t.categoryId) ?? 0) + signed);
+    if (t.type !== 'Income') unplannedOutflow += signed;
   }
 
   let actualTransferCharges = 0;
+  let transferredTotal = 0;
+  let savedByTransfer = 0;
   const seenTransfers = new Set<string>();
   for (const t of input.transfers) {
     if (seenTransfers.has(t.id)) continue;
     seenTransfers.add(t.id);
     const currency = accountCurrency.get(t.fromAccountId) ?? baseCurrency;
+    const amount = toDisplay(t.amount, currency);
     if (t.month === month && t.charges) actualTransferCharges += toDisplay(t.charges, currency);
     const link = resolveLink(t, legacyLinks);
-    if (!link || link.month !== month) continue;
-    const entry = itemsByKey.get(itemMonthKey(link.itemId, month));
-    if (!entry) continue;
-    entry.actual += toDisplay(t.amount, currency);
-    entry.transferIds.push(t.id);
+    const entry = link && link.month === month ? itemsByKey.get(itemMonthKey(link.itemId, month)) : undefined;
+    const savingsSignOf = t.toAccountId ? transferSavingsSign({ ...t, toAccountId: t.toAccountId }, input.accountType) : 0;
+    if (entry) {
+      entry.actual += amount;
+      entry.transferIds.push(t.id);
+      if (entry.type === 'Transfer') transferredTotal += amount;
+      continue;
+    }
+    if (t.month !== month || (link && link.month !== month)) continue;
+    if (savingsSignOf > 0) savedByTransfer += amount;
+    else if (savingsSignOf < 0) withdrawnTotal += amount;
+    else transferredTotal += amount;
   }
 
   // Allocations. Pool endpoints only count toward the allocation's own month.
@@ -421,6 +592,8 @@ export function buildMonthBudget(input: MonthBudgetInput): MonthBudget {
     entry.allocatedIn = round2(entry.allocatedIn);
     entry.allocatedOut = round2(entry.allocatedOut);
     entry.actual = round2(entry.actual);
+    entry.borrowed = round2(entry.borrowed);
+    entry.withdrawn = round2(entry.withdrawn);
     entry.available = round2(entry.planned + entry.allocatedIn - entry.allocatedOut);
     entry.remaining = round2(entry.available - entry.actual);
     // Income runs the other way: receiving more than planned is good, not
@@ -575,5 +748,16 @@ export function buildMonthBudget(input: MonthBudgetInput): MonthBudget {
     pool: round2(plannedIncome - plannedOutflow + poolDelta),
     unplannedTotal: round2(unplannedOutflow),
     unfundedTotal: round2(sum(items, (entry) => entry.unfunded)),
+    flows: {
+      receivedBorrowed: round2(borrowedTotal),
+      unplannedIncome: round2(unplannedIncome),
+      spent: round2(sum(items.filter((entry) => entry.type === 'Expense'), (entry) => entry.actual) + unplannedSpent + actualTransferCharges),
+      unplannedSpent: round2(unplannedSpent),
+      plannedTransferFees: round2(plannedTransferCharges),
+      actualTransferFees: round2(actualTransferCharges),
+      saved: round2(sum(items.filter((entry) => entry.type === 'Savings'), (entry) => entry.actual) + unplannedSaved + savedByTransfer),
+      withdrawn: round2(withdrawnTotal),
+      transferred: round2(transferredTotal),
+    },
   };
 }

@@ -1,7 +1,7 @@
 {
   "name": "dreda",
   "private": true,
-  "description": "Repo root \u2014 npm workspaces linking the Next.js app, Cloud Functions, and the shared budget-recurrence module they both need. See PRD-FIREBASE.md.",
+  "description": "Repo root — npm workspaces linking the Next.js app, Cloud Functions, and the shared budget-recurrence module they both need. See PRD-FIREBASE.md.",
   "workspaces": [
     "app",
     "functions",
@@ -16,7 +16,7 @@
     "unseed:goals-debt": "tsx scripts/unseed-goals-debt-dummy-data.ts",
     "test:rules": "firebase emulators:exec --only firestore --project dreda-rules-test \"tsx --test test/firestore-rules.test.ts\"",
     "test:functions": "npm run build --prefix functions && firebase emulators:exec --only functions,firestore,auth --project dreda-emu-test \"node --test functions/lib/integration/*.test.js\"",
-    "test:budget": "tsx --test test/monthBudget.test.ts",
+    "test:budget": "tsx --test test/monthBudget.test.ts test/budgetFlow.test.ts",
     "test:calendar": "tsx --test test/dayLayout.test.ts",
     "test:calendar-sync": "tsx --test test/calendarBridge.test.ts test/calendarSync.test.ts",
     "test:insights": "tsx --test test/financeInsights.test.ts test/keyCharts.test.ts",

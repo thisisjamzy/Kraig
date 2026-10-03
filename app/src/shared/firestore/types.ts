@@ -119,6 +119,12 @@ export interface FirestoreTransaction {
   // rent on Aug 30 counts toward September. Absent/null = not tied to any
   // item (category-only spend, shown as "Unplanned" on the Budget screen).
   bucketItem?: BucketItemLink | null;
+  // Income only: what kind of money came in (earned, other, or borrowed —
+  // see IncomeSubtype). Absent on an older Income transaction, which reads
+  // as 'earned' unless it's a cash debt's "Loan received" credit
+  // (linkedDebtId set), which reads as 'debt_financing'
+  // (src/shared/budget/flow.ts's incomeSubtypeOfTransaction).
+  incomeSubtype?: IncomeSubtype | null;
   createdBy: string;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
@@ -311,6 +317,41 @@ export type EndCondition = 'Never' | 'After Occurrences' | 'On Date';
 // "category" instead of a real categories/{id}.
 export type BudgetLineType = 'Expense' | 'Income' | 'Savings' | 'Transfer';
 
+// The four money flow types (src/shared/budget/flow.ts). Every bucket holds
+// exactly one, and so does each of its items, budget lines and the
+// transactions recorded against them. Same values as BudgetLineType.
+export type FlowType = BudgetLineType;
+// Income: earned (salary, fees, sales), other (gifts, refunds), or
+// debt_financing (a loan or credit received — counted as income for its
+// month, and linked to the cash debt that tracks paying it back).
+export type IncomeSubtype = 'earned' | 'other' | 'debt_financing';
+// Expense: fixed (a set amount on a set date, rent) or variable (a limit
+// used through the month, food).
+export type ExpenseKind = 'fixed' | 'variable';
+// Savings: absolute (set aside every month before discretionary spending)
+// or flexible (if money allows).
+export type SavingsMode = 'absolute' | 'flexible';
+
+/**
+ * How the app prepares a line's payment (src/shared/budget/automation.ts).
+ * The app records money, it never moves real money: "prepare" puts the
+ * payment in the Ready to pay queue for a one-tap confirmation.
+ */
+export interface ItemAutomation {
+  mode: 'off' | 'remind' | 'prepare';
+  // prepare only: on the due date, when one income line is received, or
+  // when any income is received.
+  trigger?: 'due' | 'income' | 'any_income';
+  // trigger 'income': the income bucket item whose arrival fires it.
+  incomeItemId?: string | null;
+  // fixed (the line's own planned amount) or, for savings, a percent of
+  // the triggering income.
+  amountMode?: 'fixed' | 'percent';
+  percent?: number | null;
+  // The account to pay from (defaults to the line's own account).
+  accountId?: string | null;
+}
+
 /**
  * A real bill with a due date — Netflix, rent, an insurance premium.
  * Deliberately its own collection, NOT a field on a budget rule (rules
@@ -416,6 +457,11 @@ export interface FirestoreBucket {
   // bucket then. Its items count as closed (leftover can be moved on, no
   // more payments expected), with an optional note on how it went.
   closedMonths?: Record<string, { at: Timestamp | null; note: string }>;
+  // The bucket page's free-text notes block.
+  notes?: string;
+  // Set by the flow-type migration (src/shared/budget/flowMigration.ts) on
+  // a bucket split out of a mixed one: the original bucket's id.
+  splitFrom?: string | null;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 }
@@ -558,7 +604,22 @@ export interface FirestoreBucketLineItem {
   // a different amount for just that one month. Read through
   // src/shared/budget/monthBudget.ts's itemOccurrence, never directly.
   excludedMonths?: string[];
-  monthOverrides?: Record<string, { amount: number }>;
+  // `dueDate` (optional): that month's line is due on a different day.
+  monthOverrides?: Record<string, { amount: number; dueDate?: Timestamp | null }>;
+  // "This and future months" edits to a recurring item: from the keyed
+  // month (yyyy-MM) on, the amount and/or day of the month change. Earlier
+  // months keep what they had. Read through monthBudget.ts's itemOccurrence.
+  changesFrom?: Record<string, { amount?: number; dueDay?: number }>;
+  // Flow subtypes (src/shared/budget/flow.ts) — only the one matching the
+  // bucket's type is used. Absent on older items, inferred on read.
+  incomeSubtype?: IncomeSubtype | null;
+  expenseKind?: ExpenseKind | null;
+  savingsMode?: SavingsMode | null;
+  // Variable expenses: roll an unused amount into next month (off by default).
+  rollover?: boolean;
+  automation?: ItemAutomation | null;
+  // The item page's free-text notes block.
+  notes?: string;
   // An overspend explained rather than (or as well as) covered — per month,
   // the part of that month's overspend the household accepted, and why.
   // Written by the Planning "Cover or justify" flow
@@ -1068,4 +1129,67 @@ export interface TaskException {
   allDay?: boolean;
   startTime?: Timestamp;
   dueDate?: Timestamp;
+}
+
+/**
+ * users/{uid}/budgetMonths/{yyyy-MM} — a month that has been set up from
+ * the recurring items (src/shared/budget/monthSetup.ts). A month's lines
+ * are still derived from the items (monthBudget.ts), this doc records that
+ * the month was opened, what it started with (for the start-of-month
+ * banner), and whether it was reviewed. Created once, by a deterministic
+ * id, so setting a month up twice changes nothing.
+ */
+export interface FirestoreBudgetMonth {
+  id: string; // yyyy-MM
+  setupAt: Timestamp | null;
+  // Lines the month started with, per flow type, and their keys
+  // (itemId@yyyy-MM) — what the banner and the review page list.
+  counts: { income: number; expense: number; savings: number; transfer: number };
+  lineKeys: string[];
+  reviewedAt: Timestamp | null;
+  bannerDismissedAt: Timestamp | null;
+  // "Did it arrive?" answered "Not yet": income line key -> yyyy-MM-dd,
+  // asked again from the next day.
+  incomeSnoozed?: Record<string, string>;
+}
+
+/**
+ * users/{uid}/paymentQueue/{itemId__yyyyMM} — a payment the app prepared
+ * for one tap (src/shared/budget/automation.ts). One id per line
+ * occurrence, so a line can only ever be prepared once; confirming flips
+ * status inside the same transaction that records the payment, so it
+ * can't be confirmed twice either.
+ */
+export interface FirestorePaymentQueueEntry {
+  id: string;
+  bucketId: string;
+  itemId: string;
+  month: string; // the occurrence this pays (yyyy-MM)
+  flow: 'Expense' | 'Savings' | 'Transfer';
+  name: string;
+  bucketName: string;
+  amount: number; // in `currency`
+  currency: string;
+  accountId: string | null;
+  toAccountId: string | null;
+  categoryId: string | null;
+  fee: number;
+  // Ordering: absolute savings and Must have first, then due date, then priority.
+  first: boolean;
+  dueDate: Timestamp | null;
+  priority: Priority;
+  trigger: { kind: 'due' | 'income' | 'any_income'; incomeKey: string | null; incomeName: string | null; incomeAmount: number | null };
+  status: 'ready' | 'confirmed' | 'skipped';
+  recordIds: string[];
+  createdAt?: Timestamp;
+  confirmedAt?: Timestamp | null;
+}
+
+/** users/{uid}/migrations/{id} — a one-time data migration and its report. */
+export interface FirestoreMigration {
+  id: string;
+  version: number;
+  completedAt: Timestamp | null;
+  reviewedAt: Timestamp | null;
+  report: { kind: string; subject: string; detail: string }[];
 }

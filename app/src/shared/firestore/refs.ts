@@ -44,6 +44,9 @@ import type {
   FirestoreOverspendJustification,
   FirestoreCalendarEvent,
   FirestoreCalendarSyncState,
+  FirestoreBudgetMonth,
+  FirestorePaymentQueueEntry,
+  FirestoreMigration,
 } from './types';
 import type { FirestoreAuditReport } from './auditReport';
 
@@ -262,4 +265,22 @@ export function reconciliationRef(uid: string, id: string): DocumentReference<Om
 
 export function userRef(uid: string): DocumentReference<FirestoreUserDoc> {
   return doc(getFirebaseFirestore(), 'users', uid) as DocumentReference<FirestoreUserDoc>;
+}
+
+export function budgetMonthsRef(uid: string): CollectionReference<FirestoreBudgetMonth> {
+  return sub(uid, 'budgetMonths') as CollectionReference<FirestoreBudgetMonth>;
+}
+export function budgetMonthRef(uid: string, month: string): DocumentReference<Omit<FirestoreBudgetMonth, 'id'>> {
+  return subDoc(uid, 'budgetMonths', month) as DocumentReference<Omit<FirestoreBudgetMonth, 'id'>>;
+}
+
+export function paymentQueueRef(uid: string): CollectionReference<FirestorePaymentQueueEntry> {
+  return sub(uid, 'paymentQueue') as CollectionReference<FirestorePaymentQueueEntry>;
+}
+export function paymentQueueEntryRef(uid: string, id: string): DocumentReference<Omit<FirestorePaymentQueueEntry, 'id'>> {
+  return subDoc(uid, 'paymentQueue', id) as DocumentReference<Omit<FirestorePaymentQueueEntry, 'id'>>;
+}
+
+export function migrationRef(uid: string, id: string): DocumentReference<Omit<FirestoreMigration, 'id'>> {
+  return subDoc(uid, 'migrations', id) as DocumentReference<Omit<FirestoreMigration, 'id'>>;
 }

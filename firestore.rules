@@ -190,6 +190,34 @@ service cloud.firestore {
       // check, so every read of a goal was denied). Every collection below
       // keeps read (and delete) on its own line, same as
       // transactions/transfers/budgetRules above.
+      // A month set up from the recurring items (src/shared/budget/
+      // monthSetup.ts): when, what it started with, whether it was
+      // reviewed. Its lines are still derived from the bucket items.
+      match /budgetMonths/{monthId} {
+        allow read: if activeUser() && request.auth.uid == uid;
+        allow create, update: if activeUser() && request.auth.uid == uid
+          && monthId.matches('^[0-9]{4}-[0-9]{2}$')
+          && request.resource.data.lineKeys is list;
+        allow delete: if false;
+      }
+
+      // Ready to pay: one prepared payment per line occurrence
+      // (src/shared/budget/automation.ts). Never deleted, so a line can't be
+      // prepared a second time.
+      match /paymentQueue/{entryId} {
+        allow read: if activeUser() && request.auth.uid == uid;
+        allow create, update: if activeUser() && request.auth.uid == uid
+          && request.resource.data.amount is number && request.resource.data.amount >= 0
+          && request.resource.data.status in ['ready', 'confirmed', 'skipped'];
+        allow delete: if false;
+      }
+
+      // One-time data migrations and their reports (flow types, ...).
+      match /migrations/{migrationId} {
+        allow read, create, update: if activeUser() && request.auth.uid == uid;
+        allow delete: if false;
+      }
+
       // Money buckets (PRD-BUDGETS-V2.md — renamed from goals in the app;
       // the storage path kept its old name).
       match /goals/{goalId} {
