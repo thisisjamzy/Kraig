@@ -1353,6 +1353,8 @@ export interface MarkBucketLineItemCompleteInput {
   // the payment settles (yyyy-MM). Defaults to the payment date's own month;
   // differs for an early/late payment (September's rent paid Aug 30).
   occurrenceMonth?: string;
+  // Income items only — see FirestoreTransaction.incomeSubtype.
+  incomeSubtype?: IncomeSubtype | null;
 }
 
 /**
@@ -1482,6 +1484,7 @@ export async function recordBucketLineItemPayment(
         direction,
         createdBy: uid,
         bucketItem,
+        incomeSubtype: categoryType === 'Income' ? (input.incomeSubtype ?? null) : null,
       },
       accountSnap.data(),
       ctx

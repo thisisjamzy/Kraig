@@ -151,6 +151,8 @@ export async function listReconciliations(uid: string, take = 50): Promise<Fires
 export interface ExplainHistoricEntryInput {
   date: Date;
   type: string;
+  // Income only — see FirestoreTransaction.incomeSubtype.
+  incomeSubtype?: import('./types').IncomeSubtype | null;
   description: string;
   accountId: string;
   categoryId: string | null;
