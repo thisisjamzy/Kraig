@@ -1,9 +1,11 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, PieChart, SlidersHorizontal, Clock } from 'lucide-react';
+import { Home, PieChart, SlidersHorizontal, Clock, Menu } from 'lucide-react';
 import { navMode } from '@/src/shared/config/chromeVisibility';
+import { MoreSheet } from '@/src/widgets/AppShell/MoreSheet';
 import styles from './BottomNav.module.css';
 
 // Buckets dropped from here — reachable from Home's own Quick Actions instead
@@ -32,6 +34,7 @@ export const NAV_ITEMS = [
 // own Quick Actions.
 export function BottomNav() {
   const pathname = usePathname();
+  const [more, setMore] = useState(false);
 
   if (navMode(pathname) !== 'money') {
     return null;
@@ -54,7 +57,11 @@ export function BottomNav() {
             </Link>
           );
         })}
+        <button type="button" className={`${styles.item} ${styles.itemButton}`} aria-label="More" aria-haspopup="dialog" onClick={() => setMore(true)}>
+          <Menu size={20} strokeWidth={2} />
+        </button>
       </div>
+      {more && <MoreSheet onClose={() => setMore(false)} />}
       <Link href="/projects" className={styles.fabButton} aria-label="Switch to Time mode">
         <Clock size={22} strokeWidth={2.25} />
       </Link>

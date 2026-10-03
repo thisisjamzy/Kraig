@@ -115,18 +115,21 @@
   color: #787774;
 }
 
-[data-num] {
+.smallTable [data-num],
+.table [data-num] {
   text-align: right !important;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
-td[data-tone='bad'],
-strong[data-tone='bad'] {
+.table td[data-tone='bad'],
+.note strong[data-tone='bad'],
+.colHead strong[data-tone='bad'],
+.monthList strong[data-tone='bad'] {
   color: #d6404f;
 }
 
-strong[data-tone='good'] {
+.monthList strong[data-tone='good'] {
   color: #1f7a4d;
 }
 
