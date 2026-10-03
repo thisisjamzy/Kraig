@@ -25,7 +25,6 @@ import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { monthLabel, remaining, type Occurrence } from '@/src/viewmodels/plans/model';
 import type { SortMode } from '@/src/viewmodels/plans/priorities';
 import { full } from './parts';
-import bm from '@/src/screens/BudgetMonth/BudgetMonth.module.css';
 import styles from './Plans.module.css';
 
 const REASONS = ['No money', 'Not urgent', 'Waiting on someone', 'Price changed'];
@@ -118,10 +117,10 @@ export function PrioritiesScreen() {
             onSave: (next) => v.setView(next === 'open' ? 'open' : 'month'),
           },
         },
-        { id: 'available', label: 'Available now', display: money(v.availableNow) },
-        { id: 'now', label: 'Can pay now', display: money(v.totals.canPayNow) },
-        { id: 'waiting', label: 'Waiting for income', display: money(v.totals.waiting) },
-        { id: 'not', label: 'Not covered', display: <span className={bm.toneText} data-tone={v.totals.notCovered ? 'bad' : undefined}>{money(v.totals.notCovered)}</span> },
+        { id: 'available', label: 'Available now', display: money(v.availableNow), tone: v.availableNow > 0 ? 'good' : v.availableNow < 0 ? 'bad' : 'neutral' },
+        { id: 'now', label: 'Can pay now', display: money(v.totals.canPayNow), tone: v.totals.canPayNow ? 'good' : 'neutral' },
+        { id: 'waiting', label: 'Waiting for income', display: money(v.totals.waiting), tone: v.totals.waiting ? 'watch' : 'neutral' },
+        { id: 'not', label: 'Not covered', display: money(v.totals.notCovered), tone: v.totals.notCovered ? 'bad' : 'neutral' },
       ]}
     >
       <Callout tone={v.totals.notCovered ? 'bad' : v.totals.waiting ? 'watch' : undefined}>

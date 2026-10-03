@@ -113,3 +113,53 @@ export function usePageWidth(path: string | null, fallback: PageWidth = 'full'):
     () => fallback
   );
 }
+
+// ---- The page's own actions, in the top bar's "..." menu ----
+// ("Open insights", "Record a payment", "Edit"): pages keep no buttons
+// beside their title. The latest mounted page's list wins.
+
+export interface PageMenuItem {
+  label: string;
+  href?: string;
+  onSelect?: () => void;
+  danger?: boolean;
+}
+
+const menuStack: { id: number; items: PageMenuItem[] }[] = [];
+let menuItems: PageMenuItem[] = [];
+const menuListeners = new Set<() => void>();
+
+/** Registers the page's menu items while it's mounted. */
+export function usePageMenu(items: PageMenuItem[] | undefined) {
+  // Functions can't be compared; the labels and links say when the list changed.
+  const key = items ? JSON.stringify(items.map((i) => [i.label, i.href ?? '', Boolean(i.danger)])) : '';
+  const latest = items;
+  useEffect(() => {
+    if (!key || !latest?.length) return;
+    const entry = { id: nextId++, items: latest };
+    menuStack.push(entry);
+    menuItems = entry.items;
+    menuListeners.forEach((l) => l());
+    return () => {
+      const i = menuStack.findIndex((e) => e.id === entry.id);
+      if (i >= 0) menuStack.splice(i, 1);
+      menuItems = menuStack.at(-1)?.items ?? [];
+      menuListeners.forEach((l) => l());
+    };
+    // The key stands for the items.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+}
+
+export function usePageMenuItems(): PageMenuItem[] {
+  return useSyncExternalStore(
+    (l) => {
+      menuListeners.add(l);
+      return () => {
+        menuListeners.delete(l);
+      };
+    },
+    () => menuItems,
+    () => menuItems
+  );
+}

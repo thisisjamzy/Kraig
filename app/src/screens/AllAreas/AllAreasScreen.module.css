@@ -1,159 +1,122 @@
-.page {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-lg);
-  padding: var(--space-lg);
-  padding-top: 0;
-}
+/* Area cards: square, 1px border, sentence case figures. */
 
-
-.backButton {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  flex-shrink: 0;
-  border-radius: 50%;
-  border: 1px solid var(--color-border);
-  background: none;
-  color: var(--color-text-primary);
-  cursor: pointer;
-}
-
-
-/* Same shape as TasksListScreen's own header "+" (that screen's own
-   .addIconButton) — a small dark circle at the trailing edge of the
-   header, next to /areas/new. */
-.addIconButton {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 28px;
-  height: 28px;
-  border: none;
-  border-radius: var(--radius-full);
-  background: var(--ink-bg);
-  color: var(--ink-text);
-  cursor: pointer;
-  text-decoration: none;
-}
-
-.emptyText {
-  margin: 0;
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
-}
-
-/* Vertically scrolling list — each entry is its own rounded card, wrapped
-   in a SwipeableListItem whose swipe reveal needs that same rounding +
-   full-bleed opaque background, or the red delete action shows
-   through/around the corners even at rest. */
-
-/* Areas as a two-column grid of tiles — the area's own color tints its
-   icon, and each tile's "⋮" menu holds Delete (a swipe doesn't suit a
-   half-width tile). */
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 12px;
-}
-
-.tile {
-  --area-color: var(--color-brand);
+.card {
   position: relative;
-  border-radius: 20px;
-  background: var(--color-background);
-  box-shadow: 0 1px 2px rgba(27, 27, 57, 0.04), 0 6px 18px rgba(27, 27, 57, 0.05);
-}
-
-:global([data-theme='dark']) .tile {
-  background: var(--color-surface);
-  box-shadow: none;
-}
-
-.tileLink {
   display: flex;
   flex-direction: column;
   gap: 6px;
   height: 100%;
-  min-height: 150px;
-  padding: 16px;
-  border-radius: inherit;
-  color: inherit;
-  text-decoration: none;
-  transition: transform var(--duration-press) var(--ease-out);
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid #e9e9e7;
+  background: var(--color-background);
+  cursor: pointer;
 }
 
-.tileLink:active {
-  transform: scale(0.97);
+.card:hover {
+  background: rgba(55, 53, 47, 0.02);
 }
 
-.tileLink:focus-visible {
-  outline: 2px solid var(--color-brand);
-  outline-offset: 2px;
+:global([data-theme='dark']) .card {
+  border-color: rgba(255, 255, 255, 0.09);
 }
 
-.tileIcon {
+.cardTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.tile {
   display: grid;
   place-items: center;
-  width: 40px;
-  height: 40px;
-  margin-bottom: 6px;
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--area-color) 18%, transparent);
-  color: color-mix(in srgb, var(--area-color) 80%, var(--color-text-primary));
-  font-family: var(--font-family-heading);
-  font-size: 1.125rem;
-  font-weight: 700;
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  background: rgba(55, 53, 47, 0.06);
+  font-size: 1.25rem;
 }
 
-.tileName {
+.more {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: #787774;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.card:hover .more,
+.more:focus-visible {
+  opacity: 1;
+}
+
+@media (pointer: coarse) {
+  .more {
+    opacity: 1;
+    width: 44px;
+    height: 44px;
+  }
+}
+
+.name {
+  margin: 4px 0 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.name button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.description {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #5f5e5b;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  padding-right: 20px;
-  font-family: var(--font-family-heading);
-  font-size: var(--font-size-md);
-  font-weight: 700;
-  line-height: 1.25;
-  color: var(--color-text-primary);
+  overflow-wrap: anywhere;
 }
 
-.tileDescription {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  font-size: 0.75rem;
-  line-height: 1.4;
-  color: var(--color-text-secondary);
+.figures {
+  margin: auto 0 0;
+  padding-top: 6px;
+  font-size: 0.8125rem;
+  color: #787774;
 }
 
-.tileMeta {
-  margin-top: auto;
-  padding-top: 4px;
-  font-size: 0.6875rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: color-mix(in srgb, var(--area-color) 75%, var(--color-text-primary));
+.menu {
+  display: flex;
+  flex-direction: column;
+  min-width: 160px;
+  padding: 4px;
 }
 
-.tileMenu {
-  position: absolute;
-  top: 12px;
-  right: 10px;
+.menu button {
+  min-height: 32px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 0.875rem;
+  text-align: left;
+  cursor: pointer;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .tileLink {
-    transition: none;
-  }
-
-  .tileLink:active {
-    transform: none;
-  }
+.menu button:hover {
+  background: rgba(55, 53, 47, 0.06);
 }

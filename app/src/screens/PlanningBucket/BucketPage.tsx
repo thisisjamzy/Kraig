@@ -14,7 +14,7 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, Lock, LockOpen, MoreHorizontal, Pencil, Plus, Zap } from 'lucide-react';
+import { Zap } from 'lucide-react';
 import type { useLogic as useBucketLogic } from '@/src/logic/planningBucket/useLogic';
 import { useBudgetMonth } from '@/src/logic/budgetMonth/useLogic';
 import type { LineRow } from '@/src/logic/budgetMonth/lines';
@@ -22,8 +22,7 @@ import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { updateBucketFields, updateItemFields } from '@/src/shared/firestore/bucketBudget';
 import { automationLabel, FLOW_LABEL, FLOW_NOUN, hasNeedAndPriority, type FlowType } from '@/src/shared/budget/flow';
 import { dayMonth, monthTitle } from '@/src/viewmodels/planning';
-import { ActionMenu } from '@/src/widgets/ActionMenu/ActionMenu';
-import { useBreadcrumb } from '@/src/widgets/AppShell/breadcrumb';
+import { useBreadcrumb, usePageMenu } from '@/src/widgets/AppShell/breadcrumb';
 import { Database } from '@/src/widgets/Database/Database';
 import { Block, NotionPageHeader } from '@/src/widgets/Database/NotionPage';
 import { PropertiesBlock } from '@/src/widgets/Database/PropertiesBlock';
@@ -56,6 +55,18 @@ export function BucketPage({ bucketId, b }: { bucketId: string; b: BucketLogic }
   const bucket = b.bucket;
   const type = (bucket?.type ?? 'Expense') as FlowType;
   useBreadcrumb([{ label: 'Money', href: '/home' }, { label: 'Buckets', href: '/buckets' }, { label: bucket?.name ?? 'Bucket' }]);
+  // The bucket's actions live in the top bar's "..." menu.
+  usePageMenu(
+    bucket
+      ? [
+          { label: ADD_LABEL[type], href: b.addExpenseHref },
+          { label: 'Add item', href: `/add-bucket-item/${bucketId}` },
+          { label: 'Edit bucket', href: `/buckets/${bucketId}` },
+          b.closed ? { label: 'Reopen bucket', onSelect: () => void b.reopenBucket() } : { label: `Close bucket for ${monthTitle(b.month)}`, onSelect: () => setClosing(true) },
+          { label: 'All transactions', href: `/transactions?month=${b.month}&bucket=${bucketId}` },
+        ]
+      : undefined
+  );
 
   const lines = useMemo(() => v.rows[type].filter((r) => r.bucketId === bucketId), [v.rows, type, bucketId]);
   const ctx: ColumnContext = {
@@ -112,28 +123,6 @@ export function BucketPage({ bucketId, b }: { bucketId: string; b: BucketLogic }
           icon={<Icon size={24} strokeWidth={2} />}
           title={bucket.name}
           kind={`${FLOW_NOUN[type]} bucket · ${monthTitle(b.month)}`}
-          actions={
-            <>
-              <Link href={b.addExpenseHref} className={bm.primaryButton}>
-                <Plus size={15} strokeWidth={2.5} aria-hidden /> {ADD_LABEL[type]}
-              </Link>
-              <Link href={`/buckets/${bucketId}`} className={bm.ghostButton}>
-                <Pencil size={14} strokeWidth={2.25} aria-hidden /> Edit
-              </Link>
-              <ActionMenu
-                ariaLabel="More"
-                triggerClassName={bm.iconLink}
-                triggerIcon={<MoreHorizontal size={18} strokeWidth={2} />}
-                items={[
-                  { key: 'add', label: 'Add item', icon: <Plus size={14} strokeWidth={2} />, onSelect: () => router.push(`/add-bucket-item/${bucketId}`) },
-                  b.closed
-                    ? { key: 'reopen', label: 'Reopen bucket', icon: <LockOpen size={14} strokeWidth={2} />, onSelect: () => b.reopenBucket() }
-                    : { key: 'close', label: `Close bucket for ${monthTitle(b.month)}`, icon: <Lock size={14} strokeWidth={2} />, onSelect: () => setClosing(true) },
-                  { key: 'history', label: 'All transactions', icon: <ArrowRight size={14} strokeWidth={2} />, onSelect: () => router.push(`/transactions?month=${b.month}&bucket=${bucketId}`) },
-                ]}
-              />
-            </>
-          }
         >
           <PropertiesBlock
             properties={[

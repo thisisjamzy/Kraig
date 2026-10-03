@@ -12,6 +12,8 @@ import {
   estimateAccuracy,
   onTimeRate,
   overdueTasks,
+  dueAt,
+  rescheduleRate,
   productiveHours,
   projectStat,
   quadrantMix,
@@ -51,6 +53,8 @@ export interface InsightsResult {
   compareWith: string;
   /** Overdue tasks now in Do first. */
   overdueDoFirst: number;
+  /** Counts for the page's property tiles. */
+  counts: { completed: number; overdue: number; dueToday: number; rescheduled: number };
   /** Over the range — or the last 7 days when the range is a single day. */
   completionTrend: Chart<DayStat[]>;
   plannedVsDone: Chart<DayStat[]>;
@@ -259,6 +263,15 @@ export function computeInsights({
     },
     compareWith: singleDay ? 'the 7-day average' : previousWord(kind),
     overdueDoFirst: overdueTasks(tasks, now).filter((x) => x.quadrant === 'do').length,
+    counts: {
+      completed: doneNow,
+      overdue: overdueNow,
+      dueToday: tasks.filter((x) => {
+        const due = dueAt(x);
+        return x.status === 'pending' && due !== null && due >= startOfDay(now) && due <= endOfDay(now);
+      }).length,
+      rescheduled: rescheduleRate(tasks, range, now).numerator,
+    },
     completionTrend: { data: trendDays, takeaway: trendTakeaway, empty: !trendDays.some((d) => d.rate !== null) },
     plannedVsDone: { data: days, takeaway: plannedTakeaway, empty: !hasTasks },
     dailyLoad: { data: loads, takeaway: loadTakeaway, empty: !loads.some((l) => l.scheduledMinutes > 0) },

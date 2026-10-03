@@ -14,8 +14,8 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { serverTimestamp, updateDoc } from 'firebase/firestore';
-import { Activity, Pencil } from 'lucide-react';
-import { healthSentence, useProjectsDb } from '@/src/logic/projectsDb/useProjectsDb';
+import { Activity } from 'lucide-react';
+import { healthSentence, useProjectsDb, type ProjectRow } from '@/src/logic/projectsDb/useProjectsDb';
 import { taskItem } from '@/src/logic/timeCalendar/useLogic';
 import { useLayout } from '@/src/shared/hooks/useLayout';
 import { useTaskPanel } from '@/src/shared/navigation/taskPanel';
@@ -156,6 +156,12 @@ export function ProjectDetailScreen({ projectId }: { projectId: string }) {
           emptyText="No tasks yet."
         />
       </Block>
+      <Block title="Project insights">
+        <ProjectInsightsBlock tasks={tasks} row={row} />
+        <Link href={`/projects/insights/${projectId}`} className={styles.more}>
+          Open project insights
+        </Link>
+      </Block>
       {row.milestones.length > 0 && (
         <Block title="Milestones">
           <Database<MilestoneStat>
@@ -180,22 +186,16 @@ export function ProjectDetailScreen({ projectId }: { projectId: string }) {
   return (
     <NotionPage
       title={row.name}
-      icon={doc.emoji ? <span>{doc.emoji}</span> : <span className={styles.iconDot} style={{ background: row.color }} />}
+      icon={doc.emoji ? <span>{doc.emoji}</span> : <span className={styles.iconDot} style={{ background: row.color }} aria-hidden />}
       crumbs={[
         { label: 'Time', href: '/projects' },
         { label: 'Projects', href: '/projects/all' },
         { label: row.name, href: `/projects/${projectId}` },
       ]}
-      actions={
-        <>
-          <Link href={`/projects/insights/${projectId}`} className={styles.ghost}>
-            Insights
-          </Link>
-          <Link href={`/projects/${projectId}/edit`} className={styles.ghost}>
-            <Pencil size={14} strokeWidth={2} aria-hidden /> Edit
-          </Link>
-        </>
-      }
+      menu={[
+        { label: 'Open project insights', href: `/projects/insights/${projectId}` },
+        { label: 'Edit project', href: `/projects/${projectId}/edit` },
+      ]}
       properties={[
         {
           id: 'status',
@@ -207,7 +207,7 @@ export function ProjectDetailScreen({ projectId }: { projectId: string }) {
             onSave: (v) => setStatus(row, v as ProjectStatus),
           },
         },
-        { id: 'health', label: 'Health', display: <HealthTag health={row.health} /> },
+        { id: 'health', label: 'Health', tone: row.health === 'At risk' ? 'bad' : row.health === 'Watch' ? 'watch' : 'good', display: row.health, sub: row.reasons[0] },
         {
           id: 'area',
           label: 'Area',
@@ -217,8 +217,15 @@ export function ProjectDetailScreen({ projectId }: { projectId: string }) {
         },
         { id: 'dates', label: 'Dates', display: dateRange(row) ?? undefined, empty: !dateRange(row) },
         { id: 'deadline', label: 'Deadline', edit: { type: 'date', value: row.end, onSave: (v) => setDates(row, row.start, v instanceof Date ? v : null) } },
-        { id: 'progress', label: 'Progress', display: <ProgressBar row={row} /> },
-        { id: 'forecast', label: 'Forecast finish', display: row.forecast ? longDate(row.forecast) : 'No finish in sight yet' },
+        { id: 'progress', label: 'Progress', progress: row.progress, sub: `${row.done} of ${row.tasks} tasks done` },
+        {
+          id: 'forecast',
+          label: 'Forecast finish',
+          tone: row.end && (!row.forecast || row.forecast > row.end) && row.health !== 'Done' ? 'watch' : 'neutral',
+          display: row.forecast ? longDate(row.forecast) : 'No finish in sight yet',
+          sub: row.end && row.forecast && row.slackDays !== null ? (row.slackDays >= 0 ? `${row.slackDays} days before the deadline` : `${-row.slackDays} days after the deadline`) : undefined,
+        },
+        { id: 'overdue', label: 'Overdue tasks', tone: row.overdue ? 'bad' : 'neutral', display: String(row.overdue) },
       ]}
     >
       {deviceClass === 'large' ? (
@@ -246,5 +253,48 @@ function ProjectNotes({ value, onSave }: { value: string; onSave: (notes: string
       onBlur={() => text !== value && void onSave(text)}
       rows={4}
     />
+  );
+}
+
+/** A small summary after the tasks: completion this week, the overdue
+ * trend and the forecast against the deadline. */
+function ProjectInsightsBlock({ tasks, row }: { tasks: TaskRow[]; row: ProjectRow }) {
+  const now = new Date();
+  const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7));
+  const lastMonday = new Date(monday.getTime() - 7 * 86_400_000);
+  const doneThisWeek = tasks.filter((t) => t.completed && t.completed >= monday).length;
+  const doneLastWeek = tasks.filter((t) => t.completed && t.completed >= lastMonday && t.completed < monday).length;
+  const weekAgo = new Date(now.getTime() - 7 * 86_400_000);
+  const overdueNow = tasks.filter((t) => t.overdue).length;
+  const overdueThen = tasks.filter((t) => {
+    const end = t.end ?? t.start;
+    if (!end || end >= weekAgo || t.status === 'Cancelled') return false;
+    return t.status === 'Pending' || (t.completed !== null && t.completed > weekAgo);
+  }).length;
+  const forecast = !row.end
+    ? 'No deadline set'
+    : !row.forecast
+      ? "Nothing done lately, so it won't finish on time at this pace"
+      : row.slackDays !== null && row.slackDays >= 0
+        ? `Finishes around ${longDate(row.forecast)}, ${row.slackDays} days early`
+        : `Finishes around ${longDate(row.forecast)}, ${-(row.slackDays ?? 0)} days late`;
+  return (
+    <ul className={styles.insights}>
+      <li>
+        <span>Completed this week</span>
+        <strong>{doneThisWeek}</strong>
+        <em>{doneLastWeek ? `${doneLastWeek} last week` : 'None last week'}</em>
+      </li>
+      <li data-tone={overdueNow > overdueThen ? 'bad' : overdueNow < overdueThen ? 'good' : undefined}>
+        <span>Overdue</span>
+        <strong>{overdueNow}</strong>
+        <em>{overdueNow === overdueThen ? 'Same as a week ago' : `${overdueThen} a week ago`}</em>
+      </li>
+      <li data-tone={row.end && row.forecast && (row.slackDays ?? 0) >= 0 ? 'good' : row.end ? 'watch' : undefined}>
+        <span>Forecast vs deadline</span>
+        <strong>{row.end ? longDate(row.end) : 'None'}</strong>
+        <em>{forecast}</em>
+      </li>
+    </ul>
   );
 }

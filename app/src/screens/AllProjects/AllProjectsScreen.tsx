@@ -64,8 +64,8 @@ function ProjectsPage() {
       crumbs={[{ label: 'Time', href: '/projects' }, { label: 'Projects', href: '/projects/all' }]}
       properties={[
         { id: 'active', label: 'Active', display: String(activeRows.length) },
-        { id: 'risk', label: 'At risk', display: atRisk ? <Link href="/projects/all?view=risk">{atRisk}</Link> : '0' },
-        { id: 'overdue', label: 'Overdue tasks', display: overdueTasks ? <Link href="/projects/focus?view=overdue">{overdueTasks}</Link> : '0' },
+        { id: 'risk', label: 'At risk', tone: atRisk ? 'bad' : 'good', display: atRisk ? <Link href="/projects/all?view=risk">{atRisk}</Link> : '0' },
+        { id: 'overdue', label: 'Overdue tasks', tone: overdueTasks ? 'bad' : 'neutral', display: overdueTasks ? <Link href="/projects/focus?view=overdue">{overdueTasks}</Link> : '0' },
       ]}
     >
       <ScreenState loading={loading} />

@@ -24,7 +24,8 @@
     "test:nav": "tsx --test test/navHistory.test.ts",
     "migrate:budgets-v2": "tsx scripts/migrate-budgets-v2.ts",
     "test:plan": "tsx --test test/planForecast.test.ts",
-    "test:time": "tsx --test test/timePages.test.ts"
+    "test:time": "tsx --test test/timePages.test.ts",
+    "test:home": "tsx --test test/homeDebt.test.ts"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^5.0.2",

@@ -11,7 +11,7 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeftRight, Coins, PiggyBank, Plus, Receipt, Wallet } from 'lucide-react';
+import { ArrowLeftRight, Coins, PiggyBank, Receipt, Wallet } from 'lucide-react';
 import { useBudgetMonth } from '@/src/logic/budgetMonth/useLogic';
 import type { PlanningData } from '@/src/logic/planning/useLogic';
 import { needsAttention, type LineRow } from '@/src/logic/budgetMonth/lines';
@@ -88,11 +88,7 @@ export function BudgetMonthPage({ month, data, onMonth }: { month: string; data:
       title="Budget"
       icon={<Wallet strokeWidth={1.75} />}
       crumbs={[{ label: 'Money', href: '/home' }, { label: 'Budget', href: '/budget' }, { label: v.title }]}
-      actions={
-        <Link href={`/add-transaction?month=${Number(month.slice(5)) - 1}&year=${month.slice(0, 4)}`} className={styles.ghostButton}>
-          <Plus size={15} strokeWidth={2.25} aria-hidden /> Add transaction
-        </Link>
-      }
+      menu={[{ label: 'Add transaction', href: `/add-transaction?month=${Number(month.slice(5)) - 1}&year=${month.slice(0, 4)}` }]}
       properties={[
         { id: 'month', label: 'Month', display: <MonthPicker value={month} onChange={onMonth} markers={(m) => (m === month && !monthDoc?.reviewedAt ? ['unreviewed'] : [])} /> },
         {
@@ -111,9 +107,9 @@ export function BudgetMonthPage({ month, data, onMonth }: { month: string; data:
             </span>
           ),
         },
-        { id: 'left', label: 'Left to plan', display: <span className={styles.toneText} data-tone={v.totals.leftToPlan < 0 ? 'bad' : undefined}>{money(v.totals.leftToPlan)}</span> },
-        { id: 'available', label: 'Available now', display: money(v.totals.availableNow) },
-        { id: 'waiting', label: 'Waiting for income', display: v.coverage.waiting ? money(v.coverage.waiting) : null },
+        { id: 'left', label: 'Left to plan', display: money(v.totals.leftToPlan), tone: v.totals.leftToPlan < 0 ? 'bad' : 'neutral' },
+        { id: 'available', label: 'Available now', display: money(v.totals.availableNow), tone: v.totals.availableNow > 0 ? 'good' : 'neutral' },
+        { id: 'waiting', label: 'Waiting for income', display: v.coverage.waiting ? money(v.coverage.waiting) : 'Nothing waiting', tone: v.coverage.waiting ? 'watch' : 'neutral' },
       ]}
     >
       {v.loading ? (

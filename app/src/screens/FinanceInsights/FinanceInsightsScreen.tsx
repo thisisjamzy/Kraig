@@ -181,13 +181,7 @@ export function FinanceInsightsScreen() {
         title="Insights"
         icon={<PieChart strokeWidth={1.75} />}
         crumbs={[{ label: 'Money', href: '/home' }, { label: 'Insights' }]}
-        actions={
-          hiddenCount > 0 ? (
-            <button type="button" className={bm.ghostButton} onClick={() => save({ ...layout, hidden: [] })}>
-              Show hidden blocks ({hiddenCount})
-            </button>
-          ) : null
-        }
+        menu={hiddenCount > 0 ? [{ label: `Show hidden blocks (${hiddenCount})`, onSelect: () => save({ ...layout, hidden: [] }) }] : undefined}
         properties={[
           {
             id: 'period',

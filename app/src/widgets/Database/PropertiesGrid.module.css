@@ -1,0 +1,228 @@
+/* The properties grid (PropertiesBlock.tsx): square tiles, 1px borders,
+   colored by meaning. */
+
+.wrap {
+  --pg-line: #e9e9e7;
+  --pg-label: #6b7085;
+  --pg-text: var(--color-text-primary, #1b1b39);
+  --pg-bg: var(--color-background, #fff);
+  --pg-hover: rgba(55, 53, 47, 0.03);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+:global([data-theme='dark']) .wrap {
+  --pg-line: rgba(255, 255, 255, 0.09);
+  --pg-label: rgba(255, 255, 255, 0.6);
+  --pg-hover: rgba(255, 255, 255, 0.04);
+}
+
+.grid {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 12px 16px;
+  border: 1px solid var(--pg-line);
+  border-radius: 0;
+  background: var(--pg-bg);
+}
+
+.tile[data-tone='in'] {
+  background: #eef2ff;
+  --pg-value: var(--color-brand, #3965fa);
+}
+
+.tile[data-tone='out'] {
+  --pg-value: #1b1b39;
+}
+
+.tile[data-tone='good'] {
+  background: #edf7ee;
+  --pg-value: #1f6b3a;
+}
+
+.tile[data-tone='watch'] {
+  background: #fdf4e3;
+  --pg-value: #8a5a00;
+}
+
+.tile[data-tone='bad'] {
+  background: #fdecee;
+  --pg-value: #c62f3e;
+}
+
+:global([data-theme='dark']) .tile[data-tone='in'] {
+  background: rgba(110, 140, 255, 0.14);
+  --pg-value: #9db1ff;
+}
+:global([data-theme='dark']) .tile[data-tone='out'] {
+  --pg-value: var(--color-text-primary);
+}
+:global([data-theme='dark']) .tile[data-tone='good'] {
+  background: rgba(68, 131, 97, 0.18);
+  --pg-value: #8fd3a8;
+}
+:global([data-theme='dark']) .tile[data-tone='watch'] {
+  background: rgba(203, 145, 47, 0.18);
+  --pg-value: #f0c37a;
+}
+:global([data-theme='dark']) .tile[data-tone='bad'] {
+  background: rgba(212, 76, 71, 0.18);
+  --pg-value: #ff9b94;
+}
+
+/* The whole tile is the edit target, under its content. */
+.editable {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.editable:hover {
+  background: var(--pg-hover);
+}
+
+.editable:focus-visible {
+  outline: 2px solid var(--color-brand, #3965fa);
+  outline-offset: -2px;
+}
+
+.label,
+.value,
+.sub {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  pointer-events: none;
+}
+
+/* Links and controls inside a value stay clickable. */
+.value :global(a),
+.value :global(button),
+.value :global(input),
+.value :global(select) {
+  pointer-events: auto;
+}
+
+.label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.75rem;
+  font-weight: 400;
+  line-height: 1.3;
+  color: var(--pg-label);
+}
+
+.icon {
+  display: inline-grid;
+  place-items: center;
+}
+
+.icon :global(svg) {
+  width: 13px;
+  height: 13px;
+}
+
+.value {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  min-width: 0;
+  color: var(--pg-value, var(--pg-text));
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+/* Chips and small controls inside a value keep their own size. */
+.value :global(span[class*='chip']),
+.value :global(span[class*='tag']) {
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+@media (max-width: 767px) {
+  .value {
+    font-size: 1rem;
+  }
+}
+
+.sub {
+  font-size: 0.75rem;
+  color: var(--pg-label);
+  line-height: 1.35;
+}
+
+.empty {
+  font-weight: 400;
+  color: #a5a49f;
+}
+
+.progress {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 200px;
+}
+
+.progressTrack {
+  position: relative;
+  flex: 1;
+  height: 6px;
+  overflow: hidden;
+  background: rgba(55, 53, 47, 0.1);
+}
+
+.progressTrack > span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--pg-value, var(--color-brand, #3965fa));
+}
+
+.progressPct {
+  flex: none;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.more {
+  align-self: flex-start;
+  min-height: 32px;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  color: var(--color-brand, #3965fa);
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+@media (pointer: coarse) {
+  .more {
+    min-height: 44px;
+  }
+}
+
+.error {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #c62f3e;
+}

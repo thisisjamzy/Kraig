@@ -100,6 +100,7 @@ function FocusPage() {
         {
           id: 'overdue',
           label: 'Overdue',
+          tone: overdue.length ? 'bad' : 'neutral',
           display: overdue.length ? <Link href="/projects/focus?view=overdue">{overdue.length}</Link> : '0',
         },
         { id: 'share', label: 'Do first share of time', display: doFirstShare === null ? 'No scheduled time yet' : `${doFirstShare}%` },

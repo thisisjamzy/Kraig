@@ -15,8 +15,6 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
-  Pie,
-  PieChart,
   ReferenceLine,
   Tooltip,
   XAxis,
@@ -49,7 +47,7 @@ function Legend({ items }: { items: { label: string; color: string; pattern?: 'd
   );
 }
 
-const AXIS_TICK = { fill: 'var(--color-text-secondary)', fontSize: 11 };
+const AXIS_TICK = { fill: 'var(--color-text-secondary)', fontSize: 12 };
 const TOOLTIP_STYLE = {
   contentStyle: {
     background: 'var(--color-background)',
@@ -130,7 +128,7 @@ export function CompletionTrend({
           y={target}
           stroke="var(--color-text-secondary)"
           strokeDasharray="5 4"
-          label={{ value: `${target}% target`, position: 'insideTopRight', fill: 'var(--color-text-secondary)', fontSize: 11 }}
+          label={{ value: `${target}% target`, position: 'insideTopRight', fill: 'var(--color-text-secondary)', fontSize: 12 }}
         />
         <Area
           type="monotone"
@@ -262,7 +260,7 @@ export function DailyLoad({
           y={capacityHours}
           stroke="var(--i-cancel)"
           strokeDasharray="5 4"
-          label={{ value: `${capacityHours}h capacity`, position: 'insideTopRight', fill: 'var(--color-text-secondary)', fontSize: 11 }}
+          label={{ value: `${capacityHours}h capacity`, position: 'insideTopRight', fill: 'var(--color-text-secondary)', fontSize: 12 }}
         />
         <Bar dataKey="blocked" name="Blocked" stackId="load" fill="var(--i-blocked)" isAnimationActive={false} />
         <Bar dataKey="free" name="Free" stackId="load" fill="var(--i-free)" isAnimationActive={false} />
@@ -441,34 +439,25 @@ export function PriorityMix({ mix, onPick }: { mix: QuadrantMix; onPick: (quadra
           })}
         </div>
       ) : (
-        <div className={styles.donutWrap}>
-          <PieChart responsive style={{ width: '100%', height: 200 }}>
-            <Pie
-              data={mix.shares.map((s) => ({
-                name: QUADRANT_META[s.quadrant].label,
-                quadrant: s.quadrant,
-                value: byHours ? Math.round(s.minutes) : s.tasks,
-              }))}
-              dataKey="value"
-              nameKey="name"
-              innerRadius="58%"
-              outerRadius="88%"
-              paddingAngle={2}
-              stroke="none"
-              isAnimationActive={false}
-              onClick={(entry: { payload?: { quadrant?: Quadrant } }) => entry?.payload?.quadrant && onPick(entry.payload.quadrant)}
-            >
-              {mix.shares.map((s) => (
-                <Cell key={s.quadrant} fill={QUADRANT_META[s.quadrant].color} />
-              ))}
-            </Pie>
-            <Tooltip
-              {...TOOLTIP_STYLE}
-              formatter={(value, name) => [byHours ? hoursText(Number(value)) : `${value} tasks`, name]}
-            />
-          </PieChart>
-          <Legend items={mix.shares.map((s) => ({ label: `${QUADRANT_META[s.quadrant].label} ${Math.round((byHours ? s.hourShare : s.taskShare) * 100)}%`, color: QUADRANT_META[s.quadrant].color }))} />
-        </div>
+        // Four slices read better as bars than as a donut.
+        <ul className={styles.mixBars}>
+          {mix.shares.map((s) => {
+            const share = byHours ? s.hourShare : s.taskShare;
+            return (
+              <li key={s.quadrant}>
+                <button type="button" onClick={() => onPick(s.quadrant)}>
+                  <span className={styles.mixLabel}>{QUADRANT_META[s.quadrant].label}</span>
+                  <span className={styles.mixTrack}>
+                    <span style={{ width: `${Math.round(share * 100)}%`, background: QUADRANT_META[s.quadrant].color }} />
+                  </span>
+                  <span className={styles.mixValue}>
+                    {Math.round(share * 100)}% · {byHours ? hoursText(s.minutes) : `${s.tasks} ${s.tasks === 1 ? 'task' : 'tasks'}`}
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
       )}
     </>
   );

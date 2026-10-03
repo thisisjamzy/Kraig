@@ -166,6 +166,8 @@ export function BucketsScreen() {
         properties={[
           { id: 'month', label: 'Month', display: <MonthPicker value={v.month} onChange={v.setMonth} /> },
           { id: 'count', label: 'Buckets', display: counts },
+          { id: 'left', label: 'Left to plan', display: `${formatNumber(v.totals.leftToPlan)} ${v.currency}`, tone: v.totals.leftToPlan < 0 ? 'bad' : 'neutral' },
+          { id: 'available', label: 'Available now', display: `${formatNumber(v.totals.availableNow)} ${v.currency}`, tone: v.totals.availableNow > 0 ? 'good' : v.totals.availableNow < 0 ? 'bad' : 'neutral' },
         ]}
       >
         <Callout>

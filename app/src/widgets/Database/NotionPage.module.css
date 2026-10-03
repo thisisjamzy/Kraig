@@ -80,3 +80,9 @@
   position: sticky;
   top: 60px;
 }
+
+.sub {
+  margin: -4px 0 4px;
+  font-size: 0.9375rem;
+  color: #6b7085;
+}
