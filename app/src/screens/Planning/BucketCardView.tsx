@@ -7,6 +7,7 @@
 
 import Link from 'next/link';
 import { money, type BucketCard } from '@/src/viewmodels/planning';
+import type { FlowType } from '@/src/shared/budget/flow';
 import { Bar, IconCircle, Pair, PromptStrip } from './PlanningParts';
 import tab from './PlanningTabs.module.css';
 
@@ -24,10 +25,13 @@ export function BucketCardView({
   currency,
   month,
   extras,
+  flow,
 }: {
   card: BucketCard;
   currency: string;
   month: string;
+  /** Words the footer for its flow type ("still to save", "still to move"). */
+  flow?: FlowType;
   /** The Buckets page's extra detail; Planning's Budget tab leaves it out. */
   extras?: BucketCardExtras;
 }) {
@@ -65,7 +69,15 @@ export function BucketCardView({
               ? card.available > 0
                 ? `${money(card.available)} ${currency} still expected`
                 : 'All received'
-              : `Available ${money(card.available)} ${currency}`}
+              : flow === 'Savings'
+                ? card.available > 0
+                  ? `${money(card.available)} ${currency} still to save`
+                  : 'All saved'
+                : flow === 'Transfer'
+                  ? card.available > 0
+                    ? `${money(card.available)} ${currency} still to move`
+                    : 'All moved'
+                  : `Available ${money(card.available)} ${currency}`}
           </span>
         )}
         {extras?.line && <span className={tab.bucketLine}>{extras.line}</span>}

@@ -21,9 +21,11 @@ import { isSavingsAccount } from '@/src/viewmodels/wallets';
 import { savingsTransactionFlow, savingsTransferFlow } from '@/src/viewmodels/savingsTransfers';
 import { bucketCards, categoryCard, monthPhase } from '@/src/viewmodels/planning';
 import type { FirestoreTransaction, FirestoreTransfer } from '@/src/shared/firestore/types';
+import type { FlowType } from '@/src/shared/budget/flow';
 import type { PlanningData } from './useLogic';
 
 export type BudgetView = 'bucket' | 'category';
+export type { FlowType };
 
 function monthBounds(month: string) {
   const [y, m] = month.split('-').map(Number);
@@ -36,8 +38,10 @@ function today() {
 export function useBudgetTab(month: string, data: PlanningData) {
   const { user } = useFirebaseUser();
   const uid = user?.uid;
-  const { budget, transactionsById, transfersById, buckets, accounts, ctx } = data;
+  const { budget, totals, transactionsById, transfersById, buckets, accounts, ctx } = data;
   const [view, setView] = useState<BudgetView>('bucket');
+  // The phone's type tabs: one flow type at a time, never mixed.
+  const [flow, setFlow] = useState<FlowType>('Expense');
 
   const accountCurrency = useMemo(() => new Map(accounts.map((a) => [a.id, a.currency])), [accounts]);
   const accountType = useMemo(() => new Map(accounts.map((a) => [a.id, a.type])), [accounts]);
@@ -71,21 +75,28 @@ export function useBudgetTab(month: string, data: PlanningData) {
   const totalSaved = isPast ? round2(liveSavings - flowOf(sinceTransactions, sinceTransfers)) : liveSavings;
 
   // ---- Summary ----
-  const sumItems = (type: string) => round2(budget.items.filter((i) => i.type === type).reduce((s, i) => s + i.planned, 0));
-  const expensesSpent = round2(budget.categories.filter((g) => g.type === 'Expense').reduce((s, g) => s + g.actual, 0));
-  const expensesPlanned = sumItems('Expense');
-  const incomeActual = Math.max(0, budget.actualIncome);
+  // Every figure from the shared totals (src/shared/budget/monthTotals.ts):
+  // savings are positive amounts set aside, transfers are their own row,
+  // borrowed income is a sub-line of income.
   const summary = {
-    income: { actual: incomeActual, planned: budget.plannedIncome, variance: round2(incomeActual - budget.plannedIncome) },
-    expenses: { actual: expensesSpent, planned: expensesPlanned, variance: round2(expensesSpent - expensesPlanned) },
-    savings: { actual: savingsThisMonth, planned: sumItems('Savings'), totalSaved },
-    // The month's pool: planned income nothing claims yet. Negative = the
-    // plan spends more than it expects to earn.
-    leftToBudget: round2(budget.pool),
+    income: {
+      actual: totals.income.received,
+      planned: totals.income.expected,
+      borrowed: totals.income.borrowed,
+      variance: round2(totals.income.received - totals.income.expected),
+    },
+    expenses: { actual: totals.expenses.spent, planned: totals.expenses.planned, variance: round2(totals.expenses.spent - totals.expenses.planned) },
+    savings: { actual: totals.savings.saved, planned: totals.savings.planned, withdrawn: totals.savings.withdrawn, totalSaved },
+    transfers: { actual: totals.transfers.moved, planned: totals.transfers.planned },
+    leftToBudget: totals.leftToPlan,
+    availableNow: totals.availableNow,
+    availableByMonthEnd: totals.availableByMonthEnd,
   };
 
   // ---- Cards ----
   const cards = useMemo(() => bucketCards(budget.buckets, { month, today: today() }), [budget.buckets, month]);
+  const bucketFlow = useMemo(() => new Map(buckets.map((b) => [b.id, (b.type ?? 'Expense') as FlowType])), [buckets]);
+  const cardsOf = (type: FlowType) => cards.filter((c) => (bucketFlow.get(c.id) ?? 'Expense') === type);
   const categories = useMemo(() => budget.categories.map(categoryCard), [budget.categories]);
   const bucketType = useMemo(() => new Map(buckets.map((b) => [b.id, b.type ?? 'Expense'])), [buckets]);
 
@@ -104,6 +115,9 @@ export function useBudgetTab(month: string, data: PlanningData) {
     summary,
     view,
     setView,
+    flow,
+    setFlow,
+    cardsOf,
     cards,
     categories,
     bucketType,

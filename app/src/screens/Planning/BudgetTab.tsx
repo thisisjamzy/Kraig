@@ -1,23 +1,25 @@
 'use client';
 
-// Planning > Budget — "am I on track this month?": the black summary card
-// (income, expenses, savings: actual / planned; what's left to budget),
-// then the buckets, each with the one prompt it needs (cover or justify an
-// overspend, reallocate a leftover), needing-action first.
+// Planning > Budget on a phone — "am I on track this month?": the month's
+// notices (setup, income prompts, Ready to pay), the black summary card
+// (income with its borrowed part, expenses, savings, transfers: actual /
+// planned; left to plan; available now), then the buckets of ONE flow type
+// at a time under four type tabs, each card with the one prompt it needs.
+// Wide screens get the Budget page instead (src/screens/BudgetMonth).
 
 import Link from 'next/link';
 import { Check, Layers, Plus } from 'lucide-react';
 import { useBudgetTab } from '@/src/logic/planning/useBudgetTab';
+import { useBudgetMonth } from '@/src/logic/budgetMonth/useLogic';
+import { FLOW_LABEL, FLOW_TYPES } from '@/src/shared/budget/flow';
+import { ReadyToPayCard } from '@/src/widgets/ReadyToPay/ReadyToPayCard';
+import { IncomePrompt, MigrationNotice, SetupBanner } from '@/src/screens/BudgetMonth/Banners';
 import type { PlanningData } from '@/src/logic/planning/useLogic';
 import { ActionMenu } from '@/src/widgets/ActionMenu/ActionMenu';
 import { money, signedMoney } from '@/src/viewmodels/planning';
-import { Bar, IconCircle, Pair } from './PlanningParts';
 import { BucketCardView } from './BucketCardView';
 import styles from './Planning.module.css';
 import tab from './PlanningTabs.module.css';
-import { Fragment } from 'react';
-import { useHasTopBar } from '@/src/widgets/AppShell/TopBarSlot';
-import wide from './Planning.wide.module.css';
 
 function SummaryRow({
   label,
@@ -62,8 +64,9 @@ function SummaryRow({
 }
 
 export function BudgetTab({ month, data }: { month: string; data: PlanningData }) {
-  const { currency, currencyOptions, setCurrency, summary, view, setView, cards, categories } = useBudgetTab(month, data);
-  const [y, m] = month.split('-').map(Number);
+  const { currency, currencyOptions, setCurrency, summary, flow, setFlow, cardsOf } = useBudgetTab(month, data);
+  // Banners and income prompts, shared with the wide Budget page.
+  const v = useBudgetMonth(month, data);
   const incomeChip =
     summary.income.actual > 0 && summary.income.variance !== 0
       ? summary.income.variance > 0
@@ -77,17 +80,24 @@ export function BudgetTab({ month, data }: { month: string; data: PlanningData }
         : { text: `${money(summary.expenses.variance)} under`, tone: 'grey' as const }
       : null;
   const overPlanned = summary.leftToBudget < 0;
-
-  // Medium screens and up: the month's budget summary on the left, the
-  // bucket list beside it. Fragments on a phone.
-  const inShell = useHasTopBar();
-  const Column = inShell ? 'div' : Fragment;
-  const col = (className: string) => (inShell ? { className } : {});
+  const cards = cardsOf(flow);
 
   return (
     <>
-      <Column {...col(wide.split)}>
-      <Column {...col(wide.left)}>
+      {v.migrationPending && <MigrationNotice />}
+      {v.banner && <SetupBanner text={v.banner} month={month} onDismiss={() => void v.dismissBanner()} />}
+      {v.prompts.map((line) => (
+        <IncomePrompt
+          key={line.key}
+          line={line}
+          currency={v.currency}
+          accounts={v.accounts}
+          onRecord={(amount, accountId) => v.recordIncome(line, amount, accountId)}
+          onNotYet={() => v.notYet(line)}
+        />
+      ))}
+      {v.isCurrent && <ReadyToPayCard />}
+
       <p className={styles.label}>Total budget</p>
       <section className={tab.summary} aria-label="This month's budget">
         <div className={tab.summaryHead}>
@@ -98,13 +108,19 @@ export function BudgetTab({ month, data }: { month: string; data: PlanningData }
             triggerIcon={currency}
             items={currencyOptions.map((o) => ({
               key: o.code,
-              label: `${o.code} — ${o.name}`,
+              label: `${o.code} · ${o.name}`,
               icon: o.code === currency ? <Check size={14} strokeWidth={2.5} /> : <span style={{ width: 14 }} />,
               onSelect: () => setCurrency(o.code),
             }))}
           />
         </div>
-        <SummaryRow label="Income" actual={summary.income.actual} planned={summary.income.planned} chip={incomeChip} />
+        <SummaryRow
+          label="Income"
+          actual={summary.income.actual}
+          planned={summary.income.planned}
+          chip={incomeChip}
+          note={`of which ${money(summary.income.borrowed)} borrowed`}
+        />
         <SummaryRow
           label="Expenses"
           actual={summary.expenses.actual}
@@ -116,81 +132,48 @@ export function BudgetTab({ month, data }: { month: string; data: PlanningData }
           label="Savings"
           actual={summary.savings.actual}
           planned={summary.savings.planned}
-          note={`Total saved ${money(summary.savings.totalSaved)}`}
+          note={[`Total saved ${money(summary.savings.totalSaved)}`, summary.savings.withdrawn ? `${money(summary.savings.withdrawn)} withdrawn` : null].filter(Boolean).join(' · ')}
         />
+        <SummaryRow label="Transfers" actual={summary.transfers.actual} planned={summary.transfers.planned} note="Between your own accounts" />
         <div className={tab.leftRow}>
-          <span className={tab.sumLabel}>{overPlanned ? 'Planned beyond income' : 'Left to budget'}</span>
+          <span className={tab.sumLabel}>{overPlanned ? 'Planned beyond income' : 'Left to plan'}</span>
           <span className={tab.leftValue} data-tone={overPlanned ? 'over' : undefined}>
             {money(Math.abs(summary.leftToBudget))}
             <small> {currency}</small>
           </span>
         </div>
+        <p className={tab.availableLine}>
+          Available now {money(summary.availableNow)} · by month end {money(summary.availableByMonthEnd)} (estimate)
+        </p>
         <Link href="/buckets" className={tab.summaryButton}>
           <Layers size={16} strokeWidth={2.25} aria-hidden />
           Plan in buckets
         </Link>
       </section>
 
-      </Column>
-      <Column {...col(wide.right)}>
       <div className={tab.sectionHead}>
-        <h2 className={tab.sectionTitle}>{view === 'bucket' ? 'Buckets' : 'Categories'}</h2>
-        <div className={tab.sectionTools}>
-          <div className={tab.miniToggle} role="radiogroup" aria-label="Group by">
-            <button type="button" role="radio" aria-checked={view === 'category'} onClick={() => setView('category')}>
-              By category
-            </button>
-            <button type="button" role="radio" aria-checked={view === 'bucket'} onClick={() => setView('bucket')}>
-              By bucket
-            </button>
-          </div>
-          <Link href="/buckets/new" className={tab.addCircle} aria-label="Add a bucket">
-            <Plus size={18} strokeWidth={2.5} />
-          </Link>
-        </div>
+        <h2 className={tab.sectionTitle}>{FLOW_LABEL[flow]}</h2>
+        <Link href={`/buckets/new?type=${flow}`} className={tab.addCircle} aria-label={`Add a ${FLOW_LABEL[flow].toLowerCase()} bucket`}>
+          <Plus size={18} strokeWidth={2.5} />
+        </Link>
+      </div>
+      <div className={tab.typeTabs} role="tablist" aria-label="Money type">
+        {FLOW_TYPES.map((type) => (
+          <button key={type} type="button" role="tab" aria-selected={flow === type} onClick={() => setFlow(type)}>
+            {FLOW_LABEL[type]}
+          </button>
+        ))}
       </div>
 
-      {view === 'bucket' ? (
-        cards.length === 0 ? (
-          <p className={styles.empty}>Nothing planned for this month yet. Add items to a bucket to build the budget.</p>
-        ) : (
-          <div className={tab.cardList}>
-            {cards.map((card) => (
-              <BucketCardView key={card.id} card={card} currency={currency} month={month} />
-            ))}
-          </div>
-        )
-      ) : categories.length === 0 ? (
-        <p className={styles.empty}>No spending by category this month yet.</p>
+      {cards.length === 0 ? (
+        <p className={styles.empty}>No {FLOW_LABEL[flow].toLowerCase()} planned for this month. Add items to a bucket to build the budget.</p>
       ) : (
-        <div className={tab.cardList}>
-          {categories.map((c) => (
-            <article key={c.id} className={tab.bucketCard}>
-              <Link href={`/budget/category/${encodeURIComponent(c.id)}?month=${m - 1}&year=${y}`} className={tab.bucketBody}>
-                <div className={tab.bucketTop}>
-                  <IconCircle category />
-                  <span className={tab.bucketName}>
-                    <span>{c.name}</span>
-                    <span className={tab.bucketMeta}>
-                      {c.itemCount} {c.itemCount === 1 ? 'item' : 'items'}
-                      {c.unplanned !== 0 ? ` · ${money(c.unplanned)} unplanned` : ''}
-                    </span>
-                  </span>
-                  <Pair spent={c.spent} planned={c.planned} />
-                </div>
-                <div className={tab.bucketBar}>
-                  <Bar spent={c.spent} planned={c.planned} over={c.overflow > 0} />
-                </div>
-                <span className={tab.bucketAvailable} data-tone={c.overflow > 0 ? 'over' : undefined}>
-                  {c.overflow > 0 ? `Over by ${money(c.overflow)} ${currency}` : `Available ${money(c.available)} ${currency}`}
-                </span>
-              </Link>
-            </article>
+        <div className={tab.cardList} role="tabpanel" aria-label={FLOW_LABEL[flow]}>
+          {cards.map((card) => (
+            <BucketCardView key={card.id} card={card} currency={currency} month={month} flow={flow} />
           ))}
         </div>
       )}
-      </Column>
-      </Column>
     </>
   );
 }

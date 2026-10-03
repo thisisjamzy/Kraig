@@ -274,6 +274,44 @@
 }
 
 /* ---- Bucket cards ---- */
+.typeTabs {
+  display: flex;
+  gap: 2px;
+  margin: 0 0 12px;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--p-track);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.typeTabs button {
+  flex: 1 0 auto;
+  min-height: 36px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--p-muted);
+  font-family: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.typeTabs button[aria-selected='true'] {
+  background: var(--p-card);
+  color: var(--p-navy);
+  box-shadow: 0 1px 4px rgba(28, 31, 58, 0.1);
+}
+
+.availableLine {
+  margin: -4px 0 12px;
+  font-size: 0.75rem;
+  color: var(--p-black-muted);
+}
+
 .cardList {
   display: flex;
   flex-direction: column;
