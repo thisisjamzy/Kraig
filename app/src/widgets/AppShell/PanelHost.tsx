@@ -54,6 +54,7 @@ const TemplateFormScreen = dynamic(
   () => import('@/src/screens/CreateTransactionTemplate/CreateTransactionTemplateScreen').then((m) => m.CreateTransactionTemplateScreen),
   { ssr: false }
 );
+const ImportDataScreen = dynamic(() => import('@/src/screens/ImportData/ImportDataScreen').then((m) => m.ImportDataScreen), { ssr: false });
 const SectionEditScreen = dynamic(() => import('@/src/screens/SectionEdit/SectionEditScreen').then((m) => m.SectionEditScreen), { ssr: false });
 const CreateSectionScreen = dynamic(() => import('@/src/screens/CreateSection/CreateSectionScreen').then((m) => m.CreateSectionScreen), { ssr: false });
 
@@ -71,6 +72,7 @@ const PEEK_FORMS: Partial<Record<FormKind, ComponentType<{ params: Record<string
   wallet: ({ params }) => <WalletEditScreen walletId={params.id} />,
   template: ({ params }) => <TemplateFormScreen templateId={params.id || undefined} />,
   cover: () => <CoverScreen />,
+  import: () => <ImportDataScreen />,
   reallocate: () => <ReallocateScreen />,
 };
 

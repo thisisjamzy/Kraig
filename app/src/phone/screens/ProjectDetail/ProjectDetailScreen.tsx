@@ -12,6 +12,9 @@ import { projectCoverImageUrl } from '@/src/viewmodels/projects';
 import type { ProjectStatus } from '@/src/shared/firestore/types';
 import { useHasTopBar } from '@/src/widgets/AppShell/TopBarSlot';
 import styles from '@/src/phone/screens/ProjectDetail/ProjectDetailScreen.module.css';
+import { ActionMenu } from '@/src/widgets/ActionMenu/ActionMenu';
+import { FileSpreadsheet, MoreHorizontal } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 const STATUS_LABEL: Record<ProjectStatus, string> = {
   Active: 'Ongoing',
@@ -35,6 +38,7 @@ function formatDate(date: Date) {
 }
 
 export function ProjectDetailScreen({ projectId }: { projectId: string }) {
+  const router = useRouter();
   const {
     project,
     area,
@@ -82,9 +86,24 @@ export function ProjectDetailScreen({ projectId }: { projectId: string }) {
         title="Project detail"
         right={
           project && (
-            <button type="button" className={styles.archiveButton} onClick={openEditProject} aria-label="Edit project">
-              <Pencil size={14} strokeWidth={1.75} />
-            </button>
+            <>
+              <ActionMenu
+                ariaLabel="More"
+                triggerClassName={styles.archiveButton}
+                triggerIcon={<MoreHorizontal size={14} strokeWidth={1.75} />}
+                items={[
+                  {
+                    key: 'import',
+                    label: 'Import tasks',
+                    icon: <FileSpreadsheet size={14} strokeWidth={2} />,
+                    onSelect: () => router.push(`/settings/import?project=${encodeURIComponent(project.id)}`),
+                  },
+                ]}
+              />
+              <button type="button" className={styles.archiveButton} onClick={openEditProject} aria-label="Edit project">
+                <Pencil size={14} strokeWidth={1.75} />
+              </button>
+            </>
           )
         }
       />

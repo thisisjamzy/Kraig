@@ -42,6 +42,7 @@ export const NOTIFICATION_TYPES = [
   'evening_nudge',
   // System
   'calendar_sync_failed',
+  'import_finished',
 ] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
@@ -124,7 +125,7 @@ export const DEFAULT_PREFS: NotificationPrefs = {
 export const MODULE_OF: Record<NotificationType, NotificationModule> = Object.fromEntries(
   NOTIFICATION_TYPES.map((t) => [
     t,
-    t === 'calendar_sync_failed'
+    t === 'calendar_sync_failed' || t === 'import_finished'
       ? 'system'
       : [
             'tasks_overdue',
@@ -175,6 +176,7 @@ export const TYPE_LABEL: Record<NotificationType, string> = {
   calendar_conflict: 'Calendar conflicts',
   streak_broken: 'Streaks broken',
   morning_summary: 'Morning summary',
+  import_finished: 'Imports',
   evening_nudge: 'Evening nudge',
   calendar_sync_failed: 'Google Calendar sync problems',
 };

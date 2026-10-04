@@ -36,6 +36,7 @@ import { taskCardSpec, taskColumns, taskGroups, taskListSpec, taskRowActions } f
 import { HealthTag, ProgressBar, dateRange } from '@/src/widgets/ProjectDb/projectDatabase';
 import styles from './ProjectDetailScreen.module.css';
 import { useFormLink } from '@/src/shared/navigation/useFormLink';
+import { useRouter } from 'next/navigation';
 
 const ALL = ['name', 'status', 'importance', 'priority', 'type', 'date', 'time', 'start', 'end', 'project', 'area', 'timeMode', 'recurring', 'overdue', 'sync', 'created', 'completed'];
 const showOnly = (ids: string[]) => ALL.filter((id) => !ids.includes(id));
@@ -59,6 +60,7 @@ const MILESTONE_COLUMNS: ColumnDef<MilestoneStat>[] = [
 ];
 
 export function ProjectDetailScreen({ projectId }: { projectId: string }) {
+  const router = useRouter();
   const formLink = useFormLink();
   const taskPanel = useTaskPanel();
   const { deviceClass } = useLayout();
@@ -155,6 +157,7 @@ export function ProjectDetailScreen({ projectId }: { projectId: string }) {
           }}
           onOpen={(r) => taskPanel.open(r.id)}
           onNew={() => taskPanel.open('new', { projectId })}
+          newTemplates={[{ id: 'import', label: 'Import tasks', onSelect: () => router.push(formLink('import', { project: projectId })) }]}
           emptyText="No tasks yet."
         />
       </Block>

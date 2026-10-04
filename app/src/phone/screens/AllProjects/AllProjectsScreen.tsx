@@ -12,6 +12,9 @@ import { ListQueryBar, ListQueryEmpty } from '@/src/widgets/ListQuery/ListQueryB
 import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import { TopBarControls, useHasTopBar } from '@/src/widgets/AppShell/TopBarSlot';
 import styles from '@/src/phone/screens/AllProjects/AllProjectsScreen.module.css';
+import { ActionMenu } from '@/src/widgets/ActionMenu/ActionMenu';
+import { FileSpreadsheet, MoreHorizontal } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 /** Wide screens: a small progress ring for the project grid's cards. */
 function ProgressRing({ percent }: { percent: number }) {
@@ -48,6 +51,7 @@ function formatDate(date: Date) {
 }
 
 export function AllProjectsScreen() {
+  const router = useRouter();
   const strings = useStrings();
   const { projects, total, fields, list, archiveProject, goBack, loading, error } = useLogic();
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
@@ -78,9 +82,17 @@ export function AllProjectsScreen() {
         }
         title={strings.projects.projectsSectionTitle}
         right={
-          <Link href="/projects/new" className={styles.addIconButton} aria-label="New project" title="New project">
-            <Plus size={16} strokeWidth={2.5} />
-          </Link>
+          <>
+            <ActionMenu
+              ariaLabel="More"
+              triggerClassName={styles.addIconButton}
+              triggerIcon={<MoreHorizontal size={16} strokeWidth={2.5} />}
+              items={[{ key: 'import', label: 'Import from spreadsheet', icon: <FileSpreadsheet size={14} strokeWidth={2} />, onSelect: () => router.push('/settings/import') }]}
+            />
+            <Link href="/projects/new" className={styles.addIconButton} aria-label="New project" title="New project">
+              <Plus size={16} strokeWidth={2.5} />
+            </Link>
+          </>
         }
       />}
 

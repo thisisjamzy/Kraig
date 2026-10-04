@@ -24,6 +24,7 @@ export type FormKind =
   | 'area'
   | 'project'
   | 'cover'
+  | 'import'
   | 'reallocate';
 
 type Params = Record<string, string | null | undefined>;
@@ -50,6 +51,7 @@ const PAGES: Record<FormKind, (p: Params) => string> = {
   section: (p) => (p.id ? `/sections/${enc(p.id)}/edit` : `/sections/new${q(p, ['areaId'])}`),
   area: (p) => (p.id ? `/areas/${enc(p.id)}/edit` : '/areas/new'),
   project: (p) => (p.id ? `/projects/${enc(p.id)}/edit` : `/projects/new${q(p, ['areaId'])}`),
+  import: (p) => `/settings/import${q(p, ['project'])}`,
   cover: (p) => `/budget/cover${q(p, ['month', 'bucket', 'item'])}`,
   reallocate: (p) => `/budget/reallocate${q(p, ['month', 'bucket', 'item'])}`,
 };

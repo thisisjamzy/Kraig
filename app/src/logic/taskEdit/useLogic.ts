@@ -166,7 +166,7 @@ function seriesIdOf(taskId: string): string {
 
 /** Every task (recurring ones as their dates) from yesterday to
  * CONFLICT_HORIZON_MONTHS past the chosen date, as the scheduler sees them. */
-function buildScheduledTasks(tasks: FirestoreTask[], date: string): ScheduledTask[] {
+export function buildScheduledTasks(tasks: FirestoreTask[], date: string): ScheduledTask[] {
   const today = new Date();
   const from = addDays(new Date(today.getFullYear(), today.getMonth(), today.getDate()), -1);
   const chosen = date ? keyToDate(date) : from;

@@ -1,7 +1,7 @@
 {
   "name": "dreda",
   "private": true,
-  "description": "Repo root — npm workspaces linking the Next.js app, Cloud Functions, and the shared budget-recurrence module they both need. See PRD-FIREBASE.md.",
+  "description": "Repo root \u2014 npm workspaces linking the Next.js app, Cloud Functions, and the shared budget-recurrence module they both need. See PRD-FIREBASE.md.",
   "workspaces": [
     "app",
     "functions",
@@ -30,7 +30,8 @@
     "test:home": "tsx --test test/homeDebt.test.ts",
     "test:debt": "tsx --test test/debtWalletEffect.test.ts test/debtPages.test.ts",
     "test:notify": "tsx --test test/notifications.test.ts",
-    "test:engine": "tsx --test test/planEngine.test.ts"
+    "test:engine": "tsx --test test/planEngine.test.ts",
+    "test:import": "tsx --test test/importTasks.test.ts"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^5.0.2",
