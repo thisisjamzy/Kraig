@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { NotificationsScreen } from '@/src/screens/Notifications/NotificationsScreen';
+import { NotificationsScreen } from '@/src/routes/Notifications/NotificationsScreen';
 
 export const metadata: Metadata = {
   title: 'Notifications · Dreda',
