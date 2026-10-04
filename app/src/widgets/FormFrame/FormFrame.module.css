@@ -372,3 +372,14 @@ textarea.input {
   line-height: 1.45;
   resize: vertical;
 }
+
+/* FormChrome: the form's own submit button stays in view at the bottom of
+   a phone screen, above the safe area. */
+@media (max-width: 767px) {
+  .chrome :global(button[type='submit']) {
+    position: sticky;
+    bottom: calc(12px + var(--safe-bottom));
+    z-index: 5;
+    box-shadow: 0 8px 24px rgba(28, 31, 58, 0.12);
+  }
+}

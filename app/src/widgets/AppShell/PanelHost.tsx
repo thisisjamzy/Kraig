@@ -124,10 +124,17 @@ function DebtFormHost() {
     },
   };
   const key = `${kind}:${debtId ?? ''}`;
-  if (kind === 'new' || kind === 'edit') return <DebtFormScreen key={key} debtId={kind === 'new' ? null : debtId} {...exits} />;
-  if (kind === 'repay') return <RepaymentFormScreen key={key} debtId={debtId!} prefillAmount={params.get('amount')} {...exits} />;
-  if (kind === 'plan') return <PlanFormScreen key={key} debtId={debtId!} {...exits} />;
-  return <WalletEffectFormScreen key={key} debtId={debtId!} prefillTo={params.get('to')} {...exits} />;
+  const form =
+    kind === 'new' || kind === 'edit' ? (
+      <DebtFormScreen key={key} debtId={kind === 'new' ? null : debtId} {...exits} />
+    ) : kind === 'repay' ? (
+      <RepaymentFormScreen key={key} debtId={debtId!} prefillAmount={params.get('amount')} {...exits} />
+    ) : kind === 'plan' ? (
+      <PlanFormScreen key={key} debtId={debtId!} {...exits} />
+    ) : (
+      <WalletEffectFormScreen key={key} debtId={debtId!} prefillTo={params.get('to')} {...exits} />
+    );
+  return <FormPeekContext.Provider value={{ peek: true, close, fullPageHref: debtFormPageHref(kind, debtId) }}>{form}</FormPeekContext.Provider>;
 }
 
 function TaskPanelHost() {

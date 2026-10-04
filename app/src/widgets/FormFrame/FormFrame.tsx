@@ -169,6 +169,74 @@ export function FormFrame({
   );
 }
 
+/**
+ * The frame's header and placement for a form that draws its own <form>,
+ * fields and submit button (the debt forms): on a phone the BASELINE page
+ * with its header, the submit button kept in view at the bottom; on wide
+ * screens the side peek's tools or the 640px page, and a plain title.
+ */
+export function FormChrome({
+  title,
+  context,
+  onClose,
+  phoneHeader = 'watermark',
+  children,
+}: {
+  title: string;
+  context?: ReactNode;
+  onClose: () => void;
+  phoneHeader?: 'watermark' | 'bar';
+  children: ReactNode;
+}) {
+  const { isWide } = useLayout();
+  const peek = useFormPeek();
+  const close = peek ? peek.close : onClose;
+  const shown = title.charAt(0).toUpperCase() + title.slice(1);
+
+  if (!isWide) {
+    return (
+      <div className={`${cf.page} ${styles.phone} ${styles.chrome}`}>
+        {phoneHeader === 'watermark' ? (
+          <div className={cf.top}>
+            <button type="button" className={cf.closeButton} onClick={close} aria-label="Close">
+              <X size={18} strokeWidth={2} />
+            </button>
+            <h1 className={cf.watermark}>{title}</h1>
+          </div>
+        ) : (
+          <header className={styles.bar}>
+            <button type="button" className={styles.up} onClick={close} aria-label="Back">
+              <ArrowLeft size={20} strokeWidth={2} />
+            </button>
+            <h1 className={styles.barTitle}>{shown}</h1>
+          </header>
+        )}
+        {children}
+      </div>
+    );
+  }
+
+  return (
+    <div className={`${cf.page} ${styles.wide} ${styles.chrome}`} data-peek={peek ? '' : undefined}>
+      <div className={styles.wideTools}>
+        {peek?.fullPageHref && (
+          <Link href={peek.fullPageHref} className={styles.tool} aria-label="Open as full page" title="Open as full page">
+            <Maximize2 size={16} strokeWidth={2} />
+          </Link>
+        )}
+        <button type="button" className={styles.tool} onClick={close} aria-label="Close" title="Close">
+          <X size={18} strokeWidth={2} />
+        </button>
+      </div>
+      <header className={styles.wideHeader}>
+        <h1 className={styles.wideTitle}>{shown}</h1>
+        {context && <p className={styles.wideContext}>{context}</p>}
+      </header>
+      {children}
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Field cards
 
