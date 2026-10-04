@@ -43,7 +43,7 @@ function bucketColumns(type: FlowType, month: string): ColumnDef<BucketRow>[] {
       width: 260,
       value: (r) => r.name,
       render: (r) => (
-        <Link className={bm.relation} href={`/budget/bucket/${r.id}?month=${month}`}>
+        <Link className={bm.relation} href={`/budget/basket/${r.id}?month=${month}`}>
           {r.name}
           {r.archived ? ' (archived)' : ''}
         </Link>
@@ -133,12 +133,12 @@ export function BucketsScreen() {
   return (
     <div ref={swipeRef}>
       <NotionPage
-        title="Buckets"
+        title="Baskets"
         icon={<LayoutGrid strokeWidth={1.75} />}
-        crumbs={[{ label: 'Money', href: '/home' }, { label: 'Buckets' }]}
+        crumbs={[{ label: 'Money', href: '/home' }, { label: 'Baskets' }]}
         properties={[
           { id: 'month', label: 'Month', display: <MonthPicker value={v.month} onChange={v.setMonth} /> },
-          { id: 'count', label: 'Buckets', display: counts },
+          { id: 'count', label: 'Baskets', display: counts },
           { id: 'left', label: 'Left to plan', display: `${formatNumber(v.totals.leftToPlan)} ${v.currency}`, tone: v.totals.leftToPlan < 0 ? 'bad' : 'neutral' },
           { id: 'available', label: 'Available now', display: `${formatNumber(v.totals.availableNow)} ${v.currency}`, tone: v.totals.availableNow > 0 ? 'good' : v.totals.availableNow < 0 ? 'bad' : 'neutral' },
         ]}
@@ -159,8 +159,8 @@ export function BucketsScreen() {
             <Database<BucketRow>
               key={v.flow}
               id={`buckets.${v.flow.toLowerCase()}`}
-              label={`${FLOW_LABEL[v.flow]} buckets`}
-              noun={['bucket', 'buckets']}
+              label={`${FLOW_LABEL[v.flow]} baskets`}
+              noun={['basket', 'baskets']}
               tabs={tabs}
               rows={v.byType[v.flow]}
               rowKey={(r) => r.id}
@@ -180,14 +180,14 @@ export function BucketsScreen() {
               }}
               // What a bucket needs is its status chip; the action is in its "..." menu.
               rowActions={[
-                { id: 'paid', label: 'Mark overdue paid', show: (r) => Boolean(r.summary?.overdue.length) && (r.type === 'Expense' || r.type === 'Savings'), run: () => router.push('/buckets/items') },
+                { id: 'paid', label: 'Mark overdue paid', show: (r) => Boolean(r.summary?.overdue.length) && (r.type === 'Expense' || r.type === 'Savings'), run: () => router.push('/baskets/items') },
                 { id: 'cover', label: 'Cover or justify', show: (r) => r.card.prompt?.kind === 'over' || r.card.prompt?.kind === 'uncovered', run: (r) => router.push(coverHref(v.month, r.id)) },
                 { id: 'reallocate', label: 'Reallocate', show: (r) => r.card.prompt?.kind === 'leftover', run: (r) => router.push(reallocateHref(v.month, r.id)) },
               ]}
-              onOpen={(r) => router.push(`/budget/bucket/${r.id}?month=${v.month}`)}
-              onNew={() => router.push(`/buckets/new?type=${v.flow}`)}
-              newLabel={`New ${FLOW_NOUN[v.flow].toLowerCase()} bucket`}
-              emptyText={`No ${FLOW_LABEL[v.flow].toLowerCase()} buckets yet.`}
+              onOpen={(r) => router.push(`/budget/basket/${r.id}?month=${v.month}`)}
+              onNew={() => router.push(`/baskets/new?type=${v.flow}`)}
+              newLabel={`New ${FLOW_NOUN[v.flow].toLowerCase()} basket`}
+              emptyText={`No ${FLOW_LABEL[v.flow].toLowerCase()} baskets yet.`}
             />
           </div>
         )}

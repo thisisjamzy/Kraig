@@ -133,7 +133,7 @@ export function BucketDetailScreen({ goalId }: { goalId: string }) {
                 archived
                   ? {
                       key: 'unarchive',
-                      label: 'Unarchive bucket',
+                      label: 'Unarchive basket',
                       icon: <ArchiveRestore size={16} strokeWidth={1.75} />,
                       onSelect: () => unarchiveBucket(),
                     }
@@ -199,7 +199,7 @@ export function BucketDetailScreen({ goalId }: { goalId: string }) {
 
           <div className={styles.sectionTitleRow}>
             <h2 className={styles.sectionTitle}>{strings.bucketDetail.lineItemsTitle}</h2>
-            <Link href={`/add-bucket-item/${goalId}`} className={styles.addIconButton} aria-label={strings.bucketDetail.addLineItem}>
+            <Link href={`/add-basket-item/${goalId}`} className={styles.addIconButton} aria-label={strings.bucketDetail.addLineItem}>
               <Plus size={16} strokeWidth={2.25} />
             </Link>
           </div>
@@ -253,7 +253,7 @@ export function BucketDetailScreen({ goalId }: { goalId: string }) {
                             key: 'edit',
                             label: strings.bucketDetail.editLineItem,
                             icon: <Pencil size={16} strokeWidth={1.75} />,
-                            onSelect: () => router.push(`/edit-bucket-item/${goalId}/${item.id}`),
+                            onSelect: () => router.push(`/edit-basket-item/${goalId}/${item.id}`),
                           },
                           {
                             key: 'delete',

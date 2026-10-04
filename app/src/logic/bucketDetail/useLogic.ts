@@ -370,7 +370,7 @@ export function useLogic(goalId: string) {
       setEditingItemId(null);
       // Add/edit now lives on its own page (src/screens/BucketLineItemForm),
       // not a modal over this one — a successful save returns to the bucket.
-      router.push(`/buckets/${goalId}`);
+      router.push(`/baskets/${goalId}`);
     } catch (error) {
       setItemError(error instanceof Error ? error.message : 'Could not save this line item.');
     } finally {
@@ -445,7 +445,7 @@ export function useLogic(goalId: string) {
     setCompleteAmount(String(Math.max(0, round2(lineItem.amount - (itemSpend.get(lineItem.id)?.total ?? 0)))));
     setCompleteFullyPaid(true);
     setCompleteDate(todayIso());
-    setCompleteDescription(`${bucket?.name ?? 'Bucket'}: ${lineItem.name}`);
+    setCompleteDescription(`${bucket?.name ?? 'Basket'}: ${lineItem.name}`);
     setCompleteError(null);
   }
 
@@ -526,7 +526,7 @@ export function useLogic(goalId: string) {
       });
       setBucketEditOpen(false);
     } catch (error) {
-      setBucketSaveError(error instanceof Error ? error.message : 'Could not update this bucket.');
+      setBucketSaveError(error instanceof Error ? error.message : 'Could not update this basket.');
     } finally {
       setSavingBucket(false);
     }
@@ -540,7 +540,7 @@ export function useLogic(goalId: string) {
   async function archiveBucket() {
     if (!uid) return;
     await archiveBucketWrite(uid, goalId);
-    router.push('/buckets');
+    router.push('/baskets');
   }
 
   async function deleteBucket() {
@@ -548,17 +548,17 @@ export function useLogic(goalId: string) {
     setItemActionError(null);
     try {
       await deleteBucketWrite(uid, goalId);
-      router.push('/buckets');
+      router.push('/baskets');
     } catch (error) {
-      setItemActionError(error instanceof Error ? error.message : 'Could not delete this bucket.');
+      setItemActionError(error instanceof Error ? error.message : 'Could not delete this basket.');
     }
   }
 
-  // Back to the page the user came from (skipping forms); '/buckets' only
+  // Back to the page the user came from (skipping forms); '/baskets' only
   // when there's no history — see src/shared/navigation/useGoBack.ts.
   const navigateBack = useGoBack();
   function goBack() {
-    navigateBack('/buckets');
+    navigateBack('/baskets');
   }
 
   return {

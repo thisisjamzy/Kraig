@@ -213,7 +213,7 @@ export function BucketLineItemFormScreen({ goalId, itemId }: { goalId: string; i
         : `${strings.bucketDetail.dueDateDayPrefix} ${anchorDay}`;
 
   function goBack() {
-    router.push(`/buckets/${goalId}`);
+    router.push(`/baskets/${goalId}`);
   }
 
   return (

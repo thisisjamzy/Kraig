@@ -17,7 +17,7 @@ import styles from '@/src/phone/screens/Planning/HistoryTable.module.css';
 const COLUMNS: { field: string; label: string; numeric?: boolean }[] = [
   { field: 'date', label: 'Date' },
   { field: 'name', label: 'Name' },
-  { field: 'bucket', label: 'Bucket' },
+  { field: 'bucket', label: 'Basket' },
   { field: 'category', label: 'Category' },
   { field: 'method', label: 'Payment method' },
   { field: 'amount', label: 'Amount', numeric: true },

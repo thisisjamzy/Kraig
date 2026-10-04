@@ -119,17 +119,17 @@ export function useLogic(bucketId: string) {
   async function closeBucket(note: string) {
     const uid = user?.uid;
     if (!uid) return;
-    await run(() => closeBucketMonth(uid, bucketId, month, note), 'Bucket closed.');
+    await run(() => closeBucketMonth(uid, bucketId, month, note), 'Basket closed.');
   }
   async function unarchiveBucket() {
     const uid = user?.uid;
     if (!uid) return;
-    await run(() => restoreBucket(uid, bucketId), 'Bucket unarchived.');
+    await run(() => restoreBucket(uid, bucketId), 'Basket unarchived.');
   }
   async function reopenBucket() {
     const uid = user?.uid;
     if (!uid) return;
-    await run(() => reopenBucketMonth(uid, bucketId, month), 'Bucket reopened.');
+    await run(() => reopenBucketMonth(uid, bucketId, month), 'Basket reopened.');
   }
 
   return {

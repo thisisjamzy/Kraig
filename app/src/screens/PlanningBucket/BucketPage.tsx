@@ -54,15 +54,15 @@ export function BucketPage({ bucketId, b }: { bucketId: string; b: BucketLogic }
   const [closing, setClosing] = useState(false);
   const bucket = b.bucket;
   const type = (bucket?.type ?? 'Expense') as FlowType;
-  useBreadcrumb([{ label: 'Money', href: '/home' }, { label: 'Buckets', href: '/buckets' }, { label: bucket?.name ?? 'Bucket' }]);
+  useBreadcrumb([{ label: 'Money', href: '/home' }, { label: 'Baskets', href: '/baskets' }, { label: bucket?.name ?? 'Basket' }]);
   // The bucket's actions live in the top bar's "..." menu.
   usePageMenu(
     bucket
       ? [
           { label: ADD_LABEL[type], href: b.addExpenseHref },
-          { label: 'Add item', href: `/add-bucket-item/${bucketId}` },
-          { label: 'Edit bucket', href: `/buckets/${bucketId}` },
-          b.closed ? { label: 'Reopen bucket', onSelect: () => void b.reopenBucket() } : { label: `Close bucket for ${monthTitle(b.month)}`, onSelect: () => setClosing(true) },
+          { label: 'Add item', href: `/add-basket-item/${bucketId}` },
+          { label: 'Edit basket', href: `/baskets/${bucketId}` },
+          b.closed ? { label: 'Reopen basket', onSelect: () => void b.reopenBucket() } : { label: `Close basket for ${monthTitle(b.month)}`, onSelect: () => setClosing(true) },
           // What the bucket needs: its status chip says so, the action is here.
           ...(b.card?.prompt?.kind === 'over' || b.card?.prompt?.kind === 'uncovered' ? [{ label: 'Cover or justify', href: coverHref(b.month, bucketId) }] : []),
           ...(b.card?.prompt?.kind === 'leftover' ? [{ label: 'Reallocate', href: reallocateHref(b.month, bucketId) }] : []),
@@ -125,7 +125,7 @@ export function BucketPage({ bucketId, b }: { bucketId: string; b: BucketLogic }
         <NotionPageHeader
           icon={<Icon size={24} strokeWidth={2} />}
           title={bucket.name}
-          kind={`${FLOW_NOUN[type]} bucket · ${monthTitle(b.month)}`}
+          kind={`${FLOW_NOUN[type]} basket · ${monthTitle(b.month)}`}
         >
           <PropertiesBlock
             properties={[
@@ -158,7 +158,7 @@ export function BucketPage({ bucketId, b }: { bucketId: string; b: BucketLogic }
 
         <Block title="Items">
           <Database<LineRow>
-            id={`bucket.items.${type.toLowerCase()}`}
+            id={`basket.items.${type.toLowerCase()}`}
             label={`Items in ${bucket.name}`}
             noun={['item', 'items']}
             rows={lines}
@@ -173,13 +173,13 @@ export function BucketPage({ bucketId, b }: { bucketId: string; b: BucketLogic }
             onOpen={peek.open}
             onCreate={(values) => v.createLine(type, { name: values.name, amount: values.planned ?? values.expected ?? values.amount, due: values.due ?? values.date }, bucketId)}
             newTemplates={[
-              { id: 'recurring', label: 'Recurring item', onSelect: () => router.push(`/add-bucket-item/${bucketId}`) },
+              { id: 'recurring', label: 'Recurring item', onSelect: () => router.push(`/add-basket-item/${bucketId}`) },
             ]}
             bulkActions={[
               ...(type !== 'Income' ? [{ id: 'paid', label: 'Mark paid', run: (rows: LineRow[]) => v.bulkMarkPaid(rows) }] : []),
               { id: 'skip', label: `Delete from ${monthTitle(b.month).split(' ')[0]}`, danger: true, run: (rows: LineRow[]) => v.bulkSkip(rows) },
             ]}
-            emptyText={`Nothing planned in this bucket for ${monthTitle(b.month)}.`}
+            emptyText={`Nothing planned in this basket for ${monthTitle(b.month)}.`}
           />
         </Block>
 
@@ -271,7 +271,7 @@ export function BucketPage({ bucketId, b }: { bucketId: string; b: BucketLogic }
                 ))}
               </ul>
             ) : (
-              <p>Nothing in this bucket is prepared automatically. Set it per line in the Automation column.</p>
+              <p>Nothing in this basket is prepared automatically. Set it per line in the Automation column.</p>
             )}
             {nextPrepared && (
               <p className={styles.next}>

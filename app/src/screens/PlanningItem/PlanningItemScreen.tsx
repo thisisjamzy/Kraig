@@ -79,7 +79,7 @@ function ItemBody({ it, entry }: { it: ReturnType<typeof useLogic>; entry: ItemM
         }
         right={
           <>
-            <Link href={`/edit-bucket-item/${entry.bucketId}/${entry.itemId}`} className={p.roundButton} aria-label="Edit item">
+            <Link href={`/edit-basket-item/${entry.bucketId}/${entry.itemId}`} className={p.roundButton} aria-label="Edit item">
               <Pencil size={17} strokeWidth={2} />
             </Link>
             <ActionMenu
@@ -181,7 +181,7 @@ function ItemBody({ it, entry }: { it: ReturnType<typeof useLogic>; entry: ItemM
                 : prompt?.kind === 'justified'
                   ? `Over, justified (${prompt.reason})`
                   : !income && left < 0
-                    ? `${money(-left)} above its estimate, the rest of the bucket covers it`
+                    ? `${money(-left)} above its estimate, the rest of the basket covers it`
                     : entry.isOverride
                     ? 'On track · amount changed this month'
                     : 'On track'}

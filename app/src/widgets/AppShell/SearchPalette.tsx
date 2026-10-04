@@ -50,7 +50,7 @@ export function SearchPalette({ onClose }: { onClose: () => void }) {
     const bucketHits: Result[] = buckets
       .filter((b) => match(b.name))
       .slice(0, 8)
-      .map((b) => ({ id: `bucket-${b.id}`, group: 'Buckets', label: b.name, hint: `${b.type ?? 'Expense'} bucket`, href: `/budget/bucket/${b.id}`, icon: LayoutGrid }));
+      .map((b) => ({ id: `bucket-${b.id}`, group: 'Baskets', label: b.name, hint: `${b.type ?? 'Expense'} basket`, href: `/budget/basket/${b.id}`, icon: LayoutGrid }));
     const txHits: Result[] = transactions
       .filter((t) => match(t.description ?? ''))
       .slice(0, 8)
@@ -89,7 +89,7 @@ export function SearchPalette({ onClose }: { onClose: () => void }) {
           <input
             ref={inputRef}
             value={text}
-            placeholder="Search pages, buckets, transactions and tasks"
+            placeholder="Search pages, baskets, transactions and tasks"
             aria-label="Search"
             onChange={(e) => {
               setText(e.target.value);

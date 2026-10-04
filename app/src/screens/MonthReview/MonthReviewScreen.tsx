@@ -44,7 +44,7 @@ export function MonthReviewScreen() {
                     <thead>
                       <tr>
                         <th>Name</th>
-                        <th>Bucket</th>
+                        <th>Basket</th>
                         <th>{type === 'Income' ? 'Expected date' : type === 'Transfer' ? 'Date' : 'Due date'}</th>
                         <th data-align="right">{type === 'Income' ? 'Expected' : type === 'Transfer' ? 'Amount' : 'Planned'}</th>
                         {type === 'Expense' && <th>Roll over unused amount</th>}
@@ -57,7 +57,7 @@ export function MonthReviewScreen() {
                             <strong>{line.name}</strong>
                             {v.carriedFor(line) > 0 && <span className={styles.note}>+{money(v.carriedFor(line))} rolled over from last month</span>}
                           </td>
-                          <td data-label="Bucket">{line.bucketName}</td>
+                          <td data-label="Basket">{line.bucketName}</td>
                           <td data-label="Date">
                             <input type="date" value={v.dateText(line)} onChange={(e) => v.setDate(line, e.target.value)} aria-label={`${line.name} date`} />
                           </td>

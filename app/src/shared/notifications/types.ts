@@ -154,7 +154,7 @@ export const TYPE_LABEL: Record<NotificationType, string> = {
   income_received: 'Income received',
   ready_to_pay: 'Ready to pay',
   month_review: 'New month to review',
-  unassigned_transactions: 'Transactions without a bucket',
+  unassigned_transactions: 'Transactions without a basket',
   reconcile_mismatch: 'Balances to reconcile',
   debt_payment_due: 'Debt payments due',
   debt_payment_late: 'Late debt payments',

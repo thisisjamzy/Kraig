@@ -172,7 +172,7 @@ export function usePriorityWalk(v: PrioritiesLogic) {
     const tags = [...new Set(v.occurrences.map((o) => o.tag).filter(Boolean))];
     return [
       { id: 'name', label: 'Name', type: 'text', get: (o) => o.name, searchable: true, sortable: false },
-      { id: 'bucket', label: 'Bucket / plan', type: 'select', get: (o) => o.bucketId, options: buckets.map(([value, label]) => ({ value, label })), sortable: false },
+      { id: 'bucket', label: 'Basket / plan', type: 'select', get: (o) => o.bucketId, options: buckets.map(([value, label]) => ({ value, label })), sortable: false },
       { id: 'need', label: 'Need', type: 'select', get: (o) => o.need, options: [{ value: 'must', label: 'Must have' }, { value: 'nice', label: 'Nice to have' }], sortable: false },
       { id: 'priority', label: 'Priority', type: 'select', get: (o) => o.priority, options: ['High', 'Medium', 'Low'].map((p) => ({ value: p, label: p })), sortable: false },
       { id: 'tag', label: 'Tag', type: 'select', get: (o) => o.tag, options: tags.map((t) => ({ value: t, label: t })), sortable: false },

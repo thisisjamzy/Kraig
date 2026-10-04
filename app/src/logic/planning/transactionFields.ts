@@ -36,7 +36,7 @@ export function transactionFields({
     },
     {
       id: 'bucket',
-      label: 'Bucket',
+      label: 'Basket',
       type: 'select',
       get: (r) => r.bucketId,
       options: byName(buckets).map((b) => ({ value: b.id, label: b.name })),
@@ -57,7 +57,7 @@ export function transactionFields({
       options: byName(accounts).map((a) => ({ value: a.id, label: a.name })),
     },
     { id: 'date', label: 'Date', type: 'date', get: (r) => r.date },
-    { id: 'assigned', label: 'Assigned to bucket', type: 'checkbox', get: (r) => r.bucketId !== null, sortable: false },
+    { id: 'assigned', label: 'Assigned to basket', type: 'checkbox', get: (r) => r.bucketId !== null, sortable: false },
     // Searched too, without being a filter of its own.
     { id: 'methodName', label: 'Wallet', type: 'text', get: (r) => r.method, searchable: true, filterable: false, sortable: false },
   ];

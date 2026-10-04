@@ -33,8 +33,8 @@ export function ItemPage({ bucketId, itemId, it }: { bucketId: string; itemId: s
   const line = it.entry ? (v.rows[it.entry.type].find((r) => r.key === key) ?? null) : null;
   useBreadcrumb([
     { label: 'Money', href: '/home' },
-    { label: 'Buckets', href: '/buckets' },
-    { label: it.bucket?.name ?? 'Bucket', href: `/budget/bucket/${bucketId}?month=${it.month}` },
+    { label: 'Baskets', href: '/baskets' },
+    { label: it.bucket?.name ?? 'Basket', href: `/budget/basket/${bucketId}?month=${it.month}` },
     { label: line?.name ?? it.raw?.name ?? 'Item' },
   ]);
 
@@ -72,7 +72,7 @@ export function ItemPage({ bucketId, itemId, it }: { bucketId: string; itemId: s
         compactTitle={false}
         onSkip={async (l) => {
           await v.bulkSkip([l]);
-          router.push(`/budget/bucket/${bucketId}?month=${it.month}`);
+          router.push(`/budget/basket/${bucketId}?month=${it.month}`);
         }}
       />
       <Block

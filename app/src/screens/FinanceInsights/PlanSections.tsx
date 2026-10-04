@@ -77,9 +77,9 @@ export function PlanVsActual({ v }: { v: FinanceInsights }) {
       )}
 
       <div className={styles.block}>
-        <SubHead title="By bucket" takeaway={bucketsTakeaway(v.buckets, c)} />
+        <SubHead title="By basket" takeaway={bucketsTakeaway(v.buckets, c)} />
         {v.buckets.length === 0 ? (
-          <Empty>No buckets planned for this period.</Empty>
+          <Empty>No baskets planned for this period.</Empty>
         ) : (
           <ul className={styles.bullets}>
             {v.buckets.map((b) => {

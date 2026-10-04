@@ -208,14 +208,14 @@ function automationColumn(ctx: ColumnContext): ColumnDef<LineRow> {
   };
 }
 
-const bucketColumn = (label = 'Bucket'): ColumnDef<LineRow> => ({
+const bucketColumn = (label = 'Basket'): ColumnDef<LineRow> => ({
   id: 'bucket',
   label,
   type: 'relation',
   width: 170,
   value: (r) => r.bucketName,
   render: (r) => (
-    <Link className={styles.relation} href={`/budget/bucket/${r.bucketId}?month=${r.month}`}>
+    <Link className={styles.relation} href={`/budget/basket/${r.bucketId}?month=${r.month}`}>
       {r.bucketName}
     </Link>
   ),
@@ -246,7 +246,7 @@ export function lineColumns(type: FlowType, ctx: ColumnContext, options: { bucke
   if (type === 'Savings') {
     return [
       nameColumn(),
-      ...(withBucket ? [bucketColumn('Goal')] : []),
+      ...(withBucket ? [bucketColumn('Basket')] : []),
       selectColumn(
         'mode',
         'Absolute or flexible',
@@ -299,7 +299,7 @@ export function lineColumns(type: FlowType, ctx: ColumnContext, options: { bucke
   ];
 }
 
-export const BY_BUCKET: GroupDef<LineRow> = { id: 'bucket', label: 'Bucket', key: (r) => ({ key: r.bucketId, label: r.bucketName }) };
+export const BY_BUCKET: GroupDef<LineRow> = { id: 'bucket', label: 'Basket', key: (r) => ({ key: r.bucketId, label: r.bucketName }) };
 
 export function groupsFor(type: FlowType): GroupDef<LineRow>[] {
   const status: GroupDef<LineRow> = { id: 'status', label: 'Status', key: (r) => ({ key: r.state, label: r.state }) };

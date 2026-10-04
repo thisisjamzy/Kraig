@@ -34,7 +34,7 @@ export function BucketsHeader({
           <ChevronLeft size={18} strokeWidth={2} />
         </Link>
       }
-      title="Buckets"
+      title="Baskets"
       right={
         <div className={styles.rangeToggle}>
           <button

@@ -272,7 +272,7 @@ export function useLogic() {
     habits,
     showHabits: kind === 'week' || kind === 'month',
     historyHref,
-    bucketHref: (bucketId: string) => `/budget/bucket/${bucketId}?month=${historyMonth}`,
+    bucketHref: (bucketId: string) => `/budget/basket/${bucketId}?month=${historyMonth}`,
     budgetHref: `/budget?month=${historyMonth}`,
     setSavingsTarget: fin.setSavingsTarget,
     addForecastItem: fin.addForecastItem,

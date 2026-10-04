@@ -47,8 +47,8 @@ export function ImportDataScreen() {
       {step === 'upload' && (
         <div className={styles.form}>
           <p className={styles.helperText}>
-            Upload a Dreda export or template (.xlsx or .csv). Each sheet is matched by name, Areas, Buckets,
-            Accounts, Categories, Budgets, Projects, Tasks, Buckets, Bucket Items, Debts, Repayments, Transactions,
+            Upload a Dreda export or template (.xlsx or .csv). Each sheet is matched by name, Areas, Baskets,
+            Accounts, Categories, Budgets, Projects, Tasks, Baskets, Basket Items, Debts, Repayments, Transactions,
             Transfers.
           </p>
           <input

@@ -33,7 +33,7 @@ export function PlansForecastScreen() {
     <div className={styles.page}>
       <ScreenHeader
         left={
-          <Link href="/buckets" className={styles.roundButton} aria-label="Back to Buckets">
+          <Link href="/baskets" className={styles.roundButton} aria-label="Back to Baskets">
             <ArrowLeft size={20} strokeWidth={2} />
           </Link>
         }
@@ -263,7 +263,7 @@ function ScheduleCard({ v }: { v: PlansForecastLogic }) {
               return (
                 <li key={r.bucketId}>
                   <span className={styles.hbarTop}>
-                    <Link href={`/budget/bucket/${r.bucketId}`} className={styles.hbarName}>
+                    <Link href={`/budget/basket/${r.bucketId}`} className={styles.hbarName}>
                       {r.name}
                     </Link>
                     <strong>{full(r.remaining)}</strong>

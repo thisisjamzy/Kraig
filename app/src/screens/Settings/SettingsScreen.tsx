@@ -159,7 +159,7 @@ export function SettingsScreen() {
         <ChevronRight size={16} strokeWidth={2} className={styles.actionRowChevron} />
       </Link>
 
-      <Link href="/settings/archived-buckets" className={styles.actionRow}>
+      <Link href="/settings/archived-baskets" className={styles.actionRow}>
         <span className={styles.actionRowIcon} style={{ background: iconTint(2) }}>
           <Archive size={18} strokeWidth={1.75} />
         </span>

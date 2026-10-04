@@ -172,7 +172,7 @@ export function useLogic() {
 
   const navigateBack = useGoBack();
   function goBack() {
-    navigateBack(`/budget/bucket/${bucketId}?month=${month}`);
+    navigateBack(`/budget/basket/${bucketId}?month=${month}`);
   }
 
   return {

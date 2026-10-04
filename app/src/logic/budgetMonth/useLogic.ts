@@ -137,7 +137,7 @@ export function useBudgetMonth(month: string, data: PlanningData) {
   /** Quick entry: a one-off line in this month, in the group's bucket. */
   async function createLine(type: FlowType, values: { name?: unknown; amount?: unknown; due?: unknown }, bucketId: string | null) {
     const target = bucketId ?? bucketsOf(type)[0]?.id;
-    if (!target) throw new Error(`Add a ${type.toLowerCase()} bucket first.`);
+    if (!target) throw new Error(`Add a ${type.toLowerCase()} basket first.`);
     const name = typeof values.name === 'string' ? values.name.trim() : '';
     const amount = typeof values.amount === 'number' ? values.amount : NaN;
     if (!name) throw new Error('Give the line a name.');

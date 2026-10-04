@@ -11,5 +11,5 @@ export const metadata: Metadata = {
 export default async function TransactionsPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const params = await searchParams;
   if (params.backfillBatch) return <TransactionHistoryScreen />;
-  return <TransactionsScreen />;
+  return <TransactionsScreen filtered={Boolean(params.bucket || params.category)} />;
 }

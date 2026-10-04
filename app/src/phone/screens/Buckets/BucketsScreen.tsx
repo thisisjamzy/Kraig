@@ -43,16 +43,16 @@ function BucketsPhone({ v }: { v: BucketsLogic }) {
             <ArrowLeft size={20} strokeWidth={2} />
           </Link>
         }
-        title="Buckets"
+        title="Baskets"
         right={
           <ActionMenu
             ariaLabel="More"
             triggerClassName={styles.roundButton}
             triggerIcon={<MoreHorizontal size={18} strokeWidth={2} />}
             items={[
-              { key: 'archived', label: 'Archived buckets', icon: <Archive size={14} strokeWidth={2} />, onSelect: () => router.push('/settings/archived-buckets') },
+              { key: 'archived', label: 'Archived baskets', icon: <Archive size={14} strokeWidth={2} />, onSelect: () => router.push('/settings/archived-baskets') },
               { key: 'plan', label: 'Edit plan', icon: <Pencil size={14} strokeWidth={2} />, onSelect: () => router.push(`/budget?month=${v.month}`) },
-              { key: 'forecast', label: 'Plans forecast', icon: <TrendingUp size={14} strokeWidth={2} />, onSelect: () => router.push('/buckets/forecast') },
+              { key: 'forecast', label: 'Plans forecast', icon: <TrendingUp size={14} strokeWidth={2} />, onSelect: () => router.push('/baskets/forecast') },
             ]}
           />
         }
@@ -74,7 +74,7 @@ function BucketsPhone({ v }: { v: BucketsLogic }) {
               ))}
             </div>
           ) : (
-            <p className={styles.muted}>No {FLOW_LABEL[v.flow].toLowerCase()} buckets yet.</p>
+            <p className={styles.muted}>No {FLOW_LABEL[v.flow].toLowerCase()} baskets yet.</p>
           )}
         </>
       )}
@@ -91,7 +91,7 @@ function extrasOf(row: BucketRow, v: BucketsLogic) {
     topNeed: v.showsNeed(row.type) ? s.topNeed : null,
     overdue:
       v.showsNeed(row.type) && s.overdue.length
-        ? { count: s.overdue.length, amount: s.overdue.reduce((sum, o) => sum + Math.max(0, o.planned - o.paid), 0), href: '/buckets/items' }
+        ? { count: s.overdue.length, amount: s.overdue.reduce((sum, o) => sum + Math.max(0, o.planned - o.paid), 0), href: '/baskets/items' }
         : undefined,
   };
 }
@@ -204,7 +204,7 @@ function MustCard({ v }: { v: BucketsLogic }) {
   if (!m.count) return null;
   const chip = m.status === 'short' ? <Chip tone="bad">Short</Chip> : m.status === 'waiting' ? <Chip tone="watch">Waiting on income</Chip> : <Chip tone="good">Covered</Chip>;
   return (
-    <Card title="Must-haves" chip={chip} action={{ label: 'Open priorities', href: '/buckets/items' }}>
+    <Card title="Must-haves" chip={chip} action={{ label: 'Open priorities', href: '/baskets/items' }}>
       <div className={styles.figureGrid} data-cols="3">
         <Figure label="Available now" value={m.availableNow} />
         <Figure label="Still due" value={m.due} />

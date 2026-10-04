@@ -65,7 +65,7 @@ export function CoverScreen() {
             {v.found ? 'Nothing is left to cover or explain for this month.' : 'It may have been archived or removed.'}
           </p>
           <Link href={v.bucketHref} className={`${p.fillButton} ${p.bigButton}`}>
-            Back to the bucket
+            Back to the basket
           </Link>
         </div>
       </div>

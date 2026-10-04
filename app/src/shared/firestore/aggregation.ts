@@ -1118,10 +1118,10 @@ async function assertNothingLinked(uid: string, scope: { itemId: string } | { bu
     getDocs(query(allocationsRef(uid), where(`to.${field}`, '==', value), limit(1))),
   ]);
   if (!transactionsSnap.empty || !transfersSnap.empty) {
-    throw new Error('Payments are linked to this, unlink them first, or archive the bucket instead.');
+    throw new Error('Payments are linked to this, unlink them first, or archive the basket instead.');
   }
   if (!fromSnap.empty || !toSnap.empty) {
-    throw new Error('Budget was moved into or out of this, undo those moves first, or archive the bucket instead.');
+    throw new Error('Budget was moved into or out of this, undo those moves first, or archive the basket instead.');
   }
 }
 

@@ -347,7 +347,7 @@ export function useLogic() {
         months.flatMap((occurrenceMonth) => {
           const occurrence = itemOccurrence(item, occurrenceMonth);
           if (!occurrence) return [];
-          const bucketName = bucketNameById.get(item.goalId) ?? 'Bucket';
+          const bucketName = bucketNameById.get(item.goalId) ?? 'Basket';
           return [{
             id: `${item.id}@${occurrenceMonth}`,
             itemId: item.id,
@@ -440,7 +440,7 @@ export function useLogic() {
   const categoryOptions = isSavingsMoved ? [] : showUnplanned ? categoriesForType : budgetedCategoriesForType;
   // Where "plan it" sends them — budgets are built from bucket items now
   // (PRD-BUDGETS-V2.md), so that's Buckets, not the Budget screen.
-  const budgetHref = '/buckets';
+  const budgetHref = '/baskets';
   const accountName = (id: string) => accounts.find((account) => account.id === id)?.name ?? '';
 
   function selectType(key: TransactionType) {

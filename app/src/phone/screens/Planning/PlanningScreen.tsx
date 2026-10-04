@@ -36,7 +36,7 @@ export function PlanningScreen({ defaultTab = 'budget' }: { defaultTab?: Plannin
 
   useAppBarAction(
     tab === 'budget'
-      ? { key: 'planning-budget', label: 'Edit budget', icon: SlidersHorizontal, href: '/buckets' }
+      ? { key: 'planning-budget', label: 'Edit budget', icon: SlidersHorizontal, href: '/baskets' }
       : tab === 'payments'
         ? { key: 'planning-payments', label: 'Plan new payment', icon: CalendarPlus, onClick: () => setPlanPicker(true) }
         : {
@@ -115,20 +115,20 @@ export function PlanningScreen({ defaultTab = 'budget' }: { defaultTab?: Plannin
 
       {planPicker && (
         <Modal title="Plan a payment in…" onClose={() => setPlanPicker(false)}>
-          <p className={tabStyles.sheetHint}>A payment is a bucket item with a due date. Pick its bucket.</p>
+          <p className={tabStyles.sheetHint}>A payment is a basket item with a due date. Pick its basket.</p>
           <div className={tabStyles.sheetList}>
             {data.buckets
               .slice()
               .sort((a, b) => a.name.localeCompare(b.name))
               .map((b) => (
-                <button key={b.id} type="button" onClick={() => router.push(`/add-bucket-item/${b.id}`)}>
+                <button key={b.id} type="button" onClick={() => router.push(`/add-basket-item/${b.id}`)}>
                   {b.name}
                   <ChevronRight size={16} strokeWidth={2} aria-hidden />
                 </button>
               ))}
-            <button type="button" onClick={() => router.push('/buckets/new')}>
+            <button type="button" onClick={() => router.push('/baskets/new')}>
               <span className={tabStyles.sheetNew}>
-                <Plus size={15} strokeWidth={2.5} aria-hidden /> New bucket
+                <Plus size={15} strokeWidth={2.5} aria-hidden /> New basket
               </span>
             </button>
           </div>

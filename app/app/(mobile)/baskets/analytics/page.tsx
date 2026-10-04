@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { BucketsAnalyticsRoute } from '@/src/routes/BucketsAnalytics/BucketsAnalyticsRoute';
 
 export const metadata: Metadata = {
-  title: 'Buckets analytics · Dreda',
+  title: 'Baskets analytics · Dreda',
 };
 
 export default function BucketsAnalyticsPage() {

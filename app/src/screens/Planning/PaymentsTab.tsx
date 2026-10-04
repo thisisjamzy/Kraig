@@ -175,7 +175,7 @@ export function PaymentsTab({
       {p.open.length === 0 ? (
         <p className={styles.empty}>
           {p.payments.length === 0
-            ? 'No payments scheduled this month. Give a bucket item a due date to see it here.'
+            ? 'No payments scheduled this month. Give a basket item a due date to see it here.'
             : selectedLabel
               ? 'Nothing left to pay on this day.'
               : 'Everything this month is paid.'}

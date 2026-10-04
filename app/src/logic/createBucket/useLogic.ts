@@ -49,18 +49,18 @@ export function useLogic() {
         kind,
         type,
       });
-      router.push(`/buckets/${id}`);
+      router.push(`/baskets/${id}`);
     } catch (error) {
-      setSaveError(error instanceof Error ? error.message : 'Could not create this bucket.');
+      setSaveError(error instanceof Error ? error.message : 'Could not create this basket.');
       setSaving(false);
     }
   }
 
-  // Back to the page the user came from (skipping forms); '/buckets' only
+  // Back to the page the user came from (skipping forms); '/baskets' only
   // when there's no history — see src/shared/navigation/useGoBack.ts.
   const navigateBack = useGoBack();
   function goBack() {
-    navigateBack('/buckets');
+    navigateBack('/baskets');
   }
 
   return {

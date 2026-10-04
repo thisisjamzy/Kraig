@@ -88,10 +88,10 @@ export function paceTakeaway(p: Pace, currency: string): string {
 }
 
 export function bucketsTakeaway(rows: BucketAdherence[], currency: string): string {
-  if (!rows.length) return 'No buckets planned for this period.';
+  if (!rows.length) return 'No baskets planned for this period.';
   const over = rows.filter((r) => r.status === 'over');
-  if (!over.length) return `All ${rows.length} buckets stayed within plan.`;
-  return `${rows.length - over.length} of ${rows.length} buckets within plan; ${over[0].name} is ${money(over[0].actual - over[0].planned, currency)} over.`;
+  if (!over.length) return `All ${rows.length} baskets stayed within plan.`;
+  return `${rows.length - over.length} of ${rows.length} baskets within plan; ${over[0].name} is ${money(over[0].actual - over[0].planned, currency)} over.`;
 }
 
 export function accuracyTakeaway(points: AccuracyPoint[]): string {
@@ -209,7 +209,7 @@ export function alerts({ data, currency, totals, forecast, pace, log, unassigned
       icon: 'overspend',
       headline: `${open.length} ${open.length === 1 ? 'overspend needs' : 'overspends need'} covering`,
       detail: `${money(amount, currency)} over plan, not yet covered or justified.`,
-      href: `/budget/bucket/${open[0].bucketId}?month=${month}`,
+      href: `/budget/basket/${open[0].bucketId}?month=${month}`,
     });
   }
   const overdue = data.payments.filter((p) => p.kind === 'expense' && p.status === 'overdue');

@@ -90,7 +90,7 @@ export function PrioritiesScreen() {
     <div className={styles.page}>
       <ScreenHeader
         left={
-          <Link href="/buckets" className={styles.roundButton} aria-label="Back to Buckets">
+          <Link href="/baskets" className={styles.roundButton} aria-label="Back to Baskets">
             <ArrowLeft size={20} strokeWidth={2} />
           </Link>
         }
@@ -147,7 +147,7 @@ export function PrioritiesScreen() {
                 ]}
               />
             }
-            action={{ label: 'Forecast', href: '/buckets/forecast' }}
+            action={{ label: 'Forecast', href: '/baskets/forecast' }}
           >
             <div className={styles.figureGrid} data-cols="3">
               <Figure label="Due" value={w.due} />

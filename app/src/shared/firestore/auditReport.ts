@@ -555,7 +555,7 @@ export async function generateAuditReport(uid: string, selection: AuditReportSel
     .sort((a, b) => b.value - a.value);
   const highestPriorityDebt = [...debts].sort((a, b) => b.currentBalance - a.currentBalance)[0];
   const debtPayoffOpportunity = highestPriorityDebt
-    ? `Paying an extra amount toward "${highestPriorityDebt.name}" (largest balance) shortens its payoff timeline the most per unit paid, see Buckets & Debt Summary for its current pace.`
+    ? `Paying an extra amount toward "${highestPriorityDebt.name}" (largest balance) shortens its payoff timeline the most per unit paid, see Baskets & Debt Summary for its current pace.`
     : null;
 
   // ---- Cash flow trend (trailing 12 + period sums) ----
@@ -610,7 +610,7 @@ export async function generateAuditReport(uid: string, selection: AuditReportSel
       status: diningPercent > 12 ? 'red' : diningPercent > 8 ? 'yellow' : 'yellow',
       message:
         diningPercent > 12
-          ? 'Excessive, dining/entertainment spend is crowding out other buckets.'
+          ? 'Excessive, dining/entertainment spend is crowding out other baskets.'
           : diningPercent > 8
             ? 'High, worth capping.'
             : 'Watch, creeping up.',

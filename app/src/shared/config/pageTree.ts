@@ -43,19 +43,19 @@ export const PAGE_TREE: Record<AppMode, TreePage[]> = {
     { id: 'budget', href: '/budget', label: 'Budget', icon: Wallet, also: ['/budget/item', '/budget/review', '/budget/migration', '/budget/cover', '/budget/reallocate'] },
     {
       id: 'buckets',
-      href: '/buckets',
-      label: 'Buckets',
+      href: '/baskets',
+      label: 'Baskets',
       icon: LayoutGrid,
       children: 'buckets',
-      create: { label: 'New bucket', href: '/buckets/new' },
-      also: ['/budget/bucket', '/add-bucket-item', '/edit-bucket-item'],
+      create: { label: 'New basket', href: '/baskets/new' },
+      also: ['/budget/basket', '/add-basket-item', '/edit-basket-item'],
     },
-    { id: 'priorities', href: '/buckets/items', label: 'Priorities', icon: ListOrdered },
+    { id: 'priorities', href: '/baskets/items', label: 'Priorities', icon: ListOrdered },
     { id: 'payments', href: '/payments', label: 'Payments', icon: CalendarDays },
     { id: 'transactions', href: '/transactions', label: 'Transactions', icon: ArrowLeftRight, also: ['/edit-transaction', '/edit-transfer'] },
     { id: 'insights', href: '/statistics', label: 'Insights', icon: PieChart },
-    { id: 'plan', href: '/buckets/forecast', label: 'Plan and forecast', icon: TrendingUp },
-    { id: 'goals', href: '/buckets?type=Savings', label: 'Goals', icon: Goal },
+    { id: 'plan', href: '/baskets/forecast', label: 'Plan and forecast', icon: TrendingUp },
+    { id: 'goals', href: '/baskets?type=Savings', label: 'Goals', icon: Goal },
     { id: 'debt', href: '/debts', label: 'Debt', icon: HandCoins },
   ],
   time: [
@@ -104,7 +104,7 @@ export function pageForPath(pathname: string | null, search = ''): TreePage | nu
   for (const page of [...PAGE_TREE.money, ...PAGE_TREE.time]) {
     // Goals is Buckets filtered to savings.
     if (page.id === 'goals') {
-      if (pathname === '/buckets' && new URLSearchParams(search).get('type') === 'Savings') return page;
+      if (pathname === '/baskets' && new URLSearchParams(search).get('type') === 'Savings') return page;
       continue;
     }
     for (const href of [page.href, ...(page.also ?? [])]) {

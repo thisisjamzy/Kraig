@@ -55,7 +55,7 @@ export function useBucketItemOptions({
           .map((month) => ({
             key: `${item.id}@${month}`,
             link: { bucketId: item.goalId, itemId: item.id, month },
-            label: `${bucketName.get(item.goalId) ?? 'Bucket'}: ${item.name}${month === monthKey ? '' : ` · ${monthLabel(month)}`}`,
+            label: `${bucketName.get(item.goalId) ?? 'Basket'}: ${item.name}${month === monthKey ? '' : ` · ${monthLabel(month)}`}`,
           }))
       );
     if (current && !options.some((option) => option.key === bucketItemKey(current))) {
@@ -63,7 +63,7 @@ export function useBucketItemOptions({
       options.push({
         key: bucketItemKey(current),
         link: current,
-        label: `${bucketName.get(current.bucketId) ?? 'Bucket'}: ${item?.name ?? 'Deleted item'} · ${monthLabel(current.month)}`,
+        label: `${bucketName.get(current.bucketId) ?? 'Basket'}: ${item?.name ?? 'Deleted item'} · ${monthLabel(current.month)}`,
       });
     }
     return options;

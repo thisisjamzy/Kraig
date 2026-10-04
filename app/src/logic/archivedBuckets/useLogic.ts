@@ -54,7 +54,7 @@ export function useLogic() {
     try {
       await deleteBucketWrite(uid, id);
     } catch (error) {
-      setDeleteError(error instanceof Error ? error.message : 'Could not delete this bucket.');
+      setDeleteError(error instanceof Error ? error.message : 'Could not delete this basket.');
     }
   }
 

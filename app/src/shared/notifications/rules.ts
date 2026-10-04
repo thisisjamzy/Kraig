@@ -238,7 +238,7 @@ function moneyRules(m: MoneyFacts, now: Date): NotificationDraft[] {
         'leftover_to_reallocate',
         'info',
         `leftover_to_reallocate:${month}`,
-        `${amountText(sum(items))} left over in ${m.leftovers.length} ${plural(m.leftovers.length, 'bucket', 'buckets')}`,
+        `${amountText(sum(items))} left over in ${m.leftovers.length} ${plural(m.leftovers.length, 'basket', 'baskets')}`,
         'Move it where it’s needed, or into savings.',
         items,
         items.length === 1 ? items[0].action : { label: 'Reallocate', route: `/budget/reallocate?month=${month}` }
@@ -357,7 +357,7 @@ function moneyRules(m: MoneyFacts, now: Date): NotificationDraft[] {
         'unassigned_transactions',
         'info',
         `unassigned_transactions:${month}`,
-        `${items.length} ${plural(items.length, 'expense has', 'expenses have')} no bucket · ${amountText(sum(items))}`,
+        `${items.length} ${plural(items.length, 'expense has', 'expenses have')} no basket · ${amountText(sum(items))}`,
         'Assign them so this month’s plan is complete.',
         items,
         { label: 'Review', route: `/transactions?month=${month}` }
@@ -445,7 +445,7 @@ function moneyRules(m: MoneyFacts, now: Date): NotificationDraft[] {
       label: s.name,
       amount: s.short,
       date: null,
-      action: { label: 'Open', route: `/budget/bucket/${s.bucketId}?month=${month}` },
+      action: { label: 'Open', route: `/budget/basket/${s.bucketId}?month=${month}` },
     }));
     out.push(
       make(
@@ -465,7 +465,7 @@ function moneyRules(m: MoneyFacts, now: Date): NotificationDraft[] {
     out.push(
       make('spending_off_pace', 'warning', `spending_off_pace:${dayKeyOf(today)}`, 'Day-to-day spending is off pace', m.pace.message, [], {
         label: 'See the daily guide',
-        route: '/buckets/forecast',
+        route: '/baskets/forecast',
       })
     );
   }
@@ -480,7 +480,7 @@ function forecastRules(f: ForecastFacts, c: string, now: Date): NotificationDraf
   const zero = f.breaches.filter((b) => b.belowZero);
   const cushion = f.breaches.filter((b) => !b.belowZero);
   const breachItems = (list: typeof f.breaches, type: string): NotificationItem[] =>
-    list.map((b) => ({ key: `${type}:${b.month}`, entityType: 'month', entityId: b.month, label: monthName(b.month), amount: b.lowest, date: b.date, action: { label: 'Open plan', route: `/buckets/forecast?month=${b.month}` } }));
+    list.map((b) => ({ key: `${type}:${b.month}`, entityType: 'month', entityId: b.month, label: monthName(b.month), amount: b.lowest, date: b.date, action: { label: 'Open plan', route: `/baskets/forecast?month=${b.month}` } }));
   if (zero.length) {
     out.push(
       make(
@@ -490,7 +490,7 @@ function forecastRules(f: ForecastFacts, c: string, now: Date): NotificationDraf
         zero.length === 1 ? `${monthName(zero[0].month)} drops below zero` : `${zero.length} months drop below zero`,
         `Your balance reaches ${amountText(zero[0].lowest)} on ${short(zero[0].date)}. Move or split something before then.`,
         breachItems(zero, 'forecast_below_zero'),
-        { label: 'Open plan', route: '/buckets/forecast' }
+        { label: 'Open plan', route: '/baskets/forecast' }
       )
     );
   }
@@ -503,7 +503,7 @@ function forecastRules(f: ForecastFacts, c: string, now: Date): NotificationDraf
         cushion.length === 1 ? `${monthName(cushion[0].month)} drops below your cushion` : `${cushion.length} months drop below your cushion`,
         `The lowest point is ${amountText(cushion[0].lowest)} on ${short(cushion[0].date)}, under your ${amountText(f.cushion)} cushion.`,
         breachItems(cushion, 'forecast_below_cushion'),
-        { label: 'Open plan', route: '/buckets/forecast' }
+        { label: 'Open plan', route: '/baskets/forecast' }
       )
     );
   }
@@ -516,7 +516,7 @@ function forecastRules(f: ForecastFacts, c: string, now: Date): NotificationDraf
         f.shortMonths.length === 1 ? `${monthName(f.shortMonths[0].month)} doesn't fit the planned items` : `${f.shortMonths.length} months don't fit the planned items`,
         'More is planned than the income expected in those months.',
         f.shortMonths.map((s) => ({ key: `forecast_month_short:${s.month}`, entityType: 'month', entityId: s.month, label: monthName(s.month), amount: s.shortfall, date: null, action: null })),
-        { label: 'Open plan', route: '/buckets/forecast' }
+        { label: 'Open plan', route: '/baskets/forecast' }
       )
     );
   }
@@ -529,7 +529,7 @@ function forecastRules(f: ForecastFacts, c: string, now: Date): NotificationDraf
         `${f.autoAllocate.count} backlog ${plural(f.autoAllocate.count, 'item now fits', 'items now fit')} your plan`,
         f.autoAllocate.names.slice(0, 3).join(', '),
         [],
-        { label: 'See suggestions', route: '/buckets/forecast?allocate=1' }
+        { label: 'See suggestions', route: '/baskets/forecast?allocate=1' }
       )
     );
   }
@@ -542,7 +542,7 @@ function forecastRules(f: ForecastFacts, c: string, now: Date): NotificationDraf
         `The ${w.name.toLowerCase()} now fits in ${monthName(w.month)} without touching your cushion`,
         `${amountText(w.amount)}, after waiting at least 30 days.`,
         [],
-        { label: 'Open plan', route: '/buckets/forecast' }
+        { label: 'Open plan', route: '/baskets/forecast' }
       )
     );
   }

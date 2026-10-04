@@ -216,7 +216,7 @@ export function PageTree({ mode, touch, onNavigate }: { mode: AppMode; touch: bo
                         <p className={styles.groupLabel}>{FLOW_LABEL[type]}</p>
                         <ul className={styles.list}>
                           {list.map((b) =>
-                            subRow(b.id, `/budget/bucket/${b.id}`, b.name, 'bucket', async (name) => {
+                            subRow(b.id, `/budget/basket/${b.id}`, b.name, 'bucket', async (name) => {
                               if (uid) await updateBucketFields(uid, b.id, { name });
                             })
                           )}
@@ -224,7 +224,7 @@ export function PageTree({ mode, touch, onNavigate }: { mode: AppMode; touch: bo
                       </li>
                     );
                   })}
-                  {!buckets.length && <li className={styles.emptyChild}>No buckets yet</li>}
+                  {!buckets.length && <li className={styles.emptyChild}>No baskets yet</li>}
                 </ul>
               )}
               {expanded && page.children === 'projects' && (

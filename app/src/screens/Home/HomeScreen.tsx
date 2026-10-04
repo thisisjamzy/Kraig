@@ -270,7 +270,7 @@ function ReadyBlock({ v }: { v: HomeLogic }) {
                 </strong>
               </div>
             </div>
-            <Link href="/buckets/forecast" className={styles.readyButton}>
+            <Link href="/baskets/forecast" className={styles.readyButton}>
               Open plan and forecast
             </Link>
           </>

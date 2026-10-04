@@ -85,7 +85,7 @@ function columnsFor(type: FlowType): ColumnDef<TxRow>[] {
   const amount: ColumnDef<TxRow> = { id: 'amount', label: 'Amount', type: 'currency', width: 140, value: (r) => r.amount, render: (r) => <Amount row={r} />, calc: 'sum' };
   // Date first (the frozen column), then Name, as the columns read.
   if (type === 'Income') return [dateColumn(), name, text('note', 'Note'), text('source', 'Source', 150), text('subtype', 'Subtype', 140), text('account', 'Account', 150), amount];
-  if (type === 'Savings') return [dateColumn(), name, text('bucketName', 'Goal', 170), text('from', 'From account', 150), text('to', 'To wallet', 150), amount];
+  if (type === 'Savings') return [dateColumn(), name, text('bucketName', 'Basket', 170), text('from', 'From account', 150), text('to', 'To wallet', 150), amount];
   if (type === 'Transfer')
     return [
       dateColumn(),
@@ -95,7 +95,7 @@ function columnsFor(type: FlowType): ColumnDef<TxRow>[] {
       { id: 'fee', label: 'Fee', type: 'currency', width: 110, value: (r) => r.fee || null, render: (r) => (r.fee ? formatNumber(r.fee) : null), calc: 'sum' },
       amount,
     ];
-  return [dateColumn(), name, text('note', 'Note', 160, true), text('bucketName', 'Bucket', 170), text('itemName', 'Item', 170), text('category', 'Category', 150), text('account', 'Account', 150), amount];
+  return [dateColumn(), name, text('note', 'Note', 160, true), text('bucketName', 'Basket', 170), text('itemName', 'Item', 170), text('category', 'Category', 150), text('account', 'Account', 150), amount];
 }
 
 export function TransactionsScreen() {
@@ -161,7 +161,7 @@ export function TransactionsScreen() {
             groups={[
               { id: 'day', label: 'Day', key: (r) => ({ key: r.day, label: dayLabel(r.date) }) },
               { id: 'account', label: 'Account', key: (r) => ({ key: r.account || 'none', label: r.account || 'No account' }) },
-              { id: 'bucket', label: 'Bucket', key: (r) => ({ key: r.bucketId ?? 'none', label: r.bucketName || 'No bucket' }) },
+              { id: 'bucket', label: 'Basket', key: (r) => ({ key: r.bucketId ?? 'none', label: r.bucketName || 'No basket' }) },
             ]}
             defaultGroup="day"
             subtotalColumn="amount"

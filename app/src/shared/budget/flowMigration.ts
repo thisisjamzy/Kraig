@@ -130,7 +130,7 @@ export function planFlowMigration(input: MigrationInput): MigrationPlan {
       plan.report.push({
         kind: 'bucket-type',
         subject: bucket.name,
-        detail: `Now a${keep === 'Income' || keep === 'Expense' ? 'n' : ''} ${FLOW_NOUN[keep].toLowerCase()} bucket (was ${(bucket.type ?? 'Expense').toLowerCase()}).`,
+        detail: `Now a${keep === 'Income' || keep === 'Expense' ? 'n' : ''} ${FLOW_NOUN[keep].toLowerCase()} basket (was ${(bucket.type ?? 'Expense').toLowerCase()}).`,
       });
     }
 
@@ -146,7 +146,7 @@ export function planFlowMigration(input: MigrationInput): MigrationPlan {
       plan.report.push({
         kind: 'split',
         subject: bucket.name,
-        detail: `Held more than one type, so its ${FLOW_NOUN[flow].toLowerCase()} items moved to a new bucket, "${name}".`,
+        detail: `Held more than one type, so its ${FLOW_NOUN[flow].toLowerCase()} items moved to a new basket, "${name}".`,
       });
     }
 
@@ -228,8 +228,8 @@ export function planFlowMigration(input: MigrationInput): MigrationPlan {
 }
 
 export const REPORT_KIND_LABEL: Record<ReportKind, string> = {
-  'bucket-type': 'Bucket type',
-  split: 'Bucket split',
+  'bucket-type': 'Basket type',
+  split: 'Basket split',
   'item-moved': 'Item moved',
   subtype: 'Subtype',
   'kind-guessed': 'Check this',

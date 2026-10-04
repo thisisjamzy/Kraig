@@ -53,7 +53,7 @@ export function LinePeekContent({
 
   const properties: Property[] = [
     { id: 'type', label: 'Type', display: FLOW_NOUN[line.type] },
-    { id: 'bucket', label: line.type === 'Savings' ? 'Goal' : 'Bucket', display: <Link className={styles.relation} href={`/budget/bucket/${line.bucketId}?month=${line.month}`}>{line.bucketName}</Link> },
+    { id: 'bucket', label: line.type === 'Savings' ? 'Savings basket' : 'Basket', display: <Link className={styles.relation} href={`/budget/basket/${line.bucketId}?month=${line.month}`}>{line.bucketName}</Link> },
     { id: 'month', label: 'Month', display: monthTitle(line.month) },
     { id: 'repeats', label: 'Repeats', display: line.recurring ? 'Every month' : 'Once' },
   ];
@@ -175,7 +175,7 @@ export function LinePeekContent({
         kind={`${FLOW_NOUN[line.type]} line · ${monthTitle(line.month)}`}
         actions={
           compactTitle ? null : (
-            <Link href={`/edit-bucket-item/${line.bucketId}/${line.itemId}`} className={styles.ghostButton}>
+            <Link href={`/edit-basket-item/${line.bucketId}/${line.itemId}`} className={styles.ghostButton}>
               <Pencil size={14} strokeWidth={2.25} aria-hidden /> Edit template
             </Link>
           )
@@ -204,7 +204,7 @@ export function LinePeekContent({
           </button>
         )}
         {compactTitle && (
-          <Link href={`/edit-bucket-item/${line.bucketId}/${line.itemId}`} className={styles.ghostButton}>
+          <Link href={`/edit-basket-item/${line.bucketId}/${line.itemId}`} className={styles.ghostButton}>
             <Pencil size={14} strokeWidth={2.25} aria-hidden /> Edit template
           </Link>
         )}

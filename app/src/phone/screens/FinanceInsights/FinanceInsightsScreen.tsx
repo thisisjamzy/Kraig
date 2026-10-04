@@ -76,7 +76,7 @@ export function FinanceInsightsScreen() {
     forecast: {
       show: true,
       takeaway: forecastTakeaway(v.projection, c),
-      details: '/buckets/forecast',
+      details: '/baskets/forecast',
       detailsLabel: 'Plans forecast',
       body: <ForecastSection v={v} />,
       print: true,

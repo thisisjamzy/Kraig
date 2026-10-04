@@ -68,7 +68,7 @@ export function HistoryRowView({ row, currency, showDate = false }: { row: Histo
         {row.method && <span className={styles.rowMethod}>{row.method}</span>}
         {row.assignable && (
           <span className={styles.rowAssign}>
-            Assign to bucket
+            Assign to basket
             <ArrowRight size={12} strokeWidth={2.5} aria-hidden />
           </span>
         )}

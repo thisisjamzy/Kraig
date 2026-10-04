@@ -502,11 +502,12 @@ export const TASK_ENTITY: EntityDef<TaskDraft> = {
 
 export const BUCKET_ENTITY: EntityDef<BucketDraft> = {
   key: 'buckets',
-  label: 'Buckets',
-  // Not plain "Buckets": older exports used that name for Projects'
-  // sections (see the sections entity's legacySheetNames).
-  sheetName: 'Money Buckets',
-  legacySheetNames: ['Goals'],
+  label: 'Baskets',
+  // "Money Baskets", not plain "Baskets"; older exports used "Money
+  // Buckets" and "Goals", and plain "Buckets" for Projects' sections (see
+  // the sections entity's legacySheetNames).
+  sheetName: 'Money Baskets',
+  legacySheetNames: ['Money Buckets', 'Goals'],
   columns: ['Name', 'Description', 'Currency', 'Deadline', 'Archived'],
   templateRows: [['New laptop', 'Save up for a work laptop', 'XAF', '2026-12-31', 'FALSE']],
   parseRow(row, rowNumber) {
@@ -534,18 +535,18 @@ export const BUCKET_ENTITY: EntityDef<BucketDraft> = {
 
 export const BUCKET_ITEM_ENTITY: EntityDef<BucketItemDraft> = {
   key: 'bucketItems',
-  label: 'Bucket items',
-  sheetName: 'Bucket Items',
-  legacySheetNames: ['Goal Items'],
-  columns: ['Bucket', 'Name', 'Description', 'Amount', 'Priority', 'Necessity', 'Completed'],
+  label: 'Basket items',
+  sheetName: 'Basket Items',
+  legacySheetNames: ['Bucket Items', 'Goal Items'],
+  columns: ['Basket', 'Name', 'Description', 'Amount', 'Priority', 'Necessity', 'Completed'],
   templateRows: [['New laptop', 'Laptop body', '', '600000', 'High', 'MustHave', 'FALSE']],
   parseRow(row, rowNumber) {
     if (isRowBlank(row, this.columns)) return { rowNumber, draft: null, refs: [], errors: [] };
     // 'Goal' is the same column in an export from before the rename.
-    const bucketName = cell(row, 'Bucket') || cell(row, 'Goal');
+    const bucketName = cell(row, 'Basket') || cell(row, 'Bucket') || cell(row, 'Goal');
     const name = cell(row, 'Name');
     const errors: string[] = [];
-    if (!bucketName) errors.push('Bucket is required.');
+    if (!bucketName) errors.push('Basket is required.');
     if (!name) errors.push('Name is required.');
     const amount = parseNumber(cell(row, 'Amount'));
     if (amount === null) errors.push('Amount must be a number.');

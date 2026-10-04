@@ -344,7 +344,7 @@ export function useLogic() {
   // ---- Confirm ----
   const navigateBack = useGoBack();
   function goBack() {
-    navigateBack(`/budget/bucket/${bucketId}?month=${month}`);
+    navigateBack(`/budget/basket/${bucketId}?month=${month}`);
   }
 
   async function confirm() {
@@ -421,7 +421,7 @@ export function useLogic() {
     currency,
     loading,
     found: Boolean(group),
-    bucketHref: `/budget/bucket/${bucketId}?month=${month}`,
+    bucketHref: `/budget/basket/${bucketId}?month=${month}`,
     need,
     contextName,
     targetName,

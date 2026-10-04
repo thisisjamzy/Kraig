@@ -7,21 +7,21 @@
 // Whitelist, not blacklist: only a mode's own root/hub routes ever show
 // that mode's persistent chrome. Every drill-down (a detail screen, a
 // create/edit flow) shows none of it, back-arrow header instead, the same
-// convention /wallets/[wallet] and /buckets/[id] already established.
+// convention /wallets/[wallet] and /baskets/[id] already established.
 
 // /debts is still reached via Home's own Quick Actions and behaves like any
-// other drill-down (its own back-arrow header, no bottom nav). /buckets used
+// other drill-down (its own back-arrow header, no bottom nav). /baskets used
 // to be the same, but it's now a small self-contained mode of its own —
 // its own bottom nav (BucketsBottomNav), and its pages draw their own
 // headers rather than the generic AppHeader — so it's tracked here for
 // hasBottomNav's sake but deliberately left out of hasAppHeader below.
-// /buckets/[id] and /buckets/new are still plain drill-downs (their own
+// /baskets/[id] and /baskets/new are still plain drill-downs (their own
 // back-arrow header) — only Buckets, Buckets analytics (the phone line's
 // Insights tab; the web line sends it to /statistics) and Priorities count
 // as the hub.
 const MONEY_HUB_ROUTES = ['/home', '/statistics', '/budget'];
 const PROJECTS_HUB_ROUTES = ['/projects', '/projects/calendar', '/projects/focus', '/projects/insights', '/projects/analytics'];
-const BUCKETS_HUB_ROUTES = ['/buckets', '/buckets/analytics', '/buckets/items'];
+const BUCKETS_HUB_ROUTES = ['/baskets', '/baskets/analytics', '/baskets/items'];
 
 export type NavMode = 'money' | 'projects' | 'buckets' | 'none';
 

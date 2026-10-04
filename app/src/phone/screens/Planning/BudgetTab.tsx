@@ -144,15 +144,15 @@ export function BudgetTab({ month, data }: { month: string; data: PlanningData }
         <p className={tab.availableLine}>
           Available now {money(summary.availableNow)} · by month end {money(summary.availableByMonthEnd)} (estimate)
         </p>
-        <Link href="/buckets" className={tab.summaryButton}>
+        <Link href="/baskets" className={tab.summaryButton}>
           <Layers size={16} strokeWidth={2.25} aria-hidden />
-          Plan in buckets
+          Plan in baskets
         </Link>
       </section>
 
       <div className={tab.sectionHead}>
         <h2 className={tab.sectionTitle}>{FLOW_LABEL[flow]}</h2>
-        <Link href={`/buckets/new?type=${flow}`} className={tab.addCircle} aria-label={`Add a ${FLOW_LABEL[flow].toLowerCase()} bucket`}>
+        <Link href={`/baskets/new?type=${flow}`} className={tab.addCircle} aria-label={`Add a ${FLOW_LABEL[flow].toLowerCase()} basket`}>
           <Plus size={18} strokeWidth={2.5} />
         </Link>
       </div>
@@ -165,7 +165,7 @@ export function BudgetTab({ month, data }: { month: string; data: PlanningData }
       </div>
 
       {cards.length === 0 ? (
-        <p className={styles.empty}>No {FLOW_LABEL[flow].toLowerCase()} planned for this month. Add items to a bucket to build the budget.</p>
+        <p className={styles.empty}>No {FLOW_LABEL[flow].toLowerCase()} planned for this month. Add items to a basket to build the budget.</p>
       ) : (
         <div className={tab.cardList} role="tabpanel" aria-label={FLOW_LABEL[flow]}>
           {cards.map((card) => (
