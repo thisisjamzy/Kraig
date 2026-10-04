@@ -1,15 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { useCurrencyContext, useExchangeRates } from '@/src/shared/firestore/queries';
 import { createBucket } from '@/src/shared/firestore/aggregation';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { currencyName } from '@/src/viewmodels/currencies';
 import { useGoBack } from '@/src/shared/navigation/useGoBack';
+import { useFormFinish } from '@/src/shared/navigation/formPeekContext';
 
 export function useLogic() {
-  const router = useRouter();
+  const finish = useFormFinish();
   const { user } = useFirebaseUser();
   const uid = user?.uid;
   const { ctx, loading: ctxLoading } = useCurrencyContext();
@@ -49,7 +49,7 @@ export function useLogic() {
         kind,
         type,
       });
-      router.push(`/baskets/${id}`);
+      finish(`/baskets/${id}`);
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : 'Could not create this basket.');
       setSaving(false);

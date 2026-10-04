@@ -1,14 +1,17 @@
 'use client';
 
-import { useState } from 'react';
-import { X, Check, ChevronRight, Tag, Wallet, ArrowRight, Percent } from 'lucide-react';
+// New and edit transaction template, on the form standard (FormFrame):
+// Name, Amount, Type (and the savings mode), Category or kind, Account (or
+// From | To, with charges for a transfer); More options: Description;
+// Delete under the button.
+
 import { useLogic } from '@/src/logic/createTransactionTemplate/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { ConfirmDialog } from '@/src/widgets/ConfirmDialog/ConfirmDialog';
-import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
+import { cardFormStyles as cf } from '@/src/widgets/CardForm/CardForm';
+import { FieldCard, FieldRow, FormFrame, MoreOptions, SegmentedField, SelectField, formFrameStyles as ff } from '@/src/widgets/FormFrame/FormFrame';
 import type { TransactionTemplateType } from '@/src/shared/firestore/types';
-import styles from './CreateTransactionTemplateScreen.module.css';
 
 const TYPE_LABEL: Record<TransactionTemplateType, string> = {
   expense: 'Expense',
@@ -19,280 +22,97 @@ const TYPE_LABEL: Record<TransactionTemplateType, string> = {
 
 export function CreateTransactionTemplateScreen({ templateId }: { templateId?: string }) {
   const strings = useStrings();
-  const {
-    isEditing,
-    name,
-    setName,
-    type,
-    setType,
-    types,
-    savingsMode,
-    setSavingsMode,
-    isTransferLike,
-    isTransfer,
-    categoryId,
-    setCategoryId,
-    categoryOptions,
-    description,
-    setDescription,
-    amountString,
-    setAmountString,
-    chargesString,
-    setChargesString,
-    accountId,
-    setAccountId,
-    toAccountId,
-    setToAccountId,
-    accounts,
-    spendableAccounts,
-    canSave,
-    saving,
-    saveError,
-    handleSave,
-    goBack,
-    loading,
-    error,
-    notFound,
-
-    deleteConfirmOpen,
-    openDeleteConfirm,
-    cancelDelete,
-    confirmDelete,
-    deleting,
-    deleteError,
-  } = useLogic(templateId);
-
-  const [categoryPickerOpen, setCategoryPickerOpen] = useState(false);
-  const [accountPickerOpen, setAccountPickerOpen] = useState(false);
-  const [toAccountPickerOpen, setToAccountPickerOpen] = useState(false);
-
-  const accountChoices = type === 'expense' ? spendableAccounts : accounts;
-  const selectedCategory = categoryOptions.find((option) => option.id === categoryId) ?? null;
-  const selectedAccount = accounts.find((account) => account.id === accountId) ?? null;
-  const selectedToAccount = accounts.find((account) => account.id === toAccountId) ?? null;
+  const t = strings.transactionTemplates;
+  const v = useLogic(templateId);
+  const ready = !v.loading && !v.error && !v.notFound;
+  const accountChoices = (v.type === 'expense' ? v.spendableAccounts : v.accounts).map((a) => ({ value: a.id, label: a.name }));
 
   return (
-    <div className={styles.page}>
-      <ScreenHeader
-        center
-        left={
-          <button type="button" className={styles.iconButton} onClick={goBack} aria-label={strings.common.back}>
-            <X size={18} strokeWidth={2} />
-          </button>
-        }
-        title={
+    <FormFrame
+      title={v.isEditing ? t.editTitle : t.createTitle}
+      onClose={v.goBack}
+      phoneHeader="bar"
+      primary={ready ? { label: v.isEditing ? 'Save template' : 'Add template', disabled: !v.canSave, busy: v.saving } : null}
+      onSubmit={v.handleSave}
+      error={v.saveError}
+      after={
+        v.isEditing && ready ? (
           <>
-            {isEditing ? strings.transactionTemplates.editTitle : strings.transactionTemplates.createTitle}
+            <button type="button" className={cf.deleteLink} onClick={v.openDeleteConfirm}>
+              {t.deleteCta}
+            </button>
+            {v.deleteError && <p className={ff.fieldError}>{v.deleteError}</p>}
           </>
-        }
-        right={
-          <button
-            type="button"
-            className={`${styles.saveIconButton} ${canSave ? styles.saveIconButtonActive : ''}`}
-            disabled={!canSave || saving}
-            onClick={handleSave}
-            aria-label={strings.common.save}
-          >
-            <Check size={18} strokeWidth={2.5} />
-          </button>
-        }
-      />
-
-      <ScreenState loading={loading} error={error} />
-
-      {notFound && <p className={styles.errorText}>{strings.transactionTemplates.notFound}</p>}
-
-      {!loading && !error && !notFound && (
-        <div className={styles.form}>
-          <div className={styles.card}>
-            <input
-              className={styles.titleInput}
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              placeholder={strings.transactionTemplates.nameLabel}
+        ) : null
+      }
+      overlays={
+        v.deleteConfirmOpen && (
+          <ConfirmDialog
+            title={t.deleteConfirmTitle}
+            message={t.deleteConfirmMessage}
+            confirmLabel={v.deleting ? t.deleting : t.deleteCta}
+            cancelLabel={strings.common.cancel}
+            onConfirm={v.confirmDelete}
+            onCancel={v.cancelDelete}
+          />
+        )
+      }
+    >
+      <ScreenState loading={v.loading} error={v.error} />
+      {v.notFound && <p className={ff.error}>{t.notFound}</p>}
+      {ready && (
+        <>
+          <FieldCard label={t.nameLabel}>
+            <input className={ff.input} value={v.name} onChange={(event) => v.setName(event.target.value)} placeholder="Weekly groceries" autoFocus={!v.isEditing} />
+          </FieldCard>
+          <FieldCard label="Amount">
+            <input className={ff.input} inputMode="decimal" value={v.amountString} onChange={(event) => v.setAmountString(event.target.value.replace(/[^0-9.]/g, ''))} placeholder={t.amountPlaceholder} />
+          </FieldCard>
+          <SegmentedField label="Type" value={v.type} onChange={v.setType} options={v.types.map((option) => ({ value: option, label: TYPE_LABEL[option] }))} />
+          {v.type === 'savings' && (
+            <SegmentedField
+              label="Savings"
+              value={v.savingsMode}
+              onChange={v.setSavingsMode}
+              options={[
+                { value: 'moved', label: t.savingsModeMoved },
+                { value: 'frozen', label: t.savingsModeFrozen },
+              ]}
             />
-            <div className={styles.cardDivider} />
-            <input
-              className={styles.amountInput}
-              inputMode="numeric"
-              value={amountString}
-              onChange={(event) => setAmountString(event.target.value.replace(/[^0-9.]/g, ''))}
-              placeholder={strings.transactionTemplates.amountPlaceholder}
-            />
-            <div className={styles.cardDivider} />
-            <textarea
-              className={styles.notesInput}
-              rows={2}
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-              placeholder={strings.transactionTemplates.descriptionLabel}
-            />
-          </div>
-
-          <div className={styles.chipGroup}>
-            {types.map((option) => (
-              <button
-                key={option}
-                type="button"
-                className={`${styles.chip} ${type === option ? styles.chipActive : ''}`}
-                onClick={() => setType(option)}
-              >
-                {TYPE_LABEL[option]}
-              </button>
-            ))}
-          </div>
-
-          {type === 'savings' && (
-            <div className={styles.chipGroup}>
-              {(['moved', 'frozen'] as const).map((mode) => (
-                <button
-                  key={mode}
-                  type="button"
-                  className={`${styles.chip} ${savingsMode === mode ? styles.chipActive : ''}`}
-                  onClick={() => setSavingsMode(mode)}
-                >
-                  {mode === 'moved' ? strings.transactionTemplates.savingsModeMoved : strings.transactionTemplates.savingsModeFrozen}
-                </button>
-              ))}
-            </div>
           )}
-
-          <div className={styles.listGroup}>
-            <button type="button" className={styles.listRow} onClick={() => setCategoryPickerOpen((c) => !c)}>
-              <span className={styles.listRowIcon}>
-                <Tag size={16} strokeWidth={2} />
-              </span>
-              <span className={styles.listRowLabel}>
-                {isTransferLike ? strings.transactionTemplates.kindLabel : strings.transactionTemplates.categoryLabel}
-              </span>
-              <span className={styles.listRowValue}>{selectedCategory ? selectedCategory.name : ''}</span>
-              <ChevronRight size={16} strokeWidth={2} className={styles.listRowChevron} />
-            </button>
-            {categoryPickerOpen && (
-              <div className={styles.expandPanel}>
-                {categoryOptions.map((option) => (
-                  <button
-                    key={option.id}
-                    type="button"
-                    className={`${styles.optionRow} ${categoryId === option.id ? styles.optionRowActive : ''}`}
-                    onClick={() => {
-                      setCategoryId(option.id);
-                      setCategoryPickerOpen(false);
-                    }}
-                  >
-                    {option.name}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className={styles.listGroup}>
-            <button type="button" className={styles.listRow} onClick={() => setAccountPickerOpen((c) => !c)}>
-              <span className={styles.listRowIcon}>
-                <Wallet size={16} strokeWidth={2} />
-              </span>
-              <span className={styles.listRowLabel}>
-                {isTransferLike ? strings.transactionTemplates.fromAccountLabel : strings.transactionTemplates.accountLabel}
-              </span>
-              <span className={styles.listRowValue}>{selectedAccount ? selectedAccount.name : ''}</span>
-              <ChevronRight size={16} strokeWidth={2} className={styles.listRowChevron} />
-            </button>
-            {accountPickerOpen && (
-              <div className={styles.expandPanel}>
-                {accountChoices.map((account) => (
-                  <button
-                    key={account.id}
-                    type="button"
-                    className={`${styles.optionRow} ${accountId === account.id ? styles.optionRowActive : ''}`}
-                    onClick={() => {
-                      setAccountId(account.id);
-                      setAccountPickerOpen(false);
-                    }}
-                  >
-                    {account.name}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {isTransferLike && (
-            <div className={styles.listGroup}>
-              <button type="button" className={styles.listRow} onClick={() => setToAccountPickerOpen((c) => !c)}>
-                <span className={styles.listRowIcon}>
-                  <ArrowRight size={16} strokeWidth={2} />
-                </span>
-                <span className={styles.listRowLabel}>{strings.transactionTemplates.toAccountLabel}</span>
-                <span className={styles.listRowValue}>{selectedToAccount ? selectedToAccount.name : ''}</span>
-                <ChevronRight size={16} strokeWidth={2} className={styles.listRowChevron} />
-              </button>
-              {toAccountPickerOpen && (
-                <div className={styles.expandPanel}>
-                  {accounts
-                    .filter((account) => account.id !== accountId)
-                    .map((account) => (
-                      <button
-                        key={account.id}
-                        type="button"
-                        className={`${styles.optionRow} ${toAccountId === account.id ? styles.optionRowActive : ''}`}
-                        onClick={() => {
-                          setToAccountId(account.id);
-                          setToAccountPickerOpen(false);
-                        }}
-                      >
-                        {account.name}
-                      </button>
-                    ))}
-                </div>
-              )}
-            </div>
+          <SelectField
+            label={v.isTransferLike ? t.kindLabel : t.categoryLabel}
+            value={v.categoryId}
+            onChange={v.setCategoryId}
+            options={v.categoryOptions.map((option) => ({ value: option.id, label: option.name }))}
+            placeholder="Choose one"
+          />
+          {v.isTransferLike ? (
+            <FieldRow>
+              <SelectField label={t.fromAccountLabel} value={v.accountId} onChange={v.setAccountId} options={accountChoices} placeholder="Choose" />
+              <SelectField
+                label={t.toAccountLabel}
+                value={v.toAccountId}
+                onChange={v.setToAccountId}
+                options={v.accounts.filter((a) => a.id !== v.accountId).map((a) => ({ value: a.id, label: a.name }))}
+                placeholder="Choose"
+              />
+            </FieldRow>
+          ) : (
+            <SelectField label={t.accountLabel} value={v.accountId} onChange={v.setAccountId} options={accountChoices} placeholder="Choose" />
           )}
-
-          {isTransfer && (
-            <div className={styles.listGroup}>
-              <div className={styles.listRow}>
-                <span className={styles.listRowIcon}>
-                  <Percent size={16} strokeWidth={2} />
-                </span>
-                <span className={styles.listRowLabel}>{strings.transactionTemplates.chargesLabel}</span>
-                <input
-                  className={styles.chargesInput}
-                  inputMode="numeric"
-                  value={chargesString}
-                  onChange={(event) => setChargesString(event.target.value.replace(/[^0-9.]/g, ''))}
-                  placeholder="0"
-                />
-              </div>
-            </div>
+          {v.isTransfer && (
+            <FieldCard label={t.chargesLabel}>
+              <input className={ff.input} inputMode="decimal" value={v.chargesString} onChange={(event) => v.setChargesString(event.target.value.replace(/[^0-9.]/g, ''))} placeholder="0" />
+            </FieldCard>
           )}
-
-          {saveError && <p className={styles.errorText}>{saveError}</p>}
-        </div>
+          <MoreOptions defaultOpen={Boolean(v.description)}>
+            <FieldCard label="Description">
+              <textarea className={ff.input} rows={3} value={v.description} onChange={(event) => v.setDescription(event.target.value)} placeholder={t.descriptionLabel} />
+            </FieldCard>
+          </MoreOptions>
+        </>
       )}
-
-      {isEditing && !loading && !error && !notFound && (
-        <div className={styles.dangerCard}>
-          <p className={styles.dangerTitle}>{strings.transactionTemplates.dangerZoneTitle}</p>
-          {deleteConfirmOpen ? null : (
-            <button type="button" className={styles.deleteButton} onClick={openDeleteConfirm}>
-              {strings.transactionTemplates.deleteCta}
-            </button>
-          )}
-          {deleteError && <p className={styles.errorText}>{deleteError}</p>}
-        </div>
-      )}
-
-      {deleteConfirmOpen && (
-        <ConfirmDialog
-          title={strings.transactionTemplates.deleteConfirmTitle}
-          message={strings.transactionTemplates.deleteConfirmMessage}
-          confirmLabel={deleting ? strings.transactionTemplates.deleting : strings.transactionTemplates.deleteCta}
-          cancelLabel={strings.common.cancel}
-          onConfirm={confirmDelete}
-          onCancel={cancelDelete}
-        />
-      )}
-    </div>
+    </FormFrame>
   );
 }

@@ -1,316 +1,76 @@
 'use client';
 
-// Laid out like the New Task / New Project / New bucket line item forms
-// (src/screens/TaskEdit, src/screens/CreateProject, src/screens/
-// BucketLineItemForm) — X/title/check header, a white Name+Description card,
-// and a list of expandable rows for every picker — rather than the plain
-// stacked-label form this used to be.
+// New basket, on the form standard (FormFrame): Name, Type, Kind, Currency |
+// Target date (not for a Fixed basket, which repeats); More options:
+// Description. Items are added from the basket's page afterwards.
 
-import { useState } from 'react';
-import { X, Check, ChevronRight, Tag, Layers, Coins, CalendarDays } from 'lucide-react';
-import { Calendar as HeroCalendar } from '@heroui/react';
-import { parseDate } from '@internationalized/date';
 import { useLogic } from '@/src/logic/createBucket/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
-import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
-import { toDateOnly } from '@/src/shared/firestore/taskWrites';
-import styles from './CreateBucketScreen.module.css';
+import { FieldCard, FieldRow, FormFrame, MoreOptions, SegmentedField, SelectField, formFrameStyles as ff } from '@/src/widgets/FormFrame/FormFrame';
 
-function formatDateOnly(value: string): string {
-  return new Date(`${value}T00:00:00`).toLocaleDateString('en-US', {
-    month: 'short',
-    day: '2-digit',
-    year: 'numeric',
-  });
-}
+type BasketType = 'Expense' | 'Income' | 'Savings' | 'Transfer';
 
 export function CreateBucketScreen() {
   const strings = useStrings();
-  const {
-    name,
-    setName,
-    description,
-    setDescription,
-    deadline,
-    setDeadline,
-    currency,
-    setCurrency,
-    currencyOptions,
-    kind,
-    setKind,
-    type,
-    setType,
-    saving,
-    saveError,
-    handleSave,
-    goBack,
-    loading,
-  } = useLogic();
-
-  const [typePickerOpen, setTypePickerOpen] = useState(false);
-  const [kindPickerOpen, setKindPickerOpen] = useState(false);
-  const [currencyPickerOpen, setCurrencyPickerOpen] = useState(false);
-  const [datePickerOpen, setDatePickerOpen] = useState(false);
-  const [dateMonthCursor, setDateMonthCursor] = useState(() => (deadline ? new Date(`${deadline}T00:00:00`) : new Date()));
-
-  const canSave = name.trim().length > 0 && !saving;
-  const selectedCurrency = currencyOptions.find((option) => option.code === currency) ?? null;
-
-  const typeLabel: Record<typeof type, string> = {
-    Expense: strings.createBucket.typeExpense,
-    Income: strings.createBucket.typeIncome,
-    Savings: strings.createBucket.typeSavings,
-    Transfer: strings.createBucket.typeTransfer,
-  };
-  const typeHint: Record<typeof type, string> = {
-    Expense: strings.createBucket.typeExpenseHint,
-    Income: strings.createBucket.typeIncomeHint,
-    Savings: strings.createBucket.typeSavingsHint,
-    Transfer: strings.createBucket.typeTransferHint,
-  };
-  const typeOptions: (typeof type)[] = ['Expense', 'Income', 'Savings', 'Transfer'];
+  const v = useLogic();
+  const t = strings.createBucket;
+  const typeLabel: Record<BasketType, string> = { Expense: t.typeExpense, Income: t.typeIncome, Savings: t.typeSavings, Transfer: t.typeTransfer };
+  const typeHint: Record<BasketType, string> = { Expense: t.typeExpenseHint, Income: t.typeIncomeHint, Savings: t.typeSavingsHint, Transfer: t.typeTransferHint };
 
   return (
-    <div className={styles.page}>
-      <ScreenHeader
-        center
-        left={
-          <button type="button" className={styles.iconButton} onClick={goBack} aria-label={strings.bucketDetail.backLabel}>
-            <X size={18} strokeWidth={2} />
-          </button>
-        }
-        title={strings.createBucket.title}
-        right={
-          <button
-            type="button"
-            className={`${styles.saveIconButton} ${canSave ? styles.saveIconButtonActive : ''}`}
-            disabled={!canSave}
-            onClick={handleSave}
-            aria-label={strings.createBucket.save}
-          >
-            <Check size={18} strokeWidth={2.5} />
-          </button>
-        }
-      />
-
-      <ScreenState loading={loading} />
-
-      {!loading && (
-        <div className={styles.form}>
-          <div className={styles.card}>
-            <input
-              className={styles.titleInput}
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              placeholder={strings.createBucket.namePlaceholder}
-            />
-            <div className={styles.cardDivider} />
-            <textarea
-              className={styles.notesInput}
-              rows={3}
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-              placeholder={strings.createBucket.descriptionLabel}
-            />
-          </div>
-
-          <div className={styles.listGroup}>
-            <button type="button" className={styles.listRow} onClick={() => setTypePickerOpen((c) => !c)}>
-              <span className={styles.listRowIcon}>
-                <Layers size={16} strokeWidth={2} />
-              </span>
-              <span className={styles.listRowLabel}>{strings.createBucket.typeLabel}</span>
-              <span className={styles.listRowValue}>{typeLabel[type]}</span>
-              <ChevronRight size={16} strokeWidth={2} className={styles.listRowChevron} />
-            </button>
-            {typePickerOpen && (
-              <div className={styles.expandPanel}>
-                <div className={styles.chipGroup}>
-                  {typeOptions.map((option) => (
-                    <button
-                      key={option}
-                      type="button"
-                      className={`${styles.chip} ${type === option ? styles.chipActive : ''}`}
-                      onClick={() => {
-                        setType(option);
-                        setTypePickerOpen(false);
-                      }}
-                    >
-                      {typeLabel[option]}
-                    </button>
-                  ))}
-                </div>
-                <p className={styles.hintText}>{typeHint[type]}</p>
-              </div>
+    <FormFrame
+      title="New basket"
+      onClose={v.goBack}
+      phoneHeader="bar"
+      primary={v.loading ? null : { label: 'Add basket', disabled: !v.name.trim(), busy: v.saving }}
+      onSubmit={v.handleSave}
+      error={v.saveError}
+    >
+      <ScreenState loading={v.loading} />
+      {!v.loading && (
+        <>
+          <FieldCard label="Name">
+            <input className={ff.input} value={v.name} onChange={(event) => v.setName(event.target.value)} placeholder={t.namePlaceholder} autoFocus />
+          </FieldCard>
+          <SegmentedField
+            label={t.typeLabel}
+            value={v.type}
+            onChange={v.setType}
+            options={(['Expense', 'Income', 'Savings', 'Transfer'] as BasketType[]).map((option) => ({ value: option, label: typeLabel[option] }))}
+            hint={typeHint[v.type]}
+          />
+          <SegmentedField
+            label={t.kindLabel}
+            value={v.kind}
+            onChange={(next) => {
+              v.setKind(next);
+              if (next === 'Fixed') v.setDeadline('');
+            }}
+            options={[
+              { value: 'Variable', label: t.kindVariable },
+              { value: 'Fixed', label: t.kindFixed },
+            ]}
+            hint={v.kind === 'Fixed' ? t.kindFixedHint : t.kindVariableHint}
+          />
+          <FieldRow>
+            <SelectField label={t.currencyLabel} value={v.currency} onChange={v.setCurrency} options={v.currencyOptions.map((c) => ({ value: c.code, label: c.name }))} />
+            {v.kind !== 'Fixed' ? (
+              <FieldCard label={t.deadlineLabel}>
+                <input type="date" className={ff.input} value={v.deadline} onChange={(event) => v.setDeadline(event.target.value)} />
+              </FieldCard>
+            ) : (
+              <span />
             )}
-          </div>
-
-          <div className={styles.listGroup}>
-            <button type="button" className={styles.listRow} onClick={() => setKindPickerOpen((c) => !c)}>
-              <span className={styles.listRowIcon}>
-                <Tag size={16} strokeWidth={2} />
-              </span>
-              <span className={styles.listRowLabel}>{strings.createBucket.kindLabel}</span>
-              <span className={styles.listRowValue}>
-                {kind === 'Fixed' ? strings.createBucket.kindFixed : strings.createBucket.kindVariable}
-              </span>
-              <ChevronRight size={16} strokeWidth={2} className={styles.listRowChevron} />
-            </button>
-            {kindPickerOpen && (
-              <div className={styles.expandPanel}>
-                <div className={styles.chipGroup}>
-                  <button
-                    type="button"
-                    className={`${styles.chip} ${kind === 'Variable' ? styles.chipActive : ''}`}
-                    onClick={() => {
-                      setKind('Variable');
-                      setKindPickerOpen(false);
-                    }}
-                  >
-                    {strings.createBucket.kindVariable}
-                  </button>
-                  <button
-                    type="button"
-                    className={`${styles.chip} ${kind === 'Fixed' ? styles.chipActive : ''}`}
-                    onClick={() => {
-                      setKind('Fixed');
-                      // A Fixed bucket repeats — a one-off target date doesn't
-                      // apply to it, so drop any date already picked rather
-                      // than leaving a stale value saved behind a hidden field.
-                      setDeadline('');
-                      setKindPickerOpen(false);
-                    }}
-                  >
-                    {strings.createBucket.kindFixed}
-                  </button>
-                </div>
-                <p className={styles.hintText}>
-                  {kind === 'Fixed' ? strings.createBucket.kindFixedHint : strings.createBucket.kindVariableHint}
-                </p>
-              </div>
-            )}
-          </div>
-
-          <div className={styles.listGroup}>
-            <button type="button" className={styles.listRow} onClick={() => setCurrencyPickerOpen((c) => !c)}>
-              <span className={styles.listRowIcon}>
-                <Coins size={16} strokeWidth={2} />
-              </span>
-              <span className={styles.listRowLabel}>{strings.createBucket.currencyLabel}</span>
-              <span className={styles.listRowValue}>{selectedCurrency ? selectedCurrency.name : currency}</span>
-              <ChevronRight size={16} strokeWidth={2} className={styles.listRowChevron} />
-            </button>
-            {currencyPickerOpen && (
-              <div className={styles.expandPanel}>
-                {currencyOptions.map((option) => (
-                  <button
-                    key={option.code}
-                    type="button"
-                    className={`${styles.optionRow} ${currency === option.code ? styles.optionRowActive : ''}`}
-                    onClick={() => {
-                      setCurrency(option.code);
-                      setCurrencyPickerOpen(false);
-                    }}
-                  >
-                    {option.name}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* A Fixed bucket repeats indefinitely — a one-off target date is a
-              Variable-bucket concept only (see kindFixedHint/kindVariableHint
-              above), so this row doesn't apply to Fixed at all rather than
-              just being disabled. */}
-          {kind !== 'Fixed' && (
-            <div className={styles.listGroup}>
-              <div
-                className={styles.listRow}
-                role="button"
-                tabIndex={0}
-                onClick={() => setDatePickerOpen((c) => !c)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    setDatePickerOpen((c) => !c);
-                  }
-                }}
-              >
-                <span className={styles.listRowIcon}>
-                  <CalendarDays size={16} strokeWidth={2} />
-                </span>
-                <span className={styles.listRowLabel}>{strings.createBucket.deadlineLabel}</span>
-                <span className={styles.listRowValue}>
-                  {deadline ? formatDateOnly(deadline) : strings.createBucket.deadlinePlaceholder}
-                </span>
-                {deadline && (
-                  <button
-                    type="button"
-                    className={styles.clearRowButton}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      setDeadline('');
-                    }}
-                    aria-label="Clear target date"
-                  >
-                    <X size={12} strokeWidth={2.5} />
-                  </button>
-                )}
-                <ChevronRight size={16} strokeWidth={2} className={styles.listRowChevron} />
-              </div>
-              {datePickerOpen && (
-                <div className={styles.expandPanel}>
-                  <button
-                    type="button"
-                    className={`${styles.optionRow} ${!deadline ? styles.optionRowActive : ''}`}
-                    onClick={() => {
-                      setDeadline('');
-                      setDatePickerOpen(false);
-                    }}
-                  >
-                    {strings.createBucket.deadlinePlaceholder}
-                  </button>
-                  <HeroCalendar.Root
-                    focusedValue={parseDate(toDateOnly(dateMonthCursor))}
-                    onFocusChange={(next) => setDateMonthCursor(new Date(next.year, next.month - 1, next.day))}
-                    value={deadline ? parseDate(deadline) : undefined}
-                    onChange={(next) => {
-                      if (next) {
-                        setDeadline(next.toString());
-                        setDatePickerOpen(false);
-                      }
-                    }}
-                  >
-                    <HeroCalendar.Header className={styles.calendarHeader}>
-                      <HeroCalendar.NavButton slot="previous" className={styles.calendarNavButton} />
-                      <HeroCalendar.Heading className={styles.calendarHeading} />
-                      <HeroCalendar.NavButton slot="next" className={styles.calendarNavButton} />
-                    </HeroCalendar.Header>
-                    <HeroCalendar.Grid className={styles.calendarGrid}>
-                      <HeroCalendar.GridHeader>
-                        {(day) => <HeroCalendar.HeaderCell className={styles.weekdayCell}>{day}</HeroCalendar.HeaderCell>}
-                      </HeroCalendar.GridHeader>
-                      <HeroCalendar.GridBody>
-                        {(cellDate) => (
-                          <HeroCalendar.Cell date={cellDate} className={styles.dayCell}>
-                            {({ formattedDate }) => <span className={styles.dayCellInner}>{formattedDate}</span>}
-                          </HeroCalendar.Cell>
-                        )}
-                      </HeroCalendar.GridBody>
-                    </HeroCalendar.Grid>
-                  </HeroCalendar.Root>
-                </div>
-              )}
-            </div>
-          )}
-
-          <p className={styles.hintText}>{strings.createBucket.addLineItemsHint}</p>
-
-          {saveError && <p className={styles.errorText}>{saveError}</p>}
-        </div>
+          </FieldRow>
+          <MoreOptions>
+            <FieldCard label="Description">
+              <textarea className={ff.input} rows={3} value={v.description} onChange={(event) => v.setDescription(event.target.value)} placeholder="What this basket is for" />
+            </FieldCard>
+          </MoreOptions>
+          <p className={ff.hint}>{t.addLineItemsHint}</p>
+        </>
       )}
-    </div>
+    </FormFrame>
   );
 }
