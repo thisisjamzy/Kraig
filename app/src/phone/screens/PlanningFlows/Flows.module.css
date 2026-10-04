@@ -1,0 +1,245 @@
+/* The Planning action flows (cover or justify, reallocate) — full pages on
+   top of Planning.module.css's tokens. Cover's own layout lives in
+   Cover.module.css. */
+
+.page {
+  padding-bottom: calc(130px + var(--safe-bottom));
+}
+
+.headline {
+  margin: 0;
+  font-family: var(--font-family-heading);
+  font-size: 1.875rem;
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.headline[data-tone='over'] {
+  color: var(--p-red);
+}
+
+.headline[data-tone='leftover'] {
+  color: var(--p-blue);
+}
+
+.on {
+  margin: 4px 0 18px;
+  font-size: 0.9375rem;
+  color: var(--p-muted);
+}
+
+.on strong {
+  color: var(--p-navy);
+  font-weight: 600;
+}
+
+.sources {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 8px 0 4px;
+  padding: 4px 4px 4px 8px;
+}
+
+.hint {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--p-muted);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.8125rem;
+  color: var(--p-muted);
+}
+
+.field select,
+.field input {
+  height: 46px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 14px;
+  background: var(--p-card);
+  color: var(--p-navy);
+  font-family: inherit;
+  font-size: 16px;
+}
+
+.quick button {
+  height: 34px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 999px;
+  background: var(--p-card);
+  color: var(--p-navy);
+  font-family: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.quick button[aria-pressed='true'] {
+  background: var(--p-btn);
+  color: var(--p-btn-text);
+}
+
+.note {
+  width: 100%;
+  padding: 12px 14px;
+  border: none;
+  border-radius: 16px;
+  background: var(--p-card);
+  color: var(--p-navy);
+  font-family: inherit;
+  font-size: 16px;
+  resize: vertical;
+}
+
+.problem {
+  margin: 12px 4px 0;
+  font-size: 0.8125rem;
+  color: var(--p-red);
+}
+
+.confirm {
+  flex: 1;
+}
+
+/* Reallocate */
+.destinations {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.destination {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 14px 12px;
+  border: 2px solid transparent;
+  border-radius: 20px;
+  background: var(--p-card);
+  box-shadow: var(--p-shadow);
+  color: inherit;
+  font-family: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.destination[aria-checked='true'] {
+  border-color: var(--p-navy);
+}
+
+.destination:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.destination svg {
+  color: var(--p-blue);
+}
+
+.amountBox {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 14px 16px;
+  border-radius: 20px;
+  background: var(--p-card);
+  box-shadow: var(--p-shadow);
+}
+
+.amountBox input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--p-navy);
+  font-family: var(--font-family-heading);
+  font-size: 1.75rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.amountBox span {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--p-light);
+}
+
+.quick {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.summary {
+  margin-top: 16px;
+  padding: 14px 16px;
+  border-radius: 20px;
+  background: var(--p-blue-tint);
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+.summary strong {
+  font-weight: 700;
+}
+
+.label {
+  margin: 20px 2px 8px;
+  font-size: 0.8125rem;
+  color: var(--p-light);
+}
+
+.pickList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pick {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 2px solid transparent;
+  border-radius: 18px;
+  background: var(--p-card);
+  color: inherit;
+  font-family: inherit;
+  font-size: 0.9375rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pick[aria-checked='true'] {
+  border-color: var(--p-navy);
+}
+
+.pick small {
+  font-size: 0.75rem;
+  color: var(--p-muted);
+}
+
+.pick small[data-tone='over'] {
+  color: var(--p-red);
+  font-weight: 600;
+}
+
+.quick button:focus-visible,
+.destination:focus-visible,
+.pick:focus-visible {
+  outline: 2px solid var(--p-blue);
+  outline-offset: 2px;
+}

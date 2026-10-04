@@ -16,11 +16,12 @@
 // headers rather than the generic AppHeader — so it's tracked here for
 // hasBottomNav's sake but deliberately left out of hasAppHeader below.
 // /buckets/[id] and /buckets/new are still plain drill-downs (their own
-// back-arrow header) — only Buckets and Priorities count as the hub (its
-// Insights tab is Money Insights, /statistics).
+// back-arrow header) — only Buckets, Buckets analytics (the phone line's
+// Insights tab; the web line sends it to /statistics) and Priorities count
+// as the hub.
 const MONEY_HUB_ROUTES = ['/home', '/statistics', '/budget'];
 const PROJECTS_HUB_ROUTES = ['/projects', '/projects/calendar', '/projects/focus', '/projects/insights', '/projects/analytics'];
-const BUCKETS_HUB_ROUTES = ['/buckets', '/buckets/items'];
+const BUCKETS_HUB_ROUTES = ['/buckets', '/buckets/analytics', '/buckets/items'];
 
 export type NavMode = 'money' | 'projects' | 'buckets' | 'none';
 

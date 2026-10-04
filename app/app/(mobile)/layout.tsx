@@ -1,11 +1,11 @@
 'use client';
 
 import { Suspense, type ReactNode } from 'react';
-import { AppHeader } from '@/src/widgets/AppHeader/AppHeader';
+import { AppHeader } from '@/src/phone/widgets/AppHeader/AppHeader';
 import { AppContent } from '@/src/widgets/AppContent/AppContent';
-import { BottomNav } from '@/src/widgets/BottomNav/BottomNav';
-import { ProjectsBottomNav } from '@/src/widgets/ProjectsBottomNav/ProjectsBottomNav';
-import { BucketsBottomNav } from '@/src/widgets/BucketsBottomNav/BucketsBottomNav';
+import { BottomNav } from '@/src/phone/widgets/BottomNav/BottomNav';
+import { ProjectsBottomNav } from '@/src/phone/widgets/ProjectsBottomNav/ProjectsBottomNav';
+import { BucketsBottomNav } from '@/src/phone/widgets/BucketsBottomNav/BucketsBottomNav';
 import { AuthGuard } from '@/src/widgets/AuthGuard/AuthGuard';
 import { NavigationTracker } from '@/src/shared/navigation/NavigationTracker';
 import { ToastHost } from '@/src/widgets/Toast/Toast';

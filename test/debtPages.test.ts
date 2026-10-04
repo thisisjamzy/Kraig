@@ -124,13 +124,16 @@ test('removed pages are gone and their old URLs redirect to the replacements', a
   const target = (source: string, query?: string) =>
     redirects.find((r) => r.source === source && (query ? r.has?.some((h) => h.type === 'query' && h.key === 'tab' && h.value === query) : !r.has))?.destination;
   for (const [path, to] of [
-    ['buckets/analytics', '/statistics'],
     ['address-book', '/projects'],
     ['projects/control-panel', '/settings'],
   ]) {
     assert.equal(existsSync(join(routes, path, 'page.tsx')), false, `${path} still has a page`);
     assert.equal(target(`/${path}`), to);
   }
+  // Buckets analytics is a phone-line page again (docs/UI-LINES.md); the
+  // page itself sends wide screens to /statistics, so no server redirect.
+  assert.equal(existsSync(join(routes, 'buckets/analytics', 'page.tsx')), true);
+  assert.equal(target('/buckets/analytics'), undefined);
   assert.equal(target('/budget', 'history'), '/transactions');
   assert.equal(target('/budget', 'payments'), '/payments');
   // The rebuilt debt forms all have their own page for phones.

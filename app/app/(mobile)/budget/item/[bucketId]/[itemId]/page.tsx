@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { PlanningItemScreen } from '@/src/screens/PlanningItem/PlanningItemScreen';
+import { PlanningItemScreen } from '@/src/routes/PlanningItem/PlanningItemScreen';
 
 export const metadata: Metadata = {
   title: 'Budget item · Dreda',

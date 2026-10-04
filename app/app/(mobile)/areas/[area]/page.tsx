@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { AreaDetailScreen } from '@/src/screens/AreaDetail/AreaDetailScreen';
+import { AreaDetailScreen } from '@/src/routes/AreaDetail/AreaDetailScreen';
 
 export const metadata: Metadata = {
   title: 'Area · Dreda',

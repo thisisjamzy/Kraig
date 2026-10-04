@@ -29,9 +29,9 @@ const nextConfig: NextConfig = {
       { source: '/edit-goal-item/:path*', destination: '/edit-bucket-item/:path*', permanent: true },
       { source: '/settings/archived-goals', destination: '/settings/archived-buckets', permanent: true },
       // Removed pages: their replacements, so bookmarks and notifications
-      // still land somewhere real. Old Buckets analytics is Money Insights;
-      // the two "coming soon" placeholders were never linked.
-      { source: '/buckets/analytics', destination: '/statistics', permanent: true },
+      // still land somewhere real; the two "coming soon" placeholders were
+      // never linked. (/buckets/analytics is a phone-line page again; wide
+      // screens are sent to /statistics by the page itself.)
       { source: '/address-book', destination: '/projects', permanent: true },
       { source: '/projects/control-panel', destination: '/settings', permanent: true },
       // The old Planning tabs: History is Transactions, Payments its own

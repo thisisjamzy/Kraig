@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { ReadyToPayScreen } from '@/src/screens/ReadyToPay/ReadyToPayScreen';
+import { ReadyToPayScreen } from '@/src/routes/ReadyToPay/ReadyToPayScreen';
 
 export const metadata: Metadata = {
   title: 'Ready to pay · Dreda',

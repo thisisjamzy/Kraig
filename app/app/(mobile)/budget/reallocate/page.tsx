@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { ReallocateScreen } from '@/src/screens/PlanningFlows/ReallocateScreen';
+import { ReallocateScreen } from '@/src/routes/PlanningFlows/ReallocateScreen';
 
 export const metadata: Metadata = {
   title: 'Reallocate · Dreda',

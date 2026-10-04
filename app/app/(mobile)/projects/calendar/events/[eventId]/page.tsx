@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { CalendarEventDetailScreen } from '@/src/screens/CalendarEventDetail/CalendarEventDetailScreen';
+import { CalendarEventDetailScreen } from '@/src/routes/CalendarEventDetail/CalendarEventDetailScreen';
 
 export const metadata: Metadata = {
   title: 'Calendar event · Dreda',

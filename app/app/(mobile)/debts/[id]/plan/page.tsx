@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { PlanFormScreen } from '@/src/screens/DebtForms/PlanFormScreen';
+import { DebtPlanRoute } from '@/src/routes/DebtForms/DebtFormRoutes';
 
 export const metadata: Metadata = {
   title: 'Edit payment plan · Dreda',
@@ -7,5 +7,5 @@ export const metadata: Metadata = {
 
 export default async function EditDebtPlanPage({ params }: PageProps<'/debts/[id]/plan'>) {
   const { id } = await params;
-  return <PlanFormScreen debtId={decodeURIComponent(id)} />;
+  return <DebtPlanRoute debtId={decodeURIComponent(id)} />;
 }

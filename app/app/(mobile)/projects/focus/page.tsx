@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { FocusScreen } from '@/src/screens/Focus/FocusScreen';
+import { FocusScreen } from '@/src/routes/Focus/FocusScreen';
 
 export const metadata: Metadata = {
   title: 'Focus · Dreda',

@@ -1,0 +1,198 @@
+/* The Calendar's day timeline cards — see DayTimeline.tsx. Sits right of
+   the 52px time gutter (ProjectsCalendarScreen.module.css's .hourLabel). */
+
+.events {
+  position: absolute;
+  inset: 0 0 0 52px;
+}
+
+.card {
+  position: absolute;
+  z-index: 1;
+}
+
+/* ---- A busy window: 2+ overlapping activities ---- */
+.group {
+  position: absolute;
+  left: -4px;
+  right: -4px;
+  padding-inline: 4px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--color-brand) 7%, transparent);
+}
+
+.group > .card {
+  margin-left: 4px;
+}
+
+/* The count, in the gutter next to the group's start time. */
+.badge {
+  position: absolute;
+  left: -50px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  min-width: 22px;
+  height: 18px;
+  margin-top: 12px;
+  padding: 0 6px;
+  border: none;
+  border-radius: var(--radius-full);
+  background: var(--color-brand);
+  color: #ffffff;
+  font-family: var(--font-family-body);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+button.badge {
+  cursor: pointer;
+}
+
+/* A 44px tap area around the small pill. */
+button.badge::after {
+  content: '';
+  position: absolute;
+  inset: -13px -11px;
+}
+
+button.badge:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+}
+
+/* ---- Too many to fit: a horizontal strip ---- */
+.stripWrap {
+  --fade-left: 18px;
+  --fade-right: 28px;
+  position: relative;
+  height: 100%;
+}
+
+.stripWrap[data-at-start] {
+  --fade-left: 0px;
+}
+
+.stripWrap[data-at-end] {
+  --fade-right: 0px;
+}
+
+.strip {
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  /* Cards slide under a soft edge instead of being cut off. */
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 var(--fade-left),
+    #000 calc(100% - var(--fade-right)),
+    transparent
+  );
+  mask-image: linear-gradient(to right, transparent, #000 var(--fade-left), #000 calc(100% - var(--fade-right)), transparent);
+}
+
+.strip::-webkit-scrollbar {
+  display: none;
+}
+
+.track {
+  position: relative;
+  height: 100%;
+}
+
+.track[data-nudge] {
+  animation: nudge 800ms var(--ease-out) 1;
+}
+
+@keyframes nudge {
+  40% {
+    transform: translateX(-24px);
+  }
+}
+
+.snap {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  scroll-snap-align: start;
+  pointer-events: none;
+}
+
+.dots {
+  position: absolute;
+  bottom: -9px;
+  left: 50%;
+  z-index: 2;
+  display: flex;
+  gap: 4px;
+  padding: 2px 5px;
+  border-radius: var(--radius-full);
+  background: var(--color-background);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.dots span {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--color-brand) 25%, transparent);
+  transition: background-color var(--duration-morph) var(--ease-out);
+}
+
+.dots span[data-active] {
+  background: var(--color-brand);
+}
+
+/* Web: arrow buttons on hover. */
+.arrow {
+  position: absolute;
+  top: 50%;
+  z-index: 3;
+  display: none;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  background: var(--color-background);
+  color: var(--color-text-primary);
+  box-shadow: 0 2px 8px rgba(27, 27, 57, 0.12);
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+
+.arrowLeft {
+  left: 4px;
+}
+
+.arrowRight {
+  right: 4px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .stripWrap:hover .arrow:not([hidden]) {
+    display: grid;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .track[data-nudge] {
+    animation: none;
+  }
+
+  .dots span {
+    transition: none;
+  }
+}
+
+/* Wide Today screen: the task hovered in the list, ringed here. Never set
+   on the phone Calendar. */
+.card.highlight {
+  box-shadow: 0 0 0 2px var(--color-brand), 0 6px 18px rgba(27, 27, 57, 0.12);
+}

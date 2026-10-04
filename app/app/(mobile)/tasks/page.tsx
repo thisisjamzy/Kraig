@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { TasksListScreen } from '@/src/screens/TasksList/TasksListScreen';
+import { TasksListScreen } from '@/src/routes/TasksList/TasksListScreen';
 
 export const metadata: Metadata = {
   title: 'Tasks · Dreda',

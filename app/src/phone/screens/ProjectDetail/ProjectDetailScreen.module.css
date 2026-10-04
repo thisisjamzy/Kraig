@@ -1,0 +1,287 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  padding: var(--space-lg);
+  padding-top: 0;
+  gap: var(--space-lg);
+}
+
+
+.backButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  background: none;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+
+.archiveButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  background: none;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+/* Title */
+
+.projectName {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--font-size-lg);
+  font-weight: 800;
+  color: var(--color-text-primary);
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+
+.cover {
+  height: 140px;
+  flex-shrink: 0;
+  margin: 0 calc(-1 * var(--space-lg));
+  background-color: var(--color-border);
+  background-size: cover;
+  background-position: center;
+}
+
+/* Status/area badges — both buttons, clickable to change the value inline */
+
+.badgeRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.statusPill {
+  flex-shrink: 0;
+  padding: 4px var(--space-md);
+  border: none;
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--color-brand) 15%, transparent);
+  color: var(--color-brand);
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.riskBadge {
+  padding: 2px var(--space-sm);
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--color-danger) 18%, transparent);
+  color: var(--color-danger);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.rescheduleBadge {
+  padding: 2px var(--space-sm);
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, #e8a33d 22%, transparent);
+  color: #a3671c;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.areaChip {
+  padding: 2px var(--space-sm);
+  border: none;
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  font-family: inherit;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--color-brand);
+  cursor: pointer;
+}
+
+/* Inline picker sheets (status/area/task-filter) — reuses Modal */
+
+.pickerOptions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.pickerOption {
+  padding: var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: none;
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  text-align: left;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.pickerOptionActive {
+  border-color: var(--ink-bg);
+  background: var(--ink-bg);
+  color: #ffffff;
+}
+
+/* Start - due date, single line, no labels */
+
+.dateRange {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+/* Description */
+
+.descriptionText {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+}
+
+.readMoreButton {
+  align-self: flex-start;
+  padding: 0;
+  margin-top: 4px;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: var(--color-brand);
+  cursor: pointer;
+}
+
+/* Activity card */
+
+.activityCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: 0;
+}
+
+.activityTitle {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+/* Tasks — screen1-style divider list, no card border/radius per row */
+
+.sectionTitleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: var(--font-size-md);
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.taskActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.filterButton {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px var(--space-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: none;
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.addIconButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 50%;
+  background: var(--ink-bg);
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.emptyText {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+/* ============================================================
+   Medium screens and up (the app shell; never on a phone): the
+   project summary in a sticky left column, its tasks on the right.
+   ============================================================ */
+@media (min-width: 768px) {
+  .page[data-shell] {
+    display: grid;
+    grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
+    align-items: start;
+    column-gap: 24px;
+  }
+
+  .page[data-shell] > :not(.wideSide):not(.wideMain) {
+    grid-column: 1 / -1;
+  }
+
+  .wideSide,
+  .wideMain {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+    min-width: 0;
+  }
+
+  .wideSide {
+    position: sticky;
+    top: calc(64px + var(--safe-top) + 16px);
+  }
+}
+
+@media (min-width: 1024px) {
+  .page[data-shell] {
+    column-gap: 32px;
+  }
+}

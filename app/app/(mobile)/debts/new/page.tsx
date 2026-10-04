@@ -1,12 +1,12 @@
 import type { Metadata } from 'next';
-import { DebtFormScreen } from '@/src/screens/DebtForms/DebtFormScreen';
+import { NewDebtRoute } from '@/src/routes/DebtForms/DebtFormRoutes';
 
 export const metadata: Metadata = {
   title: 'New debt · Dreda',
 };
 
-// The full page a phone opens; wider screens open the same form as a side
-// peek over the current page (src/shared/navigation/debtForms.ts).
+// Phones: the phone line's New debt page. Wider screens: the web form (it
+// usually opens as a side peek instead, src/shared/navigation/debtForms.ts).
 export default function NewDebtPage() {
-  return <DebtFormScreen debtId={null} />;
+  return <NewDebtRoute />;
 }

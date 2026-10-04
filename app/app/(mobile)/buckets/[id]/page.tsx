@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { BucketDetailScreen } from '@/src/screens/BucketDetail/BucketDetailScreen';
+import { BucketDetailScreen } from '@/src/routes/BucketDetail/BucketDetailScreen';
 
 export const metadata: Metadata = {
   title: 'Bucket · Dreda',

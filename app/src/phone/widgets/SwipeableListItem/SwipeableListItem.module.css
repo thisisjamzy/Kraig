@@ -1,0 +1,37 @@
+.wrapper {
+  position: relative;
+  overflow: hidden;
+}
+
+.actions {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  width: 76px;
+}
+
+.actionsRight {
+  right: 0;
+}
+
+.actionsLeft {
+  left: 0;
+}
+
+.deleteButton {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: var(--color-danger);
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.content {
+  position: relative;
+  touch-action: pan-y;
+  transition: transform 0.15s ease;
+}

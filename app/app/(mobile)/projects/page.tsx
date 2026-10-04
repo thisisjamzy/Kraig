@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { ProjectsScreen } from '@/src/screens/Projects/ProjectsScreen';
+import { ProjectsScreen } from '@/src/routes/Projects/ProjectsScreen';
 
 export const metadata: Metadata = {
   title: 'Projects · Dreda',

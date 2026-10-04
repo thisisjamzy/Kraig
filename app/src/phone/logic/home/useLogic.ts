@@ -1,0 +1,450 @@
+'use client';
+
+import { useEffect, useMemo, useState } from 'react';
+import { query, where, orderBy, limit, updateDoc, Timestamp } from 'firebase/firestore';
+import { ArrowUpRight, ArrowDownLeft, PiggyBank, type LucideIcon } from 'lucide-react';
+import { useFirestoreCollection, useFirestoreDoc } from '@/src/shared/firestore/hooks';
+import { transactionsRef, settingsRef, unjustifiedWalletRef, bucketsRef } from '@/src/shared/firestore/refs';
+import { useAccounts, useCategories, useCurrencyContext, useExchangeRates } from '@/src/shared/firestore/queries';
+import { toDisplay, round2 } from '@/src/shared/firestore/currency';
+import { computeUpcomingPaymentsFromBucketItems } from '@/src/shared/firestore/upcomingPayments';
+import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
+import { useMonthBudget } from '@/src/shared/hooks/useMonthBudget';
+import { isItemClosed } from '@/src/shared/budget/bucketProgress';
+import { useBucketLineItemsByBucket } from '@/src/shared/hooks/useBucketLineItemsByBucket';
+import { useIsWeb } from '@/src/shared/hooks/useViewportMode';
+import { walletCardColor, walletColor, walletCardNumber, isSavingsAccount } from '@/src/viewmodels/wallets';
+import { currencyName } from '@/src/viewmodels/currencies';
+import { categoryAccentColor } from '@/src/viewmodels/categories';
+import { dueLabel, formatDueDate } from '@/src/phone/viewmodels/dueDates';
+import type { FirestoreAccount, FirestoreTransaction, FirestoreBucket } from '@/src/shared/firestore/types';
+
+// Analytics now owns Quarter/Year (the Insights page, src/logic/financeInsights) — Home
+// keeps the shorter-range Week/Month views instead, since those are the
+// ones worth checking in on day to day.
+export type SpendingPeriod = 'week' | 'month';
+
+const UPCOMING_PAYMENTS_HORIZON_DAYS = 30;
+const UPCOMING_PAYMENTS_PREVIEW_COUNT = 3;
+const RECENT_TRANSACTIONS_PREVIEW_COUNT = 5;
+const BALANCES_HIDDEN_STORAGE_KEY = 'balances-hidden';
+// Six asterisks everywhere a real figure would otherwise show, once the
+// user's toggled balances hidden — the exact same placeholder shape the
+// balance card's own "nothing to see here" unjustified-amount state
+// already uses (see UNJUSTIFIED_PLACEHOLDER in HomeScreen.tsx).
+export const HIDDEN_AMOUNT_PLACEHOLDER = '******';
+
+// Same set src/logic/transactionHistory/useLogic.ts's own card list uses —
+// Home's Recent Transactions panel renders with that same card, so the icon
+// needs to match.
+const TYPE_ICONS: Record<string, LucideIcon> = {
+  Expense: ArrowUpRight,
+  Income: ArrowDownLeft,
+  Savings: PiggyBank,
+};
+
+export function formatAmount(value: number) {
+  return new Intl.NumberFormat('en-US').format(value);
+}
+
+export function formatCompact(value: number) {
+  if (value >= 1000000) {
+    return `${(value / 1000000).toFixed(value % 1000000 === 0 ? 0 : 1)}M`;
+  }
+  if (value >= 1000) {
+    return `${Math.round(value / 1000)}K`;
+  }
+  return `${value}`;
+}
+
+function rangeStartFor(period: SpendingPeriod, now: Date) {
+  // Calendar-day aligned (midnight), not now.getTime() minus a fixed
+  // duration — the latter cuts the oldest day off partway through
+  // whenever "now" isn't exactly midnight, silently excluding that day's
+  // earlier transactions from the query and rendering it as a blank bar
+  // even though real transactions exist on it.
+  if (period === 'week') return new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6);
+  return new Date(now.getFullYear(), now.getMonth(), 1);
+}
+
+function bucketKeyFor(period: SpendingPeriod, date: Date) {
+  if (period === 'week') return date.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase();
+  return `WK ${Math.ceil(date.getDate() / 7)}`;
+}
+
+// Every bucket the period spans, oldest to newest — walked independently of
+// whatever transactions actually exist, so a day/week with nothing recorded
+// still gets a column (rendered as a blank/grey placeholder, see
+// HomeScreen.tsx) instead of silently disappearing from the chart and
+// making the timeline look shorter than it really is. For 'month' this is
+// every week of the CURRENT calendar month, including ones "now" hasn't
+// reached yet — those just render with no data, rather than being hidden
+// entirely (a household checking in on the 3rd shouldn't see a 1-week-wide
+// chart with the rest of the month missing).
+function expectedBucketKeysFor(period: SpendingPeriod, now: Date): string[] {
+  if (period === 'week') {
+    return Array.from({ length: 7 }, (_, i) =>
+      bucketKeyFor('week', new Date(now.getTime() - (6 - i) * 24 * 3600 * 1000))
+    );
+  }
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const totalWeeks = Math.ceil(daysInMonth / 7);
+  return Array.from({ length: totalWeeks }, (_, i) => `WK ${i + 1}`);
+}
+
+export function useLogic() {
+  const [period, setPeriod] = useState<SpendingPeriod>('week');
+
+  // Persisted per-device, not per-household data — a privacy toggle for
+  // "someone's looking over my shoulder", not a real setting worth a
+  // Firestore round-trip. Defaults visible; read from localStorage once on
+  // mount (same pattern ThemeProvider's own scheme toggle uses) rather
+  // than in a lazy useState initializer, since that would run during SSR
+  // where window doesn't exist.
+  const [balancesHidden, setBalancesHidden] = useState(false);
+  useEffect(() => {
+    const stored = window.localStorage.getItem(BALANCES_HIDDEN_STORAGE_KEY);
+    if (stored === '1') setBalancesHidden(true);
+  }, []);
+  function toggleBalancesHidden() {
+    setBalancesHidden((current) => {
+      const next = !current;
+      window.localStorage.setItem(BALANCES_HIDDEN_STORAGE_KEY, next ? '1' : '0');
+      return next;
+    });
+  }
+  const now = useMemo(() => new Date(), []);
+  const { user, loading: authLoading } = useFirebaseUser();
+  const uid = user?.uid;
+
+  const { data: accounts, loading: accountsLoading, error: accountsError } = useAccounts();
+  const { data: categories, loading: categoriesLoading } = useCategories();
+
+  // Which wallets a bucket is actually targeting — every active bucket's own
+  // line items, same fan-out-per-bucket hook src/logic/buckets/useLogic.ts's
+  // own gauge card uses. Only feeds the wallets chart's "required" bar
+  // below; nothing else here depends on it.
+  const bucketsQuery = useMemo(() => (uid ? query(bucketsRef(uid), where('archived', '==', false)) : null), [uid]);
+  const { data: bucketDocs, loading: bucketsLoading } = useFirestoreCollection<FirestoreBucket>(bucketsQuery);
+  const { itemsByBucket, loading: bucketItemsLoading } = useBucketLineItemsByBucket(bucketDocs);
+
+  // Most recent transactions across every account, not scoped to a month —
+  // this is a quick "what just happened" glance, not a budget-progress view
+  // (that's the Budget screen's own job).
+  const recentTransactionsQuery = useMemo(
+    () => (uid ? query(transactionsRef(uid), orderBy('date', 'desc'), limit(RECENT_TRANSACTIONS_PREVIEW_COUNT)) : null),
+    [uid]
+  );
+  const { data: recentTransactionDocs, loading: recentTransactionsLoading } =
+    useFirestoreCollection<FirestoreTransaction>(recentTransactionsQuery);
+  const { ctx, loading: ctxLoading } = useCurrencyContext();
+
+  const requiredByAccountId = useMemo(() => {
+    const totals = new Map<string, number>();
+    for (const bucket of bucketDocs) {
+      for (const item of itemsByBucket[bucket.id] ?? []) {
+        if (isItemClosed(item, bucket.kind) || !item.accountId) continue;
+        totals.set(item.accountId, (totals.get(item.accountId) ?? 0) + toDisplay(ctx, item.amount, bucket.currency));
+      }
+    }
+    return totals;
+  }, [bucketDocs, itemsByBucket, ctx]);
+
+  // Tapping the currency chip switches which currency the whole app
+  // displays amounts in — same write Settings' own currency picker makes
+  // (src/logic/settings/useLogic.ts's setCurrency), just reachable directly
+  // from Home too.
+  const { data: exchangeRates } = useExchangeRates();
+  const [currencyPickerOpen, setCurrencyPickerOpen] = useState(false);
+  const [currencySearch, setCurrencySearch] = useState('');
+  const [currencySaving, setCurrencySaving] = useState(false);
+  const [currencyError, setCurrencyError] = useState<string | null>(null);
+  const currencyOptions = exchangeRates
+    .map((rate) => ({ code: rate.id, name: currencyName(rate.id) }))
+    .filter((entry) => `${entry.code} ${entry.name}`.toLowerCase().includes(currencySearch.toLowerCase()));
+
+  async function switchCurrency(code: string) {
+    if (currencySaving || !uid) return;
+    setCurrencySaving(true);
+    setCurrencyError(null);
+    try {
+      await updateDoc(settingsRef(uid), { displayCurrency: code });
+      setCurrencyPickerOpen(false);
+      setCurrencySearch('');
+    } catch (error) {
+      setCurrencyError(error instanceof Error ? error.message : 'Could not switch currency.');
+    } finally {
+      setCurrencySaving(false);
+    }
+  }
+
+  const breakdownQuery = useMemo(
+    () =>
+      uid ? query(transactionsRef(uid), where('date', '>=', Timestamp.fromDate(rangeStartFor(period, now)))) : null,
+    [uid, period, now]
+  );
+  const { data: rangeTransactions, loading: breakdownLoading } =
+    useFirestoreCollection<FirestoreTransaction>(breakdownQuery);
+
+  const accountCurrency = useMemo(() => new Map(accounts.map((a) => [a.id, a.currency])), [accounts]);
+  const accountName = useMemo(() => new Map(accounts.map((a) => [a.id, a.name])), [accounts]);
+  const categoryName = useMemo(() => new Map(categories.map((c) => [c.id, c.name])), [categories]);
+
+  // The web dashboard's own extra cards (this month's budget-spent, the
+  // Income/Expense statistics donut) need data mobile's Home never reads
+  // at all — gated behind isWeb so a mobile visitor never pays for these
+  // extra Firestore reads; useIsWeb() itself guarantees isWeb is always
+  // false server-side and on a real phone (see useViewportMode's own
+  // header comment), so this can only ever ADD reads for a web viewer.
+  const isWeb = useIsWeb();
+  const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const monthTransactionsQuery = useMemo(
+    () => (uid && isWeb ? query(transactionsRef(uid), where('month', '==', monthStr)) : null),
+    [uid, isWeb, monthStr]
+  );
+  const { data: monthTransactionDocs, loading: monthTransactionsLoading } =
+    useFirestoreCollection<FirestoreTransaction>(monthTransactionsQuery);
+  // PRD-BUDGETS-V2.md — this month's planned Expense items, the same
+  // derived budget src/logic/budget/useLogic.ts's own totalExpenseBudgeted
+  // reads (just the one headline total).
+  const { budget: monthBudget, loading: monthBudgetLoading } = useMonthBudget(isWeb ? monthStr : null);
+  const monthBudgeted = useMemo(
+    () => round2(monthBudget.items.filter((entry) => entry.type === 'Expense').reduce((sum, entry) => sum + entry.planned, 0)),
+    [monthBudget]
+  );
+
+  const monthExpenseTotal = useMemo(
+    () =>
+      round2(
+        monthTransactionDocs
+          .filter((t) => t.type === 'Expense')
+          .reduce((sum, t) => sum + toDisplay(ctx, t.amount, accountCurrency.get(t.accountId) ?? ctx.base), 0)
+      ),
+    [monthTransactionDocs, accountCurrency, ctx]
+  );
+  const monthIncomeTotal = useMemo(
+    () =>
+      round2(
+        monthTransactionDocs
+          .filter((t) => t.type === 'Income')
+          .reduce((sum, t) => sum + toDisplay(ctx, t.amount, accountCurrency.get(t.accountId) ?? ctx.base), 0)
+      ),
+    [monthTransactionDocs, accountCurrency, ctx]
+  );
+  const budgetSpentPercent = monthBudgeted > 0 ? Math.round((monthExpenseTotal / monthBudgeted) * 100) : 0;
+
+  // This month's category breakdown, one map per type — feeds the web
+  // dashboard's own Statistics donut (DonutChart widget), Expense/Income
+  // tabs.
+  const expenseCategoryBreakdown = useMemo(() => {
+    const totals = new Map<string, number>();
+    for (const t of monthTransactionDocs) {
+      if (t.type !== 'Expense' || !t.categoryId) continue;
+      const amount = toDisplay(ctx, t.amount, accountCurrency.get(t.accountId) ?? ctx.base);
+      totals.set(t.categoryId, (totals.get(t.categoryId) ?? 0) + amount);
+    }
+    return Array.from(totals.entries())
+      .map(([categoryId, value]) => {
+        const name = categoryName.get(categoryId) ?? categoryId;
+        return { label: name, value: round2(value), color: categoryAccentColor(name) };
+      })
+      .sort((a, b) => b.value - a.value);
+  }, [monthTransactionDocs, accountCurrency, ctx, categoryName]);
+  const incomeCategoryBreakdown = useMemo(() => {
+    const totals = new Map<string, number>();
+    for (const t of monthTransactionDocs) {
+      if (t.type !== 'Income' || !t.categoryId) continue;
+      const amount = toDisplay(ctx, t.amount, accountCurrency.get(t.accountId) ?? ctx.base);
+      totals.set(t.categoryId, (totals.get(t.categoryId) ?? 0) + amount);
+    }
+    return Array.from(totals.entries())
+      .map(([categoryId, value]) => {
+        const name = categoryName.get(categoryId) ?? categoryId;
+        return { label: name, value: round2(value), color: categoryAccentColor(name) };
+      })
+      .sort((a, b) => b.value - a.value);
+  }, [monthTransactionDocs, accountCurrency, ctx, categoryName]);
+
+  const totalBalance = round2(
+    accounts.reduce((sum, account) => sum + toDisplay(ctx, account.currentBalance, account.currency), 0)
+  );
+  // Frozen or notSpendable accounts are excluded from what you can actually
+  // spend right now, but still count toward net worth (`total`); a
+  // non-excluded account's own lockedAmount (set aside without freezing the
+  // whole wallet, see src/logic/walletDetail/useLogic.ts) is subtracted the
+  // same way.
+  const spendableBalance = round2(
+    accounts
+      .filter((account) => !account.frozen && !account.notSpendable)
+      .reduce(
+        (sum, account) =>
+          sum + toDisplay(ctx, account.currentBalance - (account.lockedAmount ?? 0), account.currency),
+        0
+      )
+  );
+  // PRD-AUDIT-RECONCILIATION.md section 2.2 — the Unjustified wallet's own
+  // balance IS the household-wide unaccounted gap, read directly here
+  // (bypassing useAccounts(), which deliberately filters this wallet out
+  // everywhere else) so the Home card can surface it as its own figure
+  // rather than folding it into total/spendable, where it would misstate
+  // both.
+  const unjustifiedRef = useMemo(() => (uid ? unjustifiedWalletRef(uid) : null), [uid]);
+  const { data: unjustifiedWallet } = useFirestoreDoc<FirestoreAccount>(unjustifiedRef);
+  const unjustifiedBalance = round2(toDisplay(ctx, unjustifiedWallet?.currentBalance ?? 0, unjustifiedWallet?.currency ?? ctx.base));
+
+  // Savings is account-type based (see src/viewmodels/savingsTransfers.ts) —
+  // the live compounding total across every Savings Account, not this
+  // month's flow. Not the wallet lockedAmount figure this tile used to show
+  // either (which read 0 for any household that never used per-wallet
+  // locking, even with real savings activity every month) — a Savings
+  // Account's own currentBalance already bakes in everything that ever
+  // touched it, so this needs no query of its own.
+  const netSavings = round2(
+    accounts.filter(isSavingsAccount).reduce((sum, account) => sum + toDisplay(ctx, account.currentBalance, account.currency), 0)
+  );
+
+  // How far into the current calendar month "now" falls, as a 0-100 percent
+  // for the balance card's progress bar.
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const monthProgress = round2((now.getDate() / daysInMonth) * 100);
+
+  const balance = {
+    currency: ctx.display,
+    total: totalBalance,
+    spendable: spendableBalance,
+    unjustified: unjustifiedBalance,
+    savings: netSavings,
+    monthProgress,
+  };
+
+  // Color stays tied to each account's own fixed position in `accounts`
+  // (the same convention Wallets and Transaction History use) — a
+  // wallet's card color never shifts just because its balance moved it to
+  // a different position in this list.
+  const wallets = accounts
+    .map((account, index) => ({
+      id: account.id,
+      name: account.name,
+      type: account.type,
+      cardNumber: walletCardNumber(account.id),
+      amount: toDisplay(ctx, account.currentBalance, account.currency),
+      currency: ctx.display,
+      color: walletCardColor(index),
+      // Solid variant of the same index-to-hue mapping `color` (the
+      // gradient) uses — the web dashboard's own plan-row accent bar needs
+      // a flat color, not a gradient, to render as a border.
+      accentColor: walletColor(index),
+      // How much of what a bucket is targeting for this specific wallet is
+      // still outstanding (unpaid/uncompleted line items) — 0 renders as
+      // "*****" on the card rather than a real figure (Design/card
+      // design.jpg's CVV slot repurposed for this).
+      required: round2(requiredByAccountId.get(account.id) ?? 0),
+    }))
+    .sort((a, b) => b.amount - a.amount);
+
+  // Same card shape src/logic/transactionHistory/useLogic.ts's own list
+  // uses — this panel renders with that exact same card component styling.
+  const recentTransactions = useMemo(
+    () =>
+      recentTransactionDocs.map((transaction) => {
+        const nativeCurrency = accountCurrency.get(transaction.accountId) ?? ctx.base;
+        const title = categoryName.get(transaction.categoryId ?? '') ?? transaction.categoryId ?? '';
+        return {
+          id: transaction.id,
+          title,
+          description: transaction.description,
+          account: accountName.get(transaction.accountId) ?? transaction.accountId,
+          amount: round2(toDisplay(ctx, transaction.amount, nativeCurrency)),
+          currency: ctx.display,
+          date: transaction.date.toDate().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
+          icon: TYPE_ICONS[transaction.type] ?? ArrowUpRight,
+          iconColor: categoryAccentColor(title),
+          editHref: `/edit-transaction/${transaction.id}`,
+        };
+      }),
+    [recentTransactionDocs, accountCurrency, accountName, categoryName, ctx]
+  );
+
+  const breakdown = useMemo(() => {
+    const buckets = new Map<string, { day: string; income: number; expense: number }>();
+    const order = expectedBucketKeysFor(period, now);
+    order.forEach((key) => buckets.set(key, { day: key, income: 0, expense: 0 }));
+    rangeTransactions.forEach((transaction) => {
+      const date = transaction.date.toDate();
+      if (date > now) return;
+      const key = bucketKeyFor(period, date);
+      if (!buckets.has(key)) {
+        buckets.set(key, { day: key, income: 0, expense: 0 });
+        order.push(key);
+      }
+      const bucket = buckets.get(key)!;
+      const native = accountCurrency.get(transaction.accountId) ?? ctx.base;
+      const amount = toDisplay(ctx, transaction.amount, native);
+      if (transaction.direction === 'Inflow') bucket.income += amount;
+      else bucket.expense += amount;
+    });
+    return order.map((key) => {
+      const bucket = buckets.get(key)!;
+      return {
+        day: bucket.day,
+        income: round2(bucket.income),
+        expense: round2(bucket.expense),
+        hasData: bucket.income > 0 || bucket.expense > 0,
+      };
+    });
+  }, [rangeTransactions, period, now, accountCurrency, ctx]);
+  const breakdownMax = Math.max(1, ...breakdown.flatMap((entry) => [entry.income, entry.expense]));
+
+  const upcomingPayments = useMemo(
+    () =>
+      computeUpcomingPaymentsFromBucketItems(bucketDocs, itemsByBucket, accounts, categories, ctx, UPCOMING_PAYMENTS_HORIZON_DAYS)
+        .slice(0, UPCOMING_PAYMENTS_PREVIEW_COUNT)
+        .map((payment) => ({
+          ...payment,
+          dueDateLabel: formatDueDate(payment.dueDate),
+          dueInLabel: dueLabel(payment.dueDate),
+        })),
+    [bucketDocs, itemsByBucket, accounts, categories, ctx]
+  );
+
+  return {
+    balance,
+    wallets,
+    recentTransactions,
+    upcomingPayments,
+    period,
+    setPeriod,
+    balancesHidden,
+    toggleBalancesHidden,
+    breakdown,
+    breakdownMax,
+    currencyPickerOpen,
+    setCurrencyPickerOpen,
+    currencySearch,
+    setCurrencySearch,
+    currencyOptions,
+    currencySaving,
+    currencyError,
+    switchCurrency,
+    // Web dashboard only (see this file's own isWeb comment above) — 0/
+    // empty for mobile, where the underlying queries never even fire.
+    monthBudgeted,
+    monthExpenseTotal,
+    monthIncomeTotal,
+    budgetSpentPercent,
+    expenseCategoryBreakdown,
+    incomeCategoryBreakdown,
+    loading:
+      authLoading ||
+      accountsLoading ||
+      categoriesLoading ||
+      recentTransactionsLoading ||
+      ctxLoading ||
+      breakdownLoading ||
+      bucketsLoading ||
+      bucketItemsLoading ||
+      monthTransactionsLoading ||
+      monthBudgetLoading,
+    error: accountsError,
+  };
+}

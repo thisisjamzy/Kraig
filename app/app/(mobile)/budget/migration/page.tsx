@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { MigrationReportScreen } from '@/src/screens/MigrationReport/MigrationReportScreen';
+import { MigrationReportScreen } from '@/src/routes/MigrationReport/MigrationReportScreen';
 
 export const metadata: Metadata = {
   title: 'What changed · Dreda',

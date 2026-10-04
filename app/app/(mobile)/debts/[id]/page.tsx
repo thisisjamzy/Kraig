@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { DebtDetailScreen } from '@/src/screens/DebtDetail/DebtDetailScreen';
+import { DebtDetailScreen } from '@/src/routes/DebtDetail/DebtDetailScreen';
 
 export const metadata: Metadata = {
   title: 'Debt · Dreda',
