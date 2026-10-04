@@ -158,19 +158,19 @@
   line-height: 1.5;
 }
 
-.callout[data-tone='bad'] {
-  background: var(--db-red-tint);
-  border-color: rgba(214, 64, 79, 0.25);
+/* A callout states the page's situation in plain words; it's never an
+   alert. Every tone keeps the neutral background: the tone only colors
+   the icon (problems live in Notifications). */
+.callout[data-tone='bad'] .calloutIcon {
+  color: var(--db-red);
 }
 
-.callout[data-tone='good'] {
-  background: #edf7f1;
-  border-color: rgba(31, 122, 77, 0.2);
+.callout[data-tone='good'] .calloutIcon {
+  color: #1f7a4d;
 }
 
-.callout[data-tone='watch'] {
-  background: #fff8e6;
-  border-color: rgba(183, 121, 31, 0.25);
+.callout[data-tone='watch'] .calloutIcon {
+  color: #b7791f;
 }
 
 .calloutIcon {

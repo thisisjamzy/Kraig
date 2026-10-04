@@ -40,6 +40,9 @@ export interface TxRow {
   /** Signed for its flow: income +, spending −, savings + (withdrawals −), transfers +. */
   amount: number;
   href: string;
+  /** Kept for the record but not counted (a debt changed to record only); shown with "Show excluded". */
+  excluded: boolean;
+  excludedReason: string;
 }
 
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -52,9 +55,10 @@ export function useLogic() {
   const data = useMonthBudget(month);
   const { data: categories } = useCategories();
   const [tab, setTab] = useState<FlowType>('Expense');
+  const [showExcluded, setShowExcluded] = useState(false);
 
   const rows = useMemo<TxRow[]>(() => {
-    const { transactionsById, transfersById, accounts, buckets, budget, ctx } = data;
+    const { transactionsById, excludedTransactions, transfersById, accounts, buckets, budget, ctx } = data;
     const account = new Map(accounts.map((a) => [a.id, a]));
     const accountType = new Map(accounts.map((a) => [a.id, a.type]));
     const category = new Map(categories.map((c) => [c.id, c.name]));
@@ -64,7 +68,8 @@ export function useLogic() {
       for (const id of [...item.transactionIds, ...item.transferIds]) itemOf.set(id, { name: item.name, bucketId: item.bucketId });
     }
     const out: TxRow[] = [];
-    for (const t of transactionsById.values()) {
+    const listed = showExcluded ? [...transactionsById.values(), ...excludedTransactions] : transactionsById.values();
+    for (const t of listed) {
       if ((t.month ?? monthKeyOf(t.date.toDate())) !== month) continue;
       const currency = account.get(t.accountId)?.currency ?? ctx.base;
       const value = toDisplay(ctx, t.amount, currency);
@@ -97,6 +102,8 @@ export function useLogic() {
         fee: 0,
         amount: sign * value,
         href: `/transactions/${t.id}`,
+        excluded: Boolean(t.excluded),
+        excludedReason: t.excludedReason ?? '',
       });
     }
     for (const t of transfersById.values()) {
@@ -129,10 +136,12 @@ export function useLogic() {
         fee: toDisplay(ctx, t.charges ?? 0, currency),
         amount: (flow === 'Savings' && savings < 0 ? -1 : 1) * toDisplay(ctx, t.amount, currency),
         href: `/transactions/${t.id}?kind=transfer`,
+        excluded: false,
+        excludedReason: '',
       });
     }
     return out.sort((a, b) => b.date.getTime() - a.date.getTime());
-  }, [data, categories, month]);
+  }, [data, categories, month, showExcluded]);
 
   const byType = useMemo(() => {
     const out: Record<FlowType, TxRow[]> = { Income: [], Expense: [], Savings: [], Transfer: [] };
@@ -145,8 +154,9 @@ export function useLogic() {
   }, [rows, bucketFilter, categoryFilter, categories]);
 
   const r2 = (n: number) => Math.round(n * 100) / 100;
-  const moneyIn = r2(byType.Income.reduce((s, r) => s + Math.max(0, r.amount), 0));
-  const moneyOut = r2(byType.Expense.reduce((s, r) => s - Math.min(0, r.amount), 0) + byType.Transfer.reduce((s, r) => s + r.fee, 0));
+  const counted = (list: TxRow[]) => list.filter((r) => !r.excluded);
+  const moneyIn = r2(counted(byType.Income).reduce((s, r) => s + Math.max(0, r.amount), 0));
+  const moneyOut = r2(counted(byType.Expense).reduce((s, r) => s - Math.min(0, r.amount), 0) + byType.Transfer.reduce((s, r) => s + r.fee, 0));
 
   return {
     month,
@@ -155,7 +165,10 @@ export function useLogic() {
     tab,
     setTab,
     byType,
-    count: rows.length,
+    count: rows.filter((r) => !r.excluded).length,
+    showExcluded,
+    setShowExcluded,
+    excludedCount: data.excludedTransactions.length,
     moneyIn,
     moneyOut,
     filteredBy: bucketFilter ? (data.buckets.find((b) => b.id === bucketFilter)?.name ?? 'a bucket') : categoryFilter ? (categories.find((c) => c.id === categoryFilter)?.name ?? 'a category') : null,

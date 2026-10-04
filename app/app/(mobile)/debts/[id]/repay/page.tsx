@@ -1,11 +1,12 @@
 import type { Metadata } from 'next';
-import { DebtRepayScreen } from '@/src/screens/DebtRepay/DebtRepayScreen';
+import { RepaymentFormScreen } from '@/src/screens/DebtForms/RepaymentFormScreen';
 
 export const metadata: Metadata = {
   title: 'Record repayment · Dreda',
 };
 
-export default async function DebtRepayPage({ params }: PageProps<'/debts/[id]/repay'>) {
+export default async function RecordRepaymentPage({ params, searchParams }: PageProps<'/debts/[id]/repay'>) {
   const { id } = await params;
-  return <DebtRepayScreen debtId={decodeURIComponent(id)} />;
+  const { amount } = await searchParams;
+  return <RepaymentFormScreen debtId={decodeURIComponent(id)} prefillAmount={typeof amount === 'string' ? amount : null} />;
 }

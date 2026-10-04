@@ -7,7 +7,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { AlertCircle, ArrowLeft, ArrowLeftRight, MoreHorizontal, Pencil, Sparkles, Undo2 } from 'lucide-react';
+import { ArrowLeft, ArrowLeftRight, MoreHorizontal, Pencil, Undo2 } from 'lucide-react';
 import { useLogic } from '@/src/logic/planningItem/useLogic';
 import { useLogic as useItemMonth } from '@/src/logic/bucketItemMonth/useLogic';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
@@ -192,21 +192,14 @@ function ItemBody({ it, entry }: { it: ReturnType<typeof useLogic>; entry: ItemM
       {entry.justified && <p className={styles.justifiedNote}>“{entry.justified.note || entry.justified.reason}”, {money(entry.justified.amount)} justified</p>}
 
       {(over || leftover) && (
-        <div className={p.promptCard} data-tone={over ? 'over' : 'leftover'}>
-          <span className={p.promptCardText}>
-            <span className={p.promptCardTitle}>
-              {over ? <AlertCircle size={16} strokeWidth={2.5} aria-hidden /> : <Sparkles size={16} strokeWidth={2.5} aria-hidden />}
-              {over ? `Over by ${money(prompt!.amount)} ${currency}` : `${money(prompt!.amount)} ${currency} left over`}
-            </span>
+        <p className={p.quietPrompt}>
+          <span className={p.chip} data-tone={over ? 'over' : 'neutral'}>
+            {over ? `Over by ${money(prompt!.amount)} ${currency}` : `${money(prompt!.amount)} ${currency} left over`}
           </span>
-          <Link
-            href={over ? coverHref(month, entry.bucketId, entry.itemId) : reallocateHref(month, entry.bucketId, entry.itemId)}
-            className={p.fillButton}
-            data-tone={over ? 'over' : 'blue'}
-          >
+          <Link href={over ? coverHref(month, entry.bucketId, entry.itemId) : reallocateHref(month, entry.bucketId, entry.itemId)} className={p.quietLink}>
             {over ? 'Cover or justify' : 'Reallocate'}
           </Link>
-        </div>
+        </p>
       )}
 
       <div className={p.sectionHead}>

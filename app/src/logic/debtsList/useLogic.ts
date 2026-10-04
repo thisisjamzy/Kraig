@@ -12,7 +12,7 @@ import { useFirestoreCollection } from '@/src/shared/firestore/hooks';
 import { debtsRef, repaymentsRef } from '@/src/shared/firestore/refs';
 import { useCurrencyContext } from '@/src/shared/firestore/queries';
 import { toDisplay, round2 } from '@/src/shared/firestore/currency';
-import { archiveDebt as archiveDebtWrite } from '@/src/shared/firestore/aggregation';
+import { setDebtArchived } from '@/src/shared/firestore/debtWrites';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import type { FirestoreDebt, FirestoreRepayment, DebtPriority } from '@/src/shared/firestore/types';
 
@@ -173,7 +173,7 @@ export function useLogic() {
 
   async function archiveDebt(id: string) {
     if (!uid) return;
-    await archiveDebtWrite(uid, id);
+    await setDebtArchived(uid, id, true);
   }
 
   return {

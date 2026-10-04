@@ -28,6 +28,16 @@ const nextConfig: NextConfig = {
       { source: '/add-goal-item/:path*', destination: '/add-bucket-item/:path*', permanent: true },
       { source: '/edit-goal-item/:path*', destination: '/edit-bucket-item/:path*', permanent: true },
       { source: '/settings/archived-goals', destination: '/settings/archived-buckets', permanent: true },
+      // Removed pages: their replacements, so bookmarks and notifications
+      // still land somewhere real. Old Buckets analytics is Money Insights;
+      // the two "coming soon" placeholders were never linked.
+      { source: '/buckets/analytics', destination: '/statistics', permanent: true },
+      { source: '/address-book', destination: '/projects', permanent: true },
+      { source: '/projects/control-panel', destination: '/settings', permanent: true },
+      // The old Planning tabs: History is Transactions, Payments its own
+      // page (the month and filters in the query carry over).
+      { source: '/budget', has: [{ type: 'query', key: 'tab', value: 'history' }], destination: '/transactions', permanent: false },
+      { source: '/budget', has: [{ type: 'query', key: 'tab', value: 'payments' }], destination: '/payments', permanent: false },
     ];
   },
 };

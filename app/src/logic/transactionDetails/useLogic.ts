@@ -94,6 +94,11 @@ export function useLogic(id: string, opts: { transfer?: boolean } = {}) {
     category: string;
     method: string;
     editHref: string;
+    /** Kept for the record but not counted (its debt is record only). */
+    excluded: boolean;
+    excludedReason: string;
+    /** The debt it borrowed or repaid, when it's linked to one. */
+    debtHref: string | null;
   };
   if (transaction) {
     const currency = account.get(transaction.accountId)?.currency ?? ctx.base;
@@ -109,6 +114,9 @@ export function useLogic(id: string, opts: { transfer?: boolean } = {}) {
       category,
       method: account.get(transaction.accountId)?.name ?? '',
       editHref: `/edit-transaction/${transaction.id}`,
+      excluded: Boolean(transaction.excluded),
+      excludedReason: transaction.excludedReason ?? '',
+      debtHref: transaction.linkedDebtId ? `/debts/${transaction.linkedDebtId}` : null,
     };
   } else if (transferDoc) {
     const currency = account.get(transferDoc.fromAccountId)?.currency ?? ctx.base;
@@ -123,6 +131,9 @@ export function useLogic(id: string, opts: { transfer?: boolean } = {}) {
       category: transferDoc.kind,
       method: `${account.get(transferDoc.fromAccountId)?.name ?? ''} → ${account.get(transferDoc.toAccountId)?.name ?? ''}`,
       editHref: `/edit-transfer/${transferDoc.id}`,
+      excluded: false,
+      excludedReason: '',
+      debtHref: null,
     };
   }
 

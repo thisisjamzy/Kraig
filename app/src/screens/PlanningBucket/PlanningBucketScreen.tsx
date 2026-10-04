@@ -14,7 +14,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { AlertCircle, Archive, ArrowLeft, ArrowRight, Lock, LockOpen, MoreHorizontal, Pencil, Plus, Sparkles } from 'lucide-react';
+import { Archive, ArrowLeft, ArrowRight, Lock, LockOpen, MoreHorizontal, Pencil, Plus } from 'lucide-react';
 import { useLogic } from '@/src/logic/planningBucket/useLogic';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { ActionMenu } from '@/src/widgets/ActionMenu/ActionMenu';
@@ -271,28 +271,16 @@ export function PlanningBucketView({ bucketId, b }: { bucketId: string; b: Retur
         </div>
       </section>
 
-      {/* 3. Action card — the situation and what to do. */}
+      {/* 3. What it needs: a chip and its action (the alert itself is in Notifications). */}
       {actionCard && (
-        <div className={p.promptCard} data-tone={over ? 'over' : 'leftover'}>
-          <span className={p.promptCardText}>
-            <span className={p.promptCardTitle}>
-              {over ? <AlertCircle size={16} strokeWidth={2.5} aria-hidden /> : <Sparkles size={16} strokeWidth={2.5} aria-hidden />}
-              {over ? (prompt?.kind === 'uncovered' ? 'Still uncovered' : 'Over budget') : 'Money left over'}
-            </span>
-            <span className={p.promptCardSub}>
-              {over
-                ? `Cover ${money(prompt!.amount)} ${currency} from another bucket or add a reason.`
-                : `Move ${money(prompt!.amount)} ${currency} to another bucket or savings.`}
-            </span>
+        <p className={p.quietPrompt}>
+          <span className={p.chip} data-tone={over ? 'over' : 'neutral'}>
+            {over ? (prompt?.kind === 'uncovered' ? 'Still uncovered' : 'Over plan') : 'Money left over'} {money(prompt!.amount)} {currency}
           </span>
-          <Link
-            href={over ? coverHref(b.month, bucketId) : reallocateHref(b.month, bucketId)}
-            className={p.fillButton}
-            data-tone={over ? 'over' : 'blue'}
-          >
+          <Link href={over ? coverHref(b.month, bucketId) : reallocateHref(b.month, bucketId)} className={p.quietLink}>
             {over ? 'Cover or justify' : 'Reallocate'}
           </Link>
-        </div>
+        </p>
       )}
 
       {/* 4. Items */}

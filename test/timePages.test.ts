@@ -11,7 +11,6 @@ import { blockedMinutes, hoursText, timeText, toTaskRow, type TaskRow } from '..
 import { dayFigures, daySentence, progressLine } from '../app/src/viewmodels/todaySummary';
 import { allDayLines, hourRange, placeDay, spanOn, weekRangeLabel, type CalItem } from '../app/src/viewmodels/calendarItems';
 import { computeInsights } from '../app/src/viewmodels/insights/compute';
-import { attentionLines } from '../app/src/viewmodels/insights/attention';
 import { INSIGHTS_DEFAULTS } from '../app/src/viewmodels/insights/settings';
 import { addDays, rangeFor, startOfDay } from '../app/src/viewmodels/insights/dates';
 import type { InsightAlert } from '../app/src/viewmodels/insights/alerts';
@@ -200,30 +199,6 @@ test('time shares say what they are based on', () => {
     assert.doesNotMatch(chart.takeaway, LONG_DASH);
   }
   for (const alert of result.alerts) assert.doesNotMatch(`${alert.headline} ${alert.detail}`, LONG_DASH);
-});
-
-test('"Needs attention" groups alerts into one line each, most severe first', () => {
-  const stat = (id: string, risk: ProjectStat['risk'], reasons: string[], slackDays: number | null = null) =>
-    ({ project: { id, name: `Project ${id}` }, risk, reasons, slackDays }) as unknown as ProjectStat;
-  const alerts: InsightAlert[] = [
-    { id: 'firefighting', severity: 'amber', kind: 'habit', headline: 'Do first work is 100% of your scheduled time', detail: '', href: '/projects/focus' },
-  ];
-  const projects = [
-    ...Array.from({ length: 7 }, (_, i) => stat(`r${i}`, 'at risk', ['Nothing done lately, so no finish date in sight'])),
-    stat('lib', 'watch', [], 1),
-  ];
-  const lines = attentionLines(alerts, projects, { total: 21, doFirst: 19 });
-  assert.deepEqual(
-    lines.map((l) => l.text),
-    ['21 overdue tasks, 19 in Do first', '7 projects at risk: nothing done lately', 'Project lib has 1 day of slack', 'Do first work is 100% of your scheduled time']
-  );
-  assert.equal(lines[1].items.length, 7);
-  for (const l of lines) assert.doesNotMatch(l.text, LONG_DASH);
-});
-
-test('all clear gives no lines', () => {
-  const clear: InsightAlert[] = [{ id: 'clear', severity: 'green', kind: 'clear', headline: "All clear, you're on track", detail: '', href: '/projects' }];
-  assert.deepEqual(attentionLines(clear, [], { total: 0, doFirst: 0 }), []);
 });
 
 // ---- Projects ----

@@ -25,6 +25,7 @@ import { isSavingsAccount, walletColor } from '@/src/viewmodels/wallets';
 import { currencyName } from '@/src/viewmodels/currencies';
 import { categoryInsight, dueText, greetingFor, upcomingLines, weekBuckets, type FlowBar } from '@/src/viewmodels/home';
 import type { FirestoreAccount, FirestoreTransaction, FirestoreTransfer } from '@/src/shared/firestore/types';
+import { countsInFigures } from '@/src/shared/firestore/types';
 
 const LATEST = 4;
 const DAY = 86_400_000;
@@ -141,9 +142,11 @@ export function useLogic() {
   };
 
   // ---- Transactions ----
-  const { data: recentTx } = useFirestoreCollection<FirestoreTransaction>(
+  const { data: recentTxAll } = useFirestoreCollection<FirestoreTransaction>(
     useMemo(() => (uid ? query(transactionsRef(uid), orderBy('date', 'desc'), limit(LATEST)) : null), [uid])
   );
+  // Excluded transactions (a debt changed to record only) don't count anywhere.
+  const recentTx = useMemo(() => recentTxAll.filter(countsInFigures), [recentTxAll]);
   const { data: recentTransfers } = useFirestoreCollection<FirestoreTransfer>(
     useMemo(() => (uid ? query(transfersRef(uid), orderBy('date', 'desc'), limit(LATEST)) : null), [uid])
   );
@@ -209,12 +212,13 @@ export function useLogic() {
 
   // ---- Cash flow: last 30 days by week, or the last 6 months ----
   const flowFrom = flowView === 'week' ? new Date(today.getTime() - 29 * DAY) : new Date(now.getFullYear(), now.getMonth() - 5, 1);
-  const { data: flowTx } = useFirestoreCollection<FirestoreTransaction>(
+  const { data: flowTxAll } = useFirestoreCollection<FirestoreTransaction>(
     useMemo(() => (uid ? query(transactionsRef(uid), where('date', '>=', Timestamp.fromDate(flowFrom))) : null),
     // flowFrom changes only with the view.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [uid, flowView])
   );
+  const flowTx = useMemo(() => flowTxAll.filter(countsInFigures), [flowTxAll]);
   const flow: FlowBar[] = useMemo(
     () =>
       weekBuckets(

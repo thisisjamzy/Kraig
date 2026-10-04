@@ -1,14 +1,15 @@
 'use client';
 
-// Insights notifications. They're shown by the installed PWA's service
-// worker (so tapping one opens the right page — see worker/index.ts), or as
-// an in-app toast when notifications aren't allowed.
+// Push notifications, for the types set to push in Settings > Notifications
+// (src/widgets/Notifications/NotificationsRunner.tsx). They're shown by the
+// installed PWA's service worker (so tapping one opens the right page, see
+// worker/index.ts). When pushes aren't allowed nothing is shown here: the
+// same notification is already in the Notifications inbox, and an
+// unprompted toast is exactly the kind of alert the app no longer shows.
 //
-// They're checked while the app is open (InsightsNotifier): true background
-// push, delivered with the app closed, would need Firebase Cloud Messaging
-// and a scheduled Cloud Function, which this doesn't set up.
-
-import { showToast } from '@/src/widgets/Toast/Toast';
+// They're sent while the app is open: true background push, delivered with
+// the app closed, would need Firebase Cloud Messaging and a scheduled Cloud
+// Function, which this doesn't set up.
 
 export function notificationPermission(): NotificationPermission | 'unsupported' {
   if (typeof window === 'undefined' || !('Notification' in window)) return 'unsupported';
@@ -39,8 +40,7 @@ export async function notify(title: string, body: string, url: string, tag: stri
       };
       return;
     } catch {
-      // Fall through to the in-app toast.
+      // Not shown; it's in the inbox.
     }
   }
-  showToast(`${title}, ${body}`);
 }

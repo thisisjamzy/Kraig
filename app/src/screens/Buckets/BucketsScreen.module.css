@@ -1,4 +1,5 @@
-/* Buckets: a bucket card's figure and its action strip. */
+/* Buckets: a bucket card's figure. (What a bucket needs is its status
+   chip; the action is in its "..." menu.) */
 
 .figure {
   font-weight: 600;
@@ -9,29 +10,4 @@
 .figure span {
   font-weight: 400;
   color: #787774;
-}
-
-.strip {
-  display: flex;
-  align-items: center;
-  min-height: 36px;
-  margin: 2px -14px -12px;
-  padding: 0 14px;
-  border-top: 1px solid #e9e9e7;
-  background: rgba(55, 53, 47, 0.03);
-  color: var(--color-brand);
-  font-size: 0.8125rem;
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.strip[data-tone='bad'] {
-  background: #fdecee;
-  color: #b42d3c;
-}
-
-@media (pointer: coarse) {
-  .strip {
-    min-height: 44px;
-  }
 }

@@ -2,9 +2,8 @@
 
 // Time Insights: a Notion page.
 //   Properties: Period (Today, Week, Month, Custom) and Compare to.
-//   "Needs attention": the alerts as a compact callout, one line per group
-//   ("21 overdue tasks, 19 in Do first", "7 projects at risk: nothing done
-//   lately"), up to 5 lines (3 on phones), then "Show all".
+//   A neutral callout with the period in one sentence and a link to the
+//   Time updates in Notifications (alerts live there, batched).
 //   Summary: Completion rate, On time, Overdue, Streak; a short phrase when
 //   there's nothing to measure, never a bare dash.
 //   Chart blocks in the staggered grid (as Money Insights): 3 columns from
@@ -13,10 +12,9 @@
 
 import { useEffect, useState, type ReactNode } from 'react';
 import Link from 'next/link';
-import { AlertOctagon, AlertTriangle, ChartNoAxesCombined, CheckCircle2, ChevronDown, type LucideIcon } from 'lucide-react';
+import { Activity, AlertOctagon, AlertTriangle, ChartNoAxesCombined, CheckCircle2, type LucideIcon } from 'lucide-react';
 import { useLogic } from '@/src/logic/insights/useLogic';
-import { useLayout } from '@/src/shared/hooks/useLayout';
-import { attentionLines, type AttentionLine } from '@/src/viewmodels/insights/attention';
+import { NotificationsLink } from '@/src/widgets/Notifications/NotificationsLink';
 import type { Tile } from '@/src/viewmodels/insights/compute';
 import type { ProjectRisk } from '@/src/viewmodels/insights/metrics';
 import type { RangeKind } from '@/src/viewmodels/insights/types';
@@ -53,8 +51,6 @@ function toKey(d: Date) {
 
 export function InsightsScreen() {
   const { kind, setKind, custom, setCustom, result, settings, openTasks, open, loading } = useLogic();
-  const compact = useLayout().deviceClass === 'compact';
-  const [allLines, setAllLines] = useState(false);
   const [layout, setLayout] = useState<BlockLayout>(DEFAULT_LAYOUT);
   const [dragging, setDragging] = useState<string | null>(null);
 
@@ -78,9 +74,6 @@ export function InsightsScreen() {
     }
   }
 
-  const lines = result ? attentionLines(result.alerts, result.projects, { total: result.tiles.overdue.value ?? 0, doFirst: result.overdueDoFirst }) : [];
-  const limit = compact ? 3 : 5;
-  const shownLines = allLines ? lines : lines.slice(0, limit);
 
   const blocks: { id: string; title: string; summary: string; empty: string | null; status?: BlockStatus; body: ReactNode }[] = result
     ? [
@@ -228,26 +221,12 @@ export function InsightsScreen() {
       <ScreenState loading={loading} />
       {result && (
         <>
-          {lines.length > 0 ? (
-            <Callout tone={lines[0].severity === 'red' ? 'bad' : 'watch'} icon={<AlertTriangle size={18} strokeWidth={2} />}>
-              <p className={styles.attentionTitle}>Needs attention</p>
-              <ul className={styles.attention}>
-                {shownLines.map((line) => (
-                  <AttentionRow key={line.id} line={line} />
-                ))}
-              </ul>
-              {lines.length > limit && (
-                <button type="button" className={styles.textButton} onClick={() => setAllLines((a) => !a)}>
-                  {allLines ? 'Show less' : `Show all ${lines.length}`}
-                </button>
-              )}
-            </Callout>
-          ) : (
-            <Callout tone="good" icon={<CheckCircle2 size={18} strokeWidth={2} />}>
-              <p>All clear: no overloaded days, overdue tasks or late projects.</p>
-            </Callout>
-          )}
-
+          <Callout icon={<Activity size={18} strokeWidth={2} />}>
+            <p>
+              {result.counts.completed} {result.counts.completed === 1 ? 'task' : 'tasks'} done, {result.counts.dueToday} due today and {result.counts.overdue} overdue.
+              <NotificationsLink module="time" about="your time" />
+            </p>
+          </Callout>
 
           <div className={styles.tokens}>
             <MasonryGrid
@@ -288,34 +267,6 @@ export function InsightsScreen() {
   );
 }
 
-function AttentionRow({ line }: { line: AttentionLine }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <li data-severity={line.severity}>
-      {line.items.length > 0 ? (
-        <>
-          <button type="button" className={styles.attentionToggle} aria-expanded={open} onClick={() => setOpen((o) => !o)}>
-            <ChevronDown size={14} strokeWidth={2.25} aria-hidden style={{ transform: open ? undefined : 'rotate(-90deg)' }} />
-            {line.text}
-          </button>
-          {open && (
-            <ul className={styles.attentionItems}>
-              {line.items.map((item) => (
-                <li key={item.href + item.label}>
-                  <Link href={item.href}>{item.label}</Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </>
-      ) : line.href ? (
-        <Link href={line.href}>{line.text}</Link>
-      ) : (
-        line.text
-      )}
-    </li>
-  );
-}
 
 /** "+5 pts vs last week" for a rate tile, or nothing. */
 function changeText(tile: Tile, percent: boolean, compareWith: string): string | undefined {

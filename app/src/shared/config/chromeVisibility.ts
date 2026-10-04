@@ -12,16 +12,15 @@
 // /debts is still reached via Home's own Quick Actions and behaves like any
 // other drill-down (its own back-arrow header, no bottom nav). /buckets used
 // to be the same, but it's now a small self-contained mode of its own —
-// its own bottom nav (BucketsBottomNav) and its own shared header
-// (src/widgets/BucketsHeader), not the generic AppHeader every other hub
-// uses (Buckets' header carries a Month/All-time toggle AppHeader has no
-// concept of) — so it's tracked here for hasBottomNav's sake but
-// deliberately left out of hasAppHeader below. /buckets/[id] and /buckets/new
-// are still plain drill-downs (their own back-arrow header), same as
-// before — only the three tab destinations count as the Buckets hub.
+// its own bottom nav (BucketsBottomNav), and its pages draw their own
+// headers rather than the generic AppHeader — so it's tracked here for
+// hasBottomNav's sake but deliberately left out of hasAppHeader below.
+// /buckets/[id] and /buckets/new are still plain drill-downs (their own
+// back-arrow header) — only Buckets and Priorities count as the hub (its
+// Insights tab is Money Insights, /statistics).
 const MONEY_HUB_ROUTES = ['/home', '/statistics', '/budget'];
 const PROJECTS_HUB_ROUTES = ['/projects', '/projects/calendar', '/projects/focus', '/projects/insights', '/projects/analytics'];
-const BUCKETS_HUB_ROUTES = ['/buckets', '/buckets/analytics', '/buckets/items'];
+const BUCKETS_HUB_ROUTES = ['/buckets', '/buckets/items'];
 
 export type NavMode = 'money' | 'projects' | 'buckets' | 'none';
 
@@ -34,7 +33,7 @@ export function navMode(pathname: string | null): NavMode {
 }
 
 // Buckets is a hub for bottom-nav/scroll-clearance purposes, but not for the
-// generic AppHeader — it renders its own header instead (see BucketsHeader).
+// generic AppHeader — its pages draw their own headers.
 // The Projects calendar and Focus page are hubs too, but draw their own
 // headers (src/screens/ProjectsCalendar, src/screens/Focus), so the
 // generic AppHeader stays off there to avoid two stacked headers.

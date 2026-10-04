@@ -8,9 +8,9 @@
 //   3. watches this month's budget and prepares payments in the Ready to
 //      pay queue as their triggers fire (automation.ts) — an income line
 //      received, any income received, or a due date reached;
-//   4. "Remind me" lines get a notification on their due date;
-//   5. once a day, a notification when day-to-day spending is off track
-//      (dailyGuide.ts, the same figures as Plan and forecast).
+//   4. "Remind me" lines get a push on their due date.
+// Alerts (overdue, off pace, ...) are notifications now, written by
+// src/widgets/Notifications/NotificationsRunner.tsx.
 // Every step is idempotent, so two open devices can't double anything up.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -23,15 +23,12 @@ import { runFlowMigration } from '@/src/shared/firestore/flowMigration';
 import { existingMonths, setUpMonths } from '@/src/shared/firestore/budgetMonths';
 import { queuePayments } from '@/src/shared/firestore/paymentQueue';
 import { notify } from '@/src/shared/insights/notify';
-import { toDisplay } from '@/src/shared/firestore/currency';
-import { dailyGuide, dayKey, variableBudget, variableSpendByDay } from './dailyGuide';
 import { monthKeyOf } from './monthBudget';
 import { monthLines, monthsToSetUp } from './monthSetup';
 import { preparePayments } from './automation';
 import type { FirestoreBucket, FirestoreBucketLineItem, FirestorePaymentQueueEntry } from '@/src/shared/firestore/types';
 
 const REMINDED_KEY = 'dreda.budget.reminded';
-const OFF_TRACK_KEY = 'dreda.budget.offTrackNotified';
 
 async function setUpOpenMonths(uid: string) {
   const have = await existingMonths(uid);
@@ -79,7 +76,7 @@ export function BudgetRunner() {
   }, [uid]);
 
   const month = monthKeyOf(new Date());
-  const { budget, totals, transactionsById, accounts, loading, ctx } = useMonthBudget(ready ? month : null);
+  const { budget, loading, ctx } = useMonthBudget(ready ? month : null);
   const { data: queued, loading: queueLoading } = useFirestoreCollection<FirestorePaymentQueueEntry>(
     useMemo(() => (uid && ready ? query(paymentQueueRef(uid), where('month', '==', month)) : null), [uid, ready, month])
   );
@@ -125,51 +122,6 @@ export function BudgetRunner() {
       }
     }
   }, [ready, loading, budget, ctx.display]);
-
-  // Off track: at most one notification a day.
-  const offTrackDay = useRef<string | null>(null);
-  useEffect(() => {
-    if (!ready || loading) return;
-    const today = new Date();
-    const day = dayKey(today);
-    if (offTrackDay.current === day) return;
-    try {
-      if (localStorage.getItem(OFF_TRACK_KEY) === day) return;
-    } catch {
-      // Not remembered: checked again next time, still at most once per session.
-    }
-    const currencyOf = new Map(accounts.map((a) => [a.id, a.currency]));
-    const expenses = [...transactionsById.values()]
-      .filter((t) => t.type === 'Expense')
-      .map((t) => ({
-        id: t.id,
-        spend: toDisplay(ctx, t.direction === 'Outflow' ? t.amount : -t.amount, currencyOf.get(t.accountId) ?? ctx.base),
-        date: t.date.toDate(),
-        month: t.month ?? monthKeyOf(t.date.toDate()),
-      }));
-    const variable = variableBudget(budget);
-    if (variable.planned <= 0) return;
-    const fixedStillDue = budget.items
-      .filter((i) => !i.archived && !i.closed && ((i.type === 'Expense' && i.expenseKind !== 'variable') || i.type === 'Savings'))
-      .reduce((s, i) => s + Math.max(0, i.available - i.actual), 0);
-    const guide = dailyGuide({
-      today,
-      variablePlanned: variable.planned,
-      variableLeft: variable.left,
-      spentByDay: variableSpendByDay(budget, expenses),
-      availableNow: totals.availableNow,
-      expectedStill: totals.income.notYetReceived,
-      fixedStillDue,
-    });
-    if (guide.status !== 'off_track' || !guide.message) return;
-    offTrackDay.current = day;
-    try {
-      localStorage.setItem(OFF_TRACK_KEY, day);
-    } catch {
-      // See above.
-    }
-    void notify('Spending is off track', guide.message, '/buckets/forecast', `off-track-${day}`);
-  }, [ready, loading, budget, totals, transactionsById, accounts, ctx]);
 
   return null;
 }

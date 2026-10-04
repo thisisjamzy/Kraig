@@ -11,9 +11,9 @@ const MAX = 50;
 
 // Create/edit flows: /tasks/new, /projects/x/edit, /add-transaction,
 // /edit-transaction/x, /create-category, /add-bucket-item/x, and the
-// action forms /budget/cover, /budget/reallocate, /debts/x/plan and
-// /debts/x/repay.
-const FORM_PAGE = /(^|\/)(new|edit)(\/|$)|^\/(add|edit|create)-|^\/budget\/(cover|reallocate)(\/|$)|^\/debts\/[^/]+\/(plan|repay)(\/|$)/;
+// action forms /budget/cover, /budget/reallocate, /debts/x/plan,
+// /debts/x/repay and /debts/x/wallet.
+const FORM_PAGE = /(^|\/)(new|edit)(\/|$)|^\/(add|edit|create)-|^\/budget\/(cover|reallocate)(\/|$)|^\/debts\/[^/]+\/(plan|repay|wallet)(\/|$)/;
 
 export function isFormPage(url: string): boolean {
   return FORM_PAGE.test(url.split('?')[0]);

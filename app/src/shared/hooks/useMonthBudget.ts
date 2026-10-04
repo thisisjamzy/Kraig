@@ -28,6 +28,7 @@ import type {
   FirestoreTransaction,
   FirestoreTransfer,
 } from '@/src/shared/firestore/types';
+import { countsInFigures } from '@/src/shared/firestore/types';
 
 // Generous for a household's real monthly volume — same order of magnitude
 // the old Budget screen's month query used.
@@ -47,15 +48,20 @@ export function useMonthBudget(monthOrNull: string | null) {
   );
   const { itemsByBucket, loading: itemsLoading } = useBucketLineItemsByBucket(buckets);
 
-  const { data: datedTransactions, loading: datedLoading } = useFirestoreCollection<FirestoreTransaction>(
+  const { data: datedAll, loading: datedLoading } = useFirestoreCollection<FirestoreTransaction>(
     useMemo(
       () => (uid ? query(transactionsRef(uid), where('month', '==', month), limit(MONTH_TRANSACTIONS_CAP)) : null),
       [uid, month]
     )
   );
-  const { data: linkedTransactions, loading: linkedLoading } = useFirestoreCollection<FirestoreTransaction>(
+  const { data: linkedAll, loading: linkedLoading } = useFirestoreCollection<FirestoreTransaction>(
     useMemo(() => (uid ? query(transactionsRef(uid), where('bucketItem.month', '==', month)) : null), [uid, month])
   );
+  // Excluded transactions (a debt changed to record only) count nowhere;
+  // the Transactions page lists them under "Show excluded".
+  const datedTransactions = useMemo(() => datedAll.filter(countsInFigures), [datedAll]);
+  const linkedTransactions = useMemo(() => linkedAll.filter(countsInFigures), [linkedAll]);
+  const excludedTransactions = useMemo(() => datedAll.filter((t) => !countsInFigures(t)), [datedAll]);
 
   const { data: datedTransfers, loading: datedTransfersLoading } = useFirestoreCollection<FirestoreTransfer>(
     useMemo(() => {
@@ -124,6 +130,7 @@ export function useMonthBudget(monthOrNull: string | null) {
     budget,
     totals,
     transactionsById,
+    excludedTransactions,
     transfersById,
     buckets,
     itemsByBucket: itemsByBucket,

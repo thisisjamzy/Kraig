@@ -1,80 +1,16 @@
 'use client';
 
-// Finance Insights: Needs attention (alerts strip), Snapshot (KPI tiles +
-// safe to spend) and Cash flow over time.
+// Finance Insights: Snapshot (KPI tiles + safe to spend) and Cash flow
+// over time.
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import {
-  AlertTriangle,
-  CalendarClock,
-  CheckCircle2,
-  Clock,
-  Inbox,
-  PiggyBank,
-  Search,
-  ShieldAlert,
-  TrendingDown,
-  TrendingUp,
-  Wallet,
-} from 'lucide-react';
+import { Wallet } from 'lucide-react';
 import { Bar, CartesianGrid, ComposedChart, Line, ReferenceLine, Tooltip, XAxis, YAxis } from 'recharts';
-import type { Alert } from '@/src/viewmodels/finance/insights';
 import type { FinanceInsights } from '@/src/logic/financeInsights/useLogic';
 import { AXIS_TICK, COLORS, ChangeChip, Empty, Legend, TooltipBox, compact, full, percent, tappedIndex } from './parts';
 import styles from './FinanceInsights.module.css';
 
-const ALERT_ICONS: Record<Alert['icon'], typeof AlertTriangle> = {
-  shortfall: TrendingDown,
-  pace: Clock,
-  unplanned: Search,
-  overspend: ShieldAlert,
-  overdue: CalendarClock,
-  income: TrendingDown,
-  savings: PiggyBank,
-  later: Search,
-  unassigned: Inbox,
-  growth: TrendingUp,
-  clear: CheckCircle2,
-};
-
-const SEVERITY_LABEL = { red: 'Needs action', amber: 'Worth a look', blue: 'Good' };
-
-export function AttentionStrip({ alerts }: { alerts: Alert[] }) {
-  return (
-    <ul className={styles.alerts} aria-label="Needs attention">
-      {alerts.map((a) => {
-        const Icon = ALERT_ICONS[a.icon];
-        const inner = (
-          <>
-            <span className={styles.alertIcon} aria-hidden>
-              <Icon size={18} strokeWidth={2.25} />
-            </span>
-            <span className={styles.alertText}>
-              <span className={styles.alertLevel}>{SEVERITY_LABEL[a.severity]}</span>
-              <strong>{a.headline}</strong>
-              <span>{a.detail}</span>
-            </span>
-          </>
-        );
-        return (
-          <li key={a.id} className={styles.alert} data-severity={a.severity}>
-            {a.href.startsWith('#') ? (
-              <a href={a.href} className={styles.alertLink}>
-                {inner}
-              </a>
-            ) : (
-              <Link href={a.href} className={styles.alertLink}>
-                {inner}
-              </Link>
-            )}
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
 
 export function Snapshot({ v }: { v: FinanceInsights }) {
   const t = v.totals;

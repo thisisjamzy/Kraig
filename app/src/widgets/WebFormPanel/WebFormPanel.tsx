@@ -17,7 +17,8 @@
 import { useEffect, type MouseEvent, type ReactNode } from 'react';
 import styles from './WebFormPanel.module.css';
 
-export function WebFormPanel({ children, onClose }: { children: ReactNode; onClose: () => void }) {
+/** `width` defaults to the task form's 480px; the debt forms use 560. */
+export function WebFormPanel({ children, onClose, width = 480 }: { children: ReactNode; onClose: () => void; width?: number }) {
   useEffect(() => {
     function handleKeydown(event: KeyboardEvent) {
       if (event.key === 'Escape') onClose();
@@ -32,7 +33,9 @@ export function WebFormPanel({ children, onClose }: { children: ReactNode; onClo
 
   return (
     <div className={styles.backdrop} onClick={handleBackdropClick} data-panel-open>
-      <div className={styles.panel}>{children}</div>
+      <div className={styles.panel} style={{ width: `min(${width}px, 92vw)` }}>
+        {children}
+      </div>
     </div>
   );
 }
