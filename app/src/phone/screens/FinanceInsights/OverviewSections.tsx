@@ -20,9 +20,9 @@ import {
   Wallet,
 } from 'lucide-react';
 import { Bar, CartesianGrid, ComposedChart, Line, ReferenceLine, Tooltip, XAxis, YAxis } from 'recharts';
-import type { Alert } from '@/src/phone/viewmodels/finance/insights';
-import type { FinanceInsights } from '@/src/phone/logic/financeInsights/useLogic';
-import { AXIS_TICK, COLORS, ChangeChip, Empty, Legend, TooltipBox, compact, full, percent, tappedIndex } from '@/src/screens/FinanceInsights/parts';
+import type { Alert } from '@/src/viewmodels/finance/insights';
+import type { FinanceInsights } from '@/src/logic/financeInsights/useLogic';
+import { AXIS_TICK, COLORS, ChangeChip, Empty, Legend, TooltipBox, compact, full, percent, tappedIndex } from '@/src/phone/screens/FinanceInsights/parts';
 import styles from '@/src/phone/screens/FinanceInsights/FinanceInsights.module.css';
 
 const ALERT_ICONS: Record<Alert['icon'], typeof AlertTriangle> = {

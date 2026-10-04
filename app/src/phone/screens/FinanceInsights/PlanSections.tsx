@@ -7,13 +7,13 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ReferenceLine, Tooltip, XAxis, YAxis } from 'recharts';
-import type { FinanceInsights } from '@/src/phone/logic/financeInsights/useLogic';
+import type { FinanceInsights } from '@/src/logic/financeInsights/useLogic';
 import { UNPLANNED_LABELS, type UnplannedKind } from '@/src/viewmodels/finance/classify';
 import { externalSourceLabel, reasonLabel } from '@/src/viewmodels/planning';
 import { monthName } from '@/src/viewmodels/finance/ranges';
 import type { OverspendExternalSource } from '@/src/shared/firestore/types';
-import { accuracyTakeaway, bucketsTakeaway, overspendTakeaway, paceTakeaway } from '@/src/phone/viewmodels/finance/insights';
-import { AXIS_TICK, COLORS, ChangeChip, Empty, Legend, TooltipBox, compact, full, percent, tappedIndex } from '@/src/screens/FinanceInsights/parts';
+import { accuracyTakeaway, bucketsTakeaway, overspendTakeaway, paceTakeaway } from '@/src/viewmodels/finance/insights';
+import { AXIS_TICK, COLORS, ChangeChip, Empty, Legend, TooltipBox, compact, full, percent, tappedIndex } from '@/src/phone/screens/FinanceInsights/parts';
 import styles from '@/src/phone/screens/FinanceInsights/FinanceInsights.module.css';
 
 function SubHead({ title, takeaway }: { title: string; takeaway: string }) {

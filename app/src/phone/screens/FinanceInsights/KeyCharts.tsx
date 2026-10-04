@@ -25,7 +25,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import type { FinanceInsights } from '@/src/phone/logic/financeInsights/useLogic';
+import type { FinanceInsights } from '@/src/logic/financeInsights/useLogic';
 import type {
   BalancePoint,
   ContributionPoint,
@@ -36,7 +36,7 @@ import type {
   Status,
   TrendData,
 } from '@/src/viewmodels/finance/keyCharts';
-import { AXIS_TICK, COLORS, Legend, TooltipBox, compact, full, percent } from '@/src/screens/FinanceInsights/parts';
+import { AXIS_TICK, COLORS, Legend, TooltipBox, compact, full, percent } from '@/src/phone/screens/FinanceInsights/parts';
 import styles from '@/src/phone/screens/FinanceInsights/FinanceInsights.module.css';
 
 const STATUS: Record<Status, { label: string; icon: typeof CircleCheck }> = {
@@ -72,11 +72,6 @@ function KeyCard({ question, chart, href, children }: { question: string; chart:
   );
 }
 
-/** A key chart without its card (the chart block draws the header). */
-function BareCard({ children }: { question: string; chart: KeyChart; href: string; children: ReactNode }) {
-  return <>{children}</>;
-}
-
 function Visual({ title, windowLabel, caption, note, children }: { title: string; windowLabel: string; caption: string; note?: string | null; children: ReactNode }) {
   return (
     <figure className={styles.visual}>
@@ -94,7 +89,7 @@ function Visual({ title, windowLabel, caption, note, children }: { title: string
 /** "Sep so far" note when the window's last interval is still running. */
 function soFarNote(intervals: KeyInterval[]) {
   const current = intervals.find((i) => i.current);
-  return current ? `${current.long.split(' ')[0]} isn't over yet, so these figures will change.` : null;
+  return current ? `${current.long} is so far — it isn't over yet.` : null;
 }
 
 function tipTitle(iv: KeyInterval) {
@@ -105,30 +100,20 @@ const NO_DATA = [{ label: 'No data recorded', value: '' }];
 const opacity = (iv: KeyInterval) => (iv.current ? 0.45 : 1);
 const outline = (iv: KeyInterval) => (iv.selected ? { stroke: 'var(--fi-navy)', strokeWidth: 2 } : {});
 
-export type KeyId = 'income' | 'flow' | 'trend' | 'savings';
-
-/** The four key charts; `only` renders one chart's visuals alone, for a
- * chart block that draws its own header. */
-export function KeyCharts({ v, only }: { v: FinanceInsights; only?: KeyId }) {
-  const show = (id: KeyId) => !only || only === id;
-  const Card = only ? BareCard : KeyCard;
+export function KeyCharts({ v }: { v: FinanceInsights }) {
   const w = v.keyWindow;
-  // Axes start at the first interval with data: no run of zeros before
-  // the household's history begins.
-  const lead = Math.max(0, w.intervals.findIndex((i) => i.hasData));
-  const fromLead = <R,>(rows: R[]) => rows.slice(lead);
   const c = v.currency;
   const k = v.keyCharts;
   const note = [w.note, soFarNote(w.intervals)].filter(Boolean).join(' ') || null;
 
   // ---- 1. Income consistency ----
   const ic = k.income.blocks[0].data as IncomeConsistencyData;
-  const icRows = fromLead(ic.points.map((p) => ({ label: p.interval.label, income: p.income, expected: p.expected, p })));
+  const icRows = ic.points.map((p) => ({ label: p.interval.label, income: p.income, expected: p.expected, p }));
 
   // ---- 2. Money in vs out ----
   const flow = (k.flow.blocks[0].data as { points: FlowPoint[] }).points;
   // Income is drawn as earned with borrowed stacked on top.
-  const flowAll = flow.map((p) => ({
+  const flowRows = flow.map((p) => ({
     label: p.interval.label,
     income: p.income,
     earned: p.income === null ? null : p.income - (p.borrowed ?? 0),
@@ -138,23 +123,11 @@ export function KeyCharts({ v, only }: { v: FinanceInsights; only?: KeyId }) {
     top: p.income === null ? null : Math.max(p.income, p.expense ?? 0),
     p,
   }));
-  const flowRows = fromLead(flowAll).map((r) => ({ ...r, showNet: false }));
-  // Net labels only where they matter: the latest, highest, lowest and selected.
-  {
-    const withNet = flowRows.map((r, i) => ({ r, i })).filter(({ r }) => r.net !== null);
-    const pick = (i: number | undefined) => {
-      if (i !== undefined) flowRows[i].showNet = true;
-    };
-    pick(withNet.at(-1)?.i);
-    pick([...withNet].sort((a, b) => b.r.net! - a.r.net!)[0]?.i);
-    pick([...withNet].sort((a, b) => a.r.net! - b.r.net!)[0]?.i);
-    pick(withNet.filter(({ r }) => r.p.interval.selected).at(-1)?.i);
-  }
   const anyBorrowed = flowRows.some((r) => (r.borrowed ?? 0) > 0);
 
   // ---- 3. Trend ----
   const trend = k.trend.blocks[0].data as TrendData;
-  const trendRows = fromLead(trend.points).map((p) => {
+  const trendRows = trend.points.map((p) => {
     const both = p.income !== null && p.expense !== null;
     return {
       label: p.interval.label,
@@ -171,20 +144,19 @@ export function KeyCharts({ v, only }: { v: FinanceInsights; only?: KeyId }) {
   // ---- 4. Savings ----
   const balance = (k.savings.blocks[0].data as { points: BalancePoint[] }).points;
   const contrib = k.savings.blocks[1].data as { points: ContributionPoint[]; target: number | null; rateThisMonth: number | null; cushionMonths: number | null };
-  const balanceRows = fromLead(balance.map((p) => ({ label: p.interval.label, balance: p.balance, p })));
+  const balanceRows = balance.map((p) => ({ label: p.interval.label, balance: p.balance, p }));
   const selectedBalance = balanceRows.filter((r) => r.p.interval.selected && r.balance !== null).at(-1);
-  const contribRows = fromLead(contrib.points.map((p) => ({ label: p.interval.label, contribution: p.contribution, p })));
+  const contribRows = contrib.points.map((p) => ({ label: p.interval.label, contribution: p.contribution, p }));
 
   const growthText = (g: number | null, name: string) =>
     g === null ? `${name}: not enough history` : `${name} ${g >= 0 ? '↑' : '↓'} ${Math.abs(Math.round(g * 100))}% a ${w.granularity}`;
 
   return (
-    <div className={only ? undefined : styles.keyGrid}>
+    <div className={styles.keyGrid}>
       {/* 1 */}
-      {show('income') && (
-      <Card question="Is my income consistent?" chart={k.income} href={v.historyHref()}>
+      <KeyCard question="Is my income consistent?" chart={k.income} href={v.historyHref()}>
         <Visual title={k.income.blocks[0].title} windowLabel={w.label} caption={k.income.blocks[0].caption} note={note}>
-          <ComposedChart responsive style={{ width: '100%', height: 210 }} data={icRows} margin={{ top: 16, right: 64, bottom: 0, left: -6 }} accessibilityLayer>
+          <ComposedChart responsive style={{ width: '100%', height: 210 }} data={icRows} margin={{ top: 16, right: 4, bottom: 0, left: -6 }} accessibilityLayer>
             <CartesianGrid vertical={false} stroke="var(--fi-grid)" />
             <XAxis dataKey="label" tick={AXIS_TICK} tickLine={false} axisLine={false} interval="preserveStartEnd" />
             <YAxis tick={AXIS_TICK} tickLine={false} axisLine={false} tickFormatter={compact} width={44} />
@@ -194,7 +166,7 @@ export function KeyCharts({ v, only }: { v: FinanceInsights; only?: KeyId }) {
                 y={ic.average}
                 stroke="var(--fi-muted)"
                 strokeDasharray="6 4"
-                label={{ value: `avg ${compact(ic.average)}`, position: 'right', fill: 'var(--fi-muted)', fontSize: 11 }}
+                label={{ value: `avg ${full(ic.average)}`, position: 'insideTopLeft', fill: 'var(--fi-muted)', fontSize: 11 }}
               />
             )}
             <Tooltip
@@ -241,6 +213,7 @@ export function KeyCharts({ v, only }: { v: FinanceInsights; only?: KeyId }) {
               { label: 'Within normal range', color: COLORS.income },
               { label: 'Below range', color: COLORS.bad },
               { label: 'Above range', color: COLORS.expense },
+              { label: 'Normal range ±10%', color: 'var(--fi-blue-tint)' },
               ...(ic.points.some((p) => p.expected !== null) ? [{ label: 'Expected', color: COLORS.expense, style: 'outline' as const }] : []),
             ]}
           />
@@ -250,12 +223,10 @@ export function KeyCharts({ v, only }: { v: FinanceInsights; only?: KeyId }) {
             </p>
           )}
         </Visual>
-      </Card>
-      )}
+      </KeyCard>
 
       {/* 2 */}
-      {show('flow') && (
-      <Card question="Money in vs money out" chart={k.flow} href={v.historyHref()}>
+      <KeyCard question="Money in vs money out" chart={k.flow} href={v.historyHref()}>
         <Visual title={k.flow.blocks[0].title} windowLabel={w.label} caption={k.flow.blocks[0].caption} note={note}>
           <ComposedChart responsive style={{ width: '100%', height: 220 }} data={flowRows} margin={{ top: 22, right: 4, bottom: 0, left: -6 }} barGap={2} accessibilityLayer>
             <CartesianGrid vertical={false} stroke="var(--fi-grid)" />
@@ -305,9 +276,8 @@ export function KeyCharts({ v, only }: { v: FinanceInsights; only?: KeyId }) {
               <LabelList
                 dataKey="net"
                 content={(props) => {
-                  const { x, y, value, index } = props as { x?: number; y?: number; value?: number | null; index?: number };
+                  const { x, y, value } = props as { x?: number; y?: number; value?: number | null };
                   if (x === undefined || y === undefined || value === null || value === undefined) return null;
-                  if (index === undefined || !flowRows[index]?.showNet) return null;
                   return (
                     <text x={x} y={y - 6} textAnchor="middle" fontSize={9} fontWeight={700} fill={value < 0 ? 'var(--fi-red)' : 'var(--fi-blue)'}>
                       {value < 0 ? '−' : '+'}
@@ -323,16 +293,14 @@ export function KeyCharts({ v, only }: { v: FinanceInsights; only?: KeyId }) {
               { label: 'Income', color: COLORS.income },
               ...(anyBorrowed ? [{ label: 'Borrowed (debt financing)', color: COLORS.amber }] : []),
               { label: 'Expenses', color: COLORS.expense },
-              { label: 'Net (red = deficit)', color: COLORS.bad, style: 'line' as const },
+              { label: 'Net above each pair (red = deficit)', color: COLORS.bad, style: 'line' as const },
             ]}
           />
         </Visual>
-      </Card>
-      )}
+      </KeyCard>
 
       {/* 3 */}
-      {show('trend') && (
-      <Card question="Where are income and expenses heading?" chart={k.trend} href={v.historyHref()}>
+      <KeyCard question="Where are income and expenses heading?" chart={k.trend} href={v.historyHref()}>
         <Visual title={k.trend.blocks[0].title} windowLabel={w.label} caption={k.trend.blocks[0].caption} note={note}>
           <label className={styles.toggle}>
             <input type="checkbox" checked={v.smooth} onChange={(e) => v.setSmooth(e.target.checked)} />
@@ -384,12 +352,10 @@ export function KeyCharts({ v, only }: { v: FinanceInsights; only?: KeyId }) {
             </span>
           </div>
         </Visual>
-      </Card>
-      )}
+      </KeyCard>
 
       {/* 4 */}
-      {show('savings') && (
-      <Card question="Are my savings growing?" chart={k.savings} href="/wallets">
+      <KeyCard question="Are my savings growing?" chart={k.savings} href="/wallets">
         <Visual title={k.savings.blocks[0].title} windowLabel={w.label} caption={k.savings.blocks[0].caption}>
           <ComposedChart responsive style={{ width: '100%', height: 180 }} data={balanceRows} margin={{ top: 18, right: 12, bottom: 0, left: -6 }} accessibilityLayer>
             <CartesianGrid vertical={false} stroke="var(--fi-grid)" />
@@ -417,7 +383,7 @@ export function KeyCharts({ v, only }: { v: FinanceInsights; only?: KeyId }) {
         </Visual>
 
         <Visual title={k.savings.blocks[1].title} windowLabel={w.label} caption={k.savings.blocks[1].caption} note={soFarNote(w.intervals)}>
-          <ComposedChart responsive style={{ width: '100%', height: 180 }} data={contribRows} margin={{ top: 12, right: 72, bottom: 0, left: -6 }} accessibilityLayer>
+          <ComposedChart responsive style={{ width: '100%', height: 180 }} data={contribRows} margin={{ top: 12, right: 4, bottom: 0, left: -6 }} accessibilityLayer>
             <CartesianGrid vertical={false} stroke="var(--fi-grid)" />
             <XAxis dataKey="label" tick={AXIS_TICK} tickLine={false} axisLine={false} interval="preserveStartEnd" />
             <YAxis tick={AXIS_TICK} tickLine={false} axisLine={false} tickFormatter={compact} width={44} />
@@ -427,7 +393,7 @@ export function KeyCharts({ v, only }: { v: FinanceInsights; only?: KeyId }) {
                 y={contrib.target}
                 stroke="var(--fi-green)"
                 strokeDasharray="6 4"
-                label={{ value: `target ${compact(contrib.target)}`, position: 'right', fill: 'var(--fi-green)', fontSize: 11 }}
+                label={{ value: `target ${full(contrib.target)}`, position: 'insideTopRight', fill: 'var(--fi-green)', fontSize: 11 }}
               />
             )}
             <Tooltip
@@ -470,12 +436,11 @@ export function KeyCharts({ v, only }: { v: FinanceInsights; only?: KeyId }) {
           />
           <p className={styles.rating}>
             Savings rate this month <strong>{percent(contrib.rateThisMonth)}</strong> · Emergency cushion{' '}
-            <strong>{contrib.cushionMonths === null ? 'Not enough data' : `${contrib.cushionMonths.toFixed(1)} months`}</strong>
+            <strong>{contrib.cushionMonths === null ? '—' : `${contrib.cushionMonths.toFixed(1)} months`}</strong>
           </p>
           <TargetEditor target={v.data.savingsTarget} onSave={v.setSavingsTarget} />
         </Visual>
-      </Card>
-      )}
+      </KeyCard>
     </div>
   );
 }

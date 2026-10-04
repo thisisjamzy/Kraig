@@ -9,9 +9,9 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { Plus, X } from 'lucide-react';
 import { Bar, CartesianGrid, ComposedChart, ErrorBar, Line, ReferenceLine, Tooltip, XAxis, YAxis } from 'recharts';
-import type { FinanceInsights } from '@/src/phone/logic/financeInsights/useLogic';
+import type { FinanceInsights } from '@/src/logic/financeInsights/useLogic';
 import { monthName, shiftMonthKey, monthKey } from '@/src/viewmodels/finance/ranges';
-import { AXIS_TICK, COLORS, Legend, Pills, TooltipBox, compact, full } from '@/src/screens/FinanceInsights/parts';
+import { AXIS_TICK, COLORS, Legend, Pills, TooltipBox, compact, full } from '@/src/phone/screens/FinanceInsights/parts';
 import styles from '@/src/phone/screens/FinanceInsights/FinanceInsights.module.css';
 
 export function ForecastSection({ v }: { v: FinanceInsights }) {
