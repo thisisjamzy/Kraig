@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { query, where, orderBy, limit, updateDoc, Timestamp } from 'firebase/firestore';
 import { ArrowUpRight, ArrowDownLeft, PiggyBank, type LucideIcon } from 'lucide-react';
 import { useFirestoreCollection, useFirestoreDoc } from '@/src/shared/firestore/hooks';
@@ -18,6 +18,7 @@ import { currencyName } from '@/src/viewmodels/currencies';
 import { categoryAccentColor } from '@/src/viewmodels/categories';
 import { dueLabel, formatDueDate } from '@/src/phone/viewmodels/dueDates';
 import type { FirestoreAccount, FirestoreTransaction, FirestoreBucket } from '@/src/shared/firestore/types';
+import { useAmountsHidden } from '@/src/shared/hooks/usePrivacy';
 
 // Analytics now owns Quarter/Year (the Insights page, src/logic/financeInsights) — Home
 // keeps the shorter-range Week/Month views instead, since those are the
@@ -27,7 +28,6 @@ export type SpendingPeriod = 'week' | 'month';
 const UPCOMING_PAYMENTS_HORIZON_DAYS = 30;
 const UPCOMING_PAYMENTS_PREVIEW_COUNT = 3;
 const RECENT_TRANSACTIONS_PREVIEW_COUNT = 5;
-const BALANCES_HIDDEN_STORAGE_KEY = 'balances-hidden';
 // Six asterisks everywhere a real figure would otherwise show, once the
 // user's toggled balances hidden — the exact same placeholder shape the
 // balance card's own "nothing to see here" unjustified-amount state
@@ -101,17 +101,11 @@ export function useLogic() {
   // mount (same pattern ThemeProvider's own scheme toggle uses) rather
   // than in a lazy useState initializer, since that would run during SSR
   // where window doesn't exist.
-  const [balancesHidden, setBalancesHidden] = useState(false);
-  useEffect(() => {
-    const stored = window.localStorage.getItem(BALANCES_HIDDEN_STORAGE_KEY);
-    if (stored === '1') setBalancesHidden(true);
-  }, []);
+  // The shared amounts-hidden store (src/shared/hooks/usePrivacy.ts), so the
+  // phone and web hide amounts together and Settings' default applies.
+  const [balancesHidden, setBalancesHidden] = useAmountsHidden();
   function toggleBalancesHidden() {
-    setBalancesHidden((current) => {
-      const next = !current;
-      window.localStorage.setItem(BALANCES_HIDDEN_STORAGE_KEY, next ? '1' : '0');
-      return next;
-    });
+    setBalancesHidden(!balancesHidden);
   }
   const now = useMemo(() => new Date(), []);
   const { user, loading: authLoading } = useFirebaseUser();

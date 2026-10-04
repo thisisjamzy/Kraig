@@ -23,6 +23,7 @@ import type {
 import { useGoBack } from '@/src/shared/navigation/useGoBack';
 import { useFormFinish } from '@/src/shared/navigation/formPeekContext';
 import { peekAwareParams } from '@/src/shared/navigation/formPeek';
+import { usePreferences } from '@/src/shared/firestore/preferences';
 
 export type TransactionType = 'expense' | 'income' | 'transfer' | 'savings';
 export type Step = 'type' | 'category' | 'details' | 'review';
@@ -165,6 +166,13 @@ export function useLogic() {
   const [toAccountId, setToAccountId] = useState('');
 
   const [accountPickerFor, setAccountPickerFor] = useState<'from' | 'to' | null>(null);
+  // The default wallet (Settings > Accounts and wallets), chosen once it loads.
+  const { prefs } = usePreferences();
+  const [defaultApplied, setDefaultApplied] = useState(false);
+  if (!defaultApplied && prefs.defaultAccountId) {
+    setDefaultApplied(true);
+    if (!fromAccountId) setFromAccountId(prefs.defaultAccountId);
+  }
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   // PRD-AUDIT-RECONCILIATION.md section 2.5 — "this explains part of my

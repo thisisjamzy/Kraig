@@ -46,6 +46,7 @@ import { scheduleItem } from '@/src/shared/firestore/bucketBudget';
 import { useBucketProgress } from '@/src/shared/hooks/useBucketProgress';
 import { isItemClosed } from '@/src/shared/budget/bucketProgress';
 import { useGoBack } from '@/src/shared/navigation/useGoBack';
+import { usePreferences } from '@/src/shared/firestore/preferences';
 
 // Recurring bills/subscriptions/savings transfers don't make sense as
 // Once/Daily/Weekly — a Fixed bucket's own recurrence picker only offers the
@@ -71,6 +72,7 @@ const NEXT_OCCURRENCE_HORIZON = new Date(Date.now() + 3 * 365 * 24 * 3600 * 1000
 
 export function useLogic(goalId: string) {
   const router = useRouter();
+  const { prefs } = usePreferences();
   const { user } = useFirebaseUser();
   const uid = user?.uid;
   const { ctx, loading: ctxLoading } = useCurrencyContext();
@@ -339,7 +341,7 @@ export function useLogic(goalId: string) {
     setItemCustomFrequency('Quarterly');
     setItemInterval(1);
     setItemPaidFrom('');
-    setItemAutomationMode('off');
+    setItemAutomationMode(prefs.automationDefault);
     setItemNotBefore('');
     setItemNeededBy('');
     setItemSplittable(false);

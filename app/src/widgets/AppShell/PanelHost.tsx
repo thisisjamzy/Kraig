@@ -20,6 +20,8 @@ import {
   withoutDebtForm,
   type DebtFormKind,
 } from '@/src/shared/navigation/debtForms';
+import { SETTINGS_PARAM, settingsHref, settingsPageHref, withoutSettings } from '@/src/shared/navigation/settingsLink';
+import { isSettingsSection } from '@/src/logic/settingsCenter/sections';
 import { PEEK_PARAM, formPageHref, isFormKind, peekParams, withoutFormPeek, type FormKind } from '@/src/shared/navigation/formPeek';
 import { FormPeekContext } from '@/src/widgets/FormFrame/FormFrame';
 import { WebFormPanel } from '@/src/widgets/WebFormPanel/WebFormPanel';
@@ -72,13 +74,40 @@ const PEEK_FORMS: Partial<Record<FormKind, ComponentType<{ params: Record<string
   reallocate: () => <ReallocateScreen />,
 };
 
+const SettingsDialog = dynamic(() => import('./SettingsDialog').then((m) => m.SettingsDialog), { ssr: false });
+
 export function PanelHost() {
   return (
     <>
       <TaskPanelHost />
       <DebtFormHost />
       <FormPeekHost />
+      <SettingsHost />
     </>
+  );
+}
+
+/** Settings from ?settings=<section>: the dialog on wide screens, the section's page on a phone. */
+function SettingsHost() {
+  const search = useSearchParams();
+  const pathname = usePathname();
+  const router = useRouter();
+  const { isWide, deviceClass } = useLayout();
+  const raw = search.get(SETTINGS_PARAM);
+  const section = raw === null ? null : isSettingsSection(raw) ? raw : 'preferences';
+
+  useEffect(() => {
+    if (!section || isWide || window.matchMedia('(min-width: 768px)').matches) return;
+    router.replace(settingsPageHref(section));
+  }, [section, isWide, router, deviceClass]);
+
+  if (!section || !isWide) return null;
+  return (
+    <SettingsDialog
+      section={section}
+      onSection={(next) => router.replace(settingsHref(pathname, search.toString(), next), { scroll: false })}
+      onClose={() => router.replace(withoutSettings(pathname, search.toString()), { scroll: false })}
+    />
   );
 }
 

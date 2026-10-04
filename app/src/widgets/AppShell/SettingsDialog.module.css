@@ -1,0 +1,114 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: grid;
+  place-items: center;
+  padding: 5vh 5vw;
+  background: rgba(10, 12, 24, 0.45);
+}
+
+.dialog {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  width: min(1100px, 90vw);
+  height: min(720px, 90vh);
+  overflow: hidden;
+  border-radius: 10px;
+  background: var(--color-background);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.28);
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow-y: auto;
+  padding: 16px 8px;
+  background: var(--color-surface);
+}
+
+.navGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.navGroupLabel {
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.navRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 0.875rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.navRow:hover {
+  background: color-mix(in srgb, var(--color-text-primary) 6%, transparent);
+}
+
+.navRow[aria-current='page'] {
+  background: color-mix(in srgb, var(--color-text-primary) 9%, transparent);
+  font-weight: 600;
+}
+
+.navRow[data-danger] {
+  margin-top: auto;
+  color: #d6404f;
+}
+
+.content {
+  position: relative;
+  overflow-y: auto;
+  padding: 32px 48px 48px;
+}
+
+.close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.close:hover {
+  background: var(--color-surface);
+}
+
+/* A tablet held upright: the navigation narrows. */
+@media (max-width: 1023px) {
+  .dialog {
+    grid-template-columns: 200px minmax(0, 1fr);
+  }
+
+  .content {
+    padding: 28px 24px 40px;
+  }
+}
+
+.navRow:focus-visible,
+.close:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+}

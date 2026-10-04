@@ -17,6 +17,7 @@ import { useNotifications } from '@/src/shared/hooks/useNotifications';
 import { isFormPage } from '@/src/shared/navigation/navHistory';
 import { afterPrompt, promptText, shouldPrompt, unreadCount, type PromptMemory } from '@/src/shared/notifications/inbox';
 import styles from './NotificationPrompt.module.css';
+import { usePreferences } from '@/src/shared/firestore/preferences';
 
 const SESSION_KEY = 'dreda.notifyPrompt.shown';
 const MEMORY_KEY = 'dreda.notifyPrompt';
@@ -61,6 +62,7 @@ export interface PhonePromptProps {
 /** `phone` renders the phone line's sheet (passed in by the app layout). */
 export function NotificationPrompt({ phone }: { phone: (props: PhonePromptProps) => ReactNode }) {
   const { notifications, loading } = useNotifications();
+  const { prefs } = usePreferences();
   const pathname = usePathname() ?? '';
   const router = useRouter();
   const { isWide } = useLayout();
@@ -74,6 +76,8 @@ export function NotificationPrompt({ phone }: { phone: (props: PhonePromptProps)
   // is in the way. Opening Notifications itself counts as seeing them.
   useEffect(() => {
     if (done || open || loading) return;
+    // Turned off in Settings > Notifications: only the bell's badge.
+    if (!prefs.appOpenPrompt) return;
     if (pathname.startsWith('/notifications')) {
       remember({ laterStreak: 0 });
       const frame = requestAnimationFrame(() => setDone(true));
@@ -98,7 +102,7 @@ export function NotificationPrompt({ phone }: { phone: (props: PhonePromptProps)
       window.clearTimeout(first);
       window.clearInterval(again);
     };
-  }, [done, open, loading, pathname, counts]);
+  }, [done, open, loading, pathname, counts, prefs.appOpenPrompt]);
 
   if (!open) return null;
 
