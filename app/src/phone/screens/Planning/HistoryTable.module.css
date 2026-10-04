@@ -1,0 +1,159 @@
+/* The transactions table (expanded and large screens only). */
+
+.scroller {
+  /* A wide table scrolls inside itself, never the page. */
+  overflow-x: auto;
+  border-radius: var(--radius-lg);
+  background: var(--color-background);
+  box-shadow: 0 1px 2px rgba(27, 27, 57, 0.04), 0 6px 18px rgba(27, 27, 57, 0.05);
+}
+
+:global([data-theme='dark']) .scroller {
+  background: var(--color-surface);
+  box-shadow: none;
+}
+
+.table {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.875rem;
+  color: var(--color-text-primary);
+}
+
+.table th {
+  position: sticky;
+  top: calc(64px + var(--safe-top));
+  z-index: 2;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-background);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-align: left;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+:global([data-theme='dark']) .table th {
+  background: var(--color-surface);
+}
+
+.table th[data-numeric],
+.table td[data-numeric] {
+  text-align: right;
+}
+
+.sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: middle;
+}
+
+.row {
+  position: relative;
+}
+
+.row:last-child td {
+  border-bottom: none;
+}
+
+.date {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.time {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.name {
+  max-width: 320px;
+}
+
+.rowLink {
+  color: inherit;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+/* Stretch the link over the whole row. */
+.rowLink::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+
+.rowLink:focus-visible {
+  outline: none;
+}
+
+.row:has(.rowLink:focus-visible) {
+  outline: 2px solid var(--color-brand);
+  outline-offset: -2px;
+}
+
+.note {
+  display: block;
+  overflow: hidden;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.chip {
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.none {
+  color: var(--color-text-secondary);
+}
+
+.amount {
+  font-weight: 700;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.amount[data-flow='in'] {
+  color: var(--color-success);
+}
+
+.currency {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.sort:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .row:hover td {
+    background: color-mix(in srgb, var(--color-surface) 60%, transparent);
+  }
+}
