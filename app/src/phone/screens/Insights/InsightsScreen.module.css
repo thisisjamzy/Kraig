@@ -906,3 +906,11 @@ button.tile:focus-visible {
     gap: 24px;
   }
 }
+
+/* The page's one neutral sentence (alerts are notifications). */
+.neutral {
+  margin: 0 2px 12px;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: var(--color-text-secondary);
+}

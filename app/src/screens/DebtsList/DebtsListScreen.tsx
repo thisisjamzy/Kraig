@@ -33,6 +33,7 @@ import { Money, formatMoney } from '@/src/widgets/Money/Money';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { Tag, type TagColor } from '@/src/widgets/TaskDb/Tag';
 import styles from './DebtsListScreen.module.css';
+import { NotificationsLink } from '@/src/widgets/Notifications/NotificationsLink';
 
 type DebtRow = ReturnType<typeof useLogic>['debts'][number];
 
@@ -157,7 +158,10 @@ export function DebtsListScreen() {
       ) : (
         <>
           <Callout tone={nextLate ? 'bad' : s.totalDebt > 0 ? 'watch' : 'good'}>
-            <p>{sentence}</p>
+            <p>
+              {sentence}
+              <NotificationsLink types={['debt_payment_due', 'debt_payment_late']} about="debts" />
+            </p>
           </Callout>
 
           {v.debts.length > 0 && (

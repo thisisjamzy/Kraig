@@ -26,6 +26,7 @@ import { monthLabel, remaining, type Occurrence } from '@/src/viewmodels/plans/m
 import type { SortMode } from '@/src/viewmodels/plans/priorities';
 import { full } from './parts';
 import styles from './Plans.module.css';
+import { NotificationsLink } from '@/src/widgets/Notifications/NotificationsLink';
 
 const REASONS = ['No money', 'Not urgent', 'Waiting on someone', 'Price changed'];
 const GROUP_ORDER = ['now', 'waiting', 'not', 'postponed'];
@@ -124,7 +125,10 @@ export function PrioritiesScreen() {
       ]}
     >
       <Callout tone={v.totals.notCovered ? 'bad' : v.totals.waiting ? 'watch' : undefined}>
-        <p>{v.summary}</p>
+        <p>
+          {v.summary}
+          <NotificationsLink types={['payment_overdue', 'payment_due_soon', 'must_haves_short']} about="payments" />
+        </p>
       </Callout>
       {v.error && <p className={styles.error}>{v.error}</p>}
       {v.loading ? (

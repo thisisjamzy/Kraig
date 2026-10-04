@@ -829,3 +829,36 @@
     align-items: stretch;
   }
 }
+
+/* A basket's status on its card (PromptStrip): colored text and an icon. */
+.status {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 10px 0 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--p-muted);
+}
+
+.status[data-tone='over'] {
+  color: var(--p-red);
+}
+
+.status[data-tone='leftover'] {
+  color: var(--p-blue);
+}
+
+/* A page's one neutral sentence about its state (BASELINE text style). */
+.neutral {
+  margin: 0 2px 14px;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: var(--p-muted);
+}
+
+.neutral a {
+  color: var(--p-blue);
+  font-weight: 600;
+  text-decoration: none;
+}

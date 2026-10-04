@@ -12,7 +12,7 @@ import { Check, Layers, Plus } from 'lucide-react';
 import { useBudgetTab } from '@/src/logic/planning/useBudgetTab';
 import { useBudgetMonth } from '@/src/logic/budgetMonth/useLogic';
 import { FLOW_LABEL, FLOW_TYPES } from '@/src/shared/budget/flow';
-import { IncomePrompt, MigrationNotice, ReadyBanner, SetupBanner } from '@/src/phone/screens/Planning/Banners';
+import { BUDGET_TYPES, NotificationsLink } from '@/src/widgets/Notifications/NotificationsLink';
 import type { PlanningData } from '@/src/logic/planning/useLogic';
 import { ActionMenu } from '@/src/widgets/ActionMenu/ActionMenu';
 import { money, signedMoney } from '@/src/viewmodels/planning';
@@ -83,19 +83,19 @@ export function BudgetTab({ month, data }: { month: string; data: PlanningData }
 
   return (
     <>
-      {v.migrationPending && <MigrationNotice />}
-      {v.banner && <SetupBanner text={v.banner} month={month} onDismiss={() => void v.dismissBanner()} />}
-      {v.prompts.map((line) => (
-        <IncomePrompt
-          key={line.key}
-          line={line}
-          currency={v.currency}
-          accounts={v.accounts}
-          onRecord={(amount, accountId) => v.recordIncome(line, amount, accountId)}
-          onNotYet={() => v.notYet(line)}
-        />
-      ))}
-      {v.isCurrent && <ReadyBanner />}
+      {/* The month's state in one sentence; what needs doing is in Notifications. */}
+      {v.isCurrent && (
+        <p className={styles.neutral}>
+          {v.summary}
+          {v.migrationPending && (
+            <>
+              {' '}
+              <Link href="/budget/migration">See what changed in your budget</Link>.
+            </>
+          )}
+          <NotificationsLink types={BUDGET_TYPES} about="this month" />
+        </p>
+      )}
 
       <p className={styles.label}>Total budget</p>
       <section className={tab.summary} aria-label="This month's budget">

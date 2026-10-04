@@ -12,7 +12,7 @@
 import { Suspense, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { AlertTriangle, FolderKanban } from 'lucide-react';
+import { FolderKanban } from 'lucide-react';
 import { atRiskSentence, useProjectsDb, type ProjectRow } from '@/src/logic/projectsDb/useProjectsDb';
 import { Callout, NotionPage } from '@/src/widgets/Database/NotionPage';
 import { Database } from '@/src/widgets/Database/Database';
@@ -22,6 +22,7 @@ import { ProjectTimeline } from '@/src/widgets/ProjectTimeline/ProjectTimeline';
 import { TAG_ACCENT } from '@/src/widgets/TaskDb/Tag';
 import { HEALTH_COLOR, healthAccent, projectCardSpec, projectColumns, projectGroups, projectListSpec } from '@/src/widgets/ProjectDb/projectDatabase';
 import { useFormLink } from '@/src/shared/navigation/useFormLink';
+import { NotificationsLink } from '@/src/widgets/Notifications/NotificationsLink';
 
 const ALL = ['name', 'health', 'progress', 'dates', 'start', 'end', 'tasks', 'overdue', 'area', 'status', 'description', 'lastActivity'];
 const showOnly = (ids: string[]) => ALL.filter((id) => !ids.includes(id));
@@ -72,9 +73,10 @@ function ProjectsPage() {
     >
       <ScreenState loading={loading} />
       {sentence && (
-        <Callout tone="watch" icon={<AlertTriangle size={18} strokeWidth={2} />}>
+        <Callout>
           <p>
             {sentence} <Link href="/projects/all?view=risk">Show at risk</Link>
+            <NotificationsLink types={['projects_at_risk', 'milestones_at_risk']} about="projects" />
           </p>
         </Callout>
       )}

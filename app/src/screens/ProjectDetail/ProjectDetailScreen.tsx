@@ -37,6 +37,7 @@ import { HealthTag, ProgressBar, dateRange } from '@/src/widgets/ProjectDb/proje
 import styles from './ProjectDetailScreen.module.css';
 import { useFormLink } from '@/src/shared/navigation/useFormLink';
 import { useRouter } from 'next/navigation';
+import { NotificationsLink } from '@/src/widgets/Notifications/NotificationsLink';
 
 const ALL = ['name', 'status', 'importance', 'priority', 'type', 'date', 'time', 'start', 'end', 'project', 'area', 'timeMode', 'recurring', 'overdue', 'sync', 'created', 'completed'];
 const showOnly = (ids: string[]) => ALL.filter((id) => !ids.includes(id));
@@ -123,7 +124,10 @@ export function ProjectDetailScreen({ projectId }: { projectId: string }) {
   const main = (
     <>
       <Callout icon={<Activity size={18} strokeWidth={2} />} tone={row.health === 'At risk' ? 'bad' : row.health === 'Watch' ? 'watch' : row.health === 'On track' || row.health === 'Done' ? 'good' : undefined}>
-        <p>{healthSentence(row)}</p>
+        <p>
+          {healthSentence(row)}
+          <NotificationsLink types={['projects_at_risk', 'milestones_at_risk']} about="projects" />
+        </p>
       </Callout>
       <Block title="Tasks">
         <Database<TaskRow>

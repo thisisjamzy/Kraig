@@ -1558,3 +1558,24 @@
   line-height: 1.4;
   color: rgba(255, 255, 255, 0.85);
 }
+
+/* A warning figure as colored text with an icon, no tinted strip. */
+.quietLine {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 10px 4px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--pl-muted);
+}
+
+.quietLine[data-tone='bad'] {
+  color: #b42d3c;
+}
+
+.quietLine svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}

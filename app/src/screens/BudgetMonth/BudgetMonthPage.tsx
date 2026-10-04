@@ -28,8 +28,7 @@ import { TypeTabs } from '@/src/widgets/Database/TypeTabs';
 import { Modal } from '@/src/widgets/Modal/Modal';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { showToast } from '@/src/widgets/Toast/Toast';
-import { NotificationsLink } from '@/src/widgets/Notifications/NotificationsLink';
-import type { NotificationType } from '@/src/shared/notifications/types';
+import { BUDGET_TYPES, NotificationsLink } from '@/src/widgets/Notifications/NotificationsLink';
 import { SummaryCards } from './SummaryCards';
 import { LinePeekContent } from './LinePeek';
 import { useScopeChooser } from './ScopeChooser';
@@ -38,8 +37,6 @@ import styles from './BudgetMonth.module.css';
 import { useFormLink } from '@/src/shared/navigation/useFormLink';
 
 /** The updates the Budget page links to. */
-const BUDGET_TYPES: NotificationType[] = ['payment_overdue', 'payment_due_soon', 'overspend_uncovered', 'leftover_to_reallocate', 'must_haves_short', 'income_late', 'ready_to_pay', 'month_review', 'unassigned_transactions', 'savings_behind'];
-
 export const FLOW_ICON: Record<FlowType, typeof Wallet> = {
   Income: Coins,
   Expense: Receipt,

@@ -76,9 +76,14 @@ export function Block({ title, actions, children, id }: { title?: string; action
 }
 
 /** A summary callout: an icon and one or two sentences. */
-export function Callout({ icon, tone, children }: { icon?: ReactNode; tone?: 'bad' | 'good' | 'watch'; children: ReactNode }) {
+/**
+ * A page's one neutral sentence about its state. Always plain: warnings and
+ * problems are notifications, not page blocks (`tone` is accepted and
+ * ignored).
+ */
+export function Callout({ icon, children }: { icon?: ReactNode; tone?: 'bad' | 'good' | 'watch'; children: ReactNode }) {
   return (
-    <aside className={styles.callout} data-tone={tone}>
+    <aside className={styles.callout}>
       <span className={styles.calloutIcon} aria-hidden>
         {icon ?? <Lightbulb size={18} strokeWidth={2} />}
       </span>

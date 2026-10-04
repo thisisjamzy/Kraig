@@ -16,7 +16,7 @@
 import { Suspense, useMemo } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { AlertTriangle, Target } from 'lucide-react';
+import { Target } from 'lucide-react';
 import { useTasksDb } from '@/src/logic/tasksDb/useTasksDb';
 import { useTaskPanel } from '@/src/shared/navigation/taskPanel';
 import { QUADRANT_BY_ID } from '@/src/viewmodels/eisenhower';
@@ -27,6 +27,7 @@ import { Database } from '@/src/widgets/Database/Database';
 import type { DefaultView } from '@/src/widgets/Database/types';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { TaskWhen, importanceDot, taskCardSpec, taskColumns, taskGroups, taskListSpec, taskRowActions } from '@/src/widgets/TaskDb/taskDatabase';
+import { NotificationsLink } from '@/src/widgets/Notifications/NotificationsLink';
 
 const ALL = ['name', 'status', 'importance', 'priority', 'type', 'date', 'time', 'start', 'end', 'project', 'area', 'timeMode', 'recurring', 'overdue', 'sync', 'created', 'completed'];
 const showOnly = (ids: string[]) => ALL.filter((id) => !ids.includes(id));
@@ -108,11 +109,12 @@ function FocusPage() {
     >
       <ScreenState loading={db.loading} />
       {overdue.length > 0 && (
-        <Callout tone="watch" icon={<AlertTriangle size={18} strokeWidth={2} />}>
+        <Callout>
           <p>
             {overdue.length === 1 ? '1 task is overdue' : `${overdue.length} tasks are overdue`}
             {overdueDoFirst > 0 ? `, ${overdueDoFirst === overdue.length ? (overdue.length === 1 ? 'in Do first' : 'all in Do first') : `${overdueDoFirst} of them in Do first`}` : ''}.{' '}
             <Link href="/projects/focus?view=overdue">Show overdue</Link>
+            <NotificationsLink types={['tasks_overdue', 'tasks_due_today', 'do_first_heavy', 'day_overloaded']} about="tasks" />
           </p>
         </Callout>
       )}
