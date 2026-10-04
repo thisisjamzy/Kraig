@@ -13,7 +13,6 @@
 // same reversal half without a new contribution applied after.
 
 import { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { useFirestoreDoc } from '@/src/shared/firestore/hooks';
 import { useBucketItemOptions, bucketItemKey as linkKey } from '@/src/shared/hooks/useBucketItemOptions';
 import { transactionRef } from '@/src/shared/firestore/refs';
@@ -23,6 +22,7 @@ import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { isSavingsAccount } from '@/src/viewmodels/wallets';
 import type { FirestoreTransaction } from '@/src/shared/firestore/types';
 import { useGoBack } from '@/src/shared/navigation/useGoBack';
+import { useFormFinish } from '@/src/shared/navigation/formPeekContext';
 
 export type EditableTransactionType = 'Expense' | 'Income' | 'Savings';
 export const TRANSACTION_TYPES: EditableTransactionType[] = ['Expense', 'Income', 'Savings'];
@@ -36,7 +36,7 @@ function toIso(date: Date) {
 }
 
 export function useLogic(transactionId: string) {
-  const router = useRouter();
+  const finish = useFormFinish();
   const { user } = useFirebaseUser();
   const uid = user?.uid;
 
@@ -137,7 +137,7 @@ export function useLogic(transactionId: string) {
         },
         ctx
       );
-      router.push('/transactions');
+      finish('/transactions');
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : 'Could not save changes.');
       setSubmitting(false);
@@ -163,7 +163,7 @@ export function useLogic(transactionId: string) {
     setDeleteError(null);
     try {
       await deleteTransactionWithAggregation(uid, transactionId, ctx);
-      router.push('/transactions');
+      finish('/transactions');
     } catch (error) {
       setDeleteError(error instanceof Error ? error.message : 'Could not delete this transaction.');
       setDeleting(false);

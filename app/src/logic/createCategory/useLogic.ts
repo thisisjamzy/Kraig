@@ -10,10 +10,10 @@
 // they send you afterward and neither is more than a handful of lines.
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { setDoc } from 'firebase/firestore';
 import { categoryRef } from '@/src/shared/firestore/refs';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
+import { useFormFinish } from '@/src/shared/navigation/formPeekContext';
 
 export type CategoryType = 'Expense' | 'Income' | 'Savings';
 export const CATEGORY_TYPES: CategoryType[] = ['Expense', 'Income', 'Savings'];
@@ -28,7 +28,7 @@ function returnTargetFromSearch(): string {
 }
 
 export function useLogic() {
-  const router = useRouter();
+  const finish = useFormFinish();
   const [returnTo] = useState(returnTargetFromSearch);
   const { user } = useFirebaseUser();
   const uid = user?.uid;
@@ -51,7 +51,7 @@ export function useLogic() {
         notes: description.trim(),
         archived: false,
       });
-      router.push(returnTo);
+      finish(returnTo);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not create this category.');
       setSaving(false);
@@ -59,7 +59,7 @@ export function useLogic() {
   }
 
   function goBack() {
-    router.push(returnTo);
+    finish(returnTo);
   }
 
   return { name, setName, type, setType, description, setDescription, saving, error, handleSave, goBack };

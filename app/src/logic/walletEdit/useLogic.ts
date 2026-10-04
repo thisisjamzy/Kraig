@@ -11,9 +11,11 @@ import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { ACCOUNT_TYPES } from '@/src/viewmodels/wallets';
 import type { FirestoreAccount } from '@/src/shared/firestore/types';
 import { useGoBack } from '@/src/shared/navigation/useGoBack';
+import { useFormFinish } from '@/src/shared/navigation/formPeekContext';
 
 export function useLogic(walletId: string) {
   const router = useRouter();
+  const finish = useFormFinish();
   const { user } = useFirebaseUser();
   const uid = user?.uid;
 
@@ -90,7 +92,7 @@ export function useLogic(walletId: string) {
         frozen,
         lockedAmount: lockedAmountValue,
       });
-      router.push(`/wallets/${walletId}`);
+      finish(`/wallets/${walletId}`);
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : 'Could not update this wallet.');
       setSaving(false);
@@ -142,7 +144,7 @@ export function useLogic(walletId: string) {
       } else {
         await updateDoc(accountRef(uid, walletId), { archived: true });
       }
-      router.push('/wallets');
+      router.replace('/wallets');
     } catch (error) {
       setArchiveError(error instanceof Error ? error.message : 'Could not archive this wallet.');
     } finally {

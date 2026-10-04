@@ -1,10 +1,12 @@
 'use client';
 
-import { ChevronLeft } from 'lucide-react';
+// Edit transaction, on the form standard (FormFrame): Description, Amount |
+// Date, Type, Category, Basket item, Account; Impact; Delete under the button.
+
 import { useLogic } from '@/src/logic/editTransaction/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
-import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
+import { FieldCard, FieldRow, FormFrame, SegmentedField, SelectField, formFrameStyles as ff } from '@/src/widgets/FormFrame/FormFrame';
 import styles from './EditTransactionScreen.module.css';
 
 export function EditTransactionScreen({ transactionId }: { transactionId: string }) {
@@ -46,176 +48,93 @@ export function EditTransactionScreen({ transactionId }: { transactionId: string
     deleteError,
   } = useLogic(transactionId);
 
+  const ready = !loading && !error && !notFound;
+  const shownAccounts = type === 'Expense' ? spendableAccounts : accounts;
+  const accountName = shownAccounts.find((a) => a.id === accountId)?.name;
+  const amount = Number(amountString) || 0;
+  const day = dateValue ? new Date(`${dateValue}T00:00:00`) : null;
+  const impact =
+    amount > 0 && accountName
+      ? `${type === 'Income' ? 'Records' : 'Takes'} ${Math.round(amount).toLocaleString('en-US')} ${type === 'Income' ? 'into' : 'from'} ${accountName}${
+          day ? ` on ${day.getDate()} ${day.toLocaleDateString('en-GB', { month: 'short' })}` : ''
+        }.`
+      : null;
+
   return (
-    <div className={styles.page}>
-      <ScreenHeader
-        left={
-          <button type="button" className={styles.backButton} onClick={goBack} aria-label={strings.editTransaction.back}>
-            <ChevronLeft size={18} strokeWidth={2} />
-          </button>
-        }
-        title={strings.editTransaction.title}
-      />
+    <FormFrame
+      title={strings.editTransaction.title}
+      onClose={goBack}
+      phoneHeader="bar"
+      impact={ready ? impact : null}
+      primary={ready ? { label: 'Save transaction', disabled: !canSave, busy: submitting } : null}
+      onSubmit={handleSave}
+      error={submitError}
+      after={
+        ready ? (
+      <div className={styles.dangerCard}>
+        <p className={styles.dangerTitle}>{strings.editTransaction.dangerZoneTitle}</p>
 
-      <ScreenState loading={loading} error={error} />
-
-      {notFound && <p className={styles.errorText}>{strings.editTransaction.notFound}</p>}
-
-      {!loading && !error && !notFound && (
-        <div className={styles.form}>
-          <div className={styles.formField}>
-            <label className={styles.formLabel} htmlFor="edit-transaction-description">
-              {strings.editTransaction.descriptionLabel}
-            </label>
-            <input
-              id="edit-transaction-description"
-              className={styles.formInput}
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-            />
-          </div>
-
-          <div className={styles.formField}>
-            <label className={styles.formLabel} htmlFor="edit-transaction-type">
-              {strings.editTransaction.typeLabel}
-            </label>
-            <select
-              id="edit-transaction-type"
-              className={styles.formInput}
-              value={type}
-              onChange={(event) => setType(event.target.value as typeof type)}
-            >
-              {types.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className={styles.formField}>
-            <label className={styles.formLabel} htmlFor="edit-transaction-category">
-              {strings.editTransaction.categoryLabel}
-            </label>
-            <select
-              id="edit-transaction-category"
-              className={styles.formInput}
-              value={categoryId}
-              onChange={(event) => setCategoryId(event.target.value)}
-            >
-              <option value="" disabled>
-                {strings.editTransaction.categoryPlaceholder}
-              </option>
-              {categories.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {(bucketItemOptions.length > 0 || bucketItemKey) && (
-            <div className={styles.formField}>
-              <label className={styles.formLabel} htmlFor="edit-transaction-bucket-item">
-                {strings.editTransaction.bucketItemLabel}
-              </label>
-              <select
-                id="edit-transaction-bucket-item"
-                className={styles.formInput}
-                value={bucketItemKey}
-                onChange={(event) => setBucketItemKey(event.target.value)}
-              >
-                <option value="">{strings.editTransaction.bucketItemNone}</option>
-                {bucketItemOptions.map((option) => (
-                  <option key={option.key} value={option.key}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          <div className={styles.formField}>
-            <label className={styles.formLabel} htmlFor="edit-transaction-amount">
-              {strings.editTransaction.amountLabel}
-            </label>
-            <input
-              id="edit-transaction-amount"
-              className={styles.formInput}
-              inputMode="numeric"
-              value={amountString}
-              onChange={(event) => setAmountString(event.target.value.replace(/[^0-9.]/g, ''))}
-            />
-          </div>
-
-          <div className={styles.formField}>
-            <label className={styles.formLabel} htmlFor="edit-transaction-account">
-              {strings.editTransaction.accountLabel}
-            </label>
-            <select
-              id="edit-transaction-account"
-              className={styles.formInput}
-              value={accountId}
-              onChange={(event) => setAccountId(event.target.value)}
-            >
-              {/* A Savings Account can never fund a direct Expense — see
-                  spendableAccounts's own comment in useLogic.ts. */}
-              {(type === 'Expense' ? spendableAccounts : accounts).map((account) => (
-                <option key={account.id} value={account.id}>
-                  {account.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className={styles.formField}>
-            <label className={styles.formLabel} htmlFor="edit-transaction-date">
-              {strings.editTransaction.dateLabel}
-            </label>
-            <input
-              id="edit-transaction-date"
-              type="date"
-              className={styles.formInput}
-              value={dateValue}
-              onChange={(event) => setDateValue(event.target.value)}
-            />
-          </div>
-
-          {submitError && <p className={styles.errorText}>{submitError}</p>}
-
-          <button type="button" className={styles.saveButton} disabled={!canSave} onClick={handleSave}>
-            {submitting ? strings.editTransaction.saving : strings.common.save}
-          </button>
-        </div>
-      )}
-
-      {!loading && !error && !notFound && (
-        <div className={styles.dangerCard}>
-          <p className={styles.dangerTitle}>{strings.editTransaction.dangerZoneTitle}</p>
-
-          {deleteConfirmOpen ? (
-            <>
-              <p className={styles.deleteConfirmPrompt}>{strings.editTransaction.deleteConfirmPrompt}</p>
-              {deleteError && <p className={styles.errorText}>{deleteError}</p>}
-              <div className={styles.deleteActions}>
-                <button type="button" className={styles.cancelButton} onClick={cancelDelete} disabled={deleting}>
-                  {strings.editTransaction.deleteCancel}
-                </button>
-                <button type="button" className={styles.deleteButton} onClick={confirmDelete} disabled={deleting}>
-                  {deleting ? strings.editTransaction.deleting : strings.editTransaction.deleteConfirm}
-                </button>
-              </div>
-            </>
-          ) : (
-            <>
-              <p className={styles.sectionCaption}>{strings.editTransaction.deleteHint}</p>
-              <button type="button" className={styles.deleteButton} onClick={openDeleteConfirm}>
-                {strings.editTransaction.deleteButton}
+        {deleteConfirmOpen ? (
+          <>
+            <p className={styles.deleteConfirmPrompt}>{strings.editTransaction.deleteConfirmPrompt}</p>
+            {deleteError && <p className={styles.errorText}>{deleteError}</p>}
+            <div className={styles.deleteActions}>
+              <button type="button" className={styles.cancelButton} onClick={cancelDelete} disabled={deleting}>
+                {strings.editTransaction.deleteCancel}
               </button>
-            </>
+              <button type="button" className={styles.deleteButton} onClick={confirmDelete} disabled={deleting}>
+                {deleting ? strings.editTransaction.deleting : strings.editTransaction.deleteConfirm}
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <p className={styles.sectionCaption}>{strings.editTransaction.deleteHint}</p>
+            <button type="button" className={styles.deleteButton} onClick={openDeleteConfirm}>
+              {strings.editTransaction.deleteButton}
+            </button>
+          </>
+        )}
+      </div>
+        ) : null
+      }
+    >
+      <ScreenState loading={loading} error={error} />
+      {notFound && <p className={styles.errorText}>{strings.editTransaction.notFound}</p>}
+      {ready && (
+        <>
+          <FieldCard label={strings.editTransaction.descriptionLabel}>
+            <input className={ff.input} value={description} onChange={(event) => setDescription(event.target.value)} />
+          </FieldCard>
+          <FieldRow>
+            <FieldCard label={strings.editTransaction.amountLabel}>
+              <input className={ff.input} inputMode="decimal" value={amountString} onChange={(event) => setAmountString(event.target.value.replace(/[^0-9.]/g, ''))} />
+            </FieldCard>
+            <FieldCard label={strings.editTransaction.dateLabel}>
+              <input type="date" className={ff.input} value={dateValue} onChange={(event) => setDateValue(event.target.value)} />
+            </FieldCard>
+          </FieldRow>
+          <SegmentedField label={strings.editTransaction.typeLabel} value={type} onChange={setType} options={types.map((t) => ({ value: t, label: t }))} />
+          <SelectField
+            label={strings.editTransaction.categoryLabel}
+            value={categoryId}
+            onChange={setCategoryId}
+            options={categories.map((c) => ({ value: c.id, label: c.name }))}
+            placeholder={strings.editTransaction.categoryPlaceholder}
+          />
+          {(bucketItemOptions.length > 0 || bucketItemKey) && (
+            <SelectField
+              label={strings.editTransaction.bucketItemLabel}
+              value={bucketItemKey}
+              onChange={setBucketItemKey}
+              options={bucketItemOptions.map((o) => ({ value: o.key, label: o.label }))}
+              placeholder={strings.editTransaction.bucketItemNone}
+            />
           )}
-        </div>
+          {/* A Savings Account never funds a direct expense (useLogic's spendableAccounts). */}
+          <SelectField label={strings.editTransaction.accountLabel} value={accountId} onChange={setAccountId} options={shownAccounts.map((a) => ({ value: a.id, label: a.name }))} />
+        </>
       )}
-    </div>
+    </FormFrame>
   );
 }

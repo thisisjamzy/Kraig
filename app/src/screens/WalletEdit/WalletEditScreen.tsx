@@ -1,11 +1,14 @@
 'use client';
 
-import { ChevronLeft } from 'lucide-react';
+// Edit wallet, on the form standard (FormFrame): Name | Short name, Type,
+// Starting balance; More options: not spendable, frozen, locked amount.
+// Archiving (with where its money goes) sits under the button.
+
 import { useLogic } from '@/src/logic/walletEdit/useLogic';
 import { formatAmount } from '@/src/logic/walletDetail/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
-import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
+import { FieldCard, FieldRow, FormFrame, MoreOptions, SelectField, SwitchField, formFrameStyles as ff } from '@/src/widgets/FormFrame/FormFrame';
 import { SAVINGS_ACCOUNT_TYPE } from '@/src/viewmodels/wallets';
 import styles from './WalletEditScreen.module.css';
 
@@ -50,202 +53,149 @@ export function WalletEditScreen({ walletId }: { walletId: string }) {
     error,
   } = useLogic(walletId);
 
+  const ready = !loading && !error && wallet;
   return (
-    <div className={styles.page}>
-      <ScreenHeader
-        left={
-          <button type="button" className={styles.backButton} onClick={goBack} aria-label={strings.common.back}>
-            <ChevronLeft size={18} strokeWidth={2} />
-          </button>
-        }
-        title={strings.walletDetail.editWalletTitle}
-      />
+    <FormFrame
+      title={strings.walletDetail.editWalletTitle}
+      onClose={goBack}
+      phoneHeader="bar"
+      primary={ready ? { label: 'Save wallet', disabled: !name.trim(), busy: saving } : null}
+      onSubmit={handleSave}
+      error={saveError}
+      after={
+        ready && wallet ? (
+      <div className={styles.dangerCard}>
+        <p className={styles.dangerTitle}>{strings.walletDetail.dangerZoneTitle}</p>
 
-      <ScreenState loading={loading} error={error} />
-
-      {!loading && !error && wallet && (
-        <>
-          <div className={styles.form}>
-            <div className={styles.formField}>
-              <label className={styles.formLabel} htmlFor="wallet-name">
-                {strings.walletDetail.nameLabel}
-              </label>
-              <input
-                id="wallet-name"
-                className={styles.formInput}
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-              />
+        {wallet.archived ? (
+          <>
+            <span className={styles.archivedBadge}>{strings.walletDetail.archivedBadge}</span>
+            <p className={styles.sectionCaption}>{strings.walletDetail.unarchiveWalletHint}</p>
+            <button type="button" className={styles.unarchiveButton} onClick={unarchive}>
+              {strings.walletDetail.unarchiveWallet}
+            </button>
+          </>
+        ) : archiveOpen ? (
+          <>
+            {wallet.currentBalance > 0 && (
+              <>
+                <p className={styles.sectionCaption}>
+                  {strings.walletDetail.availablePrefix} {formatAmount(wallet.currentBalance)} {wallet.currency}
+                </p>
+                <p className={styles.sectionCaption}>{strings.walletDetail.archiveFundsPrompt}</p>
+                <div className={styles.radioGroup}>
+                  <label className={styles.radioOption}>
+                    <input
+                      type="radio"
+                      name="archive-mode"
+                      checked={archiveMode === 'transfer'}
+                      onChange={() => setArchiveMode('transfer')}
+                    />
+                    {strings.walletDetail.archiveModeTransfer}
+                  </label>
+                  <label className={styles.radioOption}>
+                    <input
+                      type="radio"
+                      name="archive-mode"
+                      checked={archiveMode === 'discard'}
+                      onChange={() => setArchiveMode('discard')}
+                    />
+                    {strings.walletDetail.archiveModeDiscard}
+                  </label>
+                </div>
+                {archiveMode === 'transfer' && (
+                  <div className={styles.formField}>
+                    <label className={styles.formLabel} htmlFor="archive-destination">
+                      {strings.walletDetail.archiveDestinationLabel}
+                    </label>
+                    <select
+                      id="archive-destination"
+                      className={styles.formInput}
+                      value={transferDestinationId}
+                      onChange={(event) => setTransferDestinationId(event.target.value)}
+                    >
+                      {otherWallets.map((account) => (
+                        <option key={account.id} value={account.id}>
+                          {account.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </>
+            )}
+            {archiveError && <p className={styles.errorText}>{archiveError}</p>}
+            <div className={styles.archiveActions}>
+              <button type="button" className={styles.cancelButton} onClick={() => setArchiveOpen(false)}>
+                {strings.walletDetail.archiveCancel}
+              </button>
+              <button
+                type="button"
+                className={styles.archiveButton}
+                disabled={archiving || (wallet.currentBalance > 0 && archiveMode === 'transfer' && otherWallets.length === 0)}
+                onClick={confirmArchive}
+              >
+                {archiving ? strings.walletDetail.archiving : strings.walletDetail.archiveConfirm}
+              </button>
             </div>
-            <div className={styles.formField}>
-              <label className={styles.formLabel} htmlFor="wallet-short-name">
-                {strings.wallets.shortNameLabel}
-              </label>
+          </>
+        ) : (
+          <>
+            <p className={styles.sectionCaption}>{strings.walletDetail.archiveWalletHint}</p>
+            <button type="button" className={styles.archiveButton} onClick={openArchive}>
+              {strings.walletDetail.archiveWallet}
+            </button>
+          </>
+        )}
+      </div>
+        ) : null
+      }
+    >
+      <ScreenState loading={loading} error={error} />
+      {ready && (
+        <>
+          <FieldRow>
+            <FieldCard label={strings.walletDetail.nameLabel}>
+              <input className={ff.input} value={name} onChange={(event) => setName(event.target.value)} />
+            </FieldCard>
+            <FieldCard label={strings.wallets.shortNameLabel}>
               <input
-                id="wallet-short-name"
-                className={styles.formInput}
+                className={ff.input}
                 value={shortName}
                 maxLength={5}
                 onChange={(event) => setShortName(event.target.value.slice(0, 5))}
                 placeholder={strings.wallets.shortNamePlaceholder}
               />
-              <p className={styles.sectionCaption}>{strings.wallets.shortNameHint}</p>
-            </div>
-            <div className={styles.formField}>
-              <label className={styles.formLabel} htmlFor="wallet-type">
-                {strings.wallets.typeLabel}
-              </label>
-              <select
-                id="wallet-type"
-                className={styles.formInput}
-                value={type}
-                onChange={(event) => setType(event.target.value)}
-              >
-                {accountTypes.map((accountType) => (
-                  <option key={accountType} value={accountType}>
-                    {accountType}
-                  </option>
-                ))}
-              </select>
-              {type === SAVINGS_ACCOUNT_TYPE && (
-                <p className={styles.sectionCaption}>{strings.walletDetail.savingsAccountTypeHint}</p>
-              )}
-            </div>
-            <div className={styles.formField}>
-              <label className={styles.formLabel} htmlFor="wallet-starting-balance">
-                {strings.walletDetail.startingBalanceLabel}
-              </label>
+            </FieldCard>
+          </FieldRow>
+          <SelectField label={strings.wallets.typeLabel} value={type} onChange={setType} options={accountTypes.map((t) => ({ value: t, label: t }))} />
+          {type === SAVINGS_ACCOUNT_TYPE && <p className={styles.sectionCaption}>{strings.walletDetail.savingsAccountTypeHint}</p>}
+          <FieldCard label={strings.walletDetail.startingBalanceLabel}>
+            <input
+              className={ff.input}
+              inputMode="decimal"
+              value={startingBalance}
+              onChange={(event) => setStartingBalance(event.target.value.replace(/[^0-9.]/g, ''))}
+              placeholder="0"
+            />
+            <span className={ff.hint}>{strings.walletDetail.startingBalanceHint}</span>
+          </FieldCard>
+          <MoreOptions defaultOpen={notSpendable || frozen || Boolean(Number(lockedAmount))}>
+            <SwitchField label={strings.walletDetail.notSpendableLabel} description={strings.walletDetail.notSpendableHint} checked={notSpendable} onChange={setNotSpendable} />
+            <SwitchField label={strings.walletDetail.frozenLabel} description={strings.walletDetail.frozenHint} checked={frozen} onChange={setFrozen} />
+            <FieldCard label={strings.walletDetail.lockedAmountLabel}>
               <input
-                id="wallet-starting-balance"
-                className={styles.formInput}
-                inputMode="numeric"
-                value={startingBalance}
-                onChange={(event) => setStartingBalance(event.target.value.replace(/[^0-9.]/g, ''))}
-                placeholder="0"
-              />
-              <p className={styles.sectionCaption}>{strings.walletDetail.startingBalanceHint}</p>
-            </div>
-            <div className={styles.formField}>
-              <label className={styles.checkboxRow}>
-                <input type="checkbox" checked={notSpendable} onChange={(event) => setNotSpendable(event.target.checked)} />
-                {strings.walletDetail.notSpendableLabel}
-              </label>
-              <p className={styles.sectionCaption}>{strings.walletDetail.notSpendableHint}</p>
-            </div>
-            <div className={styles.formField}>
-              <label className={styles.checkboxRow}>
-                <input type="checkbox" checked={frozen} onChange={(event) => setFrozen(event.target.checked)} />
-                {strings.walletDetail.frozenLabel}
-              </label>
-              <p className={styles.sectionCaption}>{strings.walletDetail.frozenHint}</p>
-            </div>
-            <div className={styles.formField}>
-              <label className={styles.formLabel} htmlFor="wallet-locked-amount">
-                {strings.walletDetail.lockedAmountLabel}
-              </label>
-              <input
-                id="wallet-locked-amount"
-                className={styles.formInput}
-                inputMode="numeric"
+                className={ff.input}
+                inputMode="decimal"
                 value={lockedAmount}
                 onChange={(event) => setLockedAmount(event.target.value.replace(/[^0-9.]/g, ''))}
                 placeholder="0"
               />
-              <p className={styles.sectionCaption}>{strings.walletDetail.lockedAmountHint}</p>
-            </div>
-
-            {saveError && <p className={styles.errorText}>{saveError}</p>}
-            <button type="button" className={styles.saveButton} disabled={!name.trim() || saving} onClick={handleSave}>
-              {strings.common.save}
-            </button>
-          </div>
-
-          <div className={styles.dangerCard}>
-            <p className={styles.dangerTitle}>{strings.walletDetail.dangerZoneTitle}</p>
-
-            {wallet.archived ? (
-              <>
-                <span className={styles.archivedBadge}>{strings.walletDetail.archivedBadge}</span>
-                <p className={styles.sectionCaption}>{strings.walletDetail.unarchiveWalletHint}</p>
-                <button type="button" className={styles.unarchiveButton} onClick={unarchive}>
-                  {strings.walletDetail.unarchiveWallet}
-                </button>
-              </>
-            ) : archiveOpen ? (
-              <>
-                {wallet.currentBalance > 0 && (
-                  <>
-                    <p className={styles.sectionCaption}>
-                      {strings.walletDetail.availablePrefix} {formatAmount(wallet.currentBalance)} {wallet.currency}
-                    </p>
-                    <p className={styles.sectionCaption}>{strings.walletDetail.archiveFundsPrompt}</p>
-                    <div className={styles.radioGroup}>
-                      <label className={styles.radioOption}>
-                        <input
-                          type="radio"
-                          name="archive-mode"
-                          checked={archiveMode === 'transfer'}
-                          onChange={() => setArchiveMode('transfer')}
-                        />
-                        {strings.walletDetail.archiveModeTransfer}
-                      </label>
-                      <label className={styles.radioOption}>
-                        <input
-                          type="radio"
-                          name="archive-mode"
-                          checked={archiveMode === 'discard'}
-                          onChange={() => setArchiveMode('discard')}
-                        />
-                        {strings.walletDetail.archiveModeDiscard}
-                      </label>
-                    </div>
-                    {archiveMode === 'transfer' && (
-                      <div className={styles.formField}>
-                        <label className={styles.formLabel} htmlFor="archive-destination">
-                          {strings.walletDetail.archiveDestinationLabel}
-                        </label>
-                        <select
-                          id="archive-destination"
-                          className={styles.formInput}
-                          value={transferDestinationId}
-                          onChange={(event) => setTransferDestinationId(event.target.value)}
-                        >
-                          {otherWallets.map((account) => (
-                            <option key={account.id} value={account.id}>
-                              {account.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
-                  </>
-                )}
-                {archiveError && <p className={styles.errorText}>{archiveError}</p>}
-                <div className={styles.archiveActions}>
-                  <button type="button" className={styles.cancelButton} onClick={() => setArchiveOpen(false)}>
-                    {strings.walletDetail.archiveCancel}
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.archiveButton}
-                    disabled={archiving || (wallet.currentBalance > 0 && archiveMode === 'transfer' && otherWallets.length === 0)}
-                    onClick={confirmArchive}
-                  >
-                    {archiving ? strings.walletDetail.archiving : strings.walletDetail.archiveConfirm}
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <p className={styles.sectionCaption}>{strings.walletDetail.archiveWalletHint}</p>
-                <button type="button" className={styles.archiveButton} onClick={openArchive}>
-                  {strings.walletDetail.archiveWallet}
-                </button>
-              </>
-            )}
-          </div>
+              <span className={ff.hint}>{strings.walletDetail.lockedAmountHint}</span>
+            </FieldCard>
+          </MoreOptions>
         </>
       )}
-    </div>
+    </FormFrame>
   );
 }

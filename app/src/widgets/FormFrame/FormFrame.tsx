@@ -19,31 +19,18 @@
 // full-width primary button named verb plus object, disabled until valid.
 // No corner checkmark buttons.
 
-import { createContext, useContext, useState, type FormEvent, type ReactNode } from 'react';
+import { useState, type FormEvent, type ReactNode } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, ChevronDown, Maximize2, X } from 'lucide-react';
 import { useLayout } from '@/src/shared/hooks/useLayout';
+import { FormPeekContext, useFormPeek, type FormPeekState } from '@/src/shared/navigation/formPeekContext';
 import cf from '@/src/widgets/CardForm/CardForm.module.css';
 import styles from './FormFrame.module.css';
 
 // ---------------------------------------------------------------------------
-// Where the form is shown
+// Where the form is shown (src/shared/navigation/formPeekContext.ts)
 
-export interface FormPeekState {
-  /** The form is in a side peek (wide screens only). */
-  peek: boolean;
-  /** Closes the peek (replaces the history entry). */
-  close: () => void;
-  /** The form's own page, for "Open as full page". */
-  fullPageHref: string | null;
-}
-
-export const FormPeekContext = createContext<FormPeekState | null>(null);
-
-/** Inside a side peek: how to close it. Null on a full page. */
-export function useFormPeek(): FormPeekState | null {
-  return useContext(FormPeekContext);
-}
+export { FormPeekContext, useFormPeek, type FormPeekState };
 
 /**
  * A form's exits. In a peek, closing and finishing close the peek (unless
