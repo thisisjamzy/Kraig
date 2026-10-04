@@ -211,6 +211,15 @@ export function NotificationsScreen() {
   const c = v.counts;
   const selected = [...v.selected];
 
+  // ?open=<id> (a notification's own address on a wide screen): its side peek, once it loads.
+  const [opened, setOpened] = useState(false);
+  if (!opened && !v.loading && typeof window !== 'undefined') {
+    setOpened(true);
+    const id = new URLSearchParams(window.location.search).get('open');
+    const n = id ? v.all.find((x) => x.id === id) : null;
+    if (n) v.openPeek(n);
+  }
+
   return (
     <NotionPage
       title="Notifications"
