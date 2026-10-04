@@ -11,7 +11,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { CalendarCheck, CircleHelp, Sparkles } from 'lucide-react';
 import type { LineRow } from '@/src/logic/budgetMonth/lines';
-import styles from '@/src/phone/screens/BudgetMonth/BudgetMonth.module.css';
+import styles from '@/src/phone/screens/Planning/Banners.module.css';
 
 const money = (n: number) => Math.round(n).toLocaleString('en-US');
 

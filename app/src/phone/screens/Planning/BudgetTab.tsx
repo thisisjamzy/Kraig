@@ -13,7 +13,7 @@ import { useBudgetTab } from '@/src/logic/planning/useBudgetTab';
 import { useBudgetMonth } from '@/src/logic/budgetMonth/useLogic';
 import { FLOW_LABEL, FLOW_TYPES } from '@/src/shared/budget/flow';
 import { ReadyToPayCard } from '@/src/widgets/ReadyToPay/ReadyToPayCard';
-import { IncomePrompt, MigrationNotice, SetupBanner } from '@/src/phone/screens/BudgetMonth/Banners';
+import { IncomePrompt, MigrationNotice, SetupBanner } from '@/src/phone/screens/Planning/Banners';
 import type { PlanningData } from '@/src/logic/planning/useLogic';
 import { ActionMenu } from '@/src/widgets/ActionMenu/ActionMenu';
 import { money, signedMoney } from '@/src/viewmodels/planning';
