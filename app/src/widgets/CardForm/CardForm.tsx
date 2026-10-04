@@ -16,12 +16,16 @@ import { useOwnsTitle } from '@/src/widgets/AppShell/breadcrumb';
 
 export const cardFormStyles = styles;
 
-/** The screen: surface-toned page, big faint watermark title, close button. */
-export function CardFormPage({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+/**
+ * The screen: surface-toned page, big faint watermark title, close button.
+ * `square` gives every card and button zero corners (the page standard's
+ * blocks; the debt forms use it).
+ */
+export function CardFormPage({ title, onClose, square = false, children }: { title: string; onClose: () => void; square?: boolean; children: ReactNode }) {
   // Draws its own title: the shell adds none on wide screens.
   useOwnsTitle(useHasTopBar());
   return (
-    <div className={styles.page}>
+    <div className={styles.page} data-shape={square ? 'square' : undefined}>
       <div className={styles.top}>
         <button type="button" className={styles.closeButton} onClick={onClose} aria-label="Close">
           <X size={18} strokeWidth={2} />

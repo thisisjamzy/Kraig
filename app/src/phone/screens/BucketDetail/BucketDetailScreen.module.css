@@ -1,0 +1,781 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  padding: var(--space-lg);
+  padding-top: 0;
+  gap: var(--space-lg);
+}
+
+
+.backButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  background: none;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+
+.bucketName {
+  margin: calc(-1 * var(--space-sm)) 0 0;
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  color: var(--color-text-primary);
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+
+.archiveButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--color-danger) 40%, transparent);
+  background: none;
+  color: var(--color-danger);
+  cursor: pointer;
+}
+
+.progressCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.progressHeadline {
+  margin: 0;
+  font-size: var(--font-size-md);
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.track {
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  overflow: hidden;
+}
+
+.fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-brand);
+}
+
+.amountRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.amountValue {
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.deadlineRow {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.sectionTitleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: var(--font-size-md);
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.addIconButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 50%;
+  background: var(--ink-bg);
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.emptyText {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+/* Three-row, horizontally-optimized card: row 1 is the category (top left
+   — this page is already scoped to one bucket, so there's no bucket label to
+   pair a date with here, unlike BucketsScreen's cross-bucket version) plus an
+   "In budget" indicator right next to it, with the due date and the
+   action trigger grouped at the row's far end; row 2 is the item name and
+   amount; row 3 wraps every remaining badge (kind/priority/necessity/
+   possibility/done) together. */
+.lineItem {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--space-md) var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.lineItemHeaderRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  min-height: 20px;
+}
+
+.lineItemHeaderLeft {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.lineItemHeaderRight {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.addedToBudgetTag {
+  flex-shrink: 0;
+  padding: 2px var(--space-sm);
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--color-brand) 18%, transparent);
+  color: var(--color-brand);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.lineItemNameRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.lineItemAmount {
+  margin: 0;
+  flex-shrink: 0;
+  font-size: var(--font-size-sm);
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+/* Spent-vs-planned progress bar — shown whenever a payment has been
+   recorded against the item (partial or fully closed), between the
+   name/amount row and the badge row (BucketDetailScreen.tsx). */
+.lineItemProgressSection {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.lineItemProgressTrack {
+  width: 100%;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--color-border);
+  overflow: hidden;
+}
+
+.lineItemProgressFill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-brand);
+}
+
+.lineItemProgressRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.lineItemProgressLabel {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.lineItemPaymentsRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* One per recorded payment — links straight to the real transaction or
+   transfer it created, so "how much has actually gone toward this" is
+   never just a static figure. */
+.paymentChip {
+  padding: 2px var(--space-sm);
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--color-brand) 12%, transparent);
+  color: var(--color-brand);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.lineItemName {
+  margin: 0;
+  min-width: 0;
+  flex: 1;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lineItemCategoryText {
+  margin: 0;
+  min-width: 0;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.doneTag {
+  flex-shrink: 0;
+  padding: 2px var(--space-sm);
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--color-brand) 18%, transparent);
+  color: var(--color-brand);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.kindBadgeFixed {
+  flex-shrink: 0;
+  padding: 2px var(--space-sm);
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, #4b6bfb 18%, transparent);
+  color: #3049c4;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.kindBadgeVariable {
+  flex-shrink: 0;
+  padding: 2px var(--space-sm);
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.kindBadgeUnclassified {
+  flex-shrink: 0;
+  padding: 2px var(--space-sm);
+  border-radius: var(--radius-full);
+  border: 1px dashed var(--color-border);
+  color: var(--color-text-secondary);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+/* Some payments recorded, but not yet closed — sits between .fundsBadgeOk/
+   Shortfall (not touched yet) and .doneTag (closed) in meaning. */
+.partialTag {
+  display: inline-block;
+  padding: 2px var(--space-sm);
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, #e8a33d 18%, transparent);
+  color: #a3671c;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.fundsBadgeOk {
+  display: inline-block;
+  padding: 2px var(--space-sm);
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, #2e9e5b 18%, transparent);
+  color: #2e9e5b;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.fundsBadgeShort {
+  display: inline-block;
+  padding: 2px var(--space-sm);
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--color-danger) 18%, transparent);
+  color: var(--color-danger);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.lineItemTagRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}
+
+.priorityTag {
+  padding: 2px var(--space-sm);
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.necessityTagMust {
+  padding: 2px var(--space-sm);
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, #e8a33d 22%, transparent);
+  color: #a3671c;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.necessityTagNice {
+  padding: 2px var(--space-sm);
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+/* Sub-items rollup + expandable checklist — ticking one off here is a
+   live write (bucketDetail/useLogic.ts's toggleSubItemLive), independent of
+   the Edit item form's own draft-until-saved list. */
+.subItemsSection {
+  margin-top: 2px;
+}
+
+.subItemsSummaryRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: inherit;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.subItemsSummaryText {
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.subItemsExpandedList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: var(--space-xs);
+  padding-top: var(--space-xs);
+  border-top: 1px solid var(--color-border);
+}
+
+.subItemsExpandedRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  cursor: pointer;
+}
+
+.subItemsExpandedName {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.subItemsExpandedNameDone {
+  color: var(--color-text-secondary);
+  text-decoration: line-through;
+}
+
+.subItemsExpandedAmount {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.dueDateText {
+  margin: 0;
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.dueDateTextPlaceholder {
+  margin: 0;
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  font-style: italic;
+  color: var(--color-text-secondary);
+  opacity: 0.7;
+}
+
+.chipGroup {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}
+
+.chip {
+  padding: var(--space-xs) var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: none;
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.chipActive {
+  border-color: var(--ink-bg);
+  background: var(--ink-bg);
+  color: #ffffff;
+}
+
+/* Two selects side by side (category+priority) — each field keeps its own
+   label above it, the row just splits the width evenly instead of each
+   select taking the full form width on its own line. */
+.formRow {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.formRow > .formField {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Due date sits on the same line as its own label — no separate row, no
+   boxed/bordered trigger, just plain text (or a dd/mm/yy placeholder when
+   nothing's picked yet) that opens the calendar on tap. */
+.dueDateFieldRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.dueDateInlineRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.dueDateTrigger {
+  border: none;
+  background: none;
+  padding: 0;
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.dueDateTriggerPlaceholder {
+  border: none;
+  background: none;
+  padding: 0;
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.clearDueDateButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+/* Modal form fields (add line item / mark as paid) */
+
+.formField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  min-width: 0;
+  margin-bottom: var(--space-md);
+}
+
+.formLabel {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.formHint {
+  margin: 0 0 var(--space-md);
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+/* Fully paid / Partial choice in the Record Payment modal. */
+.statusToggle {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+}
+
+.statusToggleOption {
+  flex: 1;
+  padding: var(--space-sm);
+  border: none;
+  border-radius: var(--radius-full);
+  background: none;
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.statusToggleOptionActive {
+  background: var(--color-brand);
+  color: #ffffff;
+}
+
+.formInput,
+.formTextarea {
+  width: 100%;
+  min-width: 0;
+  padding: var(--space-md);
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  outline: none;
+  resize: none;
+}
+
+.errorText {
+  margin: 0 0 var(--space-sm);
+  font-size: var(--font-size-sm);
+  color: var(--color-danger);
+}
+
+.hintText {
+  margin: calc(-1 * var(--space-sm)) 0 var(--space-md);
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.modalSaveButton {
+  width: 100%;
+  padding: var(--space-md) var(--space-lg);
+  border: none;
+  border-radius: var(--radius-lg);
+  background: var(--ink-bg);
+  color: var(--color-brand);
+  font-family: inherit;
+  font-size: var(--font-size-md);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.modalSaveButton:disabled {
+  background: #6b7380;
+  color: rgba(255, 255, 255, 0.85);
+  cursor: not-allowed;
+}
+
+/* Budgets v2 — this month's planned vs spent for the item, opening the
+   item-month sheet (src/screens/BucketItemMonth). Same row language as the
+   Budget screen's item rows (Budget/BudgetGroups.module.css). */
+.thisMonthRow {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  margin-top: var(--space-xs);
+  padding: 10px 12px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font-family: inherit;
+  text-align: left;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: transform var(--duration-press) var(--ease-out);
+}
+
+.thisMonthRow:active {
+  transform: scale(0.985);
+}
+
+.thisMonthRow:focus-visible {
+  outline: 2px solid var(--money-blue);
+  outline-offset: 2px;
+}
+
+.thisMonthTop {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+  font-size: 0.75rem;
+}
+
+.thisMonthLabel {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-primary);
+}
+
+.thisMonthFigures {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.thisMonthOk,
+.thisMonthOver {
+  flex-shrink: 0;
+  font-weight: 700;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.thisMonthOk {
+  color: var(--money-blue);
+}
+
+.thisMonthOver {
+  color: var(--money-red);
+}
+
+.thisMonthBar {
+  display: block;
+  height: 3px;
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--color-text-secondary) 18%, transparent);
+  overflow: hidden;
+}
+
+.thisMonthBarFill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--money-blue);
+  transition: width 300ms var(--ease-out);
+}
+
+.thisMonthBarFill[data-status='over'] {
+  background: var(--money-red);
+}
+
+.thisMonthBarFill[data-status='income'] {
+  background: var(--color-success);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .thisMonthRow,
+  .thisMonthBarFill {
+    transition: none;
+  }
+
+  .thisMonthRow:active {
+    transform: none;
+  }
+}
+
+/* "Sep 2026 ·" in front of a Fixed bucket's progress headline — its
+   figures are this month's, not the whole plan's. */
+.progressScope {
+  font-weight: 700;
+  opacity: 0.8;
+}
+
+/* Shown on an archived bucket, with the way back. */
+.archivedBanner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.archivedBanner span {
+  flex: 1;
+}
+
+.archivedBanner button {
+  min-height: 36px;
+  padding: 0 var(--space-md);
+  border: none;
+  border-radius: var(--radius-full);
+  background: var(--color-brand);
+  color: #ffffff;
+  font-family: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}

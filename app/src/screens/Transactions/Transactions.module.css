@@ -37,3 +37,34 @@
   font-size: 0.75rem;
   color: #a5a49f;
 }
+
+/* Excluded transactions (a debt changed to record only): listed with
+   "Show excluded", greyed, never counted. */
+.showExcluded {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.excluded {
+  display: inline-flex;
+  flex-direction: column;
+  min-width: 0;
+  color: var(--color-text-secondary);
+  text-decoration: line-through;
+}
+
+.excludedReason {
+  font-size: 12px;
+  text-decoration: none;
+  white-space: normal;
+}
+
+.amount[data-excluded] {
+  color: var(--color-text-secondary);
+  text-decoration: line-through;
+}

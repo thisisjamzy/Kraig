@@ -246,15 +246,31 @@ service cloud.firestore {
         allow create, update: if activeUser() && request.auth.uid == uid
           && request.resource.data.principalAmount is number
           && request.resource.data.debtType in ['cash', 'existing'];
-        allow delete: if false; // archive in place (archivedAt: a timestamp)
+        // Archive in place (archivedAt) is the usual way out; delete is only
+        // offered before any repayment (src/shared/debt/walletEffect.ts's
+        // planDeleteDebt), together with its borrowing transaction.
+        allow delete: if activeUser() && request.auth.uid == uid;
 
         // Repayment history — never deleted, same "archive/append, don't
-        // erase" convention as the ledger's own transactions/transfers.
+        // erase" convention as the ledger's own transactions/transfers. The
+        // one edit: linking (or unlinking) the transaction that paid it,
+        // when the debt's wallet effect changes.
         match /repayments/{repaymentId} {
           allow read: if activeUser() && request.auth.uid == uid;
           allow create: if activeUser() && request.auth.uid == uid
             && request.resource.data.amount is number;
-          allow update, delete: if false;
+          allow update: if activeUser() && request.auth.uid == uid
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['transactionId']);
+          allow delete: if false;
+        }
+
+        // The activity log. Entries are appended; the only edit marks one
+        // undone. Deleted only with the debt itself.
+        match /activity/{entryId} {
+          allow read, create: if activeUser() && request.auth.uid == uid;
+          allow update: if activeUser() && request.auth.uid == uid
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['undoneAt']);
+          allow delete: if activeUser() && request.auth.uid == uid;
         }
       }
 
@@ -344,6 +360,12 @@ service cloud.firestore {
       // written (three segments without a named subcollection) —
       // implemented here as their own subcollections, statsMonthly and
       // statsBudgetProgress, doc id = yyyy-mm, same data, valid path.
+      // Notifications (src/shared/notifications): written by the client's
+      // rules runner, read, snoozed and archived from the Notifications page.
+      match /notifications/{notificationId} {
+        allow read, create, update, delete: if activeUser() && request.auth.uid == uid;
+      }
+
       match /stats/{docId} {
         allow read, write: if activeUser() && request.auth.uid == uid;
       }

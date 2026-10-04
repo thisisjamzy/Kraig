@@ -12,6 +12,7 @@ import { useRouter } from 'next/navigation';
 import { Maximize2, PanelRight, Square, X } from 'lucide-react';
 import { readPeekMode, writePeekMode, type PeekMode } from './useDatabaseState';
 import styles from './Database.module.css';
+import { useWebOnly } from '@/src/shared/device/useWebOnly';
 
 export function usePeek<T>(hrefOf: (row: T) => string) {
   const router = useRouter();
@@ -55,6 +56,7 @@ export function SidePeek({
   actions?: ReactNode;
   children: ReactNode;
 }) {
+  useWebOnly('SidePeek');
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;

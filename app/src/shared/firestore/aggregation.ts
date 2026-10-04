@@ -56,7 +56,9 @@ import {
   unjustifiedWalletRef,
 } from './refs';
 import { convert, round2, type CurrencyContext } from './currency';
+import { writeDebtActivity } from './debtWrites';
 import type {
+  DebtPaidFrom,
   FirestoreDebtPaymentPlan,
   DebtType,
   DebtPriority,
@@ -88,6 +90,17 @@ function assertNotBelowLocked(account: { currentBalance?: number; lockedAmount?:
   const lockedAmount = account?.lockedAmount ?? 0;
   if (currentBalance + delta < lockedAmount) {
     throw new Error('This would dip into the amount locked in this wallet, unlock some of it first, or use a smaller amount.');
+  }
+}
+
+/**
+ * An excluded transaction (its debt changed to record only) already had its
+ * effect reversed: editing or deleting it here would reverse it twice. It
+ * changes through its debt (src/shared/firestore/debtWrites.ts) instead.
+ */
+function assertCounted(transaction: { excluded?: boolean }) {
+  if (transaction.excluded) {
+    throw new Error('This transaction is excluded from your figures because its debt is record only. Change the debt\u2019s wallet effect instead.');
   }
 }
 
@@ -335,6 +348,7 @@ export async function updateTransactionWithAggregation(
     const beforeSnap = await tx.get(transactionRef(uid, input.id));
     const before = beforeSnap.data();
     if (!before) throw new Error('This transaction no longer exists.');
+    assertCounted(before);
     oldLink = before.bucketItem ?? null;
     const oldAccountId = before.accountId;
     oldCategoryId = before.categoryId ?? null;
@@ -536,6 +550,7 @@ export async function deleteTransactionWithAggregation(uid: string, transactionI
     const beforeSnap = await tx.get(transactionRef(uid, transactionId));
     const before = beforeSnap.data();
     if (!before) throw new Error('This transaction no longer exists.');
+    assertCounted(before);
     link = before.bucketItem ?? null;
     const accountId = before.accountId;
     categoryId = before.categoryId ?? null;
@@ -1507,7 +1522,8 @@ export async function recordBucketLineItemPayment(
 }
 
 // ---------------------------------------------------------------------
-// Debt — `PRD Files/prd debt n goals` section 2.
+// Debt — `PRD Files/prd debt n goals` section 2. Switching a debt's wallet
+// effect and editing what moves money live in debtWrites.ts.
 // ---------------------------------------------------------------------
 
 export interface CreateDebtInput {
@@ -1517,18 +1533,20 @@ export interface CreateDebtInput {
   // The wallet a 'cash' debt's borrowed money lands in — required for
   // 'cash', so the principal can actually be credited there (see below) and
   // every later repayment has a real default to debit. Not asked for an
-  // 'existing' debt at creation (that type has no wallet impact unless
-  // linked per-repayment).
+  // 'existing' (record only) debt: the money never passed through an account.
   accountId: string | null;
   principalAmount: number;
   currency: string;
   priority: DebtPriority;
   startDate: Date;
   notes: string;
+  lender?: string;
   recurring?: {
     amount: number;
     interval: 'weekly' | 'biweekly' | 'monthly' | 'yearly';
     nextPaymentDate: Date;
+    paidFrom?: DebtPaidFrom | null;
+    automation?: 'off' | 'remind' | 'prepare';
   } | null;
   // The "Loan received" income credit, when it comes from recording debt
   // financing as income (Add Transaction): its id, category and the
@@ -1546,9 +1564,14 @@ export async function createDebt(uid: string, input: CreateDebtInput, ctx: Curre
           interval: input.recurring.interval,
           nextPaymentDate: Timestamp.fromDate(input.recurring.nextPaymentDate),
           isActive: true,
+          paidFrom: input.recurring.paidFrom ?? null,
+          automation: input.recurring.automation ?? 'off',
+          nextOverride: null,
         },
       }
     : { type: 'none' };
+  const isCash = input.debtType === 'cash' && Boolean(input.accountId);
+  const borrowingTransactionId = isCash ? (input.credit?.transactionId ?? crypto.randomUUID()) : null;
   const debtFields = {
     name: input.name,
     description: input.description,
@@ -1562,6 +1585,10 @@ export async function createDebt(uid: string, input: CreateDebtInput, ctx: Curre
     startDate: Timestamp.fromDate(input.startDate),
     paymentPlan,
     notes: input.notes,
+    lender: input.lender ?? '',
+    borrowingTransactionId,
+    lastChangeId: null,
+    paidOffAt: null,
     archivedAt: null,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
@@ -1572,20 +1599,19 @@ export async function createDebt(uid: string, input: CreateDebtInput, ctx: Curre
   // transaction as the debt doc itself, so the two can never diverge (the
   // debt would never exist with its principal missing from the wallet, or
   // vice versa).
-  if (input.debtType === 'cash' && input.accountId) {
-    const db = getFirebaseFirestore();
-    const accountId = input.accountId;
-    await runTransaction(db, async (tx) => {
-      const accountSnap = await tx.get(accountRef(uid, accountId));
+  const db = getFirebaseFirestore();
+  await runTransaction(db, async (tx) => {
+    const accountSnap = isCash ? await tx.get(accountRef(uid, input.accountId!)) : null;
+    if (isCash && borrowingTransactionId) {
       writeTransactionContribution(
         tx,
         uid,
         {
-          id: input.credit?.transactionId ?? crypto.randomUUID(),
+          id: borrowingTransactionId,
           date: input.startDate,
           type: 'Income',
           description: input.credit?.description || `Loan received: ${input.name}`,
-          accountId,
+          accountId: input.accountId!,
           categoryId: input.credit?.categoryId ?? null,
           amount: input.principalAmount,
           direction: 'Inflow',
@@ -1596,92 +1622,22 @@ export async function createDebt(uid: string, input: CreateDebtInput, ctx: Curre
           linkedDebtId: id,
           bucketItem: input.credit?.bucketItem ?? null,
         },
-        accountSnap.data(),
+        accountSnap!.data(),
         ctx
       );
-      tx.set(debtRef(uid, id), debtFields);
+    }
+    tx.set(debtRef(uid, id), debtFields);
+    writeDebtActivity(tx, uid, id, {
+      kind: 'created',
+      title: 'Debt created',
+      lines: [isCash ? `Received into ${accountSnap!.data()?.name ?? 'an account'}, counted as income for its month (borrowed).` : 'Record only: your balances didn\u2019t change.'],
     });
-  } else {
-    await setDoc(debtRef(uid, id), debtFields);
-  }
+  });
 
   return id;
 }
 
-export async function archiveDebt(uid: string, debtId: string): Promise<void> {
-  await updateDoc(debtRef(uid, debtId), { archivedAt: serverTimestamp(), updatedAt: serverTimestamp() });
-}
-
-export interface UpdateDebtInput {
-  name: string;
-  description: string;
-  accountId: string | null;
-  principalAmount: number;
-  priority: DebtPriority;
-  startDate: Date;
-  notes: string;
-}
-
-/**
- * Edits a debt's own fields. A 'cash' debt that never had a wallet linked
- * (created before this field existed, or the household skipped it) gets one
- * more chance here: choosing an account for the first time credits the
- * current principal into it, exactly like createDebt does at creation —
- * same reasoning, just a later moment. Only fires on that null-to-set
- * transition, never on swapping an already-linked account (that would
- * double-credit money that's already been recorded once).
- */
-export async function updateDebt(
-  uid: string,
-  debtId: string,
-  before: { debtType: DebtType; accountId: string | null; name: string; totalRepaid: number },
-  input: UpdateDebtInput,
-  ctx: CurrencyContext
-): Promise<void> {
-  const update = {
-    name: input.name,
-    description: input.description,
-    accountId: input.accountId,
-    principalAmount: input.principalAmount,
-    currentBalance: Math.max(0, round2(input.principalAmount - before.totalRepaid)),
-    priority: input.priority,
-    startDate: Timestamp.fromDate(input.startDate),
-    notes: input.notes,
-    updatedAt: serverTimestamp(),
-  };
-
-  const backfillsAccount = before.debtType === 'cash' && !before.accountId && Boolean(input.accountId);
-
-  if (backfillsAccount && input.accountId) {
-    const db = getFirebaseFirestore();
-    const accountId = input.accountId;
-    await runTransaction(db, async (tx) => {
-      const accountSnap = await tx.get(accountRef(uid, accountId));
-      writeTransactionContribution(
-        tx,
-        uid,
-        {
-          id: crypto.randomUUID(),
-          date: new Date(),
-          type: 'Income',
-          description: `Loan received: ${input.name}`,
-          accountId,
-          categoryId: null,
-          amount: input.principalAmount,
-          direction: 'Inflow',
-          createdBy: uid,
-        },
-        accountSnap.data(),
-        ctx
-      );
-      tx.update(debtRef(uid, debtId), update);
-    });
-  } else {
-    await updateDoc(debtRef(uid, debtId), update);
-  }
-}
-
-function addInterval(date: Date, interval: 'weekly' | 'biweekly' | 'monthly' | 'yearly'): Date {
+export function addInterval(date: Date, interval: 'weekly' | 'biweekly' | 'monthly' | 'yearly'): Date {
   const d = new Date(date);
   if (interval === 'weekly') d.setDate(d.getDate() + 7);
   else if (interval === 'biweekly') d.setDate(d.getDate() + 14);
@@ -1690,29 +1646,19 @@ function addInterval(date: Date, interval: 'weekly' | 'biweekly' | 'monthly' | '
   return d;
 }
 
-/** Same "recompute from the real subcollection, a transaction can't query"
- * shape as recalcBucketTotals above. */
-async function recalcDebtBalance(uid: string, debtId: string, principalAmount: number) {
-  const snap = await getDocs(repaymentsRef(uid, debtId));
-  const totalRepaid = snap.docs.reduce((sum, d) => sum + (Number(d.data().amount) || 0), 0);
-  await updateDoc(debtRef(uid, debtId), {
-    totalRepaid,
-    currentBalance: Math.max(0, principalAmount - totalRepaid),
-    updatedAt: serverTimestamp(),
-  });
-}
-
 export interface RecordRepaymentInput {
   amount: number;
   date: Date;
   notes: string;
   method: 'manual' | 'planned';
   // Required for a 'cash' debt (money has to leave a real account); for an
-  // 'existing' debt this is the optional "link to account transaction"
-  // toggle from the PRD's UI spec — null skips creating a transaction
-  // entirely, just logs progress.
+  // 'existing' debt this is the optional "paid from one of my accounts"
+  // toggle — null skips creating a transaction entirely, just logs progress.
   accountId: string | null;
   categoryId: string | null;
+  // The form refuses a repayment the account can't cover; Import doesn't
+  // (historic rows against imperfect balances).
+  checkFunds?: boolean;
 }
 
 export interface RepaymentDebt {
@@ -1724,15 +1670,11 @@ export interface RepaymentDebt {
 }
 
 /**
- * Records a repayment against a debt. For a 'cash' debt (or an 'existing'
- * debt where the household chose to link an account), this also writes a
- * real Expense transaction — inside the same runTransaction() as the
- * repayment doc, via writeTransactionContribution, so the two can never
- * diverge. For an 'existing' debt with no account linked, only the
- * repayment doc is written; the debt's balance still moves, nothing in the
- * ledger does. Either way, currentBalance/totalRepaid are recomputed from
- * the full repayments history afterward (recalcDebtBalance), and an active
- * recurring plan's nextPaymentDate advances by one interval.
+ * Records a repayment against a debt, all in one runTransaction(): the
+ * repayment doc, for a 'cash' debt (or a record-only one paid from an
+ * account) a real Expense transaction via writeTransactionContribution, the
+ * debt's totalRepaid/currentBalance recomputed from every repayment, the
+ * plan's next payment moved on, and an activity entry.
  */
 export async function recordRepayment(
   uid: string,
@@ -1743,14 +1685,30 @@ export async function recordRepayment(
   const db = getFirebaseFirestore();
   const repaymentId = crypto.randomUUID();
   const shouldLinkTransaction = debt.debtType === 'cash' || Boolean(input.accountId);
+  if (shouldLinkTransaction && !input.accountId) {
+    throw new Error('Choose an account to debit for this repayment.');
+  }
+  // A transaction can't query: list the existing repayments first, then
+  // read each one inside it.
+  const existingIds = (await getDocs(repaymentsRef(uid, debt.id))).docs.map((d) => d.id);
 
-  if (shouldLinkTransaction) {
-    if (!input.accountId) {
-      throw new Error('Choose an account to debit for this repayment.');
+  await runTransaction(db, async (tx) => {
+    const debtSnap = await tx.get(debtRef(uid, debt.id));
+    const current = debtSnap.data();
+    if (!current) throw new Error('This debt no longer exists.');
+    const repaymentSnaps = await Promise.all(existingIds.map((id) => tx.get(repaymentRef(uid, debt.id, id))));
+    const accountSnap = shouldLinkTransaction ? await tx.get(accountRef(uid, input.accountId!)) : null;
+    const account = accountSnap?.data();
+    if (input.checkFunds && account) {
+      const available = round2((account.currentBalance ?? 0) - (account.lockedAmount ?? 0));
+      if (available < input.amount) {
+        throw new Error(`${account.name} doesn\u2019t have enough money for this (${Math.round(available).toLocaleString('en-US')} available).`);
+      }
     }
-    const transactionId = crypto.randomUUID();
-    await runTransaction(db, async (tx) => {
-      const accountSnap = await tx.get(accountRef(uid, input.accountId!));
+
+    let transactionId: string | null = null;
+    if (shouldLinkTransaction) {
+      transactionId = crypto.randomUUID();
       writeTransactionContribution(
         tx,
         uid,
@@ -1758,7 +1716,7 @@ export async function recordRepayment(
           id: transactionId,
           date: input.date,
           type: 'Expense',
-          description: `Repayment: ${debt.name}`,
+          description: `Repayment: ${current.name}`,
           accountId: input.accountId!,
           categoryId: input.categoryId,
           amount: input.amount,
@@ -1767,39 +1725,54 @@ export async function recordRepayment(
           isDebtRepayment: true,
           linkedDebtId: debt.id,
         },
-        accountSnap.data(),
+        account,
         ctx
       );
-      tx.set(repaymentRef(uid, debt.id, repaymentId), {
-        debtId: debt.id,
-        amount: input.amount,
-        date: Timestamp.fromDate(input.date),
-        method: input.method,
-        notes: input.notes,
-        transactionId,
-        createdAt: serverTimestamp(),
-      });
-    });
-  } else {
-    await setDoc(repaymentRef(uid, debt.id, repaymentId), {
+    }
+    tx.set(repaymentRef(uid, debt.id, repaymentId), {
       debtId: debt.id,
       amount: input.amount,
       date: Timestamp.fromDate(input.date),
       method: input.method,
       notes: input.notes,
-      transactionId: null,
+      transactionId,
       createdAt: serverTimestamp(),
     });
-  }
 
-  await recalcDebtBalance(uid, debt.id, debt.principalAmount);
-
-  if (debt.paymentPlan.type === 'recurring' && debt.paymentPlan.recurring?.isActive) {
-    const nextPaymentDate = addInterval(input.date, debt.paymentPlan.recurring.interval);
-    await updateDoc(debtRef(uid, debt.id), {
-      paymentPlan: { ...debt.paymentPlan, recurring: { ...debt.paymentPlan.recurring, nextPaymentDate: Timestamp.fromDate(nextPaymentDate) } },
+    const totalRepaid = round2(repaymentSnaps.reduce((sum, snap) => sum + (Number(snap.data()?.amount) || 0), 0) + input.amount);
+    const currentBalance = Math.max(0, round2(current.principalAmount - totalRepaid));
+    let paymentPlan = current.paymentPlan;
+    const recurring = paymentPlan.type === 'recurring' ? paymentPlan.recurring : undefined;
+    if (recurring?.isActive) {
+      // A planned payment moves the schedule on from its own date; a
+      // manual one from the day it was paid. A one-off "next payment"
+      // override is used up either way.
+      const from = recurring.nextOverride ? recurring.nextPaymentDate.toDate() : input.method === 'planned' ? recurring.nextPaymentDate.toDate() : input.date;
+      paymentPlan = {
+        ...paymentPlan,
+        recurring: {
+          ...recurring,
+          nextPaymentDate: Timestamp.fromDate(recurring.nextOverride ? from : addInterval(from, recurring.interval)),
+          nextOverride: null,
+          isActive: currentBalance > 0,
+        },
+      };
+    }
+    tx.update(debtRef(uid, debt.id), {
+      totalRepaid,
+      currentBalance,
+      paymentPlan,
+      paidOffAt: currentBalance <= 0 ? serverTimestamp() : null,
+      updatedAt: serverTimestamp(),
     });
-  }
+    const fmt = (n: number) => Math.round(n).toLocaleString('en-US');
+    writeDebtActivity(tx, uid, debt.id, {
+      kind: 'repayment',
+      title: currentBalance <= 0 ? 'Paid off' : 'Repayment recorded',
+      changes: [{ label: 'Balance owed', from: fmt(current.currentBalance), to: fmt(currentBalance) }],
+      lines: [account ? `${fmt(input.amount)} from ${account.name}.` : `${fmt(input.amount)}, not from your accounts.`],
+    });
+  });
 
   return repaymentId;
 }

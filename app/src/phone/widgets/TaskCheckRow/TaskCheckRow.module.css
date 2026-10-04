@@ -1,0 +1,282 @@
+/* A checklist row: white tile on the page canvas, ring checkbox tinted by
+   priority, the badge → title → when stack beside it. */
+
+/* The card sets its own font so it reads the same on every page, whatever
+   font the page around it uses. */
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px var(--space-md);
+  font-family: var(--font-family-body);
+  border-radius: var(--radius-lg);
+  background: var(--color-background);
+  box-shadow: 0 1px 2px rgba(27, 27, 57, 0.04), 0 6px 18px rgba(27, 27, 57, 0.05);
+  transition: opacity var(--duration-morph) var(--ease-out);
+}
+
+:global([data-theme='dark']) .row {
+  background: var(--color-surface);
+  box-shadow: none;
+}
+
+/* ---- The ring checkbox ---- */
+.check {
+  --ring: var(--color-brand);
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  /* A 44px hit area around the 26px ring. */
+  margin: -9px;
+  padding: 9px;
+  box-sizing: content-box;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  cursor: pointer;
+}
+
+.check::before {
+  content: '';
+  position: absolute;
+  inset: 9px;
+  border: 2px solid var(--ring);
+  border-radius: 50%;
+  transition:
+    background-color var(--duration-morph) var(--ease-out),
+    transform var(--duration-press) var(--ease-out);
+}
+
+/* very important red, important orange, normal blue, low grey */
+.check[data-priority='Urgent'] {
+  --ring: var(--color-danger);
+}
+
+.check[data-priority='High'] {
+  --ring: #e8a33d;
+}
+
+.check[data-priority='Medium'] {
+  --ring: var(--color-brand);
+}
+
+.check[data-priority='Low'] {
+  --ring: var(--color-text-secondary);
+}
+
+.check:active::before {
+  transform: scale(0.88);
+}
+
+.check:focus-visible {
+  outline: none;
+}
+
+.check:focus-visible::before {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 35%, transparent);
+}
+
+.checkIcon {
+  position: relative;
+  color: #ffffff;
+  opacity: 0;
+  transform: scale(0.5);
+  transition:
+    opacity var(--duration-popover) ease,
+    transform var(--duration-morph) var(--ease-out);
+}
+
+.check[aria-checked='true']::before {
+  background: var(--ring);
+}
+
+.check[aria-checked='true'] .checkIcon {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.check:disabled {
+  cursor: progress;
+}
+
+/* ---- Badge → title → when ---- */
+.body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.body:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 4px;
+  border-radius: var(--radius-sm);
+}
+
+.priority {
+  padding: 1px 7px;
+  border-radius: var(--radius-full);
+  font-size: 0.5625rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.priority[data-priority='Urgent'] {
+  background: color-mix(in srgb, var(--color-danger) 14%, transparent);
+  color: var(--color-danger);
+}
+
+.priority[data-priority='High'] {
+  background: color-mix(in srgb, #e8a33d 18%, transparent);
+  color: #c9861f;
+}
+
+.priority[data-priority='Medium'] {
+  background: color-mix(in srgb, var(--color-brand) 14%, transparent);
+  color: var(--color-brand);
+}
+
+.priority[data-priority='Low'] {
+  background: color-mix(in srgb, var(--color-text-secondary) 16%, transparent);
+  color: var(--color-text-secondary);
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.overdue {
+  padding: 1px 7px;
+  border-radius: var(--radius-full);
+  background: var(--color-danger);
+  color: #ffffff;
+  font-size: 0.5625rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.title {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.35;
+  color: var(--color-text-primary);
+  text-decoration: line-through;
+  text-decoration-color: transparent;
+  transition:
+    color var(--duration-morph) ease,
+    text-decoration-color var(--duration-morph) ease;
+}
+
+.when {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 0.6875rem;
+  font-weight: 400;
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Where the task lives ("Project · Section"), on listings that span many. */
+.context {
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 0.6875rem;
+  font-weight: 400;
+  color: var(--color-text-secondary);
+}
+
+.when[data-overdue] {
+  color: var(--color-danger);
+}
+
+
+/* ---- Timeline cards (density): a fixed height, content never wraps ---- */
+.row[data-density] {
+  box-sizing: border-box;
+  overflow: hidden;
+  gap: 10px;
+  padding: 6px 10px;
+}
+
+.row[data-density] .body {
+  gap: 2px;
+}
+
+.row[data-density] .title {
+  overflow: hidden;
+  font-size: 0.8125rem;
+  line-height: 1.3;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Under 30 minutes: one line, a smaller ring, centred in the slot. */
+.row[data-density='line'] {
+  align-items: center;
+  padding-block: 2px;
+}
+
+.row[data-density='line'] .check {
+  width: 18px;
+  height: 18px;
+  margin: -13px;
+  padding: 13px;
+}
+
+.row[data-density='line'] .check::before {
+  inset: 13px;
+}
+
+/* An hour or more: the title may take two lines, then ellipsis. */
+.row[data-density='full'] .title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* ---- Done ---- */
+.row[data-done] {
+  opacity: 0.6;
+}
+
+.row[data-done] .title {
+  color: var(--color-text-secondary);
+  text-decoration-color: currentColor;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row,
+  .check::before,
+  .checkIcon,
+  .title {
+    transition: none;
+  }
+
+  .check:active::before {
+    transform: none;
+  }
+}

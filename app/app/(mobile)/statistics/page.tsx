@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { FinanceInsightsScreen } from '@/src/screens/FinanceInsights/FinanceInsightsScreen';
+import { FinanceInsightsScreen } from '@/src/routes/FinanceInsights/FinanceInsightsScreen';
 
 export const metadata: Metadata = {
   title: 'Insights · Dreda',

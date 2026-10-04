@@ -1,6 +1,6 @@
-// Finance Insights — "Needs attention" alerts and each section's one-line
-// takeaway, generated from the figures in metrics/breakdowns/forecast.
-// Pure.
+// Finance Insights: each section's one-line takeaway, generated from the
+// figures in metrics/breakdowns/forecast. (Its alerts are notifications
+// now: src/shared/notifications/rules.ts.) Pure.
 
 import type { UnplannedInsights, MoneyFlow } from './breakdowns';
 import type { Forecast } from './forecast';
@@ -17,28 +17,6 @@ import type {
 import type { FinData } from './types';
 import { daysInMonth, monthKey, monthName } from './ranges';
 
-export type Severity = 'red' | 'amber' | 'blue';
-
-export interface Alert {
-  id: string;
-  severity: Severity;
-  icon: 'shortfall' | 'pace' | 'unplanned' | 'overspend' | 'overdue' | 'income' | 'savings' | 'later' | 'unassigned' | 'growth' | 'clear';
-  headline: string;
-  detail: string;
-  href: string;
-}
-
-export interface AlertInputs {
-  data: FinData;
-  currency: string;
-  totals: RangeTotals;
-  forecast: Forecast;
-  pace: Pace;
-  log: OverspendLog;
-  /** Unassigned (no budget) expense transactions this month. */
-  unassignedCount: number;
-}
-
 export function money(n: number, currency?: string) {
   const v = Math.round(n).toLocaleString('en-US');
   return currency ? `${v} ${currency}` : v;
@@ -46,128 +24,6 @@ export function money(n: number, currency?: string) {
 
 export function pct(x: number, digits = 0) {
   return `${(x * 100).toFixed(digits)}%`;
-}
-
-export function alerts({ data, currency, totals, forecast, pace, log, unassignedCount }: AlertInputs): Alert[] {
-  const out: Alert[] = [];
-  const month = monthKey(data.today);
-  const history = `/transactions?month=${month}`;
-
-  // ---- Red ----
-  const short = forecast.months.find((m) => m.gap < 0);
-  if (short) {
-    out.push({
-      id: 'shortfall',
-      severity: 'red',
-      icon: 'shortfall',
-      headline: `${monthName(short.month)} looks short by ${money(-short.gap, currency)}`,
-      detail: 'Projected expenses and savings are more than projected income.',
-      href: '#forecast',
-    });
-  }
-  if (pace.today > 0 && pace.today < daysInMonth(month) && pace.planned > 0 && pace.overBy > 0) {
-    out.push({
-      id: 'pace',
-      severity: 'red',
-      icon: 'pace',
-      headline: `On pace to overspend by ${money(pace.overBy, currency)}`,
-      detail: `At this rate you'll pass this month's plan before ${monthName(month)} ends.`,
-      href: '#plan',
-    });
-  }
-  if (totals.unplannedShare !== null && totals.unplannedShare > 0.2) {
-    out.push({
-      id: 'unplanned',
-      severity: 'red',
-      icon: 'unplanned',
-      headline: `${pct(totals.unplannedShare)} of spending was unplanned`,
-      detail: `${money(totals.unplanned, currency)} spent outside the plan this period.`,
-      href: '#unplanned',
-    });
-  }
-  const open = data.plan(month).items.filter((i) => i.unexplained > 0);
-  if (open.length) {
-    const amount = open.reduce((s, i) => s + i.unexplained, 0);
-    out.push({
-      id: 'overspend',
-      severity: 'red',
-      icon: 'overspend',
-      headline: `${open.length} ${open.length === 1 ? 'overspend needs' : 'overspends need'} covering`,
-      detail: `${money(amount, currency)} over plan, not yet covered or justified.`,
-      href: `/budget/bucket/${open[0].bucketId}?month=${month}`,
-    });
-  }
-  const overdue = data.payments.filter((p) => p.kind === 'expense' && p.status === 'overdue');
-  if (overdue.length) {
-    out.push({
-      id: 'overdue',
-      severity: 'red',
-      icon: 'overdue',
-      headline: `${overdue.length} planned ${overdue.length === 1 ? 'payment is' : 'payments are'} overdue`,
-      detail: `${money(overdue.reduce((s, p) => s + p.amount, 0), currency)} still to pay.`,
-      href: `/payments?month=${month}`,
-    });
-  }
-
-  // ---- Amber ----
-  const expectedSoFar = data.payments.filter((p) => p.kind === 'income' && monthKey(p.due) === month && p.due <= data.today).reduce((s, p) => s + p.amount, 0);
-  const receivedSoFar = data.txs.filter((t) => t.kind === 'income' && t.month === month).reduce((s, t) => s + t.amount, 0);
-  if (expectedSoFar > 0 && receivedSoFar < expectedSoFar * 0.9) {
-    out.push({
-      id: 'income',
-      severity: 'amber',
-      icon: 'income',
-      headline: `Income is ${pct(1 - receivedSoFar / expectedSoFar)} below what was expected`,
-      detail: `${money(receivedSoFar, currency)} received of ${money(expectedSoFar, currency)} due so far.`,
-      href: `${history}`,
-    });
-  }
-  if (totals.savingsRate !== null && totals.savingsRate < data.savingsTarget) {
-    out.push({
-      id: 'savings',
-      severity: 'amber',
-      icon: 'savings',
-      headline: `Saving ${pct(Math.max(0, totals.savingsRate))} of income`,
-      detail: `Below your ${pct(data.savingsTarget)} target.`,
-      href: '#keycharts',
-    });
-  }
-  if (log.count >= 2 && log.later.count / log.count > 0.5) {
-    out.push({
-      id: 'later',
-      severity: 'amber',
-      icon: 'later',
-      headline: `${pct(log.later.count / log.count)} of overspends were found late`,
-      detail: 'Most were only noticed when reviewing. A quick weekly check helps.',
-      href: '#plan',
-    });
-  }
-  if (unassignedCount > 0) {
-    out.push({
-      id: 'unassigned',
-      severity: 'amber',
-      icon: 'unassigned',
-      headline: `${unassignedCount} ${unassignedCount === 1 ? 'transaction is' : 'transactions are'} waiting for a budget`,
-      detail: 'Assign them so this month’s plan is complete.',
-      href: `${history}`,
-    });
-  }
-  const growing = growingCategory(data);
-  if (growing) {
-    out.push({
-      id: 'growth',
-      severity: 'amber',
-      icon: 'growth',
-      headline: `${growing.name} is up ${pct(growing.growth)}`,
-      detail: `Compared with its 3-month average of ${money(growing.average, currency)}.`,
-      href: `${history}`,
-    });
-  }
-
-  if (!out.length) {
-    out.push({ id: 'clear', severity: 'blue', icon: 'clear', headline: 'All clear. You’re within plan.', detail: 'Nothing needs your attention right now.', href: '#snapshot' });
-  }
-  return out;
 }
 
 /** This month's category furthest above its 3-month average (> 30%). */
@@ -281,4 +137,150 @@ export function incomeTakeaway(i: IncomeBySource, currency: string): string {
 export function habitsTakeaway(h: DailyHabits, currency: string): string {
   if (!h.highest) return 'No spending in this period yet.';
   return `About ${money(h.average, currency)} a day; the most on ${h.highest.date.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' })}.`;
+}
+
+// ---- "Needs attention" alerts (the phone Insights screen) ----
+
+export type Severity = 'red' | 'amber' | 'blue';
+
+export interface Alert {
+  id: string;
+  severity: Severity;
+  icon: 'shortfall' | 'pace' | 'unplanned' | 'overspend' | 'overdue' | 'income' | 'savings' | 'later' | 'unassigned' | 'growth' | 'clear';
+  headline: string;
+  detail: string;
+  href: string;
+}
+
+export interface AlertInputs {
+  data: FinData;
+  currency: string;
+  totals: RangeTotals;
+  forecast: Forecast;
+  pace: Pace;
+  log: OverspendLog;
+  /** Unassigned (no budget) expense transactions this month. */
+  unassignedCount: number;
+}
+
+export function alerts({ data, currency, totals, forecast, pace, log, unassignedCount }: AlertInputs): Alert[] {
+  const out: Alert[] = [];
+  const month = monthKey(data.today);
+  const history = `/budget?tab=history&month=${month}`;
+
+  // ---- Red ----
+  const short = forecast.months.find((m) => m.gap < 0);
+  if (short) {
+    out.push({
+      id: 'shortfall',
+      severity: 'red',
+      icon: 'shortfall',
+      headline: `${monthName(short.month)} looks short by ${money(-short.gap, currency)}`,
+      detail: 'Projected expenses and savings are more than projected income.',
+      href: '#forecast',
+    });
+  }
+  if (pace.today > 0 && pace.today < daysInMonth(month) && pace.planned > 0 && pace.overBy > 0) {
+    out.push({
+      id: 'pace',
+      severity: 'red',
+      icon: 'pace',
+      headline: `On pace to overspend by ${money(pace.overBy, currency)}`,
+      detail: `At this rate you'll pass this month's plan before ${monthName(month)} ends.`,
+      href: '#plan',
+    });
+  }
+  if (totals.unplannedShare !== null && totals.unplannedShare > 0.2) {
+    out.push({
+      id: 'unplanned',
+      severity: 'red',
+      icon: 'unplanned',
+      headline: `${pct(totals.unplannedShare)} of spending was unplanned`,
+      detail: `${money(totals.unplanned, currency)} spent outside the plan this period.`,
+      href: '#unplanned',
+    });
+  }
+  const open = data.plan(month).items.filter((i) => i.unexplained > 0);
+  if (open.length) {
+    const amount = open.reduce((s, i) => s + i.unexplained, 0);
+    out.push({
+      id: 'overspend',
+      severity: 'red',
+      icon: 'overspend',
+      headline: `${open.length} ${open.length === 1 ? 'overspend needs' : 'overspends need'} covering`,
+      detail: `${money(amount, currency)} over plan, not yet covered or justified.`,
+      href: `/budget/bucket/${open[0].bucketId}?month=${month}`,
+    });
+  }
+  const overdue = data.payments.filter((p) => p.kind === 'expense' && p.status === 'overdue');
+  if (overdue.length) {
+    out.push({
+      id: 'overdue',
+      severity: 'red',
+      icon: 'overdue',
+      headline: `${overdue.length} planned ${overdue.length === 1 ? 'payment is' : 'payments are'} overdue`,
+      detail: `${money(overdue.reduce((s, p) => s + p.amount, 0), currency)} still to pay.`,
+      href: `/budget?tab=payments&month=${month}`,
+    });
+  }
+
+  // ---- Amber ----
+  const expectedSoFar = data.payments.filter((p) => p.kind === 'income' && monthKey(p.due) === month && p.due <= data.today).reduce((s, p) => s + p.amount, 0);
+  const receivedSoFar = data.txs.filter((t) => t.kind === 'income' && t.month === month).reduce((s, t) => s + t.amount, 0);
+  if (expectedSoFar > 0 && receivedSoFar < expectedSoFar * 0.9) {
+    out.push({
+      id: 'income',
+      severity: 'amber',
+      icon: 'income',
+      headline: `Income is ${pct(1 - receivedSoFar / expectedSoFar)} below what was expected`,
+      detail: `${money(receivedSoFar, currency)} received of ${money(expectedSoFar, currency)} due so far.`,
+      href: `${history}`,
+    });
+  }
+  if (totals.savingsRate !== null && totals.savingsRate < data.savingsTarget) {
+    out.push({
+      id: 'savings',
+      severity: 'amber',
+      icon: 'savings',
+      headline: `Saving ${pct(Math.max(0, totals.savingsRate))} of income`,
+      detail: `Below your ${pct(data.savingsTarget)} target.`,
+      href: '#keycharts',
+    });
+  }
+  if (log.count >= 2 && log.later.count / log.count > 0.5) {
+    out.push({
+      id: 'later',
+      severity: 'amber',
+      icon: 'later',
+      headline: `${pct(log.later.count / log.count)} of overspends were found late`,
+      detail: 'Most were only noticed when reviewing. A quick weekly check helps.',
+      href: '#plan',
+    });
+  }
+  if (unassignedCount > 0) {
+    out.push({
+      id: 'unassigned',
+      severity: 'amber',
+      icon: 'unassigned',
+      headline: `${unassignedCount} ${unassignedCount === 1 ? 'transaction is' : 'transactions are'} waiting for a budget`,
+      detail: 'Assign them so this month’s plan is complete.',
+      href: `${history}`,
+    });
+  }
+  const growing = growingCategory(data);
+  if (growing) {
+    out.push({
+      id: 'growth',
+      severity: 'amber',
+      icon: 'growth',
+      headline: `${growing.name} is up ${pct(growing.growth)}`,
+      detail: `Compared with its 3-month average of ${money(growing.average, currency)}.`,
+      href: `${history}`,
+    });
+  }
+
+  if (!out.length) {
+    out.push({ id: 'clear', severity: 'blue', icon: 'clear', headline: 'All clear. You’re within plan.', detail: 'Nothing needs your attention right now.', href: '#snapshot' });
+  }
+  return out;
 }

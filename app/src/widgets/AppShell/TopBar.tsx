@@ -11,7 +11,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Bell, ChevronsRight, Copy, FileText, Info, MoreHorizontal, Printer, Star, StretchHorizontal } from 'lucide-react';
+import { ChevronsRight, Copy, FileText, Info, MoreHorizontal, Printer, Star, StretchHorizontal } from 'lucide-react';
 import { defaultCrumbs, PAGE_TREE, pageForPath } from '@/src/shared/config/pageTree';
 import { useFavorites } from '@/src/shared/hooks/useFavorites';
 import { useSyncStatus } from '@/src/shared/hooks/useSyncStatus';
@@ -22,6 +22,8 @@ import { setPageWidth, usePageMeta, usePageWidth, type Crumb } from './breadcrum
 import { PageMenuRows } from './PageMenuRows';
 import menu from './Sidebar.module.css';
 import styles from './TopBar.module.css';
+import { NotificationBell } from '@/src/widgets/Notifications/NotificationBell';
+import { useWebOnly } from '@/src/shared/device/useWebOnly';
 
 function iconFor(crumb: Crumb, index: number) {
   if (index === 0) return null;
@@ -41,6 +43,7 @@ export function TopBar({
   compactCrumbs: boolean;
   defaultWidth: 'full' | 'standard';
 }) {
+  useWebOnly('TopBar');
   const pathname = usePathname();
   const search = useLocationSearch(pathname);
   const meta = usePageMeta();
@@ -107,9 +110,7 @@ export function TopBar({
 
       <div className={styles.right}>
         <span className={styles.sync}>{sync}</span>
-        <Link href="/notifications" className={styles.iconButton} aria-label="Notifications" title="Notifications">
-          <Bell size={17} strokeWidth={1.9} />
-        </Link>
+        <NotificationBell className={styles.iconButton} size={17} />
         <button
           type="button"
           className={styles.iconButton}

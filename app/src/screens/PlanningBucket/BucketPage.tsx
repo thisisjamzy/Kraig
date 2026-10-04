@@ -63,6 +63,9 @@ export function BucketPage({ bucketId, b }: { bucketId: string; b: BucketLogic }
           { label: 'Add item', href: `/add-bucket-item/${bucketId}` },
           { label: 'Edit bucket', href: `/buckets/${bucketId}` },
           b.closed ? { label: 'Reopen bucket', onSelect: () => void b.reopenBucket() } : { label: `Close bucket for ${monthTitle(b.month)}`, onSelect: () => setClosing(true) },
+          // What the bucket needs: its status chip says so, the action is here.
+          ...(b.card?.prompt?.kind === 'over' || b.card?.prompt?.kind === 'uncovered' ? [{ label: 'Cover or justify', href: coverHref(b.month, bucketId) }] : []),
+          ...(b.card?.prompt?.kind === 'leftover' ? [{ label: 'Reallocate', href: reallocateHref(b.month, bucketId) }] : []),
           { label: 'All transactions', href: `/transactions?month=${b.month}&bucket=${bucketId}` },
         ]
       : undefined
@@ -251,36 +254,6 @@ export function BucketPage({ bucketId, b }: { bucketId: string; b: BucketLogic }
             <span style={{ width: `${planned > 0 ? Math.min(100, (actual / planned) * 100) : 0}%` }} data-over={(type !== 'Income' && actual > planned + 0.5) || undefined} />
           </span>
         </section>
-
-        {(over || prompt?.kind === 'leftover' || overdue.length > 0) && (
-          <section className={styles.sideCard} data-tone={over || overdue.length ? 'bad' : 'watch'}>
-            <h2>{over ? 'Over plan' : overdue.length ? `${overdue.length} ${type === 'Income' ? 'late' : 'overdue'}` : 'Money left over'}</h2>
-            <p>
-              {over
-                ? `${money(prompt!.amount)} spent beyond the plan still needs covering or explaining.`
-                : overdue.length
-                  ? `${overdue.map((l) => l.name).join(', ')} ${overdue.length === 1 ? 'is' : 'are'} past the date.`
-                  : `${money(prompt!.amount)} is left. Move it where it's needed.`}
-            </p>
-            {over ? (
-              <Link href={coverHref(b.month, bucketId)} className={bm.primaryButton}>
-                Cover or justify
-              </Link>
-            ) : overdue.length ? (
-              <button
-                type="button"
-                className={bm.primaryButton}
-                onClick={() => v.bulkMarkPaid(overdue).catch((e) => showToast(e instanceof Error ? e.message : 'Could not record that.'))}
-              >
-                {type === 'Income' ? 'Mark received' : 'Mark paid'}
-              </button>
-            ) : (
-              <Link href={reallocateHref(b.month, bucketId)} className={bm.primaryButton}>
-                Reallocate
-              </Link>
-            )}
-          </section>
-        )}
 
         {type !== 'Income' && (
           <section className={styles.sideCard}>

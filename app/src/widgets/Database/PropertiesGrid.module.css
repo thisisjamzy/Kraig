@@ -51,14 +51,21 @@
   --pg-value: #1f6b3a;
 }
 
+/* Warning and problem states: colored text with an icon on a white tile
+   (no pale amber or red backgrounds; one accent per tile). */
 .tile[data-tone='watch'] {
-  background: #fdf4e3;
   --pg-value: #8a5a00;
 }
 
 .tile[data-tone='bad'] {
-  background: #fdecee;
   --pg-value: #c62f3e;
+}
+
+.toneIcon {
+  display: inline-flex;
+  flex-shrink: 0;
+  margin-right: 4px;
+  vertical-align: -2px;
 }
 
 :global([data-theme='dark']) .tile[data-tone='in'] {
@@ -73,11 +80,9 @@
   --pg-value: #8fd3a8;
 }
 :global([data-theme='dark']) .tile[data-tone='watch'] {
-  background: rgba(203, 145, 47, 0.18);
   --pg-value: #f0c37a;
 }
 :global([data-theme='dark']) .tile[data-tone='bad'] {
-  background: rgba(212, 76, 71, 0.18);
   --pg-value: #ff9b94;
 }
 

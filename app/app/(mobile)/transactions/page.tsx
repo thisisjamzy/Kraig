@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
-import { TransactionsScreen } from '@/src/screens/Transactions/TransactionsScreen';
-import { TransactionHistoryScreen } from '@/src/screens/TransactionHistory/TransactionHistoryScreen';
+import { TransactionsScreen } from '@/src/routes/Transactions/TransactionsScreen';
+import { TransactionHistoryScreen } from '@/src/routes/TransactionHistory/TransactionHistoryScreen';
 
 export const metadata: Metadata = {
   title: 'Transactions · Dreda',

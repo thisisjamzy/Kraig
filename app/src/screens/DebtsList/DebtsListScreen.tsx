@@ -8,13 +8,18 @@
 //   on 28 Sep, now 5 days late."
 //   Blocks: is my debt going down (total owed by month), where is my debt
 //   (one stacked bar by priority) and borrowed vs repaid (bars by month).
-//   Then the debts database (Table and Cards) with "New debt".
+//   Then the debts database (Table and Cards) with "New debt". Its Type
+//   (Cash debt or Record only) is a chip; changing it opens Change wallet
+//   effect, which shows every balance change before saving. Totals keep
+//   the two apart: Owed (cash debts), Owed (record only), Total owed.
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { HandCoins } from 'lucide-react';
 import { useLogic } from '@/src/logic/debtsList/useLogic';
+import { WALLET_EFFECT_LABEL } from '@/src/shared/debt/walletEffect';
+import { useDebtForms } from '@/src/shared/navigation/useDebtForms';
 import { useAmountsHidden, HIDDEN_AMOUNT } from '@/src/shared/hooks/usePrivacy';
 import { debtSentence } from '@/src/viewmodels/debt';
 import { Callout, NotionPage } from '@/src/widgets/Database/NotionPage';
@@ -34,13 +39,13 @@ type DebtRow = ReturnType<typeof useLogic>['debts'][number];
 const PRIORITY_LABEL = { high: 'High', medium: 'Medium', low: 'Low' } as const;
 const PRIORITY_COLOR: Record<DebtRow['priority'], TagColor> = { high: 'red', medium: 'yellow', low: 'gray' };
 const PRIORITY_FILL = { high: '#d44c47', medium: '#cb912f', low: '#9b9a97' } as const;
-const TYPE_LABEL = { cash: 'Cash', existing: 'Existing' } as const;
 
 const shortDate = (d: Date | null) => (d ? d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : null);
 
 export function DebtsListScreen() {
   const v = useLogic();
   const router = useRouter();
+  const forms = useDebtForms();
   const [hidden] = useAmountsHidden();
   const [archiving, setArchiving] = useState<DebtRow | null>(null);
   const fmt = (n: number) => (hidden ? HIDDEN_AMOUNT : formatMoney(n));
@@ -57,7 +62,24 @@ export function DebtsListScreen() {
 
   const columns: ColumnDef<DebtRow>[] = [
     { id: 'name', label: 'Name', type: 'text', width: 200, value: (d) => d.name },
-    { id: 'type', label: 'Type', type: 'select', width: 110, value: (d) => d.debtType, options: [{ value: 'cash', label: 'Cash' }, { value: 'existing', label: 'Existing' }] },
+    {
+      id: 'type',
+      label: 'Type',
+      type: 'select',
+      width: 130,
+      value: (d) => d.debtType,
+      options: [
+        { value: 'cash', label: WALLET_EFFECT_LABEL.cash },
+        { value: 'existing', label: WALLET_EFFECT_LABEL.existing },
+      ],
+      render: (d) => <Tag color={d.debtType === 'cash' ? 'blue' : 'gray'}>{WALLET_EFFECT_LABEL[d.debtType]}</Tag>,
+      // Switching opens Change wallet effect: it asks about past repayments
+      // and shows every balance change before anything is saved.
+      edit: (d, next) => {
+        if (next && next !== d.debtType) forms.open('wallet', d.id, { to: String(next) });
+      },
+      onCard: true,
+    },
     {
       id: 'priority',
       label: 'Priority',
@@ -105,9 +127,11 @@ export function DebtsListScreen() {
       title="Debt"
       icon={<HandCoins strokeWidth={1.75} />}
       crumbs={[{ label: 'Money', href: '/home' }, { label: 'Debt', href: '/debts' }]}
-      menu={[{ label: 'New debt', href: '/debts/new' }]}
+      menu={[{ label: 'New debt', href: forms.hrefFor('new') }]}
       properties={[
         { id: 'owed', label: 'Total owed', tone: s.totalDebt > 0 ? 'bad' : 'good', display: <Money value={s.totalDebt} currency={v.currency} /> },
+        { id: 'cash', label: 'Owed (cash debts)', tone: s.byType.cash > 0 ? 'bad' : 'neutral', display: <Money value={s.byType.cash} />, sub: 'Counts in your balances' },
+        { id: 'existing', label: 'Owed (record only)', display: <Money value={s.byType.existing} />, sub: 'Not in your balances' },
         { id: 'high', label: 'High priority', tone: s.byPriority.high > 0 ? 'watch' : 'neutral', display: <Money value={s.byPriority.high} /> },
         {
           id: 'next',
@@ -126,8 +150,6 @@ export function DebtsListScreen() {
         { id: 'count', label: 'Debts', display: String(s.debtCount) },
         { id: 'borrowedAll', label: 'Borrowed (all time)', display: <Money value={s.totalFinanced} /> },
         { id: 'repaidAll', label: 'Repaid (all time)', display: <Money value={s.totalRefunded} /> },
-        { id: 'cash', label: 'Cash debts', display: <Money value={s.byType.cash} />, sub: 'Borrowed money that landed in an account' },
-        { id: 'existing', label: 'Existing debts', display: <Money value={s.byType.existing} />, sub: 'Loans that were already there' },
       ]}
     >
       {v.loading ? (
@@ -215,19 +237,20 @@ export function DebtsListScreen() {
             ]}
             groups={[
               { id: 'priority', label: 'Priority', key: (d) => ({ key: d.priority, label: PRIORITY_LABEL[d.priority] }), order: ['high', 'medium', 'low'] },
-              { id: 'type', label: 'Type', key: (d) => ({ key: d.debtType, label: TYPE_LABEL[d.debtType] }) },
+              { id: 'type', label: 'Type', key: (d) => ({ key: d.debtType, label: WALLET_EFFECT_LABEL[d.debtType] }) },
             ]}
             defaultGroup="none"
             subtotalColumn="balance"
             currency={v.currency}
             card={{ title: (d) => d.name, progress: (d) => ({ value: d.percent / 100 }) }}
             rowActions={[
-              { id: 'repay', label: 'Record a repayment', show: (d) => d.balance > 0, run: (d) => router.push(`/debts/${d.id}/repay`) },
-              { id: 'plan', label: 'Payment plan', run: (d) => router.push(`/debts/${d.id}/plan`) },
+              { id: 'repay', label: 'Record a repayment', show: (d) => d.balance > 0, run: (d) => forms.open('repay', d.id) },
+              { id: 'plan', label: 'Payment plan', run: (d) => forms.open('plan', d.id) },
+              { id: 'wallet', label: 'Change wallet effect', run: (d) => forms.open('wallet', d.id) },
               { id: 'archive', label: 'Archive', run: (d) => setArchiving(d) },
             ]}
             onOpen={(d) => router.push(`/debts/${d.id}`)}
-            onNew={() => router.push('/debts/new')}
+            onNew={() => forms.open('new')}
             newLabel="New debt"
             emptyText="No debts. Nice."
           />

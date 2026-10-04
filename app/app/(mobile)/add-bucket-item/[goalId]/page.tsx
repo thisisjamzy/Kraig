@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { BucketLineItemFormScreen } from '@/src/screens/BucketLineItemForm/BucketLineItemFormScreen';
+import { BucketLineItemFormScreen } from '@/src/routes/BucketLineItemForm/BucketLineItemFormScreen';
 
 export const metadata: Metadata = {
   title: 'Add bucket item · Dreda',

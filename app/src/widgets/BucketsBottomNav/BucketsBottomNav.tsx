@@ -18,7 +18,8 @@ import styles from './BucketsBottomNav.module.css';
 // mobile and web can never drift apart on what Buckets mode contains.
 export const NAV_ITEMS = [
   { href: '/buckets', label: 'Home', icon: Home },
-  { href: '/buckets/analytics', label: 'Insights', icon: ChartNoAxesCombined },
+  // Money Insights replaced the old Buckets analytics page.
+  { href: '/statistics', label: 'Insights', icon: ChartNoAxesCombined },
   { href: '/buckets/items', label: 'Priorities', icon: ListOrdered },
 ];
 

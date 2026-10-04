@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { TaskRoute } from '@/src/screens/TaskPage/TaskRoute';
+import { TaskRoute } from '@/src/routes/TaskPage/TaskRoute';
 
 export const metadata: Metadata = {
   title: 'Task · Dreda',

@@ -1,0 +1,22 @@
+/* Room for the sticky bar while the report still waits for "Got it". */
+.page[data-pending] {
+  padding-bottom: calc(110px + var(--safe-bottom));
+}
+
+.intro {
+  margin: 4px 2px 0;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: var(--p-muted);
+}
+
+/* The detail wraps: it's a sentence, not a label. */
+.detail {
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: var(--p-muted);
+}
+
+.full {
+  flex: 1;
+}

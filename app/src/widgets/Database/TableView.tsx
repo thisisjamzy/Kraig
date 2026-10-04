@@ -21,6 +21,7 @@ import type { BulkAction, ColumnDef, GroupDef, RowAction } from './types';
 import type { DatabaseStateApi } from './useDatabaseState';
 import { Money } from '@/src/widgets/Money/Money';
 import styles from './Database.module.css';
+import { useWebOnly } from '@/src/shared/device/useWebOnly';
 
 export interface TableGroup<T> {
   key: string;
@@ -79,6 +80,7 @@ export function TableView<T>({
   emptyText: string;
   more: ReactNode;
 }) {
+  useWebOnly('TableView');
   const view = db.view;
   const [editing, setEditing] = useState<Editing | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());

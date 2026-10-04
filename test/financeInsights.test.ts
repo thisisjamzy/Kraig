@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import { classifySpending } from '../app/src/viewmodels/finance/classify';
 import { rangeTotals } from '../app/src/viewmodels/finance/metrics';
 import { forecast, guidance } from '../app/src/viewmodels/finance/forecast';
-import { alerts } from '../app/src/viewmodels/finance/insights';
 import { comparisonPeriod, intervalsFor, periodFor } from '../app/src/viewmodels/finance/ranges';
 import type { FinData, FinMonthPlan, FinPlanItem, FinTx } from '../app/src/viewmodels/finance/types';
 
@@ -112,20 +111,12 @@ describe('forecast', () => {
     assert.equal(oct.expenseSource, 'plan');
   });
 
-  it('7. a negative gap raises a red alert and a saving suggestion', () => {
+  it('7. a negative gap raises a saving suggestion (the alert is a notification now)', () => {
     const d = data({ txs: history, plans: { '2026-11': { plannedIncome: 400000, plannedExpense: 900000 } } });
     const splits = classifySpending(d.txs, d);
     const f = forecast(d, splits, { horizon: 3, scenario: 'expected', includeSavings: false });
     const nov = f.months.find((m) => m.month === '2026-11')!;
     assert.ok(nov.gap < 0);
-    const list = alerts({
-      data: d, currency: 'XAF', forecast: f, unassignedCount: 0,
-      totals: rangeTotals(d, periodFor('month', TODAY), splits),
-      pace: { month: '2026-09', planned: 0, spent: 0, points: [], projectedEnd: 0, overBy: 0, today: 27 },
-      log: { count: 0, total: 0, conscious: { count: 0, amount: 0 }, later: { count: 0, amount: 0 }, reasons: [], coveredBy: [], avoidable: 0 },
-    });
-    assert.equal(list[0].severity, 'red');
-    assert.match(list[0].headline, /short/);
     assert.match(guidance(d, f).tips[0].text, /Save .* a month/);
   });
 

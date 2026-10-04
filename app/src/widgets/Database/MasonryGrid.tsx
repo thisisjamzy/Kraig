@@ -12,6 +12,7 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import styles from './MasonryGrid.module.css';
 import { columnsFor, placeBlocks } from './masonry';
+import { useWebOnly } from '@/src/shared/device/useWebOnly';
 
 export { columnsFor, placeBlocks };
 
@@ -23,6 +24,7 @@ export interface MasonryItem {
 }
 
 export function MasonryGrid({ items, gap = 16, label }: { items: MasonryItem[]; gap?: number; label?: string }) {
+  useWebOnly('MasonryGrid');
   const ref = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
   const [heights, setHeights] = useState<Record<string, number>>({});

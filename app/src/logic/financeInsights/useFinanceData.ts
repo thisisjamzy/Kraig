@@ -38,6 +38,7 @@ import type {
   FirestoreTransaction,
   FirestoreTransfer,
 } from '@/src/shared/firestore/types';
+import { countsInFigures } from '@/src/shared/firestore/types';
 
 const KIND: Record<string, FinTx['kind'] | undefined> = { Income: 'income', Expense: 'expense', Savings: 'savings' };
 
@@ -45,9 +46,11 @@ export function useFinanceData() {
   const { user, loading: authLoading } = useFirebaseUser();
   const uid = user?.uid;
 
-  const { data: transactions, loading: txLoading } = useFirestoreCollection<FirestoreTransaction>(
+  const { data: allTransactions, loading: txLoading } = useFirestoreCollection<FirestoreTransaction>(
     useMemo(() => (uid ? query(transactionsRef(uid)) : null), [uid])
   );
+  // Excluded transactions (a debt changed to record only) don't count anywhere.
+  const transactions = useMemo(() => allTransactions.filter(countsInFigures), [allTransactions]);
   const { data: transfers, loading: trLoading } = useFirestoreCollection<FirestoreTransfer>(
     useMemo(() => (uid ? query(transfersRef(uid)) : null), [uid])
   );

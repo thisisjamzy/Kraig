@@ -36,6 +36,7 @@ import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { useBucketLineItemsByBucket } from '@/src/shared/hooks/useBucketLineItemsByBucket';
 import { categoryAccentColor } from '@/src/viewmodels/categories';
 import type { FirestoreTransaction, FirestoreBucket, FirestoreCategory } from '@/src/shared/firestore/types';
+import { countsInFigures } from '@/src/shared/firestore/types';
 
 const TYPE_ICONS: Record<string, LucideIcon> = {
   Expense: ArrowUpRight,
@@ -134,8 +135,10 @@ export function useLogic(categoryId: string) {
       uid ? query(transactionsRef(uid), where('categoryId', '==', categoryId), orderBy('date', 'desc'), limit(CATEGORY_PAGE_SIZE)) : null,
     [uid, categoryId]
   );
-  const { data: categoryDocs, loading: transactionsLoading, error: transactionsError } =
+  const { data: categoryDocsAll, loading: transactionsLoading, error: transactionsError } =
     useFirestoreCollection<FirestoreTransaction>(categoryQuery);
+  // Excluded transactions (a debt changed to record only) don't count anywhere.
+  const categoryDocs = useMemo(() => categoryDocsAll.filter(countsInFigures), [categoryDocsAll]);
 
   const { data: accounts, loading: accountsLoading } = useAccounts();
   const { data: categories, loading: categoriesLoading } = useCategories();

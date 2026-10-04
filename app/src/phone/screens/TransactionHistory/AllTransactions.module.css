@@ -1,0 +1,9 @@
+/* All transactions — ScreenHeader (back, title, add) above the shared
+   History list. */
+
+.capped {
+  margin: 16px 4px 0;
+  font-size: 0.75rem;
+  color: var(--p-muted);
+  text-align: center;
+}

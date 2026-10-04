@@ -1,0 +1,30 @@
+/* Planning on medium screens and up (the app shell; never on a phone). */
+
+/* Payments: the calendar card on the left (380px), the payments for the
+   chosen day or month on the right. */
+.split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 16px;
+}
+
+.left,
+.right {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+@media (min-width: 1024px) {
+  .split {
+    grid-template-columns: 380px minmax(0, 1fr);
+    gap: 24px;
+  }
+
+  .left {
+    position: sticky;
+    top: calc(64px + var(--safe-top) + 16px);
+  }
+}

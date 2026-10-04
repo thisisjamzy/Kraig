@@ -53,7 +53,7 @@ export const PAGE_TREE: Record<AppMode, TreePage[]> = {
     { id: 'priorities', href: '/buckets/items', label: 'Priorities', icon: ListOrdered },
     { id: 'payments', href: '/payments', label: 'Payments', icon: CalendarDays },
     { id: 'transactions', href: '/transactions', label: 'Transactions', icon: ArrowLeftRight, also: ['/edit-transaction', '/edit-transfer'] },
-    { id: 'insights', href: '/statistics', label: 'Insights', icon: PieChart, also: ['/buckets/analytics'] },
+    { id: 'insights', href: '/statistics', label: 'Insights', icon: PieChart },
     { id: 'plan', href: '/buckets/forecast', label: 'Plan and forecast', icon: TrendingUp },
     { id: 'goals', href: '/buckets?type=Savings', label: 'Goals', icon: Goal },
     { id: 'debt', href: '/debts', label: 'Debt', icon: HandCoins },
@@ -83,7 +83,7 @@ export const MODE_HOME: Record<AppMode, string> = { time: '/projects', money: '/
 /** The mode a path belongs to, or null when it's shared (settings, notifications). */
 export function modeOfPath(pathname: string | null): AppMode | null {
   if (!pathname) return null;
-  if (/^\/(projects|tasks|areas|sections|resources|address-book)(\/|$)/.test(pathname)) return 'time';
+  if (/^\/(projects|tasks|areas|sections|resources)(\/|$)/.test(pathname)) return 'time';
   if (
     /^\/(home|buckets|budget|payments|transactions|statistics|wallets|debts|categories|add-transaction|edit-transaction|edit-transfer|add-bucket-item|edit-bucket-item|create-category|transaction-templates)(\/|$)/.test(
       pathname

@@ -66,6 +66,10 @@ section 4 for screens 768px and wider. Phones are unchanged.
   - On a phone, the same link goes to the full page.
   - Task links (`TaskCheckRow`) and "new task" actions use `useTaskPanel()`, so phones
     get exactly the addresses they always did.
+  - The debt forms (New and Edit debt, Record repayment, Payment plan, Change wallet
+    effect) open the same way, as a 560px side peek (`?debtForm=<kind>&debt=<id>`,
+    `src/shared/navigation/debtForms.ts`, opened with `useDebtForms()`); on a phone,
+    their own pages under `/debts`. Saving or closing replaces the history entry.
 
 ## Page templates (`src/widgets/Layout`)
 
@@ -75,7 +79,7 @@ section 4 for screens 768px and wider. Phones are unchanged.
 | B. Split planner | `SplitView` (fixed / flex / fr panels, each scrolls) | Today |
 | C. List and detail | `ListDetail` + `useUrlSelection` | (available; Priorities, Buckets and Planning use sticky side columns) |
 | D. Board | CSS grid | Focus (2×2 on medium, four columns from expanded) |
-| E. Form | `WebFormPanel` / `SidePanel` | task form (480px panel) |
+| E. Form | `WebFormPanel` / `SidePanel` | task form (480px panel), debt forms (560px side peek) |
 | F. Notion page and database | `NotionPageHeader`, `PropertiesBlock`, `Database` (Table / Cards), `SidePeek` in `src/widgets/Database` | Budget, Buckets, Bucket, budget line and transaction pages |
 
 ### Notion pages and databases (`src/widgets/Database`)
@@ -108,6 +112,8 @@ section 4 for screens 768px and wider. Phones are unchanged.
 | Buckets | Notion page: type tabs, a database of that type's buckets (Cards default) | same; cards 3 / 4 across |
 | Bucket (`/budget/bucket/:id`) | one column | two columns: main (properties, items, transactions, adjustments, notes) and a sticky side (summary, action, automation) |
 | Budget line, transaction | Notion page with properties and related databases | same |
+| Debt (`/debts/:id`) | one column, the side blocks (summary, plan, wallet effect) first | two columns: main (trend, repayments, linked transactions, activity, notes) and a sticky side |
 | Priorities | one column | controls in a sticky left column |
 | Planning | Payments split | History as a sortable table (the Budget tab is the Budget page above) |
-| Plans forecast | dashboard grid | same |
+| Plan and forecast | chart on top, board full width (inner horizontal scroll), backlog in a side peek | chart on top, month board (~70%) and backlog (~30%, collapsible), each scrolling on its own |
+| Notifications | list grouped by day, side peek | same |

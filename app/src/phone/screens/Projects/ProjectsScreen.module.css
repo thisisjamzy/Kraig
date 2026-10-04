@@ -1,0 +1,223 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  /* Under AppHeader, which already clears the safe area. */
+  padding: var(--space-lg);
+  gap: var(--space-lg);
+}
+
+/* "See all" — a round 45°-arrow button next to a section header, same
+   affordance/style Home's own viewAllButton uses (HomeScreen.module.css),
+   linking to that section's own full list page instead of a create flow. */
+.viewAllButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--ink-bg);
+  color: #ffffff;
+  text-decoration: none;
+  flex-shrink: 0;
+  border: none;
+  cursor: pointer;
+  transition: transform var(--duration-press) var(--ease-out);
+}
+
+.emptyText {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+/* Today's priorities — the picked-task list reuses TaskCard as-is, so this
+   is just spacing/hint text around it; the picker itself (inside the
+   Modal) is a plain checkbox list. */
+
+.priorityHint {
+  margin: calc(-1 * var(--space-sm)) 0 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.pickerList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 50vh;
+  overflow-y: auto;
+  margin-bottom: var(--space-md);
+}
+
+.pickerRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) 0;
+  border-bottom: 1px solid var(--color-border);
+  cursor: pointer;
+}
+
+.pickerRow:last-child {
+  border-bottom: none;
+}
+
+.pickerCheckbox {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+}
+
+.pickerRowText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.pickerRowTitle {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pickerRowMeta {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.modalSaveButton {
+  width: 100%;
+  padding: var(--space-md) var(--space-lg);
+  border: none;
+  border-radius: var(--radius-lg);
+  background: var(--ink-bg);
+  color: var(--color-brand);
+  font-family: inherit;
+  font-size: var(--font-size-md);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* ---- Time hub (projects strip + today's checklist) ---- */
+.hubSection {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.hubHeader {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.hubHeading {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.hubTitle {
+  margin: 0;
+  font-family: var(--font-family-heading);
+  font-size: var(--font-size-xl);
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.hubSubtitle {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.hubActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-shrink: 0;
+}
+
+.iconButtonSoft {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: transform var(--duration-press) var(--ease-out);
+}
+
+.iconButtonSoft:active,
+.viewAllButton:active {
+  transform: scale(0.92);
+}
+
+.iconButtonSoft:focus-visible,
+.viewAllButton:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+}
+
+/* Full-bleed horizontal strip: cards start flush with the page's own
+   left padding and scroll out past the right edge. The vertical padding
+   keeps the cards' shadows from being clipped by overflow-x. */
+.projectStrip {
+  display: flex;
+  gap: 12px;
+  margin: 0 calc(-1 * var(--space-lg));
+  padding: 4px var(--space-lg) 14px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-padding-inline: var(--space-lg);
+  -webkit-overflow-scrolling: touch;
+}
+
+.taskList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.todayEmpty {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: var(--space-lg) var(--space-md);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-lg);
+  text-align: center;
+}
+
+.todayEmptyTitle {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .iconButtonSoft {
+    transition: none;
+  }
+
+  .iconButtonSoft:active,
+  .viewAllButton:active {
+    transform: none;
+  }
+}

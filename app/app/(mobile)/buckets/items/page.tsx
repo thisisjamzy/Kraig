@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { PrioritiesScreen } from '@/src/screens/Plans/PrioritiesScreen';
+import { PrioritiesScreen } from '@/src/routes/Plans/PrioritiesScreen';
 
 export const metadata: Metadata = {
   title: 'Priorities · Dreda',

@@ -16,6 +16,7 @@ import { useMonthBudget } from '@/src/shared/hooks/useMonthBudget';
 import { buildItemSpend, bucketProgress, type BucketProgress } from '@/src/shared/budget/bucketProgress';
 import { monthKeyOf } from '@/src/shared/budget/monthBudget';
 import type { FirestoreTransaction, FirestoreTransfer } from '@/src/shared/firestore/types';
+import { countsInFigures } from '@/src/shared/firestore/types';
 
 export function useBucketProgress() {
   const { user } = useFirebaseUser();
@@ -24,9 +25,10 @@ export function useBucketProgress() {
   const monthData = useMonthBudget(month);
   const { budget: monthBudget, buckets, itemsByBucket, accounts, ctx, loading: monthLoading } = monthData;
 
-  const { data: linkedTransactions, loading: transactionsLoading } = useFirestoreCollection<FirestoreTransaction>(
+  const { data: linkedTransactionsAll, loading: transactionsLoading } = useFirestoreCollection<FirestoreTransaction>(
     useMemo(() => (uid ? query(transactionsRef(uid), where('bucketItem', '!=', null)) : null), [uid])
   );
+  const linkedTransactions = useMemo(() => linkedTransactionsAll.filter(countsInFigures), [linkedTransactionsAll]);
   const { data: linkedTransfers, loading: transfersLoading } = useFirestoreCollection<FirestoreTransfer>(
     useMemo(() => (uid ? query(transfersRef(uid), where('bucketItem', '!=', null)) : null), [uid])
   );

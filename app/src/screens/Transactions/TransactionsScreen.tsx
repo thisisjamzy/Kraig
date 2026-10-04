@@ -37,9 +37,20 @@ function dayLabel(d: Date) {
 function Amount({ row }: { row: TxRow }) {
   const sign = row.amount > 0 ? (row.flow === 'Transfer' ? '' : '+') : row.amount < 0 ? '−' : '';
   return (
-    <span className={styles.amount} data-flow={row.flow} data-negative={row.amount < 0 || undefined}>
+    <span className={styles.amount} data-flow={row.flow} data-negative={row.amount < 0 || undefined} data-excluded={row.excluded || undefined}>
       {sign}
       {formatNumber(Math.abs(row.amount))}
+    </span>
+  );
+}
+
+/** The name; an excluded transaction greyed with its reason. */
+function TxName({ row }: { row: TxRow }) {
+  if (!row.excluded) return <>{row.name}</>;
+  return (
+    <span className={styles.excluded} title={row.excludedReason}>
+      {row.name}
+      <span className={styles.excludedReason}>Excluded{row.excludedReason ? `: ${row.excludedReason}` : ''}</span>
     </span>
   );
 }
@@ -70,7 +81,7 @@ const text = (id: keyof TxRow & string, label: string, width = 160, hidden = fal
 });
 
 function columnsFor(type: FlowType): ColumnDef<TxRow>[] {
-  const name: ColumnDef<TxRow> = { id: 'name', label: 'Name', type: 'text', width: 240, value: (r) => r.name };
+  const name: ColumnDef<TxRow> = { id: 'name', label: 'Name', type: 'text', width: 240, value: (r) => r.name, render: (r) => <TxName row={r} /> };
   const amount: ColumnDef<TxRow> = { id: 'amount', label: 'Amount', type: 'currency', width: 140, value: (r) => r.amount, render: (r) => <Amount row={r} />, calc: 'sum' };
   // Date first (the frozen column), then Name, as the columns read.
   if (type === 'Income') return [dateColumn(), name, text('note', 'Note'), text('source', 'Source', 150), text('subtype', 'Subtype', 140), text('account', 'Account', 150), amount];
@@ -134,6 +145,14 @@ export function TransactionsScreen() {
             rows={v.byType[v.tab]}
             rowKey={(r) => r.id}
             columns={columnsFor(v.tab)}
+            above={
+              v.excludedCount > 0 || v.showExcluded ? (
+                <label className={styles.showExcluded}>
+                  <input type="checkbox" checked={v.showExcluded} onChange={(e) => v.setShowExcluded(e.target.checked)} />
+                  Show excluded ({v.excludedCount})
+                </label>
+              ) : undefined
+            }
             views={[
               { id: 'table', name: 'Table', layout: 'table' },
               { id: 'list', name: 'List', layout: 'list' },
@@ -153,7 +172,7 @@ export function TransactionsScreen() {
               { id: 'largest', label: 'Largest first', compare: (a, b) => Math.abs(b.amount) - Math.abs(a.amount) },
             ]}
             list={{
-              title: (r) => r.name,
+              title: (r) => (r.excluded ? `${r.name} (excluded)` : r.name),
               secondary: (r) => [dayLabel(r.date), r.flow === 'Transfer' || r.flow === 'Savings' ? [r.from, r.to].filter(Boolean).join(' to ') : r.account].filter(Boolean).join(' · '),
               amount: (r) => <Amount row={r} />,
             }}

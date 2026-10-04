@@ -22,8 +22,8 @@ import {
   spendingPace,
 } from '@/src/viewmodels/finance/metrics';
 import { moneyFlow, unplannedInsights } from '@/src/viewmodels/finance/breakdowns';
-import { forecast, guidance, type Scenario } from '@/src/viewmodels/finance/forecast';
 import { alerts } from '@/src/viewmodels/finance/insights';
+import { forecast, guidance, type Scenario } from '@/src/viewmodels/finance/forecast';
 import { incomeConsistency, incomeExpenseTrend, keyCashFlow, keyWindow, savingsTrend } from '@/src/viewmodels/finance/keyCharts';
 import {
   comparisonPeriod,
@@ -38,7 +38,7 @@ import {
 } from '@/src/viewmodels/finance/ranges';
 
 // Savings now lives in the Key charts (chart 4), not a section of its own.
-export const SECTION_IDS = ['attention', 'snapshot', 'keycharts', 'cashflow', 'plan', 'unplanned', 'forecast', 'money', 'income', 'habits'] as const;
+export const SECTION_IDS = ['snapshot', 'keycharts', 'cashflow', 'plan', 'unplanned', 'forecast', 'money', 'income', 'habits'] as const;
 export type SectionId = (typeof SECTION_IDS)[number];
 
 const RANGE_KEY = 'dreda.financeInsights.range';
@@ -193,14 +193,6 @@ export function useLogic() {
   );
   const habits = useMemo(() => dailyHabits(data, period, splits), [data, period, splits]);
   const current = monthKey(data.today);
-  const unassignedCount = useMemo(
-    () => data.txs.filter((t) => t.kind === 'expense' && t.month === current && !t.link && t.amount > 0).length,
-    [data, current]
-  );
-  const attention = useMemo(
-    () => alerts({ data, currency, totals, forecast: projection, pace: spendingPace(data, current), log, unassignedCount }),
-    [data, currency, totals, projection, current, log, unassignedCount]
-  );
 
   const changes = {
     income: change(totals.income, previous.income),
@@ -250,7 +242,6 @@ export function useLogic() {
     toggleCollapsed,
     move,
     // sections
-    attention,
     totals,
     previous,
     changes,
@@ -290,3 +281,14 @@ export function useLogic() {
 }
 
 export type FinanceInsights = ReturnType<typeof useLogic>;
+
+/** "Needs attention" for the phone Insights screen: this month's alerts
+ * from the same figures the sections use. Only the phone calls it. */
+export function useAttention(v: FinanceInsights) {
+  const { data, currency, totals, projection, log } = v;
+  return useMemo(() => {
+    const current = monthKey(data.today);
+    const unassignedCount = data.txs.filter((t) => t.kind === 'expense' && t.month === current && !t.link && t.amount > 0).length;
+    return alerts({ data, currency, totals, forecast: projection, pace: spendingPace(data, current), log, unassignedCount });
+  }, [data, currency, totals, projection, log]);
+}

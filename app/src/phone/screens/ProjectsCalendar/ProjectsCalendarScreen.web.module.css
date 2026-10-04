@@ -1,0 +1,31 @@
+/* Web-only layout for the calendar — applied ONLY when useIsWeb() is true.
+   Same header, month grid and schedule as mobile; the month grid sits in a
+   sticky left column beside the schedule instead of above it. Override
+   rules use the ".page .x" pattern for specificity safety (see
+   HomeScreen.web.module.css's header comment). */
+.page {
+  max-width: 1100px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.page .layout {
+  display: grid;
+  grid-template-columns: minmax(300px, 380px) 1fr;
+  align-items: start;
+  gap: var(--space-lg);
+  padding: 0 var(--space-lg) var(--space-lg);
+}
+
+.page .calendarPanel {
+  position: sticky;
+  top: 80px;
+  border-radius: 32px;
+}
+
+.page .schedule {
+  margin-top: 0;
+  padding-top: 8px;
+  border-radius: 0;
+  box-shadow: none;
+}
