@@ -28,6 +28,7 @@ import adj from './Adjustments.module.css';
 import styles from './PlanningBucketScreen.module.css';
 import { useHasTopBar } from '@/src/widgets/AppShell/TopBarSlot';
 import { BucketPage } from './BucketPage';
+import { useFormLink } from '@/src/shared/navigation/useFormLink';
 
 // Distinct brand-blue shades, one per item (segment and legend dot).
 const SHADES = ['#3b63f0', '#243a8c', '#7d97f6', '#1c2a6b', '#a9baf9', '#4f6fd8', '#5c6fae', '#c7d3fc'];
@@ -65,6 +66,7 @@ export function PlanningBucketScreen({ bucketId }: { bucketId: string }) {
 /** The page, fed by its logic — presentational, so it can also be
  * rendered with sample data. */
 export function PlanningBucketView({ bucketId, b }: { bucketId: string; b: ReturnType<typeof useLogic> }) {
+  const formLink = useFormLink();
   const router = useRouter();
   const [closing, setClosing] = useState(false);
   const card = b.card;
@@ -119,7 +121,7 @@ export function PlanningBucketView({ bucketId, b }: { bucketId: string; b: Retur
               triggerClassName={p.roundButton}
               triggerIcon={<MoreHorizontal size={18} strokeWidth={2} />}
               items={[
-                { key: 'add', label: 'Add item', icon: <Plus size={14} strokeWidth={2} />, onSelect: () => router.push(`/add-basket-item/${bucketId}`) },
+                { key: 'add', label: 'Add item', icon: <Plus size={14} strokeWidth={2} />, onSelect: () => router.push(formLink('basket-item', { basket: bucketId })) },
                 b.closed
                   ? { key: 'reopen', label: 'Reopen basket', icon: <LockOpen size={14} strokeWidth={2} />, onSelect: () => b.reopenBucket() }
                   : { key: 'close', label: `Close basket for ${monthTitle(b.month)}`, icon: <Lock size={14} strokeWidth={2} />, onSelect: () => setClosing(true) },
@@ -286,7 +288,7 @@ export function PlanningBucketView({ bucketId, b }: { bucketId: string; b: Retur
       {/* 4. Items */}
       <div className={p.sectionHead}>
         <h2>Items</h2>
-        <Link href={`/add-basket-item/${bucketId}`} className={p.textButton}>
+        <Link href={formLink('basket-item', { basket: bucketId })} className={p.textButton}>
           <Plus size={14} strokeWidth={2.5} aria-hidden />
           Add item
         </Link>

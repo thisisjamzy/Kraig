@@ -70,6 +70,7 @@ import type {
   BucketItemLink,
   FirestoreTransaction,
   IncomeSubtype,
+  ItemAutomation,
 } from './types';
 
 function monthKey(date: Date) {
@@ -1197,6 +1198,12 @@ export interface CreateBucketLineItemInput {
   dueDate: Date | null;
   // Fixed-bucket items only — see FirestoreBucketLineItem.recurrence's header.
   recurrence?: { frequency: Frequency; interval: number } | null;
+  // How it's paid and when it can move (the form standard's Paid from and
+  // More options). Left out, an update keeps what the item has.
+  automation?: ItemAutomation | null;
+  notBefore?: Date | null;
+  neededBy?: Date | null;
+  splittable?: boolean;
   // The item's own shopping-list checklist, edited as a batch alongside
   // every other field on this same form (see FirestoreBucketLineItem
   // .subItems's header) — ticking one off afterward from Bucket Detail goes
@@ -1225,7 +1232,8 @@ export interface CreateBucketLineItemInput {
 export async function createBucketLineItem(
   uid: string,
   goalId: string,
-  bucketKind: 'Fixed' | 'Variable',
+  // Kept for callers; every kind now writes the recurrence the form chose.
+  _bucketKind: 'Fixed' | 'Variable',
   input: CreateBucketLineItemInput
 ): Promise<string> {
   const id = crypto.randomUUID();
@@ -1241,8 +1249,11 @@ export async function createBucketLineItem(
     toAccountId: input.toAccountId ?? null,
     charges: input.charges ?? null,
     dueDate: input.dueDate ? Timestamp.fromDate(input.dueDate) : null,
-    recurrence: bucketKind === 'Fixed' ? (input.recurrence ?? null) : null,
+    // A Fixed basket's items always repeat; any other item repeats when the
+    // form says so (monthBudget.ts reads item.recurrence for every kind).
+    recurrence: input.recurrence ?? null,
     subItems: input.subItems ?? [],
+    ...lineItemExtras(input),
     // A new item always lands at the end of the cross-bucket to-do list's
     // custom order — Date.now() is always greater than any earlier item's
     // rank without needing to read the whole list first to find a max.
@@ -1308,9 +1319,20 @@ export async function updateBucketLineItem(
     dueDate: input.dueDate ? Timestamp.fromDate(input.dueDate) : null,
     recurrence,
     subItems: input.subItems ?? [],
+    ...lineItemExtras(input),
     updatedAt: serverTimestamp(),
   });
   await recalcBucketTotals(uid, goalId);
+}
+
+/** The optional fields a form sent, ready to write (left out: untouched). */
+function lineItemExtras(input: CreateBucketLineItemInput) {
+  const out: Record<string, unknown> = {};
+  if (input.automation !== undefined) out.automation = input.automation;
+  if (input.notBefore !== undefined) out.notBefore = input.notBefore ? Timestamp.fromDate(input.notBefore) : null;
+  if (input.neededBy !== undefined) out.neededBy = input.neededBy ? Timestamp.fromDate(input.neededBy) : null;
+  if (input.splittable !== undefined) out.splittable = input.splittable;
+  return out;
 }
 
 // Adding/removing a sub-item happens as part of this same form's batched

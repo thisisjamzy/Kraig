@@ -13,6 +13,7 @@ import { Modal } from '@/src/widgets/Modal/Modal';
 import { MoreSheet } from '@/src/widgets/AppShell/MoreSheet';
 import type { FirestoreBucket } from '@/src/shared/firestore/types';
 import styles from './BucketsBottomNav.module.css';
+import { useFormLink } from '@/src/shared/navigation/useFormLink';
 
 // Exported for WebSidebar (src/widgets/WebSidebar) — reused verbatim so
 // mobile and web can never drift apart on what Buckets mode contains.
@@ -30,6 +31,7 @@ type Create = 'item' | 'income' | 'payment';
 // routes (chromeVisibility.ts's navMode). The "+" opens what can be added:
 // a bucket, or an item, an income source or a planned payment in one.
 export function BucketsBottomNav() {
+  const formLink = useFormLink();
   const pathname = usePathname();
   const { user } = useFirebaseUser();
   const uid = user?.uid;
@@ -105,7 +107,7 @@ export function BucketsBottomNav() {
             ) : (
               <>
                 {choices(picking).map((b) => (
-                  <Link key={b.id} href={`/add-basket-item/${b.id}`} className={styles.sheetOption} onClick={close}>
+                  <Link key={b.id} href={formLink('basket-item', { basket: b.id })} className={styles.sheetOption} onClick={close}>
                     {b.name}
                   </Link>
                 ))}

@@ -35,6 +35,7 @@ import { LinePeekContent } from './LinePeek';
 import { useScopeChooser } from './ScopeChooser';
 import { groupsFor, lineColumns, viewsFor, type ColumnContext } from './columns';
 import styles from './BudgetMonth.module.css';
+import { useFormLink } from '@/src/shared/navigation/useFormLink';
 
 /** The updates the Budget page links to. */
 const BUDGET_TYPES: NotificationType[] = ['payment_overdue', 'payment_due_soon', 'overspend_uncovered', 'leftover_to_reallocate', 'must_haves_short', 'income_late', 'ready_to_pay', 'month_review', 'unassigned_transactions', 'savings_behind'];
@@ -49,6 +50,7 @@ export const FLOW_ICON: Record<FlowType, typeof Wallet> = {
 const NEW_LABEL: Record<FlowType, string> = { Income: 'New income line', Expense: 'New expense', Savings: 'New savings line', Transfer: 'New transfer' };
 
 export function BudgetMonthPage({ month, data, onMonth }: { month: string; data: PlanningData; onMonth: (month: string) => void }) {
+  const formLink = useFormLink();
   const v = useBudgetMonth(month, data);
   const router = useRouter();
   const scope = useScopeChooser();
@@ -158,7 +160,7 @@ export function BudgetMonthPage({ month, data, onMonth }: { month: string; data:
               onCreate={(values, groupKey) => v.createLine(v.tab, { name: values.name, amount: values.planned ?? values.expected ?? values.amount, due: values.due ?? values.date }, groupKey)}
               newLabel={NEW_LABEL[v.tab]}
               newTemplates={[
-                ...v.bucketsOf(v.tab).map((b) => ({ id: b.id, label: `Recurring item in ${b.name}`, onSelect: () => router.push(`/add-basket-item/${b.id}`) })),
+                ...v.bucketsOf(v.tab).map((b) => ({ id: b.id, label: `Recurring item in ${b.name}`, onSelect: () => router.push(formLink('basket-item', { basket: b.id })) })),
                 { id: 'bucket', label: `New ${FLOW_LABEL[v.tab].toLowerCase()} basket`, onSelect: () => router.push(`/baskets/new?type=${v.tab}`) },
               ]}
               rowActions={

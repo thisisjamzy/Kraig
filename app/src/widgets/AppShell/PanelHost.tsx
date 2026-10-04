@@ -20,6 +20,10 @@ import {
   withoutDebtForm,
   type DebtFormKind,
 } from '@/src/shared/navigation/debtForms';
+import { PEEK_PARAM, formPageHref, isFormKind, peekParams, withoutFormPeek, type FormKind } from '@/src/shared/navigation/formPeek';
+import { FormPeekContext } from '@/src/widgets/FormFrame/FormFrame';
+import { WebFormPanel } from '@/src/widgets/WebFormPanel/WebFormPanel';
+import type { ComponentType } from 'react';
 import dynamic from 'next/dynamic';
 
 // Loaded only when a panel actually opens.
@@ -30,12 +34,50 @@ const RepaymentFormScreen = dynamic(() => import('@/src/screens/DebtForms/Repaym
 const PlanFormScreen = dynamic(() => import('@/src/screens/DebtForms/PlanFormScreen').then((m) => m.PlanFormScreen), { ssr: false });
 const WalletEffectFormScreen = dynamic(() => import('@/src/screens/DebtForms/WalletEffectFormScreen').then((m) => m.WalletEffectFormScreen), { ssr: false });
 
+// The forms that open as a side peek from ?peek=<kind> (formPeek.ts). A kind
+// not listed here opens its own page instead.
+const BasketItemForm = dynamic(() => import('@/src/forms/BasketItemForm/BasketItemForm').then((m) => m.BasketItemForm), { ssr: false });
+
+const PEEK_FORMS: Partial<Record<FormKind, ComponentType<{ params: Record<string, string> }>>> = {
+  'basket-item': ({ params }) => <BasketItemForm goalId={params.basket} itemId={params.item || undefined} />,
+};
+
 export function PanelHost() {
   return (
     <>
       <TaskPanelHost />
       <DebtFormHost />
+      <FormPeekHost />
     </>
+  );
+}
+
+function FormPeekHost() {
+  const search = useSearchParams();
+  const pathname = usePathname();
+  const router = useRouter();
+  const { isWide, deviceClass } = useLayout();
+  const kindParam = search.get(PEEK_PARAM);
+  const kind = isFormKind(kindParam) ? kindParam : null;
+  const params = peekParams(search);
+  const Form = kind ? PEEK_FORMS[kind] : undefined;
+  const pageHref = kind ? formPageHref(kind, params) : null;
+
+  // A phone opening a peek link, or a form without a peek: its own page.
+  useEffect(() => {
+    if (!kind || !pageHref) return;
+    if (Form && (isWide || window.matchMedia('(min-width: 768px)').matches)) return;
+    router.replace(pageHref);
+  }, [kind, Form, pageHref, isWide, router, deviceClass]);
+
+  if (!kind || !Form || !isWide) return null;
+  const close = () => router.replace(withoutFormPeek(pathname, search.toString()), { scroll: false });
+  return (
+    <WebFormPanel onClose={close}>
+      <FormPeekContext.Provider value={{ peek: true, close, fullPageHref: pageHref }}>
+        <Form key={search.toString()} params={params} />
+      </FormPeekContext.Provider>
+    </WebFormPanel>
   );
 }
 

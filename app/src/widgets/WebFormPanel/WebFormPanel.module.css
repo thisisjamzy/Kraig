@@ -9,7 +9,7 @@
 }
 
 .panel {
-  width: min(480px, 92vw);
+  width: min(var(--panel-width, 560px), 92vw);
   height: 100%;
   overflow-y: auto;
   /* Solid, not --color-page (that token carries alpha for the page-scroll
@@ -18,6 +18,13 @@
   background: var(--color-background);
   box-shadow: -16px 0 40px rgba(0, 0, 0, 0.25);
   animation: panelIn 0.2s ease;
+}
+
+/* A tablet held upright: 60% of the width. */
+@media (max-width: 1023px) and (orientation: portrait) {
+  .panel {
+    width: 60vw;
+  }
 }
 
 @keyframes backdropIn {

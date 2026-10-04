@@ -21,6 +21,7 @@ import p from '@/src/screens/Planning/Planning.module.css';
 import styles from './PlanningItemScreen.module.css';
 import { useHasTopBar } from '@/src/widgets/AppShell/TopBarSlot';
 import { ItemPage } from './ItemPage';
+import { useFormLink } from '@/src/shared/navigation/useFormLink';
 
 export function PlanningItemScreen({ bucketId, itemId }: { bucketId: string; itemId: string }) {
   const it = useLogic(bucketId, itemId);
@@ -49,6 +50,7 @@ export function PlanningItemScreen({ bucketId, itemId }: { bucketId: string; ite
 }
 
 function ItemBody({ it, entry }: { it: ReturnType<typeof useLogic>; entry: ItemMonth }) {
+  const formLink = useFormLink();
   const { month, currency, data, prompt } = it;
   const m = useItemMonth({
     entry,
@@ -79,7 +81,7 @@ function ItemBody({ it, entry }: { it: ReturnType<typeof useLogic>; entry: ItemM
         }
         right={
           <>
-            <Link href={`/edit-basket-item/${entry.bucketId}/${entry.itemId}`} className={p.roundButton} aria-label="Edit item">
+            <Link href={formLink('basket-item', { basket: entry.bucketId, item: entry.itemId })} className={p.roundButton} aria-label="Edit item">
               <Pencil size={17} strokeWidth={2} />
             </Link>
             <ActionMenu

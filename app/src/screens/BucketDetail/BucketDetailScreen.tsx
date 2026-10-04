@@ -16,8 +16,10 @@ import { NECESSITY_LABEL } from '@/src/viewmodels/projects';
 import { BucketItemMonthSheet } from '@/src/screens/BucketItemMonth/BucketItemMonthSheet';
 import { itemMonthKey, monthLabel } from '@/src/shared/budget/monthBudget';
 import styles from './BucketDetailScreen.module.css';
+import { useFormLink } from '@/src/shared/navigation/useFormLink';
 
 export function BucketDetailScreen({ goalId }: { goalId: string }) {
+  const formLink = useFormLink();
   const strings = useStrings();
   const router = useRouter();
   const [confirmArchive, setConfirmArchive] = useState(false);
@@ -199,7 +201,7 @@ export function BucketDetailScreen({ goalId }: { goalId: string }) {
 
           <div className={styles.sectionTitleRow}>
             <h2 className={styles.sectionTitle}>{strings.bucketDetail.lineItemsTitle}</h2>
-            <Link href={`/add-basket-item/${goalId}`} className={styles.addIconButton} aria-label={strings.bucketDetail.addLineItem}>
+            <Link href={formLink('basket-item', { basket: goalId })} className={styles.addIconButton} aria-label={strings.bucketDetail.addLineItem}>
               <Plus size={16} strokeWidth={2.25} />
             </Link>
           </div>
@@ -253,7 +255,7 @@ export function BucketDetailScreen({ goalId }: { goalId: string }) {
                             key: 'edit',
                             label: strings.bucketDetail.editLineItem,
                             icon: <Pencil size={16} strokeWidth={1.75} />,
-                            onSelect: () => router.push(`/edit-basket-item/${goalId}/${item.id}`),
+                            onSelect: () => router.push(formLink('basket-item', { basket: goalId, item: item.id })),
                           },
                           {
                             key: 'delete',

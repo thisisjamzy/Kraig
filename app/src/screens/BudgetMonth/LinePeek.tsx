@@ -22,6 +22,7 @@ import { formatNumber } from '@/src/widgets/Database/format';
 import { automationFromValue, automationOptions, automationValue, type ColumnContext } from './columns';
 import { monthTitle } from '@/src/viewmodels/planning';
 import styles from './BudgetMonth.module.css';
+import { useFormLink } from '@/src/shared/navigation/useFormLink';
 
 export function LinePeekContent({
   line,
@@ -36,6 +37,7 @@ export function LinePeekContent({
   onSkip: (line: LineRow) => Promise<void>;
   compactTitle?: boolean;
 }) {
+  const formLink = useFormLink();
   const [busy, setBusy] = useState(false);
   const money = (n: number) => `${formatNumber(n)} ${currency}`;
   const accounts = ctx.accounts.map((a) => ({ value: a.id, label: a.name }));
@@ -175,7 +177,7 @@ export function LinePeekContent({
         kind={`${FLOW_NOUN[line.type]} line · ${monthTitle(line.month)}`}
         actions={
           compactTitle ? null : (
-            <Link href={`/edit-basket-item/${line.bucketId}/${line.itemId}`} className={styles.ghostButton}>
+            <Link href={formLink('basket-item', { basket: line.bucketId, item: line.itemId })} className={styles.ghostButton}>
               <Pencil size={14} strokeWidth={2.25} aria-hidden /> Edit template
             </Link>
           )
@@ -204,7 +206,7 @@ export function LinePeekContent({
           </button>
         )}
         {compactTitle && (
-          <Link href={`/edit-basket-item/${line.bucketId}/${line.itemId}`} className={styles.ghostButton}>
+          <Link href={formLink('basket-item', { basket: line.bucketId, item: line.itemId })} className={styles.ghostButton}>
             <Pencil size={14} strokeWidth={2.25} aria-hidden /> Edit template
           </Link>
         )}

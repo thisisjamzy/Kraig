@@ -40,6 +40,7 @@ import bm from '@/src/screens/BudgetMonth/BudgetMonth.module.css';
 import { AdjustmentRow, AdjustmentSheet } from './Adjustments';
 import { CloseBucketSheet } from './CloseBucketSheet';
 import styles from './BucketPage.module.css';
+import { useFormLink } from '@/src/shared/navigation/useFormLink';
 
 type BucketLogic = ReturnType<typeof useBucketLogic>;
 type TxRow = BucketLogic['rows'][number];
@@ -47,6 +48,7 @@ type TxRow = BucketLogic['rows'][number];
 const ADD_LABEL: Record<FlowType, string> = { Income: 'Record income', Expense: 'Add expense', Savings: 'Add savings', Transfer: 'Record transfer' };
 
 export function BucketPage({ bucketId, b }: { bucketId: string; b: BucketLogic }) {
+  const formLink = useFormLink();
   const router = useRouter();
   const v = useBudgetMonth(b.month, b.data);
   const scope = useScopeChooser();
@@ -60,7 +62,7 @@ export function BucketPage({ bucketId, b }: { bucketId: string; b: BucketLogic }
     bucket
       ? [
           { label: ADD_LABEL[type], href: b.addExpenseHref },
-          { label: 'Add item', href: `/add-basket-item/${bucketId}` },
+          { label: 'Add item', href: formLink('basket-item', { basket: bucketId }) },
           { label: 'Edit basket', href: `/baskets/${bucketId}` },
           b.closed ? { label: 'Reopen basket', onSelect: () => void b.reopenBucket() } : { label: `Close basket for ${monthTitle(b.month)}`, onSelect: () => setClosing(true) },
           // What the bucket needs: its status chip says so, the action is here.
@@ -173,7 +175,7 @@ export function BucketPage({ bucketId, b }: { bucketId: string; b: BucketLogic }
             onOpen={peek.open}
             onCreate={(values) => v.createLine(type, { name: values.name, amount: values.planned ?? values.expected ?? values.amount, due: values.due ?? values.date }, bucketId)}
             newTemplates={[
-              { id: 'recurring', label: 'Recurring item', onSelect: () => router.push(`/add-basket-item/${bucketId}`) },
+              { id: 'recurring', label: 'Recurring item', onSelect: () => router.push(formLink('basket-item', { basket: bucketId })) },
             ]}
             bulkActions={[
               ...(type !== 'Income' ? [{ id: 'paid', label: 'Mark paid', run: (rows: LineRow[]) => v.bulkMarkPaid(rows) }] : []),
