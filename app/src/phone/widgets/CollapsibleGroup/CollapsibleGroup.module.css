@@ -1,0 +1,61 @@
+.group {
+  margin-top: 18px;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  margin: 0 0 10px;
+  padding: 0 2px;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.title {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-family-heading);
+  font-size: 1.0625rem;
+  font-weight: 800;
+}
+
+.count {
+  margin-left: 4px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--p-light);
+}
+
+.total {
+  font-size: 0.875rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.chevron {
+  flex-shrink: 0;
+  color: var(--p-muted);
+  transform: rotate(-90deg);
+  transition: transform 160ms ease;
+}
+
+.chevron[data-open] {
+  transform: none;
+}
+
+.head:focus-visible {
+  outline: 2px solid var(--p-blue);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chevron {
+    transition: none;
+  }
+}
