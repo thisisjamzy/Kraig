@@ -864,3 +864,13 @@ input:focus-visible + .switch {
     transform: none;
   }
 }
+
+/* ---- Zero-radius variant (CardFormPage square): the page standard's blocks ---- */
+.page[data-shape='square'] .card,
+.page[data-shape='square'] .primary,
+.page[data-shape='square'] .segmented,
+.page[data-shape='square'] .segment,
+.page[data-shape='square'] .sheetOption,
+.page[data-shape='square'] .searchField {
+  border-radius: 0;
+}

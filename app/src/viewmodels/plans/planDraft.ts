@@ -30,6 +30,24 @@ export interface PlanLine {
   /** The draft changed it. */
   changed?: boolean;
   warnings?: string[];
+  /** yyyy-MM: the month it was in before the draft moved it. */
+  movedFrom?: string | null;
+  /** Suggested by Auto-allocate (not yet accepted), and why. */
+  suggested?: { reason: string } | null;
+  // Plan fields (all optional, see FirestoreBucketLineItem):
+  /** yyyy-MM: not before this month. */
+  notBefore?: string | null;
+  /** yyyy-MM: needed by this month. */
+  neededBy?: string | null;
+  splittable?: boolean;
+  /** False for a fixed recurring line: it can't be dragged. */
+  movable?: boolean;
+  splitGroupId?: string | null;
+  source?: 'budget_line' | 'plan_item' | 'want_to_buy';
+  /** When it started waiting (backlog "Waiting 23 days"). */
+  waitingSince?: Date | null;
+  /** Fully paid (the "Paid" group). */
+  paid?: boolean;
 }
 
 export interface IncomeLine {
@@ -41,11 +59,12 @@ export interface IncomeLine {
 }
 
 export type PlanChange =
-  | { type: 'move'; key: string; toMonth: string | null; scope?: 'month' | 'future' }
+  | { type: 'move'; key: string; toMonth: string | null; scope?: 'month' | 'future'; date?: string | null }
   | { type: 'amount'; key: string; amount: number; scope?: 'month' | 'future' }
   | { type: 'drop'; key: string }
   | { type: 'split'; key: string; parts: { month: string; amount: number }[] }
-  | { type: 'account'; key: string; accountId: string };
+  | { type: 'account'; key: string; accountId: string }
+  | { type: 'priority'; key: string; need?: 'must' | 'nice'; priority?: 'High' | 'Medium' | 'Low' };
 
 export const UNSCHEDULED = 'unscheduled';
 
@@ -80,7 +99,8 @@ export function applyDraft(lines: PlanLine[], changes: PlanChange[]): PlanLine[]
     const line = out[index];
     switch (change.type) {
       case 'move': {
-        const moved: PlanLine = { ...line, month: change.toMonth, due: change.toMonth ? dueIn(change.toMonth, line.due) : null, changed: true };
+        const due = change.toMonth ? (change.date ? new Date(`${change.date}T00:00:00`) : dueIn(change.toMonth, line.due)) : null;
+        const moved: PlanLine = { ...line, month: change.toMonth, due, changed: true, movedFrom: line.movedFrom ?? line.month };
         if (line.need === 'must' && change.toMonth !== line.month) moved.warnings = [...(line.warnings ?? []), 'must have moved'];
         out[index] = moved;
         break;
@@ -94,13 +114,18 @@ export function applyDraft(lines: PlanLine[], changes: PlanChange[]): PlanLine[]
       case 'account':
         out[index] = { ...line, accountId: change.accountId, changed: true };
         break;
+      case 'priority':
+        out[index] = { ...line, need: change.need ?? line.need, priority: change.priority ?? line.priority, changed: true };
+        break;
       case 'split': {
         const [first, ...rest] = change.parts;
         if (!first) break;
-        out[index] = { ...line, month: first.month, due: dueIn(first.month, line.due), amount: first.amount, changed: true };
-        for (const part of rest) {
-          out.push({ ...line, key: `${line.key}#${part.month}`, month: part.month, due: dueIn(part.month, line.due), amount: part.amount, changed: true, warnings: [] });
-        }
+        const count = change.parts.length;
+        const name = (i: number) => `${line.name}, ${i + 1} of ${count}`;
+        out[index] = { ...line, name: name(0), month: first.month, due: dueIn(first.month, line.due), amount: first.amount, changed: true, movedFrom: line.movedFrom ?? line.month };
+        rest.forEach((part, i) => {
+          out.push({ ...line, key: `${line.key}#${part.month}`, name: name(i + 1), month: part.month, due: dueIn(part.month, line.due), amount: part.amount, changed: true, warnings: [], movedFrom: null });
+        });
         break;
       }
     }
@@ -110,7 +135,7 @@ export function applyDraft(lines: PlanLine[], changes: PlanChange[]): PlanLine[]
 
 /** Adds a change, replacing an earlier one of the same kind for the same line. */
 export function addChange(changes: PlanChange[], change: PlanChange): PlanChange[] {
-  const same = (c: PlanChange) => c.key === change.key && (c.type === change.type || (change.type === 'drop' && c.type !== 'account'));
+  const same = (c: PlanChange) => c.key === change.key && (c.type === change.type || (change.type === 'drop' && c.type !== 'account') || (change.type === 'split' && c.type === 'move') || (change.type === 'move' && c.type === 'split'));
   return [...changes.filter((c) => !same(c)), change];
 }
 

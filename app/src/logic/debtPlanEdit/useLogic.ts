@@ -1,99 +1,69 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { updateDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
-import { useFirestoreDoc } from '@/src/shared/firestore/hooks';
-import { debtRef } from '@/src/shared/firestore/refs';
-import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
-import { RECURRING_INTERVALS } from '@/src/logic/createDebt/useLogic';
-import type { FirestoreDebt } from '@/src/shared/firestore/types';
-import { useGoBack } from '@/src/shared/navigation/useGoBack';
+// Edit payment plan (src/screens/DebtForms/PlanFormScreen): the plan's
+// fields from New debt, and whether the change applies to this and future
+// payments or only the next one. The Impact card says when the next
+// payment is and when, at this plan, the debt is paid off; no balance
+// moves until a payment is recorded.
 
-function todayIso() {
-  return new Date().toISOString().slice(0, 10);
-}
-function toIso(date: Date) {
-  return date.toISOString().slice(0, 10);
-}
+import { useMemo, useState } from 'react';
+import { updateDebtPlan } from '@/src/shared/firestore/debtWrites';
+import { useDebtLedger } from '@/src/shared/hooks/useDebtLedger';
+import { monthWord, projectPayments } from '@/src/viewmodels/debt';
+import { formatMoney } from '@/src/widgets/Money/Money';
+import { showToast } from '@/src/widgets/Toast/Toast';
+import { paidFromLabel, useIncomeLines, usePlanFields } from '@/src/logic/debtForm/planFields';
 
-export function useLogic(debtId: string) {
-  const router = useRouter();
-  const { user } = useFirebaseUser();
-  const uid = user?.uid;
-
-  const debtDocRef = useMemo(() => (uid ? debtRef(uid, debtId) : null), [uid, debtId]);
-  const { data: debt, loading: debtLoading, error: debtError } = useFirestoreDoc<FirestoreDebt>(debtDocRef);
-
-  const [hasRecurring, setHasRecurring] = useState(false);
-  const [amount, setAmount] = useState('');
-  const [planInterval, setPlanInterval] = useState<(typeof RECURRING_INTERVALS)[number]>('monthly');
-  const [nextDate, setNextDate] = useState(todayIso());
+export function useLogic(debtId: string, onSaved: (debtId: string) => void) {
+  const ledger = useDebtLedger(debtId);
+  const { uid, debt, accounts } = ledger;
+  const plan = usePlanFields();
+  const incomeLines = useIncomeLines();
+  const [scope, setScope] = useState<'future' | 'next'>('future');
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const hadPlan = debt?.paymentPlan.type === 'recurring' && Boolean(debt.paymentPlan.recurring?.isActive);
 
-  // Same seed-once-on-load shape as debtEdit — this is a page now, not a
-  // click-to-open modal, so there's no explicit "open" moment to seed from.
   const [seededFor, setSeededFor] = useState<string | null>(null);
-  useEffect(() => {
-    if (!debt || seededFor === debtId) return;
+  if (debt && seededFor !== debtId) {
     setSeededFor(debtId);
-    const recurring = debt.paymentPlan.type === 'recurring' ? debt.paymentPlan.recurring : undefined;
-    setHasRecurring(Boolean(recurring));
-    setAmount(recurring ? String(recurring.amount) : '');
-    setPlanInterval(recurring?.interval ?? 'monthly');
-    setNextDate(recurring ? toIso(recurring.nextPaymentDate.toDate()) : todayIso());
-  }, [debt, seededFor, debtId]);
+    plan.seed(debt.paymentPlan.type === 'recurring' ? debt.paymentPlan.recurring : null);
+    if (debt.paymentPlan.type !== 'recurring') plan.setHasPlan(true);
+  }
+
+  const now = useMemo(() => new Date(), []);
+  const value = plan.value();
+  const impact = useMemo(() => {
+    if (!value) return { lines: ['No payments are planned. Your balances don’t change.'], warnings: [] as string[] };
+    const fromIso = value.firstPayment;
+    const from = paidFromLabel(plan.paidFrom, accounts, incomeLines);
+    const lines = [`Next payment: ${formatMoney(value.amount)} on ${fromIso.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}${from ? `, from ${from}` : ''}.`];
+    const balance = debt?.currentBalance ?? 0;
+    if (scope === 'future') {
+      const payments = projectPayments(balance, { ...value, nextPaymentDate: value.firstPayment, isActive: true });
+      if (payments.length) lines.push(`At this plan it's paid off in ${monthWord(payments[payments.length - 1].date, now)}, after ${payments.length} ${payments.length === 1 ? 'payment' : 'payments'}.`);
+    } else {
+      lines.push('After it, the plan carries on as before.');
+    }
+    lines.push('Your balances don’t change until a payment is recorded.');
+    return { lines, warnings: fromIso < new Date(now.getFullYear(), now.getMonth(), now.getDate()) ? ['That date is in the past, so the payment shows as late.'] : [] };
+  }, [value, plan.paidFrom, accounts, incomeLines, debt, scope, now]);
+
+  const valid = plan.valid && (scope === 'future' || Boolean(value));
 
   async function handleSave() {
-    if (!uid || saving) return;
-    if (hasRecurring && !(Number(amount) > 0)) return;
+    if (!uid || saving || !valid) return;
     setSaving(true);
     setSaveError(null);
     try {
-      await updateDoc(debtRef(uid, debtId), {
-        paymentPlan: hasRecurring
-          ? {
-              type: 'recurring',
-              recurring: {
-                amount: Number(amount),
-                interval: planInterval,
-                nextPaymentDate: Timestamp.fromDate(new Date(`${nextDate}T00:00:00`)),
-                isActive: true,
-              },
-            }
-          : { type: 'none' },
-        updatedAt: serverTimestamp(),
-      });
-      router.push(`/debts/${debtId}`);
-    } catch (error) {
-      setSaveError(error instanceof Error ? error.message : 'Could not update the payment plan.');
+      await updateDebtPlan(uid, debtId, value, hadPlan ? scope : 'future', formatMoney);
+      showToast(value ? 'Payment plan saved' : 'Payment plan removed');
+      onSaved(debtId);
+    } catch (caught) {
+      setSaveError(caught instanceof Error ? caught.message : 'Could not save the payment plan.');
       setSaving(false);
     }
   }
 
-  // Back to the page the user came from (skipping forms); `/debts/${debtId}` only
-  // when there's no history — see src/shared/navigation/useGoBack.ts.
-  const navigateBack = useGoBack();
-  function goBack() {
-    navigateBack(`/debts/${debtId}`);
-  }
-
-  return {
-    debt,
-    hasRecurring,
-    setHasRecurring,
-    amount,
-    setAmount,
-    planInterval,
-    setPlanInterval,
-    nextDate,
-    setNextDate,
-    saving,
-    saveError,
-    handleSave,
-    goBack,
-    loading: debtLoading,
-    error: debtError,
-  };
+  return { debt, accounts, plan, hadPlan, scope, setScope, impact, valid, saving, saveError, handleSave, loading: ledger.loading, error: ledger.error };
 }

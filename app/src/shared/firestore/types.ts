@@ -32,6 +32,9 @@ export interface FirestoreAccount {
   // or an edit that increases either). Optional/0 for a wallet with nothing
   // locked, and absent on accounts written before this field existed.
   lockedAmount?: number;
+  // A savings wallet the plan may count on (Plan and forecast's starting
+  // balance); savings are left out otherwise.
+  usableForPlan?: boolean;
   // A <=5 character label for the Home screen's wallet bar chart (its
   // x-axis wraps/distorts with a full wallet name — see src/logic/home/
   // useLogic.ts's `wallets` mapping) — set alongside the full `name` when
@@ -125,9 +128,21 @@ export interface FirestoreTransaction {
   // (linkedDebtId set), which reads as 'debt_financing'
   // (src/shared/budget/flow.ts's incomeSubtypeOfTransaction).
   incomeSubtype?: IncomeSubtype | null;
+  // Excluded: kept for the audit trail but no longer counted anywhere
+  // (balances, income and spending totals, stats, charts). Set when a debt
+  // changes to record only (src/shared/debt/walletEffect.ts), with the
+  // reason shown when "Show excluded" is on. countsInFigures() reads it.
+  excluded?: boolean;
+  excludedReason?: string | null;
+  excludedAt?: Timestamp | null;
   createdBy: string;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
+}
+
+/** False for an excluded transaction: it stays listed under "Show excluded" only. */
+export function countsInFigures(transaction: { excluded?: boolean }): boolean {
+  return !transaction.excluded;
 }
 
 export interface FirestoreTransfer {
@@ -633,6 +648,15 @@ export interface FirestoreBucketLineItem {
   // it ahead of equal items in Priorities' recommended order.
   penaltyIfLate?: boolean;
   monthJustifications?: Record<string, ItemJustification>;
+  // Plan and forecast (src/viewmodels/plans/engine.ts, allocate.ts). All
+  // optional; an older item reads as: no window, not splittable, a budget
+  // line. A fixed recurring item is never movable by dragging (derived).
+  notBefore?: Timestamp | null;
+  neededBy?: Timestamp | null;
+  splittable?: boolean;
+  // The lines one split made ("Couch, 1 of 3") share this id.
+  splitGroupId?: string | null;
+  source?: 'budget_line' | 'plan_item' | 'want_to_buy';
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 }
@@ -669,11 +693,27 @@ export type BucketItemNecessity = 'MustHave' | 'NiceToHave';
 export type DebtType = 'cash' | 'existing';
 export type DebtPriority = 'low' | 'medium' | 'high';
 
+/**
+ * Where a debt's planned payments come from — the same funding choices as
+ * other payments: an account, any income, one income line (a bucket item),
+ * or savings.
+ */
+export type DebtPaidFrom =
+  | { kind: 'account'; accountId: string }
+  | { kind: 'anyIncome' }
+  | { kind: 'incomeLine'; itemId: string; bucketId: string }
+  | { kind: 'savings'; accountId: string | null };
+
 export interface FirestoreDebtRecurringPlan {
   amount: number;
   interval: 'weekly' | 'biweekly' | 'monthly' | 'yearly';
   nextPaymentDate: Timestamp;
   isActive: boolean;
+  paidFrom?: DebtPaidFrom | null;
+  automation?: ItemAutomation['mode'];
+  // "Only the next payment": a one-off amount and date for the next
+  // payment; the plan itself is unchanged and resumes after it.
+  nextOverride?: { amount: number; date: Timestamp } | null;
 }
 
 export interface FirestoreDebtPaymentPlan {
@@ -714,9 +754,36 @@ export interface FirestoreDebt {
   startDate: Timestamp;
   paymentPlan: FirestoreDebtPaymentPlan;
   notes: string;
+  // Who the money is owed to (a person or organisation).
+  lender?: string;
+  // The debt financing income transaction (a cash debt; kept, excluded,
+  // when it changes to record only). Older debts find it by linkedDebtId.
+  borrowingTransactionId?: string | null;
+  // The latest activity entry that can be undone (src/shared/debt/walletEffectRun.ts).
+  lastChangeId?: string | null;
+  // Set when a repayment brings the balance owed to zero.
+  paidOffAt?: Timestamp | null;
   archivedAt: Timestamp | null;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
+}
+
+/**
+ * users/{uid}/debts/{debtId}/activity/{entryId} — the debt's activity log:
+ * type switches, amount, account and date edits, plan changes, repayments.
+ * A wallet change keeps its plan so it can be undone exactly; see
+ * DebtActivityEntry in src/shared/debt/walletEffectRun.ts for the fields.
+ */
+export interface FirestoreDebtActivity {
+  id: string;
+  at: Timestamp;
+  kind: string;
+  title: string;
+  changes: { label: string; from: string; to: string }[];
+  lines: string[];
+  plan: unknown;
+  undoneAt: Timestamp | null;
+  undoOf: string | null;
 }
 
 /** users/{uid}/debts/{debtId}/repayments/{repaymentId} */

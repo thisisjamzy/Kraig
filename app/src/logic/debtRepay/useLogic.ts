@@ -1,119 +1,115 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useFirestoreDoc } from '@/src/shared/firestore/hooks';
-import { debtRef } from '@/src/shared/firestore/refs';
-import { useAccounts, useCategories, useCurrencyContext } from '@/src/shared/firestore/queries';
+// Record repayment (src/screens/DebtForms/RepaymentFormScreen). Amount
+// (prefilled from the plan's next payment, or the link's `amount`), date
+// (today), paid from (required for a cash debt and prefilled from the plan;
+// a toggle for record only), method (Planned when it matches the plan,
+// otherwise Manual; the household can change it) and a note. The Impact
+// card says what's owed after and what leaves which account. Paying more
+// than is owed only warns; an account without the money blocks the save.
+
+import { useMemo, useState } from 'react';
 import { recordRepayment } from '@/src/shared/firestore/aggregation';
-import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
-import type { FirestoreDebt } from '@/src/shared/firestore/types';
-import { useGoBack } from '@/src/shared/navigation/useGoBack';
+import { useDebtLedger } from '@/src/shared/hooks/useDebtLedger';
+import { nextPayment, repaymentImpact } from '@/src/viewmodels/debt';
+import { formatMoney } from '@/src/widgets/Money/Money';
+import { showToast } from '@/src/widgets/Toast/Toast';
+import { round2 } from '@/src/shared/firestore/currency';
 
-function todayIso() {
-  return new Date().toISOString().slice(0, 10);
-}
+const pad = (n: number) => String(n).padStart(2, '0');
+const isoDay = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const fromIso = (iso: string) => {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(y, m - 1, d);
+};
 
-export function useLogic(debtId: string) {
-  const router = useRouter();
-  const { user } = useFirebaseUser();
-  const uid = user?.uid;
-  const { ctx, loading: ctxLoading } = useCurrencyContext();
-
-  const debtDocRef = useMemo(() => (uid ? debtRef(uid, debtId) : null), [uid, debtId]);
-  const { data: debt, loading: debtLoading, error: debtError } = useFirestoreDoc<FirestoreDebt>(debtDocRef);
-  const { data: accounts, loading: accountsLoading } = useAccounts();
-  const { data: categories, loading: categoriesLoading } = useCategories('Expense');
-
+export function useLogic(debtId: string, prefillAmount: string | null, onSaved: (debtId: string) => void) {
+  const ledger = useDebtLedger(debtId);
+  const { uid, debt, accounts, ctx } = ledger;
   const isCash = debt?.debtType === 'cash';
+  const recurring = debt?.paymentPlan.type === 'recurring' ? debt.paymentPlan.recurring : undefined;
+  const next = recurring
+    ? nextPayment({
+        amount: recurring.amount,
+        interval: recurring.interval,
+        nextPaymentDate: recurring.nextPaymentDate.toDate(),
+        isActive: recurring.isActive,
+        nextOverride: recurring.nextOverride ? { amount: recurring.nextOverride.amount, date: recurring.nextOverride.date.toDate() } : null,
+      })
+    : null;
 
-  const [amount, setAmount] = useState('');
-  const [date, setDate] = useState(todayIso());
-  const [notes, setNotes] = useState('');
-  const [linkAccount, setLinkAccount] = useState(true);
-  const [accountId, setAccountId] = useState('');
-  const [categoryId, setCategoryId] = useState('');
+  const [amountInput, setAmount] = useState<string | null>(null);
+  const [date, setDate] = useState(isoDay(new Date()));
+  const [fromAccount, setFromAccount] = useState<boolean | null>(null);
+  const [accountChoice, setAccountChoice] = useState('');
+  const [methodChoice, setMethodChoice] = useState<'planned' | 'manual' | null>(null);
+  const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  // Default the amount/account/category pickers once the debt and options
-  // load — a page load, not a click-to-open modal, so there's no explicit
-  // "open" moment to seed from; run once per mount instead (same shape as
-  // src/logic/editTransaction/useLogic.ts's seededFor guard). The amount
-  // pre-fills from an active recurring plan (still editable, never forces
-  // the user to start from a blank field); the account defaults to the
-  // debt's own linked wallet before falling back to the first one, so a
-  // repayment lands back in the same place the debt's cash came from.
-  const seeded = useRef(false);
-  useEffect(() => {
-    if (seeded.current || !debt || (accounts.length === 0 && categories.length === 0)) return;
-    seeded.current = true;
-    const planAmount = debt.paymentPlan.type === 'recurring' ? debt.paymentPlan.recurring?.amount : undefined;
-    setAmount((current) => current || (planAmount ? String(planAmount) : ''));
-    setAccountId((current) => current || debt.accountId || accounts[0]?.id || '');
-    setCategoryId((current) => current || categories[0]?.id || '');
-  }, [debt, accounts, categories]);
+  // Prefilled until edited: the link's amount, else the plan's next payment.
+  const amount = amountInput ?? prefillAmount ?? (next ? String(next.amount) : '');
+  const amountValue = Number(amount);
+  // Paid from: the plan's account, else the account it was received into.
+  const planAccount = recurring?.paidFrom?.kind === 'account' ? recurring.paidFrom.accountId : null;
+  const accountId = accountChoice || planAccount || debt?.accountId || accounts[0]?.id || '';
+  const account = accounts.find((a) => a.id === accountId) ?? null;
+  const useAccount = isCash || (fromAccount ?? false);
+  const autoMethod = next && Math.abs(amountValue - next.amount) < 0.005 ? 'planned' : 'manual';
+  const method = methodChoice ?? autoMethod;
+  const balance = debt?.currentBalance ?? 0;
 
-  const useAccount = isCash || linkAccount;
+  const impact = useMemo(() => repaymentImpact({ amount: amountValue, balance, accountName: useAccount ? (account?.name ?? null) : null }, formatMoney), [amountValue, balance, useAccount, account]);
+
+  const available = account ? round2((account.currentBalance ?? 0) - (account.lockedAmount ?? 0)) : 0;
+  const fundsError = useAccount && account && amountValue > available + 0.005 ? `${account.name} only has ${formatMoney(available)} available.` : null;
+  const valid = amountValue > 0 && (!useAccount || Boolean(accountId)) && !fundsError;
 
   async function handleSave() {
-    if (!uid || !debt || saving) return;
-    const amountValue = Number(amount);
-    if (!(amountValue > 0)) return;
-    if (useAccount && !accountId) return;
+    if (!uid || !debt || saving || !valid) return;
     setSaving(true);
     setSaveError(null);
     try {
       await recordRepayment(
         uid,
-        { id: debt.id, name: debt.name, debtType: debt.debtType, principalAmount: debt.principalAmount, paymentPlan: debt.paymentPlan },
-        {
-          amount: amountValue,
-          date: new Date(`${date}T00:00:00`),
-          notes: notes.trim(),
-          method: 'manual',
-          accountId: useAccount ? accountId : null,
-          categoryId: useAccount ? categoryId || null : null,
-        },
+        { id: debtId, name: debt.name, debtType: debt.debtType, principalAmount: debt.principalAmount, paymentPlan: debt.paymentPlan },
+        { amount: amountValue, date: fromIso(date), notes: note.trim(), method, accountId: useAccount ? accountId : null, categoryId: null, checkFunds: true },
         ctx
       );
-      router.push(`/debts/${debtId}`);
-    } catch (error) {
-      setSaveError(error instanceof Error ? error.message : 'Could not record this repayment.');
+      showToast(amountValue >= balance - 0.005 ? `${debt.name} is paid off` : 'Repayment recorded');
+      onSaved(debtId);
+    } catch (caught) {
+      setSaveError(caught instanceof Error ? caught.message : 'Could not record this repayment.');
       setSaving(false);
     }
-  }
-
-  // Back to the page the user came from (skipping forms); `/debts/${debtId}` only
-  // when there's no history — see src/shared/navigation/useGoBack.ts.
-  const navigateBack = useGoBack();
-  function goBack() {
-    navigateBack(`/debts/${debtId}`);
   }
 
   return {
     debt,
     isCash,
     accounts,
-    categories,
     amount,
     setAmount,
+    currency: debt?.currency || ctx.base,
     date,
     setDate,
-    notes,
-    setNotes,
-    linkAccount,
-    setLinkAccount,
-    accountId,
-    setAccountId,
-    categoryId,
-    setCategoryId,
     useAccount,
+    fromAccount: fromAccount ?? false,
+    setFromAccount,
+    accountId,
+    account,
+    setAccountId: setAccountChoice,
+    method,
+    setMethod: setMethodChoice,
+    note,
+    setNote,
+    impact,
+    fundsError,
+    valid,
     saving,
     saveError,
     handleSave,
-    goBack,
-    loading: ctxLoading || debtLoading || accountsLoading || categoriesLoading,
-    error: debtError,
+    loading: ledger.loading,
+    error: ledger.error,
   };
 }

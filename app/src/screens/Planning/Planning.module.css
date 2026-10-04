@@ -580,46 +580,21 @@
   color: var(--p-light);
 }
 
-/* ---- Prompt card (details pages) ---- */
-.promptCard {
-  --tone: var(--p-blue);
-  --tint: var(--p-blue-tint);
+/* ---- What a bucket or line needs (details pages): a chip and a text
+   link, never a colored block (the alert is in Notifications). ---- */
+.quietPrompt {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: 12px;
-  padding: 14px 16px;
-  border-radius: 20px;
-  background: var(--tint);
+  gap: 10px;
+  margin: 12px 0 0;
 }
 
-.promptCard[data-tone='over'] {
-  --tone: var(--p-red);
-  --tint: var(--p-red-tint);
-}
-
-.promptCardText {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.promptCardTitle {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.9375rem;
-  font-weight: 700;
-}
-
-.promptCardTitle svg {
-  color: var(--tone);
-}
-
-.promptCardSub {
-  font-size: 0.75rem;
-  color: var(--p-muted);
+.quietLink {
+  color: var(--p-blue);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
 }
 
 .fillButton {

@@ -4,8 +4,8 @@
 
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import { AlertCircle, ArrowDownLeft, ArrowLeftRight, ArrowRight, ArrowUpRight, Check, PiggyBank, Repeat, ShoppingBag, Sparkles, Tag } from 'lucide-react';
-import { fillOf, money, type Prompt, dayMonth } from '@/src/viewmodels/planning';
+import { ArrowDownLeft, ArrowLeftRight, ArrowRight, ArrowUpRight, PiggyBank, Repeat, ShoppingBag, Tag } from 'lucide-react';
+import { fillOf, money, dayMonth } from '@/src/viewmodels/planning';
 import type { HistoryRow } from '@/src/logic/planning/rows';
 import styles from './Planning.module.css';
 
@@ -48,61 +48,6 @@ export function coverHref(month: string, bucketId: string, itemId?: string) {
 }
 export function reallocateHref(month: string, bucketId: string, itemId?: string) {
   return `/budget/reallocate?month=${month}&bucket=${bucketId}${itemId ? `&item=${itemId}` : ''}`;
-}
-
-/** The slim strip on a card's bottom edge — only when action is needed. */
-export function PromptStrip({
-  prompt,
-  currency,
-  month,
-  bucketId,
-}: {
-  prompt: Prompt;
-  currency: string;
-  month: string;
-  bucketId: string;
-}) {
-  if (prompt.kind === 'justified') {
-    return (
-      <div className={styles.stripJustified}>
-        <span className={styles.tag}>
-          <Check size={11} strokeWidth={3} aria-hidden />
-          justified · {prompt.reason}
-        </span>
-      </div>
-    );
-  }
-  if (prompt.kind === 'uncovered') {
-    // Settled, but part was left "not covered yet" — a smaller red strip.
-    return (
-      <div className={styles.strip} data-tone="over" data-size="small">
-        <span className={styles.stripText}>
-          {money(prompt.amount)} {currency} still uncovered
-        </span>
-        <Link href={coverHref(month, bucketId)} className={styles.stripAction} onClick={(e) => e.stopPropagation()}>
-          Resolve
-          <ArrowRight size={13} strokeWidth={2.5} aria-hidden />
-        </Link>
-      </div>
-    );
-  }
-  const over = prompt.kind === 'over';
-  return (
-    <div className={styles.strip} data-tone={over ? 'over' : 'leftover'}>
-      <span className={styles.stripText}>
-        {over ? <AlertCircle size={14} strokeWidth={2.5} aria-hidden /> : <Sparkles size={14} strokeWidth={2.5} aria-hidden />}
-        {over ? `Over by ${money(prompt.amount)} ${currency}` : `${money(prompt.amount)} ${currency} left over`}
-      </span>
-      <Link
-        href={over ? coverHref(month, bucketId) : reallocateHref(month, bucketId)}
-        className={styles.stripAction}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {over ? 'Cover or justify' : 'Reallocate'}
-        <ArrowRight size={13} strokeWidth={2.5} aria-hidden />
-      </Link>
-    </div>
-  );
 }
 
 function when(d: Date) {

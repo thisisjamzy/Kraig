@@ -22,17 +22,21 @@ const WIDE_ROUTES = [
   '/debts',
   '/areas',
   '/resources',
+  '/notifications',
+  '/settings/notifications',
 ];
 // Drill-downs with a wide layout: a project's page (not its edit form).
 // Money: a bucket's page, a budget line's page and a transaction's page.
 const WIDE_PATTERNS = [
-  /^\/projects\/(?!new$|all$|calendar|focus|insights|analytics|control-panel)[^/]+$/,
+  /^\/projects\/(?!new$|all$|calendar|focus|insights|analytics)[^/]+$/,
   // Time: an area's page and a task's page (its form stays narrow).
   /^\/areas\/(?!new$)[^/]+$/,
   /^\/tasks\/[^/]+\/edit$/,
   /^\/budget\/bucket\/[^/]+$/,
   /^\/budget\/item\/[^/]+\/[^/]+$/,
   /^\/transactions\/[^/]+$/,
+  // A debt's page (its forms stay narrow, or open as a side peek).
+  /^\/debts\/(?!new$)[^/]+$/,
 ];
 
 export function isWideLayoutRoute(pathname: string | null): boolean {

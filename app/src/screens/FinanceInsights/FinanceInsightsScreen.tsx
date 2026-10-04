@@ -2,16 +2,16 @@
 
 // Insights (Money) — a Notion-style dashboard on every screen size: the
 // title "Insights", properties (Period, Showing, Compare to, Last
-// updated), a callout with what needs attention ("Everything looks on
-// track." when nothing does), then chart blocks in a staggered grid (1, 2
+// updated), a neutral callout with the period in a sentence and a link to
+// the Money updates in Notifications, then chart blocks in a staggered grid (1, 2
 // or 3 columns by width). Each block asks a question, with a status chip,
 // a one-line summary, its visual, a caption and "Show table". Blocks can
 // be widened, hidden (restored from the page's "Show hidden blocks") and
 // dragged into a new order; all remembered on this device.
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import Link from 'next/link';
-import { AlertTriangle, CheckCircle2, PieChart } from 'lucide-react';
+import { PieChart } from 'lucide-react';
+import { NotificationsLink } from '@/src/widgets/Notifications/NotificationsLink';
 import { useLogic, type FinanceInsights } from '@/src/logic/financeInsights/useLogic';
 import { useSwipeModeSwitch } from '@/src/shared/hooks/useSwipeModeSwitch';
 import { useSyncStatus } from '@/src/shared/hooks/useSyncStatus';
@@ -36,7 +36,6 @@ import { ForecastSection } from './ForecastSection';
 import { HabitsSection, IncomeSection, MoneySection } from './DetailSections';
 import { KeyCharts } from './KeyCharts';
 import styles from './FinanceInsights.module.css';
-import bm from '@/src/screens/BudgetMonth/BudgetMonth.module.css';
 
 const RANGES: { value: RangeKind; label: string }[] = [
   { value: 'day', label: 'Day' },
@@ -164,7 +163,6 @@ export function FinanceInsightsScreen() {
   const order = [...layout.order.filter((id) => blocks.some((b) => b.id === id)), ...blocks.map((b) => b.id).filter((id) => !layout.order.includes(id))];
   const shown = order.map((id) => blocks.find((b) => b.id === id)!).filter((b) => b && !layout.hidden.includes(b.id));
   const hiddenCount = blocks.filter((b) => layout.hidden.includes(b.id)).length;
-  const attention = v.attention.filter((a) => a.severity === 'red' || a.severity === 'amber');
   const periods = v.recentPeriods(12);
 
   function move(target: string) {
@@ -232,26 +230,12 @@ export function FinanceInsightsScreen() {
           <ScreenState loading />
         ) : (
           <>
-            {attention.length ? (
-              <Callout tone={attention.some((a) => a.severity === 'red') ? 'bad' : 'watch'} icon={<AlertTriangle size={18} strokeWidth={2} />}>
-                <p>
-                  <strong>
-                    {attention.length} {attention.length === 1 ? 'thing needs' : 'things need'} attention
-                  </strong>
-                </p>
-                <ul>
-                  {attention.slice(0, 4).map((a) => (
-                    <li key={a.id}>
-                      {a.href.startsWith('#') ? a.headline : <Link href={a.href} className={bm.relation}>{a.headline}</Link>}. {a.detail}
-                    </li>
-                  ))}
-                </ul>
-              </Callout>
-            ) : (
-              <Callout tone="good" icon={<CheckCircle2 size={18} strokeWidth={2} />}>
-                <p>Everything looks on track.</p>
-              </Callout>
-            )}
+            <Callout icon={<PieChart size={18} strokeWidth={2} />}>
+              <p>
+                {snapshotTakeaway(v.totals, c)}
+                <NotificationsLink module="money" about="your money" />
+              </p>
+            </Callout>
             <div className={styles.tokens}>
               <MasonryGrid
                 label="Insights"

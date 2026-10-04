@@ -17,7 +17,7 @@ import { useRef, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { BadgeCheck, Check, ChevronDown, ChevronsLeft, Home, Inbox, LogOut, Plus, Search, Settings, Sun, User } from 'lucide-react';
+import { BadgeCheck, Bell, Check, ChevronDown, ChevronsLeft, Home, LogOut, Plus, Search, Settings, Sun, User } from 'lucide-react';
 import { signOut } from 'firebase/auth';
 import logomark from '@/public/logos/black_logomark.png';
 import { MODE_HOME, MODE_LABEL, modeOfPath, type AppMode } from '@/src/shared/config/pageTree';
@@ -31,6 +31,7 @@ import { Popover } from '@/src/widgets/ListQuery/Popover';
 import { FavoritesSection, PageTree } from './PageTree';
 import { SIDEBAR_MAX, SIDEBAR_MIN } from './sidebarState';
 import styles from './Sidebar.module.css';
+import { NotificationCount } from '@/src/widgets/Notifications/NotificationBell';
 
 const MODE_KEY = 'dreda.mode';
 
@@ -130,13 +131,14 @@ export function Sidebar({
           {mode === 'money' ? (
             <>
               {row(MODE_HOME[mode], 'Home', Home)}
+              {row('/notifications', 'Notifications', Bell, <NotificationCount className={styles.count} />)}
               {row('/budget/ready', 'Ready to pay', BadgeCheck, ready ? <span className={styles.count}>{ready}</span> : null)}
               {row('/add-transaction', 'Add transaction', Plus)}
             </>
           ) : (
             <>
               {row('/projects', 'Today', Sun)}
-              {row('/notifications', 'Inbox', Inbox)}
+              {row('/notifications', 'Notifications', Bell, <NotificationCount className={styles.count} />)}
               <Link href={taskPanel.hrefFor('new')} scroll={false} className={styles.quickRow} onClick={onNavigate}>
                 <Plus size={18} strokeWidth={1.75} aria-hidden className={styles.rowGlyph} />
                 <span className={styles.rowLabel}>New task</span>

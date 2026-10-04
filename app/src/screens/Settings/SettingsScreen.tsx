@@ -126,6 +126,17 @@ export function SettingsScreen() {
         <ChevronRight size={16} strokeWidth={2} className={styles.actionRowChevron} />
       </Link>
 
+      <Link href="/settings/notifications" className={styles.actionRow}>
+        <span className={styles.actionRowIcon} style={{ background: iconTint(1) }}>
+          <Bell size={18} strokeWidth={1.75} />
+        </span>
+        <span className={styles.actionRowText}>
+          <span className={styles.actionRowLabel}>Notifications</span>
+          <span className={styles.actionRowMeta}>Which alerts you get, push and email, the daily summary time</span>
+        </span>
+        <ChevronRight size={16} strokeWidth={2} className={styles.actionRowChevron} />
+      </Link>
+
       <Link href="/settings/insights" className={styles.actionRow}>
         <span className={styles.actionRowIcon} style={{ background: iconTint(3) }}>
           <ChartNoAxesCombined size={18} strokeWidth={1.75} />

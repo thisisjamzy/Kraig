@@ -11,6 +11,7 @@ import { computeUpcomingPayments } from '@/src/shared/firestore/upcomingPayments
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { walletColor } from '@/src/viewmodels/wallets';
 import type { FirestoreAccount, FirestoreTransaction, FirestoreTransfer, FirestorePlannedPayment } from '@/src/shared/firestore/types';
+import { countsInFigures } from '@/src/shared/firestore/types';
 import { useGoBack } from '@/src/shared/navigation/useGoBack';
 
 const ICONS = [RefreshCw, ArrowLeftRight, Clock, Download];
@@ -73,10 +74,12 @@ export function useLogic(walletId: string, periods: readonly string[]) {
     [uid, walletId, period]
   );
   const {
-    data: transactionDocs,
+    data: transactionDocsAll,
     loading: transactionsLoading,
     error: transactionsError,
   } = useFirestoreCollection<FirestoreTransaction>(transactionsQuery);
+  // Excluded transactions (a debt changed to record only) don't count anywhere.
+  const transactionDocs = useMemo(() => transactionDocsAll.filter(countsInFigures), [transactionDocsAll]);
 
   const categoryName = useMemo(() => {
     const map = new Map(categories.map((category) => [category.id, category.name]));
@@ -113,7 +116,8 @@ export function useLogic(walletId: string, periods: readonly string[]) {
         : null,
     [uid, walletId]
   );
-  const { data: historyTransactions, loading: historyLoading } = useFirestoreCollection<FirestoreTransaction>(historyQuery);
+  const { data: historyTransactionsAll, loading: historyLoading } = useFirestoreCollection<FirestoreTransaction>(historyQuery);
+  const historyTransactions = useMemo(() => historyTransactionsAll.filter(countsInFigures), [historyTransactionsAll]);
 
   const transfersOutQuery = useMemo(
     () =>

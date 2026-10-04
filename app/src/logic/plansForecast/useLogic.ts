@@ -1,208 +1,147 @@
 'use client';
 
-// Plan and forecast — where the money stands today, planning the next one
-// or two months by moving budget lines between them, a daily spending
-// amount that keeps the plan on track, and where it's heading.
-//
-// Every change is a DRAFT (settings/planDraft, saved as it's made, so it
-// survives reloads) until "Apply plan" writes it to the budget with the
-// usual exception rules (a recurring line's month-only change or skip, a
-// one-off's new date), records it in settings/planLog, and clears the
-// draft. "Discard draft" clears it. While there's a draft, every figure on
-// the page is computed from it.
+// Plan and forecast: a planning sandbox on the shared plan model
+// (usePlanModel.ts). The forecast chart, the month board and the backlog
+// all read the draft; nothing reaches the budget until "Apply plan", which
+// writes each change with the usual rules (a recurring line's month-only
+// change or skip, a one-off's new date, a split's linked lines), records it
+// in settings/planLog and clears the draft. "Discard draft" restores the
+// plan exactly. Auto-allocate's placements are suggestions on top of the
+// draft until accepted. While the page is open it keeps the plan snapshot
+// (what the forecast notifications read) in step with the applied plan.
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { arrayUnion, doc, serverTimestamp, setDoc, Timestamp, updateDoc } from 'firebase/firestore';
 import { getFirebaseFirestore } from '@/src/shared/config/firebaseClient';
 import { useFirestoreDoc } from '@/src/shared/firestore/hooks';
-import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
-import { usePlansData } from '@/src/logic/plans/usePlansData';
 import { bucketLineItemRef } from '@/src/shared/firestore/refs';
 import { convert } from '@/src/shared/firestore/currency';
-import { createBucketLineItem } from '@/src/shared/firestore/aggregation';
+import { createBucket, createBucketLineItem } from '@/src/shared/firestore/aggregation';
 import { editMonthLine, skipItemMonth, updateItemFields, type EditScope } from '@/src/shared/firestore/bucketBudget';
-import { dailyGuide, variableBudget, variableSpendByDay } from '@/src/shared/budget/dailyGuide';
-import { isOpen, monthKey, monthLabel, remaining, shiftMonth, urgency, type Occurrence } from '@/src/viewmodels/plans/model';
-import { planSchedule } from '@/src/viewmodels/plans/forecast';
-import {
-  addChange,
-  applyDraft,
-  dueIn,
-  monthColumns,
-  moveBlocked,
-  runningBalance,
-  SCENARIO_FACTOR,
-  UNSCHEDULED,
-  type IncomeLine,
-  type PlanChange,
-  type PlanLine,
-  type PlanScenario,
-} from '@/src/viewmodels/plans/planDraft';
-import { isSavingsAccount } from '@/src/viewmodels/wallets';
+import { savePlanSnapshot } from '@/src/shared/firestore/notificationWrites';
+import { monthLabel } from '@/src/viewmodels/plans/model';
+import { addChange, dueIn, moveBlocked, type PlanChange, type PlanLine } from '@/src/viewmodels/plans/planDraft';
+import { cushionState, runEngine, type EngineScenario } from '@/src/viewmodels/plans/engine';
+import { autoAllocate, bestMonth, dropEffect, splitParts, waitingGain, type DropEffect } from '@/src/viewmodels/plans/allocate';
+import { usePlanModel, type Horizon } from './usePlanModel';
 
-interface DraftDoc {
-  changes?: PlanChange[];
-  horizon?: 2 | 3;
-  scenario?: PlanScenario;
-}
 interface LogDoc {
   entries?: { at: Timestamp; summary: string[] }[];
 }
 
-const r2 = (n: number) => Math.round(n * 100) / 100;
+const WANT_BUCKET = 'Want to buy';
 
 export function useLogic() {
-  const plans = usePlansData();
-  const { occurrences, today, money, data, currency, itemsByBucket, buckets, accounts, ctx } = plans;
-  const { user } = useFirebaseUser();
-  const uid = user?.uid;
-  const draftRef = useMemo(() => (uid ? doc(getFirebaseFirestore(), 'users', uid, 'settings', 'planDraft') : null), [uid]);
+  const model = usePlanModel();
+  const { plans, uid, lines, drafted, planLines, changes, suggestions, saveDraft, income, months, current, today, forecast, draftInput, cushion } = model;
+  const { occurrences, buckets, itemsByBucket, ctx, currency } = plans;
   const logRef = useMemo(() => (uid ? doc(getFirebaseFirestore(), 'users', uid, 'settings', 'planLog') : null), [uid]);
-  const { data: draftDoc } = useFirestoreDoc<DraftDoc>(draftRef);
   const { data: logDoc } = useFirestoreDoc<LogDoc>(logRef);
-
-  const changes = useMemo(() => draftDoc?.changes ?? [], [draftDoc]);
-  const horizon = draftDoc?.horizon ?? 2;
-  const scenario = draftDoc?.scenario ?? 'expected';
-  const factor = SCENARIO_FACTOR[scenario];
-
-  async function saveDraft(patch: DraftDoc) {
-    if (!draftRef) return;
-    await setDoc(draftRef, { ...patch, updatedAt: serverTimestamp() }, { merge: true });
-  }
-
-  const current = monthKey(today);
-  const months = useMemo(() => Array.from({ length: horizon }, (_, i) => shiftMonth(current, i)), [current, horizon]);
-  const lastPlanned = months[months.length - 1];
-
-  // ---- Lines and income in the horizon ----
-  const { lines, income } = useMemo(() => {
-    const raw = new Map(Object.values(itemsByBucket).flat().map((i) => [i.id, i]));
-    const scheduled: PlanLine[] = occurrences
-      .filter((o) => (o.kind === 'fixed' || o.kind === 'variable' || o.kind === 'savings') && !o.dropped && isOpen(o) && o.month >= current && o.month <= lastPlanned)
-      .map((o) => {
-        const a = raw.get(o.itemId)?.automation;
-        return {
-          key: o.key,
-          itemId: o.itemId,
-          bucketId: o.bucketId,
-          bucketName: o.bucketName,
-          name: o.name,
-          kind: o.kind as PlanLine['kind'],
-          need: o.need,
-          priority: o.priority,
-          month: o.month,
-          due: o.due,
-          amount: remaining(o),
-          accountId: o.accountId ?? null,
-          recurring: o.recurring,
-          incomeItemId: a?.mode === 'prepare' && a.trigger === 'income' ? (a.incomeItemId ?? null) : null,
-        };
-      });
-    // Lines with no date: the Unscheduled column.
-    const unscheduled: PlanLine[] = [];
-    for (const bucket of buckets) {
-      if (bucket.archived || bucket.type === 'Income' || bucket.type === 'Transfer') continue;
-      for (const item of itemsByBucket[bucket.id] ?? []) {
-        if (item.dueDate || item.completed || item.status === 'dropped') continue;
-        unscheduled.push({
-          key: `${item.id}@${UNSCHEDULED}`,
-          itemId: item.id,
-          bucketId: bucket.id,
-          bucketName: bucket.name,
-          name: item.name,
-          kind: bucket.type === 'Savings' ? 'savings' : item.expenseKind === 'variable' ? 'variable' : 'fixed',
-          need: item.necessity === 'MustHave' ? 'must' : 'nice',
-          priority: item.priority === 'Urgent' || item.priority === 'High' ? 'High' : item.priority === 'Low' ? 'Low' : 'Medium',
-          month: null,
-          due: null,
-          amount: r2(convert(item.amount, bucket.currency, ctx.display, ctx.rates)),
-          accountId: item.accountId ?? null,
-          recurring: false,
-          incomeItemId: null,
-        });
-      }
-    }
-    const incomeLines: IncomeLine[] = occurrences
-      .filter((o) => o.kind === 'income' && !o.dropped && o.month >= current && o.month <= shiftMonth(current, horizon + 3))
-      .map((o) => ({ key: o.key, itemId: o.itemId, name: o.name, month: o.month, amount: o.month === current ? remaining(o) : o.planned }));
-    return { lines: [...scheduled, ...unscheduled], income: incomeLines };
-  }, [occurrences, itemsByBucket, buckets, current, lastPlanned, horizon, ctx]);
-
-  const applied = useMemo(() => applyDraft(lines, changes), [lines, changes]);
-  const columns = useMemo(() => monthColumns(months, applied, income, today, factor), [months, applied, income, today, factor]);
-  const unscheduledLines = applied.filter((l) => l.month === null);
-
-  // ---- Where do I stand today? ----
-  const spendable = accounts.filter((a) => !a.archived && !isSavingsAccount(a));
-  const savingsAccounts = accounts.filter((a) => !a.archived && isSavingsAccount(a));
-  const perAccount = [...spendable, ...savingsAccounts].map((a) => ({ id: a.id, name: a.name, savings: isSavingsAccount(a), amount: r2(convert(a.currentBalance, a.currency, ctx.display, ctx.rates)) }));
-  const cash = r2(data.balance.spending);
-  const savings = r2(data.balance.savings);
-  const expectedNow = income.filter((i) => i.month === current && i.amount > 0);
-  const stillExpected = r2(expectedNow.reduce((s, i) => s + i.amount, 0));
-  const nowColumn = columns[0];
-  const stillToPay = nowColumn ? nowColumn.plannedOut : 0;
-  const overdue = r2(
-    applied
-      .filter((l) => l.month === current && l.due && urgency({ due: l.due, month: l.month }, today) === 'overdue')
-      .reduce((s, l) => s + l.amount, 0)
-  );
-  const endOfMonth = r2(cash + stillExpected * factor - stillToPay);
-
-  // ---- How much can I spend each day? ----
-  const guide = useMemo(() => {
-    const budget = data.budget?.(current);
-    if (!budget) return null;
-    const v = variableBudget(budget);
-    // The draft's changes to this month's variable lines count too.
-    const draftVariable = r2(applied.filter((l) => l.month === current && l.kind === 'variable').reduce((s, l) => s + l.amount, 0));
-    const baseVariable = r2(lines.filter((l) => l.month === current && l.kind === 'variable').reduce((s, l) => s + l.amount, 0));
-    const left = r2(Math.max(0, v.left + (draftVariable - baseVariable)));
-    const expenses = data.txs.filter((t) => t.kind === 'expense').map((t) => ({ id: t.id, spend: t.amount, date: t.date, month: t.month }));
-    return dailyGuide({
-      today,
-      variablePlanned: r2(v.planned + (draftVariable - baseVariable)),
-      variableLeft: left,
-      spentByDay: variableSpendByDay(budget, expenses),
-      availableNow: money.available.now,
-      expectedStill: stillExpected,
-      fixedStillDue: r2(applied.filter((l) => l.month === current && l.kind !== 'variable').reduce((s, l) => s + l.amount, 0)),
-      incomeFactor: factor,
-    });
-  }, [data, current, applied, lines, today, money.available.now, stillExpected, factor]);
-
-  // ---- Where is this heading? ----
-  const forecast = useMemo(() => {
-    const later = Array.from({ length: 4 }, (_, i) => shiftMonth(lastPlanned, i + 1));
-    const rows = [
-      ...columns.map((c) => ({ month: c.month, expectedIncome: c.expectedIncome, plannedOut: c.plannedOut })),
-      ...later.map((m) => ({
-        month: m,
-        expectedIncome: r2(occurrences.filter((o) => o.kind === 'income' && o.month === m && !o.dropped).reduce((s, o) => s + o.planned, 0) * factor),
-        plannedOut: r2(occurrences.filter((o) => (o.kind === 'fixed' || o.kind === 'variable' || o.kind === 'savings') && o.month === m && !o.dropped).reduce((s, o) => s + o.planned, 0)),
-      })),
-    ];
-    return runningBalance(cash, rows);
-  }, [columns, occurrences, lastPlanned, factor, cash]);
-  const leftOverPeriod = r2(columns.reduce((s, c) => s + c.left, 0));
-  const schedule = useMemo(() => planSchedule(money.forecastInput, scenario), [money.forecastInput, scenario]);
-
-  // ---- Changing the draft ----
   const [error, setError] = useState<string | null>(null);
-  function lineByKey(key: string) {
-    return applied.find((l) => l.key === key) ?? lines.find((l) => l.key === key) ?? null;
-  }
+
+  // Keep the snapshot's forecast in step with the applied plan (debounced).
+  const factsKey = JSON.stringify(model.forecastFacts);
+  useEffect(() => {
+    if (!uid || model.loading) return;
+    const id = window.setTimeout(() => {
+      void savePlanSnapshot(uid, { computedAt: new Date(), forecast: model.forecastFacts }).catch(() => undefined);
+    }, 2500);
+    return () => window.clearTimeout(id);
+    // factsKey stands for the facts.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uid, model.loading, factsKey]);
+
+  const lineByKey = (key: string) => planLines.find((l) => l.key === key) ?? drafted.find((l) => l.key === key) ?? lines.find((l) => l.key === key) ?? null;
+  const toEngineLine = (l: PlanLine) => ({ key: l.key, name: l.name, kind: l.kind, need: l.need, month: l.month, due: l.due, amount: l.amount });
+
   async function change(next: PlanChange) {
     setError(null);
     await saveDraft({ changes: addChange(changes, next) });
   }
-  async function move(key: string, toMonth: string | null, scope?: EditScope) {
+
+  /** Why a line can't go to that month, or null. */
+  function blockedReason(line: PlanLine, toMonth: string | null): string | null {
+    if (line.paid) return 'It’s already paid.';
+    const income = moveBlocked(line, toMonth, model.income);
+    if (income) return income;
+    if (toMonth && line.notBefore && toMonth < line.notBefore) return `${line.name} can't go before ${monthLabel(line.notBefore, true)}.`;
+    return null;
+  }
+
+  /** What dropping a line into a month does to the cushion (the friction popover). */
+  function effectOf(key: string, toMonth: string): DropEffect | null {
+    const line = lineByKey(key);
+    if (!line) return null;
+    return dropEffect(draftInput, toEngineLine(line), toMonth);
+  }
+
+  async function move(key: string, toMonth: string | null, options: { scope?: EditScope; date?: string | null } = {}) {
     const line = lineByKey(key);
     if (!line) return;
-    const blocked = moveBlocked(line, toMonth, income);
+    const blocked = blockedReason(line, toMonth);
     if (blocked) throw new Error(blocked);
-    await change({ type: 'move', key, toMonth, ...(scope ? { scope } : {}) });
+    await change({ type: 'move', key, toMonth, ...(options.scope ? { scope: options.scope } : {}), ...(options.date ? { date: options.date } : {}) });
+  }
+
+  async function split(key: string, count: number, startMonth: string) {
+    const line = lineByKey(key);
+    if (!line) return;
+    await change({ type: 'split', key, parts: splitParts(line.amount, count, startMonth) });
+  }
+
+  // ---- Auto-allocate ----
+  async function runAutoAllocate() {
+    setError(null);
+    const result = autoAllocate(draftInput, model.candidatesOf(drafted));
+    const byKey = new Map(drafted.map((l) => [l.key, l]));
+    await saveDraft({ suggestions: result.placements.map((p) => ({ ...p, name: byKey.get(p.key)?.name ?? '' })) });
+    return result;
+  }
+  function suggestionToChange(key: string): PlanChange | null {
+    const s = suggestions.find((x) => x.key === key);
+    if (!s) return null;
+    return s.parts.length > 1 ? { type: 'split', key, parts: s.parts } : { type: 'move', key, toMonth: s.parts[0].month };
+  }
+  async function acceptSuggestions(keys?: string[]) {
+    const accept = keys ?? suggestions.map((s) => s.key);
+    let next = changes;
+    for (const key of accept) {
+      const c = suggestionToChange(key);
+      if (c) next = addChange(next, c);
+    }
+    await saveDraft({ changes: next, suggestions: suggestions.filter((s) => !accept.includes(s.key)) });
+  }
+  async function rejectSuggestions(keys?: string[]) {
+    await saveDraft({ suggestions: keys ? suggestions.filter((s) => !keys.includes(s.key)) : [] });
+  }
+
+  // ---- Want to buy (saved at once: a backlog item, not a plan change) ----
+  async function addWantToBuy(input: { name: string; amount: number; need: 'must' | 'nice'; neededBy: string | null; splittable: boolean }) {
+    if (!uid) return;
+    let bucket = buckets.find((b) => !b.archived && b.name === WANT_BUCKET && (b.type ?? 'Expense') === 'Expense');
+    let bucketId = bucket?.id;
+    if (!bucketId) {
+      bucketId = await createBucket(uid, { name: WANT_BUCKET, description: 'Things to buy when they fit the plan.', deadline: null, currency: ctx.display, kind: 'Variable', type: 'Expense' });
+    }
+    bucket = buckets.find((b) => b.id === bucketId);
+    const id = await createBucketLineItem(uid, bucketId, 'Variable', {
+      name: input.name,
+      description: '',
+      amount: convert(input.amount, ctx.display, bucket?.currency ?? ctx.display, ctx.rates),
+      priority: 'Medium',
+      necessity: input.need === 'must' ? 'MustHave' : 'NiceToHave',
+      categoryId: '',
+      categoryType: 'Expense',
+      accountId: null,
+      dueDate: null,
+      recurrence: null,
+    });
+    const [y, m] = (input.neededBy ?? '').split('-').map(Number);
+    await updateItemFields(uid, bucketId, id, {
+      source: 'want_to_buy',
+      splittable: input.splittable,
+      neededBy: input.neededBy ? Timestamp.fromDate(new Date(y, m - 1, 1)) : null,
+    });
   }
 
   // ---- Applying ----
@@ -222,6 +161,8 @@ export function useLogic() {
         const o = occurrenceOf(c.key);
         const ref = bucketLineItemRef(uid, base.bucketId, base.itemId);
         if (c.type === 'move') {
+          // A line with no date of its own lands on the 15th.
+          const due = c.toMonth ? (c.date ? new Date(`${c.date}T00:00:00`) : dueIn(c.toMonth, base.due ?? new Date(2000, 0, 15))) : null;
           if (base.recurring && base.month) {
             await skipItemMonth(uid, base.bucketId, base.itemId, base.month);
             const target = c.toMonth ? occurrences.find((x) => x.itemId === base.itemId && x.month === c.toMonth) : null;
@@ -233,9 +174,9 @@ export function useLogic() {
               });
             }
           } else {
-            await updateDoc(ref, { dueDate: c.toMonth ? Timestamp.fromDate(dueIn(c.toMonth, base.due)) : null, updatedAt: serverTimestamp() });
+            await updateDoc(ref, { dueDate: due ? Timestamp.fromDate(due) : null, updatedAt: serverTimestamp() });
           }
-          summary.push(`${base.name}: moved to ${c.toMonth ? monthLabel(c.toMonth, true) : 'Unscheduled'}`);
+          summary.push(`${base.name}: moved to ${c.toMonth ? monthLabel(c.toMonth, true) : 'the backlog'}`);
         } else if (c.type === 'amount') {
           if (base.month) {
             const paid = o ? o.paid : 0;
@@ -256,9 +197,17 @@ export function useLogic() {
         } else if (c.type === 'account') {
           await updateItemFields(uid, base.bucketId, base.itemId, { accountId: c.accountId });
           summary.push(`${base.name}: paid from another account`);
+        } else if (c.type === 'priority') {
+          await updateItemFields(uid, base.bucketId, base.itemId, {
+            ...(c.need ? { necessity: c.need === 'must' ? 'MustHave' : 'NiceToHave' } : {}),
+            ...(c.priority ? { priority: c.priority } : {}),
+          });
+          summary.push(`${base.name}: ${[c.need === 'must' ? 'must have' : c.need === 'nice' ? 'nice to have' : null, c.priority?.toLowerCase()].filter(Boolean).join(', ')}`);
         } else if (c.type === 'split') {
           const [first, ...rest] = c.parts;
           if (!first) continue;
+          const groupId = crypto.randomUUID();
+          const count = c.parts.length;
           if (base.recurring && base.month) {
             await editMonthLine(uid, base.bucketId, base.itemId, base.month, { amount: toBucket(first.amount, base.bucketId) }, 'month', {
               amount: toBucket(o?.planned ?? base.amount, base.bucketId),
@@ -266,28 +215,35 @@ export function useLogic() {
               recurring: true,
             });
           } else {
-            await updateDoc(ref, { amount: toBucket(first.amount, base.bucketId), dueDate: Timestamp.fromDate(dueIn(first.month, base.due)), updatedAt: serverTimestamp() });
+            await updateDoc(ref, {
+              name: `${base.name}, 1 of ${count}`,
+              amount: toBucket(first.amount, base.bucketId),
+              dueDate: Timestamp.fromDate(dueIn(first.month, base.due)),
+              splitGroupId: groupId,
+              updatedAt: serverTimestamp(),
+            });
           }
           const bucket = buckets.find((b) => b.id === base.bucketId);
-          for (const part of rest) {
-            await createBucketLineItem(uid, base.bucketId, 'Variable', {
-              name: `${base.name} (${monthLabel(part.month)})`,
+          for (const [i, part] of rest.entries()) {
+            const id = await createBucketLineItem(uid, base.bucketId, 'Variable', {
+              name: `${base.name}, ${i + 2} of ${count}`,
               description: '',
               amount: toBucket(part.amount, base.bucketId),
               priority: base.priority,
               necessity: base.need === 'must' ? 'MustHave' : 'NiceToHave',
-              categoryId: itemsByBucket[base.bucketId]?.find((i) => i.id === base.itemId)?.categoryId ?? '',
+              categoryId: itemsByBucket[base.bucketId]?.find((x) => x.id === base.itemId)?.categoryId ?? '',
               categoryType: bucket?.type ?? 'Expense',
               accountId: base.accountId,
               dueDate: dueIn(part.month, base.due),
               recurrence: null,
             });
+            await updateItemFields(uid, base.bucketId, id, { splitGroupId: groupId, source: base.source ?? 'plan_item' });
           }
-          summary.push(`${base.name}: split over ${c.parts.length} months`);
+          summary.push(`${base.name}: split into ${count} payments`);
         }
       }
       if (logRef) await setDoc(logRef, { entries: arrayUnion({ at: Timestamp.now(), summary }) }, { merge: true });
-      await saveDraft({ changes: [] });
+      await saveDraft({ changes: [], suggestions: [] });
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not apply the plan.');
     } finally {
@@ -295,53 +251,116 @@ export function useLogic() {
     }
   }
 
+  // ---- What the page shows ----
+  const lowest = forecast.lowest;
+  const board = useMemo(
+    () =>
+      months.map((m) => {
+        const engine = forecast.months.find((x) => x.month === m)!;
+        const inMonth = planLines.filter((l) => l.month === m);
+        return {
+          month: m,
+          engine,
+          open: inMonth.filter((l) => !l.paid),
+          paid: inMonth.filter((l) => l.paid),
+          must: inMonth.filter((l) => l.need === 'must' && !l.paid).reduce((s, l) => s + l.amount, 0),
+          nice: inMonth.filter((l) => l.need === 'nice' && !l.paid).reduce((s, l) => s + l.amount, 0),
+          income: model.income.filter((i) => i.month === m),
+          state: cushionState(engine.lowest, cushion),
+        };
+      }),
+    [months, forecast, planLines, model.income, cushion]
+  );
+  const backlog = planLines.filter((l) => l.month === null);
+  // A card that, as planned, pushes its month (or a later one) below the cushion.
+  const dipping = useMemo(() => {
+    const out = new Map<string, 'below' | 'zero'>();
+    for (const b of forecast.breaches) {
+      for (const l of planLines) if (l.month && l.month <= b.month && l.changed && !out.has(l.key)) out.set(l.key, b.belowZero ? 'zero' : 'below');
+    }
+    return out;
+  }, [forecast, planLines]);
+
+  /** "Waiting until January keeps 120,000 more cushion in November", when true. */
+  function waitingText(line: PlanLine): string | null {
+    if (line.need !== 'nice' || !line.month) return null;
+    const later = months.filter((m) => m > line.month!).slice(1, 3);
+    for (const m of later) {
+      const g = waitingGain(draftInput, toEngineLine(line), m);
+      if (g) return g.text;
+    }
+    return null;
+  }
+
   const lastApplied = logDoc?.entries?.length ? logDoc.entries[logDoc.entries.length - 1].at.toDate() : null;
 
   return {
-    loading: plans.loading,
+    loading: model.loading,
     currency,
     today,
     current,
     months,
-    horizon,
-    setHorizon: (h: 2 | 3) => saveDraft({ horizon: h }),
-    scenario,
-    setScenario: (s: PlanScenario) => saveDraft({ scenario: s }),
+    horizon: model.horizon,
+    setHorizon: (h: Horizon) => saveDraft({ horizon: h }),
+    scenario: model.scenario,
+    setScenario: (s: EngineScenario) => saveDraft({ scenario: s }),
+    cushion,
+    cushionIsDefault: model.cushionIsDefault,
+    setCushion: (amount: number | null) => saveDraft({ cushion: amount }),
+    streak: model.streak,
+    startBalance: model.startBalance,
     changes,
     hasDraft: changes.length > 0,
     lastApplied,
-    // where I stand
-    cash,
-    savings,
-    perAccount,
-    expectedNow,
-    stillExpected,
-    stillToPay,
-    overdue,
-    endOfMonth,
-    // planning board
-    applied,
-    columns,
-    unscheduledLines,
+    forecast,
+    applied: model.applied,
+    lowest,
+    lowestState: cushionState(lowest.balance, cushion),
+    board,
+    backlog,
     income,
-    accounts: spendable,
+    planLines,
+    dipping,
+    accounts: plans.accounts.filter((a) => !a.archived),
+    // Changing the draft
+    blockedReason,
+    effectOf,
+    bestMonthFor: (key: string) => {
+      const line = lineByKey(key);
+      return line ? bestMonth(draftInput, toEngineLine(line), line.notBefore && line.notBefore > current ? line.notBefore : current) : current;
+    },
+    draftInput,
+    toEngineLine,
     move,
+    toBacklog: (key: string) => change({ type: 'move', key, toMonth: null }),
     setAmount: (key: string, amount: number, scope?: EditScope) => change({ type: 'amount', key, amount, ...(scope ? { scope } : {}) }),
-    drop: (key: string) => change({ type: 'drop', key }),
-    split: (key: string, parts: { month: string; amount: number }[]) => change({ type: 'split', key, parts }),
+    setDate: (key: string, date: string) => {
+      const line = lineByKey(key);
+      return line?.month ? change({ type: 'move', key, toMonth: date.slice(0, 7), date }) : Promise.resolve();
+    },
+    setPriority: (key: string, patch: { need?: 'must' | 'nice'; priority?: 'High' | 'Medium' | 'Low' }) => change({ type: 'priority', key, ...patch }),
     setAccount: (key: string, accountId: string) => change({ type: 'account', key, accountId }),
-    discard: () => saveDraft({ changes: [] }),
+    split,
+    splitPreview: (key: string, count: number, startMonth: string) => {
+      const line = lineByKey(key);
+      if (!line) return null;
+      const parts = splitParts(line.amount, count, startMonth);
+      const others = draftInput.lines.filter((l) => l.key !== key);
+      const extra = parts.map((p, i) => ({ ...toEngineLine(line), key: `${key}#${i}`, month: p.month, due: null, amount: p.amount }));
+      const lowestAfter = Math.min(...runEngine({ ...draftInput, lines: [...others, ...extra] }).months.map((m) => m.lowest));
+      return { parts, lowestAfter };
+    },
+    waitingText,
+    suggestions,
+    runAutoAllocate,
+    acceptSuggestions,
+    rejectSuggestions,
+    addWantToBuy,
+    discard: () => saveDraft({ changes: [], suggestions: [] }),
     apply,
     applying,
     error,
     setError,
-    // daily guide
-    guide,
-    // forecast
-    forecast,
-    leftOverPeriod,
-    schedule,
-    occurrenceOf: (key: string): Occurrence | null => occurrenceOf(key),
   };
 }
 

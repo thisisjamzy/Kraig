@@ -33,6 +33,7 @@ import { getDocs, writeBatch } from 'firebase/firestore';
 import { getFirebaseFirestore } from '@/src/shared/config/firebaseClient';
 import { accountsRef, accountRef, transactionsRef, transfersRef } from './refs';
 import type { FirestoreAccount } from './types';
+import { countsInFigures } from './types';
 
 export interface AccountAudit {
   accountId: string;
@@ -111,6 +112,9 @@ export async function auditAccountBalances(uid: string): Promise<BalanceAudit> {
 
   txSnap.forEach((doc) => {
     const t = doc.data();
+    // An excluded transaction (a debt changed to record only) had its
+    // balance effect reversed when it was excluded.
+    if (!countsInFigures(t)) return;
     // signedAmount is written alongside every transaction by
     // aggregation.ts, but fall back to deriving it the same way for any
     // doc old enough (or written by a path) to lack it.

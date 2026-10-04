@@ -16,7 +16,7 @@
 import { useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Bell, ChevronLeft, Lightbulb, MoreHorizontal } from 'lucide-react';
+import { ChevronLeft, Lightbulb, MoreHorizontal } from 'lucide-react';
 import { hasAppHeader } from '@/src/shared/config/chromeVisibility';
 import { useHasTopBar } from '@/src/widgets/AppShell/TopBarSlot';
 import { useBreadcrumb, usePageMenu, type Crumb, type PageMenuItem } from '@/src/widgets/AppShell/breadcrumb';
@@ -26,6 +26,7 @@ import { showToast } from '@/src/widgets/Toast/Toast';
 import { PropertiesGrid, type Property } from './PropertiesBlock';
 import styles from './Database.module.css';
 import frame from './NotionPage.module.css';
+import { NotificationBell } from '@/src/widgets/Notifications/NotificationBell';
 
 export function NotionPageHeader({
   icon,
@@ -99,9 +100,7 @@ function CompactHeader({ parent }: { parent: Crumb | null }) {
         <span />
       )}
       <span className={frame.compactActions}>
-        <Link href="/notifications" className={frame.compactIcon} aria-label="Notifications">
-          <Bell size={20} strokeWidth={1.9} />
-        </Link>
+        <NotificationBell className={frame.compactIcon} size={20} />
         <button type="button" className={frame.compactIcon} aria-label="Page options" onClick={(e) => setMenu(e.currentTarget)}>
           <MoreHorizontal size={20} strokeWidth={2} />
         </button>

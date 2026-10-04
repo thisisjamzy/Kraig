@@ -13,6 +13,7 @@
 // editable tile opens its editor (a popover, a bottom sheet on phones).
 
 import { useState, type ReactNode } from 'react';
+import { AlertTriangle, CircleAlert } from 'lucide-react';
 import { useLayout } from '@/src/shared/hooks/useLayout';
 import type { FieldOption, FieldValue } from '@/src/shared/listQuery/engine';
 import { CellEditor } from './CellEditor';
@@ -90,7 +91,21 @@ export function PropertiesGrid({ properties, label = 'Properties' }: { propertie
             (property.progress !== undefined ? <CompactProgress value={property.progress} tone={property.tone} /> : property.edit ? formatValue(property.edit.type, property.edit.value, property.edit.options) : null);
           const empty = property.empty ?? (text === null || text === '' || text === undefined);
           const inline = isEditing && property.edit && property.edit.type !== 'select' && property.edit.type !== 'relation';
-          const value = empty ? <span className={styles.empty}>Empty</span> : text;
+          // Warning and problem values carry an icon (the tile stays white).
+          const toneIcon =
+            !empty && !property.icon && (property.tone === 'bad' || property.tone === 'watch') ? (
+              <span className={styles.toneIcon} aria-hidden>
+                {property.tone === 'bad' ? <CircleAlert size={15} strokeWidth={2.25} /> : <AlertTriangle size={15} strokeWidth={2.25} />}
+              </span>
+            ) : null;
+          const value = empty ? (
+            <span className={styles.empty}>Empty</span>
+          ) : (
+            <>
+              {toneIcon}
+              {text}
+            </>
+          );
           const body = (
             <>
               <dt className={styles.label}>

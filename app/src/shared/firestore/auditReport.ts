@@ -57,6 +57,7 @@ import type {
   FirestoreAllocation,
   FirestoreTransfer,
 } from './types';
+import { countsInFigures } from './types';
 
 // ---------------------------------------------------------------------------
 // Public types — the full shape of one generated report.
@@ -487,10 +488,12 @@ export async function generateAuditReport(uid: string, selection: AuditReportSel
   const itemsByBucket = Object.fromEntries(
     buckets.map((bucket, i) => [bucket.id, itemSnaps[i].docs.map((d) => ({ ...d.data(), id: d.id }))])
   );
-  const budgetTransactions = [...linkedTxSnap.docs, ...trailingTxSnap.docs].map((d) => {
-    const t = { ...d.data(), id: d.id } as FirestoreTransaction;
-    return { ...t, month: t.month ?? budgetMonthKeyOf(t.date.toDate()) };
-  });
+  const budgetTransactions = [...linkedTxSnap.docs, ...trailingTxSnap.docs]
+    .map((d) => {
+      const t = { ...d.data(), id: d.id } as FirestoreTransaction;
+      return { ...t, month: t.month ?? budgetMonthKeyOf(t.date.toDate()) };
+    })
+    .filter(countsInFigures);
   const budgetTransfers = [...linkedTransferSnap.docs, ...trailingTransferSnap.docs].map((d) => {
     const t = { ...d.data(), id: d.id } as FirestoreTransfer;
     return { ...t, month: budgetMonthKeyOf(t.date.toDate()) };
@@ -526,7 +529,7 @@ export async function generateAuditReport(uid: string, selection: AuditReportSel
     }
   }
 
-  const periodTransactions = periodTxSnap.docs.map((d) => ({ ...d.data(), id: d.id }) as FirestoreTransaction);
+  const periodTransactions = periodTxSnap.docs.map((d) => ({ ...d.data(), id: d.id }) as FirestoreTransaction).filter(countsInFigures);
 
   // ---- Balance sheet (live snapshot — see this file's header) ----
   const assets: BalanceSheetRow[] = accounts.map((a) => ({

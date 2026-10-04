@@ -10,12 +10,14 @@ import { AuthGuard } from '@/src/widgets/AuthGuard/AuthGuard';
 import { NavigationTracker } from '@/src/shared/navigation/NavigationTracker';
 import { ToastHost } from '@/src/widgets/Toast/Toast';
 import { ActualTimePrompt } from '@/src/widgets/ActualTimePrompt/ActualTimePrompt';
-import { InsightsNotifier } from '@/src/shared/insights/InsightsNotifier';
 import { CalendarSyncRunner } from '@/src/shared/calendarSync/CalendarSyncRunner';
 import { BudgetRunner } from '@/src/shared/budget/BudgetRunner';
 import { useLayout } from '@/src/shared/hooks/useLayout';
 import dynamic from 'next/dynamic';
 import { PanelHost } from '@/src/widgets/AppShell/PanelHost';
+import { NotificationsRunner } from '@/src/widgets/Notifications/NotificationsRunner';
+import { NotificationPrompt } from '@/src/widgets/Notifications/NotificationPrompt';
+import { PlanSnapshotWorker } from '@/src/widgets/Notifications/PlanSnapshotWorker';
 import styles from './layout.module.css';
 
 // Medium screens and up only — its own chunk, so phones never download the
@@ -32,6 +34,8 @@ const AppShell = dynamic(() => import('@/src/widgets/AppShell/AppShell').then((m
 //     (docs/ARCHITECTURE-RESPONSIVE.md).
 // PanelHost sits outside both: on wide screens it shows the task side
 // panel from the URL, on a phone it turns such a link into the full page.
+// The runners keep the budget, the plan snapshot and the notifications up
+// to date; NotificationPrompt asks once a session about unread ones.
 export default function AppShellLayout({ children }: { children: ReactNode }) {
   const { isWide } = useLayout();
 
@@ -40,9 +44,10 @@ export default function AppShellLayout({ children }: { children: ReactNode }) {
       <NavigationTracker />
       <ToastHost />
       <ActualTimePrompt />
-      <InsightsNotifier />
       <CalendarSyncRunner />
       <BudgetRunner />
+      <NotificationsRunner />
+      <PlanSnapshotWorker />
       <AuthGuard>
         {isWide ? (
           <AppShell>{children}</AppShell>
@@ -58,6 +63,7 @@ export default function AppShellLayout({ children }: { children: ReactNode }) {
         <Suspense fallback={null}>
           <PanelHost />
         </Suspense>
+        <NotificationPrompt />
       </AuthGuard>
     </div>
   );

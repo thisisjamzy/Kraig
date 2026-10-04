@@ -31,6 +31,7 @@ import type {
   FirestoreBucket,
   FirestoreBucketLineItem,
   FirestoreDebt,
+  FirestoreDebtActivity,
   FirestoreRepayment,
   StatsHome,
   StatsMonthly,
@@ -140,6 +141,9 @@ export function debtRef(uid: string, id: string): DocumentReference<Omit<Firesto
 export function repaymentsRef(uid: string, debtId: string): CollectionReference<FirestoreRepayment> {
   return collection(getFirebaseFirestore(), 'users', uid, 'debts', debtId, 'repayments') as CollectionReference<FirestoreRepayment>;
 }
+export function debtActivityRef(uid: string, debtId: string): CollectionReference<FirestoreDebtActivity> {
+  return collection(getFirebaseFirestore(), 'users', uid, 'debts', debtId, 'activity') as CollectionReference<FirestoreDebtActivity>;
+}
 export function repaymentRef(
   uid: string,
   debtId: string,
@@ -235,6 +239,20 @@ export function exchangeRatesRef(uid: string): CollectionReference<FirestoreExch
 }
 export function exchangeRateRef(uid: string, code: string): DocumentReference<Omit<FirestoreExchangeRate, 'id'>> {
   return subDoc(uid, 'exchangeRates', code) as DocumentReference<Omit<FirestoreExchangeRate, 'id'>>;
+}
+
+/** users/{uid}/notifications/{id}: src/shared/notifications/types.ts. */
+export function notificationsRef(uid: string): CollectionReference {
+  return sub(uid, 'notifications') as CollectionReference;
+}
+export function notificationRef(uid: string, id: string): DocumentReference {
+  return subDoc(uid, 'notifications', id) as DocumentReference;
+}
+export function planSnapshotRef(uid: string): DocumentReference {
+  return subDoc(uid, 'settings', 'planSnapshot') as DocumentReference;
+}
+export function notificationPrefsRef(uid: string): DocumentReference {
+  return subDoc(uid, 'settings', 'notifications') as DocumentReference;
 }
 
 export function statsHomeRef(uid: string): DocumentReference<StatsHome> {

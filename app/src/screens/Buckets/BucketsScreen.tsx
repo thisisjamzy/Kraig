@@ -98,6 +98,7 @@ function bucketColumns(type: FlowType, month: string): ColumnDef<BucketRow>[] {
       label: 'Status',
       type: 'select',
       width: 150,
+      onCard: true,
       value: (r) => r.status,
       options: STATUSES.map((s) => ({ value: s, label: s })),
       render: (r) => (
@@ -108,34 +109,6 @@ function bucketColumns(type: FlowType, month: string): ColumnDef<BucketRow>[] {
     },
     { id: 'next', label: 'Next due', type: 'date', width: 130, value: (r) => r.nextDue, onCard: true },
   ];
-}
-
-/** The one action a bucket needs, along its card's bottom edge. */
-function ActionStrip({ row, month, currency }: { row: BucketRow; month: string; currency: string }) {
-  const prompt = row.card.prompt;
-  const overdue = row.summary?.overdue.length ?? 0;
-  if (overdue && (row.type === 'Expense' || row.type === 'Savings')) {
-    return (
-      <Link href="/buckets/items" className={styles.strip} data-tone="bad">
-        {overdue} overdue · Mark paid
-      </Link>
-    );
-  }
-  if (prompt?.kind === 'over' || prompt?.kind === 'uncovered') {
-    return (
-      <Link href={coverHref(month, row.id)} className={styles.strip} data-tone="bad">
-        {formatNumber(prompt.amount)} {currency} over · Cover or justify
-      </Link>
-    );
-  }
-  if (prompt?.kind === 'leftover') {
-    return (
-      <Link href={reallocateHref(month, row.id)} className={styles.strip}>
-        {formatNumber(prompt.amount)} {currency} left · Reallocate
-      </Link>
-    );
-  }
-  return null;
 }
 
 export function BucketsScreen() {
@@ -204,8 +177,13 @@ export function BucketsScreen() {
               card={{
                 title: (r) => r.name,
                 progress: (r) => (r.progress === null ? null : { value: r.progress, over: r.type !== 'Income' && r.actual > r.planned + 0.5 }),
-                footer: (r) => <ActionStrip row={r} month={v.month} currency={v.currency} />,
               }}
+              // What a bucket needs is its status chip; the action is in its "..." menu.
+              rowActions={[
+                { id: 'paid', label: 'Mark overdue paid', show: (r) => Boolean(r.summary?.overdue.length) && (r.type === 'Expense' || r.type === 'Savings'), run: () => router.push('/buckets/items') },
+                { id: 'cover', label: 'Cover or justify', show: (r) => r.card.prompt?.kind === 'over' || r.card.prompt?.kind === 'uncovered', run: (r) => router.push(coverHref(v.month, r.id)) },
+                { id: 'reallocate', label: 'Reallocate', show: (r) => r.card.prompt?.kind === 'leftover', run: (r) => router.push(reallocateHref(v.month, r.id)) },
+              ]}
               onOpen={(r) => router.push(`/budget/bucket/${r.id}?month=${v.month}`)}
               onNew={() => router.push(`/buckets/new?type=${v.flow}`)}
               newLabel={`New ${FLOW_NOUN[v.flow].toLowerCase()} bucket`}

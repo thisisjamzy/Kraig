@@ -1,0 +1,161 @@
+/* The debt forms: additions to the shared card form (CardForm.module.css),
+   whose palette variables (--tf-*) they reuse. Zero radius throughout. */
+
+.hint {
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--tf-label);
+}
+
+.amountRow {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.amountInput {
+  font-size: 32px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.currency {
+  flex-shrink: 0;
+  font-size: 15px;
+  color: var(--tf-label);
+}
+
+.impact {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+  padding: 14px 18px 16px;
+  border-left: 3px solid var(--tf-accent);
+  background: color-mix(in srgb, var(--tf-accent) 7%, var(--tf-card));
+}
+
+.impactLines {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 15px;
+  line-height: 1.4;
+  color: var(--tf-text);
+}
+
+.impactWarning {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--tf-orange);
+}
+
+.impactError {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.4;
+  color: var(--color-danger);
+}
+
+.toggleText {
+  font-size: 17px;
+}
+
+/* A question with its answers stacked (the wallet effect steps). */
+.choiceList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.choice {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px;
+  border: none;
+  background: var(--tf-track);
+  color: var(--tf-text);
+  font-family: inherit;
+  font-size: 17px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.choice[aria-checked='true'] {
+  background: var(--tf-accent);
+  color: #ffffff;
+}
+
+.choice[aria-checked='true'] .choiceHint {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.choice:focus-visible {
+  outline: 2px solid var(--tf-accent);
+  outline-offset: 2px;
+}
+
+.choiceHint {
+  font-size: 13px;
+  color: var(--tf-label);
+}
+
+.steps {
+  margin: 0 0 4px 4px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--tf-label);
+}
+
+.secondary {
+  align-self: center;
+  margin-top: 4px;
+  padding: 8px 12px;
+  border: none;
+  background: none;
+  color: var(--tf-accent);
+  font-family: inherit;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.perRepayment {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.perRepayment li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.perRepayment select {
+  max-width: 55%;
+  min-height: 36px;
+  border: none;
+  background: var(--tf-track);
+  color: var(--tf-text);
+  font-family: inherit;
+  font-size: 14px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .choice {
+    transition: none;
+  }
+}

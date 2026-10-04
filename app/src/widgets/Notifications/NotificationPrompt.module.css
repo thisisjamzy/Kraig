@@ -1,0 +1,138 @@
+/* The app-open prompt (NotificationPrompt.tsx). Zero radius. */
+
+.card {
+  position: fixed;
+  left: 16px;
+  bottom: calc(72px + var(--safe-bottom));
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(300px, calc(100vw - 32px));
+  padding: 14px 16px;
+  border: 1px solid #e9e9e7;
+  background: var(--color-background);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.16);
+  animation: rise 0.2s ease;
+}
+
+.card[data-centered] {
+  left: 50%;
+  transform: translateX(-50%);
+  animation: none;
+}
+
+.card p {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+.buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.primary,
+.secondary {
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 0;
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.primary {
+  border: 0;
+  background: var(--color-brand);
+  color: #ffffff;
+}
+
+.secondary {
+  border: 1px solid #e9e9e7;
+  background: var(--color-background);
+  color: var(--color-text-primary);
+}
+
+.sheetOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: flex-end;
+}
+
+.backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(10, 12, 24, 0.4);
+}
+
+.sheet {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  padding: 20px 16px calc(16px + var(--safe-bottom));
+  background: var(--color-background);
+  animation: up 0.22s ease;
+}
+
+.sheet .primary,
+.sheet .secondary {
+  min-height: 48px;
+  font-size: 1rem;
+}
+
+.sheetText {
+  margin: 0;
+  font-size: 1.0625rem;
+  font-weight: 600;
+}
+
+.top {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0 0 6px;
+  padding: 0;
+  list-style: none;
+  font-size: 0.875rem;
+}
+
+.top li {
+  padding-left: 12px;
+  border-left: 3px solid var(--color-brand);
+}
+
+.top li[data-severity='urgent'] {
+  border-left-color: #d6404f;
+}
+
+.top li[data-severity='warning'] {
+  border-left-color: #c27c0e;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@keyframes up {
+  from {
+    transform: translateY(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .sheet {
+    animation: none;
+  }
+}

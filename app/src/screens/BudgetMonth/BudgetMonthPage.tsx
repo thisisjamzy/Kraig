@@ -2,8 +2,9 @@
 
 // Budget — one month, as a Notion-style page on every screen size: the
 // title "Budget"; properties (Month as a dropdown, Status, Left to plan,
-// Available now, Waiting for income); the month's notices; a callout with
-// the month in a sentence or two; four summary blocks (Income, Expenses,
+// Available now, Waiting for income); a neutral callout with the month in
+// a sentence or two and a link to its updates in Notifications (the
+// month's set-up, late income and Ready to pay are notifications now); four summary blocks (Income, Expenses,
 // Savings, Transfers); then one database whose only tabs are the type tabs,
 // with Table, Cards and Needs attention in the view selector. Payments and
 // Transactions are pages of their own.
@@ -24,16 +25,19 @@ import { Callout, NotionPage } from '@/src/widgets/Database/NotionPage';
 import { MonthPicker } from '@/src/widgets/Database/MonthPicker';
 import { SidePeek, usePeek } from '@/src/widgets/Database/SidePeek';
 import { TypeTabs } from '@/src/widgets/Database/TypeTabs';
-import { ReadyToPayCard } from '@/src/widgets/ReadyToPay/ReadyToPayCard';
 import { Modal } from '@/src/widgets/Modal/Modal';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { showToast } from '@/src/widgets/Toast/Toast';
-import { MigrationNotice, IncomePrompt, SetupBanner } from './Banners';
+import { NotificationsLink } from '@/src/widgets/Notifications/NotificationsLink';
+import type { NotificationType } from '@/src/shared/notifications/types';
 import { SummaryCards } from './SummaryCards';
 import { LinePeekContent } from './LinePeek';
 import { useScopeChooser } from './ScopeChooser';
 import { groupsFor, lineColumns, viewsFor, type ColumnContext } from './columns';
 import styles from './BudgetMonth.module.css';
+
+/** The updates the Budget page links to. */
+const BUDGET_TYPES: NotificationType[] = ['payment_overdue', 'payment_due_soon', 'overspend_uncovered', 'leftover_to_reallocate', 'must_haves_short', 'income_late', 'ready_to_pay', 'month_review', 'unassigned_transactions', 'savings_behind'];
 
 export const FLOW_ICON: Record<FlowType, typeof Wallet> = {
   Income: Coins,
@@ -116,22 +120,18 @@ export function BudgetMonthPage({ month, data, onMonth }: { month: string; data:
         <ScreenState loading />
       ) : (
         <>
-          {v.migrationPending && <MigrationNotice />}
-          {v.banner && <SetupBanner text={v.banner} month={month} onDismiss={() => void v.dismissBanner()} />}
-          {v.prompts.map((line) => (
-            <IncomePrompt
-              key={line.key}
-              line={line}
-              currency={v.currency}
-              accounts={v.accounts}
-              onRecord={(amount, accountId) => v.recordIncome(line, amount, accountId)}
-              onNotYet={() => v.notYet(line)}
-            />
-          ))}
-          {v.isCurrent && <ReadyToPayCard />}
-
-          <Callout tone={v.totals.leftToPlan < 0 ? 'bad' : undefined}>
-            <p>{v.summary}</p>
+          <Callout>
+            <p>
+              {v.summary}
+              {v.migrationPending && (
+                <>
+                  {' '}
+                  Your budget now keeps income, expenses, savings and transfers apart:{' '}
+                  <Link href="/budget/migration">see what changed</Link>.
+                </>
+              )}
+              <NotificationsLink types={BUDGET_TYPES} about="this month" />
+            </p>
           </Callout>
 
           <SummaryCards totals={v.totals} currency={v.currency} active={v.tab} onOpen={v.setTab} totalSaved={v.isCurrent ? totalSaved : null} />
@@ -232,17 +232,14 @@ export function BudgetMonthPage({ month, data, onMonth }: { month: string; data:
   );
 }
 
-/** Must-haves coverage, above the Expenses table: against money actually available. */
+/** Must-haves still to pay, above the Expenses table, against money actually available. */
 function MustHavesCard({ v }: { v: ReturnType<typeof useBudgetMonth> }) {
   const m = v.must;
   if (!m.count) return null;
   const money = (n: number) => Math.round(n).toLocaleString('en-US');
-  const tone = m.status === 'covered' ? 'good' : m.status === 'waiting' ? 'watch' : 'bad';
+  // A sentence, no strip: when they're short or waiting, it's a notification.
   return (
     <div className={styles.mustCard}>
-      <span className={styles.chip} data-tone={tone}>
-        {m.status === 'covered' ? 'Covered' : m.status === 'waiting' ? 'Waiting on income' : 'Short'}
-      </span>
       <p>
         <strong>Must-haves</strong>: {money(m.due)} {v.currency} still to pay on {m.count} {m.count === 1 ? 'line' : 'lines'}. Available now {money(m.availableNow)} {v.currency}
         {m.status !== 'covered' && <>, estimated by month end {money(m.spareByMonthEnd + m.due)} {v.currency}</>}.

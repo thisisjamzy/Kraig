@@ -2,11 +2,12 @@
 
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { User, Bell } from 'lucide-react';
+import { User } from 'lucide-react';
 import { hasAppHeader } from '@/src/shared/config/chromeVisibility';
 import { useCurrentAppBarAction } from '@/src/shared/appBar/appBarAction';
 import { Logo } from '@/src/widgets/Logo/Logo';
 import styles from './AppHeader.module.css';
+import { NotificationBell } from '@/src/widgets/Notifications/NotificationBell';
 
 // Shared top toolbar for every hub route in both modes — rendered once at
 // the layout level, fixed in place like the bottom nav, so it never scrolls
@@ -40,9 +41,7 @@ export function AppHeader() {
               <action.icon size={18} strokeWidth={1.75} />
             </button>
           ))}
-        <Link href="/notifications" className={styles.iconButton} aria-label="Notifications">
-          <Bell size={18} strokeWidth={1.75} />
-        </Link>
+        <NotificationBell className={styles.iconButton} />
         <Link href="/settings" className={styles.iconButton} aria-label="Settings">
           <User size={18} strokeWidth={1.75} />
         </Link>
