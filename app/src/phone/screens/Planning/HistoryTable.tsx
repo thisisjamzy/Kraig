@@ -96,9 +96,9 @@ export function HistoryTable({
                 </Link>
                 {r.note && r.note !== r.name && <span className={styles.note}>{r.note}</span>}
               </td>
-              <td>{r.bucketName ? <span className={styles.chip}>{r.bucketName}</span> : <span className={styles.none}>—</span>}</td>
-              <td>{optionLabel(fields, 'category', r.categoryId) || <span className={styles.none}>—</span>}</td>
-              <td>{r.method || <span className={styles.none}>—</span>}</td>
+              <td>{r.bucketName ? <span className={styles.chip}>{r.bucketName}</span> : <span className={styles.none}></span>}</td>
+              <td>{optionLabel(fields, 'category', r.categoryId) || <span className={styles.none}></span>}</td>
+              <td>{r.method || <span className={styles.none}></span>}</td>
               <td className={styles.amount} data-numeric data-flow={r.flow}>
                 {r.kind === 'transaction' && r.amount > 0 ? '+' : r.kind === 'transaction' ? '−' : ''}
                 {money(Math.abs(r.amount))} <span className={styles.currency}>{currency}</span>

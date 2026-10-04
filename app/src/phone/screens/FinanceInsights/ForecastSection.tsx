@@ -77,7 +77,7 @@ export function ForecastSection({ v }: { v: FinanceInsights }) {
                   { label: 'Projected income', value: `${full(p.income, c)}`, color: COLORS.income },
                   ...(p.incomeEstimated > 0 ? [{ label: '  of which estimated', value: full(p.incomeEstimated, c) }] : []),
                   { label: 'Projected expenses', value: full(p.expense, c), color: COLORS.expense },
-                  { label: 'Range (expenses)', value: `${full(p.expenseLow)} – ${full(p.expenseHigh)}` },
+                  { label: 'Range (expenses)', value: `${full(p.expenseLow)} to ${full(p.expenseHigh)}` },
                   { label: 'Planned savings', value: full(p.savings, c) },
                   { label: 'Gap', value: full(p.gap, c), color: p.gap < 0 ? COLORS.bad : COLORS.good },
                   ...(balanceLine ? [{ label: 'Running balance', value: full(p.balance, c) }] : []),
