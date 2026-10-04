@@ -45,10 +45,12 @@ import { Popover } from '@/src/widgets/ListQuery/Popover';
 import { Money, formatMoney } from '@/src/widgets/Money/Money';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import styles from './HomeScreen.module.css';
+import { useFormLink } from '@/src/shared/navigation/useFormLink';
 
 const pct = (n: number) => `${Math.round(Math.abs(n) * 100)}%`;
 
 export function HomeScreen() {
+  const formLink = useFormLink();
   const v = useLogic();
   const { deviceClass } = useLayout();
   const [hidden] = useAmountsHidden();
@@ -78,7 +80,7 @@ export function HomeScreen() {
       sub={dateLine}
       crumbs={[{ label: 'Money', href: '/home' }, { label: 'Home', href: '/home' }]}
       menu={[
-        { label: 'Add transaction', href: '/add-transaction' },
+        { label: 'Add transaction', href: formLink('transaction') },
         { label: hidden ? 'Show amounts' : 'Hide amounts', onSelect: () => setAmountsHidden(!hidden) },
       ]}
       properties={[
@@ -157,6 +159,7 @@ function BlockHead({ icon, title, right }: { icon: ReactNode; title: string; rig
 // ---- Row 1 ----
 
 function BalanceBlock({ v }: { v: HomeLogic }) {
+  const formLink = useFormLink();
   const [hidden, setHidden] = useAmountsHidden();
   const [menu, setMenu] = useState<HTMLElement | null>(null);
   const [currencyMenu, setCurrencyMenu] = useState<HTMLElement | null>(null);
@@ -195,10 +198,10 @@ function BalanceBlock({ v }: { v: HomeLogic }) {
         </p>
       )}
       <div className={styles.balanceActions}>
-        <Link href="/add-transaction" className={styles.primary}>
+        <Link href={formLink('transaction')} className={styles.primary}>
           Add transaction
         </Link>
-        <Link href="/add-transaction?type=transfer" className={styles.outline}>
+        <Link href={formLink('transaction', { type: 'transfer' })} className={styles.outline}>
           Transfer
         </Link>
         <button type="button" className={styles.outlineIcon} aria-label="More actions" onClick={(e) => setMenu(e.currentTarget)}>
@@ -211,7 +214,7 @@ function BalanceBlock({ v }: { v: HomeLogic }) {
       {menu && (
         <Popover anchor={menu} label="More actions" onClose={() => setMenu(null)}>
           <div className={styles.menu}>
-            <Link href="/add-transaction?type=income" onClick={() => setMenu(null)}>
+            <Link href={formLink('transaction', { type: 'income' })} onClick={() => setMenu(null)}>
               Record income
             </Link>
             <Link href="/settings/reconcile" onClick={() => setMenu(null)}>
@@ -446,6 +449,7 @@ function whenText(d: Date, now: Date) {
 }
 
 function TransactionsBlock({ v }: { v: HomeLogic }) {
+  const formLink = useFormLink();
   const [menu, setMenu] = useState<HTMLElement | null>(null);
   const waiting = v.ready.entries.slice(0, 2);
   return (
@@ -514,7 +518,7 @@ function TransactionsBlock({ v }: { v: HomeLogic }) {
             <Link href="/transactions" onClick={() => setMenu(null)}>
               See all
             </Link>
-            <Link href="/add-transaction" onClick={() => setMenu(null)}>
+            <Link href={formLink('transaction')} onClick={() => setMenu(null)}>
               Add
             </Link>
           </div>

@@ -41,13 +41,33 @@ const AreaFormScreen = dynamic(() => import('@/src/screens/AreaForm/AreaFormScre
 const ProjectFormScreen = dynamic(() => import('@/src/screens/ProjectForm/ProjectFormScreen').then((m) => m.ProjectFormScreen), { ssr: false });
 const CoverScreen = dynamic(() => import('@/src/screens/PlanningFlows/CoverScreen').then((m) => m.CoverScreen), { ssr: false });
 const ReallocateScreen = dynamic(() => import('@/src/screens/PlanningFlows/ReallocateScreen').then((m) => m.ReallocateScreen), { ssr: false });
+const AddTransactionScreen = dynamic(() => import('@/src/screens/AddTransaction/AddTransactionScreen').then((m) => m.AddTransactionScreen), { ssr: false });
+const EditTransactionScreen = dynamic(() => import('@/src/screens/EditTransaction/EditTransactionScreen').then((m) => m.EditTransactionScreen), { ssr: false });
+const EditTransferScreen = dynamic(() => import('@/src/screens/EditTransfer/EditTransferScreen').then((m) => m.EditTransferScreen), { ssr: false });
+const CreateBucketScreen = dynamic(() => import('@/src/screens/CreateBucket/CreateBucketScreen').then((m) => m.CreateBucketScreen), { ssr: false });
+const CreateCategoryScreen = dynamic(() => import('@/src/screens/CreateCategory/CreateCategoryScreen').then((m) => m.CreateCategoryScreen), { ssr: false });
+const CategoryEditScreen = dynamic(() => import('@/src/screens/CategoryEdit/CategoryEditScreen').then((m) => m.CategoryEditScreen), { ssr: false });
+const WalletEditScreen = dynamic(() => import('@/src/screens/WalletEdit/WalletEditScreen').then((m) => m.WalletEditScreen), { ssr: false });
+const TemplateFormScreen = dynamic(
+  () => import('@/src/screens/CreateTransactionTemplate/CreateTransactionTemplateScreen').then((m) => m.CreateTransactionTemplateScreen),
+  { ssr: false }
+);
+const SectionEditScreen = dynamic(() => import('@/src/screens/SectionEdit/SectionEditScreen').then((m) => m.SectionEditScreen), { ssr: false });
 const CreateSectionScreen = dynamic(() => import('@/src/screens/CreateSection/CreateSectionScreen').then((m) => m.CreateSectionScreen), { ssr: false });
 
 const PEEK_FORMS: Partial<Record<FormKind, ComponentType<{ params: Record<string, string> }>>> = {
   'basket-item': ({ params }) => <BasketItemForm goalId={params.basket} itemId={params.item || undefined} />,
   area: ({ params }) => <AreaFormScreen areaId={params.id || undefined} />,
   project: ({ params }) => <ProjectFormScreen projectId={params.id || undefined} />,
-  section: ({ params }) => <CreateSectionScreen areaId={params.areaId ?? ''} />,
+  section: ({ params }) => (params.id ? <SectionEditScreen bucketId={params.id} /> : <CreateSectionScreen areaId={params.areaId ?? ''} />),
+  transaction: () => <AddTransactionScreen />,
+  'edit-transaction': ({ params }) => <EditTransactionScreen transactionId={params.id} />,
+  'edit-transfer': ({ params }) => <EditTransferScreen transferId={params.id} />,
+  basket: () => <CreateBucketScreen />,
+  category: () => <CreateCategoryScreen />,
+  'edit-category': ({ params }) => <CategoryEditScreen categoryId={params.id} />,
+  wallet: ({ params }) => <WalletEditScreen walletId={params.id} />,
+  template: ({ params }) => <TemplateFormScreen templateId={params.id || undefined} />,
   cover: () => <CoverScreen />,
   reallocate: () => <ReallocateScreen />,
 };

@@ -33,6 +33,7 @@ import { SIDEBAR_MAX, SIDEBAR_MIN } from './sidebarState';
 import styles from './Sidebar.module.css';
 import { NotificationCount } from '@/src/widgets/Notifications/NotificationBell';
 import { useWebOnly } from '@/src/shared/device/useWebOnly';
+import { useFormLink } from '@/src/shared/navigation/useFormLink';
 
 const MODE_KEY = 'dreda.mode';
 
@@ -82,6 +83,7 @@ export function Sidebar({
   onCollapse: () => void;
   onSearch: () => void;
 }) {
+  const formLink = useFormLink();
   useWebOnly('Sidebar');
   const pathname = usePathname();
   const router = useRouter();
@@ -135,7 +137,7 @@ export function Sidebar({
               {row(MODE_HOME[mode], 'Home', Home)}
               {row('/notifications', 'Notifications', Bell, <NotificationCount className={styles.count} />)}
               {row('/budget/ready', 'Ready to pay', BadgeCheck, ready ? <span className={styles.count}>{ready}</span> : null)}
-              {row('/add-transaction', 'Add transaction', Plus)}
+              {row(formLink('transaction'), 'Add transaction', Plus)}
             </>
           ) : (
             <>

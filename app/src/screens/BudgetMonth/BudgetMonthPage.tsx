@@ -94,7 +94,7 @@ export function BudgetMonthPage({ month, data, onMonth }: { month: string; data:
       title="Budget"
       icon={<Wallet strokeWidth={1.75} />}
       crumbs={[{ label: 'Money', href: '/home' }, { label: 'Budget', href: '/budget' }, { label: v.title }]}
-      menu={[{ label: 'Add transaction', href: `/add-transaction?month=${Number(month.slice(5)) - 1}&year=${month.slice(0, 4)}` }]}
+      menu={[{ label: 'Add transaction', href: formLink('transaction', { month: String(Number(month.slice(5)) - 1), year: month.slice(0, 4) }) }]}
       properties={[
         { id: 'month', label: 'Month', display: <MonthPicker value={month} onChange={onMonth} markers={(m) => (m === month && !monthDoc?.reviewedAt ? ['unreviewed'] : [])} /> },
         {
@@ -161,7 +161,7 @@ export function BudgetMonthPage({ month, data, onMonth }: { month: string; data:
               newLabel={NEW_LABEL[v.tab]}
               newTemplates={[
                 ...v.bucketsOf(v.tab).map((b) => ({ id: b.id, label: `Recurring item in ${b.name}`, onSelect: () => router.push(formLink('basket-item', { basket: b.id })) })),
-                { id: 'bucket', label: `New ${FLOW_LABEL[v.tab].toLowerCase()} basket`, onSelect: () => router.push(`/baskets/new?type=${v.tab}`) },
+                { id: 'bucket', label: `New ${FLOW_LABEL[v.tab].toLowerCase()} basket`, onSelect: () => router.push(formLink('basket', { type: v.tab })) },
               ]}
               rowActions={
                 v.tab === 'Income'

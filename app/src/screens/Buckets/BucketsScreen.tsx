@@ -26,6 +26,7 @@ import { FLOW_ICON } from '@/src/screens/BudgetMonth/BudgetMonthPage';
 import { useFlowLinks } from '@/src/screens/Planning/PlanningParts';
 import bm from '@/src/screens/BudgetMonth/BudgetMonth.module.css';
 import styles from './BucketsScreen.module.css';
+import { useFormLink } from '@/src/shared/navigation/useFormLink';
 
 // Kept here for the screens that already import it from this file.
 export { formatAmount } from '@/src/viewmodels/format';
@@ -112,6 +113,7 @@ function bucketColumns(type: FlowType, month: string): ColumnDef<BucketRow>[] {
 }
 
 export function BucketsScreen() {
+  const formLink = useFormLink();
   const { coverHref, reallocateHref } = useFlowLinks();
   const v = useLogic();
   const router = useRouter();
@@ -186,7 +188,7 @@ export function BucketsScreen() {
                 { id: 'reallocate', label: 'Reallocate', show: (r) => r.card.prompt?.kind === 'leftover', run: (r) => router.push(reallocateHref(v.month, r.id)) },
               ]}
               onOpen={(r) => router.push(`/budget/basket/${r.id}?month=${v.month}`)}
-              onNew={() => router.push(`/baskets/new?type=${v.flow}`)}
+              onNew={() => router.push(formLink('basket', { type: v.flow }))}
               newLabel={`New ${FLOW_NOUN[v.flow].toLowerCase()} basket`}
               emptyText={`No ${FLOW_LABEL[v.flow].toLowerCase()} baskets yet.`}
             />

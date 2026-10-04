@@ -26,6 +26,7 @@ import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { FLOW_ICON } from '@/src/screens/BudgetMonth/BudgetMonthPage';
 import { TransactionPeekContent } from '@/src/screens/TransactionDetails/TransactionDetailsScreen';
 import styles from './Transactions.module.css';
+import { useFormLink } from '@/src/shared/navigation/useFormLink';
 
 const WEEKDAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTH = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -99,6 +100,7 @@ function columnsFor(type: FlowType): ColumnDef<TxRow>[] {
 }
 
 export function TransactionsScreen() {
+  const formLink = useFormLink();
   const v = useLogic();
   const router = useRouter();
   const compact = useLayout().deviceClass === 'compact';
@@ -182,7 +184,7 @@ export function TransactionsScreen() {
               else setPeekRow(r);
             }}
             newLabel="Add transaction"
-            onNew={() => router.push(`/add-transaction?month=${Number(v.month.slice(5)) - 1}&year=${v.month.slice(0, 4)}`)}
+            onNew={() => router.push(formLink('transaction', { month: String(Number(v.month.slice(5)) - 1), year: v.month.slice(0, 4) }))}
             emptyText={`No ${FLOW_LABEL[v.tab].toLowerCase()} recorded in ${v.title}.`}
           />
         </div>

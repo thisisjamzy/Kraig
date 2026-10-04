@@ -91,7 +91,7 @@ export function BucketsBottomNav() {
           <div className={styles.sheet}>
             {!picking ? (
               <>
-                <Link href="/baskets/new" className={styles.sheetOption} onClick={close}>
+                <Link href={formLink('basket')} className={styles.sheetOption} onClick={close}>
                   <FolderPlus size={18} strokeWidth={2} aria-hidden /> New basket
                 </Link>
                 <button type="button" className={styles.sheetOption} onClick={() => setPicking('item')}>
@@ -116,7 +116,7 @@ export function BucketsBottomNav() {
                     {picking === 'income' ? 'No income basket yet.' : picking === 'payment' ? 'No recurring basket yet.' : 'No basket yet.'}
                   </p>
                 )}
-                <Link href="/baskets/new" className={styles.sheetOption} onClick={close}>
+                <Link href={formLink('basket')} className={styles.sheetOption} onClick={close}>
                   <FolderPlus size={18} strokeWidth={2} aria-hidden /> New {picking === 'income' ? 'income ' : ''}basket
                 </Link>
               </>

@@ -329,7 +329,7 @@ export function BucketDetailScreen({ goalId }: { goalId: string }) {
                           {item.displayPayments.map((payment, index) => (
                             <Link
                               key={payment.id}
-                              href={payment.kind === 'transfer' ? `/edit-transfer/${payment.id}` : `/edit-transaction/${payment.id}`}
+                              href={payment.kind === 'transfer' ? formLink('edit-transfer', { id: payment.id }) : formLink('edit-transaction', { id: payment.id })}
                               className={styles.paymentChip}
                             >
                               {item.displayPayments.length > 1

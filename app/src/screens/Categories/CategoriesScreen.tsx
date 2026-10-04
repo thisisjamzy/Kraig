@@ -7,8 +7,10 @@ import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import styles from './CategoriesScreen.module.css';
+import { useFormLink } from '@/src/shared/navigation/useFormLink';
 
 export function CategoriesScreen() {
+  const formLink = useFormLink();
   const strings = useStrings();
   const { groups, loading, error, goBack } = useLogic();
 
@@ -42,7 +44,7 @@ export function CategoriesScreen() {
                       {category.notes && <span className={styles.categoryDescription}>{category.notes}</span>}
                     </Link>
                     <Link
-                      href={`/categories/${category.id}/edit`}
+                      href={formLink('edit-category', { id: category.id })}
                       className={styles.editButton}
                       aria-label={strings.categories.editCta}
                     >
@@ -58,7 +60,7 @@ export function CategoriesScreen() {
 
       <div className={styles.fabRow}>
         <Link
-          href="/create-category?returnTo=/categories"
+          href={formLink('category', { returnTo: '/categories' })}
           className={styles.fab}
           aria-label={strings.categories.createCta}
         >

@@ -14,6 +14,7 @@ import { setDoc } from 'firebase/firestore';
 import { categoryRef } from '@/src/shared/firestore/refs';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { useFormFinish } from '@/src/shared/navigation/formPeekContext';
+import { peekAwareParams } from '@/src/shared/navigation/formPeek';
 
 export type CategoryType = 'Expense' | 'Income' | 'Savings';
 export const CATEGORY_TYPES: CategoryType[] = ['Expense', 'Income', 'Savings'];
@@ -23,7 +24,7 @@ export const CATEGORY_TYPES: CategoryType[] = ['Expense', 'Income', 'Savings'];
 // src/screens/Categories) instead of Settings.
 function returnTargetFromSearch(): string {
   if (typeof window === 'undefined') return '/settings';
-  const returnTo = new URLSearchParams(window.location.search).get('returnTo');
+  const returnTo = peekAwareParams(window.location.search).get('returnTo');
   return returnTo && returnTo.startsWith('/') ? returnTo : '/settings';
 }
 

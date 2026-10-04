@@ -7,6 +7,7 @@ import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { currencyName } from '@/src/viewmodels/currencies';
 import { useGoBack } from '@/src/shared/navigation/useGoBack';
 import { useFormFinish } from '@/src/shared/navigation/formPeekContext';
+import { peekAwareParams } from '@/src/shared/navigation/formPeek';
 
 export function useLogic() {
   const finish = useFormFinish();
@@ -30,7 +31,7 @@ export function useLogic() {
   // ?type= (from a type tab's "New bucket") starts the form on that type.
   const [type, setType] = useState<'Expense' | 'Income' | 'Savings' | 'Transfer'>(() => {
     if (typeof window === 'undefined') return 'Expense';
-    const wanted = new URLSearchParams(window.location.search).get('type');
+    const wanted = peekAwareParams(window.location.search).get('type');
     return wanted === 'Income' || wanted === 'Savings' || wanted === 'Transfer' ? wanted : 'Expense';
   });
   const [saving, setSaving] = useState(false);

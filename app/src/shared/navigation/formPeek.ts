@@ -40,10 +40,10 @@ const q = (params: Params, keys: string[]) => {
 const PAGES: Record<FormKind, (p: Params) => string> = {
   'basket-item': (p) => (p.item ? `/edit-basket-item/${enc(p.basket!)}/${enc(p.item)}` : `/add-basket-item/${enc(p.basket!)}`),
   basket: (p) => `/baskets/new${q(p, ['type'])}`,
-  transaction: (p) => `/add-transaction${q(p, ['type', 'month', 'year', 'bucket', 'item', 'category', 'template'])}`,
+  transaction: (p) => `/add-transaction${q(p, ['type', 'month', 'year', 'categoryId', 'templateId', 'bucketItem'])}`,
   'edit-transaction': (p) => `/edit-transaction/${enc(p.id!)}`,
   'edit-transfer': (p) => `/edit-transfer/${enc(p.id!)}`,
-  category: (p) => `/create-category${q(p, ['type'])}`,
+  category: (p) => `/create-category${q(p, ['returnTo'])}`,
   'edit-category': (p) => `/categories/${enc(p.id!)}/edit`,
   wallet: (p) => `/wallets/${enc(p.id!)}/edit`,
   template: (p) => (p.id ? `/transaction-templates/${enc(p.id)}/edit` : '/transaction-templates/new'),

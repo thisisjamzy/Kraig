@@ -22,6 +22,7 @@ import type {
 } from '@/src/shared/firestore/types';
 import { useGoBack } from '@/src/shared/navigation/useGoBack';
 import { useFormFinish } from '@/src/shared/navigation/formPeekContext';
+import { peekAwareParams } from '@/src/shared/navigation/formPeek';
 
 export type TransactionType = 'expense' | 'income' | 'transfer' | 'savings';
 export type Step = 'type' | 'category' | 'details' | 'review';
@@ -85,7 +86,7 @@ function pad2(n: number) {
 // nothing here is ever server-rendered.
 function retroTargetFromSearch(): { year: number; month: number } | null {
   if (typeof window === 'undefined') return null;
-  const params = new URLSearchParams(window.location.search);
+  const params = peekAwareParams(window.location.search);
   const monthParam = params.get('month');
   const yearParam = params.get('year');
   if (monthParam === null || yearParam === null) return null;
@@ -103,13 +104,13 @@ function retroTargetFromSearch(): { year: number; month: number } | null {
 // "Transfer" and "Record income").
 function typeFromSearch(): TransactionType {
   if (typeof window === 'undefined') return 'expense';
-  const t = new URLSearchParams(window.location.search).get('type');
+  const t = peekAwareParams(window.location.search).get('type');
   return t === 'income' || t === 'transfer' || t === 'savings' ? t : 'expense';
 }
 
 function categoryIdFromSearch(): string {
   if (typeof window === 'undefined') return '';
-  return new URLSearchParams(window.location.search).get('categoryId') ?? '';
+  return peekAwareParams(window.location.search).get('categoryId') ?? '';
 }
 
 // src/screens/TransactionTemplates's own "apply" action deep-links here with
@@ -120,7 +121,7 @@ function categoryIdFromSearch(): string {
 // the template.
 function templateIdFromSearch(): string {
   if (typeof window === 'undefined') return '';
-  return new URLSearchParams(window.location.search).get('templateId') ?? '';
+  return peekAwareParams(window.location.search).get('templateId') ?? '';
 }
 
 // The bucket item month sheet's "Record payment" (src/screens/
@@ -128,7 +129,7 @@ function templateIdFromSearch(): string {
 // — that exact occurrence gets pre-linked once items load.
 function bucketItemFromSearch(): { bucketId: string; itemId: string; month: string } | null {
   if (typeof window === 'undefined') return null;
-  const raw = new URLSearchParams(window.location.search).get('bucketItem');
+  const raw = peekAwareParams(window.location.search).get('bucketItem');
   const [bucketId, itemId, month] = raw?.split(':') ?? [];
   if (!bucketId || !itemId || !/^\d{4}-\d{2}$/.test(month ?? '')) return null;
   return { bucketId, itemId, month };
