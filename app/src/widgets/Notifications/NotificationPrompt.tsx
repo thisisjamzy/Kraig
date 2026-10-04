@@ -4,18 +4,18 @@
 // rendered (never in the way of signing in), when there are unread
 // notifications: "You have 6 unread updates, 2 urgent." with "View
 // notifications" and "Later". A small card at the bottom left on medium
-// screens and up (bottom center when the sidebar is collapsed), a bottom
-// sheet with the three most important titles on a phone. Once a session; it
+// screens and up (bottom center when the sidebar is collapsed), a small
+// bottom sheet on a phone (one line, View and Later). Once a session; it
 // waits while a form or side peek is open. After three "Later"s in a row
 // with nothing urgent, only the bell badge shows until something urgent
 // arrives (inbox.ts's shouldPrompt).
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useLayout } from '@/src/shared/hooks/useLayout';
 import { useNotifications } from '@/src/shared/hooks/useNotifications';
 import { isFormPage } from '@/src/shared/navigation/navHistory';
-import { afterPrompt, comparePriority, inView, promptText, shouldPrompt, unreadCount, type PromptMemory } from '@/src/shared/notifications/inbox';
+import { afterPrompt, promptText, shouldPrompt, unreadCount, type PromptMemory } from '@/src/shared/notifications/inbox';
 import styles from './NotificationPrompt.module.css';
 
 const SESSION_KEY = 'dreda.notifyPrompt.shown';
@@ -51,7 +51,15 @@ function overlayOpen(pathname: string): boolean {
   return Boolean(document.querySelector('[data-panel-open], [role="dialog"], [aria-modal="true"]'));
 }
 
-export function NotificationPrompt() {
+export interface PhonePromptProps {
+  unread: number;
+  urgent: number;
+  onView: () => void;
+  onLater: () => void;
+}
+
+/** `phone` renders the phone line's sheet (passed in by the app layout). */
+export function NotificationPrompt({ phone }: { phone: (props: PhonePromptProps) => ReactNode }) {
   const { notifications, loading } = useNotifications();
   const pathname = usePathname() ?? '';
   const router = useRouter();
@@ -61,10 +69,6 @@ export function NotificationPrompt() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const counts = useMemo(() => unreadCount(notifications, new Date()), [notifications]);
-  const top = useMemo(() => {
-    const now = new Date();
-    return notifications.filter((n) => inView(n, 'unread', now)).sort(comparePriority).slice(0, 3);
-  }, [notifications]);
 
   // Decide after the first render, and keep checking while a form or peek
   // is in the way. Opening Notifications itself counts as seeing them.
@@ -121,25 +125,5 @@ export function NotificationPrompt() {
       </div>
     );
   }
-  return (
-    <div className={styles.sheetOverlay}>
-      <button type="button" className={styles.backdrop} aria-label="Later" tabIndex={-1} onClick={() => answer('later')} />
-      <div className={styles.sheet} role="dialog" aria-label="Unread notifications">
-        <p className={styles.sheetText}>{text}</p>
-        <ul className={styles.top}>
-          {top.map((n) => (
-            <li key={n.id} data-severity={n.severity}>
-              {n.title}
-            </li>
-          ))}
-        </ul>
-        <button type="button" className={styles.primary} onClick={() => answer('view')}>
-          View notifications
-        </button>
-        <button type="button" className={styles.secondary} onClick={() => answer('later')}>
-          Later
-        </button>
-      </div>
-    </div>
-  );
+  return phone({ unread: counts.unread, urgent: counts.urgent, onView: () => answer('view'), onLater: () => answer('later') });
 }

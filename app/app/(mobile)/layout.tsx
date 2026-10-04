@@ -17,6 +17,7 @@ import dynamic from 'next/dynamic';
 import { PanelHost } from '@/src/widgets/AppShell/PanelHost';
 import { NotificationsRunner } from '@/src/widgets/Notifications/NotificationsRunner';
 import { NotificationPrompt } from '@/src/widgets/Notifications/NotificationPrompt';
+import { NotificationSheet } from '@/src/phone/widgets/NotificationSheet/NotificationSheet';
 import { PlanSnapshotWorker } from '@/src/widgets/Notifications/PlanSnapshotWorker';
 import styles from './layout.module.css';
 
@@ -63,7 +64,7 @@ export default function AppShellLayout({ children }: { children: ReactNode }) {
         <Suspense fallback={null}>
           <PanelHost />
         </Suspense>
-        <NotificationPrompt />
+        <NotificationPrompt phone={(props) => <NotificationSheet {...props} />} />
       </AuthGuard>
     </div>
   );

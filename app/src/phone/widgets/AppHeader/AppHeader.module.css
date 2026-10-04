@@ -52,3 +52,26 @@
   position: absolute;
   inset: -4px;
 }
+
+/* Unread count on the bell; red when something is urgent. */
+.badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  display: grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border: 2px solid var(--color-background);
+  border-radius: var(--radius-full);
+  background: var(--color-brand);
+  color: #ffffff;
+  font-size: 0.625rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.badge[data-urgent] {
+  background: #e04b5a;
+}
