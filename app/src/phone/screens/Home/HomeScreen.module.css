@@ -798,3 +798,41 @@
     }
   }
 }
+
+/* Compact action cards above the balance card (HomeActionCards). */
+.actionCards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.actionCard {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.actionCardText {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.actionCardButton {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 var(--space-md);
+  border-radius: var(--radius-full);
+  background: var(--color-brand);
+  color: #fff;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  text-decoration: none;
+}
