@@ -81,6 +81,7 @@ export function FormFrame({
   onSubmit,
   error,
   after,
+  overlays,
   children,
 }: {
   title: string;
@@ -97,6 +98,8 @@ export function FormFrame({
   error?: string | null;
   /** Under the primary button: secondary actions such as Delete. */
   after?: ReactNode;
+  /** Sheets and dialogs the form opens, rendered outside the <form>. */
+  overlays?: ReactNode;
   children: ReactNode;
 }) {
   const { isWide } = useLayout();
@@ -127,49 +130,55 @@ export function FormFrame({
 
   if (!isWide) {
     return (
-      <form className={`${cf.page} ${styles.phone}`} onSubmit={submit} noValidate>
-        {phoneHeader === 'watermark' ? (
-          <div className={cf.top}>
-            <button type="button" className={cf.closeButton} onClick={close} aria-label="Close">
-              <X size={18} strokeWidth={2} />
-            </button>
-            <h1 className={cf.watermark}>{title}</h1>
-          </div>
-        ) : (
-          <header className={styles.bar}>
-            <button type="button" className={styles.up} onClick={close} aria-label="Back">
-              <ArrowLeft size={20} strokeWidth={2} />
-            </button>
-            <h1 className={styles.barTitle}>{title}</h1>
-          </header>
-        )}
-        {body}
-        {after && <div className={styles.after}>{after}</div>}
-        {button && <div className={styles.stickyBar}>{button}</div>}
-      </form>
+      <>
+        <form className={`${cf.page} ${styles.phone}`} onSubmit={submit} noValidate>
+          {phoneHeader === 'watermark' ? (
+            <div className={cf.top}>
+              <button type="button" className={cf.closeButton} onClick={close} aria-label="Close">
+                <X size={18} strokeWidth={2} />
+              </button>
+              <h1 className={cf.watermark}>{title}</h1>
+            </div>
+          ) : (
+            <header className={styles.bar}>
+              <button type="button" className={styles.up} onClick={close} aria-label="Back">
+                <ArrowLeft size={20} strokeWidth={2} />
+              </button>
+              <h1 className={styles.barTitle}>{title}</h1>
+            </header>
+          )}
+          {body}
+          {after && <div className={styles.after}>{after}</div>}
+          {button && <div className={styles.stickyBar}>{button}</div>}
+        </form>
+        {overlays}
+      </>
     );
   }
 
   return (
-    <form className={`${cf.page} ${styles.wide}`} data-peek={peek ? '' : undefined} onSubmit={submit} noValidate>
-      <div className={styles.wideTools}>
-        {peek?.fullPageHref && (
-          <Link href={peek.fullPageHref} className={styles.tool} aria-label="Open as full page" title="Open as full page">
-            <Maximize2 size={16} strokeWidth={2} />
-          </Link>
-        )}
-        <button type="button" className={styles.tool} onClick={close} aria-label="Close" title="Close">
-          <X size={18} strokeWidth={2} />
-        </button>
-      </div>
-      <header className={styles.wideHeader}>
-        <h1 className={styles.wideTitle}>{title}</h1>
-        {context && <p className={styles.wideContext}>{context}</p>}
-      </header>
-      {body}
-      {button}
-      {after && <div className={styles.after}>{after}</div>}
-    </form>
+    <>
+      <form className={`${cf.page} ${styles.wide}`} data-peek={peek ? '' : undefined} onSubmit={submit} noValidate>
+        <div className={styles.wideTools}>
+          {peek?.fullPageHref && (
+            <Link href={peek.fullPageHref} className={styles.tool} aria-label="Open as full page" title="Open as full page">
+              <Maximize2 size={16} strokeWidth={2} />
+            </Link>
+          )}
+          <button type="button" className={styles.tool} onClick={close} aria-label="Close" title="Close">
+            <X size={18} strokeWidth={2} />
+          </button>
+        </div>
+        <header className={styles.wideHeader}>
+          <h1 className={styles.wideTitle}>{title}</h1>
+          {context && <p className={styles.wideContext}>{context}</p>}
+        </header>
+        {body}
+        {button}
+        {after && <div className={styles.after}>{after}</div>}
+      </form>
+      {overlays}
+    </>
   );
 }
 

@@ -21,6 +21,7 @@ import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { ProjectTimeline } from '@/src/widgets/ProjectTimeline/ProjectTimeline';
 import { TAG_ACCENT } from '@/src/widgets/TaskDb/Tag';
 import { HEALTH_COLOR, healthAccent, projectCardSpec, projectColumns, projectGroups, projectListSpec } from '@/src/widgets/ProjectDb/projectDatabase';
+import { useFormLink } from '@/src/shared/navigation/useFormLink';
 
 const ALL = ['name', 'health', 'progress', 'dates', 'start', 'end', 'tasks', 'overdue', 'area', 'status', 'description', 'lastActivity'];
 const showOnly = (ids: string[]) => ALL.filter((id) => !ids.includes(id));
@@ -45,6 +46,7 @@ export function AllProjectsScreen() {
 }
 
 function ProjectsPage() {
+  const formLink = useFormLink();
   const router = useRouter();
   const openView = useSearchParams().get('view');
   const { rows, setDates, loading } = useProjectsDb();
@@ -104,7 +106,7 @@ function ProjectsPage() {
           />
         )}
         onOpen={open}
-        onNew={() => router.push('/projects/new')}
+        onNew={() => router.push(formLink('project'))}
         newLabel="New"
         emptyText="No projects yet."
       />

@@ -8,16 +8,13 @@ import { useLogic } from '@/src/logic/areaForm/useLogic';
 import { ConfirmDialog } from '@/src/widgets/ConfirmDialog/ConfirmDialog';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { EmojiPicker } from '@/src/widgets/EmojiPicker/EmojiPicker';
-import { WebFormPanel } from '@/src/widgets/WebFormPanel/WebFormPanel';
-import { useIsWeb } from '@/src/shared/hooks/useViewportMode';
 import {
-  CardFormPage,
   ColorSheet,
   FieldCard,
   PickerCard,
-  SubmitButton,
   cardFormStyles as styles,
 } from '@/src/widgets/CardForm/CardForm';
+import { FormFrame } from '@/src/widgets/FormFrame/FormFrame';
 
 export function AreaFormScreen({ areaId }: { areaId?: string }) {
   const {
@@ -43,20 +40,43 @@ export function AreaFormScreen({ areaId }: { areaId?: string }) {
   } = useLogic(areaId);
   const [colorOpen, setColorOpen] = useState(false);
   const [confirmArchive, setConfirmArchive] = useState(false);
-  const isWeb = useIsWeb();
 
   const content = (
-    <CardFormPage title={isEditing ? 'Edit area' : 'New area'} onClose={goBack}>
+    <FormFrame
+      title={isEditing ? 'Edit area' : 'New area'}
+      onClose={goBack}
+      primary={{ label: isEditing ? 'Save area' : 'Add area', disabled: !isValid, busy: saving }}
+      onSubmit={handleSave}
+      error={saveError}
+      after={isEditing ? (
+        <button type="button" className={styles.deleteLink} onClick={() => (archived ? unarchiveArea() : setConfirmArchive(true))}>
+              {archived ? 'Unarchive area' : 'Archive area'}
+            </button>
+      ) : null}
+      overlays={
+        <>
+          {confirmArchive && (
+            <ConfirmDialog
+              title="Archive this area?"
+              message="Hides it from your Areas tab and the area picker. Its projects and tasks stay intact, and you can unarchive it later."
+              confirmLabel="Archive area"
+              cancelLabel="Keep it"
+              onCancel={() => setConfirmArchive(false)}
+              onConfirm={() => {
+                archiveArea();
+                setConfirmArchive(false);
+              }}
+            />
+          )}
+
+          {colorOpen && <ColorSheet value={color} onChange={setColor} onClose={() => setColorOpen(false)} />}
+        </>
+      }
+    >
       <ScreenState loading={loading} error={notFound ? 'This area could not be found.' : null} />
 
       {!loading && !notFound && (
-        <form
-          className={styles.cards}
-          onSubmit={(event) => {
-            event.preventDefault();
-            handleSave();
-          }}
-        >
+        <>
           <FieldCard label="Name">
             <input
               className={styles.valueInput}
@@ -86,36 +106,10 @@ export function AreaFormScreen({ areaId }: { areaId?: string }) {
               <EmojiPicker value={emoji} onChange={setEmoji} label="Area emoji" noneLabel="No emoji" />
             </div>
           </div>
-
-          {saveError && <p className={styles.formError}>{saveError}</p>}
-
-          <SubmitButton disabled={!isValid || saving}>{saving ? 'Saving…' : isEditing ? 'Save changes' : '+ Add new area'}</SubmitButton>
-
-          {isEditing && (
-            <button type="button" className={styles.deleteLink} onClick={() => (archived ? unarchiveArea() : setConfirmArchive(true))}>
-              {archived ? 'Unarchive area' : 'Archive area'}
-            </button>
-          )}
-        </form>
+        </>
       )}
-
-      {confirmArchive && (
-        <ConfirmDialog
-          title="Archive this area?"
-          message="Hides it from your Areas tab and the area picker. Its projects and tasks stay intact, and you can unarchive it later."
-          confirmLabel="Archive area"
-          cancelLabel="Keep it"
-          onCancel={() => setConfirmArchive(false)}
-          onConfirm={() => {
-            archiveArea();
-            setConfirmArchive(false);
-          }}
-        />
-      )}
-
-      {colorOpen && <ColorSheet value={color} onChange={setColor} onClose={() => setColorOpen(false)} />}
-    </CardFormPage>
+    </FormFrame>
   );
 
-  return isWeb ? <WebFormPanel onClose={goBack}>{content}</WebFormPanel> : content;
+  return content;
 }

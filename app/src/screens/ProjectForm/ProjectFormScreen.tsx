@@ -14,21 +14,18 @@ import { Modal } from '@/src/widgets/Modal/Modal';
 import { toDateOnly } from '@/src/shared/firestore/taskWrites';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
-import { WebFormPanel } from '@/src/widgets/WebFormPanel/WebFormPanel';
-import { useIsWeb } from '@/src/shared/hooks/useViewportMode';
 import { priorityLabel } from '@/src/viewmodels/projects';
 import type { ProjectStatus } from '@/src/shared/firestore/types';
 import {
-  CardFormPage,
   ColorSheet,
   FieldCard,
   PickerCard,
   PriorityIcon,
   PrioritySheet,
-  SubmitButton,
   capitalize,
   cardFormStyles as styles,
 } from '@/src/widgets/CardForm/CardForm';
+import { FormFrame } from '@/src/widgets/FormFrame/FormFrame';
 
 function formatDate(value: string): string {
   return new Date(`${value}T00:00:00`).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -79,7 +76,6 @@ export function ProjectFormScreen({ projectId }: { projectId?: string }) {
     loading,
     notFound,
   } = useLogic(projectId);
-  const isWeb = useIsWeb();
 
   const [sheet, setSheet] = useState<Sheet>(null);
   const [deleteTasks, setDeleteTasks] = useState(false);
@@ -95,17 +91,184 @@ export function ProjectFormScreen({ projectId }: { projectId?: string }) {
         : null;
 
   const content = (
-    <CardFormPage title={isEditing ? 'Edit project' : strings.createProject.title} onClose={goBack}>
+    <FormFrame
+      title={isEditing ? 'Edit project' : strings.createProject.title}
+      onClose={goBack}
+      primary={{ label: isEditing ? 'Save project' : 'Add project', disabled: !isValid, busy: saving }}
+      onSubmit={handleSave}
+      error={saveError}
+      after={isEditing ? (
+        <button type="button" className={styles.deleteLink} onClick={() => setSheet('delete')}>
+              Delete project
+            </button>
+      ) : null}
+      overlays={
+        <>
+          {sheet === 'timeline' && (
+            <Modal title="Timeline" onClose={() => setSheet(null)}>
+              <HeroRangeCalendar.Root
+                focusedValue={parseDate(toDateOnly(dateMonthCursor))}
+                onFocusChange={(next) => setDateMonthCursor(new Date(next.year, next.month - 1, next.day))}
+                value={startDate && endDate ? { start: parseDate(startDate), end: parseDate(endDate) } : null}
+                onChange={(next) => {
+                  if (next) {
+                    setStartDate(next.start.toString());
+                    setEndDate(next.end.toString());
+                    setSheet(null);
+                  }
+                }}
+              >
+                <HeroRangeCalendar.Header className={styles.calendarHeader}>
+                  <HeroRangeCalendar.NavButton slot="previous" className={styles.calendarNavButton} />
+                  <HeroRangeCalendar.Heading className={styles.calendarHeading} />
+                  <HeroRangeCalendar.NavButton slot="next" className={styles.calendarNavButton} />
+                </HeroRangeCalendar.Header>
+                <HeroRangeCalendar.Grid className={styles.calendarGrid}>
+                  <HeroRangeCalendar.GridHeader>
+                    {(day) => <HeroRangeCalendar.HeaderCell className={styles.weekdayCell}>{day}</HeroRangeCalendar.HeaderCell>}
+                  </HeroRangeCalendar.GridHeader>
+                  <HeroRangeCalendar.GridBody>
+                    {(cellDate) => (
+                      <HeroRangeCalendar.Cell date={cellDate} className={styles.dayCell}>
+                        {({ formattedDate }) => <span className={styles.dayCellInner}>{formattedDate}</span>}
+                      </HeroRangeCalendar.Cell>
+                    )}
+                  </HeroRangeCalendar.GridBody>
+                </HeroRangeCalendar.Grid>
+              </HeroRangeCalendar.Root>
+              <p className={styles.hint}>Tap a start date, then an end date.</p>
+            </Modal>
+          )}
+
+          {sheet === 'area' && (
+            <Modal title="Area" onClose={() => setSheet(null)}>
+              <div className={styles.sheetList}>
+                {areas.map((area) => (
+                  <button
+                    key={area.id}
+                    type="button"
+                    className={styles.sheetOption}
+                    aria-pressed={area.id === areaId}
+                    onClick={() => {
+                      setAreaId(area.id);
+                      setSheet(null);
+                    }}
+                  >
+                    <span className={styles.projectDot} style={{ background: area.color }} aria-hidden />
+                    {area.name}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  className={`${styles.sheetOption} ${styles.sheetOptionNone}`}
+                  aria-pressed={!areaId}
+                  onClick={() => {
+                    setAreaId('');
+                    setSheet(null);
+                  }}
+                >
+                  {strings.createProject.noAreaOption}
+                </button>
+              </div>
+            </Modal>
+          )}
+
+          {sheet === 'section' && (
+            <Modal title="Section" onClose={() => setSheet(null)}>
+              <div className={styles.sheetList}>
+                {sections.map((section) => (
+                  <button
+                    key={section.id}
+                    type="button"
+                    className={styles.sheetOption}
+                    aria-pressed={section.id === bucketId}
+                    onClick={() => {
+                      setBucketId(section.id);
+                      setSheet(null);
+                    }}
+                  >
+                    <span className={styles.projectDot} style={{ background: section.color }} aria-hidden />
+                    {section.name}
+                  </button>
+                ))}
+                {sections.length === 0 && <p className={styles.sheetEmpty}>This area has no sections yet.</p>}
+              </div>
+            </Modal>
+          )}
+
+          {sheet === 'status' && (
+            <Modal title="Status" onClose={() => setSheet(null)}>
+              <div className={styles.sheetList}>
+                {STATUSES.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    className={`${styles.sheetOption} ${styles.sheetOptionStacked}`}
+                    aria-pressed={option.value === status}
+                    onClick={() => {
+                      setStatus(option.value);
+                      setSheet(null);
+                    }}
+                  >
+                    {option.label}
+                    <small className={styles.muted}>{option.hint}</small>
+                  </button>
+                ))}
+              </div>
+            </Modal>
+          )}
+
+          {sheet === 'delete' && (
+            <Modal title="Delete this project?" onClose={() => setSheet(null)}>
+              <p className={styles.hint}>
+                It&apos;s removed for good, with its milestones. This can&apos;t be undone, to hide it instead, set its status to Archived.
+              </p>
+              {taskCount > 0 && (
+                <div className={styles.sheetList} role="radiogroup" aria-label="Its tasks">
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={!deleteTasks}
+                    className={`${styles.sheetOption} ${styles.sheetOptionStacked}`}
+                    onClick={() => setDeleteTasks(false)}
+                  >
+                    Keep its {taskCount} {taskCount === 1 ? 'task' : 'tasks'}
+                    <small className={styles.muted}>They stay as standalone tasks, with no project.</small>
+                  </button>
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={deleteTasks}
+                    className={`${styles.sheetOption} ${styles.sheetOptionStacked}`}
+                    onClick={() => setDeleteTasks(true)}
+                  >
+                    Delete its {taskCount} {taskCount === 1 ? 'task' : 'tasks'} too
+                    <small className={styles.muted}>Subtasks included. Also can&apos;t be undone.</small>
+                  </button>
+                </div>
+              )}
+              {saveError && <p className={styles.formError}>{saveError}</p>}
+              <button
+                type="button"
+                className={styles.primary}
+                data-tone="danger"
+                disabled={deleting}
+                onClick={() => handleDelete(taskCount > 0 && deleteTasks)}
+              >
+                {deleting ? 'Deleting…' : taskCount > 0 && deleteTasks ? 'Delete project and tasks' : 'Delete project'}
+              </button>
+            </Modal>
+          )}
+
+          {sheet === 'priority' && <PrioritySheet value={priority} onChange={setPriority} onClose={() => setSheet(null)} />}
+          {sheet === 'color' && <ColorSheet value={color} onChange={setColor} onClose={() => setSheet(null)} />}
+        </>
+      }
+    >
       <ScreenState loading={loading} error={notFound ? 'This project could not be found.' : null} />
 
       {!loading && !notFound && (
-        <form
-          className={styles.cards}
-          onSubmit={(event) => {
-            event.preventDefault();
-            handleSave();
-          }}
-        >
+        <>
           <FieldCard label="Name">
             <input
               className={styles.valueInput}
@@ -167,181 +330,10 @@ export function ProjectFormScreen({ projectId }: { projectId?: string }) {
               <EmojiPicker value={emoji} onChange={setEmoji} label="Project emoji" noneLabel="No emoji" />
             </div>
           </div>
-
-          {saveError && <p className={styles.formError}>{saveError}</p>}
-
-          <SubmitButton disabled={!isValid || saving}>
-            {saving ? 'Saving…' : isEditing ? 'Save changes' : '+ Add new project'}
-          </SubmitButton>
-
-          {isEditing && (
-            <button type="button" className={styles.deleteLink} onClick={() => setSheet('delete')}>
-              Delete project
-            </button>
-          )}
-        </form>
+        </>
       )}
-
-      {sheet === 'timeline' && (
-        <Modal title="Timeline" onClose={() => setSheet(null)}>
-          <HeroRangeCalendar.Root
-            focusedValue={parseDate(toDateOnly(dateMonthCursor))}
-            onFocusChange={(next) => setDateMonthCursor(new Date(next.year, next.month - 1, next.day))}
-            value={startDate && endDate ? { start: parseDate(startDate), end: parseDate(endDate) } : null}
-            onChange={(next) => {
-              if (next) {
-                setStartDate(next.start.toString());
-                setEndDate(next.end.toString());
-                setSheet(null);
-              }
-            }}
-          >
-            <HeroRangeCalendar.Header className={styles.calendarHeader}>
-              <HeroRangeCalendar.NavButton slot="previous" className={styles.calendarNavButton} />
-              <HeroRangeCalendar.Heading className={styles.calendarHeading} />
-              <HeroRangeCalendar.NavButton slot="next" className={styles.calendarNavButton} />
-            </HeroRangeCalendar.Header>
-            <HeroRangeCalendar.Grid className={styles.calendarGrid}>
-              <HeroRangeCalendar.GridHeader>
-                {(day) => <HeroRangeCalendar.HeaderCell className={styles.weekdayCell}>{day}</HeroRangeCalendar.HeaderCell>}
-              </HeroRangeCalendar.GridHeader>
-              <HeroRangeCalendar.GridBody>
-                {(cellDate) => (
-                  <HeroRangeCalendar.Cell date={cellDate} className={styles.dayCell}>
-                    {({ formattedDate }) => <span className={styles.dayCellInner}>{formattedDate}</span>}
-                  </HeroRangeCalendar.Cell>
-                )}
-              </HeroRangeCalendar.GridBody>
-            </HeroRangeCalendar.Grid>
-          </HeroRangeCalendar.Root>
-          <p className={styles.hint}>Tap a start date, then an end date.</p>
-        </Modal>
-      )}
-
-      {sheet === 'area' && (
-        <Modal title="Area" onClose={() => setSheet(null)}>
-          <div className={styles.sheetList}>
-            {areas.map((area) => (
-              <button
-                key={area.id}
-                type="button"
-                className={styles.sheetOption}
-                aria-pressed={area.id === areaId}
-                onClick={() => {
-                  setAreaId(area.id);
-                  setSheet(null);
-                }}
-              >
-                <span className={styles.projectDot} style={{ background: area.color }} aria-hidden />
-                {area.name}
-              </button>
-            ))}
-            <button
-              type="button"
-              className={`${styles.sheetOption} ${styles.sheetOptionNone}`}
-              aria-pressed={!areaId}
-              onClick={() => {
-                setAreaId('');
-                setSheet(null);
-              }}
-            >
-              {strings.createProject.noAreaOption}
-            </button>
-          </div>
-        </Modal>
-      )}
-
-      {sheet === 'section' && (
-        <Modal title="Section" onClose={() => setSheet(null)}>
-          <div className={styles.sheetList}>
-            {sections.map((section) => (
-              <button
-                key={section.id}
-                type="button"
-                className={styles.sheetOption}
-                aria-pressed={section.id === bucketId}
-                onClick={() => {
-                  setBucketId(section.id);
-                  setSheet(null);
-                }}
-              >
-                <span className={styles.projectDot} style={{ background: section.color }} aria-hidden />
-                {section.name}
-              </button>
-            ))}
-            {sections.length === 0 && <p className={styles.sheetEmpty}>This area has no sections yet.</p>}
-          </div>
-        </Modal>
-      )}
-
-      {sheet === 'status' && (
-        <Modal title="Status" onClose={() => setSheet(null)}>
-          <div className={styles.sheetList}>
-            {STATUSES.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                className={`${styles.sheetOption} ${styles.sheetOptionStacked}`}
-                aria-pressed={option.value === status}
-                onClick={() => {
-                  setStatus(option.value);
-                  setSheet(null);
-                }}
-              >
-                {option.label}
-                <small className={styles.muted}>{option.hint}</small>
-              </button>
-            ))}
-          </div>
-        </Modal>
-      )}
-
-      {sheet === 'delete' && (
-        <Modal title="Delete this project?" onClose={() => setSheet(null)}>
-          <p className={styles.hint}>
-            It&apos;s removed for good, with its milestones. This can&apos;t be undone, to hide it instead, set its status to Archived.
-          </p>
-          {taskCount > 0 && (
-            <div className={styles.sheetList} role="radiogroup" aria-label="Its tasks">
-              <button
-                type="button"
-                role="radio"
-                aria-checked={!deleteTasks}
-                className={`${styles.sheetOption} ${styles.sheetOptionStacked}`}
-                onClick={() => setDeleteTasks(false)}
-              >
-                Keep its {taskCount} {taskCount === 1 ? 'task' : 'tasks'}
-                <small className={styles.muted}>They stay as standalone tasks, with no project.</small>
-              </button>
-              <button
-                type="button"
-                role="radio"
-                aria-checked={deleteTasks}
-                className={`${styles.sheetOption} ${styles.sheetOptionStacked}`}
-                onClick={() => setDeleteTasks(true)}
-              >
-                Delete its {taskCount} {taskCount === 1 ? 'task' : 'tasks'} too
-                <small className={styles.muted}>Subtasks included. Also can&apos;t be undone.</small>
-              </button>
-            </div>
-          )}
-          {saveError && <p className={styles.formError}>{saveError}</p>}
-          <button
-            type="button"
-            className={styles.primary}
-            data-tone="danger"
-            disabled={deleting}
-            onClick={() => handleDelete(taskCount > 0 && deleteTasks)}
-          >
-            {deleting ? 'Deleting…' : taskCount > 0 && deleteTasks ? 'Delete project and tasks' : 'Delete project'}
-          </button>
-        </Modal>
-      )}
-
-      {sheet === 'priority' && <PrioritySheet value={priority} onChange={setPriority} onClose={() => setSheet(null)} />}
-      {sheet === 'color' && <ColorSheet value={color} onChange={setColor} onClose={() => setSheet(null)} />}
-    </CardFormPage>
+    </FormFrame>
   );
 
-  return isWeb ? <WebFormPanel onClose={goBack}>{content}</WebFormPanel> : content;
+  return content;
 }

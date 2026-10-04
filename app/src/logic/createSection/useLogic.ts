@@ -57,7 +57,7 @@ export function useLogic(areaId: string) {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
-      router.push(`/sections/${id}`);
+      router.replace(`/sections/${id}`);
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : 'Could not create this section.');
       setSaving(false);

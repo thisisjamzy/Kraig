@@ -51,11 +51,11 @@ export function useLogic(areaId?: string) {
       const fields = { name: name.trim(), emoji, color, description: description.trim(), updatedAt: serverTimestamp() };
       if (areaId) {
         await updateDoc(areaRef(uid, areaId), fields);
-        router.push(`/areas/${areaId}`);
+        router.replace(`/areas/${areaId}`);
       } else {
         const id = crypto.randomUUID();
         await setDoc(areaRef(uid, id), { ...fields, archived: false, createdAt: serverTimestamp() });
-        router.push(`/areas/${id}`);
+        router.replace(`/areas/${id}`);
       }
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : isEditing ? 'Could not update this area.' : 'Could not create this area.');
@@ -66,7 +66,7 @@ export function useLogic(areaId?: string) {
   async function setArchived(archived: boolean) {
     if (!uid || !areaId) return;
     await updateDoc(areaRef(uid, areaId), { archived, updatedAt: serverTimestamp() });
-    if (archived) router.push('/projects');
+    if (archived) router.replace('/projects');
   }
 
   // Back to the page the user came from (skipping forms) — see

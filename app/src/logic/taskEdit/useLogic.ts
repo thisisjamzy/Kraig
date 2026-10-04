@@ -532,7 +532,7 @@ export function useLogic(taskId: string | null, { onDone }: TaskEditOptions = {}
     }
     if (created) {
       // Back to the Time home screen, where today's list picks it up.
-      router.push('/projects');
+      router.replace('/projects');
     } else {
       router.back();
     }

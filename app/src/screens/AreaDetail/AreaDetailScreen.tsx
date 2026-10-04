@@ -19,6 +19,7 @@ import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { projectCardSpec, projectColumns, projectGroups, projectListSpec } from '@/src/widgets/ProjectDb/projectDatabase';
 import { taskCardSpec, taskColumns, taskGroups, taskListSpec, taskRowActions } from '@/src/widgets/TaskDb/taskDatabase';
 import styles from './AreaDetailScreen.module.css';
+import { useFormLink } from '@/src/shared/navigation/useFormLink';
 
 const PROJECT_ALL = ['name', 'health', 'progress', 'dates', 'start', 'end', 'tasks', 'overdue', 'area', 'status', 'description', 'lastActivity'];
 const PROJECT_VIEWS: DefaultView<ProjectRow>[] = [
@@ -32,6 +33,7 @@ const TASK_VIEWS: DefaultView<TaskRow>[] = [
 ];
 
 export function AreaDetailScreen({ areaId }: { areaId: string }) {
+  const formLink = useFormLink();
   const router = useRouter();
   const taskPanel = useTaskPanel();
   const { area, sections, openBucket, openNewBucket, loading, error } = useLogic(areaId);
@@ -56,7 +58,7 @@ export function AreaDetailScreen({ areaId }: { areaId: string }) {
         { label: 'Areas', href: '/areas' },
         { label: area.name, href: `/areas/${areaId}` },
       ]}
-      menu={[{ label: 'Edit area', href: `/areas/${areaId}/edit` }]}
+      menu={[{ label: 'Edit area', href: formLink('area', { id: areaId }) }]}
       properties={[
         { id: 'projects', label: 'Projects', display: String(active.length), sub: projects.length > active.length ? `${projects.length - active.length} completed or archived` : undefined },
         { id: 'tasks', label: 'Open tasks', display: String(open.length) },
@@ -79,7 +81,7 @@ export function AreaDetailScreen({ areaId }: { areaId: string }) {
           card={projectCardSpec(openProject)}
           list={projectListSpec}
           onOpen={openProject}
-          onNew={() => router.push(`/projects/new?areaId=${areaId}`)}
+          onNew={() => router.push(formLink('project', { areaId: areaId }))}
           emptyText="No projects in this area yet."
         />
       </Block>

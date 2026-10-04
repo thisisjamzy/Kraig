@@ -8,16 +8,13 @@ import { useState } from 'react';
 import { useLogic } from '@/src/logic/createSection/useLogic';
 import { EmojiPicker } from '@/src/widgets/EmojiPicker/EmojiPicker';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
-import { WebFormPanel } from '@/src/widgets/WebFormPanel/WebFormPanel';
-import { useIsWeb } from '@/src/shared/hooks/useViewportMode';
 import {
-  CardFormPage,
   ColorSheet,
   FieldCard,
   PickerCard,
-  SubmitButton,
   cardFormStyles as styles,
 } from '@/src/widgets/CardForm/CardForm';
+import { FormFrame } from '@/src/widgets/FormFrame/FormFrame';
 
 export function CreateSectionScreen({ areaId }: { areaId: string }) {
   const {
@@ -40,10 +37,20 @@ export function CreateSectionScreen({ areaId }: { areaId: string }) {
     error,
   } = useLogic(areaId);
   const [colorOpen, setColorOpen] = useState(false);
-  const isWeb = useIsWeb();
 
   const content = (
-    <CardFormPage title="New section" onClose={goBack}>
+    <FormFrame
+      title="New section"
+      onClose={goBack}
+      primary={{ label: 'Add section', disabled: !isValid, busy: saving }}
+      onSubmit={handleSave}
+      error={saveError}
+      overlays={
+        <>
+          {colorOpen && <ColorSheet value={color} onChange={setColor} onClose={() => setColorOpen(false)} />}
+        </>
+      }
+    >
       <ScreenState loading={loading} error={error} />
 
       {!hasAreaId && !loading && (
@@ -51,13 +58,7 @@ export function CreateSectionScreen({ areaId }: { areaId: string }) {
       )}
 
       {hasAreaId && !loading && !error && (
-        <form
-          className={styles.cards}
-          onSubmit={(event) => {
-            event.preventDefault();
-            handleSave();
-          }}
-        >
+        <>
           <FieldCard label="Name">
             <input
               className={styles.valueInput}
@@ -94,16 +95,10 @@ export function CreateSectionScreen({ areaId }: { areaId: string }) {
               <EmojiPicker value={emoji} onChange={setEmoji} label="Section emoji" noneLabel="No emoji" />
             </div>
           </div>
-
-          {saveError && <p className={styles.formError}>{saveError}</p>}
-
-          <SubmitButton disabled={!isValid || saving}>{saving ? 'Saving…' : '+ Add new section'}</SubmitButton>
-        </form>
+        </>
       )}
-
-      {colorOpen && <ColorSheet value={color} onChange={setColor} onClose={() => setColorOpen(false)} />}
-    </CardFormPage>
+    </FormFrame>
   );
 
-  return isWeb ? <WebFormPanel onClose={goBack}>{content}</WebFormPanel> : content;
+  return content;
 }

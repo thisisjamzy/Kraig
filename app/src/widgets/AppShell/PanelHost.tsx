@@ -37,9 +37,15 @@ const WalletEffectFormScreen = dynamic(() => import('@/src/screens/DebtForms/Wal
 // The forms that open as a side peek from ?peek=<kind> (formPeek.ts). A kind
 // not listed here opens its own page instead.
 const BasketItemForm = dynamic(() => import('@/src/forms/BasketItemForm/BasketItemForm').then((m) => m.BasketItemForm), { ssr: false });
+const AreaFormScreen = dynamic(() => import('@/src/screens/AreaForm/AreaFormScreen').then((m) => m.AreaFormScreen), { ssr: false });
+const ProjectFormScreen = dynamic(() => import('@/src/screens/ProjectForm/ProjectFormScreen').then((m) => m.ProjectFormScreen), { ssr: false });
+const CreateSectionScreen = dynamic(() => import('@/src/screens/CreateSection/CreateSectionScreen').then((m) => m.CreateSectionScreen), { ssr: false });
 
 const PEEK_FORMS: Partial<Record<FormKind, ComponentType<{ params: Record<string, string> }>>> = {
   'basket-item': ({ params }) => <BasketItemForm goalId={params.basket} itemId={params.item || undefined} />,
+  area: ({ params }) => <AreaFormScreen areaId={params.id || undefined} />,
+  project: ({ params }) => <ProjectFormScreen projectId={params.id || undefined} />,
+  section: ({ params }) => <CreateSectionScreen areaId={params.areaId ?? ''} />,
 };
 
 export function PanelHost() {
@@ -152,5 +158,11 @@ function TaskPanelHost() {
     sp.set('form', '1');
     return <TaskPeek key={task} taskId={task} onClose={close} fullHref={taskPageHref(task)} formHref={`${pathname}?${sp.toString()}`} />;
   }
-  return <TaskEditScreen key={task} taskId={task === 'new' ? null : task} onClose={close} />;
+  return (
+    <WebFormPanel onClose={close}>
+      <FormPeekContext.Provider value={{ peek: true, close, fullPageHref: task === 'new' ? taskPageHref('new') : `/tasks/${encodeURIComponent(task)}/edit` }}>
+        <TaskEditScreen key={task} taskId={task === 'new' ? null : task} onClose={close} />
+      </FormPeekContext.Provider>
+    </WebFormPanel>
+  );
 }

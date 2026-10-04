@@ -17,6 +17,7 @@ import { Popover } from '@/src/widgets/ListQuery/Popover';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { areaFigures } from '@/src/viewmodels/home';
 import styles from './AllAreasScreen.module.css';
+import { useFormLink } from '@/src/shared/navigation/useFormLink';
 
 const figures = areaFigures;
 
@@ -31,6 +32,7 @@ const COLUMNS: ColumnDef<AreaRow>[] = [
 ];
 
 export function AllAreasScreen() {
+  const formLink = useFormLink();
   const v = useLogic();
   const router = useRouter();
   const [archiving, setArchiving] = useState<AreaRow | null>(null);
@@ -41,7 +43,7 @@ export function AllAreasScreen() {
       title="Areas"
       icon={<MapIcon strokeWidth={1.75} />}
       crumbs={[{ label: 'Time', href: '/projects' }, { label: 'Areas', href: '/areas' }]}
-      menu={[{ label: 'New area', href: '/areas/new' }]}
+      menu={[{ label: 'New area', href: formLink('area') }]}
       properties={[
         { id: 'areas', label: 'Areas', display: String(v.areas.length) },
         { id: 'projects', label: 'Active projects', display: String(v.activeProjects) },
@@ -68,7 +70,7 @@ export function AllAreasScreen() {
           list={{ title: (a) => a.name, secondary: (a) => figures(a), ownsProperties: true }}
           rowActions={[{ id: 'archive', label: 'Archive', run: (a) => setArchiving(a) }]}
           onOpen={open}
-          onNew={() => router.push('/areas/new')}
+          onNew={() => router.push(formLink('area'))}
           newLabel="New area"
           emptyText="No areas yet. Areas group your projects (Work, Home, Health)."
         />
@@ -92,6 +94,7 @@ export function AllAreasScreen() {
 }
 
 function AreaCard({ area, onOpen, onArchive }: { area: AreaRow; onOpen: () => void; onArchive: () => void }) {
+  const formLink = useFormLink();
   const router = useRouter();
   const [menu, setMenu] = useState<HTMLElement | null>(null);
   return (
@@ -131,7 +134,7 @@ function AreaCard({ area, onOpen, onArchive }: { area: AreaRow; onOpen: () => vo
               type="button"
               onClick={() => {
                 setMenu(null);
-                router.push(`/areas/${area.id}/edit`);
+                router.push(formLink('area', { id: area.id }));
               }}
             >
               Edit

@@ -45,9 +45,9 @@ const PAGES: Record<FormKind, (p: Params) => string> = {
   'edit-category': (p) => `/categories/${enc(p.id!)}/edit`,
   wallet: (p) => `/wallets/${enc(p.id!)}/edit`,
   template: (p) => (p.id ? `/transaction-templates/${enc(p.id)}/edit` : '/transaction-templates/new'),
-  section: (p) => (p.id ? `/sections/${enc(p.id)}/edit` : `/sections/new${q(p, ['area'])}`),
+  section: (p) => (p.id ? `/sections/${enc(p.id)}/edit` : `/sections/new${q(p, ['areaId'])}`),
   area: (p) => (p.id ? `/areas/${enc(p.id)}/edit` : '/areas/new'),
-  project: (p) => (p.id ? `/projects/${enc(p.id)}/edit` : `/projects/new${q(p, ['area'])}`),
+  project: (p) => (p.id ? `/projects/${enc(p.id)}/edit` : `/projects/new${q(p, ['areaId'])}`),
 };
 
 export const FORM_KINDS = Object.keys(PAGES) as FormKind[];
