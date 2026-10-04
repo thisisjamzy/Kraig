@@ -15,6 +15,7 @@ import type { OverspendExternalSource } from '@/src/shared/firestore/types';
 import { accuracyTakeaway, bucketsTakeaway, overspendTakeaway, paceTakeaway } from '@/src/viewmodels/finance/insights';
 import { AXIS_TICK, COLORS, ChangeChip, Empty, Legend, TooltipBox, compact, full, percent, tappedIndex } from './parts';
 import styles from './FinanceInsights.module.css';
+import { useFlowLinks } from '@/src/screens/Planning/PlanningParts';
 
 function SubHead({ title, takeaway }: { title: string; takeaway: string }) {
   return (
@@ -248,6 +249,7 @@ export function RankList({
 }
 
 export function UnplannedSection({ v }: { v: FinanceInsights }) {
+  const { coverHref } = useFlowLinks();
   const router = useRouter();
   const u = v.unplanned;
   const c = v.currency;
@@ -347,7 +349,7 @@ export function UnplannedSection({ v }: { v: FinanceInsights }) {
                   </Link>
                 )}
                 {k === 'over_plan' && tx.link && (
-                  <Link href={`/budget/cover?month=${tx.link.month}&bucket=${tx.link.bucketId}&item=${tx.link.itemId}`} className={styles.inlineAction}>
+                  <Link href={coverHref(tx.link.month, tx.link.bucketId, tx.link.itemId)} className={styles.inlineAction}>
                     Justify
                   </Link>
                 )}

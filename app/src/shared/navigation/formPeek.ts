@@ -22,7 +22,9 @@ export type FormKind =
   | 'template'
   | 'section'
   | 'area'
-  | 'project';
+  | 'project'
+  | 'cover'
+  | 'reallocate';
 
 type Params = Record<string, string | null | undefined>;
 
@@ -48,6 +50,8 @@ const PAGES: Record<FormKind, (p: Params) => string> = {
   section: (p) => (p.id ? `/sections/${enc(p.id)}/edit` : `/sections/new${q(p, ['areaId'])}`),
   area: (p) => (p.id ? `/areas/${enc(p.id)}/edit` : '/areas/new'),
   project: (p) => (p.id ? `/projects/${enc(p.id)}/edit` : `/projects/new${q(p, ['areaId'])}`),
+  cover: (p) => `/budget/cover${q(p, ['month', 'bucket', 'item'])}`,
+  reallocate: (p) => `/budget/reallocate${q(p, ['month', 'bucket', 'item'])}`,
 };
 
 export const FORM_KINDS = Object.keys(PAGES) as FormKind[];
@@ -84,4 +88,20 @@ export function withoutFormPeek(pathname: string, search: string): string {
   for (const key of [...sp.keys()]) if (key.startsWith(PREFIX)) sp.delete(key);
   const s = sp.toString();
   return s ? `${pathname}?${s}` : pathname;
+}
+
+/**
+ * The page's query with a peek's own params (p_*) read under their plain
+ * names, for logic that reads window.location.search directly.
+ */
+export function peekAwareParams(search: string): URLSearchParams {
+  const sp = new URLSearchParams(search.replace(/^\?/, ''));
+  const out = new URLSearchParams();
+  sp.forEach((value, key) => {
+    if (!key.startsWith(PREFIX)) out.set(key, value);
+  });
+  sp.forEach((value, key) => {
+    if (key.startsWith(PREFIX)) out.set(key.slice(PREFIX.length), value);
+  });
+  return out;
 }

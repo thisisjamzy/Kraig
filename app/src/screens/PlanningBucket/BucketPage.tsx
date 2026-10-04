@@ -30,7 +30,7 @@ import { SidePeek, usePeek } from '@/src/widgets/Database/SidePeek';
 import { formatNumber } from '@/src/widgets/Database/format';
 import type { ColumnDef } from '@/src/widgets/Database/types';
 import { showToast } from '@/src/widgets/Toast/Toast';
-import { coverHref, reallocateHref } from '@/src/screens/Planning/PlanningParts';
+import { useFlowLinks } from '@/src/screens/Planning/PlanningParts';
 import { FLOW_ICON } from '@/src/screens/BudgetMonth/BudgetMonthPage';
 import { LinePeekContent } from '@/src/screens/BudgetMonth/LinePeek';
 import { useScopeChooser } from '@/src/screens/BudgetMonth/ScopeChooser';
@@ -48,6 +48,7 @@ type TxRow = BucketLogic['rows'][number];
 const ADD_LABEL: Record<FlowType, string> = { Income: 'Record income', Expense: 'Add expense', Savings: 'Add savings', Transfer: 'Record transfer' };
 
 export function BucketPage({ bucketId, b }: { bucketId: string; b: BucketLogic }) {
+  const { coverHref, reallocateHref } = useFlowLinks();
   const formLink = useFormLink();
   const router = useRouter();
   const v = useBudgetMonth(b.month, b.data);

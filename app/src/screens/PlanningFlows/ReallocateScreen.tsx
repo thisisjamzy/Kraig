@@ -4,15 +4,13 @@
 // savings, or next month's same bucket), how much (with 25% / 50% / all),
 // and a summary of the move before confirming.
 
-import { ArrowLeft, CalendarPlus, Layers, PiggyBank } from 'lucide-react';
+import { CalendarPlus, Layers, PiggyBank } from 'lucide-react';
 import { useLogic, type Destination } from '@/src/logic/planningReallocate/useLogic';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { money, monthTitle } from '@/src/viewmodels/planning';
-import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
+import { FormChrome } from '@/src/widgets/FormFrame/FormFrame';
 import p from '@/src/screens/Planning/Planning.module.css';
 import f from './Flows.module.css';
-import { useHasTopBar } from '@/src/widgets/AppShell/TopBarSlot';
-import { useOwnsTitle } from '@/src/widgets/AppShell/breadcrumb';
 
 const DESTINATIONS: { id: Destination; label: string; icon: typeof Layers }[] = [
   { id: 'bucket', label: 'Another basket', icon: Layers },
@@ -23,19 +21,11 @@ const DESTINATIONS: { id: Destination; label: string; icon: typeof Layers }[] = 
 const QUICK = [0.25, 0.5, 1] as const;
 
 export function ReallocateScreen() {
-  // Draws its own title: the shell adds none on wide screens.
-  useOwnsTitle(useHasTopBar());
   const r = useLogic();
 
   return (
-    <div className={`${p.page} ${p.detail} ${f.page}`}>
-      <ScreenHeader
-        left={
-          <button type="button" className={p.roundButton} onClick={r.goBack} aria-label="Back">
-            <ArrowLeft size={20} strokeWidth={2} />
-          </button>
-        }
-      />
+    <FormChrome title="Reallocate" onClose={r.goBack} phoneHeader="bar">
+      <div className={`${p.page} ${p.detail} ${f.page}`}>
 
       <ScreenState loading={r.loading} error={!r.loading && r.total <= 0 ? 'There’s nothing left over here to move.' : null} />
 
@@ -170,6 +160,7 @@ export function ReallocateScreen() {
           </div>
         </>
       )}
-    </div>
+      </div>
+    </FormChrome>
   );
 }

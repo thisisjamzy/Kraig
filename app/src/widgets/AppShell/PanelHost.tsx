@@ -39,6 +39,8 @@ const WalletEffectFormScreen = dynamic(() => import('@/src/screens/DebtForms/Wal
 const BasketItemForm = dynamic(() => import('@/src/forms/BasketItemForm/BasketItemForm').then((m) => m.BasketItemForm), { ssr: false });
 const AreaFormScreen = dynamic(() => import('@/src/screens/AreaForm/AreaFormScreen').then((m) => m.AreaFormScreen), { ssr: false });
 const ProjectFormScreen = dynamic(() => import('@/src/screens/ProjectForm/ProjectFormScreen').then((m) => m.ProjectFormScreen), { ssr: false });
+const CoverScreen = dynamic(() => import('@/src/screens/PlanningFlows/CoverScreen').then((m) => m.CoverScreen), { ssr: false });
+const ReallocateScreen = dynamic(() => import('@/src/screens/PlanningFlows/ReallocateScreen').then((m) => m.ReallocateScreen), { ssr: false });
 const CreateSectionScreen = dynamic(() => import('@/src/screens/CreateSection/CreateSectionScreen').then((m) => m.CreateSectionScreen), { ssr: false });
 
 const PEEK_FORMS: Partial<Record<FormKind, ComponentType<{ params: Record<string, string> }>>> = {
@@ -46,6 +48,8 @@ const PEEK_FORMS: Partial<Record<FormKind, ComponentType<{ params: Record<string
   area: ({ params }) => <AreaFormScreen areaId={params.id || undefined} />,
   project: ({ params }) => <ProjectFormScreen projectId={params.id || undefined} />,
   section: ({ params }) => <CreateSectionScreen areaId={params.areaId ?? ''} />,
+  cover: () => <CoverScreen />,
+  reallocate: () => <ReallocateScreen />,
 };
 
 export function PanelHost() {

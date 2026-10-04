@@ -350,7 +350,7 @@
     "src/widgets/ActualTimePrompt/ActualTimePrompt.tsx": "fcbdd31f454248ec",
     "src/widgets/AppContent/AppContent.module.css": "252f715bfbec37c7",
     "src/widgets/AppContent/AppContent.tsx": "078a9f8838fd14b1",
-    "src/widgets/AppShell/PanelHost.tsx": "a5b015263b2f9122",
+    "src/widgets/AppShell/PanelHost.tsx": "c401943681a3e8c1",
     "src/widgets/AppShell/TopBarSlot.tsx": "9aac8c32c017d143",
     "src/widgets/AuthGuard/AuthGuard.tsx": "9ae2aad252abc151",
     "src/widgets/CalendarSyncStatus/CalendarSyncStatus.module.css": "d8f8bc834aafa806",

@@ -804,3 +804,15 @@
     align-items: stretch;
   }
 }
+
+/* Wide screens: the bottom bar sits at the bottom of the form's own column
+   or side peek, not of the window. */
+@media (min-width: 768px) {
+  .sticky {
+    position: sticky;
+    right: auto;
+    left: auto;
+    margin-top: 16px;
+    border-radius: 10px;
+  }
+}

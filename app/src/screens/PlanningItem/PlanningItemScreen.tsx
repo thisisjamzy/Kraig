@@ -15,7 +15,7 @@ import { ActionMenu } from '@/src/widgets/ActionMenu/ActionMenu';
 import { ConfirmDialog } from '@/src/widgets/ConfirmDialog/ConfirmDialog';
 import { money, monthTitle, dayMonth } from '@/src/viewmodels/planning';
 import type { ItemMonth } from '@/src/shared/budget/monthBudget';
-import { Bar, HistoryRowView, SpecCell, SpecRow, coverHref, reallocateHref } from '@/src/screens/Planning/PlanningParts';
+import { Bar, HistoryRowView, SpecCell, SpecRow, useFlowLinks } from '@/src/screens/Planning/PlanningParts';
 import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import p from '@/src/screens/Planning/Planning.module.css';
 import styles from './PlanningItemScreen.module.css';
@@ -50,6 +50,7 @@ export function PlanningItemScreen({ bucketId, itemId }: { bucketId: string; ite
 }
 
 function ItemBody({ it, entry }: { it: ReturnType<typeof useLogic>; entry: ItemMonth }) {
+  const { coverHref, reallocateHref } = useFlowLinks();
   const formLink = useFormLink();
   const { month, currency, data, prompt } = it;
   const m = useItemMonth({

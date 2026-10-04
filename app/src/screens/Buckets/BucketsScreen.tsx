@@ -23,7 +23,7 @@ import { formatNumber } from '@/src/widgets/Database/format';
 import type { ColumnDef } from '@/src/widgets/Database/types';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { FLOW_ICON } from '@/src/screens/BudgetMonth/BudgetMonthPage';
-import { coverHref, reallocateHref } from '@/src/screens/Planning/PlanningParts';
+import { useFlowLinks } from '@/src/screens/Planning/PlanningParts';
 import bm from '@/src/screens/BudgetMonth/BudgetMonth.module.css';
 import styles from './BucketsScreen.module.css';
 
@@ -112,6 +112,7 @@ function bucketColumns(type: FlowType, month: string): ColumnDef<BucketRow>[] {
 }
 
 export function BucketsScreen() {
+  const { coverHref, reallocateHref } = useFlowLinks();
   const v = useLogic();
   const router = useRouter();
   const swipeRef = useSwipeModeSwitch('money');

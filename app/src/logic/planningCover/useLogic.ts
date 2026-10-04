@@ -43,6 +43,8 @@ import type {
   OverspendReason,
 } from '@/src/shared/firestore/types';
 import type { ItemMonth } from '@/src/shared/budget/monthBudget';
+import { peekAwareParams } from '@/src/shared/navigation/formPeek';
+import { useFormPeek } from '@/src/shared/navigation/formPeekContext';
 
 const EPS = 0.005;
 const r2 = (n: number) => Math.round(n * 100) / 100;
@@ -63,7 +65,7 @@ export interface CoverSource {
 
 function paramsFromSearch() {
   if (typeof window === 'undefined') return { month: monthOf(new Date()), bucket: '', item: null as string | null };
-  const q = new URLSearchParams(window.location.search);
+  const q = peekAwareParams(window.location.search);
   const month = q.get('month');
   return {
     month: month && /^\d{4}-\d{2}$/.test(month) ? month : monthOf(new Date()),
@@ -343,7 +345,9 @@ export function useLogic() {
 
   // ---- Confirm ----
   const navigateBack = useGoBack();
+  const peek = useFormPeek();
   function goBack() {
+    if (peek) return peek.close();
     navigateBack(`/budget/basket/${bucketId}?month=${month}`);
   }
 
