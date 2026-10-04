@@ -865,15 +865,18 @@ input:focus-visible + .switch {
   }
 }
 
-/* ---- Zero-radius variant (CardFormPage square): the page standard's blocks,
-   on wide screens only; phones keep the rounded cards. ---- */
+/* ---- Wide screens: field cards 10px, buttons and controls 6px
+   (docs/UI-PLATFORM-RULES.md); phones keep the BASELINE radius. ---- */
 @media (min-width: 768px) {
-  .page[data-shape='square'] .card,
-  .page[data-shape='square'] .primary,
-  .page[data-shape='square'] .segmented,
-  .page[data-shape='square'] .segment,
-  .page[data-shape='square'] .sheetOption,
-  .page[data-shape='square'] .searchField {
-    border-radius: 0;
+  .page .card,
+  .page .sheetOption {
+    border-radius: 10px;
+  }
+
+  .page .primary,
+  .page .segmented,
+  .page .segment,
+  .page .searchField {
+    border-radius: 6px;
   }
 }

@@ -103,7 +103,7 @@
   height: 38px;
   padding: 0 14px;
   border: 1.5px solid #dfe4f0;
-  border-radius: 999px;
+  border-radius: 6px;
   background: var(--p-card);
   color: var(--p-navy);
   font-family: inherit;
@@ -124,14 +124,14 @@
   grid-template-columns: repeat(3, 1fr);
   gap: 2px;
   padding: 4px;
-  border-radius: 999px;
+  border-radius: 6px;
   background: var(--p-track);
 }
 
 .tabs button {
   height: 36px;
   border: none;
-  border-radius: 999px;
+  border-radius: 6px;
   background: transparent;
   color: var(--p-muted);
   font-family: inherit;
@@ -243,7 +243,7 @@
 /* ---- Cards ---- */
 .card {
   padding: 16px;
-  border-radius: 22px;
+  border-radius: 10px;
   background: var(--p-card);
   box-shadow: var(--p-shadow);
 }
@@ -275,7 +275,7 @@
   margin: 14px -16px -16px;
   padding: 11px 16px 11px 14px;
   border-left: 3px solid var(--tone);
-  border-radius: 0 0 22px 22px;
+  border-radius: 0 0 0 0;
   background: var(--tint);
   font-size: 0.8125rem;
 }
@@ -323,7 +323,7 @@
   align-items: center;
   gap: 4px;
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: 6px;
   background: var(--p-item);
   color: var(--p-muted);
   font-size: 0.6875rem;
@@ -336,7 +336,7 @@
   max-width: 100%;
   padding: 2px 8px;
   overflow: hidden;
-  border-radius: 999px;
+  border-radius: 6px;
   background: var(--p-chip);
   color: var(--p-blue);
   font-size: 0.6875rem;
@@ -358,7 +358,7 @@
 /* ---- History row ---- */
 .rows {
   overflow: hidden;
-  border-radius: 20px;
+  border-radius: 0;
   background: var(--p-card);
   box-shadow: var(--p-shadow);
 }
@@ -474,7 +474,7 @@
   position: relative;
   z-index: 1;
   padding: 4px 16px;
-  border-radius: 22px;
+  border-radius: 0;
   background: var(--p-card);
   box-shadow: var(--p-shadow);
 }
@@ -667,7 +667,7 @@
 .empty {
   margin: 0;
   padding: 18px;
-  border-radius: 20px;
+  border-radius: 10px;
   background: var(--p-card);
   font-size: 0.875rem;
   color: var(--p-muted);
@@ -729,7 +729,7 @@
   width: 48px;
   height: 48px;
   border: none;
-  border-radius: 14px;
+  border-radius: 6px;
   background: var(--p-item);
   color: var(--p-navy);
   text-decoration: none;
@@ -788,7 +788,7 @@
   .sticky {
     left: 50%;
     width: min(760px, 100%);
-    border-radius: 22px 22px 0 0;
+    border-radius: 0 0 0 0;
     transform: translateX(-50%);
   }
 }

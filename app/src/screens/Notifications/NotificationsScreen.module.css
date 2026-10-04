@@ -13,7 +13,7 @@
   min-height: 32px;
   padding: 0 8px;
   border: 1px solid #e9e9e7;
-  border-radius: 0;
+  border-radius: 6px;
   background: var(--color-background);
   color: var(--color-text-primary);
   font-family: inherit;
@@ -195,7 +195,7 @@
   min-height: 30px;
   padding: 0 10px;
   border: 1px solid #e9e9e7;
-  border-radius: 0;
+  border-radius: 6px;
   background: var(--color-background);
   color: var(--color-text-primary);
   font-family: inherit;
@@ -216,7 +216,7 @@
   width: 32px;
   height: 32px;
   border: 0;
-  border-radius: 0;
+  border-radius: 6px;
   background: none;
   color: #6b7085;
   cursor: pointer;
@@ -271,7 +271,7 @@
   min-height: 30px;
   padding: 0 10px;
   border: 1px solid #e9e9e7;
-  border-radius: 0;
+  border-radius: 6px;
   background: var(--color-background);
   font-family: inherit;
   font-size: 0.8125rem;
@@ -347,7 +347,7 @@
 .secondary {
   min-height: 40px;
   padding: 0 16px;
-  border-radius: 0;
+  border-radius: 6px;
   font-family: inherit;
   font-size: 0.875rem;
   font-weight: 600;

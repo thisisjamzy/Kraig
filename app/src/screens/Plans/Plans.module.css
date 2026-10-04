@@ -106,7 +106,7 @@
   display: inline-flex;
   gap: 4px;
   padding: 4px;
-  border-radius: 999px;
+  border-radius: 6px;
   background: var(--pl-card);
   box-shadow: var(--pl-shadow);
 }
@@ -115,7 +115,7 @@
   min-height: 34px;
   padding: 0 14px;
   border: none;
-  border-radius: 999px;
+  border-radius: 6px;
   background: transparent;
   color: var(--pl-muted);
   font-family: inherit;
@@ -147,7 +147,7 @@
 /* ---- Cards ---- */
 .card {
   padding: 16px;
-  border-radius: 20px;
+  border-radius: 10px;
   background: var(--pl-card);
   box-shadow: var(--pl-shadow);
   scroll-margin-top: calc(var(--header-height) + 12px);
@@ -196,7 +196,7 @@
   align-items: center;
   gap: 4px;
   padding: 3px 8px;
-  border-radius: 999px;
+  border-radius: 6px;
   background: var(--tint);
   color: var(--tone);
   font-size: 0.6875rem;
@@ -289,7 +289,7 @@
   min-width: 170px;
   padding: 10px 12px;
   border: 1px solid var(--pl-track);
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--pl-card);
   box-shadow: 0 8px 24px rgba(28, 31, 58, 0.12);
   color: var(--pl-navy);
@@ -524,7 +524,7 @@
   margin-top: 10px;
   padding: 10px 12px;
   border-left: 3px solid var(--pl-red);
-  border-radius: 12px;
+  border-radius: 0;
   background: var(--pl-red-tint);
   color: var(--pl-red);
   font-size: 0.8125rem;
@@ -546,7 +546,7 @@
 .infoBox {
   margin: 0;
   padding: 12px;
-  border-radius: 14px;
+  border-radius: 10px;
   background: var(--pl-blue-tint);
   font-size: 0.8125rem;
   line-height: 1.5;
@@ -595,7 +595,7 @@
   min-height: 34px;
   padding: 0 14px;
   border: 1px solid var(--pl-track);
-  border-radius: 999px;
+  border-radius: 6px;
   background: var(--pl-card);
   color: var(--pl-navy);
   font-family: inherit;
@@ -637,7 +637,7 @@
 
 .list {
   overflow: hidden;
-  border-radius: 18px;
+  border-radius: 10px;
   background: var(--pl-card);
   box-shadow: var(--pl-shadow);
 }
@@ -709,7 +709,7 @@
   flex-shrink: 0;
   padding: 1px 7px;
   border: 1px solid transparent;
-  border-radius: 999px;
+  border-radius: 6px;
   font-size: 0.625rem;
   font-weight: 700;
   white-space: nowrap;
@@ -859,7 +859,7 @@
   min-height: 44px;
   padding: 0 16px;
   border: none;
-  border-radius: 999px;
+  border-radius: 6px;
   background: var(--pl-navy);
   color: #ffffff;
   font-family: inherit;
@@ -894,7 +894,7 @@
   height: 44px;
   padding: 0 12px;
   border: 1px solid var(--color-border);
-  border-radius: 12px;
+  border-radius: 6px;
   background: var(--color-background);
   color: var(--color-text-primary);
   font-family: inherit;
@@ -911,7 +911,7 @@
   min-height: 36px;
   padding: 0 12px;
   border: 1px solid var(--color-border);
-  border-radius: 999px;
+  border-radius: 6px;
   background: var(--color-background);
   color: var(--color-text-primary);
   font-family: inherit;
@@ -936,7 +936,7 @@
   min-height: 44px;
   padding: 0 18px;
   border: none;
-  border-radius: 999px;
+  border-radius: 6px;
   background: #1c1f3a;
   color: #ffffff;
   font-family: inherit;
@@ -980,7 +980,7 @@
   width: 100%;
   padding: 12px 14px;
   border: none;
-  border-radius: 16px;
+  border-radius: 0;
   background: var(--pl-card);
   color: inherit;
   font-family: inherit;
@@ -1033,7 +1033,7 @@
 
 .needChip {
   padding: 1px 7px;
-  border-radius: 999px;
+  border-radius: 6px;
   font-size: 0.625rem;
   font-weight: 700;
   white-space: nowrap;
@@ -1122,7 +1122,7 @@
   justify-content: space-between;
   gap: 8px;
   padding: 10px 14px;
-  border-radius: 14px;
+  border-radius: 10px;
   background: var(--pl-amber-tint);
   color: #7a520d;
   font-size: 0.8125rem;
@@ -1148,7 +1148,7 @@
   align-items: center;
   gap: 8px;
   padding: 8px 10px;
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--pl-bg);
   font-size: 0.8125rem;
 }
@@ -1175,7 +1175,7 @@
   justify-content: space-between;
   gap: 8px;
   padding: 12px;
-  border-radius: 14px;
+  border-radius: 0;
   background: var(--pl-blue-tint);
   font-size: 0.8125rem;
   line-height: 1.4;
@@ -1188,7 +1188,7 @@
 
 .tipAction {
   padding: 8px 12px;
-  border-radius: 999px;
+  border-radius: 6px;
   background: var(--pl-navy);
   color: #ffffff;
   font-size: 0.75rem;
@@ -1389,7 +1389,7 @@
   gap: 12px;
   padding: 16px;
   border: 0;
-  border-radius: 20px;
+  border-radius: 10px;
   background: var(--pl-card);
   box-shadow: var(--pl-shadow);
   color: inherit;

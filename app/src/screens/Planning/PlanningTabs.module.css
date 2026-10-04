@@ -17,7 +17,7 @@
 .calendar {
   position: relative;
   overflow: hidden;
-  border-radius: 24px;
+  border-radius: 0;
   background: var(--p-black);
   color: #ffffff;
   isolation: isolate;
@@ -68,7 +68,7 @@
   height: 26px;
   padding: 0 10px;
   border: none;
-  border-radius: 999px;
+  border-radius: 6px;
   background: rgba(255, 255, 255, 0.1);
   color: #ffffff;
   font-family: inherit;
@@ -144,7 +144,7 @@
 .sumChip {
   margin-left: auto;
   padding: 1px 7px;
-  border-radius: 999px;
+  border-radius: 6px;
   font-size: 0.6875rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
@@ -197,7 +197,7 @@
   justify-content: center;
   gap: 8px;
   height: 46px;
-  border-radius: 999px;
+  border-radius: 6px;
   background: #ffffff;
   color: #1c1f3a;
   font-size: 0.875rem;
@@ -237,7 +237,7 @@
   display: inline-flex;
   gap: 2px;
   padding: 3px;
-  border-radius: 999px;
+  border-radius: 6px;
   background: var(--p-track);
 }
 
@@ -245,7 +245,7 @@
   height: 28px;
   padding: 0 10px;
   border: none;
-  border-radius: 999px;
+  border-radius: 6px;
   background: transparent;
   color: var(--p-muted);
   font-family: inherit;
@@ -279,7 +279,7 @@
   gap: 2px;
   margin: 0 0 12px;
   padding: 3px;
-  border-radius: 999px;
+  border-radius: 6px;
   background: var(--p-track);
   overflow-x: auto;
   scrollbar-width: none;
@@ -290,7 +290,7 @@
   min-height: 36px;
   padding: 0 12px;
   border: none;
-  border-radius: 999px;
+  border-radius: 6px;
   background: transparent;
   color: var(--p-muted);
   font-family: inherit;
@@ -321,7 +321,7 @@
 .bucketCard {
   overflow: hidden;
   padding: 16px;
-  border-radius: 22px;
+  border-radius: 10px;
   background: var(--p-card);
   box-shadow: var(--p-shadow);
 }
@@ -543,7 +543,7 @@
   align-items: flex-start;
   gap: 12px;
   padding: 14px 16px;
-  border-radius: 22px;
+  border-radius: 10px;
   background: var(--p-card);
   box-shadow: var(--p-shadow);
 }
@@ -622,7 +622,7 @@
 
 .paidGroup summary span {
   padding: 1px 7px;
-  border-radius: 999px;
+  border-radius: 6px;
   background: var(--p-item);
   font-size: 0.6875rem;
 }
@@ -632,7 +632,7 @@
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   padding: 14px 4px;
-  border-radius: 22px;
+  border-radius: 0;
   background: var(--p-card);
   box-shadow: var(--p-shadow);
 }
@@ -665,7 +665,7 @@
   gap: 10px;
   margin-top: 12px;
   padding: 0 14px;
-  border-radius: 16px;
+  border-radius: 6px;
   background: var(--p-card);
   box-shadow: var(--p-shadow);
   color: var(--p-light);
@@ -720,7 +720,7 @@
   height: 34px;
   padding: 0 14px;
   border: none;
-  border-radius: 999px;
+  border-radius: 6px;
   background: var(--p-card);
   color: var(--p-navy);
   font-family: inherit;
@@ -786,7 +786,7 @@
   min-height: 50px;
   padding: 0 12px;
   border: none;
-  border-radius: 14px;
+  border-radius: 6px;
   background: transparent;
   color: var(--color-text-primary);
   font-family: inherit;
@@ -822,7 +822,7 @@
   height: 46px;
   padding: 0 12px;
   border: none;
-  border-radius: 12px;
+  border-radius: 6px;
   background: var(--color-surface);
   color: var(--color-text-primary);
   font-family: inherit;
@@ -862,7 +862,7 @@
 .monthGrid button {
   height: 44px;
   border: none;
-  border-radius: 12px;
+  border-radius: 6px;
   background: var(--color-surface);
   color: var(--color-text-primary);
   font-family: inherit;
@@ -941,7 +941,7 @@
 .needChip {
   margin-left: 6px;
   padding: 1px 7px;
-  border-radius: 999px;
+  border-radius: 6px;
   font-size: 0.625rem;
   font-weight: 700;
   white-space: nowrap;
@@ -973,7 +973,7 @@
   margin: 14px -16px -16px;
   padding: 11px 16px 11px 14px;
   border-left: 3px solid var(--p-red);
-  border-radius: 0 0 22px 22px;
+  border-radius: 0 0 0 0;
   background: var(--p-red-tint);
   color: var(--p-red);
   font-size: 0.8125rem;

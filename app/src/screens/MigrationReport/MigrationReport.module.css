@@ -16,7 +16,7 @@
 
 .section h2 span {
   padding: 1px 8px;
-  border-radius: 999px;
+  border-radius: 6px;
   background: var(--color-surface);
   font-size: 0.75rem;
   font-weight: 600;
@@ -74,7 +74,7 @@
   min-height: 44px;
   padding: 0 22px;
   border: 0;
-  border-radius: 10px;
+  border-radius: 6px;
   background: var(--color-brand);
   color: #fff;
   font: inherit;

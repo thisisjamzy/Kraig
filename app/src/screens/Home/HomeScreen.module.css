@@ -153,7 +153,7 @@
   min-height: 30px;
   padding: 0 12px;
   border: 1px solid var(--h-line);
-  border-radius: 999px;
+  border-radius: 6px;
   background: none;
   color: var(--h-navy);
   font: inherit;
@@ -344,7 +344,7 @@
   min-height: 34px;
   padding: 0 8px;
   border: 0;
-  border-radius: 4px;
+  border-radius: 6px;
   background: none;
   color: inherit;
   font: inherit;
@@ -373,7 +373,7 @@
   align-items: center;
   gap: 6px;
   padding: 3px 10px;
-  border-radius: 999px;
+  border-radius: 6px;
   background: var(--h-navy);
   color: #fff;
   font-size: 0.8125rem;
@@ -453,7 +453,7 @@
 .monthChip {
   padding: 2px 8px;
   border: 1px solid var(--h-line);
-  border-radius: 999px;
+  border-radius: 6px;
   font-size: 0.75rem;
 }
 
@@ -516,7 +516,7 @@
 .insight {
   align-self: center;
   padding: 4px 10px;
-  border-radius: 999px;
+  border-radius: 6px;
   background: #eef2ff;
   color: var(--h-blue);
   font-size: 0.8125rem;
@@ -625,7 +625,7 @@
 
 .pill {
   padding: 0 7px;
-  border-radius: 999px;
+  border-radius: 6px;
   background: var(--h-lime);
   color: #3a4410;
   font-size: 0.75rem;
@@ -668,7 +668,7 @@
   width: 30px;
   height: 30px;
   border: 0;
-  border-radius: 4px;
+  border-radius: 6px;
   background: none;
   color: var(--h-muted);
   cursor: pointer;
@@ -903,7 +903,7 @@
   min-height: 26px;
   padding: 0 10px;
   border: 0;
-  border-radius: 4px;
+  border-radius: 6px;
   background: none;
   color: var(--h-muted);
   font: inherit;

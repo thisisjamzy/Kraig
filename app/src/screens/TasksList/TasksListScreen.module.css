@@ -31,7 +31,7 @@
   width: 28px;
   height: 28px;
   border: none;
-  border-radius: var(--radius-full);
+  border-radius: 6px;
   background: var(--ink-bg);
   color: var(--ink-text);
   cursor: pointer;
@@ -55,7 +55,7 @@
   min-height: 44px;
   margin-bottom: var(--space-sm);
   border: none;
-  border-radius: var(--radius-full);
+  border-radius: 6px;
   background: var(--color-brand-tint);
   color: var(--color-brand);
   font-family: inherit;

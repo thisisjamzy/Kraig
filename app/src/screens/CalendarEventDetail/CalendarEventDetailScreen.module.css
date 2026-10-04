@@ -13,7 +13,7 @@
   align-items: center;
   gap: 5px;
   padding: 3px 9px 3px 4px;
-  border-radius: var(--radius-full);
+  border-radius: 6px;
   background: var(--tf-track);
   color: var(--tf-label);
   font-size: 12px;
@@ -67,7 +67,7 @@
   justify-content: center;
   gap: 8px;
   min-height: 52px;
-  border-radius: 20px;
+  border-radius: 6px;
   background: var(--tf-card);
   color: var(--tf-accent);
   font-size: 16px;
@@ -128,7 +128,7 @@
   align-items: center;
   gap: 4px;
   padding: 2px 8px;
-  border-radius: var(--radius-full);
+  border-radius: 6px;
   background: var(--tf-track);
   color: var(--tf-label);
   font-size: 12px;

@@ -67,7 +67,7 @@
   flex-direction: column;
   background: var(--color-background);
   border: 1px solid var(--color-border);
-  border-radius: 20px;
+  border-radius: 10px;
   overflow: hidden;
 }
 
@@ -170,7 +170,7 @@
 .optionRow {
   padding: var(--space-sm) var(--space-md);
   border: none;
-  border-radius: 0;
+  border-radius: 10px;
   background: var(--color-surface);
   font-family: inherit;
   font-size: var(--font-size-sm);
@@ -194,7 +194,7 @@
 .chip {
   padding: var(--space-xs) var(--space-md);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-full);
+  border-radius: 6px;
   background: none;
   font-family: inherit;
   font-size: var(--font-size-sm);
@@ -419,7 +419,7 @@
   min-width: 0;
   padding: var(--space-sm) var(--space-md);
   border: none;
-  border-radius: var(--radius-md);
+  border-radius: 6px;
   background: var(--color-surface);
   color: var(--color-text-primary);
   font-family: inherit;
@@ -432,7 +432,7 @@
   flex-shrink: 0;
   padding: var(--space-sm) var(--space-md);
   border: none;
-  border-radius: var(--radius-md);
+  border-radius: 6px;
   background: var(--color-surface);
   color: var(--color-text-primary);
   font-family: inherit;

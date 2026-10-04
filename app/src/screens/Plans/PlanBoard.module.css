@@ -30,7 +30,7 @@
   min-height: 32px;
   padding: 0 8px;
   border: 1px solid #e9e9e7;
-  border-radius: 0;
+  border-radius: 6px;
   background: var(--color-background);
   color: var(--color-text-primary);
   font-family: inherit;
@@ -55,7 +55,7 @@
   width: 32px;
   height: 32px;
   border: 1px solid #e9e9e7;
-  border-radius: 0;
+  border-radius: 6px;
   background: var(--color-background);
   color: #6b7085;
   cursor: pointer;
@@ -68,7 +68,7 @@
   min-height: 32px;
   padding: 0 12px;
   border: 1px solid #e9e9e7;
-  border-radius: 0;
+  border-radius: 6px;
   background: var(--color-background);
   color: var(--color-text-primary);
   font-family: inherit;
@@ -87,7 +87,7 @@
 .secondary {
   min-height: 34px;
   padding: 0 14px;
-  border-radius: 0;
+  border-radius: 6px;
   font-family: inherit;
   font-size: 0.8125rem;
   font-weight: 600;
@@ -433,7 +433,7 @@
   gap: 4px;
   padding: 8px;
   border: 1px solid #e9e9e7;
-  border-radius: 0;
+  border-radius: 10px;
   background: var(--color-background);
   font-size: 0.8125rem;
   touch-action: manipulation;
@@ -528,7 +528,7 @@
   min-height: 26px;
   padding: 0 4px;
   border: 1px solid var(--color-brand);
-  border-radius: 0;
+  border-radius: 6px;
   font-family: inherit;
   font-size: 0.9375rem;
   font-weight: 700;
@@ -592,7 +592,7 @@
   min-height: 26px;
   padding: 0 10px;
   border: 1px solid #e9e9e7;
-  border-radius: 0;
+  border-radius: 6px;
   background: var(--color-background);
   font-family: inherit;
   font-size: 0.75rem;
@@ -650,7 +650,7 @@
   min-height: 30px;
   padding: 0 6px;
   border: 1px solid #e9e9e7;
-  border-radius: 0;
+  border-radius: 6px;
   font-family: inherit;
   font-size: 0.75rem;
 }
@@ -658,7 +658,7 @@
 .addWant {
   min-height: 32px;
   border: 1px dashed #c9ccd6;
-  border-radius: 0;
+  border-radius: 6px;
   background: none;
   color: var(--color-text-primary);
   font-family: inherit;
@@ -671,7 +671,7 @@
   min-height: 40px;
   padding: 0 12px;
   border: 1px solid #e9e9e7;
-  border-radius: 0;
+  border-radius: 10px;
   background: var(--color-background);
   font-family: inherit;
   font-size: 0.8125rem;
@@ -742,7 +742,7 @@
   min-height: 36px;
   padding: 0 8px;
   border: 1px solid #e9e9e7;
-  border-radius: 0;
+  border-radius: 6px;
   color: var(--color-text-primary);
   font-family: inherit;
   font-size: 0.9375rem;
@@ -787,7 +787,7 @@
   min-height: 36px;
   padding: 0 12px;
   border: 1px solid #e9e9e7;
-  border-radius: 0;
+  border-radius: 6px;
   background: var(--color-background);
   font-family: inherit;
   font-size: 0.8125rem;

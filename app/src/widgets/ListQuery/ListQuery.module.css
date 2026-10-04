@@ -198,7 +198,7 @@
 /* Wide screens: the page standard's corners. */
 @media (min-width: 768px) {
   .popover {
-    border-radius: 6px;
+    border-radius: 10px;
   }
 }
 
