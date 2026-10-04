@@ -14,7 +14,7 @@ import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { monthKey, monthLabel, remaining, shiftMonth } from '@/src/viewmodels/plans/model';
 import type { Scenario } from '@/src/viewmodels/plans/forecast';
-import { AXIS_TICK, COLORS, Card, Chip, Figure, Legend, STATUS_TEXT, STATUS_TONE, Segmented, TooltipBox, Visual, compact, full, monthShort } from '@/src/screens/Plans/parts';
+import { AXIS_TICK, COLORS, Card, Chip, Figure, Legend, STATUS_TEXT, STATUS_TONE, Segmented, TooltipBox, Visual, compact, full, monthShort } from '@/src/phone/screens/Plans/parts';
 import styles from '@/src/phone/screens/Plans/Plans.module.css';
 import { Fragment, type ReactNode } from 'react';
 import { useHasTopBar } from '@/src/widgets/AppShell/TopBarSlot';

@@ -12,8 +12,7 @@ import { Check, Layers, Plus } from 'lucide-react';
 import { useBudgetTab } from '@/src/logic/planning/useBudgetTab';
 import { useBudgetMonth } from '@/src/logic/budgetMonth/useLogic';
 import { FLOW_LABEL, FLOW_TYPES } from '@/src/shared/budget/flow';
-import { ReadyToPayCard } from '@/src/widgets/ReadyToPay/ReadyToPayCard';
-import { IncomePrompt, MigrationNotice, SetupBanner } from '@/src/phone/screens/Planning/Banners';
+import { IncomePrompt, MigrationNotice, ReadyBanner, SetupBanner } from '@/src/phone/screens/Planning/Banners';
 import type { PlanningData } from '@/src/logic/planning/useLogic';
 import { ActionMenu } from '@/src/widgets/ActionMenu/ActionMenu';
 import { money, signedMoney } from '@/src/viewmodels/planning';
@@ -96,7 +95,7 @@ export function BudgetTab({ month, data }: { month: string; data: PlanningData }
           onNotYet={() => v.notYet(line)}
         />
       ))}
-      {v.isCurrent && <ReadyToPayCard />}
+      {v.isCurrent && <ReadyBanner />}
 
       <p className={styles.label}>Total budget</p>
       <section className={tab.summary} aria-label="This month's budget">

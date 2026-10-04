@@ -13,7 +13,7 @@ import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import { formatAmount } from '@/src/phone/screens/Buckets/BucketsScreen';
 import { NECESSITY_LABEL } from '@/src/viewmodels/projects';
-import { BucketItemMonthSheet } from '@/src/screens/BucketItemMonth/BucketItemMonthSheet';
+import { BucketItemMonthSheet } from '@/src/phone/screens/BucketItemMonth/BucketItemMonthSheet';
 import { itemMonthKey, monthLabel } from '@/src/shared/budget/monthBudget';
 import styles from '@/src/phone/screens/BucketDetail/BucketDetailScreen.module.css';
 

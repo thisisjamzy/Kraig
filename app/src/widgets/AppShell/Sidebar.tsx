@@ -32,6 +32,7 @@ import { FavoritesSection, PageTree } from './PageTree';
 import { SIDEBAR_MAX, SIDEBAR_MIN } from './sidebarState';
 import styles from './Sidebar.module.css';
 import { NotificationCount } from '@/src/widgets/Notifications/NotificationBell';
+import { useWebOnly } from '@/src/shared/device/useWebOnly';
 
 const MODE_KEY = 'dreda.mode';
 
@@ -81,6 +82,7 @@ export function Sidebar({
   onCollapse: () => void;
   onSearch: () => void;
 }) {
+  useWebOnly('Sidebar');
   const pathname = usePathname();
   const router = useRouter();
   const { user } = useFirebaseUser();

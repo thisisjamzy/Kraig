@@ -9,11 +9,30 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { CalendarCheck, CircleHelp, Sparkles } from 'lucide-react';
+import { CalendarCheck, CircleHelp, Send, Sparkles } from 'lucide-react';
+import { useReadyToPay } from '@/src/shared/hooks/useReadyToPay';
 import type { LineRow } from '@/src/logic/budgetMonth/lines';
 import styles from '@/src/phone/screens/Planning/Banners.module.css';
 
 const money = (n: number) => Math.round(n).toLocaleString('en-US');
+
+/** "9 payments ready to confirm · 612,500" with Open, when any are waiting. */
+export function ReadyBanner() {
+  const q = useReadyToPay();
+  if (q.loading || q.count === 0) return null;
+  const total = q.entries.reduce((s, e) => s + e.amount + (e.fee ?? 0), 0);
+  return (
+    <div className={styles.banner} role="status">
+      <Send size={18} strokeWidth={2.25} aria-hidden />
+      <p>
+        {q.count} {q.count === 1 ? 'payment' : 'payments'} ready to confirm · {money(total)}
+      </p>
+      <Link href="/budget/ready" className={styles.bannerButton}>
+        Open
+      </Link>
+    </div>
+  );
+}
 
 export function MigrationNotice() {
   return (

@@ -23,6 +23,7 @@ import { PageMenuRows } from './PageMenuRows';
 import menu from './Sidebar.module.css';
 import styles from './TopBar.module.css';
 import { NotificationBell } from '@/src/widgets/Notifications/NotificationBell';
+import { useWebOnly } from '@/src/shared/device/useWebOnly';
 
 function iconFor(crumb: Crumb, index: number) {
   if (index === 0) return null;
@@ -42,6 +43,7 @@ export function TopBar({
   compactCrumbs: boolean;
   defaultWidth: 'full' | 'standard';
 }) {
+  useWebOnly('TopBar');
   const pathname = usePathname();
   const search = useLocationSearch(pathname);
   const meta = usePageMeta();

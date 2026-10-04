@@ -28,6 +28,7 @@ import { fieldTypeOf, formatNumber, formatValue } from './format';
 import { useDatabaseState } from './useDatabaseState';
 import type { BoardSpec, BulkAction, ColumnDef, DefaultView, GroupDef, Layout, ListSpec, NewTemplate, RowAction, ViewConfig } from './types';
 import styles from './Database.module.css';
+import { useWebOnly } from '@/src/shared/device/useWebOnly';
 
 const DEFAULT_VIEWS: DefaultView<never>[] = [
   { id: 'table', name: 'Table', layout: 'table' },
@@ -86,6 +87,7 @@ export interface DatabaseProps<T> {
 }
 
 export function Database<T>(props: DatabaseProps<T>) {
+  useWebOnly('Database');
   const { id, label, noun, rows, rowKey, columns, groups = [], card } = props;
   const tabsFor = (v: ViewConfig) => (typeof props.tabs === 'function' ? props.tabs(v) : props.tabs);
   const { deviceClass } = useLayout();

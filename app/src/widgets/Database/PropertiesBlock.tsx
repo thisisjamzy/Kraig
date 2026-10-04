@@ -20,6 +20,7 @@ import { CellEditor } from './CellEditor';
 import { formatValue } from './format';
 import type { CellType } from './types';
 import styles from './PropertiesGrid.module.css';
+import { useWebOnly } from '@/src/shared/device/useWebOnly';
 
 export type PropertyTone = 'neutral' | 'in' | 'out' | 'good' | 'watch' | 'bad';
 
@@ -63,6 +64,7 @@ export function CompactProgress({ value, tone }: { value: number; tone?: Propert
 }
 
 export function PropertiesGrid({ properties, label = 'Properties' }: { properties: Property[]; label?: string }) {
+  useWebOnly('PropertiesGrid');
   const [editing, setEditing] = useState<{ id: string; anchor: HTMLElement } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [all, setAll] = useState(false);

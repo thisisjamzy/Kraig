@@ -16,7 +16,7 @@ import { money, signedMoney, weekdayDayMonth } from '@/src/viewmodels/planning';
 import { round2 } from '@/src/shared/firestore/currency';
 import { HistoryRowView } from '@/src/phone/screens/Planning/PlanningParts';
 import { useLayout } from '@/src/shared/hooks/useLayout';
-import { HistoryTable } from '@/src/screens/Planning/HistoryTable';
+import { HistoryTable } from '@/src/phone/screens/Planning/HistoryTable';
 import styles from '@/src/phone/screens/Planning/Planning.module.css';
 import tab from '@/src/phone/screens/Planning/PlanningTabs.module.css';
 

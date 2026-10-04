@@ -27,6 +27,7 @@ import { PropertiesGrid, type Property } from './PropertiesBlock';
 import styles from './Database.module.css';
 import frame from './NotionPage.module.css';
 import { NotificationBell } from '@/src/widgets/Notifications/NotificationBell';
+import { useWebOnly } from '@/src/shared/device/useWebOnly';
 
 export function NotionPageHeader({
   icon,
@@ -42,6 +43,7 @@ export function NotionPageHeader({
   actions?: ReactNode;
   children?: ReactNode;
 }) {
+  useWebOnly('NotionPage');
   return (
     <header className={styles.pageHeader}>
       <div className={styles.pageTitleRow}>
