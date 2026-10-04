@@ -1,0 +1,208 @@
+/* Plan and forecast's Focus view (FocusView.tsx), wide screens. Tables and
+   chart blocks are page blocks (0 corners); controls 6px. */
+
+.focus {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.month {
+  min-height: 30px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-background);
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.month[aria-pressed='true'] {
+  border-color: var(--color-brand);
+  background: var(--color-brand);
+  color: #ffffff;
+}
+
+.figures {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.figures th,
+.figures td {
+  height: 44px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--color-border);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.figures thead th {
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.figures tbody th {
+  font-weight: 500;
+}
+
+.figures [data-num] {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.figures td[data-tone='bad'] {
+  color: #d6404f;
+}
+
+.figures td[data-tone='watch'] {
+  color: #c27c0e;
+}
+
+.sub {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.visualHead {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.segmented {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 6px;
+  background: var(--color-surface);
+}
+
+.segmented button {
+  min-height: 28px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 5px;
+  background: none;
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.segmented button[aria-checked='true'] {
+  background: var(--color-background);
+  color: var(--color-text-primary);
+  box-shadow: 0 1px 3px rgba(28, 31, 58, 0.12);
+}
+
+.charts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.chartPair {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+}
+
+.chart {
+  margin: 0;
+}
+
+.chartTitle {
+  margin-bottom: 6px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.chart svg {
+  width: 100%;
+  height: auto;
+}
+
+.zero {
+  stroke: var(--color-border);
+}
+
+.bar[data-kind='total'] {
+  fill: #6b7085;
+}
+
+.bar[data-kind='up'] {
+  fill: #1f9d6b;
+}
+
+.bar[data-kind='down'] {
+  fill: #3965fa;
+}
+
+.bar[data-kind='comfortable'] {
+  fill: #1f9d6b;
+}
+
+.bar[data-kind='close'] {
+  fill: #c27c0e;
+}
+
+.bar[data-kind='below'] {
+  fill: #d6404f;
+}
+
+.axis {
+  fill: var(--color-text-secondary);
+  font-size: 10px;
+}
+
+.donut {
+  display: flex;
+  flex-direction: column;
+}
+
+.legend {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.swatch {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 6px;
+  border-radius: 2px;
+}
+
+.summary {
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.45;
+}
+
+.month:focus-visible,
+.segmented button:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+}
