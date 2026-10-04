@@ -1,87 +1,22 @@
-.section {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+/* Room for the sticky bar while the report still waits for "Got it". */
+.page[data-pending] {
+  padding-bottom: calc(110px + var(--safe-bottom));
 }
 
-.section h2 {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 700;
-  color: var(--color-text-primary);
+.intro {
+  margin: 4px 2px 0;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: var(--p-muted);
 }
 
-.section h2 span {
-  padding: 1px 8px;
-  border-radius: 999px;
-  background: var(--color-surface);
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--color-text-secondary);
+/* The detail wraps: it's a sentence, not a label. */
+.detail {
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: var(--p-muted);
 }
 
-.section[data-kind='needs-attention'] h2,
-.section[data-kind='kind-guessed'] h2 {
-  color: #b7791f;
-}
-
-.section ul {
-  display: flex;
-  flex-direction: column;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  border: 1px solid #e9e9e7;
-  background: var(--color-background);
-}
-
-.section li {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 12px;
-  padding: 10px 14px;
-  font-size: 0.875rem;
-}
-
-.section li + li {
-  border-top: 1px solid var(--color-border);
-}
-
-.section li strong {
-  flex: 0 1 240px;
-  overflow-wrap: anywhere;
-}
-
-.section li span {
-  flex: 1 1 280px;
-  color: var(--color-text-secondary);
-}
-
-.muted {
-  margin: 0;
-  color: var(--color-text-secondary);
-}
-
-.actions {
-  display: flex;
-  justify-content: flex-end;
-}
-
-.primary {
-  min-height: 44px;
-  padding: 0 22px;
-  border: 0;
-  border-radius: 10px;
-  background: var(--color-brand);
-  color: #fff;
-  font: inherit;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.primary:disabled {
-  opacity: 0.55;
+.full {
+  flex: 1;
 }
