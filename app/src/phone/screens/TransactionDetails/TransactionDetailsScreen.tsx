@@ -13,21 +13,11 @@ import { SpecCell, SpecRow } from '@/src/phone/screens/Planning/PlanningParts';
 import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import p from '@/src/phone/screens/Planning/Planning.module.css';
 import styles from '@/src/phone/screens/TransactionDetails/TransactionDetailsScreen.module.css';
-import { useHasTopBar } from '@/src/widgets/AppShell/TopBarSlot';
-import { useBreadcrumb } from '@/src/widgets/AppShell/breadcrumb';
-import { Block, NotionPageHeader } from '@/src/phone/widgets/Database/NotionPage';
-import { PropertiesBlock } from '@/src/phone/widgets/Database/PropertiesBlock';
-import bm from '@/src/phone/screens/BudgetMonth/BudgetMonth.module.css';
 
 export function TransactionDetailsScreen({ id }: { id: string }) {
   const t = useLogic(id);
   const v = t.view;
   const Icon = v?.flow === 'in' ? ArrowDownLeft : v?.flow === 'out' ? ArrowUpRight : ArrowLeftRight;
-  // Medium screens and up: a Notion-style page (breadcrumb, title,
-  // properties). Phones keep the page below.
-  const inShell = useHasTopBar();
-  if (inShell) return <TransactionPage t={t} />;
-
   return (
     <div className={`${p.page} ${p.detail} ${styles.page}`}>
       <ScreenHeader
@@ -144,91 +134,4 @@ export function TransactionDetailsScreen({ id }: { id: string }) {
       )}
     </div>
   );
-}
-
-type TxLogic = ReturnType<typeof useLogic>;
-
-/** The transaction as a page; `inPeek` when it's shown in a side peek
- * over the Transactions page (no breadcrumb of its own then). */
-export function TransactionPage({ t, inPeek = false }: { t: TxLogic; inPeek?: boolean }) {
-  const v = t.view;
-  useBreadcrumb(inPeek ? null : [{ label: 'Money', href: '/home' }, { label: 'Transactions', href: '/transactions' }, { label: v?.title ?? 'Transaction' }]);
-  if (!v) return <ScreenState loading={t.loading} error={t.missing ? 'This transaction could not be found.' : null} />;
-  const Icon = v.flow === 'in' ? ArrowDownLeft : v.flow === 'out' ? ArrowUpRight : ArrowLeftRight;
-  const sign = v.flow === 'in' ? '+' : v.flow === 'out' ? '-' : '';
-  return (
-    <div className={inPeek ? undefined : bm.page}>
-      <NotionPageHeader
-        icon={<Icon size={24} strokeWidth={2} />}
-        title={v.title}
-        kind={`${v.type} · ${sign}${money(v.amount)} ${t.currency}`}
-        actions={
-          <Link href={v.editHref} className={bm.ghostButton}>
-            <Pencil size={14} strokeWidth={2.25} aria-hidden /> Edit
-          </Link>
-        }
-      >
-        <PropertiesBlock
-          properties={[
-            { id: 'amount', label: 'Amount', display: `${sign}${money(v.amount)} ${t.currency}` },
-            { id: 'date', label: 'Date', display: `${weekdayDayMonth(v.date)} ${v.date.getFullYear()}` },
-            { id: 'time', label: 'Time', display: v.timeKnown ? v.date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : null },
-            { id: 'type', label: 'Type', display: v.type },
-            ...(v.subtype ? [{ id: 'subtype', label: 'Income subtype', display: v.subtype }] : []),
-            { id: 'category', label: t.isTransfer ? 'Kind' : 'Category', display: v.category === '' ? null : v.category },
-            { id: 'account', label: t.isTransfer ? 'From and to' : 'Account', display: v.method },
-            {
-              id: 'bucket',
-              label: 'Bucket',
-              display: t.link && t.bucketHref ? <Link href={t.bucketHref} className={bm.relation}>{t.linkLabel}</Link> : null,
-            },
-            ...(t.linkMonth ? [{ id: 'month', label: 'Counts toward', display: t.linkMonth }] : []),
-          ]}
-        />
-      </NotionPageHeader>
-
-      {t.canAssign && (
-        <Block
-          title={t.link ? 'Bucket item' : 'Assign to bucket'}
-          actions={
-            !t.picking ? (
-              <button type="button" className={bm.inlineAction} onClick={() => t.setPicking(true)}>
-                {t.link ? 'Change' : 'Choose'}
-              </button>
-            ) : null
-          }
-        >
-          {t.picking &&
-            (t.options.length === 0 ? (
-              <p className={p.empty}>No bucket item in this category around this month. Add one to a bucket first.</p>
-            ) : (
-              <div className={styles.options} role="radiogroup" aria-label="Bucket item">
-                {t.options.map((o) => (
-                  <button key={o.key} type="button" role="radio" aria-checked={o.key === t.currentKey} disabled={t.busy} onClick={() => t.assignTo(o.link)}>
-                    {o.label}
-                  </button>
-                ))}
-                {t.link && (
-                  <button type="button" className={styles.unlink} disabled={t.busy} onClick={() => t.assignTo(null)}>
-                    Remove from bucket
-                  </button>
-                )}
-              </div>
-            ))}
-          {t.error && <p className={styles.error}>{t.error}</p>}
-        </Block>
-      )}
-
-      <Block title="Note">
-        {v.note ? <p className={styles.note}>{v.note}</p> : <p className={p.empty}>No note.</p>}
-      </Block>
-    </div>
-  );
-}
-
-
-/** A transaction in a side peek. */
-export function TransactionPeekContent({ id, transfer }: { id: string; transfer: boolean }) {
-  const t = useLogic(id, { transfer });
-  return <TransactionPage t={t} inPeek />;
 }

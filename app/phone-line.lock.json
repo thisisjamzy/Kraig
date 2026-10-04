@@ -184,7 +184,7 @@
     "src/phone/screens/TasksList/TasksListScreen.module.css": "799a4ac8519957d0",
     "src/phone/screens/TasksList/TasksListScreen.tsx": "9dfdab9b90c4aeff",
     "src/phone/screens/TransactionDetails/TransactionDetailsScreen.module.css": "cd402e1993da2f63",
-    "src/phone/screens/TransactionDetails/TransactionDetailsScreen.tsx": "de53528572785c2f",
+    "src/phone/screens/TransactionDetails/TransactionDetailsScreen.tsx": "c6f14279580b3285",
     "src/phone/screens/TransactionHistory/AllTransactions.module.css": "d1733a467bf7cb0c",
     "src/phone/screens/TransactionHistory/TransactionHistoryScreen.module.css": "7b3798a7a57474f9",
     "src/phone/screens/TransactionHistory/TransactionHistoryScreen.tsx": "9695533c5bd2c87f",
