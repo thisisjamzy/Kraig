@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { query, where } from 'firebase/firestore';
 import { getFirebaseAuth } from '@/src/shared/config/firebaseClient';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
@@ -22,6 +21,7 @@ import type {
   FirestoreTransactionTemplate,
 } from '@/src/shared/firestore/types';
 import { useGoBack } from '@/src/shared/navigation/useGoBack';
+import { useFormFinish } from '@/src/shared/navigation/formPeekContext';
 
 export type TransactionType = 'expense' | 'income' | 'transfer' | 'savings';
 export type Step = 'type' | 'category' | 'details' | 'review';
@@ -135,7 +135,7 @@ function bucketItemFromSearch(): { bucketId: string; itemId: string; month: stri
 }
 
 export function useLogic() {
-  const router = useRouter();
+  const finish = useFormFinish();
   const { user } = useFirebaseUser();
   const uid = user?.uid;
   const [retroTarget] = useState(retroTargetFromSearch);
@@ -664,7 +664,7 @@ export function useLogic() {
           ctx
         );
       }
-      router.push('/home');
+      finish('/home');
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : 'Could not save this transaction.');
       setSubmitting(false);
@@ -680,7 +680,28 @@ export function useLogic() {
       (!isEffectivelyTransferLike || (toAccountId.length > 0 && toAccountId !== fromAccountId))) ||
     (step === 'review' && !submitting);
 
+  // The one-page form (the form standard): every field at once, so it can
+  // save as soon as all of them are valid, whatever step the wizard is on.
+  const canSave =
+    !submitting &&
+    category.length > 0 &&
+    description.trim().length > 0 &&
+    Number(amountString) > 0 &&
+    fromAccountId.length > 0 &&
+    (!isEffectivelyTransferLike || (toAccountId.length > 0 && toAccountId !== fromAccountId));
+
+  function setAmount(text: string) {
+    const clean = text.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1').slice(0, 12);
+    setAmountString(clean);
+  }
+
   return {
+    /** Leave the form (the one-page form has no steps to go back through). */
+    close: () => navigateBack('/home'),
+    canSave,
+    setAmount,
+    setFromAccountId,
+    setToAccountId,
     step,
     type,
     incomeSubtype,
