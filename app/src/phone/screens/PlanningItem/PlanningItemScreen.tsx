@@ -19,18 +19,9 @@ import { Bar, HistoryRowView, SpecCell, SpecRow, coverHref, reallocateHref } fro
 import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import p from '@/src/phone/screens/Planning/Planning.module.css';
 import styles from '@/src/phone/screens/PlanningItem/PlanningItemScreen.module.css';
-import { useHasTopBar } from '@/src/widgets/AppShell/TopBarSlot';
-import { ItemPage } from '@/src/phone/screens/PlanningItem/ItemPage';
 
 export function PlanningItemScreen({ bucketId, itemId }: { bucketId: string; itemId: string }) {
   const it = useLogic(bucketId, itemId);
-  // Medium screens and up: the Notion-style item page (one header: the
-  // top bar's breadcrumb). Phones keep the page below.
-  const inShell = useHasTopBar();
-  if (inShell) {
-    if (it.loading) return <ScreenState loading />;
-    return <ItemPage bucketId={bucketId} itemId={itemId} it={it} />;
-  }
   if (it.loading || !it.entry) {
     return (
       <div className={`${p.page} ${p.detail}`}>

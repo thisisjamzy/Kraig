@@ -26,8 +26,6 @@ import { AdjustmentRow, AdjustmentSheet } from '@/src/phone/screens/PlanningBuck
 import { CloseBucketSheet } from '@/src/phone/screens/PlanningBucket/CloseBucketSheet';
 import adj from '@/src/phone/screens/PlanningBucket/Adjustments.module.css';
 import styles from '@/src/phone/screens/PlanningBucket/PlanningBucketScreen.module.css';
-import { useHasTopBar } from '@/src/widgets/AppShell/TopBarSlot';
-import { BucketPage } from '@/src/phone/screens/PlanningBucket/BucketPage';
 
 // Distinct brand-blue shades, one per item (segment and legend dot).
 const SHADES = ['#3b63f0', '#243a8c', '#7d97f6', '#1c2a6b', '#a9baf9', '#4f6fd8', '#5c6fae', '#c7d3fc'];
@@ -49,17 +47,7 @@ function scrollToItem(itemId: string) {
 }
 
 export function PlanningBucketScreen({ bucketId }: { bucketId: string }) {
-  const b = useLogic(bucketId);
-  // Medium screens and up: the two-column Notion-style page (no in-page
-  // header or floating bottom bar). Phones keep the view below.
-  const inShell = useHasTopBar();
-  if (inShell) {
-    if (b.loading || !b.bucket) {
-      return <ScreenState loading={b.loading} error={!b.loading ? 'This bucket could not be found.' : null} />;
-    }
-    return <BucketPage bucketId={bucketId} b={b} />;
-  }
-  return <PlanningBucketView bucketId={bucketId} b={b} />;
+  return <PlanningBucketView bucketId={bucketId} b={useLogic(bucketId)} />;
 }
 
 /** The page, fed by its logic — presentational, so it can also be
@@ -127,7 +115,7 @@ export function PlanningBucketView({ bucketId, b }: { bucketId: string; b: Retur
                   key: 'history',
                   label: 'All transactions',
                   icon: <ArrowRight size={14} strokeWidth={2} />,
-                  onSelect: () => router.push(`/transactions?month=${b.month}&bucket=${bucketId}`),
+                  onSelect: () => router.push(`/budget?tab=history&month=${b.month}&bucket=${bucketId}`),
                 },
                 { key: 'edit', label: 'Edit bucket', icon: <Pencil size={14} strokeWidth={2} />, onSelect: () => router.push(`/buckets/${bucketId}`) },
               ]}
@@ -380,7 +368,7 @@ export function PlanningBucketView({ bucketId, b }: { bucketId: string; b: Retur
 
       <div className={p.sectionHead}>
         <h2>Transactions</h2>
-        <Link href={`/transactions?month=${b.month}&bucket=${bucketId}`} className={p.textButton}>
+        <Link href={`/budget?tab=history&month=${b.month}&bucket=${bucketId}`} className={p.textButton}>
           See all
         </Link>
       </div>
