@@ -4,7 +4,7 @@
 // edge (flipping to the right edge when it would run off-screen, and above
 // the anchor when there's no room below — never under the top inset): 12px
 // corners, soft shadow, max 320px wide and 60% of the screen tall with its
-// own scroll; a quick fade and scale-up. On phones (under 768px) the same
+// own scroll; a quick fade and scale-up. Under 360px wide the same
 // content opens as a bottom sheet with a drag handle, its title and a
 // "Done" button, up to 85% of the screen tall; dragging it down closes it. Closes on a tap outside or Escape; arrow keys
 // move between rows ([data-row]).
@@ -13,7 +13,7 @@ import { useEffect, useLayoutEffect, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import styles from './ListQuery.module.css';
 
-const SHEET_BELOW = 768;
+const SHEET_BELOW = 360;
 const GAP = 6;
 const MARGIN = 8;
 

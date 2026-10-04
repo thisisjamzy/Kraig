@@ -184,7 +184,7 @@
   max-height: 60dvh;
   overflow-y: auto;
   overscroll-behavior: contain;
-  border-radius: 6px;
+  border-radius: 12px;
   background: var(--color-background);
   box-shadow:
     0 0 0 1px var(--color-border),
@@ -193,6 +193,13 @@
   font-family: var(--font-family-body);
   transform-origin: top left;
   animation: pop 140ms var(--ease-out);
+}
+
+/* Wide screens: the page standard's corners. */
+@media (min-width: 768px) {
+  .popover {
+    border-radius: 6px;
+  }
 }
 
 .popover[data-wide] {
@@ -211,7 +218,7 @@
   }
 }
 
-/* Phones: the same content as a bottom sheet. */
+/* Under 360px: the same content as a bottom sheet. */
 .popover[data-sheet] {
   top: auto;
   right: 0;
