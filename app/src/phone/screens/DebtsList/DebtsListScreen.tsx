@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, Plus, Trash2 } from 'lucide-react';
-import { useLogic } from '@/src/phone/logic/debtsList/useLogic';
+import { useLogic } from '@/src/logic/debtsList/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { TrendChart } from '@/src/widgets/TrendChart/TrendChart';
