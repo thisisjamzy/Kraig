@@ -12,7 +12,11 @@ import { usePlansData } from '@/src/logic/plans/usePlansData';
 import { coverageOf, type Coverage } from '@/src/shared/budget/coverage';
 import { useMonthParam } from '@/src/shared/navigation/useMonthParam';
 import { isOpen, monthKey, monthLabel, remaining, startOfDay, statusOf, urgency, type Occurrence } from '@/src/viewmodels/plans/model';
-import { compareRecommended, itemsFor, sortItems, type SortMode, type View } from '@/src/viewmodels/plans/priorities';
+import { affordabilityWalk, compareRecommended, itemsFor, postponeSuggestions, sortItems, type SortMode, type View } from '@/src/viewmodels/plans/priorities';
+import { URGENCY_LABEL, URGENCY_ORDER } from '@/src/viewmodels/plans/model';
+import { capacityAfterCurrent, plansForecast } from '@/src/viewmodels/plans/forecast';
+import { useListQuery } from '@/src/shared/listQuery/useListQuery';
+import { applyQuery, EMPTY_QUERY, type FieldDef, type ListQuery } from '@/src/shared/listQuery/engine';
 import { isSavingsAccount } from '@/src/viewmodels/wallets';
 
 export interface PriorityRow {
@@ -27,6 +31,7 @@ export interface PriorityRow {
 }
 
 const STATUS_LABEL = { open: 'Open', partly: 'Partly paid', paid: 'Paid', postponed: 'Postponed', dropped: 'Dropped' };
+const KIND_LABEL = { fixed: 'Fixed', variable: 'Variable', savings: 'Savings', income: 'Income', transfer: 'Transfer' };
 const DAY = 86_400_000;
 
 export function useLogic() {
@@ -102,8 +107,8 @@ export function useLogic() {
   const walletsFor = (o: Occurrence) => plans.accounts.filter((a) => !a.archived && (o.kind === 'savings' ? isSavingsAccount(a) : !isSavingsAccount(a)));
 
   /** "Manual" order: saved as the items' rank. */
-  async function saveOrder(list: Occurrence[]) {
-    await plans.saveOrder(list);
+  async function saveOrder(next: Occurrence[]) {
+    await plans.saveOrder(next);
   }
 
   return {
@@ -119,6 +124,14 @@ export function useLogic() {
     totals,
     availableNow: isCurrent ? money.available.now : 0,
     summary,
+    mustDue,
+    available: money.available,
+    remaining,
+    // For usePriorityWalk (the phone list).
+    occurrences,
+    asOf,
+    isCurrent,
+    forecastInput: money.forecastInput,
     sortWith: (mode: SortMode) => (a: PriorityRow, b: PriorityRow) => {
       const order = sortItems([a.o, b.o], mode, asOf);
       return order[0] === a.o ? -1 : 1;
@@ -145,3 +158,51 @@ export function useLogic() {
 }
 
 export type PrioritiesLogic = ReturnType<typeof useLogic>;
+
+/** The phone Priorities list: a chosen order, filters, and where the money
+ * runs out, over the same scope as useLogic's rows (expense and savings
+ * lines only). Only the phone view calls it, so the web page's state is
+ * untouched. */
+export function usePriorityWalk(v: PrioritiesLogic) {
+  const { view } = v;
+  const [mode, setMode] = useState<SortMode>('recommended');
+  const [includeExpected, setIncludeExpected] = useState(false);
+  const fields = useMemo<FieldDef<Occurrence>[]>(() => {
+    const buckets = [...new Map(v.occurrences.map((o) => [o.bucketId, o.bucketName])).entries()];
+    const tags = [...new Set(v.occurrences.map((o) => o.tag).filter(Boolean))];
+    return [
+      { id: 'name', label: 'Name', type: 'text', get: (o) => o.name, searchable: true, sortable: false },
+      { id: 'bucket', label: 'Bucket / plan', type: 'select', get: (o) => o.bucketId, options: buckets.map(([value, label]) => ({ value, label })), sortable: false },
+      { id: 'need', label: 'Need', type: 'select', get: (o) => o.need, options: [{ value: 'must', label: 'Must have' }, { value: 'nice', label: 'Nice to have' }], sortable: false },
+      { id: 'priority', label: 'Priority', type: 'select', get: (o) => o.priority, options: ['High', 'Medium', 'Low'].map((p) => ({ value: p, label: p })), sortable: false },
+      { id: 'tag', label: 'Tag', type: 'select', get: (o) => o.tag, options: tags.map((t) => ({ value: t, label: t })), sortable: false },
+      { id: 'kind', label: 'Kind', type: 'select', get: (o) => o.kind, options: (['fixed', 'variable', 'savings'] as const).map((k) => ({ value: k, label: KIND_LABEL[k] })), sortable: false },
+      { id: 'urgency', label: 'Urgency', type: 'select', get: (o) => urgency(o, v.asOf), options: URGENCY_ORDER.map((u) => ({ value: u, label: URGENCY_LABEL[u] })), sortable: false },
+      { id: 'status', label: 'Status', type: 'select', get: (o) => statusOf(o), options: (['open', 'partly', 'postponed'] as const).map((st) => ({ value: st, label: STATUS_LABEL[st] })), sortable: false },
+    ];
+  }, [v.occurrences, v.asOf]);
+  const list = useListQuery<Occurrence>({ listId: 'priorities', fields, defaults: EMPTY_QUERY as ListQuery });
+  const forecast = useMemo(() => plansForecast(v.forecastInput, 12, 'expected'), [v.forecastInput]);
+  // Available now is received money only; "include expected" adds the
+  // income still expected by the month's end.
+  const walkAvailable = !v.isCurrent ? 0 : includeExpected ? v.available.byMonthEnd : v.available.now;
+  const { ordered, walk } = useMemo(() => {
+    const scope = itemsFor(view, v.occurrences, v.asOf).filter((o) => o.kind !== 'income' && o.kind !== 'transfer');
+    const items = applyQuery(scope, list.query, fields, v.asOf);
+    const ordered =
+      mode === 'mine' ? sortItems(items, 'mine', v.asOf) : URGENCY_ORDER.flatMap((u) => sortItems(items.filter((o) => urgency(o, v.asOf) === u), mode, v.asOf));
+    return { ordered, walk: affordabilityWalk(ordered, walkAvailable, capacityAfterCurrent(forecast)) };
+  }, [view, v.occurrences, v.asOf, list.query, fields, mode, walkAvailable, forecast]);
+  const suggestions = useMemo(() => (walk.mustShort ? postponeSuggestions(walk, walk.mustShortAmount) : []), [walk]);
+
+  async function move(id: string, to: number) {
+    const from = ordered.findIndex((o) => o.key === id);
+    if (from < 0 || to < 0 || to >= ordered.length) return;
+    const next = [...ordered];
+    const [item] = next.splice(from, 1);
+    next.splice(to, 0, item);
+    await v.saveOrder(next);
+  }
+
+  return { mode, setMode, includeExpected, setIncludeExpected, fields, list, ordered, walk, suggestions, move };
+}

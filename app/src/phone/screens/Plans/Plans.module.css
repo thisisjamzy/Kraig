@@ -1550,3 +1550,11 @@
 .coverage[data-tone='bad'] {
   color: #b42d3c;
 }
+
+/* Priorities: the coverage summary under "Can I cover it?". */
+.coverageLine {
+  margin: 12px 0 0;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.85);
+}
