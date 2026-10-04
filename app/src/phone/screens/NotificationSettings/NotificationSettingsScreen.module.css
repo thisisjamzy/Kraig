@@ -1,0 +1,92 @@
+.time {
+  flex-shrink: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--p-divider);
+  border-radius: 10px;
+  background: var(--p-item);
+  color: inherit;
+  font: inherit;
+  /* 16px keeps iOS from zooming into the field. */
+  font-size: 1rem;
+}
+
+.allow {
+  width: 100%;
+}
+
+.note {
+  margin: 10px 2px 0;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: var(--p-muted);
+}
+
+.channels {
+  display: flex;
+  gap: 16px;
+  margin-top: 6px;
+}
+
+.channels label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8125rem;
+  color: var(--p-muted);
+}
+
+.channels input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--p-blue);
+}
+
+/* An on/off switch drawn from the checkbox. */
+.switch {
+  position: relative;
+  flex-shrink: 0;
+  width: 44px;
+  height: 26px;
+  margin: 0;
+  border-radius: 999px;
+  background: var(--p-item);
+  box-shadow: inset 0 0 0 1px var(--p-divider);
+  appearance: none;
+  cursor: pointer;
+  transition: background-color 160ms ease;
+}
+
+.switch::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(28, 31, 58, 0.25);
+  transition: transform 160ms ease;
+}
+
+.switch:checked {
+  background: var(--p-blue);
+  box-shadow: none;
+}
+
+.switch:checked::after {
+  transform: translateX(18px);
+}
+
+.switch:focus-visible,
+.time:focus-visible {
+  outline: 2px solid var(--p-blue);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .switch,
+  .switch::after {
+    transition: none;
+  }
+}
