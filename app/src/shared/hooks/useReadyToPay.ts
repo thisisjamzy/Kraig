@@ -65,7 +65,9 @@ export function useReadyToPay() {
     const { records, error: failed } = await confirmPayments(uid, requests, ctx, accountType);
     setBusy(false);
     if (failed) setError(failed);
-    if (records.length) {
+    if (records.length && records.some((r) => r.kind === 'repayment')) {
+      showToast(`${records.length} ${records.length === 1 ? 'payment' : 'payments'} recorded. Debt repayments are on their debt's page.`);
+    } else if (records.length) {
       showToast(`${records.length} ${records.length === 1 ? 'payment' : 'payments'} recorded`, {
         duration: 10_000,
         action: {

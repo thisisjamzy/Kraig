@@ -193,6 +193,8 @@ export async function updateDebtPlan(
     const to = scope === 'next' && input ? `${format(input.amount)} on ${input.firstPayment.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}` : planText(next, format);
     writeDebtActivity(tx, uid, debtId, { kind: 'plan', title, changes: from === to ? [] : [{ label: scope === 'next' ? 'Next payment' : 'Payment plan', from, to }] });
   });
+  // "Everything left" scheduled repayments follow the new plan.
+  await (await import('./debtSchedule')).syncScheduledLines(uid, debtId).catch(() => undefined);
 }
 
 export async function setDebtArchived(uid: string, debtId: string, archived: boolean): Promise<void> {

@@ -159,3 +159,26 @@
     transition: none;
   }
 }
+
+/* Plan a repayment: "Currently 250,000", "Use everything left", "Remove". */
+.currentFigure {
+  font-size: 1.125rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.inlineAction {
+  align-self: flex-start;
+  min-height: 44px;
+  padding: 0 4px;
+  border: none;
+  background: transparent;
+  color: var(--color-brand);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.inlineAction[data-tone='danger'] {
+  color: var(--color-danger);
+}

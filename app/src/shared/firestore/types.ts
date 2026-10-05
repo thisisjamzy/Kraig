@@ -468,6 +468,9 @@ export interface FirestoreBucket {
   // for back-compat with a bucket written before this field existed; every
   // read defaults it to 'Expense'.
   type?: 'Expense' | 'Income' | 'Savings' | 'Transfer';
+  // Kept by the app, not the user: 'debt_repayments' holds scheduled debt
+  // repayments' budget lines (src/shared/firestore/debtSchedule.ts).
+  managed?: 'debt_repayments' | null;
   // "YYYY-MM" → closed for that month: the household is done with this
   // bucket then. Its items count as closed (leftover can be moved on, no
   // more payments expected), with an optional note on how it went.
@@ -657,6 +660,10 @@ export interface FirestoreBucketLineItem {
   // The lines one split made ("Couch, 1 of 3") share this id.
   splitGroupId?: string | null;
   source?: 'budget_line' | 'plan_item' | 'want_to_buy';
+  // A scheduled debt repayment's budget line (the managed Debt repayments
+  // basket): recording it records the repayment on the debt.
+  debtId?: string | null;
+  scheduledRepaymentId?: string | null;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 }
@@ -716,9 +723,35 @@ export interface FirestoreDebtRecurringPlan {
   nextOverride?: { amount: number; date: Timestamp } | null;
 }
 
+/**
+ * One dated repayment on a debt, on its own or alongside the repeating
+ * plan (src/viewmodels/debtSchedule.ts): a set amount, or "Everything
+ * left" (the balance left on that date after every earlier repayment,
+ * worked out again whenever the balance or plan changes). Unless the debt
+ * is record only and nothing pays it from an account, it has a budget line:
+ * an item of the managed "Debt repayments" basket
+ * (src/shared/firestore/debtSchedule.ts), so it shows in Payments,
+ * Priorities, Ready to pay and the forecast like any fixed payment.
+ */
+export interface FirestoreScheduledRepayment {
+  id: string;
+  date: Timestamp;
+  amountMode: 'set' | 'everything';
+  amount: number | null;
+  paidFrom: DebtPaidFrom | null;
+  automation: ItemAutomation['mode'];
+  note: string;
+  /** Its budget line: the Debt repayments basket's item (null: none). */
+  itemId: string | null;
+  /** Set once it's recorded on the debt. */
+  repaymentId: string | null;
+}
+
 export interface FirestoreDebtPaymentPlan {
   type: 'none' | 'recurring';
   recurring?: FirestoreDebtRecurringPlan;
+  // Dated one-off repayments; they combine with a repeating plan.
+  scheduled?: FirestoreScheduledRepayment[];
 }
 
 /**

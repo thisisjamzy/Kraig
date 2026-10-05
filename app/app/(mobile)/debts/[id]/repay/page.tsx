@@ -7,6 +7,6 @@ export const metadata: Metadata = {
 
 export default async function RecordRepaymentPage({ params, searchParams }: PageProps<'/debts/[id]/repay'>) {
   const { id } = await params;
-  const { amount } = await searchParams;
-  return <RepaymentRoute debtId={decodeURIComponent(id)} prefillAmount={typeof amount === 'string' ? amount : null} />;
+  const { amount, scheduled } = await searchParams;
+  return <RepaymentRoute debtId={decodeURIComponent(id)} prefillAmount={typeof amount === 'string' ? amount : null} scheduledId={typeof scheduled === 'string' ? scheduled : null} />;
 }

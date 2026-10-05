@@ -23,7 +23,8 @@ const fromIso = (iso: string) => {
   return new Date(y, m - 1, d);
 };
 
-export function useLogic(debtId: string, prefillAmount: string | null, onSaved: (debtId: string) => void) {
+/** `scheduledId`: recording one of the debt's scheduled repayments (it's marked recorded). */
+export function useLogic(debtId: string, prefillAmount: string | null, onSaved: (debtId: string) => void, scheduledId: string | null = null) {
   const ledger = useDebtLedger(debtId);
   const { uid, debt, accounts, ctx } = ledger;
   const isCash = debt?.debtType === 'cash';
@@ -73,7 +74,7 @@ export function useLogic(debtId: string, prefillAmount: string | null, onSaved: 
       await recordRepayment(
         uid,
         { id: debtId, name: debt.name, debtType: debt.debtType, principalAmount: debt.principalAmount, paymentPlan: debt.paymentPlan },
-        { amount: amountValue, date: fromIso(date), notes: note.trim(), method, accountId: useAccount ? accountId : null, categoryId: null, checkFunds: true },
+        { amount: amountValue, date: fromIso(date), notes: note.trim(), method, accountId: useAccount ? accountId : null, categoryId: null, checkFunds: true, scheduledId },
         ctx
       );
       showToast(amountValue >= balance - 0.005 ? `${debt.name} is paid off` : 'Repayment recorded');

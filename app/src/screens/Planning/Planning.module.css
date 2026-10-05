@@ -816,3 +816,10 @@
     border-radius: 10px;
   }
 }
+
+/* A page's own New menu, right-aligned above its content (Payments). */
+.pageActions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}

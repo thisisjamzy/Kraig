@@ -34,6 +34,7 @@ const TaskPeek = dynamic(() => import('@/src/screens/TaskPage/TaskPage').then((m
 const DebtFormScreen = dynamic(() => import('@/src/screens/DebtForms/DebtFormScreen').then((m) => m.DebtFormScreen), { ssr: false });
 const RepaymentFormScreen = dynamic(() => import('@/src/screens/DebtForms/RepaymentFormScreen').then((m) => m.RepaymentFormScreen), { ssr: false });
 const PlanFormScreen = dynamic(() => import('@/src/screens/DebtForms/PlanFormScreen').then((m) => m.PlanFormScreen), { ssr: false });
+const ScheduleFormScreen = dynamic(() => import('@/src/screens/DebtForms/ScheduleFormScreen').then((m) => m.ScheduleFormScreen), { ssr: false });
 const WalletEffectFormScreen = dynamic(() => import('@/src/screens/DebtForms/WalletEffectFormScreen').then((m) => m.WalletEffectFormScreen), { ssr: false });
 
 // The forms that open as a side peek from ?peek=<kind> (formPeek.ts). A kind
@@ -163,7 +164,7 @@ function DebtFormHost() {
     router.replace(debtFormPageHref(kind, debtId, prefill));
   }, [kind, debtId, isWide, params, router, deviceClass]);
 
-  if (!kind || !isWide || (kind !== 'new' && !debtId)) return null;
+  if (!kind || !isWide || (kind !== 'new' && kind !== 'schedule' && !debtId)) return null;
   const close = () => router.replace(withoutDebtForm(pathname, params.toString()), { scroll: false });
   const exits = {
     inPanel: true,
@@ -183,9 +184,11 @@ function DebtFormHost() {
     kind === 'new' || kind === 'edit' ? (
       <DebtFormScreen key={key} debtId={kind === 'new' ? null : debtId} {...exits} />
     ) : kind === 'repay' ? (
-      <RepaymentFormScreen key={key} debtId={debtId!} prefillAmount={params.get('amount')} {...exits} />
+      <RepaymentFormScreen key={key} debtId={debtId!} prefillAmount={params.get('amount')} scheduledId={params.get('scheduled')} {...exits} />
     ) : kind === 'plan' ? (
       <PlanFormScreen key={key} debtId={debtId!} {...exits} />
+    ) : kind === 'schedule' ? (
+      <ScheduleFormScreen key={`${key}:${params.get('scheduled') ?? ''}`} debtId={debtId} scheduledId={params.get('scheduled')} {...exits} />
     ) : (
       <WalletEffectFormScreen key={key} debtId={debtId!} prefillTo={params.get('to')} {...exits} />
     );

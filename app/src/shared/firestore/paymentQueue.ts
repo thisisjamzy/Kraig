@@ -31,6 +31,7 @@ import type { QueueDraft } from '../budget/automation';
 import { repairPlan, type Occurrence } from '../budget/occurrences';
 import { SAVINGS_ACCOUNT_TYPE } from '../budget/flow';
 import { applyNotificationWrites } from './notificationWrites';
+import { recordScheduledLine, REPAYMENTS_BASKET_ID } from './debtSchedule';
 
 /** The fields kept on an action doc, so a confirmed payment reads on its own. */
 function snapshotOf(entry: QueueDraft, currency: string) {
@@ -86,7 +87,8 @@ export interface ConfirmRequest {
 export interface ConfirmedRecord {
   queueId: string;
   recordId: string;
-  kind: 'transaction' | 'transfer';
+  // A debt repayment can't be undone here (it's on the debt's page).
+  kind: 'transaction' | 'transfer' | 'repayment';
   bucketId: string;
 }
 
@@ -99,6 +101,27 @@ async function confirmOne(uid: string, request: ConfirmRequest, ctx: CurrencyCon
   const date = new Date();
   const bucketItem = { bucketId: entry.bucketId, itemId: entry.itemId, month: entry.month };
   const queueRef = paymentQueueEntryRef(uid, entry.id);
+
+  // A scheduled debt repayment's line: recorded on the debt, with its
+  // wallet effect (src/shared/firestore/debtSchedule.ts).
+  if (entry.bucketId === REPAYMENTS_BASKET_ID) {
+    const done = (await getDoc(queueRef)).data()?.status;
+    if (done === 'confirmed') throw new Error(`"${entry.name}" was already recorded.`);
+    const { transactionId } = await recordScheduledLine(uid, bucketItem, { amount, accountId, date }, ctx);
+    await setDoc(queueRef, {
+      ...snapshotOf(entry, entry.currency ?? ctx.display),
+      status: 'confirmed',
+      recordIds: transactionId ? [transactionId] : [],
+      amount,
+      accountId,
+      amountEdit: null,
+      amountEditBase: null,
+      postponedUntil: null,
+      createdAt: serverTimestamp() as Timestamp,
+      confirmedAt: serverTimestamp() as Timestamp,
+    });
+    return { queueId: entry.id, recordId: transactionId ?? '', kind: 'repayment', bucketId: entry.bucketId };
+  }
 
   // Savings into a savings account from another account move money as a
   // transfer; transfers always do.
@@ -203,6 +226,7 @@ export async function confirmPayments(
 
 export async function undoConfirmed(uid: string, records: ConfirmedRecord[], ctx: CurrencyContext): Promise<void> {
   for (const record of records) {
+    if (record.kind === 'repayment') continue;
     if (record.kind === 'transfer') await deleteTransferWithAggregation(uid, record.recordId);
     else await deleteTransactionWithAggregation(uid, record.recordId, ctx);
     await updateDoc(paymentQueueEntryRef(uid, record.queueId), { status: 'ready', recordIds: [], confirmedAt: null });

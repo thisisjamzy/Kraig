@@ -21,6 +21,7 @@ import { daysLate, debtStateSentence, nextPayment, planSentence, projectPayments
 import { formatMoney } from '@/src/widgets/Money/Money';
 import { showToast } from '@/src/widgets/Toast/Toast';
 import type { DebtPriority, FirestoreDebtActivity } from '@/src/shared/firestore/types';
+import { debtScheduleRows } from './schedule';
 
 export interface RepaymentRow {
   id: string;
@@ -144,6 +145,12 @@ export function useLogic(debtId: string) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debt, repayments, balance, recurring, today]);
 
+  // Scheduled one-off repayments and the next repayments, both kinds together.
+  const schedule = useMemo(
+    () => debtScheduleRows(debt, (p) => (p ? paidFromLabel(paidFromKey(p), accounts, incomeLines) : null)),
+    [debt, accounts, incomeLines]
+  );
+
   const sentence = debt ? debtStateSentence(balance, plan, today, formatMoney) : '';
   const latestUndoable = activity.find((a) => a.id === debt?.lastChangeId && a.plan && !a.undoneAt) ?? null;
 
@@ -170,6 +177,9 @@ export function useLogic(debtId: string) {
     borrowedOn: borrowing && !borrowing.excluded ? borrowing.date : (debt?.startDate.toDate() ?? null),
     sentence,
     trend,
+    scheduled: schedule.scheduled,
+    upcoming: schedule.upcoming,
+    scheduledOverBy: schedule.overBy,
     repaymentRows,
     linkedRows,
     excludedCount,

@@ -208,8 +208,10 @@ service cloud.firestore {
         allow read: if activeUser() && request.auth.uid == uid;
         allow create, update: if activeUser() && request.auth.uid == uid
           && request.resource.data.amount is number && request.resource.data.amount >= 0
-          && request.resource.data.status in ['ready', 'confirmed', 'skipped'];
-        allow delete: if false;
+          && request.resource.data.status in ['ready', 'confirmed', 'skipped', 'postponed'];
+        // Only a waiting entry can go (the one-time repair of stored
+        // copies); a confirmed or skipped one is a record of what happened.
+        allow delete: if activeUser() && request.auth.uid == uid && resource.data.status == 'ready';
       }
 
       // One-time data migrations and their reports (flow types, ...).

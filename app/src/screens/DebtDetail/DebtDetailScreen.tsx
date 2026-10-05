@@ -180,7 +180,58 @@ export function DebtDetailScreen({ debtId }: { debtId: string }) {
             {v.next ? 'Record next payment' : 'Record repayment'}
           </button>
         )}
+        {v.scheduled.length > 0 && (
+          <ul className={styles.scheduleList} aria-label="Scheduled repayments">
+            {v.scheduled.map((r) => (
+              <li key={r.id} data-done={r.recorded || undefined}>
+                <button type="button" className={styles.scheduleRow} disabled={r.recorded} onClick={() => open('schedule', debtId, { scheduled: r.id })}>
+                  <span>
+                    {day(r.date)}
+                    <small>
+                      {r.recorded ? 'Recorded' : r.everything ? 'Everything left' : 'Scheduled'}
+                      {r.from ? ` · ${r.from}` : ''}
+                      {!r.budgetLine ? ' · on the debt only' : ''}
+                    </small>
+                  </span>
+                  <span>{money(r.amount)}</span>
+                </button>
+                {!r.recorded && !r.budgetLine && (
+                  <button type="button" className={styles.textLink} onClick={() => open('repay', debtId, { amount: String(r.amount), scheduled: r.id })}>
+                    Record
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+        {v.scheduledOverBy > 0 && <p data-tone="bad">Scheduled repayments add up to {money(v.scheduledOverBy)} more than what you owe.</p>}
+        {v.balance > 0 && (
+          <button type="button" className={styles.textLink} onClick={() => open('schedule', debtId)}>
+            Plan a repayment
+          </button>
+        )}
       </section>
+
+      {v.upcoming.length > 0 && (
+        <section className={styles.sideCard}>
+          <div className={styles.sideHead}>
+            <h2>Upcoming repayments</h2>
+          </div>
+          <ul className={styles.scheduleList}>
+            {v.upcoming.map((u) => (
+              <li key={u.key}>
+                <span className={styles.scheduleRow}>
+                  <span>
+                    {day(u.date)}
+                    <small>{u.kind === 'repeating' ? 'Repeating plan' : 'Scheduled'}</small>
+                  </span>
+                  <span>{money(u.amount)}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section className={styles.sideCard}>
         <div className={styles.sideHead}>
@@ -209,6 +260,7 @@ export function DebtDetailScreen({ debtId }: { debtId: string }) {
               ...(v.balance > 0 ? [{ label: 'Record repayment', href: v.formHref('repay', debtId) }] : []),
               { label: 'Edit debt', href: v.formHref('edit', debtId) },
               { label: 'Payment plan', href: v.formHref('plan', debtId) },
+              ...(v.balance > 0 ? [{ label: 'Plan a repayment', href: v.formHref('schedule', debtId) }] : []),
               { label: 'Change wallet effect', href: v.formHref('wallet', debtId) },
               ...(v.balance > 0 ? [{ label: 'Mark as paid off', href: v.formHref('repay', debtId, { amount: String(v.balance) }) }] : []),
               { label: 'Archive', onSelect: () => setConfirm('archive') },

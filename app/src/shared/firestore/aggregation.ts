@@ -1433,6 +1433,15 @@ export async function recordBucketLineItemPayment(
     month: input.occurrenceMonth ?? monthKey(input.date),
   };
 
+  // A scheduled debt repayment's line: the repayment is recorded on the
+  // debt, with its wallet effect (dynamic import: debtSchedule.ts imports
+  // this file).
+  if (goalId === 'debt-repayments') {
+    const { recordScheduledLine } = await import('./debtSchedule');
+    await recordScheduledLine(uid, bucketItem, { amount: paymentAmount, accountId: input.accountId, date: input.date }, ctx);
+    return;
+  }
+
   if (categoryType === 'Transfer') {
     if (!input.toAccountId) throw new Error('Choose which account this transfer moves money into.');
     const toAccountId = input.toAccountId;
@@ -1681,6 +1690,11 @@ export interface RecordRepaymentInput {
   // The form refuses a repayment the account can't cover; Import doesn't
   // (historic rows against imperfect balances).
   checkFunds?: boolean;
+  // A scheduled repayment's budget line (src/shared/firestore/debtSchedule.ts):
+  // the expense links to it, and the scheduled entry is marked recorded
+  // instead of moving the repeating plan on.
+  bucketItem?: BucketItemLink | null;
+  scheduledId?: string | null;
 }
 
 export interface RepaymentDebt {
@@ -1703,9 +1717,10 @@ export async function recordRepayment(
   debt: RepaymentDebt,
   input: RecordRepaymentInput,
   ctx: CurrencyContext
-): Promise<string> {
+): Promise<{ repaymentId: string; transactionId: string | null }> {
   const db = getFirebaseFirestore();
   const repaymentId = crypto.randomUUID();
+  let linkedTransactionId: string | null = null;
   const shouldLinkTransaction = debt.debtType === 'cash' || Boolean(input.accountId);
   if (shouldLinkTransaction && !input.accountId) {
     throw new Error('Choose an account to debit for this repayment.');
@@ -1731,6 +1746,7 @@ export async function recordRepayment(
     let transactionId: string | null = null;
     if (shouldLinkTransaction) {
       transactionId = crypto.randomUUID();
+      linkedTransactionId = transactionId;
       writeTransactionContribution(
         tx,
         uid,
@@ -1746,6 +1762,7 @@ export async function recordRepayment(
           createdBy: uid,
           isDebtRepayment: true,
           linkedDebtId: debt.id,
+          ...(input.bucketItem ? { bucketItem: input.bucketItem } : {}),
         },
         account,
         ctx
@@ -1765,7 +1782,12 @@ export async function recordRepayment(
     const currentBalance = Math.max(0, round2(current.principalAmount - totalRepaid));
     let paymentPlan = current.paymentPlan;
     const recurring = paymentPlan.type === 'recurring' ? paymentPlan.recurring : undefined;
-    if (recurring?.isActive) {
+    if (input.scheduledId) {
+      paymentPlan = {
+        ...paymentPlan,
+        scheduled: (paymentPlan.scheduled ?? []).map((s) => (s.id === input.scheduledId ? { ...s, repaymentId, amount: input.amount, amountMode: 'set' } : s)),
+      };
+    } else if (recurring?.isActive) {
       // A planned payment moves the schedule on from its own date; a
       // manual one from the day it was paid. A one-off "next payment"
       // override is used up either way.
@@ -1796,7 +1818,10 @@ export async function recordRepayment(
     });
   });
 
-  return repaymentId;
+  // "Everything left" on the debt's other scheduled repayments follows the
+  // new balance (dynamic import: debtSchedule.ts imports this file).
+  if (!input.scheduledId) await (await import('./debtSchedule')).syncScheduledLines(uid, debt.id).catch(() => undefined);
+  return { repaymentId, transactionId: linkedTransactionId };
 }
 
 /**

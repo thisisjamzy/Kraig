@@ -290,3 +290,49 @@
 :global([data-theme='dark']) .notes {
   border-color: rgba(255, 255, 255, 0.12);
 }
+
+/* Scheduled repayments (in Payment plan) and Upcoming repayments. */
+.scheduleList {
+  display: flex;
+  flex-direction: column;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.scheduleList li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-top: 1px solid var(--color-border);
+}
+
+.scheduleList li[data-done] {
+  color: var(--color-text-secondary);
+}
+
+.scheduleRow {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+  padding: 6px 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+}
+
+button.scheduleRow:not(:disabled) {
+  cursor: pointer;
+}
+
+.scheduleRow small {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}

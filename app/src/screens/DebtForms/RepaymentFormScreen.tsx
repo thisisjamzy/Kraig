@@ -11,9 +11,14 @@ import { useLogic } from '@/src/logic/debtRepay/useLogic';
 import { AccountSheet, AmountCard, DateSheet, DebtFormFrame, FormError, ImpactCard, SegmentedCard, ToggleCard, dayText, fmt } from './DebtFormParts';
 import { useFormExits, type DebtFormExits } from './useFormExits';
 
-export function RepaymentFormScreen({ debtId, prefillAmount = null, ...exits }: { debtId: string; prefillAmount?: string | null } & DebtFormExits) {
+export function RepaymentFormScreen({
+  debtId,
+  prefillAmount = null,
+  scheduledId = null,
+  ...exits
+}: { debtId: string; prefillAmount?: string | null; scheduledId?: string | null } & DebtFormExits) {
   const nav = useFormExits(debtId, exits);
-  const v = useLogic(debtId, prefillAmount, nav.saved);
+  const v = useLogic(debtId, prefillAmount, nav.saved, scheduledId);
   const [sheet, setSheet] = useState<'date' | 'account' | null>(null);
 
   return (
