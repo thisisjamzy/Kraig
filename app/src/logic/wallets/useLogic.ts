@@ -1,15 +1,36 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { query, setDoc, where } from 'firebase/firestore';
+import { limit, orderBy, query, setDoc, where } from 'firebase/firestore';
 import { useAccounts, useCurrencyContext, useExchangeRates } from '@/src/shared/firestore/queries';
 import { useFirestoreCollection } from '@/src/shared/firestore/hooks';
 import { toDisplay } from '@/src/shared/firestore/currency';
-import { accountRef, accountsRef } from '@/src/shared/firestore/refs';
+import { accountRef, accountsRef, reconciliationsRef, transactionsRef, transfersRef } from '@/src/shared/firestore/refs';
+import { useMonthBudget } from '@/src/shared/hooks/useMonthBudget';
+import { monthKeyOf } from '@/src/shared/budget/monthBudget';
+import { committedByAccount, freeTone, groupOf, lastReconciledByAccount, latestByAccount, type WalletGroup } from './model';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
-import { walletColor, ACCOUNT_TYPES } from '@/src/viewmodels/wallets';
+import { walletColor, ACCOUNT_TYPES, isSavingsAccount } from '@/src/viewmodels/wallets';
 import { currencyName } from '@/src/viewmodels/currencies';
-import type { FirestoreAccount } from '@/src/shared/firestore/types';
+import type { FirestoreAccount, FirestoreReconciliation, FirestoreTransaction, FirestoreTransfer } from '@/src/shared/firestore/types';
+
+/** One wallet as the Wallets page lists it (amounts in the display currency). */
+export interface WalletRow {
+  id: string;
+  name: string;
+  color: string;
+  type: string;
+  group: WalletGroup;
+  balance: number;
+  committed: number;
+  free: number;
+  freeTone: 'good' | 'watch' | 'bad';
+  lastActivity: Date | null;
+  lastReconciled: Date | null;
+  /** Savings wallets only: whether the plan may count on it. */
+  usableForPlan: boolean | null;
+  status: 'Active' | 'Archived';
+}
 import { useGoBack } from '@/src/shared/navigation/useGoBack';
 
 export function formatAmount(value: number) {
@@ -53,6 +74,61 @@ export function useLogic() {
     color: walletColor(index),
   }));
   const total = wallets.reduce((sum, wallet) => sum + wallet.amount, 0);
+
+  // ---- The Wallets page's table (web and tablet) ----
+  const uid = user?.uid;
+  const month = monthKeyOf(new Date());
+  const { budget } = useMonthBudget(month);
+  const committed = useMemo(() => committedByAccount(budget.items), [budget.items]);
+  const { data: recentTx } = useFirestoreCollection<FirestoreTransaction>(
+    useMemo(() => (uid ? query(transactionsRef(uid), orderBy('date', 'desc'), limit(300)) : null), [uid])
+  );
+  const { data: recentTransfers } = useFirestoreCollection<FirestoreTransfer>(
+    useMemo(() => (uid ? query(transfersRef(uid), orderBy('date', 'desc'), limit(200)) : null), [uid])
+  );
+  const { data: reconciliations } = useFirestoreCollection<FirestoreReconciliation>(
+    useMemo(() => (uid ? query(reconciliationsRef(uid), orderBy('performedAt', 'desc'), limit(30)) : null), [uid])
+  );
+  const lastActivity = useMemo(
+    () =>
+      latestByAccount([
+        ...recentTx.map((t) => ({ accountIds: [t.accountId], date: t.date.toDate() })),
+        ...recentTransfers.map((t) => ({ accountIds: [t.fromAccountId, t.toAccountId], date: t.date.toDate() })),
+      ]),
+    [recentTx, recentTransfers]
+  );
+  const lastReconciled = useMemo(
+    () => lastReconciledByAccount(reconciliations.map((r) => ({ performedAt: r.performedAt.toDate(), reportedBalances: r.reportedBalances }))),
+    [reconciliations]
+  );
+  const rowOf = (account: FirestoreAccount, index: number, status: WalletRow['status']): WalletRow => {
+    const balance = toDisplay(ctx, account.currentBalance, account.currency);
+    const used = status === 'Active' ? (committed.get(account.id) ?? 0) : 0;
+    const free = balance - used;
+    return {
+      id: account.id,
+      name: account.name,
+      color: walletColor(index),
+      type: account.type,
+      group: groupOf(account.type),
+      balance,
+      committed: used,
+      free,
+      freeTone: freeTone(free, balance),
+      lastActivity: lastActivity.get(account.id) ?? null,
+      lastReconciled: lastReconciled.get(account.id) ?? null,
+      usableForPlan: isSavingsAccount(account) ? Boolean(account.usableForPlan) : null,
+      status,
+    };
+  };
+  const rows: WalletRow[] = [...accounts.map((a, i) => rowOf(a, i, 'Active')), ...archivedAccounts.map((a, i) => rowOf(a, accounts.length + i, 'Archived'))];
+  const active = rows.filter((r) => r.status === 'Active');
+  const totals = {
+    total: active.reduce((s, r) => s + r.balance, 0),
+    inSavings: active.filter((r) => r.group === 'Savings').reduce((s, r) => s + r.balance, 0),
+    committed: active.reduce((s, r) => s + r.committed, 0),
+    free: active.reduce((s, r) => s + r.free, 0),
+  };
 
   const currencyOptions = (exchangeRates.length > 0 ? exchangeRates.map((rate) => rate.id) : [ctx.base]).map(
     (code) => ({ code, name: currencyName(code) })
@@ -104,6 +180,10 @@ export function useLogic() {
   return {
     wallets,
     total,
+    rows,
+    totals,
+    freeTotalTone: freeTone(totals.free, totals.total),
+    currency: ctx.display,
     archivedWallets,
     loading: accountsLoading || ctxLoading,
     archivedLoading,

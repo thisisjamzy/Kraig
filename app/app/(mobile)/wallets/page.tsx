@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { WalletsScreen } from '@/src/screens/Wallets/WalletsScreen';
+import { WalletsScreen } from '@/src/routes/Wallets/WalletsScreen';
 
 export const metadata: Metadata = {
   title: 'Wallets · Dreda',

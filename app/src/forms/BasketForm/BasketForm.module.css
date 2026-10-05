@@ -1,0 +1,17 @@
+/* "Create and add items": a quiet text button under the primary one. */
+.secondary {
+  align-self: center;
+  min-height: 44px;
+  padding: 0 12px;
+  border: none;
+  background: transparent;
+  color: var(--color-brand);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.secondary:disabled {
+  color: var(--color-text-secondary);
+  cursor: default;
+}

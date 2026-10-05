@@ -31,7 +31,8 @@
     "test:debt": "tsx --test test/debtWalletEffect.test.ts test/debtPages.test.ts",
     "test:notify": "tsx --test test/notifications.test.ts",
     "test:engine": "tsx --test test/planEngine.test.ts",
-    "test:import": "tsx --test test/importTasks.test.ts"
+    "test:import": "tsx --test test/importTasks.test.ts",
+    "test:occurrences": "tsx --test test/occurrences.test.ts test/debtSchedule.test.ts test/dismissals.test.ts test/basketPage.test.ts test/wallets.test.ts"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^5.0.2",

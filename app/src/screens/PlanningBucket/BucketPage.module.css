@@ -1,6 +1,6 @@
-/* A bucket's page on medium screens and up (BucketPage.tsx): one column on
-   medium, two from expanded up — the main column (~65%) and a sticky side
-   column (~35%). */
+/* A basket's page on tablet and web (BucketPage.tsx), full width: one
+   column from 768px (side blocks first), two from 1024px: the main column
+   (~65%) and a sticky side column (~35%). */
 
 .layout {
   display: grid;
@@ -112,21 +112,24 @@
   color: #d6404f;
 }
 
+/* Spent against planned: navy on a light grey track, red past the plan. */
 .bar {
-  position: relative;
-  display: block;
-  height: 4px;
-  background: rgba(55, 53, 47, 0.08);
+  display: flex;
+  height: 8px;
+  border-radius: 6px;
+  background: #e9ebf2;
   overflow: hidden;
 }
 
-.bar > span {
-  position: absolute;
-  inset: 0 auto 0 0;
-  background: var(--color-brand);
+.barFill {
+  display: block;
+  height: 100%;
+  background: #1c2a6b;
 }
 
-.bar > span[data-over] {
+.barOver {
+  display: block;
+  height: 100%;
   background: #d6404f;
 }
 
@@ -185,4 +188,144 @@
 
 :global([data-theme='dark']) .sideCard[data-tone='bad'] {
   background: rgba(255, 139, 107, 0.06);
+}
+
+:global([data-theme='dark']) .bar {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+:global([data-theme='dark']) .barFill {
+  background: #8aa4ff;
+}
+
+.managed {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #6b7085;
+}
+
+/* The items table scrolls inside its block; the page never does. */
+.tableBlock {
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.chip {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: #eef1f8;
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+
+.chip[data-need='MustHave'] {
+  background: #fde8ef;
+}
+
+.chip[data-need='NiceToHave'] {
+  background: #e8eeff;
+}
+
+.status {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: #eef1f8;
+  color: #3f4459;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.status[data-tone='good'] {
+  background: #e4f5ec;
+  color: #1f7a4d;
+}
+
+.status[data-tone='bad'] {
+  background: #fdecee;
+  color: #b4303f;
+}
+
+.status[data-tone='watch'] {
+  background: #fff3dc;
+  color: #93600c;
+}
+
+:global([data-theme='dark']) .chip,
+:global([data-theme='dark']) .status {
+  background: rgba(255, 255, 255, 0.08);
+  color: inherit;
+}
+
+.autoCell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.autoCell[data-off] {
+  color: #6b7085;
+}
+
+/* Upcoming payments: date, name (paid from under it), amount, state. */
+.upcoming {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.upcoming li {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(27, 27, 57, 0.09);
+}
+
+.upDate {
+  font-size: 0.875rem;
+  color: #6b7085;
+  font-variant-numeric: tabular-nums;
+}
+
+.upName {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.upName small {
+  font-size: 0.75rem;
+  color: #6b7085;
+}
+
+.upAmount {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.moveList {
+  display: flex;
+  flex-direction: column;
+}
+
+.moveList button {
+  min-height: 44px;
+  padding: 0 4px;
+  border: none;
+  border-bottom: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }

@@ -24,7 +24,6 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { usePathname } from 'next/navigation';
 import { useLayout } from '@/src/shared/hooks/useLayout';
 import { fallbackTitle } from '@/src/shared/config/pageTree';
-import { useLocationSearch } from '@/src/shared/navigation/locationSearch';
 import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
 import { TopBarSlotContext } from './TopBarSlot';
@@ -37,7 +36,6 @@ import styles from './AppShell.module.css';
 export function AppShell({ children }: { children: ReactNode }) {
   const { deviceClass, finePointer } = useLayout();
   const pathname = usePathname();
-  const search = useLocationSearch(pathname);
   const [width, setWidth] = useSidebarWidth();
   const [collapsed, setCollapsed] = useSidebarCollapsed(deviceClass);
   const [peek, setPeek] = useState(false);
@@ -143,7 +141,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <TopBarSlotContext.Provider value={slot}>
           <main id="main-content" className={styles.content} tabIndex={-1}>
             <div className={pageWidth === 'full' ? styles.page : styles.column}>
-              {!meta.titled && <h1 className={styles.fallbackTitle}>{fallbackTitle(pathname, search)}</h1>}
+              {!meta.titled && <h1 className={styles.fallbackTitle}>{fallbackTitle(pathname)}</h1>}
               <div ref={setSlot} className={styles.controls} />
               {children}
             </div>

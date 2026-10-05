@@ -468,6 +468,20 @@ export interface FirestoreBucket {
   // for back-compat with a bucket written before this field existed; every
   // read defaults it to 'Expense'.
   type?: 'Expense' | 'Income' | 'Savings' | 'Transfer';
+  // Kept by the app, not the user: 'debt_repayments' holds scheduled debt
+  // repayments' budget lines (src/shared/firestore/debtSchedule.ts).
+  managed?: 'debt_repayments' | null;
+  // The New basket form's defaults for the items added to it (all
+  // optional; older baskets read as none): the category, the first month,
+  // whether items repeat, where they're paid from ('account:<id>',
+  // 'any_income', 'income:<itemId>', 'savings') and their automation.
+  categoryId?: string | null;
+  startMonth?: string | null; // yyyy-MM
+  repeats?: 'monthly' | 'once' | null;
+  defaultPaidFrom?: string | null;
+  automationDefault?: 'off' | 'remind' | 'prepare' | null;
+  // Savings baskets: the amount to reach (by `deadline`).
+  targetAmount?: number | null;
   // "YYYY-MM" → closed for that month: the household is done with this
   // bucket then. Its items count as closed (leftover can be moved on, no
   // more payments expected), with an optional note on how it went.
@@ -657,6 +671,10 @@ export interface FirestoreBucketLineItem {
   // The lines one split made ("Couch, 1 of 3") share this id.
   splitGroupId?: string | null;
   source?: 'budget_line' | 'plan_item' | 'want_to_buy';
+  // A scheduled debt repayment's budget line (the managed Debt repayments
+  // basket): recording it records the repayment on the debt.
+  debtId?: string | null;
+  scheduledRepaymentId?: string | null;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 }
@@ -716,9 +734,35 @@ export interface FirestoreDebtRecurringPlan {
   nextOverride?: { amount: number; date: Timestamp } | null;
 }
 
+/**
+ * One dated repayment on a debt, on its own or alongside the repeating
+ * plan (src/viewmodels/debtSchedule.ts): a set amount, or "Everything
+ * left" (the balance left on that date after every earlier repayment,
+ * worked out again whenever the balance or plan changes). Unless the debt
+ * is record only and nothing pays it from an account, it has a budget line:
+ * an item of the managed "Debt repayments" basket
+ * (src/shared/firestore/debtSchedule.ts), so it shows in Payments,
+ * Priorities, Ready to pay and the forecast like any fixed payment.
+ */
+export interface FirestoreScheduledRepayment {
+  id: string;
+  date: Timestamp;
+  amountMode: 'set' | 'everything';
+  amount: number | null;
+  paidFrom: DebtPaidFrom | null;
+  automation: ItemAutomation['mode'];
+  note: string;
+  /** Its budget line: the Debt repayments basket's item (null: none). */
+  itemId: string | null;
+  /** Set once it's recorded on the debt. */
+  repaymentId: string | null;
+}
+
 export interface FirestoreDebtPaymentPlan {
   type: 'none' | 'recurring';
   recurring?: FirestoreDebtRecurringPlan;
+  // Dated one-off repayments; they combine with a repeating plan.
+  scheduled?: FirestoreScheduledRepayment[];
 }
 
 /**
@@ -1232,11 +1276,14 @@ export interface FirestoreBudgetMonth {
 }
 
 /**
- * users/{uid}/paymentQueue/{itemId__yyyyMM} — a payment the app prepared
- * for one tap (src/shared/budget/automation.ts). One id per line
- * occurrence, so a line can only ever be prepared once; confirming flips
- * status inside the same transaction that records the payment, so it
- * can't be confirmed twice either.
+ * users/{uid}/paymentQueue/{itemId__yyyyMM} — what the user did to one
+ * payment occurrence: confirmed (with the records written), skipped,
+ * postponed, or an amount typed before confirming. The occurrence itself
+ * is derived from the current item (src/shared/budget/occurrences.ts), so
+ * these docs never hold a copy to keep in step. Confirming writes the doc
+ * inside the same transaction that records the payment, so it can't be
+ * confirmed twice. Docs from before derivation held full copies; the
+ * one-time repair (paymentQueue.ts's repairQueue) cleared those.
  */
 export interface FirestorePaymentQueueEntry {
   id: string;
@@ -1257,8 +1304,15 @@ export interface FirestorePaymentQueueEntry {
   dueDate: Timestamp | null;
   priority: Priority;
   trigger: { kind: 'due' | 'income' | 'any_income'; incomeKey: string | null; incomeName: string | null; incomeAmount: number | null };
-  status: 'ready' | 'confirmed' | 'skipped';
+  status: 'ready' | 'confirmed' | 'skipped' | 'postponed';
   recordIds: string[];
+  // What the user did before confirming (src/shared/budget/occurrences.ts):
+  // the amount they typed and the item's amount at the time, kept only
+  // while the item's amount stays the same.
+  amountEdit?: number | null;
+  amountEditBase?: number | null;
+  // Postponed: hidden from Ready to pay until this day (yyyy-MM-dd).
+  postponedUntil?: string | null;
   createdAt?: Timestamp;
   confirmedAt?: Timestamp | null;
 }

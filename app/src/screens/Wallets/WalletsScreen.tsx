@@ -1,191 +1,124 @@
 'use client';
 
+// Wallets on tablet and web, full width: "Wallets" with four properties
+// (Total across wallets, In savings wallets, Committed this month: unpaid
+// lines paid from wallets, Free after commitments, colored by state); then
+// the wallets database, a Table grouped by type (Mobile money, Bank, Card,
+// Cash, Savings) with each group's subtotal and the total in the footer,
+// or Cards (3 to 4 a row: name, type, balance, committed and free).
+// "New wallet" is in the database toolbar. A wallet opens its page.
+
 import Link from 'next/link';
-import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
-import { useLogic, formatAmount } from '@/src/logic/wallets/useLogic';
-import { useStrings } from '@/src/strings/useStrings';
+import { useRouter } from 'next/navigation';
+import { useLogic, type WalletRow } from '@/src/logic/wallets/useLogic';
+import { WALLET_GROUPS } from '@/src/logic/wallets/model';
+import { NotionPage } from '@/src/widgets/Database/NotionPage';
+import { Database } from '@/src/widgets/Database/Database';
+import { formatNumber } from '@/src/widgets/Database/format';
+import type { ColumnDef } from '@/src/widgets/Database/types';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
-import { Modal } from '@/src/widgets/Modal/Modal';
-import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
+import { useAmountsHidden, HIDDEN_AMOUNT } from '@/src/shared/hooks/usePrivacy';
+import { AddWalletSheet } from './AddWalletSheet';
 import styles from './WalletsScreen.module.css';
-import { useFormLink } from '@/src/shared/navigation/useFormLink';
+
+const day = (d: Date) => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
 export function WalletsScreen() {
-  const formLink = useFormLink();
-  const strings = useStrings();
-  const {
-    wallets,
-    total,
-    archivedWallets,
-    loading,
-    archivedLoading,
-    error,
-    goBack,
-    addOpen,
-    setAddOpen,
-    openAddWallet,
-    newName,
-    setNewName,
-    newShortName,
-    setNewShortName,
-    newType,
-    setNewType,
-    newCurrency,
-    setNewCurrency,
-    newStartingBalance,
-    setNewStartingBalance,
-    accountTypes,
-    currencyOptions,
-    creating,
-    createError,
-    handleCreateWallet,
-  } = useLogic();
+  const router = useRouter();
+  const v = useLogic();
+  const hidden = useAmountsHidden();
+  const money = (n: number) => (hidden ? HIDDEN_AMOUNT : `${formatNumber(n)} ${v.currency}`);
+
+  const columns: ColumnDef<WalletRow>[] = [
+    {
+      id: 'name',
+      label: 'Name',
+      type: 'text',
+      width: 220,
+      value: (r) => r.name,
+      render: (r) => (
+        <span className={styles.name}>
+          <span className={styles.dot} style={{ background: r.color }} aria-hidden />
+          {r.name}
+        </span>
+      ),
+    },
+    { id: 'type', label: 'Type', type: 'text', width: 150, value: (r) => r.type },
+    { id: 'balance', label: 'Balance', type: 'currency', width: 140, value: (r) => r.balance, calc: 'sum', onCard: true },
+    { id: 'committed', label: 'Committed this month', type: 'currency', width: 170, value: (r) => r.committed, onCard: true },
+    { id: 'free', label: 'Free after commitments', type: 'currency', width: 180, value: (r) => r.free, tone: (r) => (r.freeTone === 'good' ? undefined : r.freeTone), onCard: true },
+    { id: 'activity', label: 'Last activity', type: 'date', width: 130, value: (r) => r.lastActivity, render: (r) => (r.lastActivity ? day(r.lastActivity) : null) },
+    {
+      id: 'usable',
+      label: 'Usable for the plan',
+      type: 'text',
+      width: 150,
+      value: (r) => (r.usableForPlan === null ? null : r.usableForPlan ? 'Yes' : 'No'),
+    },
+    {
+      id: 'status',
+      label: 'Status',
+      type: 'select',
+      width: 110,
+      value: (r) => r.status,
+      options: [
+        { value: 'Active', label: 'Active' },
+        { value: 'Archived', label: 'Archived' },
+      ],
+    },
+  ];
 
   return (
-    <div className={styles.page}>
-      <ScreenHeader
-        left={
-          <button type="button" className={styles.backButton} onClick={goBack} aria-label="Back">
-            <ChevronLeft size={18} strokeWidth={2} />
-          </button>
-        }
-        title={strings.wallets.title}
-      />
-
-      <p className={styles.totalCaption}>
-        {formatAmount(total)} <span className={styles.totalCurrency}>{strings.wallets.totalAcrossWalletsSuffix}</span>
-      </p>
-
-      <ScreenState loading={loading} error={error} />
-
-      <div className={styles.list}>
-        {wallets.map((wallet) => (
-          <Link key={wallet.id} href={`/wallets/${wallet.id}`} className={styles.row}>
-            <span className={styles.dot} style={{ background: wallet.color }} />
-            <span className={styles.name}>{wallet.name}</span>
-            <span className={styles.amount}>
-              {formatAmount(wallet.amount)} {wallet.currency}
-            </span>
-            <ChevronRight size={16} strokeWidth={2} className={styles.chevron} />
-          </Link>
-        ))}
-      </div>
-
-      <button type="button" className={styles.addWalletButton} onClick={openAddWallet}>
-        <Plus size={18} strokeWidth={2.25} />
-        {strings.wallets.addWallet}
-      </button>
-
-      {!archivedLoading && archivedWallets.length > 0 && (
-        <div className={styles.archivedSection}>
-          <p className={styles.archivedTitle}>{strings.wallets.archivedTitle}</p>
-          <div className={styles.list}>
-            {archivedWallets.map((wallet) => (
-              <Link key={wallet.id} href={formLink('wallet', { id: wallet.id })} className={styles.row}>
-                <span className={styles.name}>{wallet.name}</span>
-                <ChevronRight size={16} strokeWidth={2} className={styles.chevron} />
+    <NotionPage
+      title="Wallets"
+      crumbs={[{ label: 'Money', href: '/home' }, { label: 'Wallets' }]}
+      properties={[
+        { id: 'total', label: 'Total across wallets', display: money(v.totals.total) },
+        { id: 'savings', label: 'In savings wallets', tone: 'in', display: money(v.totals.inSavings) },
+        { id: 'committed', label: 'Committed this month', tone: 'out', display: money(v.totals.committed), sub: 'Unpaid lines paid from wallets' },
+        { id: 'free', label: 'Free after commitments', tone: v.freeTotalTone, display: money(v.totals.free) },
+      ]}
+    >
+      <ScreenState loading={v.loading} error={v.error} />
+      {!v.loading && (
+        <Database<WalletRow>
+          id="wallets.page"
+          label="Wallets"
+          noun={['wallet', 'wallets']}
+          rows={v.rows}
+          rowKey={(r) => r.id}
+          columns={columns}
+          views={[
+            { id: 'table', name: 'Table', layout: 'table', group: 'type' },
+            { id: 'cards', name: 'Cards', layout: 'cards' },
+          ]}
+          groups={[{ id: 'type', label: 'Type', key: (r) => ({ key: r.group, label: r.group }), order: [...WALLET_GROUPS] }]}
+          defaultGroup="type"
+          subtotalColumn="balance"
+          card={{
+            title: (r) => r.name,
+            render: (r) => (
+              <Link href={`/wallets/${r.id}`} className={styles.card} data-archived={r.status === 'Archived' || undefined}>
+                <span className={styles.name}>
+                  <span className={styles.dot} style={{ background: r.color }} aria-hidden />
+                  <strong>{r.name}</strong>
+                </span>
+                <span className={styles.cardType}>{r.type}</span>
+                <span className={styles.cardBalance}>{money(r.balance)}</span>
+                <span className={styles.cardSub}>Committed {money(r.committed)}</span>
+                <span className={styles.cardSub} data-tone={r.freeTone}>
+                  Free {money(r.free)}
+                </span>
               </Link>
-            ))}
-          </div>
-        </div>
+            ),
+          }}
+          onOpen={(r) => router.push(`/wallets/${r.id}`)}
+          onNew={() => v.openAddWallet()}
+          newLabel="New wallet"
+          emptyText="No wallets yet."
+        />
       )}
-
-      {addOpen && (
-        <Modal title={strings.wallets.addWalletTitle} onClose={() => setAddOpen(false)}>
-          <div className={styles.formField}>
-            <label className={styles.formLabel} htmlFor="new-wallet-name">
-              {strings.wallets.nameLabel}
-            </label>
-            <input
-              id="new-wallet-name"
-              className={styles.formInput}
-              value={newName}
-              onChange={(event) => setNewName(event.target.value)}
-              placeholder={strings.wallets.namePlaceholder}
-            />
-          </div>
-
-          <div className={styles.formField}>
-            <label className={styles.formLabel} htmlFor="new-wallet-short-name">
-              {strings.wallets.shortNameLabel}
-            </label>
-            <input
-              id="new-wallet-short-name"
-              className={styles.formInput}
-              value={newShortName}
-              maxLength={5}
-              onChange={(event) => setNewShortName(event.target.value.slice(0, 5))}
-              placeholder={newName.trim().slice(0, 5) || strings.wallets.shortNamePlaceholder}
-            />
-            <p className={styles.formHint}>{strings.wallets.shortNameHint}</p>
-          </div>
-
-          <div className={styles.formField}>
-            <label className={styles.formLabel} htmlFor="new-wallet-type">
-              {strings.wallets.typeLabel}
-            </label>
-            <select
-              id="new-wallet-type"
-              className={styles.formInput}
-              value={newType}
-              onChange={(event) => setNewType(event.target.value as typeof newType)}
-            >
-              {accountTypes.map((type) => (
-                <option key={type} value={type}>
-                  {type}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className={styles.formField}>
-            <label className={styles.formLabel} htmlFor="new-wallet-currency">
-              {strings.wallets.currencyLabel}
-            </label>
-            <select
-              id="new-wallet-currency"
-              className={styles.formInput}
-              value={newCurrency}
-              onChange={(event) => setNewCurrency(event.target.value)}
-            >
-              {currencyOptions.map((option) => (
-                <option key={option.code} value={option.code}>
-                  {option.code}, {option.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className={styles.formField}>
-            <label className={styles.formLabel} htmlFor="new-wallet-balance">
-              {strings.wallets.startingBalanceLabel}
-            </label>
-            <input
-              id="new-wallet-balance"
-              className={styles.formInput}
-              inputMode="numeric"
-              value={newStartingBalance}
-              onChange={(event) => setNewStartingBalance(event.target.value.replace(/[^0-9.]/g, ''))}
-              placeholder="0"
-            />
-          </div>
-
-          {createError && (
-            <p className={styles.errorText} role="alert">
-              {createError}
-            </p>
-          )}
-
-          <button
-            type="button"
-            className={styles.modalSaveButton}
-            disabled={!newName.trim() || creating}
-            onClick={handleCreateWallet}
-          >
-            {strings.common.save}
-          </button>
-        </Modal>
-      )}
-    </div>
+      {v.addOpen && <AddWalletSheet v={v} />}
+    </NotionPage>
   );
 }

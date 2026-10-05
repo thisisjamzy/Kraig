@@ -113,7 +113,7 @@ export function PlanningBucketView({ bucketId, b }: { bucketId: string; b: Retur
         }
         right={
           <>
-            <Link href={`/baskets/${bucketId}`} className={p.roundButton} aria-label="Edit basket">
+            <Link href={formLink('edit-basket', { id: bucketId })} className={p.roundButton} aria-label="Edit basket">
               <Pencil size={17} strokeWidth={2} />
             </Link>
             <ActionMenu
@@ -131,7 +131,7 @@ export function PlanningBucketView({ bucketId, b }: { bucketId: string; b: Retur
                   icon: <ArrowRight size={14} strokeWidth={2} />,
                   onSelect: () => router.push(`/transactions?month=${b.month}&bucket=${bucketId}`),
                 },
-                { key: 'edit', label: 'Edit basket', icon: <Pencil size={14} strokeWidth={2} />, onSelect: () => router.push(`/baskets/${bucketId}`) },
+                { key: 'edit', label: 'Edit basket', icon: <Pencil size={14} strokeWidth={2} />, onSelect: () => router.push(formLink('edit-basket', { id: bucketId })) },
               ]}
             />
           </>
@@ -398,7 +398,7 @@ export function PlanningBucketView({ bucketId, b }: { bucketId: string; b: Retur
             <Plus size={20} strokeWidth={2.25} />
           </Link>
         ) : (
-          <Link href={`/baskets/${bucketId}`} className={p.squareButton} aria-label="Edit basket" title="Edit basket">
+          <Link href={formLink('edit-basket', { id: bucketId })} className={p.squareButton} aria-label="Edit basket" title="Edit basket">
             <Pencil size={18} strokeWidth={2} />
           </Link>
         )}

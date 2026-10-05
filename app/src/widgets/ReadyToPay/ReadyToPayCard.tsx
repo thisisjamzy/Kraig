@@ -4,39 +4,31 @@
 // payments the app prepared when their trigger fired, in priority order,
 // each with a checkbox (all checked), an editable amount and the account
 // it's paid from; what the money received doesn't cover yet waits under
-// "Not enough yet". "Confirm selected" records them (Undo for 10 seconds);
-// "Later" hides the card until the app is opened again. Shown at the top
-// of Home and the Budget page, and as the Ready to pay page.
+// "Not enough yet". "Confirm selected" records them (Undo for 10 seconds).
+// The close icon hides the card until a new payment is ready, on every
+// device (src/shared/settings/dismissals.ts); the payments stay in Ready to
+// pay and Notifications. Shown at the top of Home and the Budget page, and
+// as the Ready to pay page (which can't be closed).
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { CheckCircle2, Clock } from 'lucide-react';
+import { CheckCircle2, Clock, X } from 'lucide-react';
 import { useReadyToPay, type ReadyEntry } from '@/src/shared/hooks/useReadyToPay';
+import { useDismissedCard } from '@/src/shared/hooks/useDismissedCard';
 import styles from './ReadyToPayCard.module.css';
-
-const LATER_KEY = 'dreda.readyToPay.later';
-
-function readLater(): number {
-  try {
-    return Number(sessionStorage.getItem(LATER_KEY) ?? 0);
-  } catch {
-    return 0;
-  }
-}
 
 const money = (n: number) => Math.round(n).toLocaleString('en-US');
 const FLOW_LABEL = { Expense: 'Expense', Savings: 'Savings', Transfer: 'Transfer' } as const;
 
 export function ReadyToPayCard({ page = false }: { page?: boolean }) {
   const q = useReadyToPay();
-  // "Later": hidden until the queue changes or the app is opened again.
-  const [later, setLater] = useState(readLater);
+  const card = useDismissedCard('readyToPay', !page && q.count ? { key: 'readyToPay', ids: q.entries.map((e) => e.id) } : null);
   const [unchecked, setUnchecked] = useState<Set<string>>(new Set());
   const [amounts, setAmounts] = useState<Record<string, string>>({});
   const [accounts, setAccounts] = useState<Record<string, string>>({});
 
   if (q.loading) return null;
-  if (!q.count) {
+  if (!q.count && !(page && q.waiting.length)) {
     return page ? (
       <section className={styles.card} aria-label="Ready to pay">
         <p className={styles.empty}>
@@ -46,7 +38,7 @@ export function ReadyToPayCard({ page = false }: { page?: boolean }) {
       </section>
     ) : null;
   }
-  if (!page && later === q.count) return null;
+  if (!page && card.hidden) return null;
 
   const amountOf = (e: ReadyEntry) => {
     const raw = amounts[e.id];
@@ -77,6 +69,11 @@ export function ReadyToPayCard({ page = false }: { page?: boolean }) {
             {q.proposed.length ? `${money(q.available)} ${q.currency} received and not yet used covers ${q.proposed.length} of them.` : `Nothing is covered yet: ${money(Math.max(0, q.available))} ${q.currency} available.`}
           </p>
         </div>
+        {!page && (
+          <button type="button" className={styles.close} aria-label="Hide this card" title="Hide until a new payment is ready" onClick={() => card.dismiss('Card hidden. The payments stay in Ready to pay.')}>
+            <X size={16} strokeWidth={2} />
+          </button>
+        )}
       </header>
 
       {q.proposed.length > 0 && (
@@ -99,6 +96,11 @@ export function ReadyToPayCard({ page = false }: { page?: boolean }) {
               />
               <span className={styles.what}>
                 <strong>{e.name}</strong>
+                {e.updated && (
+                  <span className={styles.updated} title={`Was ${money(e.updated.from)}, now ${money(e.updated.to)}`}>
+                    Updated
+                  </span>
+                )}
                 <span>
                   {FLOW_LABEL[e.flow]} · {e.bucketName}
                   {e.fee ? ` · fee ${money(e.fee)}` : ''}
@@ -110,6 +112,9 @@ export function ReadyToPayCard({ page = false }: { page?: boolean }) {
                   inputMode="decimal"
                   value={amounts[e.id] ?? money(e.amount)}
                   onChange={(ev) => setAmounts((a) => ({ ...a, [e.id]: ev.target.value }))}
+                  onBlur={() => {
+                    if (amounts[e.id] !== undefined) void q.editAmount(e, amountOf(e) > 0 ? amountOf(e) : null);
+                  }}
                 />
                 <span className={styles.unit}>{q.currency}</span>
               </label>
@@ -146,6 +151,24 @@ export function ReadyToPayCard({ page = false }: { page?: boolean }) {
         </div>
       )}
 
+      {page && q.waiting.length > 0 && (
+        <div className={styles.waiting}>
+          <h3>Waiting for income</h3>
+          <ul>
+            {q.waiting.map((e) => (
+              <li key={e.id}>
+                <span>
+                  {e.name} · waiting for {e.waitingFor}
+                </span>
+                <span>
+                  {money(e.amount)} {q.currency}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {q.error && (
         <p className={styles.error} role="alert">
           {q.error}
@@ -153,22 +176,6 @@ export function ReadyToPayCard({ page = false }: { page?: boolean }) {
       )}
 
       <div className={styles.actions}>
-        {!page && (
-          <button
-            type="button"
-            className={styles.secondary}
-            onClick={() => {
-              try {
-                sessionStorage.setItem(LATER_KEY, String(q.count));
-              } catch {
-                // Hidden for this view only.
-              }
-              setLater(q.count);
-            }}
-          >
-            Later
-          </button>
-        )}
         {!page && (
           <Link href="/budget/ready" className={styles.link}>
             Open Ready to pay

@@ -27,7 +27,14 @@ function monthFromSearch(): string {
 }
 
 export function useLogic(bucketId: string) {
-  const [month] = useState(monthFromSearch);
+  const [month, setMonthState] = useState(monthFromSearch);
+  /** The basket's month dropdown: kept in the URL (?month=). */
+  function setMonth(next: string) {
+    setMonthState(next);
+    const params = new URLSearchParams(window.location.search);
+    params.set('month', next);
+    window.history.replaceState(window.history.state, '', `${window.location.pathname}?${params.toString()}`);
+  }
   const data = useMonthBudget(month);
   const { budget, buckets, transactionsById, transfersById, accounts, ctx } = data;
   const { data: categories } = useCategories();
@@ -134,6 +141,10 @@ export function useLogic(bucketId: string) {
 
   return {
     month,
+    setMonth,
+    categories,
+    /** The basket's own items (templates): next month's automated payment. */
+    templates: data.itemsByBucket[bucketId] ?? [],
     // The month's data, for the wide page's editable line database.
     data,
     currency: ctx.display,

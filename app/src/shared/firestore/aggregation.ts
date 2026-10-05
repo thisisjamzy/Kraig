@@ -1034,7 +1034,24 @@ export async function deleteTransferWithAggregation(uid: string, transferId: str
 // Buckets — `PRD Files/prd debt n goals` section 1.
 // ---------------------------------------------------------------------
 
-export interface CreateBucketInput {
+/** The New and Edit basket form's defaults for the basket's items (FirestoreBucket). */
+export interface BasketDefaults {
+  categoryId?: string | null;
+  startMonth?: string | null;
+  repeats?: 'monthly' | 'once' | null;
+  defaultPaidFrom?: string | null;
+  automationDefault?: 'off' | 'remind' | 'prepare' | null;
+  targetAmount?: number | null;
+}
+
+const basketDefaults = (input: BasketDefaults) =>
+  Object.fromEntries(
+    (['categoryId', 'startMonth', 'repeats', 'defaultPaidFrom', 'automationDefault', 'targetAmount'] as const)
+      .filter((k) => input[k] !== undefined)
+      .map((k) => [k, input[k] ?? null])
+  );
+
+export interface CreateBucketInput extends BasketDefaults {
   name: string;
   description: string;
   deadline: Date | null;
@@ -1057,6 +1074,7 @@ export async function createBucket(uid: string, input: CreateBucketInput): Promi
     archived: false,
     kind: input.kind,
     type: input.type,
+    ...basketDefaults(input),
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
@@ -1073,7 +1091,7 @@ export async function restoreBucket(uid: string, goalId: string): Promise<void> 
   await updateDoc(bucketRef(uid, goalId), { archived: false, updatedAt: serverTimestamp() });
 }
 
-export interface UpdateBucketInput {
+export interface UpdateBucketInput extends BasketDefaults {
   name: string;
   description: string;
   deadline: Date | null;
@@ -1098,6 +1116,7 @@ export async function updateBucket(uid: string, goalId: string, input: UpdateBuc
     currency: input.currency,
     kind: input.kind,
     type: input.type,
+    ...basketDefaults(input),
     updatedAt: serverTimestamp(),
   });
 }
@@ -1433,6 +1452,15 @@ export async function recordBucketLineItemPayment(
     month: input.occurrenceMonth ?? monthKey(input.date),
   };
 
+  // A scheduled debt repayment's line: the repayment is recorded on the
+  // debt, with its wallet effect (dynamic import: debtSchedule.ts imports
+  // this file).
+  if (goalId === 'debt-repayments') {
+    const { recordScheduledLine } = await import('./debtSchedule');
+    await recordScheduledLine(uid, bucketItem, { amount: paymentAmount, accountId: input.accountId, date: input.date }, ctx);
+    return;
+  }
+
   if (categoryType === 'Transfer') {
     if (!input.toAccountId) throw new Error('Choose which account this transfer moves money into.');
     const toAccountId = input.toAccountId;
@@ -1681,6 +1709,11 @@ export interface RecordRepaymentInput {
   // The form refuses a repayment the account can't cover; Import doesn't
   // (historic rows against imperfect balances).
   checkFunds?: boolean;
+  // A scheduled repayment's budget line (src/shared/firestore/debtSchedule.ts):
+  // the expense links to it, and the scheduled entry is marked recorded
+  // instead of moving the repeating plan on.
+  bucketItem?: BucketItemLink | null;
+  scheduledId?: string | null;
 }
 
 export interface RepaymentDebt {
@@ -1703,9 +1736,10 @@ export async function recordRepayment(
   debt: RepaymentDebt,
   input: RecordRepaymentInput,
   ctx: CurrencyContext
-): Promise<string> {
+): Promise<{ repaymentId: string; transactionId: string | null }> {
   const db = getFirebaseFirestore();
   const repaymentId = crypto.randomUUID();
+  let linkedTransactionId: string | null = null;
   const shouldLinkTransaction = debt.debtType === 'cash' || Boolean(input.accountId);
   if (shouldLinkTransaction && !input.accountId) {
     throw new Error('Choose an account to debit for this repayment.');
@@ -1731,6 +1765,7 @@ export async function recordRepayment(
     let transactionId: string | null = null;
     if (shouldLinkTransaction) {
       transactionId = crypto.randomUUID();
+      linkedTransactionId = transactionId;
       writeTransactionContribution(
         tx,
         uid,
@@ -1746,6 +1781,7 @@ export async function recordRepayment(
           createdBy: uid,
           isDebtRepayment: true,
           linkedDebtId: debt.id,
+          ...(input.bucketItem ? { bucketItem: input.bucketItem } : {}),
         },
         account,
         ctx
@@ -1765,7 +1801,12 @@ export async function recordRepayment(
     const currentBalance = Math.max(0, round2(current.principalAmount - totalRepaid));
     let paymentPlan = current.paymentPlan;
     const recurring = paymentPlan.type === 'recurring' ? paymentPlan.recurring : undefined;
-    if (recurring?.isActive) {
+    if (input.scheduledId) {
+      paymentPlan = {
+        ...paymentPlan,
+        scheduled: (paymentPlan.scheduled ?? []).map((s) => (s.id === input.scheduledId ? { ...s, repaymentId, amount: input.amount, amountMode: 'set' } : s)),
+      };
+    } else if (recurring?.isActive) {
       // A planned payment moves the schedule on from its own date; a
       // manual one from the day it was paid. A one-off "next payment"
       // override is used up either way.
@@ -1796,7 +1837,10 @@ export async function recordRepayment(
     });
   });
 
-  return repaymentId;
+  // "Everything left" on the debt's other scheduled repayments follows the
+  // new balance (dynamic import: debtSchedule.ts imports this file).
+  if (!input.scheduledId) await (await import('./debtSchedule')).syncScheduledLines(uid, debt.id).catch(() => undefined);
+  return { repaymentId, transactionId: linkedTransactionId };
 }
 
 /**

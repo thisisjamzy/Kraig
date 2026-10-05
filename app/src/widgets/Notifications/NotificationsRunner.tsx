@@ -13,7 +13,8 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { query, where } from 'firebase/firestore';
 import { useFirestoreCollection, useFirestoreDoc } from '@/src/shared/firestore/hooks';
-import { debtsRef, paymentQueueRef, planSnapshotRef } from '@/src/shared/firestore/refs';
+import { debtsRef, planSnapshotRef } from '@/src/shared/firestore/refs';
+import { useReadyToPay } from '@/src/shared/hooks/useReadyToPay';
 import { fromStored } from '@/src/shared/firestore/storedDates';
 import { toDisplay } from '@/src/shared/firestore/currency';
 import { applyNotificationWrites } from '@/src/shared/firestore/notificationWrites';
@@ -31,7 +32,7 @@ import type { PlanSnapshot } from '@/src/shared/notifications/types';
 import { useBudgetMonth } from '@/src/logic/budgetMonth/useLogic';
 import { rangeFor } from '@/src/viewmodels/insights/dates';
 import { nextPayment } from '@/src/viewmodels/debt';
-import type { FirestoreDebt, FirestorePaymentQueueEntry, FirestoreTask } from '@/src/shared/firestore/types';
+import type { FirestoreDebt, FirestoreTask } from '@/src/shared/firestore/types';
 import { budgetFacts, timeFacts } from './facts';
 
 export function NotificationsRunner() {
@@ -41,9 +42,11 @@ export function NotificationsRunner() {
   // ---- Money ----
   const data = useMonthBudget(uid ? month : null);
   const budgetMonth = useBudgetMonth(month, data);
-  const { data: queue, loading: queueLoading } = useFirestoreCollection<FirestorePaymentQueueEntry>(
-    useMemo(() => (uid ? query(paymentQueueRef(uid), where('status', '==', 'ready')) : null), [uid])
-  );
+  // Ready to pay, derived from the current items: an item edit, delete or
+  // new funding source updates or resolves these through their dedupe keys.
+  const readyQueue = useReadyToPay();
+  const queue = readyQueue.entries;
+  const queueLoading = readyQueue.loading;
   const { data: debts, loading: debtsLoading } = useFirestoreCollection<FirestoreDebt>(
     useMemo(() => (uid ? query(debtsRef(uid), where('archivedAt', '==', null)) : null), [uid])
   );
@@ -83,7 +86,7 @@ export function NotificationsRunner() {
       overspends: b.overspends,
       leftovers: b.leftovers,
       mustHaves: must.count ? { status: must.status, count: must.count, due: must.due, short: Math.max(0, -must.spareByMonthEnd), waitingFor } : null,
-      readyToPay: queue.map((q) => ({ id: q.id, name: q.name, amount: display(q.amount, q.currency) })),
+      readyToPay: queue.map((q) => ({ id: q.id, name: q.name, amount: q.amount })),
       incomeReceived: [...byIncome].map(([key, v]) => ({ key, name: v.name, amount: v.amount, readyCount: v.count })),
       monthReview: budgetMonth.banner ? { month, text: budgetMonth.banner } : null,
       unassigned,

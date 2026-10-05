@@ -10,14 +10,14 @@
 // The addresses live here (pure, tested in test/debtPages.test.ts); the
 // opener is useDebtForms.ts.
 
-export type DebtFormKind = 'new' | 'edit' | 'repay' | 'plan' | 'wallet';
+export type DebtFormKind = 'new' | 'edit' | 'repay' | 'plan' | 'wallet' | 'schedule';
 
 export const DEBT_FORM_PARAM = 'debtForm';
 export const DEBT_ID_PARAM = 'debt';
-/** Carried in the URL: a repayment amount, the wallet effect to switch to, the wallet form's step. */
-export const DEBT_PREFILL_PARAMS = ['amount', 'to', 'step'];
+/** Carried in the URL: a repayment amount, the wallet effect to switch to, the wallet form's step, a scheduled repayment. */
+export const DEBT_PREFILL_PARAMS = ['amount', 'to', 'step', 'scheduled'];
 
-const KINDS: DebtFormKind[] = ['new', 'edit', 'repay', 'plan', 'wallet'];
+const KINDS: DebtFormKind[] = ['new', 'edit', 'repay', 'plan', 'wallet', 'schedule'];
 
 export function isDebtFormKind(value: string | null): value is DebtFormKind {
   return KINDS.includes(value as DebtFormKind);
@@ -27,6 +27,7 @@ export function isDebtFormKind(value: string | null): value is DebtFormKind {
 export function debtFormPageHref(kind: DebtFormKind, debtId?: string | null, params?: Record<string, string>) {
   const sp = new URLSearchParams(params);
   const q = sp.toString() ? `?${sp.toString()}` : '';
+  if (kind === 'schedule' && !debtId) return `/debts/schedule${q}`;
   if (kind === 'new' || !debtId) return `/debts/new${q}`;
   return `/debts/${encodeURIComponent(debtId)}/${kind}${q}`;
 }

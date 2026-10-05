@@ -11,6 +11,7 @@
 //   - the action card (only when something needs doing);
 //   - item cards, latest transactions, and a sticky bar.
 
+import { DismissibleCta } from '@/src/phone/widgets/DismissibleCard/DismissibleCard';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -26,6 +27,10 @@ import { AdjustmentRow, AdjustmentSheet } from '@/src/phone/screens/PlanningBuck
 import { CloseBucketSheet } from '@/src/phone/screens/PlanningBucket/CloseBucketSheet';
 import adj from '@/src/phone/screens/PlanningBucket/Adjustments.module.css';
 import styles from '@/src/phone/screens/PlanningBucket/PlanningBucketScreen.module.css';
+import { useReadyToPay } from '@/src/shared/hooks/useReadyToPay';
+import { monthKeyOf, type ItemMonth } from '@/src/shared/budget/monthBudget';
+import { upcomingPayments } from '@/src/logic/planningBucket/basketPage';
+import type { LineRow } from '@/src/logic/budgetMonth/lines';
 
 // Distinct brand-blue shades, one per item (segment and legend dot).
 const SHADES = ['#3b63f0', '#243a8c', '#7d97f6', '#1c2a6b', '#a9baf9', '#4f6fd8', '#5c6fae', '#c7d3fc'];
@@ -261,7 +266,14 @@ export function PlanningBucketView({ bucketId, b }: { bucketId: string; b: Retur
 
       {/* 3. Action card — the situation and what to do. */}
       {actionCard && (
-        <div className={p.promptCard} data-tone={over ? 'over' : 'leftover'}>
+        <DismissibleCta
+          cardId={`basket:${bucketId}`}
+          state={{ key: `${prompt!.kind}:${b.month}:${Math.round(prompt!.amount)}` }}
+          label="this card"
+          toast="Card hidden. It comes back if the amount changes."
+          className={p.promptCard}
+          tone={over ? 'over' : 'leftover'}
+        >
           <span className={p.promptCardText}>
             <span className={p.promptCardTitle}>
               {over ? <AlertCircle size={16} strokeWidth={2.5} aria-hidden /> : <Sparkles size={16} strokeWidth={2.5} aria-hidden />}
@@ -280,7 +292,7 @@ export function PlanningBucketView({ bucketId, b }: { bucketId: string; b: Retur
           >
             {over ? 'Cover or justify' : 'Reallocate'}
           </Link>
-        </div>
+        </DismissibleCta>
       )}
 
       {/* 4. Items */}
@@ -311,6 +323,7 @@ export function PlanningBucketView({ bucketId, b }: { bucketId: string; b: Retur
             </span>
             <span className={styles.itemOf}>
               {money(item.actual)} / {money(item.available)} {currency}
+              {item.due && ` · due ${dayMonth(item.due)}`}
               {movedOut > 0 && <span className={styles.itemMoved}> · −{money(movedOut)} moved</span>}
             </span>
             <span className={styles.itemBar} role="presentation">
@@ -320,11 +333,15 @@ export function PlanningBucketView({ bucketId, b }: { bucketId: string; b: Retur
               <span className={styles.statusChip} data-tone={itemOver ? 'over' : undefined}>
                 {itemOver ? 'OVER' : itemJustified ? 'JUSTIFIED' : aboveEstimate ? 'ABOVE ESTIMATE' : item.kind === 'Fixed' ? 'FIXED' : 'PLANNED'}
               </span>
-              <span className={styles.categoryChip}>{item.categoryName}</span>
+              {(item.necessity || item.priority) && (
+                <span className={styles.categoryChip}>{[item.necessity === 'MustHave' ? 'Must have' : item.necessity === 'NiceToHave' ? 'Nice to have' : null, item.priority].filter(Boolean).join(' · ')}</span>
+              )}
             </span>
           </Link>
         ))}
       </div>
+
+      <UpcomingList bucketId={bucketId} month={b.month} items={b.items.map((x) => x.item)} accounts={b.data.accounts} currency={currency} />
 
       {b.adjustments.length > 0 && (
         <>
@@ -415,5 +432,57 @@ export function PlanningBucketView({ bucketId, b }: { bucketId: string; b: Retur
         )}
       </div>
     </div>
+  );
+}
+
+/** Upcoming payments: this month's next payments from the basket's items, with their Ready to pay state. */
+function UpcomingList({
+  bucketId,
+  month,
+  items,
+  accounts,
+  currency,
+}: {
+  bucketId: string;
+  month: string;
+  items: ItemMonth[];
+  accounts: { id: string; name: string }[];
+  currency: string;
+}) {
+  const ready = useReadyToPay();
+  const current = month === monthKeyOf(new Date());
+  const occurrences = current ? ready.all.filter((o) => o.bucketId === bucketId).map((o) => ({ itemId: o.itemId, state: o.state, waitingFor: o.waitingFor })) : [];
+  const rows = upcomingPayments(
+    items.map((i) => ({ ...i, left: i.available - i.actual, accountName: accounts.find((a) => a.id === i.accountId)?.name ?? null }) as LineRow),
+    occurrences,
+    new Date(),
+    4
+  );
+  if (!rows.length || items.every((i) => i.type === 'Income')) return null;
+  return (
+    <>
+      <div className={p.sectionHead}>
+        <h2>Upcoming payments</h2>
+      </div>
+      <div className={p.rows}>
+        {rows.map((u) => (
+          <Link key={u.key} href={`/budget/item/${bucketId}/${u.itemId}?month=${month}`} className={p.row}>
+            <span className={p.rowMain}>
+              <span className={p.rowName}>{u.name}</span>
+              <span className={p.rowNote}>
+                {u.state}
+                {u.paidFrom ? ` · ${u.paidFrom}` : ''}
+              </span>
+            </span>
+            <span className={p.rowSide}>
+              <span className={p.rowAmount}>
+                {money(u.amount)} {currency}
+              </span>
+              {u.date && <span className={p.rowWhen}>{dayMonth(u.date)}</span>}
+            </span>
+          </Link>
+        ))}
+      </div>
+    </>
   );
 }

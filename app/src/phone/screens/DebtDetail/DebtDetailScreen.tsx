@@ -10,6 +10,8 @@ import { TrendChart } from '@/src/widgets/TrendChart/TrendChart';
 import { ConfirmDialog } from '@/src/widgets/ConfirmDialog/ConfirmDialog';
 import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import { formatAmount } from '@/src/phone/screens/Buckets/BucketsScreen';
+import { debtScheduleRows } from '@/src/logic/debtDetail/schedule';
+import { useAccounts } from '@/src/shared/firestore/queries';
 import styles from '@/src/phone/screens/DebtDetail/DebtDetailScreen.module.css';
 
 const INTERVAL_LABEL: Record<string, string> = {
@@ -32,6 +34,11 @@ export function DebtDetailScreen({ debtId }: { debtId: string }) {
     useLogic(debtId);
 
   const trendColor = TREND_COLOR[debt?.priority ?? 'medium'];
+  const { data: accounts } = useAccounts();
+  const schedule = debtScheduleRows(debt ?? null, (p) =>
+    !p ? null : p.kind === 'account' ? (accounts.find((a) => a.id === p.accountId)?.name ?? 'An account') : p.kind === 'anyIncome' ? 'Any income' : p.kind === 'savings' ? 'Savings' : 'Income'
+  );
+  const shortDay = (d: Date) => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 
   return (
     <div className={styles.page}>
@@ -131,6 +138,57 @@ export function DebtDetailScreen({ debtId }: { debtId: string }) {
               <p className={styles.emptyText}>{strings.debtDetail.noPaymentPlan}</p>
             )}
           </div>
+
+          <div className={styles.planCard}>
+            <div className={styles.sectionTitleRow}>
+              <p className={styles.sectionTitle}>Scheduled repayments</p>
+              {remaining > 0 && (
+                <Link href={`/debts/${debtId}/schedule`} className={styles.addLink}>
+                  Plan a repayment
+                </Link>
+              )}
+            </div>
+            {schedule.scheduled.length ? (
+              schedule.scheduled.map((r) => (
+                <Link
+                  key={r.id}
+                  href={r.recorded ? `/debts/${debtId}` : r.budgetLine ? `/debts/${debtId}/schedule?scheduled=${r.id}` : `/debts/${debtId}/repay?amount=${r.amount}&scheduled=${r.id}`}
+                  className={styles.planRow}
+                >
+                  <span>
+                    {shortDay(r.date)} · {r.recorded ? 'Recorded' : r.everything ? 'Everything left' : 'Scheduled'}
+                    {r.from ? ` · ${r.from}` : ''}
+                  </span>
+                  <span className={styles.amountValue}>
+                    {formatAmount(r.amount)} {currency}
+                  </span>
+                </Link>
+              ))
+            ) : (
+              <p className={styles.emptyText}>A one-off repayment on a date, for a set amount or everything left.</p>
+            )}
+            {schedule.overBy > 0 && (
+              <p className={styles.emptyText}>
+                These add up to {formatAmount(schedule.overBy)} {currency} more than what you owe.
+              </p>
+            )}
+          </div>
+
+          {schedule.upcoming.length > 0 && (
+            <div className={styles.planCard}>
+              <p className={styles.sectionTitle}>Upcoming repayments</p>
+              {schedule.upcoming.map((u) => (
+                <div key={u.key} className={styles.planRow}>
+                  <span>
+                    {shortDay(u.date)} · {u.kind === 'repeating' ? 'Repeating plan' : 'Scheduled'}
+                  </span>
+                  <span className={styles.amountValue}>
+                    {formatAmount(u.amount)} {currency}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
 
           {trend.length > 0 && (
             <div className={styles.trendCard}>

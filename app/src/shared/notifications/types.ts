@@ -29,6 +29,7 @@ export const NOTIFICATION_TYPES = [
   'auto_allocate_ready',
   'want_to_buy_fits',
   'cushion_streak',
+  'payments_updated',
   // Time
   'tasks_overdue',
   'tasks_due_today',
@@ -167,6 +168,7 @@ export const TYPE_LABEL: Record<NotificationType, string> = {
   auto_allocate_ready: 'Backlog items that now fit',
   want_to_buy_fits: 'Want to buy items that fit',
   cushion_streak: 'Cushion streak milestones',
+  payments_updated: 'Waiting payments updated',
   tasks_overdue: 'Overdue tasks',
   tasks_due_today: 'Tasks due today',
   projects_at_risk: 'Projects at risk',

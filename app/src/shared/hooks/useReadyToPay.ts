@@ -1,47 +1,48 @@
 'use client';
 
-// The Ready to pay queue, live: every prepared payment still waiting, in
-// priority order, split into what this month's received money covers and
-// what waits under "Not enough yet" (automation.ts's proposeQueue), plus
-// confirming with a 10-second Undo. Shared by the Home and Budget cards and
-// the Ready to pay page, so all three propose the same payments.
+// Ready to pay, live: this month's automated payments DERIVED from the
+// current basket items (src/shared/budget/occurrences.ts), less what the
+// user already confirmed or skipped, in priority order; split into what
+// this month's received money covers and what waits under "Not enough
+// yet" (automation.ts's proposeQueue), with the payments still waiting for
+// an income listed apart. Confirming has a 10-second Undo. Shared by the
+// Home and Budget cards, the Ready to pay page, the side nav count and the
+// notifications runner, so all of them agree.
 
 import { useMemo, useState } from 'react';
 import { query, where } from 'firebase/firestore';
 import { useFirestoreCollection } from '@/src/shared/firestore/hooks';
 import { paymentQueueRef } from '@/src/shared/firestore/refs';
-import { confirmPayments, undoConfirmed, type ConfirmRequest } from '@/src/shared/firestore/paymentQueue';
+import { confirmPayments, saveAmountEdit, skipOccurrence, undoConfirmed, type ConfirmRequest } from '@/src/shared/firestore/paymentQueue';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { useMonthBudget } from '@/src/shared/hooks/useMonthBudget';
 import { monthKeyOf } from '@/src/shared/budget/monthBudget';
 import { proposeQueue } from '@/src/shared/budget/automation';
+import { deriveOccurrences, type Occurrence, type OccurrenceAction } from '@/src/shared/budget/occurrences';
 import { showToast } from '@/src/widgets/Toast/Toast';
 import type { FirestorePaymentQueueEntry } from '@/src/shared/firestore/types';
 
-export interface ReadyEntry extends FirestorePaymentQueueEntry {
-  due: Date | null;
-}
+export type ReadyEntry = Occurrence;
 
-/** Just the count, for the side nav — one small query. */
+/** Just the count of payments ready now, for the side nav. */
 export function useReadyToPayCount(): number {
-  const { user } = useFirebaseUser();
-  const uid = user?.uid;
-  const { data } = useFirestoreCollection<FirestorePaymentQueueEntry>(
-    useMemo(() => (uid ? query(paymentQueueRef(uid), where('status', '==', 'ready')) : null), [uid])
-  );
-  return data.length;
+  return useReadyToPay().ready.length;
 }
 
 export function useReadyToPay() {
   const { user } = useFirebaseUser();
   const uid = user?.uid;
   const month = monthKeyOf(new Date());
-  const { totals, accounts, ctx, loading: budgetLoading } = useMonthBudget(month);
+  const { budget, totals, accounts, ctx, loading: budgetLoading } = useMonthBudget(month);
   const { data, loading } = useFirestoreCollection<FirestorePaymentQueueEntry>(
-    useMemo(() => (uid ? query(paymentQueueRef(uid), where('status', '==', 'ready')) : null), [uid])
+    useMemo(() => (uid ? query(paymentQueueRef(uid), where('month', '==', month)) : null), [uid, month])
   );
+  const [today] = useState(() => new Date());
 
-  const entries = useMemo<ReadyEntry[]>(() => data.map((e) => ({ ...e, due: e.dueDate?.toDate() ?? null })), [data]);
+  const actions = useMemo(() => new Map<string, OccurrenceAction>(data.map((a) => [a.id, a])), [data]);
+  const all = useMemo(() => deriveOccurrences(budget, today, actions), [budget, today, actions]);
+  const entries = useMemo(() => all.filter((o) => o.state === 'ready'), [all]);
+  const waiting = useMemo(() => all.filter((o) => o.state === 'waiting'), [all]);
   // What the money received this month still covers.
   const available = totals.availableNowRaw;
   const proposal = useMemo(() => proposeQueue(entries, available), [entries, available]);
@@ -64,7 +65,9 @@ export function useReadyToPay() {
     const { records, error: failed } = await confirmPayments(uid, requests, ctx, accountType);
     setBusy(false);
     if (failed) setError(failed);
-    if (records.length) {
+    if (records.length && records.some((r) => r.kind === 'repayment')) {
+      showToast(`${records.length} ${records.length === 1 ? 'payment' : 'payments'} recorded. Debt repayments are on their debt's page.`);
+    } else if (records.length) {
       showToast(`${records.length} ${records.length === 1 ? 'payment' : 'payments'} recorded`, {
         duration: 10_000,
         action: {
@@ -80,8 +83,24 @@ export function useReadyToPay() {
     return !failed;
   }
 
+  /** Keeps the amount typed for one payment (until its item's amount changes). */
+  async function editAmount(entry: ReadyEntry, amount: number | null) {
+    if (!uid) return;
+    const same = amount === null || Math.abs(amount - entry.planned) < 0.005;
+    await saveAmountEdit(uid, entry, same ? null : amount, ctx.display);
+  }
+  async function skip(entry: ReadyEntry) {
+    if (!uid) return;
+    await skipOccurrence(uid, entry, ctx.display);
+  }
+
   return {
+    all,
     entries,
+    ready: entries,
+    waiting,
+    editAmount,
+    skip,
     proposed: proposal.proposed,
     notEnough: proposal.notEnough,
     available,

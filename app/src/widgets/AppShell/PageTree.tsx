@@ -13,6 +13,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ChevronRight, Copy, ExternalLink, FileText, MoreHorizontal, Pencil, Plus, Star, StarOff } from 'lucide-react';
 import { query, updateDoc, where, serverTimestamp } from 'firebase/firestore';
+import { useFormLink } from '@/src/shared/navigation/useFormLink';
 import { PAGE_TREE, MODE_LABEL, pageForPath, type AppMode, type TreePage } from '@/src/shared/config/pageTree';
 import { useFirestoreCollection } from '@/src/shared/firestore/hooks';
 import { areasRef, bucketsRef, projectRef, projectsRef } from '@/src/shared/firestore/refs';
@@ -59,6 +60,7 @@ export function PageTree({ mode, touch, onNavigate }: { mode: AppMode; touch: bo
   const { user } = useFirebaseUser();
   const uid = user?.uid;
   const favorites = useFavorites();
+  const formLink = useFormLink();
   const [order, setOrder] = useState<string[]>([]);
   const [open, setOpen] = useState<string[]>([]);
   const [menu, setMenu] = useState<RowMenu | null>(null);
@@ -105,7 +107,7 @@ export function PageTree({ mode, touch, onNavigate }: { mode: AppMode; touch: bo
     return [...base].sort((a, b) => rank(a) - rank(b));
   }, [mode, order]);
 
-  const active = pageForPath(pathname, search);
+  const active = pageForPath(pathname);
 
   function toggleOpen(id: string) {
     const next = open.includes(id) ? open.filter((x) => x !== id) : [...open, id];
@@ -123,7 +125,7 @@ export function PageTree({ mode, touch, onNavigate }: { mode: AppMode; touch: bo
     setDragging(null);
   }
 
-  function rowActions(fav: Favorite, create?: { label: string; href: string }, rename?: (name: string) => Promise<void>) {
+  function rowActions(fav: Favorite, create?: TreePage['create'], rename?: (name: string) => Promise<void>) {
     return (
       <span className={styles.rowActions} data-touch={touch || undefined}>
         <button
@@ -139,7 +141,7 @@ export function PageTree({ mode, touch, onNavigate }: { mode: AppMode; touch: bo
           <MoreHorizontal size={15} strokeWidth={2} />
         </button>
         {create && (
-          <Link href={create.href} className={styles.rowIcon} aria-label={create.label} title={create.label} onClick={onNavigate}>
+          <Link href={create.peek ? formLink(create.peek) : create.href} className={styles.rowIcon} aria-label={create.label} title={create.label} onClick={onNavigate}>
             <Plus size={15} strokeWidth={2} />
           </Link>
         )}

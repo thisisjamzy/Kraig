@@ -67,7 +67,7 @@ export function BudgetMonthPage({ month, data, onMonth }: { month: string; data:
     accounts: v.accounts,
     incomeLines: v.incomeLines.map((l) => ({ itemId: l.itemId, name: l.name })),
     askScope: (line) => scope.ask(line.name, month),
-    editAmount: v.editAmount,
+    editAmount: (line, amount, edit) => v.editAmount(line, amount, edit, scope.askRecorded),
     editDate: v.editDate,
     setField: v.setField,
     markPaid: v.markPaid,

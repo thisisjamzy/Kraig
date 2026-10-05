@@ -49,7 +49,7 @@ export function ItemPage({ bucketId, itemId, it }: { bucketId: string; itemId: s
     accounts: v.accounts,
     incomeLines: v.incomeLines.map((l) => ({ itemId: l.itemId, name: l.name })),
     askScope: (l) => scope.ask(l.name, it.month),
-    editAmount: v.editAmount,
+    editAmount: (line, amount, edit) => v.editAmount(line, amount, edit, scope.askRecorded),
     editDate: v.editDate,
     setField: v.setField,
     markPaid: v.markPaid,

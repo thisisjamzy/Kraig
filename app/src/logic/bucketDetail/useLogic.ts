@@ -24,7 +24,9 @@ import {
   updateBucket,
   deleteBucket as deleteBucketWrite,
   toggleBucketLineItemSubItem,
+  updateTransactionWithAggregation,
 } from '@/src/shared/firestore/aggregation';
+import { showToast } from '@/src/widgets/Toast/Toast';
 import { useExchangeRates } from '@/src/shared/firestore/queries';
 import { currencyName } from '@/src/viewmodels/currencies';
 import { categoryAccentColor } from '@/src/viewmodels/categories';
@@ -46,6 +48,7 @@ import { scheduleItem } from '@/src/shared/firestore/bucketBudget';
 import { useBucketProgress } from '@/src/shared/hooks/useBucketProgress';
 import { isItemClosed } from '@/src/shared/budget/bucketProgress';
 import { useGoBack } from '@/src/shared/navigation/useGoBack';
+import { monthKeyOf } from '@/src/shared/budget/monthBudget';
 import { usePreferences } from '@/src/shared/firestore/preferences';
 
 // Recurring bills/subscriptions/savings transfers don't make sense as
@@ -330,18 +333,19 @@ export function useLogic(goalId: string) {
     setItemAmount('');
     setItemPriority(DEFAULT_PRIORITY);
     setItemNecessity(DEFAULT_NECESSITY);
-    setItemCategoryIdState(categoryOptions[0]?.id ?? '');
+    // The basket's own defaults first (the New basket form), then the app's.
+    setItemCategoryIdState(bucket?.categoryId && categoryOptions.some((c) => c.id === bucket.categoryId) ? bucket.categoryId : (categoryOptions[0]?.id ?? ''));
     setItemAccountId('');
     setItemToAccountId('');
     setItemCharges('');
-    setItemDueDate('');
+    setItemDueDate(bucket?.startMonth && bucket.startMonth > monthKeyOf(new Date()) ? `${bucket.startMonth}-01` : '');
     setItemRecurrenceFrequency('Monthly');
     setItemSubItems([]);
-    setItemRepeat(bucket?.kind === 'Fixed' ? 'Monthly' : 'none');
+    setItemRepeat(bucket?.repeats ? (bucket.repeats === 'monthly' ? 'Monthly' : 'none') : bucket?.kind === 'Fixed' ? 'Monthly' : 'none');
     setItemCustomFrequency('Quarterly');
     setItemInterval(1);
-    setItemPaidFrom('');
-    setItemAutomationMode(prefs.automationDefault);
+    setItemPaidFrom(bucket?.defaultPaidFrom && bucket.defaultPaidFrom !== 'savings' ? bucket.defaultPaidFrom : '');
+    setItemAutomationMode(bucket?.automationDefault ?? prefs.automationDefault);
     setItemNotBefore('');
     setItemNeededBy('');
     setItemSplittable(false);
@@ -448,7 +452,19 @@ export function useLogic(goalId: string) {
         splittable: itemSplittable,
       };
       if (editingItemId) {
+        // This month's line before the edit: a payment already recorded
+        // against it keeps its amount unless the user says otherwise.
+        const line = monthBudget.budget.itemsByKey.get(`${editingItemId}@${thisMonth}`);
         await updateBucketLineItem(uid, goalId, editingItemId, input);
+        const paid = line && line.transactionIds.length === 1 && !line.transferIds.length ? monthBudget.transactionsById.get(line.transactionIds[0]) : undefined;
+        const ctx = monthBudget.ctx;
+        const newAmount = convert(amount, bucket?.currency ?? ctx.display, ctx.display, ctx.rates);
+        if (paid && line && Math.abs(line.actual - newAmount) >= 0.5) {
+          setAddOpen(false);
+          setEditingItemId(null);
+          setRecordedAsk({ name: input.name, transactionId: paid.id, amount: newAmount, done: onDone ?? (() => router.replace(`/baskets/${goalId}`)) });
+          return;
+        }
       } else {
         await createBucketLineItem(uid, goalId, bucket?.kind ?? 'Variable', input);
       }
@@ -463,6 +479,39 @@ export function useLogic(goalId: string) {
     } finally {
       setSavingItem(false);
     }
+  }
+
+  // "Also update this month's recorded payment?" after an edit changed the amount.
+  const [recordedAsk, setRecordedAsk] = useState<{ name: string; transactionId: string; amount: number; done: () => void } | null>(null);
+  async function answerRecorded(update: boolean) {
+    const ask = recordedAsk;
+    if (!uid || !ask) return;
+    setRecordedAsk(null);
+    const paid = monthBudget.transactionsById.get(ask.transactionId);
+    if (update && paid) {
+      const ctx = monthBudget.ctx;
+      const currency = monthBudget.accounts.find((a) => a.id === paid.accountId)?.currency ?? ctx.base;
+      try {
+        await updateTransactionWithAggregation(
+          uid,
+          {
+            id: paid.id,
+            date: paid.date.toDate(),
+            type: paid.type,
+            description: paid.description,
+            accountId: paid.accountId,
+            categoryId: paid.categoryId ?? null,
+            amount: convert(ask.amount, ctx.display, currency, ctx.rates),
+            direction: paid.direction,
+          },
+          ctx
+        );
+        showToast(`${ask.name}'s recorded payment updated`);
+      } catch (error) {
+        showToast(error instanceof Error ? error.message : 'Could not update the recorded payment.');
+      }
+    }
+    ask.done();
   }
 
   async function handleDeleteLineItem(lineItemId: string) {
@@ -649,6 +698,8 @@ export function useLogic(goalId: string) {
   }
 
   return {
+    recordedAsk,
+    answerRecorded,
     itemRepeat,
     setItemRepeat,
     itemCustomFrequency,

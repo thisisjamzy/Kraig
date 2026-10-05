@@ -22,6 +22,7 @@ import { Plus, X } from 'lucide-react';
 import { useLogic, CUSTOM_FREQUENCIES, type ItemRepeat } from '@/src/logic/bucketDetail/useLogic';
 import { NECESSITY_LABEL, NECESSITY_OPTIONS, PRIORITY_LEVELS } from '@/src/viewmodels/projects';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
+import { Modal } from '@/src/widgets/Modal/Modal';
 import {
   FieldCard,
   FieldRow,
@@ -147,6 +148,21 @@ export function BasketItemForm({ goalId, itemId }: { goalId: string; itemId?: st
       primary={seeded ? { label: editing ? 'Save basket item' : 'Add basket item', disabled: !v.canSaveLineItem, busy: v.savingItem } : null}
       onSubmit={() => void v.handleAddLineItem(exits.inPeek ? exits.done : undefined)}
       error={v.itemError}
+      overlays={
+        v.recordedAsk ? (
+          <Modal title="Also update this month's recorded payment?" onClose={() => void v.answerRecorded(false)}>
+            <p className={ff.hint}>{v.recordedAsk.name} already has a payment recorded this month. It keeps its amount unless you update it.</p>
+            <div className={styles.choiceButtons}>
+              <button type="button" className={styles.choicePrimary} onClick={() => void v.answerRecorded(true)}>
+                Update it
+              </button>
+              <button type="button" className={styles.choiceSecondary} onClick={() => void v.answerRecorded(false)}>
+                Leave it
+              </button>
+            </div>
+          </Modal>
+        ) : null
+      }
     >
       <ScreenState loading={v.loading} error={v.error} />
       {!v.loading && !v.error && seeded && (

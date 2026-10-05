@@ -19,6 +19,8 @@ const WIDE_ROUTES = [
   '/budget/review',
   '/budget/migration',
   '/transactions',
+  '/payments',
+  '/wallets',
   '/debts',
   '/areas',
   '/resources',
@@ -32,7 +34,10 @@ const WIDE_PATTERNS = [
   // Time: an area's page and a task's page (its form stays narrow).
   /^\/areas\/(?!new$)[^/]+$/,
   /^\/tasks\/[^/]+\/edit$/,
-  /^\/budget\/bucket\/[^/]+$/,
+  /^\/budget\/basket\/[^/]+$/,
+  /^\/baskets\/(?!new$|items$|forecast$|analytics$)[^/]+$/,
+  // A wallet's page (its edit form stays narrow, or opens as a side peek).
+  /^\/wallets\/[^/]+$/,
   /^\/budget\/item\/[^/]+\/[^/]+$/,
   /^\/transactions\/[^/]+$/,
   // A debt's page (its forms stay narrow, or open as a side peek).
