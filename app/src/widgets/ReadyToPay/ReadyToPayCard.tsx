@@ -36,7 +36,7 @@ export function ReadyToPayCard({ page = false }: { page?: boolean }) {
   const [accounts, setAccounts] = useState<Record<string, string>>({});
 
   if (q.loading) return null;
-  if (!q.count) {
+  if (!q.count && !(page && q.waiting.length)) {
     return page ? (
       <section className={styles.card} aria-label="Ready to pay">
         <p className={styles.empty}>
@@ -99,6 +99,11 @@ export function ReadyToPayCard({ page = false }: { page?: boolean }) {
               />
               <span className={styles.what}>
                 <strong>{e.name}</strong>
+                {e.updated && (
+                  <span className={styles.updated} title={`Was ${money(e.updated.from)}, now ${money(e.updated.to)}`}>
+                    Updated
+                  </span>
+                )}
                 <span>
                   {FLOW_LABEL[e.flow]} · {e.bucketName}
                   {e.fee ? ` · fee ${money(e.fee)}` : ''}
@@ -110,6 +115,9 @@ export function ReadyToPayCard({ page = false }: { page?: boolean }) {
                   inputMode="decimal"
                   value={amounts[e.id] ?? money(e.amount)}
                   onChange={(ev) => setAmounts((a) => ({ ...a, [e.id]: ev.target.value }))}
+                  onBlur={() => {
+                    if (amounts[e.id] !== undefined) void q.editAmount(e, amountOf(e) > 0 ? amountOf(e) : null);
+                  }}
                 />
                 <span className={styles.unit}>{q.currency}</span>
               </label>
@@ -143,6 +151,24 @@ export function ReadyToPayCard({ page = false }: { page?: boolean }) {
             ))}
           </ul>
           <p>These stay here for the next income.</p>
+        </div>
+      )}
+
+      {page && q.waiting.length > 0 && (
+        <div className={styles.waiting}>
+          <h3>Waiting for income</h3>
+          <ul>
+            {q.waiting.map((e) => (
+              <li key={e.id}>
+                <span>
+                  {e.name} · waiting for {e.waitingFor}
+                </span>
+                <span>
+                  {money(e.amount)} {q.currency}
+                </span>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 

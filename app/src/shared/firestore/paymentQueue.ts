@@ -1,22 +1,23 @@
 'use client';
 
-// The Ready to pay queue's reads and writes (src/shared/budget/automation.ts
-// decides what goes in it and in which order).
+// Ready to pay's writes. The payments themselves are derived from the
+// current basket items (src/shared/budget/occurrences.ts); what's stored
+// here is only what the user did to one occurrence, by its id
+// (itemId__yyyyMM):
 //
-//   - queuePayments: writes newly prepared payments. Each id is one line
-//     occurrence (itemId__yyyyMM) and is only ever created, never
-//     overwritten, so a line can't be prepared twice.
 //   - confirmPayments: records each payment as the right kind of entry (an
 //     expense transaction, a savings entry, or a transfer), linked to its
-//     line, and marks the queue entry confirmed — in ONE runTransaction per
-//     payment, which also checks the entry is still 'ready', so a payment
-//     can't be confirmed twice from two taps or two devices.
-//   - undoConfirmed: the 10-second Undo — deletes what was recorded and
-//     puts the entries back as ready.
+//     line, and marks the occurrence confirmed, in ONE runTransaction per
+//     payment that also checks it wasn't confirmed or skipped already, so
+//     a payment can't be confirmed twice from two taps or two devices.
+//   - undoConfirmed: the 10-second Undo; deletes what was recorded and
+//     puts the occurrence back.
+//   - saveAmountEdit, skipOccurrence, postponeOccurrence: the other actions.
+//   - repairQueue: the one-time repair of copies stored before derivation.
 
-import { runTransaction, serverTimestamp, Timestamp, updateDoc } from 'firebase/firestore';
+import { getDoc, getDocs, query, runTransaction, serverTimestamp, setDoc, Timestamp, updateDoc, where, writeBatch } from 'firebase/firestore';
 import { getFirebaseFirestore } from '@/src/shared/config/firebaseClient';
-import { accountRef, paymentQueueEntryRef } from './refs';
+import { accountRef, migrationRef, paymentQueueEntryRef, paymentQueueRef } from './refs';
 import {
   deleteTransactionWithAggregation,
   deleteTransferWithAggregation,
@@ -26,36 +27,58 @@ import {
   writeTransferContribution,
 } from './aggregation';
 import type { CurrencyContext } from './currency';
-import type { FirestorePaymentQueueEntry } from './types';
 import type { QueueDraft } from '../budget/automation';
+import { repairPlan, type Occurrence } from '../budget/occurrences';
 import { SAVINGS_ACCOUNT_TYPE } from '../budget/flow';
+import { applyNotificationWrites } from './notificationWrites';
 
-export async function queuePayments(uid: string, drafts: QueueDraft[], currency: string): Promise<number> {
-  if (!drafts.length) return 0;
-  let created = 0;
-  await runTransaction(getFirebaseFirestore(), async (tx) => {
-    const snaps = await Promise.all(drafts.map((d) => tx.get(paymentQueueEntryRef(uid, d.id))));
-    drafts.forEach((d, index) => {
-      if (snaps[index].exists()) return;
-      // The draft's own id is stored too; it's always the doc id.
-      const { due, ...fields } = d;
-      tx.set(paymentQueueEntryRef(uid, d.id), {
-        ...fields,
-        currency,
-        dueDate: due ? Timestamp.fromDate(due) : null,
-        status: 'ready',
-        recordIds: [],
-        createdAt: serverTimestamp() as Timestamp,
-        confirmedAt: null,
-      });
-      created += 1;
-    });
-  });
-  return created;
+/** The fields kept on an action doc, so a confirmed payment reads on its own. */
+function snapshotOf(entry: QueueDraft, currency: string) {
+  const { due, ...fields } = entry;
+  return {
+    id: fields.id,
+    bucketId: fields.bucketId,
+    itemId: fields.itemId,
+    month: fields.month,
+    flow: fields.flow,
+    name: fields.name,
+    bucketName: fields.bucketName,
+    amount: fields.amount,
+    currency,
+    accountId: fields.accountId,
+    toAccountId: fields.toAccountId,
+    categoryId: fields.categoryId,
+    fee: fields.fee,
+    first: fields.first,
+    dueDate: due ? Timestamp.fromDate(due) : null,
+    priority: fields.priority,
+    trigger: fields.trigger,
+  };
+}
+
+/** The amount typed before confirming (null clears it), with the item's amount it was typed against. */
+export async function saveAmountEdit(uid: string, entry: Occurrence, amount: number | null, currency: string): Promise<void> {
+  await setDoc(
+    paymentQueueEntryRef(uid, entry.id),
+    { ...snapshotOf(entry, currency), status: 'ready', recordIds: [], amountEdit: amount, amountEditBase: amount === null ? null : entry.planned, confirmedAt: null },
+    { merge: true }
+  );
+}
+
+export async function skipOccurrence(uid: string, entry: QueueDraft, currency: string): Promise<void> {
+  await setDoc(paymentQueueEntryRef(uid, entry.id), { ...snapshotOf(entry, currency), status: 'skipped', recordIds: [], confirmedAt: null }, { merge: true });
+}
+
+export async function postponeOccurrence(uid: string, entry: QueueDraft, until: string, currency: string): Promise<void> {
+  await setDoc(
+    paymentQueueEntryRef(uid, entry.id),
+    { ...snapshotOf(entry, currency), status: 'postponed', postponedUntil: until, recordIds: [], confirmedAt: null },
+    { merge: true }
+  );
 }
 
 export interface ConfirmRequest {
-  entry: FirestorePaymentQueueEntry;
+  entry: QueueDraft & { currency?: string };
   amount: number;
   accountId: string | null;
 }
@@ -85,7 +108,9 @@ async function confirmOne(uid: string, request: ConfirmRequest, ctx: CurrencyCon
 
   await runTransaction(getFirebaseFirestore(), async (tx) => {
     const queueSnap = await tx.get(queueRef);
-    if (queueSnap.data()?.status !== 'ready') throw new Error(`"${entry.name}" was already recorded.`);
+    const status = queueSnap.data()?.status;
+    if (status === 'confirmed') throw new Error(`"${entry.name}" was already recorded.`);
+    if (status === 'skipped') throw new Error(`"${entry.name}" was skipped this month.`);
 
     if (asTransfer) {
       const toAccountId = entry.toAccountId;
@@ -135,7 +160,18 @@ async function confirmOne(uid: string, request: ConfirmRequest, ctx: CurrencyCon
         ctx
       );
     }
-    tx.update(queueRef, { status: 'confirmed', recordIds: [recordId], amount, accountId, confirmedAt: serverTimestamp() });
+    tx.set(queueRef, {
+      ...snapshotOf(entry, entry.currency ?? ctx.display),
+      status: 'confirmed',
+      recordIds: [recordId],
+      amount,
+      accountId,
+      amountEdit: null,
+      amountEditBase: null,
+      postponedUntil: null,
+      createdAt: serverTimestamp() as Timestamp,
+      confirmedAt: serverTimestamp() as Timestamp,
+    });
   });
 
   await syncLinkedItemPayment(uid, bucketItem, recordId, asTransfer ? 'transfer' : 'expense', { amount, date });
@@ -171,4 +207,68 @@ export async function undoConfirmed(uid: string, records: ConfirmedRecord[], ctx
     else await deleteTransactionWithAggregation(uid, record.recordId, ctx);
     await updateDoc(paymentQueueEntryRef(uid, record.queueId), { status: 'ready', recordIds: [], confirmedAt: null });
   }
+}
+
+const REPAIR_ID = 'payment-occurrences';
+
+/**
+ * The one-time repair on release: older versions stored a full copy of
+ * every prepared payment, which kept its old amount when the item changed.
+ * Clears the plain copies still waiting (Ready to pay now derives them
+ * from the items) and keeps anything the user did. Reports how many
+ * waiting payments now read differently, once: a notification, and the
+ * text returned for a toast. Runs once per user (migrations/{REPAIR_ID}).
+ */
+export async function repairQueue(uid: string, occurrences: Occurrence[]): Promise<string | null> {
+  const db = getFirebaseFirestore();
+  const marker = migrationRef(uid, REPAIR_ID);
+  if ((await getDoc(marker)).exists()) return null;
+  const snap = await getDocs(query(paymentQueueRef(uid), where('status', '==', 'ready')));
+  const stored = snap.docs.map((d) => ({ ...(d.data() as unknown as Record<string, unknown>), id: d.id })) as {
+    id: string;
+    status: string;
+    amount?: number;
+    accountId?: string | null;
+    amountEdit?: number | null;
+  }[];
+  const plan = repairPlan(occurrences, stored);
+  const batch = writeBatch(db);
+  for (const s of stored) if (s.amountEdit == null) batch.delete(paymentQueueEntryRef(uid, s.id));
+  batch.set(marker, {
+    version: 1,
+    completedAt: serverTimestamp() as Timestamp,
+    reviewedAt: null,
+    report: plan.report ? [{ kind: 'payments', subject: 'Ready to pay', detail: plan.report }] : [],
+  });
+  await batch.commit();
+  if (plan.report) {
+    const now = new Date();
+    await applyNotificationWrites(uid, [
+      {
+        op: 'create',
+        id: 'payments_updated:repair',
+        data: {
+          id: 'payments_updated:repair',
+          type: 'payments_updated',
+          module: 'money',
+          severity: 'info',
+          dedupeKey: 'payments_updated:repair',
+          groupKey: 'payments_updated',
+          title: plan.report,
+          body: 'Ready to pay now always matches your basket items.',
+          items: [],
+          primaryAction: { label: 'Ready to pay', route: '/budget/ready' },
+          secondaryActions: [],
+          expiresAt: new Date(now.getTime() + 7 * 86_400_000),
+          createdAt: now,
+          updatedAt: now,
+          readAt: null,
+          resolvedAt: null,
+          snoozedUntil: null,
+          archivedAt: null,
+        } as never,
+      },
+    ]).catch(() => undefined);
+  }
+  return plan.report;
 }

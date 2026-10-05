@@ -77,3 +77,15 @@
   outline: 2px solid var(--p-blue);
   outline-offset: 2px;
 }
+
+/* An amount typed earlier was dropped because the item changed. */
+.updated {
+  align-self: flex-start;
+  margin: 2px 0;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--p-chip);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--p-blue);
+}

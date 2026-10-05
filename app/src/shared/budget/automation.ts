@@ -72,38 +72,48 @@ export function isFirst(entry: Pick<ItemMonth, 'type' | 'savingsMode' | 'necessi
 }
 
 /**
- * The payments whose trigger has fired and that aren't in the queue yet.
- * `existing` holds every queue id already written (any status).
+ * One automated line's payment this month, fired or not: the draft it
+ * makes, and whether its trigger has fired. Unfired income triggers say
+ * which income they wait for; an unfired due date isn't waiting on
+ * anything (it's just upcoming). Null: not an automated payment this month,
+ * or nothing left to pay.
  */
-export function preparePayments(budget: MonthBudget, today: Date, existing: Set<string>): QueueDraft[] {
-  const events = incomeEvents(budget);
-  const out: QueueDraft[] = [];
-  for (const entry of budget.items) {
-    if (entry.type === 'Income' || entry.archived || entry.closed) continue;
-    const a = entry.automation;
-    if (a.mode !== 'prepare') continue;
-    const id = queueId(entry.itemId, entry.month);
-    if (existing.has(id)) continue;
+export function paymentOf(
+  entry: ItemMonth,
+  today: Date,
+  events: ReturnType<typeof incomeEvents>,
+  incomeName?: (itemId: string) => string | undefined
+): { draft: QueueDraft; fired: boolean; waitingFor: string | null } | null {
+  if (entry.type === 'Income' || entry.archived || entry.closed) return null;
+  const a = entry.automation;
+  if (a.mode !== 'prepare') return null;
 
-    let event: IncomeEvent | null = null;
-    const trigger = a.trigger ?? 'any_income';
-    if (trigger === 'due') {
-      if (!entry.due || startOfDay(entry.due) > startOfDay(today)) continue;
-    } else if (trigger === 'income') {
-      event = (a.incomeItemId && events.byItem.get(a.incomeItemId)) || null;
-      if (!event) continue;
-    } else {
-      event = events.any;
-      if (!event) continue;
-    }
+  let event: IncomeEvent | null = null;
+  let fired = true;
+  let waitingFor: string | null = null;
+  const trigger = a.trigger ?? 'any_income';
+  if (trigger === 'due') {
+    fired = Boolean(entry.due) && startOfDay(entry.due!) <= startOfDay(today);
+  } else if (trigger === 'income') {
+    event = (a.incomeItemId && events.byItem.get(a.incomeItemId)) || null;
+    fired = Boolean(event);
+    if (!fired) waitingFor = (a.incomeItemId && incomeName?.(a.incomeItemId)) || 'income';
+  } else {
+    event = events.any;
+    fired = Boolean(event);
+    if (!fired) waitingFor = 'income';
+  }
 
-    const owed = r2(entry.available - entry.actual);
-    const amount =
-      a.amountMode === 'percent' && a.percent && event ? r2(Math.max(0, (a.percent / 100) * event.amount - entry.actual)) : owed;
-    if (amount <= 0) continue;
+  const owed = r2(entry.available - entry.actual);
+  const amount =
+    a.amountMode === 'percent' && a.percent ? (event ? r2(Math.max(0, (a.percent / 100) * event.amount - entry.actual)) : owed) : owed;
+  if (amount <= 0) return null;
 
-    out.push({
-      id,
+  return {
+    fired,
+    waitingFor,
+    draft: {
+      id: queueId(entry.itemId, entry.month),
       bucketId: entry.bucketId,
       itemId: entry.itemId,
       month: entry.month,
@@ -124,7 +134,21 @@ export function preparePayments(budget: MonthBudget, today: Date, existing: Set<
         incomeName: event?.name ?? null,
         incomeAmount: event ? r2(event.amount) : null,
       },
-    });
+    },
+  };
+}
+
+/**
+ * The payments whose trigger has fired and that aren't in the queue yet.
+ * `existing` holds every queue id already written (any status).
+ */
+export function preparePayments(budget: MonthBudget, today: Date, existing: Set<string>): QueueDraft[] {
+  const events = incomeEvents(budget);
+  const out: QueueDraft[] = [];
+  for (const entry of budget.items) {
+    const payment = paymentOf(entry, today, events);
+    if (!payment?.fired || existing.has(payment.draft.id)) continue;
+    out.push(payment.draft);
   }
   return out;
 }

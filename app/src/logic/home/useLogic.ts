@@ -10,9 +10,9 @@
 // only (a refund is money in, not a category to spend on).
 
 import { useMemo, useState } from 'react';
-import { doc, limit, orderBy, query, Timestamp, updateDoc, where } from 'firebase/firestore';
+import { limit, orderBy, query, Timestamp, updateDoc, where } from 'firebase/firestore';
 import { useFirestoreCollection, useFirestoreDoc } from '@/src/shared/firestore/hooks';
-import { paymentQueueRef, settingsRef, transactionsRef, transfersRef, unjustifiedWalletRef } from '@/src/shared/firestore/refs';
+import { settingsRef, transactionsRef, transfersRef, unjustifiedWalletRef } from '@/src/shared/firestore/refs';
 import { useCategories, useExchangeRates } from '@/src/shared/firestore/queries';
 import { toDisplay, round2 } from '@/src/shared/firestore/currency';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
@@ -80,9 +80,9 @@ export function useLogic() {
   const stillExpectedNames = incomeLines.filter((i) => i.available - i.actual > 0.5).map((i) => i.name);
 
   // ---- Ready to pay, or today's allowance ----
-  const readyTotal = round2(ready.entries.reduce((s, e) => s + toDisplay(ctx, e.amount + (e.fee ?? 0), e.currency), 0));
-  const canPayNow = round2(ready.proposed.reduce((s, e) => s + toDisplay(ctx, e.amount + (e.fee ?? 0), e.currency), 0));
-  const waiting = round2(ready.notEnough.reduce((s, e) => s + toDisplay(ctx, e.amount + (e.fee ?? 0), e.currency), 0));
+  const readyTotal = round2(ready.entries.reduce((s, e) => s + e.amount + (e.fee ?? 0), 0));
+  const canPayNow = round2(ready.proposed.reduce((s, e) => s + e.amount + (e.fee ?? 0), 0));
+  const waiting = round2(ready.notEnough.reduce((s, e) => s + e.amount + (e.fee ?? 0), 0));
   const waitingFor = ready.notEnough.find((e) => e.trigger.incomeName)?.trigger.incomeName ?? null;
 
   const guide = useDailyGuide(cur, now);
@@ -161,7 +161,7 @@ export function useLogic() {
 
   async function skip(entry: ReadyEntry) {
     if (!uid) return;
-    await updateDoc(doc(paymentQueueRef(uid), entry.id), { status: 'skipped' });
+    await ready.skip(entry);
   }
   async function confirmOne(entry: ReadyEntry) {
     return ready.confirm([{ entry, amount: entry.amount, accountId: entry.accountId }]);

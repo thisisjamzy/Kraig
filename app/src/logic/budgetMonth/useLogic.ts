@@ -10,7 +10,7 @@ import { useMemo, useState } from 'react';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { useBudgetMonthDoc, useFlowMigrationReport } from '@/src/shared/hooks/useBudgetMonthState';
 import { editMonthLine, skipItemMonth, updateItemFields, type EditScope } from '@/src/shared/firestore/bucketBudget';
-import { createBucketLineItem, recordBucketLineItemPayment } from '@/src/shared/firestore/aggregation';
+import { createBucketLineItem, recordBucketLineItemPayment, updateTransactionWithAggregation } from '@/src/shared/firestore/aggregation';
 import { dismissMonthBanner, snoozeIncomePrompt } from '@/src/shared/firestore/budgetMonths';
 import { moveBucketItem } from '@/src/shared/firestore/flowMigration';
 import { convert } from '@/src/shared/firestore/currency';
@@ -61,12 +61,37 @@ export function useBudgetMonth(month: string, data: PlanningData) {
   const toBucket = (amount: number, bucketId: string) =>
     convert(amount, ctx.display, buckets.find((b) => b.id === bucketId)?.currency ?? ctx.display, ctx.rates);
 
-  async function editAmount(line: LineRow, amount: number, scope: EditScope) {
+  /**
+   * A new amount for one month's line, or from it on. A payment already
+   * recorded against that month is never changed on its own: with
+   * `askRecorded` ("Also update this month's recorded payment?"), the one
+   * linked transaction takes the new amount only on "Update it".
+   */
+  async function editAmount(line: LineRow, amount: number, scope: EditScope, askRecorded?: (name: string) => Promise<boolean>) {
     await editMonthLine(need(), line.bucketId, line.itemId, line.month, { amount: toBucket(amount, line.bucketId) }, scope, {
       amount: toBucket(line.planned, line.bucketId),
       due: line.due,
       recurring: line.recurring,
     });
+    const paid = line.type !== 'Income' && line.transactionIds.length === 1 && !line.transferIds.length ? data.transactionsById.get(line.transactionIds[0]) : undefined;
+    if (!paid || !askRecorded || Math.abs(line.actual - amount) < 0.5) return;
+    if (!(await askRecorded(line.name))) return;
+    const currency = accounts.find((a) => a.id === paid.accountId)?.currency ?? ctx.base;
+    await updateTransactionWithAggregation(
+      need(),
+      {
+        id: paid.id,
+        date: paid.date.toDate(),
+        type: paid.type,
+        description: paid.description,
+        accountId: paid.accountId,
+        categoryId: paid.categoryId ?? null,
+        amount: convert(amount, ctx.display, currency, ctx.rates),
+        direction: paid.direction,
+      },
+      ctx
+    );
+    showToast(`${line.name}'s recorded payment updated`);
   }
   async function editDate(line: LineRow, date: Date | null, scope: EditScope) {
     await editMonthLine(need(), line.bucketId, line.itemId, line.month, { dueDate: date }, scope, {

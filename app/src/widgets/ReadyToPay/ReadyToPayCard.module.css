@@ -258,3 +258,14 @@
   clip: rect(0 0 0 0);
   white-space: nowrap;
 }
+
+/* An edit dropped because the item changed (old and new in its tooltip). */
+.updated {
+  align-self: flex-start;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--color-surface-muted, rgba(0, 0, 0, 0.05));
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}

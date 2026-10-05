@@ -68,11 +68,11 @@ export function ReadyToPayScreen() {
 
       <ScreenState loading={q.loading} />
 
-      {!q.loading && q.count === 0 && (
+      {!q.loading && q.count === 0 && q.waiting.length === 0 && (
         <p className={p.empty}>Nothing is waiting. Payments set to be prepared appear here when their income arrives or their date comes.</p>
       )}
 
-      {!q.loading && q.count > 0 && (
+      {!q.loading && (q.count > 0 || q.waiting.length > 0) && (
         <>
           <section className={p.card}>
             <p className={styles.headline}>{q.headline}</p>
@@ -105,6 +105,11 @@ export function ReadyToPayScreen() {
                       </button>
                       <span className={p.rowMain}>
                         <span className={p.rowName}>{e.name}</span>
+                        {e.updated && (
+                          <span className={styles.updated} title={`Was ${money(e.updated.from)}, now ${money(e.updated.to)}`}>
+                            Updated: was {money(e.updated.from)}, now {money(e.updated.to)}
+                          </span>
+                        )}
                         <span className={p.rowNote}>
                           {e.bucketName}
                           {e.fee ? ` · fee ${money(e.fee)}` : ''}
@@ -130,6 +135,9 @@ export function ReadyToPayScreen() {
                           inputMode="decimal"
                           value={amounts[e.id] ?? money(e.amount)}
                           onChange={(ev) => setAmounts((a) => ({ ...a, [e.id]: ev.target.value }))}
+                          onBlur={() => {
+                            if (amounts[e.id] !== undefined) void q.editAmount(e, amountOf(e) > 0 ? amountOf(e) : null);
+                          }}
                         />
                         <span className={p.rowWhen}>{q.currency}</span>
                       </label>
@@ -147,6 +155,24 @@ export function ReadyToPayScreen() {
                   <span className={p.rowMain}>
                     <span className={p.rowName}>{e.name}</span>
                     <span className={p.rowNote}>Waits for the next income</span>
+                  </span>
+                  <span className={p.rowSide}>
+                    <span className={p.rowAmount}>
+                      {money(e.amount)} {q.currency}
+                    </span>
+                  </span>
+                </div>
+              ))}
+            </CollapsibleGroup>
+          )}
+
+          {q.waiting.length > 0 && (
+            <CollapsibleGroup title="Waiting for income" count={q.waiting.length} defaultOpen={q.count === 0}>
+              {q.waiting.map((e) => (
+                <div key={e.id} className={p.row}>
+                  <span className={p.rowMain}>
+                    <span className={p.rowName}>{e.name}</span>
+                    <span className={p.rowNote}>Waiting for {e.waitingFor}</span>
                   </span>
                   <span className={p.rowSide}>
                     <span className={p.rowAmount}>

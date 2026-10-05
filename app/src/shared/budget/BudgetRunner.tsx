@@ -5,9 +5,9 @@
 //   1. once per session, runs the flow-type migration if it hasn't run yet;
 //   2. sets up the current and next month (and any skipped since the last
 //      visit) from the recurring items, once each (monthSetup.ts);
-//   3. watches this month's budget and prepares payments in the Ready to
-//      pay queue as their triggers fire (automation.ts) — an income line
-//      received, any income received, or a due date reached;
+//   3. once, repairs the Ready to pay copies stored by older versions:
+//      payments are derived from the current items now (occurrences.ts),
+//      so nothing is prepared or copied as triggers fire;
 //   4. "Remind me" lines get a push on their due date.
 // Alerts (overdue, off pace, ...) are notifications now, written by
 // src/widgets/Notifications/NotificationsRunner.tsx.
@@ -21,11 +21,12 @@ import { useFirestoreCollection } from '@/src/shared/firestore/hooks';
 import { bucketLineItemsRef, bucketsRef, categoriesRef, paymentQueueRef } from '@/src/shared/firestore/refs';
 import { runFlowMigration } from '@/src/shared/firestore/flowMigration';
 import { existingMonths, setUpMonths } from '@/src/shared/firestore/budgetMonths';
-import { queuePayments } from '@/src/shared/firestore/paymentQueue';
+import { repairQueue } from '@/src/shared/firestore/paymentQueue';
+import { showToast } from '@/src/widgets/Toast/Toast';
 import { notify } from '@/src/shared/insights/notify';
 import { monthKeyOf } from './monthBudget';
 import { monthLines, monthsToSetUp } from './monthSetup';
-import { preparePayments } from './automation';
+import { deriveOccurrences } from './occurrences';
 import type { FirestoreBucket, FirestoreBucketLineItem, FirestorePaymentQueueEntry } from '@/src/shared/firestore/types';
 
 const REMINDED_KEY = 'dreda.budget.reminded';
@@ -81,19 +82,18 @@ export function BudgetRunner() {
     useMemo(() => (uid && ready ? query(paymentQueueRef(uid), where('month', '==', month)) : null), [uid, ready, month])
   );
 
-  // Prepare payments whose trigger has fired.
-  const writing = useRef(false);
+  // The one-time repair of stored copies (a no-op once it has run).
+  const repaired = useRef<string | null>(null);
   useEffect(() => {
-    if (!uid || !ready || loading || queueLoading || writing.current) return;
-    const drafts = preparePayments(budget, new Date(), new Set(queued.map((q) => q.id)));
-    if (!drafts.length) return;
-    writing.current = true;
-    queuePayments(uid, drafts, ctx.display)
-      .catch((error) => console.error('[budget] preparing payments failed', error))
-      .finally(() => {
-        writing.current = false;
-      });
-  }, [uid, ready, loading, queueLoading, budget, queued, ctx.display]);
+    if (!uid || !ready || loading || queueLoading || repaired.current === uid) return;
+    repaired.current = uid;
+    const occurrences = deriveOccurrences(budget, new Date(), new Map(queued.map((q) => [q.id, q])));
+    repairQueue(uid, occurrences)
+      .then((report) => {
+        if (report) showToast(report);
+      })
+      .catch((error) => console.error('[budget] Ready to pay repair failed', error));
+  }, [uid, ready, loading, queueLoading, budget, queued]);
 
   // "Remind me": once per line, on its due date.
   useEffect(() => {

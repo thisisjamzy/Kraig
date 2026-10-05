@@ -1232,11 +1232,14 @@ export interface FirestoreBudgetMonth {
 }
 
 /**
- * users/{uid}/paymentQueue/{itemId__yyyyMM} — a payment the app prepared
- * for one tap (src/shared/budget/automation.ts). One id per line
- * occurrence, so a line can only ever be prepared once; confirming flips
- * status inside the same transaction that records the payment, so it
- * can't be confirmed twice either.
+ * users/{uid}/paymentQueue/{itemId__yyyyMM} — what the user did to one
+ * payment occurrence: confirmed (with the records written), skipped,
+ * postponed, or an amount typed before confirming. The occurrence itself
+ * is derived from the current item (src/shared/budget/occurrences.ts), so
+ * these docs never hold a copy to keep in step. Confirming writes the doc
+ * inside the same transaction that records the payment, so it can't be
+ * confirmed twice. Docs from before derivation held full copies; the
+ * one-time repair (paymentQueue.ts's repairQueue) cleared those.
  */
 export interface FirestorePaymentQueueEntry {
   id: string;
@@ -1257,8 +1260,15 @@ export interface FirestorePaymentQueueEntry {
   dueDate: Timestamp | null;
   priority: Priority;
   trigger: { kind: 'due' | 'income' | 'any_income'; incomeKey: string | null; incomeName: string | null; incomeAmount: number | null };
-  status: 'ready' | 'confirmed' | 'skipped';
+  status: 'ready' | 'confirmed' | 'skipped' | 'postponed';
   recordIds: string[];
+  // What the user did before confirming (src/shared/budget/occurrences.ts):
+  // the amount they typed and the item's amount at the time, kept only
+  // while the item's amount stays the same.
+  amountEdit?: number | null;
+  amountEditBase?: number | null;
+  // Postponed: hidden from Ready to pay until this day (yyyy-MM-dd).
+  postponedUntil?: string | null;
   createdAt?: Timestamp;
   confirmedAt?: Timestamp | null;
 }
