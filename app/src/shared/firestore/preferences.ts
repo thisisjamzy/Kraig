@@ -14,6 +14,8 @@ import { getFirebaseFirestore } from '@/src/shared/config/firebaseClient';
 import { useFirestoreDoc } from '@/src/shared/firestore/hooks';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 
+import type { DismissedCards } from '../settings/dismissals';
+
 export type DateFormat = 'dd/mm/yyyy' | 'mm/dd/yyyy' | 'yyyy-mm-dd';
 export type TimeMode = 'blocked' | 'free';
 
@@ -38,6 +40,8 @@ export interface Preferences {
   timeModeByType: Record<string, TimeMode>;
   /** The wallet forms choose first. */
   defaultAccountId: string | null;
+  /** Action cards dismissed, per card and state (src/shared/settings/dismissals.ts). */
+  dismissedCards: DismissedCards;
 }
 
 export const DEFAULT_PREFERENCES: Preferences = {
@@ -53,6 +57,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   defaultTaskMinutes: 60,
   timeModeByType: {},
   defaultAccountId: null,
+  dismissedCards: {},
 };
 
 /** The pages a start page can be. */

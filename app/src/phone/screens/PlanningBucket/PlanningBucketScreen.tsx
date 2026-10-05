@@ -11,6 +11,7 @@
 //   - the action card (only when something needs doing);
 //   - item cards, latest transactions, and a sticky bar.
 
+import { DismissibleCta } from '@/src/phone/widgets/DismissibleCard/DismissibleCard';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -261,7 +262,14 @@ export function PlanningBucketView({ bucketId, b }: { bucketId: string; b: Retur
 
       {/* 3. Action card — the situation and what to do. */}
       {actionCard && (
-        <div className={p.promptCard} data-tone={over ? 'over' : 'leftover'}>
+        <DismissibleCta
+          cardId={`basket:${bucketId}`}
+          state={{ key: `${prompt!.kind}:${b.month}:${Math.round(prompt!.amount)}` }}
+          label="this card"
+          toast="Card hidden. It comes back if the amount changes."
+          className={p.promptCard}
+          tone={over ? 'over' : 'leftover'}
+        >
           <span className={p.promptCardText}>
             <span className={p.promptCardTitle}>
               {over ? <AlertCircle size={16} strokeWidth={2.5} aria-hidden /> : <Sparkles size={16} strokeWidth={2.5} aria-hidden />}
@@ -280,7 +288,7 @@ export function PlanningBucketView({ bucketId, b }: { bucketId: string; b: Retur
           >
             {over ? 'Cover or justify' : 'Reallocate'}
           </Link>
-        </div>
+        </DismissibleCta>
       )}
 
       {/* 4. Items */}

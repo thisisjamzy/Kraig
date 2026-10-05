@@ -5,6 +5,7 @@
 // and a sticky bar. Changing just this month's amount or skipping the
 // month live in the "…" menu.
 
+import { DismissibleCta } from '@/src/phone/widgets/DismissibleCard/DismissibleCard';
 import { useState } from 'react';
 import Link from 'next/link';
 import { AlertCircle, ArrowLeft, ArrowLeftRight, MoreHorizontal, Pencil, Sparkles, Undo2 } from 'lucide-react';
@@ -183,7 +184,14 @@ function ItemBody({ it, entry }: { it: ReturnType<typeof useLogic>; entry: ItemM
       {entry.justified && <p className={styles.justifiedNote}>“{entry.justified.note || entry.justified.reason}”, {money(entry.justified.amount)} justified</p>}
 
       {(over || leftover) && (
-        <div className={p.promptCard} data-tone={over ? 'over' : 'leftover'}>
+        <DismissibleCta
+          cardId={`item:${entry.itemId}`}
+          state={{ key: `${prompt!.kind}:${month}:${Math.round(prompt!.amount)}` }}
+          label="this card"
+          toast="Card hidden. It comes back if the amount changes."
+          className={p.promptCard}
+          tone={over ? 'over' : 'leftover'}
+        >
           <span className={p.promptCardText}>
             <span className={p.promptCardTitle}>
               {over ? <AlertCircle size={16} strokeWidth={2.5} aria-hidden /> : <Sparkles size={16} strokeWidth={2.5} aria-hidden />}
@@ -197,7 +205,7 @@ function ItemBody({ it, entry }: { it: ReturnType<typeof useLogic>; entry: ItemM
           >
             {over ? 'Cover or justify' : 'Reallocate'}
           </Link>
-        </div>
+        </DismissibleCta>
       )}
 
       <div className={p.sectionHead}>

@@ -1,0 +1,28 @@
+.card {
+  position: relative;
+  padding-right: 36px;
+  touch-action: pan-y;
+  transition:
+    transform 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.card[data-dragging] {
+  transition: none;
+}
+
+/* 44px tap area around a small icon, in the top right corner. */
+.close {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}

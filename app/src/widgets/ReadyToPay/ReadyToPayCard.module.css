@@ -269,3 +269,21 @@
   font-weight: 600;
   color: var(--color-text-secondary);
 }
+
+.close {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin-left: auto;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.close:hover {
+  background: var(--color-surface-muted, rgba(0, 0, 0, 0.05));
+}
