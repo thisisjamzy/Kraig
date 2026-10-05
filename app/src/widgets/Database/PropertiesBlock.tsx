@@ -63,14 +63,14 @@ export function CompactProgress({ value, tone }: { value: number; tone?: Propert
   );
 }
 
-export function PropertiesGrid({ properties, label = 'Properties' }: { properties: Property[]; label?: string }) {
+export function PropertiesGrid({ properties, label = 'Properties', visible = VISIBLE }: { properties: Property[]; label?: string; /** Tiles shown before "Show more properties". */ visible?: number }) {
   useWebOnly('PropertiesGrid');
   const [editing, setEditing] = useState<{ id: string; anchor: HTMLElement } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [all, setAll] = useState(false);
   const { deviceClass } = useLayout();
   const columns = deviceClass === 'large' ? 4 : deviceClass === 'expanded' ? 3 : 2;
-  const shown = all ? properties : properties.slice(0, VISIBLE);
+  const shown = all ? properties : properties.slice(0, visible);
 
   async function save(property: Property, next: FieldValue) {
     setEditing(null);
@@ -160,9 +160,9 @@ export function PropertiesGrid({ properties, label = 'Properties' }: { propertie
           );
         })}
       </dl>
-      {properties.length > VISIBLE && (
+      {properties.length > visible && (
         <button type="button" className={styles.more} onClick={() => setAll((a) => !a)}>
-          {all ? 'Show fewer properties' : `Show ${properties.length - VISIBLE} more ${properties.length - VISIBLE === 1 ? 'property' : 'properties'}`}
+          {all ? 'Show fewer properties' : visible < VISIBLE ? 'Show more properties' : `Show ${properties.length - visible} more ${properties.length - visible === 1 ? 'property' : 'properties'}`}
         </button>
       )}
       {error && (
@@ -175,6 +175,6 @@ export function PropertiesGrid({ properties, label = 'Properties' }: { propertie
 }
 
 /** The same grid; kept under its older name for existing pages. */
-export function PropertiesBlock({ properties, label }: { properties: Property[]; onAdd?: () => void; label?: string }) {
-  return <PropertiesGrid properties={properties} label={label} />;
+export function PropertiesBlock({ properties, label, visible }: { properties: Property[]; onAdd?: () => void; label?: string; visible?: number }) {
+  return <PropertiesGrid properties={properties} label={label} visible={visible} />;
 }
