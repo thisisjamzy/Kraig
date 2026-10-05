@@ -19,7 +19,7 @@ import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { useMonthBudget } from '@/src/shared/hooks/useMonthBudget';
 import { useReadyToPay, type ReadyEntry } from '@/src/shared/hooks/useReadyToPay';
 import { addMonths, monthKeyOf } from '@/src/shared/budget/monthBudget';
-import { dailyGuide, variableBudget, variableSpendByDay } from '@/src/shared/budget/dailyGuide';
+import { useDailyGuide } from '@/src/shared/hooks/useDailyGuide';
 import { useLogic as useDebts } from '@/src/logic/debtsList/useLogic';
 import { isSavingsAccount, walletColor } from '@/src/viewmodels/wallets';
 import { currencyName } from '@/src/viewmodels/currencies';
@@ -85,27 +85,7 @@ export function useLogic() {
   const waiting = round2(ready.notEnough.reduce((s, e) => s + toDisplay(ctx, e.amount + (e.fee ?? 0), e.currency), 0));
   const waitingFor = ready.notEnough.find((e) => e.trigger.incomeName)?.trigger.incomeName ?? null;
 
-  const guide = useMemo(() => {
-    const v = variableBudget(cur.budget);
-    if (v.planned <= 0) return null;
-    const expenses = [...cur.transactionsById.values()]
-      .filter((x) => x.type === 'Expense')
-      .map((x) => ({ id: x.id, spend: display(x.direction === 'Outflow' ? x.amount : -x.amount, x.accountId), date: x.date.toDate(), month: x.month ?? monthKeyOf(x.date.toDate()) }));
-    const fixedStillDue = cur.budget.items
-      .filter((i) => !i.archived && !i.closed && ((i.type === 'Expense' && i.expenseKind !== 'variable') || i.type === 'Savings'))
-      .reduce((s, i) => s + Math.max(0, i.available - i.actual), 0);
-    return dailyGuide({
-      today: now,
-      variablePlanned: v.planned,
-      variableLeft: v.left,
-      spentByDay: variableSpendByDay(cur.budget, expenses),
-      availableNow: t.availableNow,
-      expectedStill: t.income.notYetReceived,
-      fixedStillDue,
-    });
-    // display depends on ctx and accounts, both in the deps through cur.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cur.budget, cur.transactionsById, t, now]);
+  const guide = useDailyGuide(cur, now);
 
   // ---- Spending ----
   const prevCats = new Map(prev.budget.categories.filter((c) => c.type === 'Expense').map((c) => [c.categoryId, c.actual]));
