@@ -14,11 +14,11 @@
 // in this codebase (see HomeScreen.tsx) — never rendered for a mobile
 // visitor.
 
-import { useEffect, type MouseEvent, type ReactNode } from 'react';
+import { useEffect, type CSSProperties, type MouseEvent, type ReactNode } from 'react';
 import styles from './WebFormPanel.module.css';
 
-/** `width` defaults to the task form's 480px; the debt forms use 560. */
-export function WebFormPanel({ children, onClose, width = 480 }: { children: ReactNode; onClose: () => void; width?: number }) {
+/** 560px from the right edge (60% of the width on a tablet held upright). */
+export function WebFormPanel({ children, onClose, width = 560 }: { children: ReactNode; onClose: () => void; width?: number }) {
   useEffect(() => {
     function handleKeydown(event: KeyboardEvent) {
       if (event.key === 'Escape') onClose();
@@ -33,7 +33,7 @@ export function WebFormPanel({ children, onClose, width = 480 }: { children: Rea
 
   return (
     <div className={styles.backdrop} onClick={handleBackdropClick} data-panel-open>
-      <div className={styles.panel} style={{ width: `min(${width}px, 92vw)` }}>
+      <div className={styles.panel} style={{ '--panel-width': `${width}px` } as CSSProperties}>
         {children}
       </div>
     </div>

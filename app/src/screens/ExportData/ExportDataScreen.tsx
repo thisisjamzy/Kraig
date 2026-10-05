@@ -33,7 +33,7 @@ export function ExportDataScreen() {
         type="button"
         className={styles.primaryButton}
         disabled={selected.size === 0 || exporting}
-        onClick={handleExport}
+        onClick={() => void handleExport()}
       >
         {exporting ? 'Exporting…' : 'Export'}
       </button>

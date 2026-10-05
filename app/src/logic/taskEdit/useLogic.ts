@@ -91,6 +91,7 @@ import type {
   TimeMode,
 } from '@/src/shared/firestore/types';
 import { useGoBack } from '@/src/shared/navigation/useGoBack';
+import { usePreferences } from '@/src/shared/firestore/preferences';
 
 // Read directly off window.location.search (not useSearchParams()) so this
 // screen never needs a Suspense boundary — same precedent as
@@ -165,7 +166,7 @@ function seriesIdOf(taskId: string): string {
 
 /** Every task (recurring ones as their dates) from yesterday to
  * CONFLICT_HORIZON_MONTHS past the chosen date, as the scheduler sees them. */
-function buildScheduledTasks(tasks: FirestoreTask[], date: string): ScheduledTask[] {
+export function buildScheduledTasks(tasks: FirestoreTask[], date: string): ScheduledTask[] {
   const today = new Date();
   const from = addDays(new Date(today.getFullYear(), today.getMonth(), today.getDate()), -1);
   const chosen = date ? keyToDate(date) : from;
@@ -202,6 +203,7 @@ export interface TaskEditOptions {
 
 export function useLogic(taskId: string | null, { onDone }: TaskEditOptions = {}) {
   const router = useRouter();
+  const { prefs, loading: prefsLoading } = usePreferences();
   const { user } = useFirebaseUser();
   const uid = user?.uid;
   const isEditing = Boolean(taskId);
@@ -261,6 +263,17 @@ export function useLogic(taskId: string | null, { onDone }: TaskEditOptions = {}
   const [date, setDate] = useState(() => (taskId ? '' : dateFromSearch() ?? toDateOnly(new Date())));
   const [startTimeOfDay, setStartTimeOfDay] = useState(() => (taskId ? '' : (timesFromSearch() ?? defaultTimes()).start));
   const [endTimeOfDay, setEndTimeOfDay] = useState(() => (taskId ? '' : (timesFromSearch() ?? defaultTimes()).end));
+  // A new task's length: the default from Settings > Work hours and tasks,
+  // applied once it loads (unless the times came from the link).
+  const [lengthApplied, setLengthApplied] = useState(false);
+  if (!taskId && !lengthApplied && !prefsLoading) {
+    setLengthApplied(true);
+    if (!timesFromSearch() && startTimeOfDay) {
+      const [h, m] = startTimeOfDay.split(':').map(Number);
+      const end = Math.min(23 * 60 + 59, h * 60 + m + prefs.defaultTaskMinutes);
+      setEndTimeOfDay(`${String(Math.floor(end / 60)).padStart(2, '0')}:${String(end % 60).padStart(2, '0')}`);
+    }
+  }
   // Times are optional for a todo (the form's "set a time" toggle); a
   // meeting or event always has them. Off = a date-only task
   // (FirestoreTask.allDay).
@@ -384,7 +397,7 @@ export function useLogic(taskId: string | null, { onDone }: TaskEditOptions = {}
   const scheduledTasks = [...buildScheduledTasks(allTaskDocs, date), ...googleEventsAsScheduled(googleDocs)];
   // Whatever this form is editing — a task, or every date of a series.
   const excludeId = isEditing ? docId : null;
-  const timeMode: TimeMode = timeModeChoice ?? defaultTimeMode(type);
+  const timeMode: TimeMode = timeModeChoice ?? prefs.timeModeByType[type] ?? defaultTimeMode(type);
   const windowStart = usesTime && date && startTimeOfDay ? combineDateAndTime(date, startTimeOfDay) : null;
   const windowEnd = usesTime && date && endTimeOfDay ? combineDateAndTime(date, endTimeOfDay) : null;
   // One pass over the user's tasks — cheap enough to run every render (the
@@ -532,7 +545,7 @@ export function useLogic(taskId: string | null, { onDone }: TaskEditOptions = {}
     }
     if (created) {
       // Back to the Time home screen, where today's list picks it up.
-      router.push('/projects');
+      router.replace('/projects');
     } else {
       router.back();
     }

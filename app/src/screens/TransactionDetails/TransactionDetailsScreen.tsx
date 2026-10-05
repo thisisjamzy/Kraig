@@ -74,7 +74,7 @@ export function TransactionDetailsScreen({ id }: { id: string }) {
               <SpecCell label={t.isTransfer ? 'From → to' : 'Wallet'} value={v.method} />
             </SpecRow>
             <SpecRow>
-              <SpecCell label="Bucket" value={t.linkLabel ?? 'Not in a bucket'} />
+              <SpecCell label="Basket" value={t.linkLabel ?? 'Not in a basket'} />
               {t.linkMonth && <SpecCell label="Counts toward" value={t.linkMonth} />}
             </SpecRow>
           </section>
@@ -106,7 +106,7 @@ export function TransactionDetailsScreen({ id }: { id: string }) {
           {t.canAssign && (
             <>
               <div className={p.sectionHead}>
-                <h2>{t.link ? 'Bucket item' : 'Assign to bucket'}</h2>
+                <h2>{t.link ? 'Basket item' : 'Assign to basket'}</h2>
                 {!t.picking && (
                   <button type="button" className={p.textButton} onClick={() => t.setPicking(true)}>
                     {t.link ? 'Change' : 'Choose'}
@@ -115,9 +115,9 @@ export function TransactionDetailsScreen({ id }: { id: string }) {
               </div>
               {t.picking &&
                 (t.options.length === 0 ? (
-                  <p className={p.empty}>No bucket item in this category around this month. Add one to a bucket first.</p>
+                  <p className={p.empty}>No basket item in this category around this month. Add one to a basket first.</p>
                 ) : (
-                  <div className={styles.options} role="radiogroup" aria-label="Bucket item">
+                  <div className={styles.options} role="radiogroup" aria-label="Basket item">
                     {t.options.map((o) => (
                       <button
                         key={o.key}
@@ -132,7 +132,7 @@ export function TransactionDetailsScreen({ id }: { id: string }) {
                     ))}
                     {t.link && (
                       <button type="button" className={styles.unlink} disabled={t.busy} onClick={() => t.assignTo(null)}>
-                        Remove from bucket
+                        Remove from basket
                       </button>
                     )}
                   </div>
@@ -184,7 +184,7 @@ export function TransactionPage({ t, inPeek = false }: { t: TxLogic; inPeek?: bo
             { id: 'account', label: t.isTransfer ? 'From and to' : 'Account', display: v.method },
             {
               id: 'bucket',
-              label: 'Bucket',
+              label: 'Basket',
               display: t.link && t.bucketHref ? <Link href={t.bucketHref} className={bm.relation}>{t.linkLabel}</Link> : null,
             },
             ...(t.linkMonth ? [{ id: 'month', label: 'Counts toward', display: t.linkMonth }] : []),
@@ -211,7 +211,7 @@ export function TransactionPage({ t, inPeek = false }: { t: TxLogic; inPeek?: bo
 
       {t.canAssign && (
         <Block
-          title={t.link ? 'Bucket item' : 'Assign to bucket'}
+          title={t.link ? 'Basket item' : 'Assign to basket'}
           actions={
             !t.picking ? (
               <button type="button" className={bm.inlineAction} onClick={() => t.setPicking(true)}>
@@ -222,9 +222,9 @@ export function TransactionPage({ t, inPeek = false }: { t: TxLogic; inPeek?: bo
         >
           {t.picking &&
             (t.options.length === 0 ? (
-              <p className={p.empty}>No bucket item in this category around this month. Add one to a bucket first.</p>
+              <p className={p.empty}>No basket item in this category around this month. Add one to a basket first.</p>
             ) : (
-              <div className={styles.options} role="radiogroup" aria-label="Bucket item">
+              <div className={styles.options} role="radiogroup" aria-label="Basket item">
                 {t.options.map((o) => (
                   <button key={o.key} type="button" role="radio" aria-checked={o.key === t.currentKey} disabled={t.busy} onClick={() => t.assignTo(o.link)}>
                     {o.label}
@@ -232,7 +232,7 @@ export function TransactionPage({ t, inPeek = false }: { t: TxLogic; inPeek?: bo
                 ))}
                 {t.link && (
                   <button type="button" className={styles.unlink} disabled={t.busy} onClick={() => t.assignTo(null)}>
-                    Remove from bucket
+                    Remove from basket
                   </button>
                 )}
               </div>

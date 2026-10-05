@@ -1,568 +1,177 @@
 'use client';
 
-import { useState } from 'react';
-import {
-  ChevronLeft,
-  ArrowUpRight,
-  ArrowDownLeft,
-  ArrowLeftRight,
-  ArrowRight,
-  PiggyBank,
-  Delete,
-  Check,
-} from 'lucide-react';
+// Add transaction (and Record income), on the form standard (FormFrame): one
+// page instead of the old four steps and keypad.
+//   Type; the savings mode or the income type when it applies
+//   Amount | Date
+//   Basket item (fills in the rest), Category (this month's budgeted ones,
+//   or every one when recording unplanned)
+//   Account, or From | To with Charges for a transfer
+//   Description
+//   More options: "explains the unaccounted-for balance" for a past date
+// then the Impact card and "Add expense" (income, transfer, savings).
+
 import Link from 'next/link';
-import { Modal } from '@/src/widgets/Modal/Modal';
-import { HeroDatePicker } from '@/src/widgets/HeroDatePicker/HeroDatePicker';
-import { useLogic, KEYPAD_KEYS, formatMoney, type TransactionType } from '@/src/logic/addTransaction/useLogic';
+import { useLogic, formatMoney, type TransactionType } from '@/src/logic/addTransaction/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
-import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
-import styles from './AddTransactionScreen.module.css';
+import {
+  FieldCard,
+  FieldRow,
+  FormFrame,
+  MoreOptions,
+  SegmentedField,
+  SelectField,
+  SwitchField,
+  formFrameStyles as ff,
+} from '@/src/widgets/FormFrame/FormFrame';
 import type { IncomeSubtype } from '@/src/shared/budget/flow';
 
-const TYPE_ICONS: Record<TransactionType, typeof ArrowUpRight> = {
-  expense: ArrowUpRight,
-  income: ArrowDownLeft,
-  transfer: ArrowLeftRight,
-  savings: PiggyBank,
-};
-
+const TYPES: TransactionType[] = ['expense', 'income', 'transfer', 'savings'];
 const INCOME_SUBTYPES: { value: IncomeSubtype; label: string }[] = [
   { value: 'earned', label: 'Earned' },
   { value: 'other', label: 'Other' },
   { value: 'debt_financing', label: 'Borrowed' },
 ];
+const SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 export function AddTransactionScreen() {
   const strings = useStrings();
-  const {
-    incomeSubtype,
-    setIncomeSubtype,
-    step,
-    type,
-    savingsMode,
-    chooseSavingsMode,
-    isTransferLike,
-    category,
-    categoryName,
-    setCategory,
-    linkableBucketItems,
-    linkedBucketItem,
-    selectLinkedBucketItem,
-    clearLinkedBucketItem,
-    description,
-    setDescription,
-    amountString,
-    chargesString,
-    setChargesString,
-    fromAccount,
-    toAccount,
-    date,
-    dateValue,
-    categoriesForType,
-    hasBudgetedCategories,
-    showUnplanned,
-    setShowUnplanned,
-    budgetHref,
-    accounts,
-    spendableAccounts,
-    accountPickerFor,
-    setAccountPickerFor,
-    fromAccountId,
-    toAccountId,
-    canExplainUnjustifiedBalance,
-    explainsUnjustifiedBalance,
-    setExplainsUnjustifiedBalance,
-    unjustifiedBalance,
-    canContinue,
-    selectType,
-    chooseDate,
-    chooseAccount,
-    pressKey,
-    goBack,
-    goNext,
-    handleConfirm,
-    loading,
-    error,
-    submitting,
-    submitError,
-  } = useLogic();
-
-  // Buckets vs Category used to be two lists stacked on the same screen —
-  // now two tabs, so only one shows at a time. Only worth showing the tab
-  // switcher at all when there's actually a Buckets option to switch to;
-  // otherwise this step is just the category list, same as always.
-  const hasBucketOption = linkableBucketItems.length > 0 || Boolean(linkedBucketItem);
-  const [categoryTab, setCategoryTab] = useState<'buckets' | 'category'>(hasBucketOption ? 'buckets' : 'category');
-
-  const transactionTypes = (Object.keys(TYPE_ICONS) as TransactionType[]).map((key) => ({
-    key,
-    icon: TYPE_ICONS[key],
-    label: strings.addTransaction.types[key].label,
-    description: strings.addTransaction.types[key].description,
-  }));
-
-  const stepHighlight =
-    step === 'type'
-      ? strings.addTransaction.stepType
-      : step === 'category'
-        ? strings.addTransaction.stepCategory
-        : step === 'details'
-          ? strings.addTransaction.stepDetails
-          : strings.addTransaction.stepReview;
-  const stepPrefix =
-    step === 'type' || step === 'category'
-      ? strings.addTransaction.chooseTransactionPrefix
-      : strings.addTransaction.provideTransactionPrefix;
+  const t = strings.addTransaction;
+  const v = useLogic();
+  const accountOptions = (v.type === 'expense' ? v.spendableAccounts : v.accounts).map((a) => ({ value: a.id, label: a.name }));
+  const amount = Number(v.amountString) || 0;
+  const day = v.dateValue ? new Date(`${v.dateValue}T00:00:00`) : null;
+  const when = day ? ` on ${day.getDate()} ${SHORT[day.getMonth()]}` : '';
+  const what = v.categoryName ? ` for ${v.categoryName}` : '';
+  const impact =
+    amount > 0 && v.fromAccount
+      ? v.isTransferLike
+        ? v.toAccount
+          ? `Moves ${formatMoney(v.amountString)} from ${v.fromAccount} to ${v.toAccount}${when}.`
+          : null
+        : v.type === 'income'
+          ? `Adds ${formatMoney(v.amountString)} to ${v.fromAccount}${when}${what}.`
+          : `Takes ${formatMoney(v.amountString)} from ${v.fromAccount}${when}${what}.`
+      : null;
+  const showCategory = v.categoriesForType.length > 0 || !v.hasBudgetedCategories;
 
   return (
-    <div className={styles.page}>
-      <ScreenHeader
-        left={
-          <button type="button" className={styles.backButton} onClick={goBack} aria-label="Back">
-            <ChevronLeft size={18} strokeWidth={2} />
-          </button>
-        }
-        title={strings.addTransaction.title}
-      />
-
-      <p className={styles.subheading}>
-        {stepPrefix} <span className={styles.subheadingHighlight}>{stepHighlight}</span>
-      </p>
-
-      <ScreenState loading={loading} error={error} />
-
-      {!loading && !error && (
+    <FormFrame
+      title={t.title}
+      onClose={v.close}
+      phoneHeader="bar"
+      impact={impact}
+      primary={v.loading ? null : { label: `Add ${t.types[v.type].label.toLowerCase()}`, disabled: !v.canSave, busy: v.submitting, busyLabel: t.saving }}
+      onSubmit={() => void v.handleConfirm()}
+      error={v.submitError}
+    >
+      <ScreenState loading={v.loading} error={v.error} />
+      {!v.loading && !v.error && (
         <>
-      {step === 'type' && (
-        <div className={styles.typeGrid}>
-          {transactionTypes.map(({ key, label, description: typeDescription, icon: Icon }) => {
-            const active = type === key;
-            return (
-              <button
-                key={key}
-                type="button"
-                className={`${styles.typeCard} ${active ? styles.typeCardActive : ''}`}
-                onClick={() => selectType(key)}
-              >
-                <span className={styles.typeIcon}>
-                  <Icon size={18} strokeWidth={1.75} />
-                </span>
-                <span className={styles.typeLabel}>{label}</span>
-                <span className={styles.typeDescription}>{typeDescription}</span>
-              </button>
-            );
-          })}
-        </div>
-      )}
+          <SegmentedField label="Type" value={v.type} onChange={v.selectType} options={TYPES.map((key) => ({ value: key, label: t.types[key].label }))} />
+          {v.type === 'savings' && (
+            <SegmentedField
+              label="Savings"
+              value={v.savingsMode}
+              onChange={v.chooseSavingsMode}
+              options={[
+                { value: 'moved', label: 'Move to savings' },
+                { value: 'frozen', label: 'Freeze in wallet' },
+              ]}
+            />
+          )}
+          {v.type === 'income' && <SegmentedField label="Income type" value={v.incomeSubtype} onChange={v.setIncomeSubtype} options={INCOME_SUBTYPES} />}
 
-      {step === 'category' && (
-        <div className={styles.categorySection}>
-          {type === 'savings' && !linkedBucketItem && (
-            <div className={styles.savingsModeRow}>
-              {(['moved', 'frozen'] as const).map((mode) => {
-                const active = savingsMode === mode;
-                return (
-                  <button
-                    key={mode}
-                    type="button"
-                    className={`${styles.savingsModeOption} ${active ? styles.savingsModeOptionActive : ''}`}
-                    onClick={() => chooseSavingsMode(mode)}
-                  >
-                    <span className={styles.savingsModeLabel}>
-                      {mode === 'moved'
-                        ? strings.addTransaction.savingsModeMoved
-                        : strings.addTransaction.savingsModeFrozen}
-                    </span>
-                    <span className={styles.savingsModeHint}>
-                      {mode === 'moved'
-                        ? strings.addTransaction.savingsModeMovedHint
-                        : strings.addTransaction.savingsModeFrozenHint}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+          <FieldRow>
+            <FieldCard label="Amount">
+              <input className={ff.input} inputMode="decimal" value={v.amountString} onChange={(e) => v.setAmount(e.target.value)} placeholder="0" autoFocus />
+            </FieldCard>
+            <FieldCard label="Date">
+              <input type="date" className={ff.input} value={v.dateValue} onChange={(e) => e.target.value && v.chooseDate(e.target.value)} />
+            </FieldCard>
+          </FieldRow>
+
+          {(v.linkableBucketItems.length > 0 || v.linkedBucketItem) && (
+            <SelectField
+              label="Basket item"
+              value={v.linkedBucketItem?.id ?? ''}
+              onChange={(id) => (id ? v.selectLinkedBucketItem(id) : v.clearLinkedBucketItem())}
+              options={v.linkableBucketItems.map((item) => ({ value: item.id, label: `${item.bucketName}: ${item.name} · ${formatMoney(String(item.amount))}` }))}
+              placeholder="None"
+            />
           )}
 
-          {hasBucketOption && (
-            <div className={styles.categoryTabRow}>
-              <button
-                type="button"
-                className={`${styles.categoryTabButton} ${categoryTab === 'buckets' ? styles.categoryTabButtonActive : ''}`}
-                onClick={() => setCategoryTab('buckets')}
-              >
-                {strings.addTransaction.tabBuckets}
-              </button>
-              <button
-                type="button"
-                className={`${styles.categoryTabButton} ${categoryTab === 'category' ? styles.categoryTabButtonActive : ''}`}
-                onClick={() => setCategoryTab('category')}
-              >
-                {strings.addTransaction.tabCategory}
-              </button>
-            </div>
-          )}
-
-          {hasBucketOption && categoryTab === 'buckets' && (
-            <div className={styles.bucketLinkSection}>
-              <div className={styles.bucketLinkHeaderRow}>
-                <span className={styles.descriptionLabel}>{strings.addTransaction.linkBucketTitle}</span>
-                {linkedBucketItem && (
-                  <button type="button" className={styles.unplannedLink} onClick={clearLinkedBucketItem}>
-                    {strings.addTransaction.linkBucketClear}
-                  </button>
-                )}
-              </div>
-              {linkedBucketItem ? (
-                <div className={styles.linkedBucketBadge}>
-                  <span>
-                    {strings.addTransaction.linkedBucketPrefix} {linkedBucketItem.bucketName}: {linkedBucketItem.name}
-                  </span>
-                </div>
-              ) : (
-                <>
-                  <p className={styles.helperText}>{strings.addTransaction.linkBucketHint}</p>
-                  <div className={styles.categoryList}>
-                    {linkableBucketItems.map((item) => (
-                      <button
-                        key={item.id}
-                        type="button"
-                        className={styles.bucketLinkRow}
-                        onClick={() => selectLinkedBucketItem(item.id)}
-                      >
-                        <span className={styles.bucketLinkRowText}>
-                          <span className={styles.bucketLinkRowBucket}>{item.bucketName}</span>
-                          <span className={styles.bucketLinkRowName}>{item.name}</span>
-                        </span>
-                        <span className={styles.bucketLinkRowAmount}>{formatMoney(String(item.amount))}</span>
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-
-          {(!hasBucketOption || categoryTab === 'category') && (
+          {showCategory && !v.linkedBucketItem && (
             <>
-              {!linkedBucketItem && !hasBudgetedCategories && (
-                <div className={styles.noBudgetCard}>
-                  <p className={styles.noBudgetTitle}>{strings.addTransaction.noBudgetTitle}</p>
-                  <p className={styles.helperText}>{strings.addTransaction.noBudgetBody}</p>
-                  <div className={styles.noBudgetActions}>
-                    <Link href={budgetHref} className={styles.pillButtonInteractive}>
-                      {strings.addTransaction.addBudgetCta}
-                    </Link>
-                    {!showUnplanned && (
-                      <button
-                        type="button"
-                        className={styles.pillButtonInteractive}
-                        onClick={() => setShowUnplanned(true)}
-                      >
-                        {strings.addTransaction.recordUnplannedCta}
-                      </button>
-                    )}
-                  </div>
-                </div>
+              {v.categoriesForType.length > 0 && (
+                <SelectField
+                  label={v.isTransferLike ? 'Transfer type' : 'Category'}
+                  value={v.category}
+                  onChange={v.setCategory}
+                  options={v.categoriesForType.map((c) => ({ value: c.id, label: c.name }))}
+                  placeholder="Choose one"
+                />
               )}
-
-              {!linkedBucketItem && showUnplanned && (
-                <p className={styles.helperText}>{strings.addTransaction.unplannedNotice}</p>
+              {!v.hasBudgetedCategories && !v.showUnplanned && (
+                <p className={ff.hint}>
+                  {t.noBudgetTitle} {t.noBudgetBody} <Link href={v.budgetHref}>{t.addBudgetCta}</Link>
+                </p>
               )}
-
-              {!linkedBucketItem && categoriesForType.length > 0 && (
-                <div className={styles.categoryList}>
-                  {categoriesForType.map((option) => (
-                    <button
-                      key={option.id}
-                      type="button"
-                      className={styles.categoryRow}
-                      onClick={() => setCategory(option.id)}
-                    >
-                      {option.name}
-                      <span
-                        className={`${styles.radio} ${category === option.id ? styles.radioActive : ''}`}
-                      />
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {!linkedBucketItem && !(type === 'savings' && savingsMode === 'moved') && (hasBudgetedCategories || showUnplanned) && (
-                <button
-                  type="button"
-                  className={styles.unplannedLink}
-                  onClick={() => setShowUnplanned((current) => !current)}
-                >
-                  {showUnplanned ? strings.addTransaction.showBudgetedOnlyCta : strings.addTransaction.recordUnplannedCta}
-                </button>
+              {!v.isTransferLike && (
+                <SwitchField
+                  label={t.recordUnplannedCta}
+                  description={v.showUnplanned ? t.unplannedNotice : 'Show every category, not only this month’s budget.'}
+                  checked={v.showUnplanned}
+                  onChange={v.setShowUnplanned}
+                />
               )}
             </>
           )}
 
-          <div className={styles.descriptionCard}>
-            <span className={styles.descriptionLabel}>{strings.addTransaction.descriptionLabel}</span>
-            <input
-              type="text"
-              className={styles.descriptionInput}
-              placeholder={strings.addTransaction.descriptionPlaceholder}
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-            />
-          </div>
-        </div>
-      )}
-
-      {step === 'details' && (
-        <div className={styles.detailsSection}>
-          <div className={styles.infoRow}>
-            <div className={styles.infoRowText}>
-              <span className={styles.infoRowLabel}>{strings.addTransaction.transactionDate}</span>
-              <span className={styles.infoRowValue}>{date}</span>
-            </div>
-            <HeroDatePicker
-              value={dateValue}
-              onChange={chooseDate}
-              triggerLabel={strings.common.change}
-              triggerClassName={styles.pillButtonInteractive}
-              aria-label={strings.addTransaction.chooseDate}
-            />
-          </div>
-
-          <p className={styles.amountDisplay}>{amountString || '0'}</p>
-
-          {isTransferLike ? (
+          {v.isTransferLike ? (
             <>
-              <div className={styles.transferRow}>
-                <button
-                  type="button"
-                  className={styles.transferSide}
-                  onClick={() => setAccountPickerFor('from')}
-                >
-                  <span className={styles.infoRowLabel}>{strings.addTransaction.fromAccount}</span>
-                  <span className={styles.transferAccountValue}>{fromAccount}</span>
-                </button>
-                <ArrowRight size={16} strokeWidth={2} className={styles.transferArrow} />
-                <button
-                  type="button"
-                  className={styles.transferSide}
-                  onClick={() => setAccountPickerFor('to')}
-                >
-                  <span className={styles.infoRowLabel}>{strings.addTransaction.toAccount}</span>
-                  <span className={styles.transferAccountValue}>{toAccount}</span>
-                </button>
-              </div>
-
-              {type === 'transfer' && (
-                <div className={styles.infoRow}>
-                  <div className={styles.infoRowText}>
-                    <span className={styles.infoRowLabel}>{strings.addTransaction.chargesLabel}</span>
-                    <span className={styles.helperText}>{strings.addTransaction.chargesHint}</span>
-                  </div>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    className={styles.chargesInput}
-                    placeholder="0"
-                    value={chargesString}
-                    onChange={(event) => setChargesString(event.target.value.replace(/[^0-9.]/g, ''))}
-                  />
-                </div>
-              )}
+              <FieldRow>
+                <SelectField label={t.fromAccount} value={v.fromAccountId} onChange={v.setFromAccountId} options={accountOptions} placeholder={t.chooseAccount} />
+                <SelectField
+                  label={t.toAccount}
+                  value={v.toAccountId}
+                  onChange={v.setToAccountId}
+                  options={v.accounts.filter((a) => a.id !== v.fromAccountId).map((a) => ({ value: a.id, label: a.name }))}
+                  placeholder={t.chooseAccount}
+                />
+              </FieldRow>
+              <FieldCard label={t.chargesLabel}>
+                <input className={ff.input} inputMode="decimal" value={v.chargesString} onChange={(e) => v.setChargesString(e.target.value.replace(/[^0-9.]/g, ''))} placeholder="0" />
+                <span className={ff.hint}>{t.chargesHint}</span>
+              </FieldCard>
             </>
           ) : (
-            <div className={styles.infoRow}>
-              <div className={styles.infoRowText}>
-                <span className={styles.infoRowLabel}>
-                  {type === 'income'
-                    ? strings.addTransaction.incomeAccount
-                    : strings.addTransaction.expenseAccount}
-                </span>
-                <span className={styles.infoRowValueAccent}>{fromAccount}</span>
-              </div>
-              <button
-                type="button"
-                className={styles.pillButtonInteractive}
-                onClick={() => setAccountPickerFor('from')}
-              >
-                {strings.common.change}
-              </button>
-            </div>
+            <SelectField
+              label={v.type === 'income' ? t.incomeAccount : t.expenseAccount}
+              value={v.fromAccountId}
+              onChange={v.setFromAccountId}
+              options={accountOptions}
+              placeholder={t.chooseAccount}
+            />
           )}
 
-          {canExplainUnjustifiedBalance && (
-            <label className={styles.explainToggleRow}>
-              <input
-                type="checkbox"
-                checked={explainsUnjustifiedBalance}
-                onChange={(event) => setExplainsUnjustifiedBalance(event.target.checked)}
+          <FieldCard label={t.descriptionLabel}>
+            <input className={ff.input} value={v.description} onChange={(e) => v.setDescription(e.target.value)} placeholder={t.descriptionPlaceholder} />
+          </FieldCard>
+
+          {v.canExplainUnjustifiedBalance && (
+            <MoreOptions defaultOpen>
+              <SwitchField
+                label={t.explainUnjustifiedLabel}
+                description={`${t.explainUnjustifiedHint} ${formatMoney(String(Math.abs(v.unjustifiedBalance)))}`}
+                checked={v.explainsUnjustifiedBalance}
+                onChange={v.setExplainsUnjustifiedBalance}
               />
-              <span className={styles.explainToggleText}>
-                <span className={styles.infoRowLabel}>{strings.addTransaction.explainUnjustifiedLabel}</span>
-                <span className={styles.helperText}>
-                  {strings.addTransaction.explainUnjustifiedHint} {formatMoney(String(Math.abs(unjustifiedBalance)))}
-                </span>
-              </span>
-            </label>
+            </MoreOptions>
           )}
-
-          <div className={styles.keypad}>
-            {KEYPAD_KEYS.map((key) => (
-              <button
-                key={key}
-                type="button"
-                className={styles.key}
-                onClick={() => pressKey(key)}
-                aria-label={key === 'clear' ? 'Clear last digit' : undefined}
-              >
-                {key === 'clear' ? <Delete size={18} strokeWidth={1.75} /> : key}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {step === 'review' && (
-        <div className={styles.reviewCard}>
-          <h2 className={styles.reviewTitle}>{strings.addTransaction.reviewTitle}</h2>
-          <div className={styles.reviewRow}>
-            <span className={styles.reviewLabel}>{strings.addTransaction.reviewDescription}</span>
-            <span className={styles.reviewValue}>{description || ''}</span>
-          </div>
-          <div className={styles.reviewRow}>
-            <span className={styles.reviewLabel}>{strings.addTransaction.reviewCategory}</span>
-            <span className={styles.reviewValue}>{categoryName || ''}</span>
-          </div>
-          <div className={styles.reviewRow}>
-            <span className={styles.reviewLabel}>{strings.addTransaction.reviewAmount}</span>
-            <span className={styles.reviewValue}>{formatMoney(amountString)} XAF</span>
-          </div>
-          {type === 'transfer' && Number(chargesString) > 0 && (
-            <div className={styles.reviewRow}>
-              <span className={styles.reviewLabel}>{strings.addTransaction.reviewCharges}</span>
-              <span className={styles.reviewValue}>{formatMoney(chargesString)} XAF</span>
-            </div>
-          )}
-          <div className={styles.reviewRow}>
-            <span className={styles.reviewLabel}>{strings.addTransaction.reviewType}</span>
-            <span className={styles.reviewValue}>
-              {type.charAt(0).toUpperCase() + type.slice(1)}
-            </span>
-          </div>
-          {type === 'income' && (
-            <div className={styles.reviewRow}>
-              <span className={styles.reviewLabel}>Income type</span>
-              <span className={styles.subtypeChips} role="radiogroup" aria-label="Income type">
-                {INCOME_SUBTYPES.map((s) => (
-                  <button key={s.value} type="button" role="radio" aria-checked={incomeSubtype === s.value} onClick={() => setIncomeSubtype(s.value)}>
-                    {s.label}
-                  </button>
-                ))}
-              </span>
-            </div>
-          )}
-          {type === 'income' && incomeSubtype === 'debt_financing' && (
-            <p className={styles.subtypeNote}>Counted as income this month, and saved as a debt to pay back.</p>
-          )}
-          <div className={styles.reviewRow}>
-            <span className={styles.reviewLabel}>{strings.addTransaction.reviewAccounts}</span>
-            <span className={styles.reviewValueWithAction}>
-              <span className={styles.reviewValue}>
-                {isTransferLike ? `${fromAccount} to ${toAccount}` : fromAccount}
-              </span>
-              <button
-                type="button"
-                className={styles.reviewChangeButton}
-                onClick={() => setAccountPickerFor('from')}
-              >
-                {strings.common.change}
-              </button>
-            </span>
-          </div>
-          <div className={styles.reviewRow}>
-            <span className={styles.reviewLabel}>{strings.addTransaction.reviewDate}</span>
-            <span className={styles.reviewValueWithAction}>
-              <span className={styles.reviewValue}>{date}</span>
-              <HeroDatePicker
-                value={dateValue}
-                onChange={chooseDate}
-                triggerLabel={strings.common.change}
-                triggerClassName={styles.reviewChangeButton}
-                aria-label={strings.addTransaction.chooseDate}
-              />
-            </span>
-          </div>
-        </div>
-      )}
-
-      {step === 'review' && submitError && (
-        <p className={styles.submitError} role="alert">
-          {submitError}
-        </p>
-      )}
-
-      <div className={styles.continueRow}>
-        <button
-          type="button"
-          className={styles.continueButton}
-          disabled={!canContinue}
-          onClick={step === 'review' ? handleConfirm : goNext}
-        >
-          {step === 'review'
-            ? submitting
-              ? strings.addTransaction.saving
-              : strings.common.confirm
-            : strings.common.continueLabel}
-          <ArrowUpRight size={18} strokeWidth={2.25} />
-        </button>
-
-        {/* Picking a template deep-links to /add-transaction?templateId=...
-            (see addTransaction/useLogic.ts's own prefill effect), landing
-            straight on the 'details' step already filled in, ready to
-            confirm or edit — "continue to edit it," not a separate flow. */}
-        {step === 'type' && (
-          <Link href="/transaction-templates" className={styles.templateLink}>
-            {strings.addTransaction.chooseTemplateLabel}
-          </Link>
-        )}
-      </div>
-
-      {step !== 'type' && (
-        <p className={styles.typeIndicator}>
-          {strings.addTransaction.addingAnPrefix}{' '}
-          <strong>{strings.addTransaction.types[type].label}</strong>
-        </p>
-      )}
         </>
       )}
-
-      {accountPickerFor && (
-        <Modal title={strings.addTransaction.chooseAccount} onClose={() => setAccountPickerFor(null)}>
-          <div className={styles.accountList}>
-            {/* A Savings Account can never fund a direct Expense — this is
-                the only picker that ever excludes it (see
-                spendableAccounts's own comment in useLogic.ts). */}
-            {(type === 'expense' ? spendableAccounts : accounts).map((account) => {
-              const active =
-                (accountPickerFor === 'from' && account.id === fromAccountId) ||
-                (accountPickerFor === 'to' && account.id === toAccountId);
-              return (
-                <button
-                  key={account.id}
-                  type="button"
-                  className={styles.accountRow}
-                  onClick={() => chooseAccount(account.id)}
-                >
-                  {account.name}
-                  {active && <Check size={16} strokeWidth={2.25} />}
-                </button>
-              );
-            })}
-          </div>
-        </Modal>
-      )}
-    </div>
+    </FormFrame>
   );
 }

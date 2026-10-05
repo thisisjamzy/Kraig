@@ -35,6 +35,9 @@ import { Tag, type TagColor } from '@/src/widgets/TaskDb/Tag';
 import { taskCardSpec, taskColumns, taskGroups, taskListSpec, taskRowActions } from '@/src/widgets/TaskDb/taskDatabase';
 import { HealthTag, ProgressBar, dateRange } from '@/src/widgets/ProjectDb/projectDatabase';
 import styles from './ProjectDetailScreen.module.css';
+import { useFormLink } from '@/src/shared/navigation/useFormLink';
+import { useRouter } from 'next/navigation';
+import { NotificationsLink } from '@/src/widgets/Notifications/NotificationsLink';
 
 const ALL = ['name', 'status', 'importance', 'priority', 'type', 'date', 'time', 'start', 'end', 'project', 'area', 'timeMode', 'recurring', 'overdue', 'sync', 'created', 'completed'];
 const showOnly = (ids: string[]) => ALL.filter((id) => !ids.includes(id));
@@ -58,6 +61,8 @@ const MILESTONE_COLUMNS: ColumnDef<MilestoneStat>[] = [
 ];
 
 export function ProjectDetailScreen({ projectId }: { projectId: string }) {
+  const router = useRouter();
+  const formLink = useFormLink();
   const taskPanel = useTaskPanel();
   const { deviceClass } = useLayout();
   const { db, rows, setDates, setStatus, loading } = useProjectsDb();
@@ -119,7 +124,10 @@ export function ProjectDetailScreen({ projectId }: { projectId: string }) {
   const main = (
     <>
       <Callout icon={<Activity size={18} strokeWidth={2} />} tone={row.health === 'At risk' ? 'bad' : row.health === 'Watch' ? 'watch' : row.health === 'On track' || row.health === 'Done' ? 'good' : undefined}>
-        <p>{healthSentence(row)}</p>
+        <p>
+          {healthSentence(row)}
+          <NotificationsLink types={['projects_at_risk', 'milestones_at_risk']} about="projects" />
+        </p>
       </Callout>
       <Block title="Tasks">
         <Database<TaskRow>
@@ -153,6 +161,7 @@ export function ProjectDetailScreen({ projectId }: { projectId: string }) {
           }}
           onOpen={(r) => taskPanel.open(r.id)}
           onNew={() => taskPanel.open('new', { projectId })}
+          newTemplates={[{ id: 'import', label: 'Import tasks', onSelect: () => router.push(formLink('import', { project: projectId })) }]}
           emptyText="No tasks yet."
         />
       </Block>
@@ -194,7 +203,7 @@ export function ProjectDetailScreen({ projectId }: { projectId: string }) {
       ]}
       menu={[
         { label: 'Open project insights', href: `/projects/insights/${projectId}` },
-        { label: 'Edit project', href: `/projects/${projectId}/edit` },
+        { label: 'Edit project', href: formLink('project', { id: projectId }) },
       ]}
       properties={[
         {

@@ -130,10 +130,17 @@ test('removed pages are gone and their old URLs redirect to the replacements', a
     assert.equal(existsSync(join(routes, path, 'page.tsx')), false, `${path} still has a page`);
     assert.equal(target(`/${path}`), to);
   }
-  // Buckets analytics is a phone-line page again (docs/UI-LINES.md); the
+  // Baskets analytics is a phone-line page again (docs/UI-LINES.md); the
   // page itself sends wide screens to /statistics, so no server redirect.
-  assert.equal(existsSync(join(routes, 'buckets/analytics', 'page.tsx')), true);
-  assert.equal(target('/buckets/analytics'), undefined);
+  assert.equal(existsSync(join(routes, 'baskets/analytics', 'page.tsx')), true);
+  assert.equal(target('/baskets/analytics'), undefined);
+  // Buckets (and Goals before them) are Baskets: the old URLs redirect.
+  assert.equal(target('/buckets'), '/baskets');
+  assert.equal(target('/buckets/:path*'), '/baskets/:path*');
+  assert.equal(target('/goals'), '/baskets');
+  assert.equal(target('/budget/bucket/:path*'), '/budget/basket/:path*');
+  assert.equal(target('/add-bucket-item/:path*'), '/add-basket-item/:path*');
+  assert.equal(existsSync(join(routes, 'buckets')), false);
   assert.equal(target('/budget', 'history'), '/transactions');
   assert.equal(target('/budget', 'payments'), '/payments');
   // The rebuilt debt forms all have their own page for phones.

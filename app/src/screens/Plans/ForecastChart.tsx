@@ -53,6 +53,11 @@ interface Point {
   events: EngineDay['events'];
 }
 
+/** Negative amounts with a true minus sign: "−481,000". */
+export function signed(n: number): string {
+  return n < 0 ? `\u2212${formatMoney(-n)}` : formatMoney(n);
+}
+
 export function ForecastChart({
   result,
   before,
@@ -156,28 +161,28 @@ export function ForecastChart({
             <thead>
               <tr>
                 <th>Month</th>
-                <th>Expected income</th>
-                <th>Fixed</th>
-                <th>Flexible</th>
-                <th>Savings</th>
-                <th>Left</th>
-                <th>Lowest balance</th>
-                <th>Balance at month end</th>
+                <th data-num>Expected income</th>
+                <th data-num>Fixed</th>
+                <th data-num>Flexible</th>
+                <th data-num>Savings</th>
+                <th data-num>Left</th>
+                <th data-num>Lowest balance</th>
+                <th>Lowest on</th>
+                <th data-num>Balance at month end</th>
               </tr>
             </thead>
             <tbody>
               {result.months.map((m) => (
                 <tr key={m.month}>
                   <td>{monthWord(m.month)}</td>
-                  <td data-num>{formatMoney(m.income)}</td>
-                  <td data-num>{formatMoney(m.fixed + m.fees)}</td>
-                  <td data-num>{formatMoney(m.flexible)}</td>
-                  <td data-num>{formatMoney(m.savings)}</td>
-                  <td data-num data-tone={m.free < 0 ? 'bad' : undefined}>{formatMoney(m.free)}</td>
-                  <td data-num data-tone={m.lowest < 0 ? 'bad' : m.lowest < cushion ? 'watch' : undefined}>
-                    {formatMoney(m.lowest)} <span className={styles.muted}>{short(m.lowestDate)}</span>
-                  </td>
-                  <td data-num>{formatMoney(m.endBalance)}</td>
+                  <td data-num>{signed(m.income)}</td>
+                  <td data-num>{signed(m.fixed + m.fees)}</td>
+                  <td data-num>{signed(m.flexible)}</td>
+                  <td data-num>{signed(m.savings)}</td>
+                  <td data-num data-tone={m.free < 0 ? 'bad' : undefined}>{signed(m.free)}</td>
+                  <td data-num data-tone={m.lowest < 0 ? 'bad' : m.lowest < cushion ? 'watch' : undefined}>{signed(m.lowest)}</td>
+                  <td>{short(m.lowestDate)}</td>
+                  <td data-num data-tone={m.endBalance < 0 ? 'bad' : undefined}>{signed(m.endBalance)}</td>
                 </tr>
               ))}
             </tbody>

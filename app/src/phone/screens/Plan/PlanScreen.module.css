@@ -1,0 +1,388 @@
+/* Phone Plan (/baskets/forecast). Builds on Planning.module.css (BASELINE):
+   page, cards, rows and the sticky bar come from there. Sheets render in the
+   Modal portal, outside .page, so they use the app tokens. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.page[data-draft] {
+  padding-bottom: 160px;
+}
+
+.cardTitle {
+  margin: 0 0 10px;
+  font-size: 0.9375rem;
+  font-weight: 700;
+}
+
+.figures {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.figure {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.figureLabel {
+  font-size: 0.75rem;
+  color: var(--p-muted);
+}
+
+.figureValue {
+  overflow: hidden;
+  font-size: 1rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.figureValue[data-tone='bad'],
+.lowest[data-tone='bad'] {
+  color: var(--p-red);
+}
+
+.lowest {
+  margin: 12px 0 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--p-muted);
+}
+
+.lowest[data-tone='watch'] {
+  color: var(--color-warning, #b7791f);
+}
+
+.muted {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--p-muted, var(--color-text-secondary));
+}
+
+.switcher {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.switcher button {
+  flex-shrink: 0;
+  min-height: 36px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 999px;
+  background: var(--p-card);
+  color: var(--p-navy);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  box-shadow: var(--p-shadow);
+}
+
+.switcher button[aria-selected='true'] {
+  background: var(--p-navy);
+  color: var(--p-bg);
+}
+
+.groupTitle {
+  margin: 4px 0 0;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--p-muted);
+}
+
+.groupHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 44px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 20px;
+  background: var(--p-card);
+  color: var(--p-navy);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  box-shadow: var(--p-shadow);
+}
+
+.groupHead svg {
+  transition: transform 0.15s ease;
+}
+
+.groupHead svg[data-open] {
+  transform: rotate(180deg);
+}
+
+.backlogHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.rowLink {
+  display: flex;
+  flex: 1;
+  gap: 12px;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.chip {
+  align-self: flex-start;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--p-chip);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--p-blue);
+}
+
+.more {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  margin: -6px -8px 0 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--p-muted);
+}
+
+.draftCount {
+  font-weight: 700;
+}
+
+/* ---- Sheets ---- */
+.sheetList {
+  display: flex;
+  flex-direction: column;
+}
+
+.sheetList button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-height: 48px;
+  padding: 12px 4px;
+  border: none;
+  border-bottom: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 0.9375rem;
+  text-align: left;
+}
+
+.sheetList button:last-child {
+  border-bottom: none;
+}
+
+.sheetList button:disabled {
+  color: var(--color-text-secondary);
+}
+
+.sheetList small,
+.splitList small {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.sheetText {
+  margin: 0 0 12px;
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+.sheetWarn {
+  margin: 0 0 12px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-danger);
+}
+
+.sheetPrimary {
+  width: 100%;
+  margin-top: 8px;
+}
+
+.splitCount {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  margin-bottom: 12px;
+  font-weight: 600;
+}
+
+.splitCount button {
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-text-primary);
+  font-size: 1.25rem;
+}
+
+.splitList {
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+}
+
+.splitList li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.wantForm {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.wantForm input:not([type='checkbox']),
+.wantForm select {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 1rem;
+}
+
+.wantForm label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+}
+
+.wantForm .checkRow {
+  flex-direction: row;
+  align-items: center;
+  font-size: 0.9375rem;
+  color: var(--color-text-primary);
+}
+
+.segmented {
+  display: flex;
+  padding: 3px;
+  border-radius: 12px;
+  background: var(--color-surface-muted, rgba(0, 0, 0, 0.05));
+}
+
+.segmented button {
+  flex: 1;
+  min-height: 38px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.segmented button[aria-checked='true'] {
+  background: var(--color-surface, #fff);
+  color: var(--color-text-primary);
+}
+
+/* ---- Show chart ---- */
+.chart {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.line {
+  fill: none;
+  stroke: var(--p-blue);
+  stroke-width: 2.5;
+}
+
+.cushionLine {
+  stroke: var(--p-light);
+  stroke-dasharray: 4 4;
+}
+
+.point {
+  fill: var(--p-blue);
+  cursor: pointer;
+}
+
+.point[data-tone='watch'] {
+  fill: var(--color-warning, #b7791f);
+}
+
+.point[data-tone='bad'] {
+  fill: var(--p-red);
+}
+
+.tableWrap {
+  overflow-x: auto;
+  border-radius: 20px;
+  background: var(--p-card);
+  box-shadow: var(--p-shadow);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.table th,
+.table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--p-divider);
+  text-align: left;
+}
+
+.table th {
+  font-weight: 600;
+  color: var(--p-muted);
+}
+
+.table [data-num] {
+  text-align: right;
+}
+
+.table td:first-child,
+.table th:first-child {
+  position: sticky;
+  left: 0;
+  background: var(--p-card);
+}
+
+.table td[data-tone='bad'] {
+  color: var(--p-red);
+}

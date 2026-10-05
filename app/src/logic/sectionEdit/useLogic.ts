@@ -9,9 +9,11 @@ import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { PROJECT_COLORS } from '@/src/viewmodels/projects';
 import type { FirestoreSection, FirestoreArea } from '@/src/shared/firestore/types';
 import { useGoBack } from '@/src/shared/navigation/useGoBack';
+import { useFormFinish } from '@/src/shared/navigation/formPeekContext';
 
 export function useLogic(bucketId: string) {
   const router = useRouter();
+  const finish = useFormFinish();
   const { user } = useFirebaseUser();
   const uid = user?.uid;
 
@@ -51,7 +53,7 @@ export function useLogic(bucketId: string) {
         description: description.trim(),
         updatedAt: serverTimestamp(),
       });
-      router.push(`/sections/${bucketId}`);
+      finish(`/sections/${bucketId}`);
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : 'Could not update this section.');
       setSaving(false);
@@ -64,7 +66,7 @@ export function useLogic(bucketId: string) {
     // with nowhere to resolve to, so it's never allowed to go away.
     if (!uid || section?.isDefault) return;
     await updateDoc(sectionRef(uid, bucketId), { archived: true, updatedAt: serverTimestamp() });
-    router.push(bucketAreaId ? `/areas/${bucketAreaId}` : '/projects');
+    router.replace(bucketAreaId ? `/areas/${bucketAreaId}` : '/projects');
   }
 
   async function unarchiveBucket() {

@@ -175,6 +175,8 @@ export function useLogic() {
       writeLocal(SORT_KEY, s);
     },
     list,
+    /** Every notification, in any view (a phone's detail page finds one here). */
+    all: notifications,
     rows,
     groups,
     counts,

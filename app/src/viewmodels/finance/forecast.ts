@@ -194,15 +194,15 @@ export function guidance(data: FinData, f: Forecast, currency = 'XAF'): { tips: 
     const perMonth = Math.ceil(-short.gap / monthsToSave / 1000) * 1000;
     tips.push({
       text: `${monthName(short.month)} is ${fmt(-short.gap)} short. Save ${fmt(perMonth)} a month from now to cover it.`,
-      action: 'Create savings goal',
-      href: '/buckets/new',
+      action: 'Create savings basket',
+      href: '/baskets/new',
     });
   }
   const free = upcoming.reduce((s, m) => s + Math.max(0, m.gap), 0);
   if (free > 0) {
     tips.push({
       text: `You have ${fmt(free)} free over the next ${upcoming.length} ${upcoming.length === 1 ? 'month' : 'months'}.`,
-      action: 'Plan in buckets',
+      action: 'Plan in baskets',
       href: '/budget',
     });
   }

@@ -216,7 +216,7 @@ export function usePaymentsTab(month: string, data: PlanningData, bucketFilter: 
   return {
     currency: ctx.display,
     payments,
-    bucketName: bucketFilter ? (data.buckets.find((b) => b.id === bucketFilter)?.name ?? 'Bucket') : null,
+    bucketName: bucketFilter ? (data.buckets.find((b) => b.id === bucketFilter)?.name ?? 'Basket') : null,
     dotsByDay,
     selectedDay,
     pickDay,

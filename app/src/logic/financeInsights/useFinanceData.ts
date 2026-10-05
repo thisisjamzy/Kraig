@@ -251,7 +251,7 @@ export function useFinanceData() {
 
   const bucketName = useMemo(() => {
     const names = new Map(buckets.map((b) => [b.id, b.name]));
-    return (id: string) => names.get(id) ?? 'Bucket';
+    return (id: string) => names.get(id) ?? 'Basket';
   }, [buckets]);
 
   async function saveSettings(next: FirestoreFinanceSettings) {

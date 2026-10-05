@@ -1,0 +1,385 @@
+/* The form standard's frame (FormFrame.tsx). Field cards themselves come
+   from CardForm.module.css: 16px padding, 8px apart, a 12px label over a
+   20px value; 10px corners from 768px up, the BASELINE radius on phones. */
+
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ---- Phone ---- */
+
+/* Room for the sticky button bar, so the last card stays visible. */
+.phone {
+  padding-bottom: calc(112px + var(--safe-bottom));
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  margin-bottom: 8px;
+}
+
+.up {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  background: none;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.barTitle {
+  margin: 0;
+  font-family: var(--font-family-heading);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.stickyBar {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 40;
+  padding: 12px 12px calc(12px + var(--safe-bottom));
+  background: var(--tf-bg);
+  box-shadow: 0 -8px 24px rgba(28, 31, 58, 0.06);
+}
+
+/* ---- Tablet and web ---- */
+
+.wide {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  max-width: 640px;
+  min-height: auto;
+  margin: 0 auto;
+  padding: 16px 24px 32px;
+}
+
+.wide[data-peek] {
+  max-width: none;
+  min-height: 100%;
+  padding: 12px 24px 32px;
+}
+
+.wideTools {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.tool {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.tool:hover {
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+}
+
+.wideHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.wideTitle {
+  margin: 0;
+  font-family: var(--font-family-heading);
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--color-text-primary);
+}
+
+.wideContext {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+}
+
+/* ---- Both ---- */
+
+.primary {
+  width: 100%;
+  min-height: 52px;
+  border: none;
+  border-radius: 20px;
+  background: var(--color-brand);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.primary[data-tone='danger'] {
+  background: #e04b5a;
+}
+
+.primary:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+@media (min-width: 768px) {
+  .primary {
+    min-height: 44px;
+    border-radius: 6px;
+  }
+}
+
+.primary:focus-visible,
+.tool:focus-visible,
+.up:focus-visible,
+.moreToggle:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+}
+
+.fieldRow {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+@media (max-width: 359px) {
+  .fieldRow {
+    grid-template-columns: 1fr;
+  }
+}
+
+.fieldError {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #d6404f;
+}
+
+.hint {
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: var(--tf-label);
+}
+
+.more {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.moreToggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 4px;
+  border: none;
+  background: none;
+  color: var(--tf-label);
+  font-family: inherit;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.moreChevron {
+  transition: transform 160ms ease;
+}
+
+.moreChevron[data-open] {
+  transform: rotate(180deg);
+}
+
+.impact {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px;
+  border-radius: 20px;
+  background: var(--tf-card);
+  box-shadow: inset 3px 0 0 var(--color-brand);
+}
+
+@media (min-width: 768px) {
+  .impact {
+    border-radius: 10px;
+  }
+}
+
+.impactBody {
+  font-size: 0.9375rem;
+  line-height: 1.45;
+  color: var(--tf-text);
+}
+
+.impactBody p {
+  margin: 0;
+}
+
+.impactBody p + p {
+  margin-top: 4px;
+}
+
+.error {
+  margin: 0;
+  padding: 0 4px;
+  font-size: 0.875rem;
+  color: #d6404f;
+}
+
+.after {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .moreChevron {
+    transition: none;
+  }
+}
+
+/* SelectField: the whole card is the native select's hit area. */
+.select {
+  position: relative;
+}
+
+.nativeSelect {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  /* 16px keeps iOS from zooming in when the picker opens. */
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.select:focus-within {
+  box-shadow: inset 0 0 0 2px var(--tf-accent);
+}
+
+/* SwitchField */
+.switchField {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.switchText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.switchLabel {
+  font-size: 1rem;
+  color: var(--tf-text);
+}
+
+.switch {
+  position: relative;
+  flex-shrink: 0;
+  width: 44px;
+  height: 26px;
+  margin: 0;
+  border-radius: 999px;
+  background: var(--tf-track);
+  box-shadow: inset 0 0 0 1px var(--color-border);
+  appearance: none;
+  cursor: pointer;
+  transition: background-color 160ms ease;
+}
+
+.switch::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(28, 31, 58, 0.25);
+  transition: transform 160ms ease;
+}
+
+.switch:checked {
+  background: var(--tf-accent);
+  box-shadow: none;
+}
+
+.switch:checked::after {
+  transform: translateX(18px);
+}
+
+.switch:focus-visible {
+  outline: 2px solid var(--tf-accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .switch,
+  .switch::after {
+    transition: none;
+  }
+}
+
+/* Plain inputs inside field cards (dates, multi-line text). */
+.input {
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--tf-text);
+  font-family: inherit;
+  font-size: 20px;
+  line-height: 1.25;
+  outline: none;
+}
+
+.input::placeholder {
+  color: var(--tf-placeholder);
+}
+
+textarea.input {
+  font-size: 1rem;
+  line-height: 1.45;
+  resize: vertical;
+}
+
+/* FormChrome: the form's own submit button stays in view at the bottom of
+   a phone screen, above the safe area. */
+@media (max-width: 767px) {
+  .chrome :global(button[type='submit']) {
+    position: sticky;
+    bottom: calc(12px + var(--safe-bottom));
+    z-index: 5;
+    box-shadow: 0 8px 24px rgba(28, 31, 58, 0.12);
+  }
+}

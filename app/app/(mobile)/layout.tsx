@@ -19,6 +19,7 @@ import { NotificationsRunner } from '@/src/widgets/Notifications/NotificationsRu
 import { NotificationPrompt } from '@/src/widgets/Notifications/NotificationPrompt';
 import { NotificationSheet } from '@/src/phone/widgets/NotificationSheet/NotificationSheet';
 import { PlanSnapshotWorker } from '@/src/widgets/Notifications/PlanSnapshotWorker';
+import { PreferencesApplier } from '@/src/shared/settings/PreferencesApplier';
 import styles from './layout.module.css';
 
 // Medium screens and up only — its own chunk, so phones never download the
@@ -49,6 +50,7 @@ export default function AppShellLayout({ children }: { children: ReactNode }) {
       <BudgetRunner />
       <NotificationsRunner />
       <PlanSnapshotWorker />
+      <PreferencesApplier />
       <AuthGuard>
         {isWide ? (
           <AppShell>{children}</AppShell>

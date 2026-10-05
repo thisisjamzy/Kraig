@@ -26,6 +26,7 @@ import { monthLabel, remaining, type Occurrence } from '@/src/viewmodels/plans/m
 import type { SortMode } from '@/src/viewmodels/plans/priorities';
 import { full } from './parts';
 import styles from './Plans.module.css';
+import { NotificationsLink } from '@/src/widgets/Notifications/NotificationsLink';
 
 const REASONS = ['No money', 'Not urgent', 'Waiting on someone', 'Price changed'];
 const GROUP_ORDER = ['now', 'waiting', 'not', 'postponed'];
@@ -65,7 +66,7 @@ function columns(v: PrioritiesLogic): ColumnDef<PriorityRow>[] {
   const buckets = [...new Set(v.rows.map((r) => r.o.bucketName))].map((b) => ({ value: b, label: b }));
   const list: ColumnDef<PriorityRow>[] = [
     { id: 'name', label: 'Name', type: 'text', width: 240, value: (r) => r.o.name },
-    { id: 'bucket', label: 'Bucket', type: 'relation', width: 170, value: (r) => r.o.bucketName, options: buckets },
+    { id: 'bucket', label: 'Basket', type: 'relation', width: 170, value: (r) => r.o.bucketName, options: buckets },
     {
       id: 'need',
       label: 'Need',
@@ -124,7 +125,10 @@ export function PrioritiesScreen() {
       ]}
     >
       <Callout tone={v.totals.notCovered ? 'bad' : v.totals.waiting ? 'watch' : undefined}>
-        <p>{v.summary}</p>
+        <p>
+          {v.summary}
+          <NotificationsLink types={['payment_overdue', 'payment_due_soon', 'must_haves_short']} about="payments" />
+        </p>
       </Callout>
       {v.error && <p className={styles.error}>{v.error}</p>}
       {v.loading ? (
@@ -145,7 +149,7 @@ export function PrioritiesScreen() {
           groups={[
             { id: 'coverage', label: 'Coverage', key: (r) => ({ key: r.coverage, label: GROUP_LABEL[r.coverage] }), order: GROUP_ORDER },
             { id: 'need', label: 'Need', key: (r) => ({ key: r.o.need, label: r.o.need === 'must' ? 'Must have' : 'Nice to have' }) },
-            { id: 'bucket', label: 'Bucket', key: (r) => ({ key: r.o.bucketId, label: r.o.bucketName }) },
+            { id: 'bucket', label: 'Basket', key: (r) => ({ key: r.o.bucketId, label: r.o.bucketName }) },
           ]}
           defaultGroup="coverage"
           subtotalColumn="left"

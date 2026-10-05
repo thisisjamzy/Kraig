@@ -34,6 +34,7 @@ import { formatMoney } from '@/src/widgets/Money/Money';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { Tag, type TagColor } from '@/src/widgets/TaskDb/Tag';
 import styles from './DebtDetailScreen.module.css';
+import { NotificationsLink } from '@/src/widgets/Notifications/NotificationsLink';
 
 const PRIORITY_LABEL = { high: 'High', medium: 'Medium', low: 'Low' } as const;
 const PRIORITY_COLOR: Record<keyof typeof PRIORITY_LABEL, TagColor> = { high: 'red', medium: 'yellow', low: 'gray' };
@@ -270,7 +271,10 @@ export function DebtDetailScreen({ debtId }: { debtId: string }) {
       ) : (
         <>
           <Callout tone={v.balance <= 0 ? 'good' : v.late ? 'bad' : 'watch'}>
-            <p>{hidden ? 'Amounts are hidden.' : v.sentence}</p>
+            <p>
+              {hidden ? 'Amounts are hidden.' : v.sentence}
+              <NotificationsLink types={['debt_payment_due', 'debt_payment_late']} about="debts" />
+            </p>
           </Callout>
 
           <div className={styles.columns}>

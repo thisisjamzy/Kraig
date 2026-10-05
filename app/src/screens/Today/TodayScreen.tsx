@@ -38,6 +38,7 @@ import { TASK_DRAG_TYPE, TimeGrid } from '@/src/widgets/TimeCalendar/TimeGrid';
 import { taskCardSpec, taskColumns, taskGroups, taskListSpec, taskRowActions, ModeGlyph } from '@/src/widgets/TaskDb/taskDatabase';
 import type { DefaultView } from '@/src/widgets/Database/types';
 import styles from './TodayScreen.module.css';
+import { NotificationsLink } from '@/src/widgets/Notifications/NotificationsLink';
 
 type Logic = ReturnType<typeof useLogic>;
 
@@ -198,6 +199,7 @@ export function TodayScreen() {
               <Link href="/projects/focus?view=overdue">Review overdue</Link>
             </>
           )}
+          <NotificationsLink module="time" about="your time" />
         </p>
         {compact && <p className={styles.progressLine}>{progressLine(figures, overdue)}</p>}
       </Callout>

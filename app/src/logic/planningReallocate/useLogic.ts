@@ -15,12 +15,14 @@ import { showToast } from '@/src/widgets/Toast/Toast';
 import { addMonths, itemOccurrence } from '@/src/shared/budget/monthBudget';
 import { isSavingsAccount } from '@/src/viewmodels/wallets';
 import { monthOf, monthTitle, money, takeFrom, unexplained, type Need } from '@/src/viewmodels/planning';
+import { peekAwareParams } from '@/src/shared/navigation/formPeek';
+import { useFormPeek } from '@/src/shared/navigation/formPeekContext';
 
 export type Destination = 'bucket' | 'savings' | 'next';
 
 function paramsFromSearch() {
   if (typeof window === 'undefined') return { month: monthOf(new Date()), bucket: '', item: null as string | null };
-  const q = new URLSearchParams(window.location.search);
+  const q = peekAwareParams(window.location.search);
   const month = q.get('month');
   return {
     month: month && /^\d{4}-\d{2}$/.test(month) ? month : monthOf(new Date()),
@@ -171,8 +173,10 @@ export function useLogic() {
   }
 
   const navigateBack = useGoBack();
+  const peek = useFormPeek();
   function goBack() {
-    navigateBack(`/budget/bucket/${bucketId}?month=${month}`);
+    if (peek) return peek.close();
+    navigateBack(`/budget/basket/${bucketId}?month=${month}`);
   }
 
   return {

@@ -4,7 +4,7 @@
 /* ---- 1. Context card ---- */
 .context {
   padding: 16px;
-  border-radius: 22px;
+  border-radius: 0;
   background: var(--p-card);
   box-shadow: var(--p-shadow);
 }
@@ -203,7 +203,7 @@
   height: 44px;
   margin-bottom: 8px;
   padding: 0 14px;
-  border-radius: 14px;
+  border-radius: 6px;
   background: var(--p-card);
   color: var(--p-light);
 }
@@ -229,7 +229,7 @@
 .source {
   padding: 4px 8px 4px 4px;
   border: 2px solid transparent;
-  border-radius: 18px;
+  border-radius: 10px;
   background: var(--p-card);
 }
 
@@ -253,7 +253,7 @@
   min-height: 52px;
   padding: 6px 8px;
   border: none;
-  border-radius: 14px;
+  border-radius: 10px;
   background: none;
   color: inherit;
   font-family: inherit;
@@ -323,7 +323,7 @@
 .info {
   margin: 0 8px 8px 46px;
   padding: 8px 12px;
-  border-radius: 12px;
+  border-radius: 0;
   background: #fdf3e2;
   color: #8a5a12;
   font-size: 0.8125rem;
@@ -344,7 +344,7 @@
   gap: 4px;
   padding: 0 12px;
   border: 2px solid transparent;
-  border-radius: 12px;
+  border-radius: 6px;
   background: var(--p-item);
 }
 
@@ -387,7 +387,7 @@
   height: 32px;
   padding: 0 10px;
   border: none;
-  border-radius: 999px;
+  border-radius: 6px;
   background: var(--p-chip);
   color: var(--p-blue);
   font-family: inherit;
@@ -443,7 +443,7 @@
   min-height: 38px;
   padding: 6px 14px;
   border: none;
-  border-radius: 999px;
+  border-radius: 6px;
   background: var(--p-card);
   color: var(--p-navy);
   font-family: inherit;
@@ -467,7 +467,7 @@
   gap: 10px;
   margin-top: 8px;
   padding: 8px 8px 8px 14px;
-  border-radius: 16px;
+  border-radius: 10px;
   background: var(--p-card);
   font-size: 0.8125rem;
   font-weight: 600;
@@ -496,7 +496,7 @@
   gap: 4px;
   padding: 16px;
   border: 2px solid transparent;
-  border-radius: 20px;
+  border-radius: 10px;
   background: var(--p-card);
   box-shadow: var(--p-shadow);
   color: inherit;
@@ -528,7 +528,7 @@
 .review {
   margin-top: 24px;
   padding: 16px;
-  border-radius: 22px;
+  border-radius: 0;
   background: var(--p-blue-tint);
 }
 
@@ -612,7 +612,7 @@
 
 .skeleton span {
   display: block;
-  border-radius: 18px;
+  border-radius: 10px;
   background: linear-gradient(90deg, var(--p-item) 25%, var(--p-card) 50%, var(--p-item) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.2s linear infinite;

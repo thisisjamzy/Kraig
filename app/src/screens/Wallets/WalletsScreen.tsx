@@ -8,8 +8,10 @@ import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { Modal } from '@/src/widgets/Modal/Modal';
 import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import styles from './WalletsScreen.module.css';
+import { useFormLink } from '@/src/shared/navigation/useFormLink';
 
 export function WalletsScreen() {
+  const formLink = useFormLink();
   const strings = useStrings();
   const {
     wallets,
@@ -79,7 +81,7 @@ export function WalletsScreen() {
           <p className={styles.archivedTitle}>{strings.wallets.archivedTitle}</p>
           <div className={styles.list}>
             {archivedWallets.map((wallet) => (
-              <Link key={wallet.id} href={`/wallets/${wallet.id}/edit`} className={styles.row}>
+              <Link key={wallet.id} href={formLink('wallet', { id: wallet.id })} className={styles.row}>
                 <span className={styles.name}>{wallet.name}</span>
                 <ChevronRight size={16} strokeWidth={2} className={styles.chevron} />
               </Link>

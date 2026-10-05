@@ -13,14 +13,15 @@ import { Modal } from '@/src/widgets/Modal/Modal';
 import { MoreSheet } from '@/src/widgets/AppShell/MoreSheet';
 import type { FirestoreBucket } from '@/src/shared/firestore/types';
 import styles from './BucketsBottomNav.module.css';
+import { useFormLink } from '@/src/shared/navigation/useFormLink';
 
 // Exported for WebSidebar (src/widgets/WebSidebar) — reused verbatim so
 // mobile and web can never drift apart on what Buckets mode contains.
 export const NAV_ITEMS = [
-  { href: '/buckets', label: 'Home', icon: Home },
+  { href: '/baskets', label: 'Home', icon: Home },
   // Money Insights replaced the old Buckets analytics page.
   { href: '/statistics', label: 'Insights', icon: ChartNoAxesCombined },
-  { href: '/buckets/items', label: 'Priorities', icon: ListOrdered },
+  { href: '/baskets/items', label: 'Priorities', icon: ListOrdered },
 ];
 
 type Create = 'item' | 'income' | 'payment';
@@ -30,6 +31,7 @@ type Create = 'item' | 'income' | 'payment';
 // routes (chromeVisibility.ts's navMode). The "+" opens what can be added:
 // a bucket, or an item, an income source or a planned payment in one.
 export function BucketsBottomNav() {
+  const formLink = useFormLink();
   const pathname = usePathname();
   const { user } = useFirebaseUser();
   const uid = user?.uid;
@@ -89,8 +91,8 @@ export function BucketsBottomNav() {
           <div className={styles.sheet}>
             {!picking ? (
               <>
-                <Link href="/buckets/new" className={styles.sheetOption} onClick={close}>
-                  <FolderPlus size={18} strokeWidth={2} aria-hidden /> New bucket
+                <Link href={formLink('basket')} className={styles.sheetOption} onClick={close}>
+                  <FolderPlus size={18} strokeWidth={2} aria-hidden /> New basket
                 </Link>
                 <button type="button" className={styles.sheetOption} onClick={() => setPicking('item')}>
                   <ListPlus size={18} strokeWidth={2} aria-hidden /> New item
@@ -105,17 +107,17 @@ export function BucketsBottomNav() {
             ) : (
               <>
                 {choices(picking).map((b) => (
-                  <Link key={b.id} href={`/add-bucket-item/${b.id}`} className={styles.sheetOption} onClick={close}>
+                  <Link key={b.id} href={formLink('basket-item', { basket: b.id })} className={styles.sheetOption} onClick={close}>
                     {b.name}
                   </Link>
                 ))}
                 {choices(picking).length === 0 && (
                   <p className={styles.sheetEmpty}>
-                    {picking === 'income' ? 'No income bucket yet.' : picking === 'payment' ? 'No recurring bucket yet.' : 'No bucket yet.'}
+                    {picking === 'income' ? 'No income basket yet.' : picking === 'payment' ? 'No recurring basket yet.' : 'No basket yet.'}
                   </p>
                 )}
-                <Link href="/buckets/new" className={styles.sheetOption} onClick={close}>
-                  <FolderPlus size={18} strokeWidth={2} aria-hidden /> New {picking === 'income' ? 'income ' : ''}bucket
+                <Link href={formLink('basket')} className={styles.sheetOption} onClick={close}>
+                  <FolderPlus size={18} strokeWidth={2} aria-hidden /> New {picking === 'income' ? 'income ' : ''}basket
                 </Link>
               </>
             )}

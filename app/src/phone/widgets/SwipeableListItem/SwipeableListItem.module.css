@@ -35,3 +35,11 @@
   touch-action: pan-y;
   transition: transform 0.15s ease;
 }
+
+.deleteButton[data-tone='brand'] {
+  background: var(--color-brand);
+}
+
+.deleteButton[data-tone='neutral'] {
+  background: var(--color-text-secondary);
+}

@@ -20,6 +20,12 @@ import {
   withoutDebtForm,
   type DebtFormKind,
 } from '@/src/shared/navigation/debtForms';
+import { SETTINGS_PARAM, settingsHref, settingsPageHref, withoutSettings } from '@/src/shared/navigation/settingsLink';
+import { isSettingsSection } from '@/src/logic/settingsCenter/sections';
+import { PEEK_PARAM, formPageHref, isFormKind, peekParams, withoutFormPeek, type FormKind } from '@/src/shared/navigation/formPeek';
+import { FormPeekContext } from '@/src/widgets/FormFrame/FormFrame';
+import { WebFormPanel } from '@/src/widgets/WebFormPanel/WebFormPanel';
+import type { ComponentType } from 'react';
 import dynamic from 'next/dynamic';
 
 // Loaded only when a panel actually opens.
@@ -30,12 +36,109 @@ const RepaymentFormScreen = dynamic(() => import('@/src/screens/DebtForms/Repaym
 const PlanFormScreen = dynamic(() => import('@/src/screens/DebtForms/PlanFormScreen').then((m) => m.PlanFormScreen), { ssr: false });
 const WalletEffectFormScreen = dynamic(() => import('@/src/screens/DebtForms/WalletEffectFormScreen').then((m) => m.WalletEffectFormScreen), { ssr: false });
 
+// The forms that open as a side peek from ?peek=<kind> (formPeek.ts). A kind
+// not listed here opens its own page instead.
+const BasketItemForm = dynamic(() => import('@/src/forms/BasketItemForm/BasketItemForm').then((m) => m.BasketItemForm), { ssr: false });
+const AreaFormScreen = dynamic(() => import('@/src/screens/AreaForm/AreaFormScreen').then((m) => m.AreaFormScreen), { ssr: false });
+const ProjectFormScreen = dynamic(() => import('@/src/screens/ProjectForm/ProjectFormScreen').then((m) => m.ProjectFormScreen), { ssr: false });
+const CoverScreen = dynamic(() => import('@/src/screens/PlanningFlows/CoverScreen').then((m) => m.CoverScreen), { ssr: false });
+const ReallocateScreen = dynamic(() => import('@/src/screens/PlanningFlows/ReallocateScreen').then((m) => m.ReallocateScreen), { ssr: false });
+const AddTransactionScreen = dynamic(() => import('@/src/screens/AddTransaction/AddTransactionScreen').then((m) => m.AddTransactionScreen), { ssr: false });
+const EditTransactionScreen = dynamic(() => import('@/src/screens/EditTransaction/EditTransactionScreen').then((m) => m.EditTransactionScreen), { ssr: false });
+const EditTransferScreen = dynamic(() => import('@/src/screens/EditTransfer/EditTransferScreen').then((m) => m.EditTransferScreen), { ssr: false });
+const CreateBucketScreen = dynamic(() => import('@/src/screens/CreateBucket/CreateBucketScreen').then((m) => m.CreateBucketScreen), { ssr: false });
+const CreateCategoryScreen = dynamic(() => import('@/src/screens/CreateCategory/CreateCategoryScreen').then((m) => m.CreateCategoryScreen), { ssr: false });
+const CategoryEditScreen = dynamic(() => import('@/src/screens/CategoryEdit/CategoryEditScreen').then((m) => m.CategoryEditScreen), { ssr: false });
+const WalletEditScreen = dynamic(() => import('@/src/screens/WalletEdit/WalletEditScreen').then((m) => m.WalletEditScreen), { ssr: false });
+const TemplateFormScreen = dynamic(
+  () => import('@/src/screens/CreateTransactionTemplate/CreateTransactionTemplateScreen').then((m) => m.CreateTransactionTemplateScreen),
+  { ssr: false }
+);
+const ImportDataScreen = dynamic(() => import('@/src/screens/ImportData/ImportDataScreen').then((m) => m.ImportDataScreen), { ssr: false });
+const SectionEditScreen = dynamic(() => import('@/src/screens/SectionEdit/SectionEditScreen').then((m) => m.SectionEditScreen), { ssr: false });
+const CreateSectionScreen = dynamic(() => import('@/src/screens/CreateSection/CreateSectionScreen').then((m) => m.CreateSectionScreen), { ssr: false });
+
+const PEEK_FORMS: Partial<Record<FormKind, ComponentType<{ params: Record<string, string> }>>> = {
+  'basket-item': ({ params }) => <BasketItemForm goalId={params.basket} itemId={params.item || undefined} />,
+  area: ({ params }) => <AreaFormScreen areaId={params.id || undefined} />,
+  project: ({ params }) => <ProjectFormScreen projectId={params.id || undefined} />,
+  section: ({ params }) => (params.id ? <SectionEditScreen bucketId={params.id} /> : <CreateSectionScreen areaId={params.areaId ?? ''} />),
+  transaction: () => <AddTransactionScreen />,
+  'edit-transaction': ({ params }) => <EditTransactionScreen transactionId={params.id} />,
+  'edit-transfer': ({ params }) => <EditTransferScreen transferId={params.id} />,
+  basket: () => <CreateBucketScreen />,
+  category: () => <CreateCategoryScreen />,
+  'edit-category': ({ params }) => <CategoryEditScreen categoryId={params.id} />,
+  wallet: ({ params }) => <WalletEditScreen walletId={params.id} />,
+  template: ({ params }) => <TemplateFormScreen templateId={params.id || undefined} />,
+  cover: () => <CoverScreen />,
+  import: () => <ImportDataScreen />,
+  reallocate: () => <ReallocateScreen />,
+};
+
+const SettingsDialog = dynamic(() => import('./SettingsDialog').then((m) => m.SettingsDialog), { ssr: false });
+
 export function PanelHost() {
   return (
     <>
       <TaskPanelHost />
       <DebtFormHost />
+      <FormPeekHost />
+      <SettingsHost />
     </>
+  );
+}
+
+/** Settings from ?settings=<section>: the dialog on wide screens, the section's page on a phone. */
+function SettingsHost() {
+  const search = useSearchParams();
+  const pathname = usePathname();
+  const router = useRouter();
+  const { isWide, deviceClass } = useLayout();
+  const raw = search.get(SETTINGS_PARAM);
+  const section = raw === null ? null : isSettingsSection(raw) ? raw : 'preferences';
+
+  useEffect(() => {
+    if (!section || isWide || window.matchMedia('(min-width: 768px)').matches) return;
+    router.replace(settingsPageHref(section));
+  }, [section, isWide, router, deviceClass]);
+
+  if (!section || !isWide) return null;
+  return (
+    <SettingsDialog
+      section={section}
+      onSection={(next) => router.replace(settingsHref(pathname, search.toString(), next), { scroll: false })}
+      onClose={() => router.replace(withoutSettings(pathname, search.toString()), { scroll: false })}
+    />
+  );
+}
+
+function FormPeekHost() {
+  const search = useSearchParams();
+  const pathname = usePathname();
+  const router = useRouter();
+  const { isWide, deviceClass } = useLayout();
+  const kindParam = search.get(PEEK_PARAM);
+  const kind = isFormKind(kindParam) ? kindParam : null;
+  const params = peekParams(search);
+  const Form = kind ? PEEK_FORMS[kind] : undefined;
+  const pageHref = kind ? formPageHref(kind, params) : null;
+
+  // A phone opening a peek link, or a form without a peek: its own page.
+  useEffect(() => {
+    if (!kind || !pageHref) return;
+    if (Form && (isWide || window.matchMedia('(min-width: 768px)').matches)) return;
+    router.replace(pageHref);
+  }, [kind, Form, pageHref, isWide, router, deviceClass]);
+
+  if (!kind || !Form || !isWide) return null;
+  const close = () => router.replace(withoutFormPeek(pathname, search.toString()), { scroll: false });
+  return (
+    <WebFormPanel onClose={close}>
+      <FormPeekContext.Provider value={{ peek: true, close, fullPageHref: pageHref }}>
+        <Form key={search.toString()} params={params} />
+      </FormPeekContext.Provider>
+    </WebFormPanel>
   );
 }
 
@@ -76,10 +179,17 @@ function DebtFormHost() {
     },
   };
   const key = `${kind}:${debtId ?? ''}`;
-  if (kind === 'new' || kind === 'edit') return <DebtFormScreen key={key} debtId={kind === 'new' ? null : debtId} {...exits} />;
-  if (kind === 'repay') return <RepaymentFormScreen key={key} debtId={debtId!} prefillAmount={params.get('amount')} {...exits} />;
-  if (kind === 'plan') return <PlanFormScreen key={key} debtId={debtId!} {...exits} />;
-  return <WalletEffectFormScreen key={key} debtId={debtId!} prefillTo={params.get('to')} {...exits} />;
+  const form =
+    kind === 'new' || kind === 'edit' ? (
+      <DebtFormScreen key={key} debtId={kind === 'new' ? null : debtId} {...exits} />
+    ) : kind === 'repay' ? (
+      <RepaymentFormScreen key={key} debtId={debtId!} prefillAmount={params.get('amount')} {...exits} />
+    ) : kind === 'plan' ? (
+      <PlanFormScreen key={key} debtId={debtId!} {...exits} />
+    ) : (
+      <WalletEffectFormScreen key={key} debtId={debtId!} prefillTo={params.get('to')} {...exits} />
+    );
+  return <FormPeekContext.Provider value={{ peek: true, close, fullPageHref: debtFormPageHref(kind, debtId) }}>{form}</FormPeekContext.Provider>;
 }
 
 function TaskPanelHost() {
@@ -110,5 +220,11 @@ function TaskPanelHost() {
     sp.set('form', '1');
     return <TaskPeek key={task} taskId={task} onClose={close} fullHref={taskPageHref(task)} formHref={`${pathname}?${sp.toString()}`} />;
   }
-  return <TaskEditScreen key={task} taskId={task === 'new' ? null : task} onClose={close} />;
+  return (
+    <WebFormPanel onClose={close}>
+      <FormPeekContext.Provider value={{ peek: true, close, fullPageHref: task === 'new' ? taskPageHref('new') : `/tasks/${encodeURIComponent(task)}/edit` }}>
+        <TaskEditScreen key={task} taskId={task === 'new' ? null : task} onClose={close} />
+      </FormPeekContext.Provider>
+    </WebFormPanel>
+  );
 }

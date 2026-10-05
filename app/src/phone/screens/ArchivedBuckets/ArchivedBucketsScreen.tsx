@@ -39,7 +39,7 @@ export function ArchivedBucketsScreen() {
           {buckets.map((bucket) => (
             <div key={bucket.id} className={styles.row}>
               {/* Opens the bucket — its items and recorded payments are all still there. */}
-              <Link href={`/buckets/${bucket.id}`} className={styles.rowText}>
+              <Link href={`/baskets/${bucket.id}`} className={styles.rowText}>
                 <span className={styles.rowName}>{bucket.name}</span>
                 <span className={styles.rowAmount}>
                   {formatAmount(bucket.total)} {bucket.currency}

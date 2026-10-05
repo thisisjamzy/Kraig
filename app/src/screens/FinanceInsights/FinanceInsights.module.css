@@ -111,7 +111,7 @@
   display: inline-flex;
   gap: 6px;
   padding: 4px;
-  border-radius: 999px;
+  border-radius: 6px;
   background: var(--fi-card);
   box-shadow: var(--fi-shadow);
 }
@@ -126,7 +126,7 @@
   min-height: 36px;
   padding: 0 14px;
   border: none;
-  border-radius: 999px;
+  border-radius: 6px;
   background: transparent;
   color: var(--fi-muted);
   font-family: inherit;
@@ -145,7 +145,7 @@
   box-shadow: none;
   background: var(--fi-bg);
   flex-wrap: wrap;
-  border-radius: 16px;
+  border-radius: 6px;
 }
 
 .pills[data-small] button {
@@ -197,7 +197,7 @@
   height: 40px;
   padding: 0 10px;
   border: 1px solid var(--fi-track);
-  border-radius: 12px;
+  border-radius: 6px;
   background: var(--fi-card);
   color: var(--fi-navy);
   font-family: inherit;
@@ -220,7 +220,7 @@
 /* ---- Section card ---- */
 .card {
   padding: 16px;
-  border-radius: 22px;
+  border-radius: 0;
   background: var(--fi-card);
   box-shadow: var(--fi-shadow);
   scroll-margin-top: calc(var(--header-height) + 8px);
@@ -316,7 +316,7 @@
 
 .empty {
   padding: 18px;
-  border-radius: 14px;
+  border-radius: 10px;
   background: var(--fi-bg);
   text-align: center;
 }
@@ -387,7 +387,7 @@
   min-width: 170px;
   padding: 10px 12px;
   border: 1px solid var(--fi-track);
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--fi-card);
   box-shadow: 0 8px 24px rgba(28, 31, 58, 0.12);
   font-size: 0.75rem;
@@ -449,7 +449,7 @@
 .keyCard {
   padding: 14px;
   border: 1px solid var(--fi-grid);
-  border-radius: 18px;
+  border-radius: 0;
   background: var(--fi-card);
 }
 
@@ -476,7 +476,7 @@
   align-items: center;
   gap: 4px;
   padding: 3px 8px;
-  border-radius: 999px;
+  border-radius: 6px;
   background: var(--tint);
   color: var(--tone);
   font-size: 0.6875rem;
@@ -546,7 +546,7 @@
 
 .trendFigures span {
   padding: 8px 10px;
-  border-radius: 12px;
+  border-radius: 0;
   background: var(--fi-bg);
   font-size: 0.75rem;
   font-weight: 700;
@@ -596,7 +596,7 @@
   flex: 0 0 min(280px, 82%);
   scroll-snap-align: start;
   border-left: 4px solid var(--tone);
-  border-radius: 14px;
+  border-radius: 0;
   background: var(--tint);
 }
 
@@ -664,7 +664,7 @@
   align-items: flex-start;
   gap: 2px;
   padding: 12px;
-  border-radius: 16px;
+  border-radius: 0;
   background: var(--fi-bg);
 }
 
@@ -697,7 +697,7 @@
   gap: 2px;
   margin-top: 4px;
   padding: 1px 6px;
-  border-radius: 999px;
+  border-radius: 6px;
   background: var(--fi-track);
   color: var(--fi-muted);
   font-size: 0.6875rem;
@@ -720,7 +720,7 @@
   gap: 12px;
   margin-top: 8px;
   padding: 14px;
-  border-radius: 16px;
+  border-radius: 0;
   background: var(--fi-blue-tint);
 }
 
@@ -784,7 +784,7 @@
 .status {
   flex-shrink: 0;
   padding: 1px 8px;
-  border-radius: 999px;
+  border-radius: 6px;
   background: var(--fi-green-tint);
   color: var(--fi-green);
   font-size: 0.6875rem;
@@ -856,7 +856,7 @@
 
 .miniChip {
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: 6px;
   background: var(--fi-bg);
   font-size: 0.6875rem;
   font-weight: 600;
@@ -998,7 +998,7 @@
   min-height: 52px;
   padding: 8px 10px;
   border: 2px solid transparent;
-  border-radius: 14px;
+  border-radius: 6px;
   background: var(--fi-red-tint);
   color: var(--fi-navy);
   font-family: inherit;
@@ -1066,7 +1066,7 @@
 
 .kindTag {
   padding: 1px 7px;
-  border-radius: 999px;
+  border-radius: 6px;
   background: var(--fi-red-tint);
   color: var(--fi-red);
   font-size: 0.625rem;
@@ -1083,7 +1083,7 @@
 .notes {
   margin: 12px 0 0;
   padding: 10px 12px 10px 28px;
-  border-radius: 14px;
+  border-radius: 0;
   background: var(--fi-amber-tint);
   font-size: 0.8125rem;
   color: #8a5a12;
@@ -1100,7 +1100,7 @@
 .lowConfidence {
   margin: 0 0 8px;
   padding: 6px 10px;
-  border-radius: 10px;
+  border-radius: 0;
   background: var(--fi-amber-tint);
   color: #8a5a12;
   font-size: 0.75rem;
@@ -1195,7 +1195,7 @@ tr[data-short] .gapCell span {
   align-items: center;
   gap: 10px;
   padding: 8px 10px;
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--fi-bg);
   font-size: 0.8125rem;
 }
@@ -1229,7 +1229,7 @@ tr[data-short] .gapCell span {
   flex-direction: column;
   gap: 8px;
   padding: 12px;
-  border-radius: 14px;
+  border-radius: 10px;
   background: var(--fi-bg);
 }
 
@@ -1253,7 +1253,7 @@ tr[data-short] .gapCell span {
   min-height: 40px;
   padding: 0 12px;
   border: none;
-  border-radius: 999px;
+  border-radius: 6px;
   background: var(--fi-blue-tint);
   color: var(--fi-blue);
   font-family: inherit;
@@ -1270,7 +1270,7 @@ tr[data-short] .gapCell span {
   min-height: 40px;
   padding: 0 16px;
   border: none;
-  border-radius: 999px;
+  border-radius: 6px;
   background: var(--fi-navy);
   color: #ffffff;
   font-family: inherit;
@@ -1300,7 +1300,7 @@ tr[data-short] .gapCell span {
   justify-content: space-between;
   gap: 8px;
   padding: 12px;
-  border-radius: 14px;
+  border-radius: 0;
   background: var(--fi-blue-tint);
 }
 
@@ -1314,7 +1314,7 @@ tr[data-short] .gapCell span {
 .guidanceAction {
   flex-shrink: 0;
   padding: 8px 12px;
-  border-radius: 999px;
+  border-radius: 6px;
   background: var(--fi-blue);
   color: #ffffff;
   font-size: 0.75rem;
@@ -1443,7 +1443,7 @@ tr[data-short] .gapCell span {
   flex-direction: column;
   gap: 2px;
   padding: 12px;
-  border-radius: 14px;
+  border-radius: 0;
   background: var(--fi-bg);
   font-size: 0.6875rem;
   color: var(--fi-muted);
@@ -1485,7 +1485,7 @@ tr[data-short] .gapCell span {
   aspect-ratio: 1;
   min-height: 32px;
   border: 2px solid transparent;
-  border-radius: 8px;
+  border-radius: 0;
   background: color-mix(in srgb, var(--fi-blue) calc(var(--level) * 100%), var(--fi-bg));
   color: var(--fi-navy);
   font-family: inherit;

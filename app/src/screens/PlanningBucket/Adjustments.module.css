@@ -3,7 +3,7 @@
 
 .list {
   overflow: hidden;
-  border-radius: 20px;
+  border-radius: 10px;
   background: var(--p-card);
   box-shadow: var(--p-shadow);
 }
@@ -116,7 +116,7 @@
 .lines {
   margin: 0;
   padding: 10px 14px;
-  border-radius: 14px;
+  border-radius: 0;
   background: var(--color-surface);
   list-style: none;
 }
@@ -191,7 +191,7 @@
   min-height: 36px;
   padding: 6px 12px;
   border: 1px solid var(--color-border);
-  border-radius: 999px;
+  border-radius: 6px;
   background: var(--color-background);
   color: var(--color-text-primary);
   font-family: inherit;
@@ -218,7 +218,7 @@
 .field textarea {
   padding: 10px 12px;
   border: 1px solid var(--color-border);
-  border-radius: 12px;
+  border-radius: 6px;
   background: var(--color-background);
   color: var(--color-text-primary);
   font-family: inherit;

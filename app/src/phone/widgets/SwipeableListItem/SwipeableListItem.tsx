@@ -17,17 +17,35 @@ const SWIPE_THRESHOLD = 38;
 // from the page's own vertical scroll before committing to either.
 const AXIS_LOCK_THRESHOLD = 6;
 
+/** An action revealed by swiping one way (Notifications: archive, mark read). */
+export interface SwipeAction {
+  label: string;
+  icon: ReactNode;
+  tone?: 'danger' | 'brand' | 'neutral';
+  onSelect: () => void;
+}
+
 export function SwipeableListItem({
   children,
   onDelete,
   deleteLabel = 'Delete',
+  swipeLeft,
+  swipeRight,
   className,
 }: {
   children: ReactNode;
-  onDelete: () => void;
+  /** Both directions reveal Delete, unless a side has its own action. */
+  onDelete?: () => void;
   deleteLabel?: string;
+  /** Revealed when the row is swiped to the left (shown on the right). */
+  swipeLeft?: SwipeAction;
+  /** Revealed when the row is swiped to the right (shown on the left). */
+  swipeRight?: SwipeAction;
   className?: string;
 }) {
+  const deleteAction: SwipeAction | undefined = onDelete ? { label: deleteLabel, icon: <Trash2 size={18} strokeWidth={2} />, tone: 'danger', onSelect: onDelete } : undefined;
+  const leftAction = swipeLeft ?? deleteAction;
+  const rightAction = swipeRight ?? deleteAction;
   const [dragX, setDragX] = useState(0);
   const draggingRef = useRef(false);
   const startXRef = useRef(0);
@@ -63,7 +81,7 @@ export function SwipeableListItem({
     if (lockedAxisRef.current === 'y') return;
 
     event.preventDefault();
-    const next = Math.max(-REVEAL_WIDTH, Math.min(REVEAL_WIDTH, baseXRef.current + deltaX));
+    const next = Math.max(leftAction ? -REVEAL_WIDTH : 0, Math.min(rightAction ? REVEAL_WIDTH : 0, baseXRef.current + deltaX));
     setDragX(next);
   }
 
@@ -99,34 +117,40 @@ export function SwipeableListItem({
 
   return (
     <div className={`${styles.wrapper} ${className ?? ''}`}>
-      <div className={`${styles.actions} ${styles.actionsRight}`} aria-hidden={dragX >= 0}>
-        <button
-          type="button"
-          className={styles.deleteButton}
-          aria-label={deleteLabel}
-          tabIndex={dragX < 0 ? 0 : -1}
-          onClick={() => {
-            close();
-            onDelete();
-          }}
-        >
-          <Trash2 size={18} strokeWidth={2} />
-        </button>
-      </div>
-      <div className={`${styles.actions} ${styles.actionsLeft}`} aria-hidden={dragX <= 0}>
-        <button
-          type="button"
-          className={styles.deleteButton}
-          aria-label={deleteLabel}
-          tabIndex={dragX > 0 ? 0 : -1}
-          onClick={() => {
-            close();
-            onDelete();
-          }}
-        >
-          <Trash2 size={18} strokeWidth={2} />
-        </button>
-      </div>
+      {leftAction && (
+        <div className={`${styles.actions} ${styles.actionsRight}`} aria-hidden={dragX >= 0}>
+          <button
+            type="button"
+            className={styles.deleteButton}
+            data-tone={leftAction.tone ?? 'danger'}
+            aria-label={leftAction.label}
+            tabIndex={dragX < 0 ? 0 : -1}
+            onClick={() => {
+              close();
+              leftAction.onSelect();
+            }}
+          >
+            {leftAction.icon}
+          </button>
+        </div>
+      )}
+      {rightAction && (
+        <div className={`${styles.actions} ${styles.actionsLeft}`} aria-hidden={dragX <= 0}>
+          <button
+            type="button"
+            className={styles.deleteButton}
+            data-tone={rightAction.tone ?? 'danger'}
+            aria-label={rightAction.label}
+            tabIndex={dragX > 0 ? 0 : -1}
+            onClick={() => {
+              close();
+              rightAction.onSelect();
+            }}
+          >
+            {rightAction.icon}
+          </button>
+        </div>
+      )}
       <div
         className={styles.content}
         style={{ transform: `translateX(${dragX}px)` }}

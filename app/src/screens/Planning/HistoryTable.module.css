@@ -120,7 +120,7 @@
 
 .chip {
   padding: 2px 8px;
-  border-radius: var(--radius-full);
+  border-radius: 6px;
   background: var(--color-surface);
   font-size: 0.75rem;
   font-weight: 600;

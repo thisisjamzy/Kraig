@@ -56,7 +56,7 @@ export function useLogic(bucketId: string, itemId: string) {
     nextDue,
     account,
     addExpenseHref: `/add-transaction?bucketItem=${encodeURIComponent(`${bucketId}:${itemId}:${month}`)}`,
-    goBack: () => navigateBack(`/budget/bucket/${bucketId}?month=${month}`),
+    goBack: () => navigateBack(`/budget/basket/${bucketId}?month=${month}`),
     loading: data.loading,
   };
 }

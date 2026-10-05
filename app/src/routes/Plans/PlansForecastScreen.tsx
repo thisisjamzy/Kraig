@@ -5,10 +5,10 @@
 
 import dynamic from 'next/dynamic';
 import { DeviceSplit } from '@/src/shared/device/DeviceSplit';
-import { PlansForecastScreen as PhonePlansForecastScreen } from '@/src/phone/screens/Plans/PlansForecastScreen';
+import { PlanScreen } from '@/src/phone/screens/Plan/PlanScreen';
 
 const WebPlansForecastScreen = dynamic(() => import('@/src/screens/Plans/PlansForecastScreen').then((m) => m.PlansForecastScreen), { ssr: false });
 
 export function PlansForecastScreen() {
-  return <DeviceSplit phone={<PhonePlansForecastScreen />} web={<WebPlansForecastScreen />} />;
+  return <DeviceSplit phone={<PlanScreen />} web={<WebPlansForecastScreen />} />;
 }

@@ -1,15 +1,11 @@
 'use client';
 
-// Two UI lines for this screen (docs/UI-LINES.md): the phone version under
-// 768px, the web version from 768px up, loaded only on wide screens.
+// New and edit basket item: one form on the form standard (src/forms), a
+// full-screen page on a phone and its own page or a side peek from 768px up
+// (FormFrame draws each).
 
-import dynamic from 'next/dynamic';
-import type { ComponentProps } from 'react';
-import { DeviceSplit } from '@/src/shared/device/DeviceSplit';
-import { BucketLineItemFormScreen as PhoneBucketLineItemFormScreen } from '@/src/phone/screens/BucketLineItemForm/BucketLineItemFormScreen';
+import { BasketItemForm } from '@/src/forms/BasketItemForm/BasketItemForm';
 
-const WebBucketLineItemFormScreen = dynamic(() => import('@/src/screens/BucketLineItemForm/BucketLineItemFormScreen').then((m) => m.BucketLineItemFormScreen), { ssr: false });
-
-export function BucketLineItemFormScreen(props: ComponentProps<typeof PhoneBucketLineItemFormScreen>) {
-  return <DeviceSplit phone={<PhoneBucketLineItemFormScreen {...props} />} web={<WebBucketLineItemFormScreen {...props} />} />;
+export function BucketLineItemFormScreen({ goalId, itemId }: { goalId: string; itemId?: string }) {
+  return <BasketItemForm goalId={goalId} itemId={itemId} />;
 }

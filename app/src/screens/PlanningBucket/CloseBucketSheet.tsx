@@ -32,13 +32,13 @@ export function CloseBucketSheet({
 }) {
   const [note, setNote] = useState('');
   return (
-    <Modal title={`Close this bucket for ${month}?`} onClose={onClose}>
+    <Modal title={`Close this basket for ${month}?`} onClose={onClose}>
       <div className={styles.form}>
         <p className={styles.hint}>
           {over > 0
             ? `It's ${money(over)} ${currency} over plan overall. Closing doesn't cover that, you can still cover or justify it.`
             : leftover > 0
-              ? `${money(leftover)} ${currency} is left over. Once it's closed you can move it to another bucket, savings or next month.`
+              ? `${money(leftover)} ${currency} is left over. Once it's closed you can move it to another basket, savings or next month.`
               : 'It came out exactly on plan.'}{' '}
           Its remaining payments will no longer show as due. You can reopen it any time.
         </p>
@@ -52,7 +52,7 @@ export function CloseBucketSheet({
             Cancel
           </button>
           <button type="button" className={p.fillButton} disabled={busy} onClick={() => onConfirm(note)}>
-            {busy ? 'Closing…' : 'Close bucket'}
+            {busy ? 'Closing…' : 'Close basket'}
           </button>
         </div>
       </div>

@@ -2,7 +2,7 @@
 
 // The page standard every rebuilt page follows, at every size:
 //   - the title once, in the body (28px on phones, 32px on medium, 40px
-//     from expanded up), an optional icon beside it and a muted kind;
+//     from expanded up), never with an icon, and a muted kind;
 //   - no buttons beside the title: the page's actions live in the top
 //     bar's "..." menu (the `menu` prop), and editing happens on the
 //     property tiles;
@@ -30,12 +30,12 @@ import { NotificationBell } from '@/src/widgets/Notifications/NotificationBell';
 import { useWebOnly } from '@/src/shared/device/useWebOnly';
 
 export function NotionPageHeader({
-  icon,
   title,
   kind,
   actions,
   children,
 }: {
+  /** Ignored: page titles have no icons (docs/UI-PLATFORM-RULES.md). */
   icon?: ReactNode;
   title: ReactNode;
   /** "Expense bucket" */
@@ -48,7 +48,6 @@ export function NotionPageHeader({
     <header className={styles.pageHeader}>
       <div className={styles.pageTitleRow}>
         <div className={styles.pageTitleWrap}>
-          {icon && <span className={styles.pageIcon}>{icon}</span>}
           <div>
             <h1 className={styles.pageTitle}>{title}</h1>
             {kind && <p className={styles.pageKind}>{kind}</p>}
@@ -77,9 +76,14 @@ export function Block({ title, actions, children, id }: { title?: string; action
 }
 
 /** A summary callout: an icon and one or two sentences. */
-export function Callout({ icon, tone, children }: { icon?: ReactNode; tone?: 'bad' | 'good' | 'watch'; children: ReactNode }) {
+/**
+ * A page's one neutral sentence about its state. Always plain: warnings and
+ * problems are notifications, not page blocks (`tone` is accepted and
+ * ignored).
+ */
+export function Callout({ icon, children }: { icon?: ReactNode; tone?: 'bad' | 'good' | 'watch'; children: ReactNode }) {
   return (
-    <aside className={styles.callout} data-tone={tone}>
+    <aside className={styles.callout}>
       <span className={styles.calloutIcon} aria-hidden>
         {icon ?? <Lightbulb size={18} strokeWidth={2} />}
       </span>

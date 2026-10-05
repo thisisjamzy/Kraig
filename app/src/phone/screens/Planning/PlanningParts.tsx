@@ -51,57 +51,38 @@ export function reallocateHref(month: string, bucketId: string, itemId?: string)
 }
 
 /** The slim strip on a card's bottom edge — only when action is needed. */
+/**
+ * What a basket needs, as a quiet status line on its card: an icon and
+ * colored text, no tinted strip. The action (cover, justify, reallocate)
+ * is on the basket's page; the reminder is a notification.
+ */
 export function PromptStrip({
   prompt,
   currency,
-  month,
-  bucketId,
 }: {
   prompt: Prompt;
   currency: string;
-  month: string;
-  bucketId: string;
+  month?: string;
+  bucketId?: string;
 }) {
   if (prompt.kind === 'justified') {
     return (
-      <div className={styles.stripJustified}>
-        <span className={styles.tag}>
-          <Check size={11} strokeWidth={3} aria-hidden />
-          justified · {prompt.reason}
-        </span>
-      </div>
+      <p className={styles.status}>
+        <Check size={13} strokeWidth={2.5} aria-hidden />
+        Justified · {prompt.reason}
+      </p>
     );
   }
-  if (prompt.kind === 'uncovered') {
-    // Settled, but part was left "not covered yet" — a smaller red strip.
-    return (
-      <div className={styles.strip} data-tone="over" data-size="small">
-        <span className={styles.stripText}>
-          {money(prompt.amount)} {currency} still uncovered
-        </span>
-        <Link href={coverHref(month, bucketId)} className={styles.stripAction} onClick={(e) => e.stopPropagation()}>
-          Resolve
-          <ArrowRight size={13} strokeWidth={2.5} aria-hidden />
-        </Link>
-      </div>
-    );
-  }
-  const over = prompt.kind === 'over';
+  const over = prompt.kind === 'over' || prompt.kind === 'uncovered';
   return (
-    <div className={styles.strip} data-tone={over ? 'over' : 'leftover'}>
-      <span className={styles.stripText}>
-        {over ? <AlertCircle size={14} strokeWidth={2.5} aria-hidden /> : <Sparkles size={14} strokeWidth={2.5} aria-hidden />}
-        {over ? `Over by ${money(prompt.amount)} ${currency}` : `${money(prompt.amount)} ${currency} left over`}
-      </span>
-      <Link
-        href={over ? coverHref(month, bucketId) : reallocateHref(month, bucketId)}
-        className={styles.stripAction}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {over ? 'Cover or justify' : 'Reallocate'}
-        <ArrowRight size={13} strokeWidth={2.5} aria-hidden />
-      </Link>
-    </div>
+    <p className={styles.status} data-tone={over ? 'over' : 'leftover'}>
+      {over ? <AlertCircle size={13} strokeWidth={2.5} aria-hidden /> : <Sparkles size={13} strokeWidth={2.5} aria-hidden />}
+      {prompt.kind === 'over'
+        ? `Over by ${money(prompt.amount)} ${currency}`
+        : prompt.kind === 'uncovered'
+          ? `${money(prompt.amount)} ${currency} not covered yet`
+          : `${money(prompt.amount)} ${currency} left over`}
+    </p>
   );
 }
 
@@ -123,7 +104,7 @@ export function HistoryRowView({ row, currency, showDate = false }: { row: Histo
         {row.method && <span className={styles.rowMethod}>{row.method}</span>}
         {row.assignable && (
           <span className={styles.rowAssign}>
-            Assign to bucket
+            Assign to basket
             <ArrowRight size={12} strokeWidth={2.5} aria-hidden />
           </span>
         )}

@@ -9,7 +9,7 @@ import { MoreSheet } from '@/src/widgets/AppShell/MoreSheet';
 import styles from './BottomNav.module.css';
 
 // Buckets dropped from here — reachable from Home's own Quick Actions instead
-// (src/screens/Home/HomeScreen.tsx) — /buckets stays a MONEY_HUB_ROUTE
+// (src/screens/Home/HomeScreen.tsx) — /baskets stays a MONEY_HUB_ROUTE
 // (chromeVisibility.ts) so this bar still shows there, just with no tab of
 // its own highlighted, same as /debts already works.
 // Exported for WebSidebar (src/widgets/WebSidebar) — the web shell's nav

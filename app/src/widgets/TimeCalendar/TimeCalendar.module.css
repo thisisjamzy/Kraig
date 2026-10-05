@@ -70,7 +70,7 @@
   min-height: 28px;
   padding: 0 6px;
   border: 0;
-  border-radius: 4px;
+  border-radius: 6px;
   background: none;
   color: var(--tc-muted);
   font: inherit;
@@ -108,7 +108,7 @@
   padding: 0 6px;
   margin-left: -6px;
   border: 0;
-  border-radius: 4px;
+  border-radius: 0;
   background: none;
   color: var(--tc-text);
   font: inherit;
@@ -133,7 +133,7 @@
   width: 28px;
   height: 28px;
   border: 0;
-  border-radius: 4px;
+  border-radius: 6px;
   background: none;
   color: var(--tc-muted);
   cursor: pointer;
@@ -159,7 +159,7 @@
   height: 32px;
   padding: 0;
   border: 0;
-  border-radius: 4px;
+  border-radius: 0;
   background: none;
   color: var(--tc-text);
   font: inherit;
@@ -230,7 +230,7 @@
 .monthMenuGrid button {
   min-height: 32px;
   border: 0;
-  border-radius: 4px;
+  border-radius: 6px;
   background: none;
   color: var(--tc-text);
   font: inherit;
@@ -410,7 +410,7 @@
   padding: 0 6px;
   border: 0;
   border-left: 3px solid var(--k-accent);
-  border-radius: 0;
+  border-radius: 10px;
   background: var(--k-fill);
   color: var(--tc-text);
   font: inherit;
@@ -437,7 +437,7 @@
   min-height: 20px;
   padding: 0 4px;
   border: 0;
-  border-radius: 4px;
+  border-radius: 0;
   background: none;
   color: var(--tc-muted);
   font: inherit;
@@ -613,7 +613,7 @@
   height: 20px;
   padding: 0 5px;
   border: 1px solid var(--tc-line);
-  border-radius: 4px;
+  border-radius: 6px;
   background: var(--tc-bg);
   color: var(--tc-text);
   font: inherit;
@@ -722,7 +722,7 @@
   padding: 6px 8px;
   border: 0;
   border-left: 3px solid var(--k-accent);
-  border-radius: 0;
+  border-radius: 10px;
   background: none;
   color: var(--tc-text);
   font: inherit;
@@ -822,7 +822,7 @@
   padding: 0 5px;
   border: 0;
   border-left: 3px solid var(--k-accent);
-  border-radius: 0;
+  border-radius: 6px;
   background: var(--k-fill);
   color: var(--tc-text);
   font: inherit;
@@ -915,7 +915,7 @@
   padding: 0 6px;
   margin-left: -6px;
   border: 0;
-  border-radius: 4px;
+  border-radius: 6px;
   background: none;
   color: inherit;
   font: inherit;
@@ -954,7 +954,7 @@
   flex: 1;
   min-height: 32px;
   border: 1px solid #e9e9e7;
-  border-radius: 4px;
+  border-radius: 6px;
   background: none;
   color: inherit;
   font: inherit;

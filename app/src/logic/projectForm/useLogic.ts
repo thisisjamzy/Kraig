@@ -31,7 +31,9 @@ function toIso(date: Date) {
 // projectIdFromSearch — no Suspense boundary needed. Create only.
 function fromSearch(key: 'areaId' | 'bucketId'): string {
   if (typeof window === 'undefined') return '';
-  return new URLSearchParams(window.location.search).get(key) ?? '';
+  // In a side peek the page's own params keep their names; the form's come prefixed (formPeek.ts).
+  const sp = new URLSearchParams(window.location.search);
+  return sp.get(`p_${key}`) ?? sp.get(key) ?? '';
 }
 
 export function useLogic(projectId?: string) {
@@ -137,7 +139,7 @@ export function useLogic(projectId?: string) {
           status: 'Active',
           createdAt: serverTimestamp(),
         });
-        router.push(`/projects/${id}`);
+        router.replace(`/projects/${id}`);
         return;
       }
 
@@ -153,7 +155,7 @@ export function useLogic(projectId?: string) {
         update.rescheduleCount = (before?.rescheduleCount ?? 0) + 1;
       }
       await updateDoc(projectRef(uid, projectId), update);
-      router.push(`/projects/${projectId}`);
+      router.replace(`/projects/${projectId}`);
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : isEditing ? 'Could not update this project.' : 'Could not create this project.');
       setSaving(false);
@@ -168,7 +170,7 @@ export function useLogic(projectId?: string) {
     try {
       await deleteProject(uid, projectId, { deleteTasks });
       showToast(deleteTasks ? 'Project and its tasks deleted.' : 'Project deleted. Its tasks were kept.');
-      router.push('/projects');
+      router.replace('/projects');
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : 'Could not delete this project.');
       setDeleting(false);

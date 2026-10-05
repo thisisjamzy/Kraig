@@ -70,3 +70,14 @@
   justify-content: center;
   flex-shrink: 0;
 }
+
+/* Wide screens: menus 10px, their rows 6px (docs/UI-PLATFORM-RULES.md). */
+@media (min-width: 768px) {
+  .popover {
+    border-radius: 10px;
+  }
+
+  .item {
+    border-radius: 6px;
+  }
+}

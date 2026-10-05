@@ -12,7 +12,7 @@ import { Check, Layers, Plus } from 'lucide-react';
 import { useBudgetTab } from '@/src/logic/planning/useBudgetTab';
 import { useBudgetMonth } from '@/src/logic/budgetMonth/useLogic';
 import { FLOW_LABEL, FLOW_TYPES } from '@/src/shared/budget/flow';
-import { IncomePrompt, MigrationNotice, ReadyBanner, SetupBanner } from '@/src/phone/screens/Planning/Banners';
+import { BUDGET_TYPES, NotificationsLink } from '@/src/widgets/Notifications/NotificationsLink';
 import type { PlanningData } from '@/src/logic/planning/useLogic';
 import { ActionMenu } from '@/src/widgets/ActionMenu/ActionMenu';
 import { money, signedMoney } from '@/src/viewmodels/planning';
@@ -83,19 +83,19 @@ export function BudgetTab({ month, data }: { month: string; data: PlanningData }
 
   return (
     <>
-      {v.migrationPending && <MigrationNotice />}
-      {v.banner && <SetupBanner text={v.banner} month={month} onDismiss={() => void v.dismissBanner()} />}
-      {v.prompts.map((line) => (
-        <IncomePrompt
-          key={line.key}
-          line={line}
-          currency={v.currency}
-          accounts={v.accounts}
-          onRecord={(amount, accountId) => v.recordIncome(line, amount, accountId)}
-          onNotYet={() => v.notYet(line)}
-        />
-      ))}
-      {v.isCurrent && <ReadyBanner />}
+      {/* The month's state in one sentence; what needs doing is in Notifications. */}
+      {v.isCurrent && (
+        <p className={styles.neutral}>
+          {v.summary}
+          {v.migrationPending && (
+            <>
+              {' '}
+              <Link href="/budget/migration">See what changed in your budget</Link>.
+            </>
+          )}
+          <NotificationsLink types={BUDGET_TYPES} about="this month" />
+        </p>
+      )}
 
       <p className={styles.label}>Total budget</p>
       <section className={tab.summary} aria-label="This month's budget">
@@ -144,15 +144,15 @@ export function BudgetTab({ month, data }: { month: string; data: PlanningData }
         <p className={tab.availableLine}>
           Available now {money(summary.availableNow)} · by month end {money(summary.availableByMonthEnd)} (estimate)
         </p>
-        <Link href="/buckets" className={tab.summaryButton}>
+        <Link href="/baskets" className={tab.summaryButton}>
           <Layers size={16} strokeWidth={2.25} aria-hidden />
-          Plan in buckets
+          Plan in baskets
         </Link>
       </section>
 
       <div className={tab.sectionHead}>
         <h2 className={tab.sectionTitle}>{FLOW_LABEL[flow]}</h2>
-        <Link href={`/buckets/new?type=${flow}`} className={tab.addCircle} aria-label={`Add a ${FLOW_LABEL[flow].toLowerCase()} bucket`}>
+        <Link href={`/baskets/new?type=${flow}`} className={tab.addCircle} aria-label={`Add a ${FLOW_LABEL[flow].toLowerCase()} basket`}>
           <Plus size={18} strokeWidth={2.5} />
         </Link>
       </div>
@@ -165,7 +165,7 @@ export function BudgetTab({ month, data }: { month: string; data: PlanningData }
       </div>
 
       {cards.length === 0 ? (
-        <p className={styles.empty}>No {FLOW_LABEL[flow].toLowerCase()} planned for this month. Add items to a bucket to build the budget.</p>
+        <p className={styles.empty}>No {FLOW_LABEL[flow].toLowerCase()} planned for this month. Add items to a basket to build the budget.</p>
       ) : (
         <div className={tab.cardList} role="tabpanel" aria-label={FLOW_LABEL[flow]}>
           {cards.map((card) => (

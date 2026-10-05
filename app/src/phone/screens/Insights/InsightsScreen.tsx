@@ -20,7 +20,6 @@ import {
 } from 'lucide-react';
 import { useLogic } from '@/src/logic/insights/useLogic';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
-import type { InsightAlert, Severity } from '@/src/viewmodels/insights/alerts';
 import type { Tile } from '@/src/viewmodels/insights/compute';
 import type { ProjectRisk, ProjectStat } from '@/src/viewmodels/insights/metrics';
 import type { RangeKind } from '@/src/viewmodels/insights/types';
@@ -40,6 +39,7 @@ import { TopBarControls, useHasTopBar } from '@/src/widgets/AppShell/TopBarSlot'
 import { GridCard, PageGrid } from '@/src/phone/widgets/Layout/PageGrid';
 import styles from '@/src/phone/screens/Insights/InsightsScreen.module.css';
 import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
+import { NotificationsLink } from '@/src/widgets/Notifications/NotificationsLink';
 
 const RANGES: { id: RangeKind; label: string }[] = [
   { id: 'today', label: 'Today' },
@@ -47,9 +47,6 @@ const RANGES: { id: RangeKind; label: string }[] = [
   { id: 'month', label: 'Month' },
   { id: 'custom', label: 'Custom' },
 ];
-
-const SEVERITY_ICON: Record<Severity, LucideIcon> = { red: AlertOctagon, amber: AlertTriangle, green: CheckCircle2 };
-const SEVERITY_TEXT: Record<Severity, string> = { red: 'At risk', amber: 'Watch', green: 'On track' };
 
 export function InsightsScreen() {
   return <InsightsView {...useLogic()} />;
@@ -82,11 +79,10 @@ export function InsightsView({
   // Alerts most severe first; projects most at risk first.
   const cards = result && {
     alerts: (
-      <div className={styles.alerts} data-hscroll="true" aria-label="Alerts">
-        {result.alerts.map((alert) => (
-          <AlertCard key={alert.id} alert={alert} onOpen={() => open(alert.href)} />
-        ))}
-      </div>
+      <p className={styles.neutral}>
+        {result.alerts.length === 0 ? 'Nothing needs your attention right now.' : 'Your week at a glance.'}
+        <NotificationsLink module="time" about="your time" />
+      </p>
     ),
     tiles: (
       <div className={styles.tiles}>
@@ -288,21 +284,6 @@ function toKey(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-function AlertCard({ alert, onOpen }: { alert: InsightAlert; onOpen: () => void }) {
-  const Icon = SEVERITY_ICON[alert.severity];
-  return (
-    <button type="button" className={styles.alert} data-severity={alert.severity} onClick={onOpen}>
-      <span className={styles.alertIcon} aria-hidden>
-        <Icon size={18} strokeWidth={2.25} />
-      </span>
-      <span className={styles.alertText}>
-        <span className={styles.srOnly}>{SEVERITY_TEXT[alert.severity]}: </span>
-        <span className={styles.alertHeadline}>{alert.headline}</span>
-        <span className={styles.alertDetail}>{alert.detail}</span>
-      </span>
-    </button>
-  );
-}
 
 function SummaryTile({
   label,

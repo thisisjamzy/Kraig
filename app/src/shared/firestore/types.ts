@@ -482,7 +482,7 @@ export interface FirestoreBucket {
 }
 
 /**
- * users/{uid}/buckets/{goalId}/lineItems/{lineItemId} — one sub-cost (or, for
+ * users/{uid}/baskets/{goalId}/lineItems/{lineItemId} — one sub-cost (or, for
  * an Income-category item, one expected inflow; or, for a Transfer bucket,
  * one planned account-to-account move) of a bucket. Marking it complete
  * (aggregation.ts's recordBucketLineItemPayment) records a real transaction

@@ -34,3 +34,17 @@ export function NotificationsLink({ module, types, about = 'this page' }: { modu
     </>
   );
 }
+
+/** The notifications a month's budget cares about (the Budget page on both layouts). */
+export const BUDGET_TYPES: NotificationType[] = [
+  'payment_overdue',
+  'payment_due_soon',
+  'overspend_uncovered',
+  'leftover_to_reallocate',
+  'must_haves_short',
+  'income_late',
+  'ready_to_pay',
+  'month_review',
+  'unassigned_transactions',
+  'savings_behind',
+];

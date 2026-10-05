@@ -40,16 +40,26 @@ import type {
   Frequency,
   BudgetLineType,
   BucketLineItemSubItem,
+  ItemAutomation,
 } from '@/src/shared/firestore/types';
 import { scheduleItem } from '@/src/shared/firestore/bucketBudget';
 import { useBucketProgress } from '@/src/shared/hooks/useBucketProgress';
 import { isItemClosed } from '@/src/shared/budget/bucketProgress';
 import { useGoBack } from '@/src/shared/navigation/useGoBack';
+import { usePreferences } from '@/src/shared/firestore/preferences';
 
 // Recurring bills/subscriptions/savings transfers don't make sense as
 // Once/Daily/Weekly — a Fixed bucket's own recurrence picker only offers the
 // frequencies that actually describe a repeating bill.
 export const FIXED_ITEM_FREQUENCIES: Frequency[] = ['Monthly', 'Quarterly', 'Yearly'];
+
+/** The basket item form's Repeats: the common choices, or Custom (any frequency, every N). */
+export type ItemRepeat = 'none' | 'Monthly' | 'Weekly' | 'Custom';
+export const CUSTOM_FREQUENCIES: Frequency[] = ['Daily', 'Weekly', 'Monthly', 'Quarterly', 'Yearly'];
+
+function toIso(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
 
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
@@ -62,6 +72,7 @@ const NEXT_OCCURRENCE_HORIZON = new Date(Date.now() + 3 * 365 * 24 * 3600 * 1000
 
 export function useLogic(goalId: string) {
   const router = useRouter();
+  const { prefs } = usePreferences();
   const { user } = useFirebaseUser();
   const uid = user?.uid;
   const { ctx, loading: ctxLoading } = useCurrencyContext();
@@ -250,6 +261,28 @@ export function useLogic(goalId: string) {
   const [itemSubItems, setItemSubItems] = useState<BucketLineItemSubItem[]>([]);
   const [savingItem, setSavingItem] = useState(false);
   const [itemError, setItemError] = useState<string | null>(null);
+  // The form standard's fields (docs/UI-PLATFORM-RULES.md, New basket item):
+  // Repeats, Paid from, and under More options the automation, Not before,
+  // Needed by and Splittable.
+  const [itemRepeat, setItemRepeat] = useState<ItemRepeat>('none');
+  const [itemCustomFrequency, setItemCustomFrequency] = useState<Frequency>('Quarterly');
+  const [itemInterval, setItemInterval] = useState(1);
+  const [itemPaidFrom, setItemPaidFrom] = useState('');
+  const [itemAutomationMode, setItemAutomationMode] = useState<ItemAutomation['mode']>('off');
+  const [itemNotBefore, setItemNotBefore] = useState('');
+  const [itemNeededBy, setItemNeededBy] = useState('');
+  const [itemSplittable, setItemSplittable] = useState(false);
+
+  // Paid from: one of the household's accounts (savings wallets last), any
+  // income, or one specific income line (its arrival pays this item).
+  const incomeLineOptions = useMemo(() => {
+    const out: { id: string; name: string }[] = [];
+    for (const b of monthBudget.buckets) {
+      if ((b.type ?? 'Expense') !== 'Income' || b.archived) continue;
+      for (const item of monthBudget.itemsByBucket[b.id] ?? []) out.push({ id: item.id, name: item.name });
+    }
+    return out.sort((a, b) => a.name.localeCompare(b.name));
+  }, [monthBudget.buckets, monthBudget.itemsByBucket]);
 
   function addSubItem(name: string, amount: number) {
     if (!name.trim() || !(amount > 0)) return;
@@ -304,6 +337,14 @@ export function useLogic(goalId: string) {
     setItemDueDate('');
     setItemRecurrenceFrequency('Monthly');
     setItemSubItems([]);
+    setItemRepeat(bucket?.kind === 'Fixed' ? 'Monthly' : 'none');
+    setItemCustomFrequency('Quarterly');
+    setItemInterval(1);
+    setItemPaidFrom('');
+    setItemAutomationMode(prefs.automationDefault);
+    setItemNotBefore('');
+    setItemNeededBy('');
+    setItemSplittable(false);
     setItemError(null);
     setAddOpen(true);
   }
@@ -322,6 +363,27 @@ export function useLogic(goalId: string) {
     setItemDueDate(lineItem.dueDate ? lineItem.dueDate.toDate().toISOString().slice(0, 10) : '');
     setItemRecurrenceFrequency(lineItem.recurrence?.frequency ?? 'Monthly');
     setItemSubItems(lineItem.subItems ?? []);
+    const freq = lineItem.recurrence?.frequency;
+    const interval = lineItem.recurrence?.interval ?? 1;
+    setItemRepeat(
+      !freq || freq === 'Once' ? 'none' : (freq === 'Monthly' || freq === 'Weekly') && interval === 1 ? freq : 'Custom'
+    );
+    setItemCustomFrequency(freq && freq !== 'Once' ? freq : 'Quarterly');
+    setItemInterval(interval);
+    const a = lineItem.automation;
+    setItemPaidFrom(
+      a?.trigger === 'income' && a.incomeItemId
+        ? `income:${a.incomeItemId}`
+        : a?.trigger === 'any_income'
+          ? 'any_income'
+          : lineItem.accountId
+            ? `account:${lineItem.accountId}`
+            : ''
+    );
+    setItemAutomationMode(a?.mode ?? 'off');
+    setItemNotBefore(lineItem.notBefore ? toIso(lineItem.notBefore.toDate()) : '');
+    setItemNeededBy(lineItem.neededBy ? toIso(lineItem.neededBy.toDate()) : '');
+    setItemSplittable(Boolean(lineItem.splittable));
     setItemError(null);
     setAddOpen(true);
   }
@@ -340,7 +402,18 @@ export function useLogic(goalId: string) {
     (!isFixedBucket || itemDueDate.length > 0) &&
     (!isTransferBucket || (itemAccountId.length > 0 && itemToAccountId.length > 0 && itemAccountId !== itemToAccountId));
 
-  async function handleAddLineItem() {
+  /** The recurrence the form's Repeats stands for (null: doesn't repeat). */
+  function recurrenceFromForm(): { frequency: Frequency; interval: number } | null {
+    if (itemRepeat === 'none') return null;
+    if (itemRepeat === 'Custom') return { frequency: itemCustomFrequency, interval: Math.max(1, Math.round(itemInterval) || 1) };
+    return { frequency: itemRepeat, interval: 1 };
+  }
+
+  /**
+   * Saves the item. `onDone` replaces the default exit (the basket's page,
+   * replacing the form's history entry), e.g. closing a side peek.
+   */
+  async function handleAddLineItem(onDone?: () => void) {
     if (!uid || savingItem || !canSaveLineItem) return;
     const amount = Number(itemAmount);
     setSavingItem(true);
@@ -358,8 +431,21 @@ export function useLogic(goalId: string) {
         toAccountId: isTransferBucket ? itemToAccountId || null : null,
         charges: isTransferBucket ? Number(itemCharges) || 0 : null,
         dueDate: itemDueDate ? new Date(`${itemDueDate}T00:00:00`) : null,
-        recurrence: isFixedBucket ? { frequency: itemRecurrenceFrequency, interval: 1 } : null,
+        recurrence: recurrenceFromForm(),
         subItems: itemSubItems,
+        ...(isTransferBucket
+          ? {}
+          : {
+              accountId: itemPaidFrom.startsWith('account:') ? itemPaidFrom.slice(8) : null,
+              automation: {
+                mode: itemAutomationMode,
+                trigger: itemPaidFrom === 'any_income' ? 'any_income' : itemPaidFrom.startsWith('income:') ? 'income' : 'due',
+                incomeItemId: itemPaidFrom.startsWith('income:') ? itemPaidFrom.slice(7) : null,
+              } satisfies ItemAutomation,
+            }),
+        notBefore: itemNotBefore ? new Date(`${itemNotBefore}T00:00:00`) : null,
+        neededBy: itemNeededBy ? new Date(`${itemNeededBy}T00:00:00`) : null,
+        splittable: itemSplittable,
       };
       if (editingItemId) {
         await updateBucketLineItem(uid, goalId, editingItemId, input);
@@ -368,9 +454,10 @@ export function useLogic(goalId: string) {
       }
       setAddOpen(false);
       setEditingItemId(null);
-      // Add/edit now lives on its own page (src/screens/BucketLineItemForm),
-      // not a modal over this one — a successful save returns to the bucket.
-      router.push(`/buckets/${goalId}`);
+      // Add/edit lives on its own page (or a side peek on wide screens): a
+      // successful save returns to the basket and never back into the form.
+      if (onDone) onDone();
+      else router.replace(`/baskets/${goalId}`);
     } catch (error) {
       setItemError(error instanceof Error ? error.message : 'Could not save this line item.');
     } finally {
@@ -445,7 +532,7 @@ export function useLogic(goalId: string) {
     setCompleteAmount(String(Math.max(0, round2(lineItem.amount - (itemSpend.get(lineItem.id)?.total ?? 0)))));
     setCompleteFullyPaid(true);
     setCompleteDate(todayIso());
-    setCompleteDescription(`${bucket?.name ?? 'Bucket'}: ${lineItem.name}`);
+    setCompleteDescription(`${bucket?.name ?? 'Basket'}: ${lineItem.name}`);
     setCompleteError(null);
   }
 
@@ -526,7 +613,7 @@ export function useLogic(goalId: string) {
       });
       setBucketEditOpen(false);
     } catch (error) {
-      setBucketSaveError(error instanceof Error ? error.message : 'Could not update this bucket.');
+      setBucketSaveError(error instanceof Error ? error.message : 'Could not update this basket.');
     } finally {
       setSavingBucket(false);
     }
@@ -540,7 +627,7 @@ export function useLogic(goalId: string) {
   async function archiveBucket() {
     if (!uid) return;
     await archiveBucketWrite(uid, goalId);
-    router.push('/buckets');
+    router.push('/baskets');
   }
 
   async function deleteBucket() {
@@ -548,20 +635,39 @@ export function useLogic(goalId: string) {
     setItemActionError(null);
     try {
       await deleteBucketWrite(uid, goalId);
-      router.push('/buckets');
+      router.push('/baskets');
     } catch (error) {
-      setItemActionError(error instanceof Error ? error.message : 'Could not delete this bucket.');
+      setItemActionError(error instanceof Error ? error.message : 'Could not delete this basket.');
     }
   }
 
-  // Back to the page the user came from (skipping forms); '/buckets' only
+  // Back to the page the user came from (skipping forms); '/baskets' only
   // when there's no history — see src/shared/navigation/useGoBack.ts.
   const navigateBack = useGoBack();
   function goBack() {
-    navigateBack('/buckets');
+    navigateBack('/baskets');
   }
 
   return {
+    itemRepeat,
+    setItemRepeat,
+    itemCustomFrequency,
+    setItemCustomFrequency,
+    itemInterval,
+    setItemInterval,
+    itemPaidFrom,
+    setItemPaidFrom,
+    itemAutomationMode,
+    setItemAutomationMode,
+    itemNotBefore,
+    setItemNotBefore,
+    itemNeededBy,
+    setItemNeededBy,
+    itemSplittable,
+    setItemSplittable,
+    incomeLineOptions,
+    spendableAccounts,
+    savingsAccounts,
     archived: Boolean(bucket?.archived),
     unarchiveBucket,
     bucket,

@@ -22,18 +22,14 @@ import { useLogic } from '@/src/logic/taskEdit/useLogic';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { ConfirmDialog } from '@/src/widgets/ConfirmDialog/ConfirmDialog';
 import { Modal } from '@/src/widgets/Modal/Modal';
-import { WebFormPanel } from '@/src/widgets/WebFormPanel/WebFormPanel';
-import { useIsWeb } from '@/src/shared/hooks/useViewportMode';
 import { toDateOnly } from '@/src/shared/firestore/taskWrites';
 import { TASK_TYPES, priorityLabel, taskTypeLabel } from '@/src/viewmodels/projects';
 import { QUADRANTS, QUADRANT_BY_ID, deriveQuadrant } from '@/src/viewmodels/eisenhower';
 import {
-  CardFormPage,
   FieldCard,
   PickerCard,
   PriorityIcon,
   PrioritySheet,
-  SubmitButton,
   capitalize,
   cardFormStyles as styles,
 } from '@/src/widgets/CardForm/CardForm';
@@ -43,6 +39,7 @@ import { keyToDate } from '@/src/viewmodels/recurrence';
 import { ConflictSheet, CustomRepeatSheet, RepeatSheet, ScopeSheet } from './RepeatSheets';
 import { GoogleMark } from '@/src/widgets/GoogleEventCard/GoogleMark';
 import repeatStyles from './RepeatSheets.module.css';
+import { FormFrame } from '@/src/widgets/FormFrame/FormFrame';
 
 const TYPE_ICON: Record<string, LucideIcon> = { ToDo: SquareCheck, Meeting: Users, Event: CalendarDays };
 const TYPE_TEXT: Record<string, string> = { ToDo: 'To-do', Meeting: 'Meeting', Event: 'Event' };
@@ -209,7 +206,6 @@ export function TaskEditScreen({ taskId, onClose }: { taskId: string | null; onC
     loading,
     error,
   } = useLogic(taskId, { onDone: onClose });
-  const isWeb = useIsWeb();
 
   const [sheet, setSheet] = useState<Sheet>(null);
   const [dateMonthCursor, setDateMonthCursor] = useState(() => (date ? new Date(`${date}T00:00:00`) : new Date()));
@@ -236,18 +232,199 @@ export function TaskEditScreen({ taskId, onClose }: { taskId: string | null; onC
   }, [projects, projectSearch]);
 
   const content = (
-    <CardFormPage title={isEditing ? 'Edit task' : 'New task'} onClose={goBack}>
+    <FormFrame
+      title={isEditing ? 'Edit task' : 'New task'}
+      onClose={goBack}
+      primary={{ label: isEditing ? 'Save task' : 'Add task', disabled: !isValid, busy: saving }}
+      onSubmit={handleSave}
+      error={saveError}
+      after={isEditing ? (
+        <button type="button" className={styles.deleteLink} onClick={openDeleteConfirm}>
+              Delete task
+            </button>
+      ) : null}
+      overlays={
+        <>
+          {sheet === 'date' && (
+            <Modal title="Date" onClose={() => setSheet(null)}>
+              <HeroCalendar.Root
+                focusedValue={parseDate(toDateOnly(dateMonthCursor))}
+                onFocusChange={(next) => setDateMonthCursor(new Date(next.year, next.month - 1, next.day))}
+                value={date ? parseDate(date) : undefined}
+                onChange={(next) => {
+                  if (next) {
+                    setDate(next.toString());
+                    setSheet(null);
+                  }
+                }}
+              >
+                <HeroCalendar.Header className={styles.calendarHeader}>
+                  <HeroCalendar.NavButton slot="previous" className={styles.calendarNavButton} />
+                  <HeroCalendar.Heading className={styles.calendarHeading} />
+                  <HeroCalendar.NavButton slot="next" className={styles.calendarNavButton} />
+                </HeroCalendar.Header>
+                <HeroCalendar.Grid className={styles.calendarGrid}>
+                  <HeroCalendar.GridHeader>
+                    {(day) => <HeroCalendar.HeaderCell className={styles.weekdayCell}>{day}</HeroCalendar.HeaderCell>}
+                  </HeroCalendar.GridHeader>
+                  <HeroCalendar.GridBody>
+                    {(cellDate) => (
+                      <HeroCalendar.Cell date={cellDate} className={styles.dayCell}>
+                        {({ formattedDate }) => <span className={styles.dayCellInner}>{formattedDate}</span>}
+                      </HeroCalendar.Cell>
+                    )}
+                  </HeroCalendar.GridBody>
+                </HeroCalendar.Grid>
+              </HeroCalendar.Root>
+            </Modal>
+          )}
+
+          {(sheet === 'start' || sheet === 'end') && (
+            <Modal title={sheet === 'start' ? 'Starts' : 'Ends'} onClose={() => setSheet(null)}>
+              <TimeWheel
+                value={sheet === 'start' ? startTimeOfDay : endTimeOfDay}
+                onChange={sheet === 'start' ? setStartTimeOfDay : setEndTimeOfDay}
+                isLocked={isLockedTime}
+              />
+              <button type="button" className={styles.primary} onClick={() => setSheet(null)}>
+                Done
+              </button>
+            </Modal>
+          )}
+
+          {sheet === 'project' && (
+            <Modal title="Project" onClose={() => setSheet(null)}>
+              <label className={styles.searchField}>
+                <Search size={16} strokeWidth={2} aria-hidden />
+                <input
+                  value={projectSearch}
+                  onChange={(event) => setProjectSearch(event.target.value)}
+                  placeholder="Search projects"
+                  aria-label="Search projects"
+                />
+              </label>
+              <div className={styles.sheetList}>
+                {visibleProjects.map((project) => (
+                  <button
+                    key={project.id}
+                    type="button"
+                    className={styles.sheetOption}
+                    aria-pressed={project.id === projectId}
+                    onClick={() => {
+                      setProjectId(project.id);
+                      setSheet(null);
+                    }}
+                  >
+                    <span className={styles.projectDot} style={{ background: project.color }} aria-hidden />
+                    {project.name}
+                  </button>
+                ))}
+                {visibleProjects.length === 0 && <p className={styles.sheetEmpty}>No projects match</p>}
+                <button
+                  type="button"
+                  className={`${styles.sheetOption} ${styles.sheetOptionNone}`}
+                  aria-pressed={!projectId}
+                  onClick={() => {
+                    setProjectId('');
+                    setSheet(null);
+                  }}
+                >
+                  No project
+                </button>
+              </div>
+            </Modal>
+          )}
+
+          {sheet === 'priority' && (
+            <PrioritySheet value={priority} onChange={setPriority} onClose={() => setSheet(null)} />
+          )}
+
+          {sheet === 'quadrant' && (
+            <Modal title="Focus quadrant" onClose={() => setSheet(null)}>
+              <div className={styles.sheetList}>
+                <button
+                  type="button"
+                  className={`${styles.sheetOption} ${styles.sheetOptionStacked}`}
+                  aria-pressed={quadrant === null}
+                  onClick={() => {
+                    setQuadrant(null);
+                    setSheet(null);
+                  }}
+                >
+                  <span className={styles.sheetOptionName}>Automatic</span>
+                  <span className={styles.sheetOptionHint}>From priority and date</span>
+                </button>
+                {QUADRANTS.map((option) => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    className={`${styles.sheetOption} ${styles.sheetOptionStacked}`}
+                    aria-pressed={quadrant === option.id}
+                    onClick={() => {
+                      setQuadrant(option.id);
+                      setSheet(null);
+                    }}
+                  >
+                    <span className={styles.sheetOptionName}>{option.label}</span>
+                    <span className={styles.sheetOptionHint}>{option.hint}</span>
+                  </button>
+                ))}
+              </div>
+            </Modal>
+          )}
+
+          {sheet === 'repeat' && date && (
+            <RepeatSheet
+              options={repeatOptions}
+              value={repeatPreset}
+              onChoose={(preset) => {
+                if (preset === 'custom') {
+                  setSheet('customRepeat');
+                  return;
+                }
+                chooseRepeatPreset(preset);
+                setSheet(null);
+              }}
+              onClose={() => setSheet(null)}
+            />
+          )}
+
+          {sheet === 'customRepeat' && date && (
+            <CustomRepeatSheet
+              date={usesTime && startTimeOfDay ? new Date(`${date}T${startTimeOfDay}:00`) : keyToDate(date)}
+              initial={rule}
+              onDone={(next) => {
+                applyCustomRule(next);
+                setSheet(null);
+              }}
+              onClose={() => setSheet(null)}
+            />
+          )}
+
+          {scopeSheet && <ScopeSheet sheet={scopeSheet} onChoose={chooseScope} onClose={closeScopeSheet} />}
+
+          {conflictSheet && (
+            <ConflictSheet sheet={conflictSheet} onSkip={skipConflictingDates} onChangeTime={changeTime} />
+          )}
+
+          {deleteConfirmOpen && (
+            <ConfirmDialog
+              title="Delete this task?"
+              message="It'll be removed from every list, this can't be undone."
+              confirmLabel="Delete"
+              cancelLabel="Cancel"
+              onConfirm={confirmDelete}
+              onCancel={cancelDelete}
+            />
+          )}
+        </>
+      }
+    >
 
       <ScreenState loading={loading} error={error} />
 
       {!loading && !error && (
-        <form
-          className={styles.cards}
-          onSubmit={(event) => {
-            event.preventDefault();
-            handleSave();
-          }}
-        >
+        <>
           {/* A date of a recurring task: its rule and progress. */}
           {seriesSummary && <p className={repeatStyles.seriesLine}>{seriesSummary}</p>}
 
@@ -435,195 +612,10 @@ export function TaskEditScreen({ taskId, onClose }: { taskId: string | null; onC
               <span className={styles.switch} aria-hidden />
             </label>
           )}
-
-          {saveError && <p className={styles.formError}>{saveError}</p>}
-
-          <SubmitButton disabled={!isValid || saving}>
-            {saving ? 'Saving…' : isEditing ? 'Save changes' : '+ Add new task'}
-          </SubmitButton>
-
-          {isEditing && (
-            <button type="button" className={styles.deleteLink} onClick={openDeleteConfirm}>
-              Delete task
-            </button>
-          )}
-        </form>
+        </>
       )}
-
-      {sheet === 'date' && (
-        <Modal title="Date" onClose={() => setSheet(null)}>
-          <HeroCalendar.Root
-            focusedValue={parseDate(toDateOnly(dateMonthCursor))}
-            onFocusChange={(next) => setDateMonthCursor(new Date(next.year, next.month - 1, next.day))}
-            value={date ? parseDate(date) : undefined}
-            onChange={(next) => {
-              if (next) {
-                setDate(next.toString());
-                setSheet(null);
-              }
-            }}
-          >
-            <HeroCalendar.Header className={styles.calendarHeader}>
-              <HeroCalendar.NavButton slot="previous" className={styles.calendarNavButton} />
-              <HeroCalendar.Heading className={styles.calendarHeading} />
-              <HeroCalendar.NavButton slot="next" className={styles.calendarNavButton} />
-            </HeroCalendar.Header>
-            <HeroCalendar.Grid className={styles.calendarGrid}>
-              <HeroCalendar.GridHeader>
-                {(day) => <HeroCalendar.HeaderCell className={styles.weekdayCell}>{day}</HeroCalendar.HeaderCell>}
-              </HeroCalendar.GridHeader>
-              <HeroCalendar.GridBody>
-                {(cellDate) => (
-                  <HeroCalendar.Cell date={cellDate} className={styles.dayCell}>
-                    {({ formattedDate }) => <span className={styles.dayCellInner}>{formattedDate}</span>}
-                  </HeroCalendar.Cell>
-                )}
-              </HeroCalendar.GridBody>
-            </HeroCalendar.Grid>
-          </HeroCalendar.Root>
-        </Modal>
-      )}
-
-      {(sheet === 'start' || sheet === 'end') && (
-        <Modal title={sheet === 'start' ? 'Starts' : 'Ends'} onClose={() => setSheet(null)}>
-          <TimeWheel
-            value={sheet === 'start' ? startTimeOfDay : endTimeOfDay}
-            onChange={sheet === 'start' ? setStartTimeOfDay : setEndTimeOfDay}
-            isLocked={isLockedTime}
-          />
-          <button type="button" className={styles.primary} onClick={() => setSheet(null)}>
-            Done
-          </button>
-        </Modal>
-      )}
-
-      {sheet === 'project' && (
-        <Modal title="Project" onClose={() => setSheet(null)}>
-          <label className={styles.searchField}>
-            <Search size={16} strokeWidth={2} aria-hidden />
-            <input
-              value={projectSearch}
-              onChange={(event) => setProjectSearch(event.target.value)}
-              placeholder="Search projects"
-              aria-label="Search projects"
-            />
-          </label>
-          <div className={styles.sheetList}>
-            {visibleProjects.map((project) => (
-              <button
-                key={project.id}
-                type="button"
-                className={styles.sheetOption}
-                aria-pressed={project.id === projectId}
-                onClick={() => {
-                  setProjectId(project.id);
-                  setSheet(null);
-                }}
-              >
-                <span className={styles.projectDot} style={{ background: project.color }} aria-hidden />
-                {project.name}
-              </button>
-            ))}
-            {visibleProjects.length === 0 && <p className={styles.sheetEmpty}>No projects match</p>}
-            <button
-              type="button"
-              className={`${styles.sheetOption} ${styles.sheetOptionNone}`}
-              aria-pressed={!projectId}
-              onClick={() => {
-                setProjectId('');
-                setSheet(null);
-              }}
-            >
-              No project
-            </button>
-          </div>
-        </Modal>
-      )}
-
-      {sheet === 'priority' && (
-        <PrioritySheet value={priority} onChange={setPriority} onClose={() => setSheet(null)} />
-      )}
-
-      {sheet === 'quadrant' && (
-        <Modal title="Focus quadrant" onClose={() => setSheet(null)}>
-          <div className={styles.sheetList}>
-            <button
-              type="button"
-              className={`${styles.sheetOption} ${styles.sheetOptionStacked}`}
-              aria-pressed={quadrant === null}
-              onClick={() => {
-                setQuadrant(null);
-                setSheet(null);
-              }}
-            >
-              <span className={styles.sheetOptionName}>Automatic</span>
-              <span className={styles.sheetOptionHint}>From priority and date</span>
-            </button>
-            {QUADRANTS.map((option) => (
-              <button
-                key={option.id}
-                type="button"
-                className={`${styles.sheetOption} ${styles.sheetOptionStacked}`}
-                aria-pressed={quadrant === option.id}
-                onClick={() => {
-                  setQuadrant(option.id);
-                  setSheet(null);
-                }}
-              >
-                <span className={styles.sheetOptionName}>{option.label}</span>
-                <span className={styles.sheetOptionHint}>{option.hint}</span>
-              </button>
-            ))}
-          </div>
-        </Modal>
-      )}
-
-      {sheet === 'repeat' && date && (
-        <RepeatSheet
-          options={repeatOptions}
-          value={repeatPreset}
-          onChoose={(preset) => {
-            if (preset === 'custom') {
-              setSheet('customRepeat');
-              return;
-            }
-            chooseRepeatPreset(preset);
-            setSheet(null);
-          }}
-          onClose={() => setSheet(null)}
-        />
-      )}
-
-      {sheet === 'customRepeat' && date && (
-        <CustomRepeatSheet
-          date={usesTime && startTimeOfDay ? new Date(`${date}T${startTimeOfDay}:00`) : keyToDate(date)}
-          initial={rule}
-          onDone={(next) => {
-            applyCustomRule(next);
-            setSheet(null);
-          }}
-          onClose={() => setSheet(null)}
-        />
-      )}
-
-      {scopeSheet && <ScopeSheet sheet={scopeSheet} onChoose={chooseScope} onClose={closeScopeSheet} />}
-
-      {conflictSheet && (
-        <ConflictSheet sheet={conflictSheet} onSkip={skipConflictingDates} onChangeTime={changeTime} />
-      )}
-
-      {deleteConfirmOpen && (
-        <ConfirmDialog
-          title="Delete this task?"
-          message="It'll be removed from every list, this can't be undone."
-          confirmLabel="Delete"
-          cancelLabel="Cancel"
-          onConfirm={confirmDelete}
-          onCancel={cancelDelete}
-        />
-      )}
-    </CardFormPage>
+    </FormFrame>
   );
 
-  return isWeb ? <WebFormPanel onClose={goBack}>{content}</WebFormPanel> : content;
+  return content;
 }

@@ -1,7 +1,7 @@
 'use client';
 
 // Insights (Money mode) — a clear picture of the household's finances for
-// a chosen period: what needs attention, a snapshot, cash flow, plan vs
+// a chosen period: one sentence (and its notifications), a snapshot, cash flow, plan vs
 // actual, unplanned spending, a forward-looking forecast, where money
 // goes, income, savings and daily habits. Every figure comes from
 // src/viewmodels/finance via src/logic/financeInsights. Sections can be
@@ -10,7 +10,7 @@
 
 import { useState, type ReactNode } from 'react';
 import { ChevronLeft, ChevronRight, Share2, SlidersHorizontal } from 'lucide-react';
-import { useAttention, useLogic, type SectionId } from '@/src/logic/financeInsights/useLogic';
+import { useLogic, type SectionId } from '@/src/logic/financeInsights/useLogic';
 import { useSwipeModeSwitch } from '@/src/shared/hooks/useSwipeModeSwitch';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import {
@@ -23,13 +23,14 @@ import {
   unplannedTakeaway,
 } from '@/src/viewmodels/finance/insights';
 import type { RangeKind } from '@/src/viewmodels/finance/ranges';
-import { AttentionStrip, CashFlowChart, Snapshot } from '@/src/phone/screens/FinanceInsights/OverviewSections';
+import { CashFlowChart, Snapshot } from '@/src/phone/screens/FinanceInsights/OverviewSections';
 import { PlanVsActual, UnplannedSection } from '@/src/phone/screens/FinanceInsights/PlanSections';
 import { ForecastSection } from '@/src/phone/screens/FinanceInsights/ForecastSection';
 import { HabitsSection, IncomeSection, MoneySection } from '@/src/phone/screens/FinanceInsights/DetailSections';
 import { KeyCharts } from '@/src/phone/screens/FinanceInsights/KeyCharts';
 import { Pills, Section } from '@/src/phone/screens/FinanceInsights/parts';
 import styles from '@/src/phone/screens/FinanceInsights/FinanceInsights.module.css';
+import { NotificationsLink } from '@/src/widgets/Notifications/NotificationsLink';
 
 const RANGES: { value: RangeKind; label: string }[] = [
   { value: 'day', label: 'Day' },
@@ -59,9 +60,6 @@ export function FinanceInsightsScreen() {
   const [reordering, setReordering] = useState(false);
   const c = v.currency;
 
-  // "Needs attention" stays first and isn't reordered.
-  const attention = useAttention(v);
-  const [attentionCollapsed, setAttentionCollapsed] = useState(false);
 
   const sections: Record<SectionId, { show: boolean; takeaway?: string; details?: string; detailsLabel?: string; body: ReactNode; print?: boolean; highlight?: boolean }> = {
     snapshot: { show: true, takeaway: snapshotTakeaway(v.totals, c), details: v.historyHref(), body: <Snapshot v={v} />, print: true },
@@ -76,7 +74,7 @@ export function FinanceInsightsScreen() {
     forecast: {
       show: true,
       takeaway: forecastTakeaway(v.projection, c),
-      details: '/buckets/forecast',
+      details: '/baskets/forecast',
       detailsLabel: 'Plans forecast',
       body: <ForecastSection v={v} />,
       print: true,
@@ -147,17 +145,12 @@ export function FinanceInsightsScreen() {
 
       <ScreenState loading={v.loading} />
 
+      {/* The period in one sentence; what needs doing is in Notifications. */}
       {!v.loading && (
-        <Section
-          id={'attention' as SectionId}
-          title="Needs attention"
-          collapsed={attentionCollapsed}
-          onToggle={() => setAttentionCollapsed((x) => !x)}
-          reordering={false}
-          onMove={() => undefined}
-        >
-          <AttentionStrip alerts={attention} />
-        </Section>
+        <p className={styles.neutral}>
+          {snapshotTakeaway(v.totals, c)}
+          <NotificationsLink module="money" about="money" />
+        </p>
       )}
 
       {!v.loading &&

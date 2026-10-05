@@ -26,6 +26,7 @@ import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { FLOW_ICON } from '@/src/screens/BudgetMonth/BudgetMonthPage';
 import { TransactionPeekContent } from '@/src/screens/TransactionDetails/TransactionDetailsScreen';
 import styles from './Transactions.module.css';
+import { useFormLink } from '@/src/shared/navigation/useFormLink';
 
 const WEEKDAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTH = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -85,7 +86,7 @@ function columnsFor(type: FlowType): ColumnDef<TxRow>[] {
   const amount: ColumnDef<TxRow> = { id: 'amount', label: 'Amount', type: 'currency', width: 140, value: (r) => r.amount, render: (r) => <Amount row={r} />, calc: 'sum' };
   // Date first (the frozen column), then Name, as the columns read.
   if (type === 'Income') return [dateColumn(), name, text('note', 'Note'), text('source', 'Source', 150), text('subtype', 'Subtype', 140), text('account', 'Account', 150), amount];
-  if (type === 'Savings') return [dateColumn(), name, text('bucketName', 'Goal', 170), text('from', 'From account', 150), text('to', 'To wallet', 150), amount];
+  if (type === 'Savings') return [dateColumn(), name, text('bucketName', 'Basket', 170), text('from', 'From account', 150), text('to', 'To wallet', 150), amount];
   if (type === 'Transfer')
     return [
       dateColumn(),
@@ -95,10 +96,11 @@ function columnsFor(type: FlowType): ColumnDef<TxRow>[] {
       { id: 'fee', label: 'Fee', type: 'currency', width: 110, value: (r) => r.fee || null, render: (r) => (r.fee ? formatNumber(r.fee) : null), calc: 'sum' },
       amount,
     ];
-  return [dateColumn(), name, text('note', 'Note', 160, true), text('bucketName', 'Bucket', 170), text('itemName', 'Item', 170), text('category', 'Category', 150), text('account', 'Account', 150), amount];
+  return [dateColumn(), name, text('note', 'Note', 160, true), text('bucketName', 'Basket', 170), text('itemName', 'Item', 170), text('category', 'Category', 150), text('account', 'Account', 150), amount];
 }
 
 export function TransactionsScreen() {
+  const formLink = useFormLink();
   const v = useLogic();
   const router = useRouter();
   const compact = useLayout().deviceClass === 'compact';
@@ -161,7 +163,7 @@ export function TransactionsScreen() {
             groups={[
               { id: 'day', label: 'Day', key: (r) => ({ key: r.day, label: dayLabel(r.date) }) },
               { id: 'account', label: 'Account', key: (r) => ({ key: r.account || 'none', label: r.account || 'No account' }) },
-              { id: 'bucket', label: 'Bucket', key: (r) => ({ key: r.bucketId ?? 'none', label: r.bucketName || 'No bucket' }) },
+              { id: 'bucket', label: 'Basket', key: (r) => ({ key: r.bucketId ?? 'none', label: r.bucketName || 'No basket' }) },
             ]}
             defaultGroup="day"
             subtotalColumn="amount"
@@ -182,7 +184,7 @@ export function TransactionsScreen() {
               else setPeekRow(r);
             }}
             newLabel="Add transaction"
-            onNew={() => router.push(`/add-transaction?month=${Number(v.month.slice(5)) - 1}&year=${v.month.slice(0, 4)}`)}
+            onNew={() => router.push(formLink('transaction', { month: String(Number(v.month.slice(5)) - 1), year: v.month.slice(0, 4) }))}
             emptyText={`No ${FLOW_LABEL[v.tab].toLowerCase()} recorded in ${v.title}.`}
           />
         </div>

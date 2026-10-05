@@ -10,10 +10,11 @@
 // they send you afterward and neither is more than a handful of lines.
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { setDoc } from 'firebase/firestore';
 import { categoryRef } from '@/src/shared/firestore/refs';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
+import { useFormFinish } from '@/src/shared/navigation/formPeekContext';
+import { peekAwareParams } from '@/src/shared/navigation/formPeek';
 
 export type CategoryType = 'Expense' | 'Income' | 'Savings';
 export const CATEGORY_TYPES: CategoryType[] = ['Expense', 'Income', 'Savings'];
@@ -23,12 +24,12 @@ export const CATEGORY_TYPES: CategoryType[] = ['Expense', 'Income', 'Savings'];
 // src/screens/Categories) instead of Settings.
 function returnTargetFromSearch(): string {
   if (typeof window === 'undefined') return '/settings';
-  const returnTo = new URLSearchParams(window.location.search).get('returnTo');
+  const returnTo = peekAwareParams(window.location.search).get('returnTo');
   return returnTo && returnTo.startsWith('/') ? returnTo : '/settings';
 }
 
 export function useLogic() {
-  const router = useRouter();
+  const finish = useFormFinish();
   const [returnTo] = useState(returnTargetFromSearch);
   const { user } = useFirebaseUser();
   const uid = user?.uid;
@@ -51,7 +52,7 @@ export function useLogic() {
         notes: description.trim(),
         archived: false,
       });
-      router.push(returnTo);
+      finish(returnTo);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not create this category.');
       setSaving(false);
@@ -59,7 +60,7 @@ export function useLogic() {
   }
 
   function goBack() {
-    router.push(returnTo);
+    finish(returnTo);
   }
 
   return { name, setName, type, setType, description, setDescription, saving, error, handleSave, goBack };

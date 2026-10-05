@@ -15,15 +15,19 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLogic as useHomeLogic } from '@/src/logic/home/useLogic';
+import { usePreferences } from '@/src/shared/firestore/preferences';
 
 export function useLogic() {
   const router = useRouter();
   const { loading, error } = useHomeLogic();
+  const { prefs, loading: prefsLoading } = usePreferences();
 
+  // The start page chosen in Settings > Preferences, by device.
   useEffect(() => {
-    if (loading || error) return;
-    router.replace('/home');
-  }, [loading, error, router]);
+    if (loading || error || prefsLoading) return;
+    const wide = window.matchMedia('(min-width: 768px)').matches;
+    router.replace(wide ? prefs.startPageWeb : prefs.startPagePhone);
+  }, [loading, error, prefsLoading, prefs.startPageWeb, prefs.startPagePhone, router]);
 
   return { error };
 }

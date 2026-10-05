@@ -1,15 +1,16 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { useCurrencyContext, useExchangeRates } from '@/src/shared/firestore/queries';
 import { createBucket } from '@/src/shared/firestore/aggregation';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { currencyName } from '@/src/viewmodels/currencies';
 import { useGoBack } from '@/src/shared/navigation/useGoBack';
+import { useFormFinish } from '@/src/shared/navigation/formPeekContext';
+import { peekAwareParams } from '@/src/shared/navigation/formPeek';
 
 export function useLogic() {
-  const router = useRouter();
+  const finish = useFormFinish();
   const { user } = useFirebaseUser();
   const uid = user?.uid;
   const { ctx, loading: ctxLoading } = useCurrencyContext();
@@ -30,7 +31,7 @@ export function useLogic() {
   // ?type= (from a type tab's "New bucket") starts the form on that type.
   const [type, setType] = useState<'Expense' | 'Income' | 'Savings' | 'Transfer'>(() => {
     if (typeof window === 'undefined') return 'Expense';
-    const wanted = new URLSearchParams(window.location.search).get('type');
+    const wanted = peekAwareParams(window.location.search).get('type');
     return wanted === 'Income' || wanted === 'Savings' || wanted === 'Transfer' ? wanted : 'Expense';
   });
   const [saving, setSaving] = useState(false);
@@ -49,18 +50,18 @@ export function useLogic() {
         kind,
         type,
       });
-      router.push(`/buckets/${id}`);
+      finish(`/baskets/${id}`);
     } catch (error) {
-      setSaveError(error instanceof Error ? error.message : 'Could not create this bucket.');
+      setSaveError(error instanceof Error ? error.message : 'Could not create this basket.');
       setSaving(false);
     }
   }
 
-  // Back to the page the user came from (skipping forms); '/buckets' only
+  // Back to the page the user came from (skipping forms); '/baskets' only
   // when there's no history — see src/shared/navigation/useGoBack.ts.
   const navigateBack = useGoBack();
   function goBack() {
-    navigateBack('/buckets');
+    navigateBack('/baskets');
   }
 
   return {

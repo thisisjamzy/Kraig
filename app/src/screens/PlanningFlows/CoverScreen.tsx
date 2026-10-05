@@ -7,10 +7,10 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { AlertTriangle, ArrowLeft, Check, ChevronDown, CircleCheck, Search } from 'lucide-react';
+import { AlertTriangle, Check, ChevronDown, CircleCheck, Search } from 'lucide-react';
 import { useLogic } from '@/src/logic/planningCover/useLogic';
 import { AVOIDABILITY, EXTERNAL_SOURCES, OVERSPEND_REASONS, money } from '@/src/viewmodels/planning';
-import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
+import { FormChrome } from '@/src/widgets/FormFrame/FormFrame';
 import p from '@/src/screens/Planning/Planning.module.css';
 import f from './Flows.module.css';
 import c from './Cover.module.css';
@@ -24,22 +24,11 @@ export function CoverScreen() {
   const [causesOpen, setCausesOpen] = useState(false);
   const [infoFor, setInfoFor] = useState<string | null>(null);
 
-  const header = (
-    <ScreenHeader
-      center
-      left={
-        <button type="button" className={p.roundButton} onClick={v.goBack} aria-label="Back">
-          <ArrowLeft size={20} strokeWidth={2} />
-        </button>
-      }
-      title="Cover or justify"
-    />
-  );
 
   if (v.loading) {
     return (
-      <div className={`${p.page} ${p.detail} ${f.page}`} aria-busy="true">
-        {header}
+      <FormChrome title="Cover or justify" onClose={v.goBack} phoneHeader="bar">
+        <div className={`${p.page} ${p.detail} ${f.page}`} aria-busy="true">
         <div className={c.skeleton} aria-label="Loading">
           <span className={c.skelCard} />
           <span className={c.skelStrip} />
@@ -48,14 +37,15 @@ export function CoverScreen() {
           <span className={c.skelRow} />
           <span className={c.skelRow} />
         </div>
-      </div>
+        </div>
+      </FormChrome>
     );
   }
 
   if (v.need <= 0) {
     return (
-      <div className={`${p.page} ${p.detail}`}>
-        {header}
+      <FormChrome title="Cover or justify" onClose={v.goBack} phoneHeader="bar">
+        <div className={`${p.page} ${p.detail}`}>
         <div className={c.empty}>
           <span className={c.emptyIcon} aria-hidden>
             <CircleCheck size={30} strokeWidth={2} />
@@ -65,16 +55,17 @@ export function CoverScreen() {
             {v.found ? 'Nothing is left to cover or explain for this month.' : 'It may have been archived or removed.'}
           </p>
           <Link href={v.bucketHref} className={`${p.fillButton} ${p.bigButton}`}>
-            Back to the bucket
+            Back to the basket
           </Link>
         </div>
-      </div>
+        </div>
+      </FormChrome>
     );
   }
 
   return (
-    <div className={`${p.page} ${p.detail} ${f.page}`}>
-      {header}
+    <FormChrome title="Cover or justify" onClose={v.goBack} phoneHeader="bar">
+      <div className={`${p.page} ${p.detail} ${f.page}`}>
 
       {/* 1. What's over */}
       <section className={c.context} aria-label="Overspend">
@@ -385,6 +376,7 @@ export function CoverScreen() {
           {v.busy ? 'Saving…' : 'Confirm'}
         </button>
       </div>
-    </div>
+      </div>
+    </FormChrome>
   );
 }

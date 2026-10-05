@@ -15,7 +15,7 @@ import { useHasTopBar } from '@/src/widgets/AppShell/TopBarSlot';
 import { useOwnsTitle } from '@/src/widgets/AppShell/breadcrumb';
 
 const DESTINATIONS: { id: Destination; label: string; icon: typeof Layers }[] = [
-  { id: 'bucket', label: 'Another bucket', icon: Layers },
+  { id: 'bucket', label: 'Another basket', icon: Layers },
   { id: 'savings', label: 'Savings', icon: PiggyBank },
   { id: 'next', label: 'Next month', icon: CalendarPlus },
 ];

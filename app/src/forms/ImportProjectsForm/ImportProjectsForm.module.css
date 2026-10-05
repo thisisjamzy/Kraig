@@ -1,0 +1,399 @@
+/* The spreadsheet import (ImportProjectsForm.tsx), inside FormChrome. Cards
+   follow the form standard: 10px from 768px up, the BASELINE radius on a
+   phone. */
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  border-radius: 20px;
+  background: var(--tf-card);
+}
+
+@media (min-width: 768px) {
+  .card {
+    border-radius: 10px;
+  }
+}
+
+.label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--tf-label);
+}
+
+.hint {
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: var(--tf-label);
+}
+
+.error {
+  margin: 0 0 8px;
+  font-size: 0.875rem;
+  color: #d6404f;
+}
+
+.summary {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.45;
+}
+
+.progress {
+  margin: 24px 0;
+  font-size: 1rem;
+}
+
+.drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 32px 16px;
+  border: 2px dashed color-mix(in srgb, var(--tf-label) 40%, transparent);
+  border-radius: 20px;
+  background: var(--tf-card);
+  color: var(--tf-text);
+  font: inherit;
+  text-align: center;
+  cursor: pointer;
+}
+
+.drop[data-dragging] {
+  border-color: var(--tf-accent);
+  background: color-mix(in srgb, var(--tf-accent) 8%, var(--tf-card));
+}
+
+@media (min-width: 768px) {
+  .drop {
+    border-radius: 10px;
+  }
+}
+
+.dropTitle {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.paste,
+.select {
+  width: 100%;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-background);
+  color: var(--tf-text);
+  font: inherit;
+  /* 16px keeps iOS from zooming into the field. */
+  font-size: 1rem;
+}
+
+@media (min-width: 768px) {
+  .paste,
+  .select {
+    border-radius: 6px;
+    font-size: 0.875rem;
+  }
+}
+
+.templateRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--tf-accent);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.secondary,
+.choice,
+.chip {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-background);
+  color: var(--tf-text);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+@media (min-width: 768px) {
+  .secondary,
+  .choice,
+  .chip {
+    border-radius: 6px;
+  }
+}
+
+.secondary:disabled,
+.choice:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.choice[aria-pressed='true'],
+.chip[aria-pressed='true'] {
+  border-color: var(--tf-accent);
+  background: var(--tf-accent);
+  color: #ffffff;
+}
+
+.chips,
+.bulk,
+.choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chips {
+  overflow-x: auto;
+  flex-wrap: nowrap;
+}
+
+.chip {
+  flex-shrink: 0;
+}
+
+.pickRow,
+.columnRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  font-size: 0.9375rem;
+}
+
+.columnRow + .columnRow {
+  padding-top: 8px;
+  border-top: 1px solid var(--color-border);
+}
+
+.columnText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.columnText .hint {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.segmented {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 14px;
+  background: var(--tf-track);
+}
+
+.segmented button {
+  flex: 1;
+  min-height: 36px;
+  border: none;
+  border-radius: 11px;
+  background: none;
+  color: var(--tf-label);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.segmented button[aria-checked='true'] {
+  background: var(--tf-card);
+  color: var(--tf-text);
+  box-shadow: 0 1px 3px rgba(28, 31, 58, 0.12);
+}
+
+@media (min-width: 768px) {
+  .segmented,
+  .segmented button {
+    border-radius: 6px;
+  }
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.groupTitle {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 700;
+}
+
+/* Wide screens: the review as a table (0 corners, page standard). */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.table th {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--tf-label);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-align: left;
+}
+
+.table td {
+  padding: 8px;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: top;
+}
+
+.table tr[data-attention] td {
+  background: color-mix(in srgb, #d6404f 5%, transparent);
+}
+
+.num {
+  width: 44px;
+  color: var(--tf-label);
+  font-variant-numeric: tabular-nums;
+}
+
+.note {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.75rem;
+  color: var(--tf-label);
+}
+
+/* Phone: the review as a list of cards. */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: var(--tf-card);
+}
+
+.item[data-attention] {
+  box-shadow: inset 0 0 0 1px #d6404f;
+}
+
+.itemTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.itemName {
+  min-width: 0;
+  font-size: 0.9375rem;
+}
+
+.status {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--tf-track);
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+@media (min-width: 768px) {
+  .status {
+    border-radius: 6px;
+  }
+}
+
+.status[data-status='new'] {
+  color: #1f7a4d;
+}
+
+.status[data-status='duplicate'] {
+  color: var(--tf-label);
+}
+
+.status[data-status='possible'] {
+  color: #93600c;
+}
+
+.status[data-status='problem'] {
+  color: #b42d3c;
+}
+
+.fixer {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.footer {
+  margin-top: 8px;
+}
+
+.primary {
+  width: 100%;
+  min-height: 52px;
+  border: none;
+  border-radius: 20px;
+  background: var(--tf-accent);
+  color: #ffffff;
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.primary:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+@media (min-width: 768px) {
+  .primary {
+    min-height: 44px;
+    border-radius: 6px;
+  }
+}
+
+.drop:focus-visible,
+.templateRow:focus-visible,
+.secondary:focus-visible,
+.choice:focus-visible,
+.chip:focus-visible,
+.primary:focus-visible,
+.segmented button:focus-visible {
+  outline: 2px solid var(--tf-accent);
+  outline-offset: 2px;
+}

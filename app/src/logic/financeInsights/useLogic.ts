@@ -22,7 +22,6 @@ import {
   spendingPace,
 } from '@/src/viewmodels/finance/metrics';
 import { moneyFlow, unplannedInsights } from '@/src/viewmodels/finance/breakdowns';
-import { alerts } from '@/src/viewmodels/finance/insights';
 import { forecast, guidance, type Scenario } from '@/src/viewmodels/finance/forecast';
 import { incomeConsistency, incomeExpenseTrend, keyCashFlow, keyWindow, savingsTrend } from '@/src/viewmodels/finance/keyCharts';
 import {
@@ -272,7 +271,7 @@ export function useLogic() {
     habits,
     showHabits: kind === 'week' || kind === 'month',
     historyHref,
-    bucketHref: (bucketId: string) => `/budget/bucket/${bucketId}?month=${historyMonth}`,
+    bucketHref: (bucketId: string) => `/budget/basket/${bucketId}?month=${historyMonth}`,
     budgetHref: `/budget?month=${historyMonth}`,
     setSavingsTarget: fin.setSavingsTarget,
     addForecastItem: fin.addForecastItem,
@@ -281,14 +280,3 @@ export function useLogic() {
 }
 
 export type FinanceInsights = ReturnType<typeof useLogic>;
-
-/** "Needs attention" for the phone Insights screen: this month's alerts
- * from the same figures the sections use. Only the phone calls it. */
-export function useAttention(v: FinanceInsights) {
-  const { data, currency, totals, projection, log } = v;
-  return useMemo(() => {
-    const current = monthKey(data.today);
-    const unassignedCount = data.txs.filter((t) => t.kind === 'expense' && t.month === current && !t.link && t.amount > 0).length;
-    return alerts({ data, currency, totals, forecast: projection, pace: spendingPace(data, current), log, unassignedCount });
-  }, [data, currency, totals, projection, log]);
-}

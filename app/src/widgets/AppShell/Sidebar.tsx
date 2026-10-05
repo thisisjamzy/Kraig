@@ -33,6 +33,8 @@ import { SIDEBAR_MAX, SIDEBAR_MIN } from './sidebarState';
 import styles from './Sidebar.module.css';
 import { NotificationCount } from '@/src/widgets/Notifications/NotificationBell';
 import { useWebOnly } from '@/src/shared/device/useWebOnly';
+import { useFormLink } from '@/src/shared/navigation/useFormLink';
+import { useSettingsLink } from '@/src/shared/navigation/useSettingsLink';
 
 const MODE_KEY = 'dreda.mode';
 
@@ -82,6 +84,8 @@ export function Sidebar({
   onCollapse: () => void;
   onSearch: () => void;
 }) {
+  const settingsLink = useSettingsLink();
+  const formLink = useFormLink();
   useWebOnly('Sidebar');
   const pathname = usePathname();
   const router = useRouter();
@@ -135,7 +139,7 @@ export function Sidebar({
               {row(MODE_HOME[mode], 'Home', Home)}
               {row('/notifications', 'Notifications', Bell, <NotificationCount className={styles.count} />)}
               {row('/budget/ready', 'Ready to pay', BadgeCheck, ready ? <span className={styles.count}>{ready}</span> : null)}
-              {row('/add-transaction', 'Add transaction', Plus)}
+              {row(formLink('transaction'), 'Add transaction', Plus)}
             </>
           ) : (
             <>
@@ -157,8 +161,8 @@ export function Sidebar({
         <p className={styles.sync} aria-live="polite">
           {sync}
         </p>
-        {row('/settings', 'Settings', Settings)}
-        <Link href="/settings" className={styles.profile} onClick={onNavigate}>
+        {row(settingsLink('preferences'), 'Settings', Settings)}
+        <Link href={settingsLink('profile')} scroll={false} className={styles.profile} onClick={onNavigate}>
           <span className={styles.avatar} aria-hidden>
             {name.charAt(0).toUpperCase()}
           </span>
@@ -214,7 +218,7 @@ export function Sidebar({
               </Link>
             ))}
             <hr className={styles.menuDivider} />
-            <Link href="/settings" role="menuitem" className={styles.menuRow} data-row onClick={() => setSwitcher(null)}>
+            <Link href={settingsLink('preferences')} scroll={false} role="menuitem" className={styles.menuRow} data-row onClick={() => setSwitcher(null)}>
               <User size={15} strokeWidth={2} aria-hidden /> Account
             </Link>
             <button type="button" role="menuitem" className={styles.menuRow} data-row onClick={logOut}>

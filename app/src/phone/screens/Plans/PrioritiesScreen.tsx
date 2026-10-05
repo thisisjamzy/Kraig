@@ -8,7 +8,7 @@
 import { Fragment, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Check, GripVertical, Info, MoreHorizontal } from 'lucide-react';
+import { ArrowLeft, Check, GripVertical, Info, MoreHorizontal, AlertCircle } from 'lucide-react';
 import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -22,6 +22,7 @@ import { URGENCY_LABEL, dueText, monthLabel, remaining, statusOf, urgency, type 
 import { type SortMode, type WalkRow } from '@/src/viewmodels/plans/priorities';
 import { Card, Figure, Segmented, full, monthShort } from '@/src/phone/screens/Plans/parts';
 import styles from '@/src/phone/screens/Plans/Plans.module.css';
+import { NotificationsLink } from '@/src/widgets/Notifications/NotificationsLink';
 
 const SORTS: { value: SortMode; label: string }[] = [
   { value: 'recommended', label: 'Recommended' },
@@ -90,7 +91,7 @@ export function PrioritiesScreen() {
     <div className={styles.page}>
       <ScreenHeader
         left={
-          <Link href="/buckets" className={styles.roundButton} aria-label="Back to Buckets">
+          <Link href="/baskets" className={styles.roundButton} aria-label="Back to Baskets">
             <ArrowLeft size={20} strokeWidth={2} />
           </Link>
         }
@@ -147,7 +148,7 @@ export function PrioritiesScreen() {
                 ]}
               />
             }
-            action={{ label: 'Forecast', href: '/buckets/forecast' }}
+            action={{ label: 'Forecast', href: '/baskets/forecast' }}
           >
             <div className={styles.figureGrid} data-cols="3">
               <Figure label="Due" value={w.due} />
@@ -203,20 +204,13 @@ export function PrioritiesScreen() {
 
           <>
           {w.mustShort > 0 && (
-            <div className={styles.strip} role="alert">
+            <p className={styles.quietLine} data-tone="bad">
+              <AlertCircle size={14} strokeWidth={2.5} aria-hidden />
               <span>
                 {w.mustShort} must-{w.mustShort === 1 ? 'have' : 'haves'} short · {full(w.mustShortAmount, c)}
+                <NotificationsLink types={['must_haves_short', 'payment_overdue']} about="payments" />
               </span>
-              <span>
-                {v.suggestions.length > 0 ? (
-                  <button type="button" onClick={() => v.setPostponing(v.suggestions[0])}>
-                    Postpone one →
-                  </button>
-                ) : (
-                  <Link href="/budget">Reallocate →</Link>
-                )}
-              </span>
-            </div>
+            </p>
           )}
 
           {w.rows.length === 0 ? (

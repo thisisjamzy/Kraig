@@ -33,7 +33,7 @@ export function MoneySection({ v }: { v: FinanceInsights }) {
         onChange={setBy}
         options={[
           { value: 'category', label: 'By category' },
-          { value: 'bucket', label: 'By bucket' },
+          { value: 'bucket', label: 'By basket' },
         ]}
       />
       <div className={styles.donutRow}>

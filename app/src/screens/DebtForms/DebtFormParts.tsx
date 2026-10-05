@@ -9,7 +9,8 @@
 import type { ReactNode } from 'react';
 import { Calendar as HeroCalendar } from '@heroui/react';
 import { parseDate } from '@internationalized/date';
-import { CardFormPage, FieldCard, cardFormStyles as cf } from '@/src/widgets/CardForm/CardForm';
+import { FieldCard, cardFormStyles as cf } from '@/src/widgets/CardForm/CardForm';
+import { FormChrome } from '@/src/widgets/FormFrame/FormFrame';
 import { Modal } from '@/src/widgets/Modal/Modal';
 import { WebFormPanel } from '@/src/widgets/WebFormPanel/WebFormPanel';
 import { formatMoney } from '@/src/widgets/Money/Money';
@@ -31,12 +32,15 @@ export function dayText(iso: string): string {
   return fromIsoDay(iso).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-/** The form's frame; `inPanel` draws it as the 560px side peek. */
+/**
+ * The form's frame (the form standard's FormChrome); `inPanel` draws it as
+ * the 560px side peek, whose "Open as full page" PanelHost provides.
+ */
 export function DebtFormFrame({ title, inPanel, onClose, children }: { title: string; inPanel: boolean; onClose: () => void; children: ReactNode }) {
   const page = (
-    <CardFormPage title={title} onClose={onClose} square>
+    <FormChrome title={title} onClose={onClose}>
       {children}
-    </CardFormPage>
+    </FormChrome>
   );
   return inPanel ? (
     <WebFormPanel onClose={onClose} width={560}>

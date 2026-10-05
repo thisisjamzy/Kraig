@@ -7,7 +7,6 @@
 // by src/logic/addTransaction/useLogic.ts's own ?templateId= prefill.
 
 import { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { useFirestoreDoc } from '@/src/shared/firestore/hooks';
 import { transactionTemplateRef } from '@/src/shared/firestore/refs';
@@ -17,6 +16,7 @@ import { TRANSFER_CATEGORIES } from '@/src/viewmodels/categories';
 import { isSavingsAccount } from '@/src/viewmodels/wallets';
 import type { FirestoreTransactionTemplate, TransactionTemplateType } from '@/src/shared/firestore/types';
 import { useGoBack } from '@/src/shared/navigation/useGoBack';
+import { useFormFinish } from '@/src/shared/navigation/formPeekContext';
 
 export type TemplateSavingsMode = 'moved' | 'frozen';
 export const TEMPLATE_TYPES: TransactionTemplateType[] = ['expense', 'income', 'transfer', 'savings'];
@@ -28,7 +28,7 @@ const CATEGORY_TYPE: Record<'expense' | 'income' | 'savings', 'Expense' | 'Incom
 };
 
 export function useLogic(templateId?: string) {
-  const router = useRouter();
+  const finish = useFormFinish();
   const { user } = useFirebaseUser();
   const uid = user?.uid;
 
@@ -138,7 +138,7 @@ export function useLogic(templateId?: string) {
         createdAt: original?.createdAt ?? serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
-      router.push('/transaction-templates');
+      finish('/transaction-templates');
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : 'Could not save this template.');
       setSaving(false);
@@ -162,7 +162,7 @@ export function useLogic(templateId?: string) {
     setDeleteError(null);
     try {
       await deleteDoc(transactionTemplateRef(uid, templateId));
-      router.push('/transaction-templates');
+      finish('/transaction-templates');
     } catch (error) {
       setDeleteError(error instanceof Error ? error.message : 'Could not delete this template.');
       setDeleting(false);

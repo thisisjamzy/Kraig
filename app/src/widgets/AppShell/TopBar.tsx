@@ -11,7 +11,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ChevronsRight, Copy, FileText, Info, MoreHorizontal, Printer, Star, StretchHorizontal } from 'lucide-react';
+import { ChevronsRight, Copy, FileText, Info, MoreHorizontal, Printer, Settings, Star, StretchHorizontal } from 'lucide-react';
 import { defaultCrumbs, PAGE_TREE, pageForPath } from '@/src/shared/config/pageTree';
 import { useFavorites } from '@/src/shared/hooks/useFavorites';
 import { useSyncStatus } from '@/src/shared/hooks/useSyncStatus';
@@ -24,6 +24,7 @@ import menu from './Sidebar.module.css';
 import styles from './TopBar.module.css';
 import { NotificationBell } from '@/src/widgets/Notifications/NotificationBell';
 import { useWebOnly } from '@/src/shared/device/useWebOnly';
+import { useSettingsLink } from '@/src/shared/navigation/useSettingsLink';
 
 function iconFor(crumb: Crumb, index: number) {
   if (index === 0) return null;
@@ -43,6 +44,7 @@ export function TopBar({
   compactCrumbs: boolean;
   defaultWidth: 'full' | 'standard';
 }) {
+  const settingsLink = useSettingsLink();
   useWebOnly('TopBar');
   const pathname = usePathname();
   const search = useLocationSearch(pathname);
@@ -153,6 +155,9 @@ export function TopBar({
             >
               <Printer size={15} strokeWidth={2} aria-hidden /> Export as PDF
             </button>
+            <Link href={settingsLink('preferences')} scroll={false} className={menu.menuRow} data-row onClick={() => setOptions(null)}>
+              <Settings size={15} strokeWidth={2} aria-hidden /> Settings
+            </Link>
             <button
               type="button"
               className={menu.menuRow}

@@ -309,6 +309,8 @@ export function useLogic() {
     setCushion: (amount: number | null) => saveDraft({ cushion: amount }),
     streak: model.streak,
     startBalance: model.startBalance,
+    /** Income received so far this month (the Focus view's sub-line). */
+    receivedThisMonth: plans.money.received,
     changes,
     hasDraft: changes.length > 0,
     lastApplied,

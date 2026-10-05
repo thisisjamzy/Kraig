@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import * as XLSX from 'xlsx';
 import { getDocs, type QuerySnapshot, type DocumentData } from 'firebase/firestore';
 import {
   areasRef,
@@ -35,6 +36,17 @@ import type {
 } from '@/src/shared/firestore/types';
 import { useGoBack } from '@/src/shared/navigation/useGoBack';
 
+export type ExportFormat = 'xlsx' | 'csv' | 'json';
+
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 function docs<T>(snap: QuerySnapshot<DocumentData>): T[] {
   return snap.docs.map((d) => ({ ...d.data(), id: d.id }) as T);
 }
@@ -53,7 +65,8 @@ export function useLogic() {
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
 
-  async function handleExport() {
+  /** xlsx: one workbook; csv: one file per selected sheet; json: one file with every record. */
+  async function handleExport(format: ExportFormat = 'xlsx') {
     if (!uid || exporting || selected.size === 0) return;
     setExporting(true);
     setError(null);
@@ -130,8 +143,19 @@ export function useLogic() {
         debtName: new Map(data.debts.map((d) => [d.id, d.name])),
       };
 
-      const workbook = buildExportWorkbook([...selected], data, lookups);
-      downloadWorkbook(workbook, `dreda-export-${isoToday()}.xlsx`);
+      const keys = ENTITY_ORDER.filter((k) => selected.has(k));
+      const workbook = buildExportWorkbook(keys, data, lookups);
+      if (format === 'xlsx') downloadWorkbook(workbook, `dreda-export-${isoToday()}.xlsx`);
+      else if (format === 'csv') {
+        for (const name of workbook.SheetNames) {
+          const csv = XLSX.utils.sheet_to_csv(workbook.Sheets[name]);
+          downloadBlob(new Blob([csv], { type: 'text/csv;charset=utf-8' }), `dreda-${name.toLowerCase().replace(/\s+/g, '-')}-${isoToday()}.csv`);
+        }
+      } else {
+        const picked = Object.fromEntries(Object.entries(data).filter(([k]) => keys.includes(k as EntityKey) || (k === 'repayments' && keys.includes('debts'))));
+        const json = JSON.stringify(picked, (_k, value) => (value && typeof value === 'object' && typeof value.toDate === 'function' ? value.toDate().toISOString() : value), 2);
+        downloadBlob(new Blob([json], { type: 'application/json' }), `dreda-export-${isoToday()}.json`);
+      }
       setDone(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not export your data.');

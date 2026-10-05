@@ -1,34 +1,27 @@
 'use client';
 
-// Two UI lines for the debt forms (docs/UI-LINES.md). Phones keep their own
-// form pages (src/phone/screens: CreateDebt, DebtEdit, DebtPlanEdit,
-// DebtRepay); from 768px up these URLs show the web forms
-// (src/screens/DebtForms), which also open as a side peek. Both lines save
-// through the same writes (src/shared/firestore/debtWrites.ts).
+// The debt forms (New debt, Edit debt, Payment plan, Record repayment): one
+// form each on the form standard (src/screens/DebtForms, FormChrome), a
+// full-screen page on a phone and a 640px page from 768px up; opened from
+// a debt page on wide screens they show as a side peek instead (PanelHost).
+// They save through src/shared/firestore/debtWrites.ts.
 
-import dynamic from 'next/dynamic';
-import { DeviceSplit } from '@/src/shared/device/DeviceSplit';
-import { CreateDebtScreen } from '@/src/phone/screens/CreateDebt/CreateDebtScreen';
-import { DebtEditScreen } from '@/src/phone/screens/DebtEdit/DebtEditScreen';
-import { DebtPlanEditScreen } from '@/src/phone/screens/DebtPlanEdit/DebtPlanEditScreen';
-import { DebtRepayScreen } from '@/src/phone/screens/DebtRepay/DebtRepayScreen';
-
-const WebDebtForm = dynamic(() => import('@/src/screens/DebtForms/DebtFormScreen').then((m) => m.DebtFormScreen), { ssr: false });
-const WebPlanForm = dynamic(() => import('@/src/screens/DebtForms/PlanFormScreen').then((m) => m.PlanFormScreen), { ssr: false });
-const WebRepaymentForm = dynamic(() => import('@/src/screens/DebtForms/RepaymentFormScreen').then((m) => m.RepaymentFormScreen), { ssr: false });
+import { DebtFormScreen } from '@/src/screens/DebtForms/DebtFormScreen';
+import { PlanFormScreen } from '@/src/screens/DebtForms/PlanFormScreen';
+import { RepaymentFormScreen } from '@/src/screens/DebtForms/RepaymentFormScreen';
 
 export function NewDebtRoute() {
-  return <DeviceSplit phone={<CreateDebtScreen />} web={<WebDebtForm debtId={null} />} />;
+  return <DebtFormScreen debtId={null} />;
 }
 
 export function EditDebtRoute({ debtId }: { debtId: string }) {
-  return <DeviceSplit phone={<DebtEditScreen debtId={debtId} />} web={<WebDebtForm debtId={debtId} />} />;
+  return <DebtFormScreen debtId={debtId} />;
 }
 
 export function DebtPlanRoute({ debtId }: { debtId: string }) {
-  return <DeviceSplit phone={<DebtPlanEditScreen debtId={debtId} />} web={<WebPlanForm debtId={debtId} />} />;
+  return <PlanFormScreen debtId={debtId} />;
 }
 
 export function RepaymentRoute({ debtId, prefillAmount }: { debtId: string; prefillAmount: string | null }) {
-  return <DeviceSplit phone={<DebtRepayScreen debtId={debtId} />} web={<WebRepaymentForm debtId={debtId} prefillAmount={prefillAmount} />} />;
+  return <RepaymentFormScreen debtId={debtId} prefillAmount={prefillAmount} />;
 }

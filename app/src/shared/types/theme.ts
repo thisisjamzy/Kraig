@@ -15,7 +15,12 @@ export interface Theme {
   breakpoints: BreakpointTokens;
 }
 
+/** What the person chose: a fixed scheme, or the device's (Settings > Preferences). */
+export type Appearance = ColorScheme | 'system';
+
 export interface ThemeContextValue extends Theme {
+  appearance: Appearance;
+  setAppearance: (next: Appearance) => void;
   toggleScheme: () => void;
   setScheme: (scheme: ColorScheme) => void;
 }

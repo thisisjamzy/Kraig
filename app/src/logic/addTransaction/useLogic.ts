@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { query, where } from 'firebase/firestore';
 import { getFirebaseAuth } from '@/src/shared/config/firebaseClient';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
@@ -22,6 +21,9 @@ import type {
   FirestoreTransactionTemplate,
 } from '@/src/shared/firestore/types';
 import { useGoBack } from '@/src/shared/navigation/useGoBack';
+import { useFormFinish } from '@/src/shared/navigation/formPeekContext';
+import { peekAwareParams } from '@/src/shared/navigation/formPeek';
+import { usePreferences } from '@/src/shared/firestore/preferences';
 
 export type TransactionType = 'expense' | 'income' | 'transfer' | 'savings';
 export type Step = 'type' | 'category' | 'details' | 'review';
@@ -85,7 +87,7 @@ function pad2(n: number) {
 // nothing here is ever server-rendered.
 function retroTargetFromSearch(): { year: number; month: number } | null {
   if (typeof window === 'undefined') return null;
-  const params = new URLSearchParams(window.location.search);
+  const params = peekAwareParams(window.location.search);
   const monthParam = params.get('month');
   const yearParam = params.get('year');
   if (monthParam === null || yearParam === null) return null;
@@ -103,13 +105,13 @@ function retroTargetFromSearch(): { year: number; month: number } | null {
 // "Transfer" and "Record income").
 function typeFromSearch(): TransactionType {
   if (typeof window === 'undefined') return 'expense';
-  const t = new URLSearchParams(window.location.search).get('type');
+  const t = peekAwareParams(window.location.search).get('type');
   return t === 'income' || t === 'transfer' || t === 'savings' ? t : 'expense';
 }
 
 function categoryIdFromSearch(): string {
   if (typeof window === 'undefined') return '';
-  return new URLSearchParams(window.location.search).get('categoryId') ?? '';
+  return peekAwareParams(window.location.search).get('categoryId') ?? '';
 }
 
 // src/screens/TransactionTemplates's own "apply" action deep-links here with
@@ -120,7 +122,7 @@ function categoryIdFromSearch(): string {
 // the template.
 function templateIdFromSearch(): string {
   if (typeof window === 'undefined') return '';
-  return new URLSearchParams(window.location.search).get('templateId') ?? '';
+  return peekAwareParams(window.location.search).get('templateId') ?? '';
 }
 
 // The bucket item month sheet's "Record payment" (src/screens/
@@ -128,14 +130,14 @@ function templateIdFromSearch(): string {
 // — that exact occurrence gets pre-linked once items load.
 function bucketItemFromSearch(): { bucketId: string; itemId: string; month: string } | null {
   if (typeof window === 'undefined') return null;
-  const raw = new URLSearchParams(window.location.search).get('bucketItem');
+  const raw = peekAwareParams(window.location.search).get('bucketItem');
   const [bucketId, itemId, month] = raw?.split(':') ?? [];
   if (!bucketId || !itemId || !/^\d{4}-\d{2}$/.test(month ?? '')) return null;
   return { bucketId, itemId, month };
 }
 
 export function useLogic() {
-  const router = useRouter();
+  const finish = useFormFinish();
   const { user } = useFirebaseUser();
   const uid = user?.uid;
   const [retroTarget] = useState(retroTargetFromSearch);
@@ -164,6 +166,13 @@ export function useLogic() {
   const [toAccountId, setToAccountId] = useState('');
 
   const [accountPickerFor, setAccountPickerFor] = useState<'from' | 'to' | null>(null);
+  // The default wallet (Settings > Accounts and wallets), chosen once it loads.
+  const { prefs } = usePreferences();
+  const [defaultApplied, setDefaultApplied] = useState(false);
+  if (!defaultApplied && prefs.defaultAccountId) {
+    setDefaultApplied(true);
+    if (!fromAccountId) setFromAccountId(prefs.defaultAccountId);
+  }
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   // PRD-AUDIT-RECONCILIATION.md section 2.5 — "this explains part of my
@@ -347,7 +356,7 @@ export function useLogic() {
         months.flatMap((occurrenceMonth) => {
           const occurrence = itemOccurrence(item, occurrenceMonth);
           if (!occurrence) return [];
-          const bucketName = bucketNameById.get(item.goalId) ?? 'Bucket';
+          const bucketName = bucketNameById.get(item.goalId) ?? 'Basket';
           return [{
             id: `${item.id}@${occurrenceMonth}`,
             itemId: item.id,
@@ -440,7 +449,7 @@ export function useLogic() {
   const categoryOptions = isSavingsMoved ? [] : showUnplanned ? categoriesForType : budgetedCategoriesForType;
   // Where "plan it" sends them — budgets are built from bucket items now
   // (PRD-BUDGETS-V2.md), so that's Buckets, not the Budget screen.
-  const budgetHref = '/buckets';
+  const budgetHref = '/baskets';
   const accountName = (id: string) => accounts.find((account) => account.id === id)?.name ?? '';
 
   function selectType(key: TransactionType) {
@@ -664,7 +673,7 @@ export function useLogic() {
           ctx
         );
       }
-      router.push('/home');
+      finish('/home');
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : 'Could not save this transaction.');
       setSubmitting(false);
@@ -680,7 +689,28 @@ export function useLogic() {
       (!isEffectivelyTransferLike || (toAccountId.length > 0 && toAccountId !== fromAccountId))) ||
     (step === 'review' && !submitting);
 
+  // The one-page form (the form standard): every field at once, so it can
+  // save as soon as all of them are valid, whatever step the wizard is on.
+  const canSave =
+    !submitting &&
+    category.length > 0 &&
+    description.trim().length > 0 &&
+    Number(amountString) > 0 &&
+    fromAccountId.length > 0 &&
+    (!isEffectivelyTransferLike || (toAccountId.length > 0 && toAccountId !== fromAccountId));
+
+  function setAmount(text: string) {
+    const clean = text.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1').slice(0, 12);
+    setAmountString(clean);
+  }
+
   return {
+    /** Leave the form (the one-page form has no steps to go back through). */
+    close: () => navigateBack('/home'),
+    canSave,
+    setAmount,
+    setFromAccountId,
+    setToAccountId,
     step,
     type,
     incomeSubtype,

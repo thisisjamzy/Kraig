@@ -9,8 +9,10 @@ import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import styles from './WalletDetailScreen.module.css';
+import { useFormLink } from '@/src/shared/navigation/useFormLink';
 
 export function WalletDetailScreen({ walletId }: { walletId: string }) {
+  const formLink = useFormLink();
   const strings = useStrings();
   const {
     wallet,
@@ -44,7 +46,7 @@ export function WalletDetailScreen({ walletId }: { walletId: string }) {
         }
         title={wallet?.name ?? '…'}
         right={
-          <Link href={`/wallets/${walletId}/edit`} className={styles.editButton} aria-label={strings.walletDetail.editWallet}>
+          <Link href={formLink('wallet', { id: walletId })} className={styles.editButton} aria-label={strings.walletDetail.editWallet}>
             <Settings size={18} strokeWidth={1.75} />
           </Link>
         }

@@ -17,20 +17,27 @@ const nextConfig: NextConfig = {
   // run build` still needs the `--webpack` flag (see package.json) so
   // next-pwa's service-worker generation actually runs for production.
   turbopack: {},
-  // PRD-BUDGETS-V2.md section 3 — Goals were renamed to Buckets. Old links
-  // (bookmarks, the installed PWA's cached start routes) keep working. The
-  // Projects tier's old /buckets/* URLs can't be redirected: that path now
-  // belongs to money buckets.
+  // Goals were renamed to Buckets (PRD-BUDGETS-V2.md section 3), and
+  // Buckets to Baskets (docs/UI-PLATFORM-RULES.md). Old links (bookmarks,
+  // notifications, the installed PWA's cached start routes) keep working;
+  // a redirect replaces the history entry. Data keeps its collection names
+  // (goals, lineItems); only the URLs and the words changed.
   async redirects() {
     return [
-      { source: '/goals', destination: '/buckets', permanent: true },
-      { source: '/goals/:path*', destination: '/buckets/:path*', permanent: true },
-      { source: '/add-goal-item/:path*', destination: '/add-bucket-item/:path*', permanent: true },
-      { source: '/edit-goal-item/:path*', destination: '/edit-bucket-item/:path*', permanent: true },
-      { source: '/settings/archived-goals', destination: '/settings/archived-buckets', permanent: true },
+      { source: '/goals', destination: '/baskets', permanent: true },
+      { source: '/goals/:path*', destination: '/baskets/:path*', permanent: true },
+      { source: '/buckets', destination: '/baskets', permanent: true },
+      { source: '/buckets/:path*', destination: '/baskets/:path*', permanent: true },
+      { source: '/add-goal-item/:path*', destination: '/add-basket-item/:path*', permanent: true },
+      { source: '/edit-goal-item/:path*', destination: '/edit-basket-item/:path*', permanent: true },
+      { source: '/add-bucket-item/:path*', destination: '/add-basket-item/:path*', permanent: true },
+      { source: '/edit-bucket-item/:path*', destination: '/edit-basket-item/:path*', permanent: true },
+      { source: '/budget/bucket/:path*', destination: '/budget/basket/:path*', permanent: true },
+      { source: '/settings/archived-goals', destination: '/settings/archived-baskets', permanent: true },
+      { source: '/settings/archived-buckets', destination: '/settings/archived-baskets', permanent: true },
       // Removed pages: their replacements, so bookmarks and notifications
       // still land somewhere real; the two "coming soon" placeholders were
-      // never linked. (/buckets/analytics is a phone-line page again; wide
+      // never linked. (/baskets/analytics is a phone-line page again; wide
       // screens are sent to /statistics by the page itself.)
       { source: '/address-book', destination: '/projects', permanent: true },
       { source: '/projects/control-panel', destination: '/settings', permanent: true },

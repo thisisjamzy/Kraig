@@ -42,7 +42,7 @@ export function BucketCardView({
   const plannedMark = over && card.spent > 0 ? (card.planned / card.spent) * 100 : null;
   return (
     <article className={tab.bucketCard}>
-      <Link href={`/budget/bucket/${card.id}?month=${month}`} className={tab.bucketBody}>
+      <Link href={`/budget/basket/${card.id}?month=${month}`} className={tab.bucketBody}>
         <div className={tab.bucketTop}>
           <IconCircle type={card.income ? 'Income' : undefined} />
           <span className={tab.bucketName}>

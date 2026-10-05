@@ -81,7 +81,7 @@ export function plannedVsActual(occurrences: Occurrence[], month: string): PlanR
   const income = row('income', 'Coming in', 'income');
   const fixed = row('fixed', 'Fixed expenses', 'fixed');
   const variable = row('variable', 'Variable spending', 'variable');
-  const savings = row('savings', 'Savings & goals', 'savings');
+  const savings = row('savings', 'Savings baskets', 'savings');
   // Moved between own accounts: shown on its own, never in money out.
   const transfers = row('transfer', 'Transfers', 'transfer');
   const outPlanned = fixed.planned + variable.planned + savings.planned;
@@ -168,7 +168,7 @@ export type Section = 'fixed' | 'variable' | 'savings' | 'income' | 'transfer';
 export const SECTION_LABEL: Record<Section, string> = {
   fixed: 'Fixed expenses',
   variable: 'Variable spending',
-  savings: 'Savings & goals',
+  savings: 'Savings baskets',
   income: 'Income',
   transfer: 'Transfers',
 };

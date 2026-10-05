@@ -15,7 +15,6 @@
 // (see createTransferWithAggregation's own header).
 
 import { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { useFirestoreDoc } from '@/src/shared/firestore/hooks';
 import { transferRef } from '@/src/shared/firestore/refs';
 import { useAccounts } from '@/src/shared/firestore/queries';
@@ -25,6 +24,7 @@ import { useBucketItemOptions, bucketItemKey as linkKey } from '@/src/shared/hoo
 import { TRANSFER_CATEGORIES } from '@/src/viewmodels/categories';
 import type { FirestoreTransfer } from '@/src/shared/firestore/types';
 import { useGoBack } from '@/src/shared/navigation/useGoBack';
+import { useFormFinish } from '@/src/shared/navigation/formPeekContext';
 
 function pad2(n: number) {
   return String(n).padStart(2, '0');
@@ -35,7 +35,7 @@ function toIso(date: Date) {
 }
 
 export function useLogic(transferId: string) {
-  const router = useRouter();
+  const finish = useFormFinish();
   const { user } = useFirebaseUser();
   const uid = user?.uid;
 
@@ -104,7 +104,7 @@ export function useLogic(transferId: string) {
         kind,
         bucketItem: bucketItemOptions.find((option) => option.key === bucketItemKey)?.link ?? null,
       });
-      router.push('/transactions');
+      finish('/transactions');
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : 'Could not save changes.');
       setSubmitting(false);
@@ -130,7 +130,7 @@ export function useLogic(transferId: string) {
     setDeleteError(null);
     try {
       await deleteTransferWithAggregation(uid, transferId);
-      router.push('/transactions');
+      finish('/transactions');
     } catch (error) {
       setDeleteError(error instanceof Error ? error.message : 'Could not delete this transfer.');
       setDeleting(false);

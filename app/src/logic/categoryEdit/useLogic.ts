@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { updateDoc } from 'firebase/firestore';
 import { useFirestoreDoc } from '@/src/shared/firestore/hooks';
 import { categoryRef } from '@/src/shared/firestore/refs';
@@ -9,12 +8,13 @@ import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import type { FirestoreCategory } from '@/src/shared/firestore/types';
 import { CATEGORY_TYPES, type CategoryType } from '@/src/logic/createCategory/useLogic';
 import { useGoBack } from '@/src/shared/navigation/useGoBack';
+import { useFormFinish } from '@/src/shared/navigation/formPeekContext';
 
 export { CATEGORY_TYPES };
 export type { CategoryType };
 
 export function useLogic(categoryId: string) {
-  const router = useRouter();
+  const finish = useFormFinish();
   const { user } = useFirebaseUser();
   const uid = user?.uid;
 
@@ -54,7 +54,7 @@ export function useLogic(categoryId: string) {
         transactionType: type,
         notes: description.trim(),
       });
-      router.push('/categories');
+      finish('/categories');
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : 'Could not update this category.');
       setSaving(false);

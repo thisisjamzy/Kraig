@@ -1,14 +1,18 @@
 'use client';
 
 // Notifications on a phone: a full-screen list in the BASELINE list style.
-// Inbox, Unread and Archived as tabs; each day (Today, Yesterday, This
+// A filter row (All, Money, Time, Unread); each day (Today, Yesterday, This
 // week, Earlier) as its own card of rows. A row shows the severity, title,
-// one line of body and when; tapping it opens its action (or marks it
-// read); "..." snoozes, archives or marks it read or unread. The shared
-// notifications logic does the work, the same as the web inbox.
+// one line of body and when; tapping it opens the notification's own page
+// (its items and actions). Swipe left to archive, right to mark it read.
+// The header menu has Mark all as read, and the snoozed, resolved and
+// archived ones. The shared notifications logic does the work, the same
+// as the web inbox.
 
 import Link from 'next/link';
-import { AlertTriangle, Archive, ArrowLeft, Bell, BellOff, CheckCheck, CheckCircle2, Circle, Clock, Info, MoreHorizontal, Settings2 } from 'lucide-react';
+import { AlertTriangle, Archive, ArrowLeft, Bell, BellOff, CheckCheck, CheckCircle2, Circle, Clock, Inbox, Info, MoreHorizontal, Settings2 } from 'lucide-react';
+import { useState } from 'react';
+import { SwipeableListItem } from '@/src/phone/widgets/SwipeableListItem/SwipeableListItem';
 import { useLogic } from '@/src/logic/notifications/useLogic';
 import { relativeTime, type InboxView } from '@/src/shared/notifications/inbox';
 import type { NotificationSeverity, StoredNotification } from '@/src/shared/notifications/types';
@@ -19,13 +23,15 @@ import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import p from '@/src/phone/screens/Planning/Planning.module.css';
 import styles from '@/src/phone/screens/Notifications/NotificationsScreen.module.css';
 
-const TABS: { id: InboxView; label: string }[] = [
-  { id: 'inbox', label: 'Inbox' },
+type Filter = 'all' | 'money' | 'time' | 'unread';
+const FILTERS: { id: Filter; label: string }[] = [
+  { id: 'all', label: 'All' },
+  { id: 'money', label: 'Money' },
+  { id: 'time', label: 'Time' },
   { id: 'unread', label: 'Unread' },
-  { id: 'archived', label: 'Archived' },
 ];
 
-const SEVERITY_ICON: Record<NotificationSeverity, typeof Info> = {
+export const SEVERITY_ICON: Record<NotificationSeverity, typeof Info> = {
   urgent: AlertTriangle,
   warning: AlertTriangle,
   info: Info,
@@ -45,7 +51,14 @@ type Logic = ReturnType<typeof useLogic>;
 export function NotificationsScreen() {
   const v = useLogic();
   const goBack = useGoBack();
-  const tab = TABS.some((t) => t.id === v.view) ? v.view : null;
+  const [filter, setFilter] = useState<Filter>('all');
+  const inbox = v.view === 'inbox' || v.view === 'unread';
+  const keep = (n: StoredNotification) => (filter === 'money' || filter === 'time' ? n.module === filter : true);
+  const groups = v.groups.map((g) => ({ ...g, rows: g.rows.filter(keep) })).filter((g) => g.rows.length);
+  function pick(next: Filter) {
+    setFilter(next);
+    v.setView(next === 'unread' ? 'unread' : 'inbox');
+  }
 
   return (
     <div className={`${p.page} ${p.detail}`}>
@@ -65,31 +78,32 @@ export function NotificationsScreen() {
               { key: 'all-read', label: 'Mark all read', icon: <CheckCheck size={14} strokeWidth={2} />, onSelect: () => void v.markAllRead() },
               { key: 'snoozed', label: 'Snoozed', icon: <Clock size={14} strokeWidth={2} />, onSelect: () => v.setView('snoozed') },
               { key: 'resolved', label: 'Resolved', icon: <CheckCircle2 size={14} strokeWidth={2} />, onSelect: () => v.setView('resolved') },
+              { key: 'archived', label: 'Archived', icon: <Archive size={14} strokeWidth={2} />, onSelect: () => v.setView('archived') },
             ]}
           />
         }
       />
 
-      <div className={p.tabs} role="tablist" aria-label="Notifications">
-        {TABS.map((t) => (
-          <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} onClick={() => v.setView(t.id)}>
-            {t.label}
-            {t.id === 'unread' && v.counts.unread > 0 ? ` (${v.counts.unread})` : ''}
+      <div className={styles.filters} role="group" aria-label="Show">
+        {FILTERS.map((f) => (
+          <button key={f.id} type="button" className={styles.filter} aria-pressed={inbox && filter === f.id} onClick={() => pick(f.id)}>
+            {f.label}
+            {f.id === 'unread' && v.counts.unread > 0 ? ` ${v.counts.unread}` : ''}
           </button>
         ))}
       </div>
-      {!tab && (
+      {!inbox && (
         <p className={styles.viewNote}>
-          Showing {v.view === 'snoozed' ? 'snoozed' : 'resolved'} notifications.{' '}
-          <button type="button" className={p.textButton} onClick={() => v.setView('inbox')}>
-            Back to Inbox
+          Showing {v.view} notifications.{' '}
+          <button type="button" className={p.textButton} onClick={() => pick('all')}>
+            Back to all
           </button>
         </p>
       )}
 
       <ScreenState loading={v.loading} />
 
-      {!v.loading && v.rows.length === 0 && (
+      {!v.loading && groups.length === 0 && (
         <div className={styles.empty}>
           <BellOff size={32} strokeWidth={1.5} />
           <p>{EMPTY[v.view]}</p>
@@ -97,7 +111,7 @@ export function NotificationsScreen() {
       )}
 
       {!v.loading &&
-        v.groups.map(({ group, rows }) => (
+        groups.map(({ group, rows }) => (
           <section key={group}>
             <div className={p.sectionHead}>
               <h2>{group}</h2>
@@ -123,13 +137,20 @@ export function NotificationsScreen() {
 function Row({ n, v }: { n: StoredNotification; v: Logic }) {
   const unread = !n.readAt;
   const Icon = SEVERITY_ICON[n.severity];
-  const open = () => {
-    if (n.primaryAction) void v.runAction(n.primaryAction, n);
-    else if (unread) void v.markRead(n.id);
-  };
   return (
-    <div className={`${p.row} ${styles.row}`} data-unread={unread || undefined}>
-      <button type="button" className={styles.open} onClick={open}>
+    <SwipeableListItem
+      swipeLeft={
+        n.archivedAt
+          ? { label: 'Move back to Inbox', icon: <Inbox size={18} strokeWidth={2} />, tone: 'neutral', onSelect: () => void v.unarchive(n.id) }
+          : { label: 'Archive', icon: <Archive size={18} strokeWidth={2} />, tone: 'neutral', onSelect: () => void v.archive(n.id) }
+      }
+      swipeRight={
+        unread
+          ? { label: 'Mark read', icon: <CheckCheck size={18} strokeWidth={2} />, tone: 'brand', onSelect: () => void v.markRead(n.id) }
+          : { label: 'Mark unread', icon: <Bell size={18} strokeWidth={2} />, tone: 'brand', onSelect: () => void v.markRead(n.id, false) }
+      }
+    >
+      <Link href={`/notifications/${encodeURIComponent(n.id)}`} className={`${p.row} ${styles.row}`} data-unread={unread || undefined}>
         <span className={styles.icon} data-severity={n.severity} aria-hidden>
           <Icon size={18} strokeWidth={2} />
         </span>
@@ -141,24 +162,10 @@ function Row({ n, v }: { n: StoredNotification; v: Logic }) {
           {n.body && <span className={styles.body}>{n.body}</span>}
           <span className={p.rowWhen}>
             {relativeTime(n.updatedAt, v.now)}
-            {n.primaryAction ? ` · ${n.primaryAction.label}` : ''}
+            {n.items.length > 1 ? ` · ${n.items.length} items` : ''}
           </span>
         </span>
-      </button>
-      <ActionMenu
-        ariaLabel={`Options for ${n.title}`}
-        triggerClassName={styles.more}
-        triggerIcon={<MoreHorizontal size={18} strokeWidth={2} />}
-        items={[
-          unread
-            ? { key: 'read', label: 'Mark read', icon: <CheckCheck size={14} strokeWidth={2} />, onSelect: () => void v.markRead(n.id) }
-            : { key: 'unread', label: 'Mark unread', icon: <Bell size={14} strokeWidth={2} />, onSelect: () => void v.markRead(n.id, false) },
-          { key: 'snooze', label: 'Snooze until tomorrow', icon: <Clock size={14} strokeWidth={2} />, onSelect: () => void v.snooze(n.id, 1) },
-          n.archivedAt
-            ? { key: 'unarchive', label: 'Move back to Inbox', icon: <Archive size={14} strokeWidth={2} />, onSelect: () => void v.unarchive(n.id) }
-            : { key: 'archive', label: 'Archive', icon: <Archive size={14} strokeWidth={2} />, onSelect: () => void v.archive(n.id) },
-        ]}
-      />
-    </div>
+      </Link>
+    </SwipeableListItem>
   );
 }

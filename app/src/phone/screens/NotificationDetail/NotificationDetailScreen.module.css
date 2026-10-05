@@ -1,0 +1,64 @@
+.head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.headText {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-family-heading);
+  font-size: 1.25rem;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.body {
+  margin: 12px 2px 0;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: var(--p-muted);
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 18px 0;
+}
+
+.secondary {
+  min-height: 44px;
+  border: none;
+  border-radius: 999px;
+  background: var(--p-item);
+  color: var(--p-navy);
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.option {
+  align-items: center;
+  width: 100%;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 0.9375rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.secondary:focus-visible,
+.option:focus-visible {
+  outline: 2px solid var(--p-blue);
+  outline-offset: 2px;
+}

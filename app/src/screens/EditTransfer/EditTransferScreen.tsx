@@ -1,10 +1,12 @@
 'use client';
 
-import { ChevronLeft } from 'lucide-react';
+// Edit transfer, on the form standard (FormFrame): Description, Amount |
+// Date, From | To, Kind; More options: charges, basket item; Delete below.
+
 import { useLogic } from '@/src/logic/editTransfer/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
-import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
+import { FieldCard, FieldRow, FormFrame, MoreOptions, SelectField, formFrameStyles as ff } from '@/src/widgets/FormFrame/FormFrame';
 import styles from './EditTransferScreen.module.css';
 
 export function EditTransferScreen({ transferId }: { transferId: string }) {
@@ -47,187 +49,99 @@ export function EditTransferScreen({ transferId }: { transferId: string }) {
     deleteError,
   } = useLogic(transferId);
 
+  const ready = !loading && !error && !notFound;
+  const amount = Number(amountString) || 0;
+  const fromName = accounts.find((a) => a.id === fromAccountId)?.name;
+  const toName = accounts.find((a) => a.id === toAccountId)?.name;
+  const charges = Number(chargesString) || 0;
+  const impact =
+    amount > 0 && fromName && toName && !sameAccount
+      ? `Moves ${Math.round(amount).toLocaleString('en-US')} from ${fromName} to ${toName}${charges ? `; ${Math.round(charges).toLocaleString('en-US')} in charges counts as an expense` : ''}.`
+      : null;
+  const accountOptions = accounts.map((a) => ({ value: a.id, label: a.name }));
+
   return (
-    <div className={styles.page}>
-      <ScreenHeader
-        left={
-          <button type="button" className={styles.backButton} onClick={goBack} aria-label={strings.editTransfer.back}>
-            <ChevronLeft size={18} strokeWidth={2} />
-          </button>
-        }
-        title={strings.editTransfer.title}
-      />
+    <FormFrame
+      title={strings.editTransfer.title}
+      onClose={goBack}
+      phoneHeader="bar"
+      impact={ready ? impact : null}
+      primary={ready ? { label: 'Save transfer', disabled: !canSave, busy: submitting } : null}
+      onSubmit={handleSave}
+      error={submitError}
+      after={
+        ready ? (
+      <div className={styles.dangerCard}>
+        <p className={styles.dangerTitle}>{strings.editTransfer.dangerZoneTitle}</p>
 
-      <ScreenState loading={loading} error={error} />
-
-      {notFound && <p className={styles.errorText}>{strings.editTransfer.notFound}</p>}
-
-      {!loading && !error && !notFound && (
-        <div className={styles.form}>
-          <div className={styles.formField}>
-            <label className={styles.formLabel} htmlFor="edit-transfer-description">
-              {strings.editTransfer.descriptionLabel}
-            </label>
-            <input
-              id="edit-transfer-description"
-              className={styles.formInput}
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-            />
-          </div>
-
-          <div className={styles.formField}>
-            <label className={styles.formLabel} htmlFor="edit-transfer-kind">
-              {strings.editTransfer.kindLabel}
-            </label>
-            <select
-              id="edit-transfer-kind"
-              className={styles.formInput}
-              value={kind}
-              onChange={(event) => setKind(event.target.value)}
-            >
-              {kinds.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {(bucketItemOptions.length > 0 || bucketItemKey) && (
-            <div className={styles.formField}>
-              <label className={styles.formLabel} htmlFor="edit-transfer-bucket-item">
-                {strings.editTransaction.bucketItemLabel}
-              </label>
-              <select
-                id="edit-transfer-bucket-item"
-                className={styles.formInput}
-                value={bucketItemKey}
-                onChange={(event) => setBucketItemKey(event.target.value)}
-              >
-                <option value="">{strings.editTransaction.bucketItemNone}</option>
-                {bucketItemOptions.map((option) => (
-                  <option key={option.key} value={option.key}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          <div className={styles.formField}>
-            <label className={styles.formLabel} htmlFor="edit-transfer-amount">
-              {strings.editTransfer.amountLabel}
-            </label>
-            <input
-              id="edit-transfer-amount"
-              className={styles.formInput}
-              inputMode="numeric"
-              value={amountString}
-              onChange={(event) => setAmountString(event.target.value.replace(/[^0-9.]/g, ''))}
-            />
-          </div>
-
-          <div className={styles.formField}>
-            <label className={styles.formLabel} htmlFor="edit-transfer-charges">
-              {strings.editTransfer.chargesLabel}
-            </label>
-            <p className={styles.hintText}>{strings.editTransfer.chargesHint}</p>
-            <input
-              id="edit-transfer-charges"
-              className={styles.formInput}
-              inputMode="numeric"
-              value={chargesString}
-              onChange={(event) => setChargesString(event.target.value.replace(/[^0-9.]/g, ''))}
-            />
-          </div>
-
-          <div className={styles.formField}>
-            <label className={styles.formLabel} htmlFor="edit-transfer-from">
-              {strings.editTransfer.fromAccountLabel}
-            </label>
-            <select
-              id="edit-transfer-from"
-              className={styles.formInput}
-              value={fromAccountId}
-              onChange={(event) => setFromAccountId(event.target.value)}
-            >
-              {accounts.map((account) => (
-                <option key={account.id} value={account.id}>
-                  {account.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className={styles.formField}>
-            <label className={styles.formLabel} htmlFor="edit-transfer-to">
-              {strings.editTransfer.toAccountLabel}
-            </label>
-            <select
-              id="edit-transfer-to"
-              className={styles.formInput}
-              value={toAccountId}
-              onChange={(event) => setToAccountId(event.target.value)}
-            >
-              {accounts.map((account) => (
-                <option key={account.id} value={account.id}>
-                  {account.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {sameAccount && <p className={styles.errorText}>{strings.editTransfer.sameAccountError}</p>}
-
-          <div className={styles.formField}>
-            <label className={styles.formLabel} htmlFor="edit-transfer-date">
-              {strings.editTransfer.dateLabel}
-            </label>
-            <input
-              id="edit-transfer-date"
-              type="date"
-              className={styles.formInput}
-              value={dateValue}
-              onChange={(event) => setDateValue(event.target.value)}
-            />
-          </div>
-
-          {submitError && <p className={styles.errorText}>{submitError}</p>}
-
-          <button type="button" className={styles.saveButton} disabled={!canSave} onClick={handleSave}>
-            {submitting ? strings.editTransfer.saving : strings.common.save}
-          </button>
-        </div>
-      )}
-
-      {!loading && !error && !notFound && (
-        <div className={styles.dangerCard}>
-          <p className={styles.dangerTitle}>{strings.editTransfer.dangerZoneTitle}</p>
-
-          {deleteConfirmOpen ? (
-            <>
-              <p className={styles.deleteConfirmPrompt}>{strings.editTransfer.deleteConfirmPrompt}</p>
-              {deleteError && <p className={styles.errorText}>{deleteError}</p>}
-              <div className={styles.deleteActions}>
-                <button type="button" className={styles.cancelButton} onClick={cancelDelete} disabled={deleting}>
-                  {strings.editTransfer.deleteCancel}
-                </button>
-                <button type="button" className={styles.deleteButton} onClick={confirmDelete} disabled={deleting}>
-                  {deleting ? strings.editTransfer.deleting : strings.editTransfer.deleteConfirm}
-                </button>
-              </div>
-            </>
-          ) : (
-            <>
-              <p className={styles.sectionCaption}>{strings.editTransfer.deleteHint}</p>
-              <button type="button" className={styles.deleteButton} onClick={openDeleteConfirm}>
-                {strings.editTransfer.deleteButton}
+        {deleteConfirmOpen ? (
+          <>
+            <p className={styles.deleteConfirmPrompt}>{strings.editTransfer.deleteConfirmPrompt}</p>
+            {deleteError && <p className={styles.errorText}>{deleteError}</p>}
+            <div className={styles.deleteActions}>
+              <button type="button" className={styles.cancelButton} onClick={cancelDelete} disabled={deleting}>
+                {strings.editTransfer.deleteCancel}
               </button>
-            </>
-          )}
-        </div>
+              <button type="button" className={styles.deleteButton} onClick={confirmDelete} disabled={deleting}>
+                {deleting ? strings.editTransfer.deleting : strings.editTransfer.deleteConfirm}
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <p className={styles.sectionCaption}>{strings.editTransfer.deleteHint}</p>
+            <button type="button" className={styles.deleteButton} onClick={openDeleteConfirm}>
+              {strings.editTransfer.deleteButton}
+            </button>
+          </>
+        )}
+      </div>
+        ) : null
+      }
+    >
+      <ScreenState loading={loading} error={error} />
+      {notFound && <p className={styles.errorText}>{strings.editTransfer.notFound}</p>}
+      {ready && (
+        <>
+          <FieldCard label={strings.editTransfer.descriptionLabel}>
+            <input className={ff.input} value={description} onChange={(event) => setDescription(event.target.value)} />
+          </FieldCard>
+          <FieldRow>
+            <FieldCard label={strings.editTransfer.amountLabel}>
+              <input className={ff.input} inputMode="decimal" value={amountString} onChange={(event) => setAmountString(event.target.value.replace(/[^0-9.]/g, ''))} />
+            </FieldCard>
+            <FieldCard label={strings.editTransfer.dateLabel}>
+              <input type="date" className={ff.input} value={dateValue} onChange={(event) => setDateValue(event.target.value)} />
+            </FieldCard>
+          </FieldRow>
+          <FieldRow>
+            <SelectField label={strings.editTransfer.fromAccountLabel} value={fromAccountId} onChange={setFromAccountId} options={accountOptions} />
+            <SelectField
+              label={strings.editTransfer.toAccountLabel}
+              value={toAccountId}
+              onChange={setToAccountId}
+              options={accountOptions}
+              error={sameAccount ? strings.editTransfer.sameAccountError : null}
+            />
+          </FieldRow>
+          <SelectField label={strings.editTransfer.kindLabel} value={kind} onChange={setKind} options={kinds.map((k) => ({ value: k, label: k }))} />
+          <MoreOptions defaultOpen={charges > 0 || Boolean(bucketItemKey)}>
+            <FieldCard label={strings.editTransfer.chargesLabel}>
+              <input className={ff.input} inputMode="decimal" value={chargesString} onChange={(event) => setChargesString(event.target.value.replace(/[^0-9.]/g, ''))} placeholder="0" />
+              <span className={ff.hint}>{strings.editTransfer.chargesHint}</span>
+            </FieldCard>
+            {(bucketItemOptions.length > 0 || bucketItemKey) && (
+              <SelectField
+                label={strings.editTransaction.bucketItemLabel}
+                value={bucketItemKey}
+                onChange={setBucketItemKey}
+                options={bucketItemOptions.map((o) => ({ value: o.key, label: o.label }))}
+                placeholder={strings.editTransaction.bucketItemNone}
+              />
+            )}
+          </MoreOptions>
+        </>
       )}
-    </div>
+    </FormFrame>
   );
 }

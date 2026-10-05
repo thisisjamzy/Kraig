@@ -171,7 +171,7 @@ export function useLogic() {
     excludedCount: data.excludedTransactions.length,
     moneyIn,
     moneyOut,
-    filteredBy: bucketFilter ? (data.buckets.find((b) => b.id === bucketFilter)?.name ?? 'a bucket') : categoryFilter ? (categories.find((c) => c.id === categoryFilter)?.name ?? 'a category') : null,
+    filteredBy: bucketFilter ? (data.buckets.find((b) => b.id === bucketFilter)?.name ?? 'a basket') : categoryFilter ? (categories.find((c) => c.id === categoryFilter)?.name ?? 'a category') : null,
     currency: data.ctx.display,
     loading: data.loading,
   };

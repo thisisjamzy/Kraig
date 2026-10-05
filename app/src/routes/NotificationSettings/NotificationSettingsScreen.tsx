@@ -1,17 +1,13 @@
 'use client';
 
-// Two UI lines for this screen (docs/UI-LINES.md): the phone version under
-// 768px, the web version from 768px up, loaded only on wide screens.
+// Settings > Notifications at its own address (bell and notification
+// links point here): on a phone the section's full-screen page, from 768px
+// up the Settings dialog at Notifications.
 
-import dynamic from 'next/dynamic';
 import { DeviceSplit } from '@/src/shared/device/DeviceSplit';
-import { NotificationSettingsScreen as PhoneNotificationSettingsScreen } from '@/src/phone/screens/NotificationSettings/NotificationSettingsScreen';
-
-const WebNotificationSettingsScreen = dynamic(
-  () => import('@/src/screens/NotificationSettings/NotificationSettingsScreen').then((m) => m.NotificationSettingsScreen),
-  { ssr: false }
-);
+import { OpenSettingsDialog } from '@/src/routes/Settings/SettingsRoutes';
+import { SettingsSectionScreen } from '@/src/phone/screens/SettingsSection/SettingsSectionScreen';
 
 export function NotificationSettingsScreen() {
-  return <DeviceSplit phone={<PhoneNotificationSettingsScreen />} web={<WebNotificationSettingsScreen />} />;
+  return <DeviceSplit phone={<SettingsSectionScreen section="notifications" />} web={<OpenSettingsDialog section="notifications" />} />;
 }

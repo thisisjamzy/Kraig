@@ -8,6 +8,7 @@ import { ArrowDownLeft, ArrowLeftRight, ArrowRight, ArrowUpRight, PiggyBank, Rep
 import { fillOf, money, dayMonth } from '@/src/viewmodels/planning';
 import type { HistoryRow } from '@/src/logic/planning/rows';
 import styles from './Planning.module.css';
+import { useFormLink } from '@/src/shared/navigation/useFormLink';
 
 /** "24,000 / 54,000" — spent bold, planned light. */
 export function Pair({ spent, planned, currency }: { spent: number; planned: number; currency?: string }) {
@@ -68,7 +69,7 @@ export function HistoryRowView({ row, currency, showDate = false }: { row: Histo
         {row.method && <span className={styles.rowMethod}>{row.method}</span>}
         {row.assignable && (
           <span className={styles.rowAssign}>
-            Assign to bucket
+            Assign to basket
             <ArrowRight size={12} strokeWidth={2.5} aria-hidden />
           </span>
         )}
@@ -103,3 +104,12 @@ export function SpecCell({ label, value, tone }: { label: string; value: ReactNo
 }
 
 export { styles as planningStyles };
+
+/** coverHref and reallocateHref as side peeks over the current page (formPeek.ts). */
+export function useFlowLinks() {
+  const formLink = useFormLink();
+  return {
+    coverHref: (month: string, bucketId: string, itemId?: string | null) => formLink('cover', { month, bucket: bucketId, item: itemId ?? null }),
+    reallocateHref: (month: string, bucketId: string, itemId?: string | null) => formLink('reallocate', { month, bucket: bucketId, item: itemId ?? null }),
+  };
+}

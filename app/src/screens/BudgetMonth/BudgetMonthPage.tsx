@@ -28,17 +28,15 @@ import { TypeTabs } from '@/src/widgets/Database/TypeTabs';
 import { Modal } from '@/src/widgets/Modal/Modal';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { showToast } from '@/src/widgets/Toast/Toast';
-import { NotificationsLink } from '@/src/widgets/Notifications/NotificationsLink';
-import type { NotificationType } from '@/src/shared/notifications/types';
+import { BUDGET_TYPES, NotificationsLink } from '@/src/widgets/Notifications/NotificationsLink';
 import { SummaryCards } from './SummaryCards';
 import { LinePeekContent } from './LinePeek';
 import { useScopeChooser } from './ScopeChooser';
 import { groupsFor, lineColumns, viewsFor, type ColumnContext } from './columns';
 import styles from './BudgetMonth.module.css';
+import { useFormLink } from '@/src/shared/navigation/useFormLink';
 
 /** The updates the Budget page links to. */
-const BUDGET_TYPES: NotificationType[] = ['payment_overdue', 'payment_due_soon', 'overspend_uncovered', 'leftover_to_reallocate', 'must_haves_short', 'income_late', 'ready_to_pay', 'month_review', 'unassigned_transactions', 'savings_behind'];
-
 export const FLOW_ICON: Record<FlowType, typeof Wallet> = {
   Income: Coins,
   Expense: Receipt,
@@ -49,6 +47,7 @@ export const FLOW_ICON: Record<FlowType, typeof Wallet> = {
 const NEW_LABEL: Record<FlowType, string> = { Income: 'New income line', Expense: 'New expense', Savings: 'New savings line', Transfer: 'New transfer' };
 
 export function BudgetMonthPage({ month, data, onMonth }: { month: string; data: PlanningData; onMonth: (month: string) => void }) {
+  const formLink = useFormLink();
   const v = useBudgetMonth(month, data);
   const router = useRouter();
   const scope = useScopeChooser();
@@ -92,7 +91,7 @@ export function BudgetMonthPage({ month, data, onMonth }: { month: string; data:
       title="Budget"
       icon={<Wallet strokeWidth={1.75} />}
       crumbs={[{ label: 'Money', href: '/home' }, { label: 'Budget', href: '/budget' }, { label: v.title }]}
-      menu={[{ label: 'Add transaction', href: `/add-transaction?month=${Number(month.slice(5)) - 1}&year=${month.slice(0, 4)}` }]}
+      menu={[{ label: 'Add transaction', href: formLink('transaction', { month: String(Number(month.slice(5)) - 1), year: month.slice(0, 4) }) }]}
       properties={[
         { id: 'month', label: 'Month', display: <MonthPicker value={month} onChange={onMonth} markers={(m) => (m === month && !monthDoc?.reviewedAt ? ['unreviewed'] : [])} /> },
         {
@@ -158,8 +157,8 @@ export function BudgetMonthPage({ month, data, onMonth }: { month: string; data:
               onCreate={(values, groupKey) => v.createLine(v.tab, { name: values.name, amount: values.planned ?? values.expected ?? values.amount, due: values.due ?? values.date }, groupKey)}
               newLabel={NEW_LABEL[v.tab]}
               newTemplates={[
-                ...v.bucketsOf(v.tab).map((b) => ({ id: b.id, label: `Recurring item in ${b.name}`, onSelect: () => router.push(`/add-bucket-item/${b.id}`) })),
-                { id: 'bucket', label: `New ${FLOW_LABEL[v.tab].toLowerCase()} bucket`, onSelect: () => router.push(`/buckets/new?type=${v.tab}`) },
+                ...v.bucketsOf(v.tab).map((b) => ({ id: b.id, label: `Recurring item in ${b.name}`, onSelect: () => router.push(formLink('basket-item', { basket: b.id })) })),
+                { id: 'bucket', label: `New ${FLOW_LABEL[v.tab].toLowerCase()} basket`, onSelect: () => router.push(formLink('basket', { type: v.tab })) },
               ]}
               rowActions={
                 v.tab === 'Income'
@@ -177,7 +176,7 @@ export function BudgetMonthPage({ month, data, onMonth }: { month: string; data:
               bulkActions={[
                 ...(v.tab !== 'Income' ? [{ id: 'paid', label: 'Mark paid', run: (rows: LineRow[]) => v.bulkMarkPaid(rows) }] : []),
                 { id: 'account', label: 'Change account', run: (rows: LineRow[]) => setBulk({ kind: 'account', rows }) },
-                { id: 'move', label: 'Move to bucket', run: (rows: LineRow[]) => setBulk({ kind: 'move', rows }) },
+                { id: 'move', label: 'Move to basket', run: (rows: LineRow[]) => setBulk({ kind: 'move', rows }) },
                 { id: 'skip', label: `Delete from ${v.title.split(' ')[0]}`, danger: true, run: (rows: LineRow[]) => v.bulkSkip(rows) },
               ]}
               emptyText={`No ${FLOW_LABEL[v.tab].toLowerCase()} lines in ${v.title}.`}
@@ -202,7 +201,7 @@ export function BudgetMonthPage({ month, data, onMonth }: { month: string; data:
       )}
 
       {bulk && (
-        <Modal title={bulk.kind === 'account' ? 'Change account' : 'Move to bucket'} onClose={() => setBulk(null)}>
+        <Modal title={bulk.kind === 'account' ? 'Change account' : 'Move to basket'} onClose={() => setBulk(null)}>
           <div className={styles.pickList}>
             {(bulk.kind === 'account' ? v.accounts.map((a) => ({ id: a.id, name: a.name })) : v.bucketsOf(v.tab).map((b) => ({ id: b.id, name: b.name }))).map((option) => (
               <button
@@ -244,7 +243,7 @@ function MustHavesCard({ v }: { v: ReturnType<typeof useBudgetMonth> }) {
         <strong>Must-haves</strong>: {money(m.due)} {v.currency} still to pay on {m.count} {m.count === 1 ? 'line' : 'lines'}. Available now {money(m.availableNow)} {v.currency}
         {m.status !== 'covered' && <>, estimated by month end {money(m.spareByMonthEnd + m.due)} {v.currency}</>}.
       </p>
-      <Link href="/buckets/items" className={styles.inlineAction}>
+      <Link href="/baskets/items" className={styles.inlineAction}>
         Open priorities
       </Link>
     </div>

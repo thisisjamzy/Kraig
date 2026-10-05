@@ -29,7 +29,7 @@ import {
   type DragOverEvent,
   type DragStartEvent,
 } from '@dnd-kit/core';
-import { SlidersHorizontal, Sparkles, TrendingUp } from 'lucide-react';
+import { SlidersHorizontal, Sparkles } from 'lucide-react';
 import { useLogic } from '@/src/logic/plansForecast/useLogic';
 import { useLayout } from '@/src/shared/hooks/useLayout';
 import { useNotifications } from '@/src/shared/hooks/useNotifications';
@@ -45,6 +45,7 @@ import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { formatMoney } from '@/src/widgets/Money/Money';
 import { showToast } from '@/src/widgets/Toast/Toast';
 import { ForecastChart } from './ForecastChart';
+import { FocusView } from './FocusView';
 import { PlanCard, type CardActions } from './PlanCard';
 import { BacklogPanel, FrictionDialog, MonthColumn, ScopeDialog, SplitDialog, StateIcon, WantToBuyDialog } from './BoardParts';
 import styles from './PlanBoard.module.css';
@@ -81,6 +82,8 @@ export function PlansForecastScreen() {
   const [pending, setPending] = useState<Pending>(null);
   const [announce, setAnnounce] = useState('');
   const [unplaced, setUnplaced] = useState<{ key: string; reason: string; shortfall: number }[]>([]);
+  // Focus (the default): one or two months in depth; Compare months: the whole horizon.
+  const [view, setView] = useState<'focus' | 'compare'>('focus');
   const columnRefs = useRef(new Map<string, HTMLElement>());
 
   // ---- Filters ----
@@ -269,9 +272,9 @@ export function PlansForecastScreen() {
     </div>
   );
 
-  const board = (
-    <div className={styles.board} aria-label="Months">
-      {(compact ? columns.filter((c) => c.month === (phoneMonth && phoneMonth !== 'backlog' ? phoneMonth : v.current)) : columns).map((c) => (
+  const boardOf = (only: string[] | null) => (
+    <div className={styles.board} aria-label="Months" data-wide-columns={only ? '' : undefined}>
+      {(compact ? columns.filter((c) => c.month === (phoneMonth && phoneMonth !== 'backlog' ? phoneMonth : v.current)) : only ? columns.filter((c) => only.includes(c.month)) : columns).map((c) => (
         <MonthColumn
           key={c.month}
           col={c}
@@ -285,6 +288,7 @@ export function PlansForecastScreen() {
       ))}
     </div>
   );
+  const board = boardOf(null);
   const backlogPanel = (
     <BacklogPanel lines={backlog} renderCard={(l) => renderCard(l, true)} onWantToBuy={() => setPending({ kind: 'want' })} collapsed={backlogCollapsed && !compact && !portrait} onCollapse={setBacklogCollapsed} />
   );
@@ -292,7 +296,6 @@ export function PlansForecastScreen() {
   return (
     <NotionPage
       title="Plan and forecast"
-      icon={<TrendingUp strokeWidth={1.75} />}
       crumbs={[{ label: 'Money', href: '/home' }, { label: 'Plan and forecast' }]}
       menu={[
         { label: 'Auto-allocate', onSelect: () => void autoAllocate() },
@@ -348,6 +351,15 @@ export function PlansForecastScreen() {
             </p>
           </Callout>
 
+          <div className={styles.viewSwitch} role="tablist" aria-label="View">
+            <button type="button" role="tab" aria-selected={view === 'focus'} onClick={() => setView('focus')}>
+              Focus
+            </button>
+            <button type="button" role="tab" aria-selected={view === 'compare'} onClick={() => setView('compare')}>
+              Compare months
+            </button>
+          </div>
+
           {toolbar}
           {suggestionBar}
           {unplaced.length > 0 && (
@@ -374,6 +386,23 @@ export function PlansForecastScreen() {
               },
             }}
           >
+            {view === 'focus' && !compact ? (
+              <FocusView
+                result={result}
+                months={v.months}
+                current={v.current}
+                startBalance={v.startBalance}
+                receivedThisMonth={v.receivedThisMonth}
+                cushion={v.cushion}
+                board={(chosen) => (
+                  <div className={styles.panels} data-collapsed={backlogCollapsed || undefined}>
+                    {boardOf(chosen)}
+                    {backlogPanel}
+                  </div>
+                )}
+              />
+            ) : (
+            <>
             <div className={styles.chartSticky}>
               <ForecastChart result={result} before={preview ? v.forecast : null} cushion={v.cushion} compact={compact} onMonth={scrollTo} />
             </div>
@@ -410,6 +439,8 @@ export function PlansForecastScreen() {
                 {board}
                 {backlogPanel}
               </div>
+            )}
+            </>
             )}
 
             <DragOverlay dropAnimation={null}>

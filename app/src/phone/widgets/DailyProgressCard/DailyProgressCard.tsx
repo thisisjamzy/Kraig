@@ -74,7 +74,7 @@ export function DailyProgressCard({ done, total }: { done: number; total: number
         <p className={styles.label}>
           Today&apos;s tasks
           <br />
-          {total > 0 ? 'Goal' : 'No tasks yet'}
+          {total > 0 ? 'Target' : 'No tasks yet'}
         </p>
         {total > 0 && (
           <p className={styles.count}>

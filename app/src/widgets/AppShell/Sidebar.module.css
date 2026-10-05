@@ -90,7 +90,7 @@
   width: 28px;
   height: 28px;
   border: 0;
-  border-radius: 4px;
+  border-radius: 6px;
   background: none;
   color: var(--sb-faint);
   opacity: 0;
@@ -127,7 +127,7 @@
   min-height: 30px;
   padding: 0 8px;
   border: 0;
-  border-radius: 4px;
+  border-radius: 10px;
   background: none;
   color: var(--sb-muted);
   font: inherit;
@@ -224,7 +224,7 @@
   width: 22px;
   height: 22px;
   border: 0;
-  border-radius: 4px;
+  border-radius: 6px;
   background: var(--sb-bg);
   color: var(--sb-muted);
   opacity: 0;
@@ -325,7 +325,7 @@
   margin-left: 22px;
   padding: 0 8px;
   border: 1px solid var(--color-brand);
-  border-radius: 4px;
+  border-radius: 6px;
   background: var(--color-background);
   color: var(--sb-text);
   font: inherit;
@@ -350,7 +350,7 @@
   gap: 8px;
   min-height: 34px;
   padding: 0 8px;
-  border-radius: 4px;
+  border-radius: 6px;
   color: var(--sb-text);
   text-decoration: none;
 }
@@ -408,7 +408,7 @@
   min-height: 32px;
   padding: 0 8px;
   border: 0;
-  border-radius: 4px;
+  border-radius: 10px;
   background: none;
   color: inherit;
   font: inherit;
@@ -460,7 +460,7 @@
   max-height: min(70vh, 640px);
   background: var(--color-background);
   border: 1px solid var(--sb-line);
-  border-radius: 8px;
+  border-radius: 6px;
   box-shadow: 0 16px 48px rgba(15, 15, 15, 0.2);
   overflow: hidden;
   color: var(--sb-text);
@@ -508,7 +508,7 @@
   min-height: 36px;
   padding: 0 10px;
   border: 0;
-  border-radius: 4px;
+  border-radius: 10px;
   background: none;
   color: inherit;
   font: inherit;

@@ -163,7 +163,7 @@ export function adjustmentRows(entries: AdjustmentEntry[], month: string, bucket
         assignable: false,
         categoryId: null,
         accountIds: [],
-        href: bucketId ? `/budget/bucket/${bucketId}?month=${month}` : `/budget?month=${month}`,
+        href: bucketId ? `/budget/basket/${bucketId}?month=${month}` : `/budget?month=${month}`,
       };
     });
 }
