@@ -471,6 +471,17 @@ export interface FirestoreBucket {
   // Kept by the app, not the user: 'debt_repayments' holds scheduled debt
   // repayments' budget lines (src/shared/firestore/debtSchedule.ts).
   managed?: 'debt_repayments' | null;
+  // The New basket form's defaults for the items added to it (all
+  // optional; older baskets read as none): the category, the first month,
+  // whether items repeat, where they're paid from ('account:<id>',
+  // 'any_income', 'income:<itemId>', 'savings') and their automation.
+  categoryId?: string | null;
+  startMonth?: string | null; // yyyy-MM
+  repeats?: 'monthly' | 'once' | null;
+  defaultPaidFrom?: string | null;
+  automationDefault?: 'off' | 'remind' | 'prepare' | null;
+  // Savings baskets: the amount to reach (by `deadline`).
+  targetAmount?: number | null;
   // "YYYY-MM" → closed for that month: the household is done with this
   // bucket then. Its items count as closed (leftover can be moved on, no
   // more payments expected), with an optional note on how it went.

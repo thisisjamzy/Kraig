@@ -3,6 +3,7 @@
 // with Buckets and Projects expandable into their own sub-pages. Budget,
 // Payments and Transactions are pages of their own (no "Planning" parent).
 
+import type { FormKind } from '@/src/shared/navigation/formPeek';
 import {
   ArrowLeftRight,
   BookOpen,
@@ -10,7 +11,6 @@ import {
   CalendarDays,
   ChartNoAxesCombined,
   FolderKanban,
-  Goal,
   HandCoins,
   LayoutGrid,
   ListOrdered,
@@ -32,8 +32,8 @@ export interface TreePage {
   icon: LucideIcon;
   /** Expandable into live sub-pages. */
   children?: 'buckets' | 'projects';
-  /** "+" on hover creates a child here. */
-  create?: { label: string; href: string };
+  /** "+" on hover creates a child here (in a side peek when it names a form). */
+  create?: { label: string; href: string; peek?: FormKind };
   /** Other paths that light this page up. */
   also?: string[];
 }
@@ -47,7 +47,7 @@ export const PAGE_TREE: Record<AppMode, TreePage[]> = {
       label: 'Baskets',
       icon: LayoutGrid,
       children: 'buckets',
-      create: { label: 'New basket', href: '/baskets/new' },
+      create: { label: 'New basket', href: '/baskets/new', peek: 'basket' },
       also: ['/budget/basket', '/add-basket-item', '/edit-basket-item'],
     },
     { id: 'priorities', href: '/baskets/items', label: 'Priorities', icon: ListOrdered },
@@ -55,7 +55,6 @@ export const PAGE_TREE: Record<AppMode, TreePage[]> = {
     { id: 'transactions', href: '/transactions', label: 'Transactions', icon: ArrowLeftRight, also: ['/edit-transaction', '/edit-transfer'] },
     { id: 'insights', href: '/statistics', label: 'Insights', icon: PieChart },
     { id: 'plan', href: '/baskets/forecast', label: 'Plan and forecast', icon: TrendingUp },
-    { id: 'goals', href: '/baskets?type=Savings', label: 'Goals', icon: Goal },
     { id: 'debt', href: '/debts', label: 'Debt', icon: HandCoins },
   ],
   time: [
@@ -97,16 +96,11 @@ export function modeOfPath(pathname: string | null): AppMode | null {
 const pathOf = (href: string) => href.split('?')[0];
 
 /** The tree page a path belongs to (the longest matching href wins). */
-export function pageForPath(pathname: string | null, search = ''): TreePage | null {
+export function pageForPath(pathname: string | null): TreePage | null {
   if (!pathname) return null;
   let best: TreePage | null = null;
   let score = -1;
   for (const page of [...PAGE_TREE.money, ...PAGE_TREE.time]) {
-    // Goals is Buckets filtered to savings.
-    if (page.id === 'goals') {
-      if (pathname === '/baskets' && new URLSearchParams(search).get('type') === 'Savings') return page;
-      continue;
-    }
     for (const href of [page.href, ...(page.also ?? [])]) {
       const path = pathOf(href);
       if ((pathname === path || pathname.startsWith(`${path}/`)) && path.length > score) {
@@ -119,9 +113,9 @@ export function pageForPath(pathname: string | null, search = ''): TreePage | nu
 }
 
 /** A breadcrumb for a page that doesn't set its own: "Money / Insights". */
-export function defaultCrumbs(pathname: string | null, search = ''): { label: string; href?: string }[] {
+export function defaultCrumbs(pathname: string | null): { label: string; href?: string }[] {
   const mode = modeOfPath(pathname);
-  const page = pageForPath(pathname, search);
+  const page = pageForPath(pathname);
   if (pathname === '/home') return [{ label: 'Money', href: '/home' }, { label: 'Home' }];
   if (pathname?.startsWith('/settings')) return [{ label: 'Settings' }];
   if (pathname?.startsWith('/notifications')) return [{ label: 'Notifications' }];
@@ -132,7 +126,7 @@ export function defaultCrumbs(pathname: string | null, search = ''): { label: st
 }
 
 /** The page's title when it doesn't draw its own. */
-export function fallbackTitle(pathname: string | null, search = ''): string {
+export function fallbackTitle(pathname: string | null): string {
   if (pathname === '/home') return 'Home';
-  return pageForPath(pathname, search)?.label ?? (pathname?.startsWith('/settings') ? 'Settings' : 'Dreda');
+  return pageForPath(pathname)?.label ?? (pathname?.startsWith('/settings') ? 'Settings' : 'Dreda');
 }

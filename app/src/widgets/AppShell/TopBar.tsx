@@ -55,7 +55,7 @@ export function TopBar({
   const [options, setOptions] = useState<HTMLElement | null>(null);
   const [info, setInfo] = useState(false);
 
-  const crumbs = meta.crumbs ?? defaultCrumbs(pathname, search);
+  const crumbs = meta.crumbs ?? defaultCrumbs(pathname);
   const here = `${pathname ?? ''}${search}`;
   const title = crumbs[crumbs.length - 1]?.label ?? 'Page';
   const starred = favorites.isFavorite(here);
@@ -119,7 +119,7 @@ export function TopBar({
           aria-pressed={starred}
           aria-label={starred ? 'Remove from Favorites' : 'Add to Favorites'}
           title={starred ? 'Remove from Favorites' : 'Add to Favorites'}
-          onClick={() => void favorites.toggle({ href: here, label: title, kind: pageForPath(pathname, search)?.id ?? 'page' })}
+          onClick={() => void favorites.toggle({ href: here, label: title, kind: pageForPath(pathname)?.id ?? 'page' })}
         >
           <Star size={17} strokeWidth={1.9} fill={starred ? 'currentColor' : 'none'} />
         </button>

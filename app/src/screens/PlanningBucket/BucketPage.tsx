@@ -64,7 +64,7 @@ export function BucketPage({ bucketId, b }: { bucketId: string; b: BucketLogic }
       ? [
           { label: ADD_LABEL[type], href: b.addExpenseHref },
           { label: 'Add item', href: formLink('basket-item', { basket: bucketId }) },
-          { label: 'Edit basket', href: `/baskets/${bucketId}` },
+          { label: 'Edit basket', href: formLink('edit-basket', { id: bucketId }) },
           b.closed ? { label: 'Reopen basket', onSelect: () => void b.reopenBucket() } : { label: `Close basket for ${monthTitle(b.month)}`, onSelect: () => setClosing(true) },
           // What the bucket needs: its status chip says so, the action is here.
           ...(b.card?.prompt?.kind === 'over' || b.card?.prompt?.kind === 'uncovered' ? [{ label: 'Cover or justify', href: coverHref(b.month, bucketId) }] : []),

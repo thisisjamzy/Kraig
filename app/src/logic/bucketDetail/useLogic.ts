@@ -48,6 +48,7 @@ import { scheduleItem } from '@/src/shared/firestore/bucketBudget';
 import { useBucketProgress } from '@/src/shared/hooks/useBucketProgress';
 import { isItemClosed } from '@/src/shared/budget/bucketProgress';
 import { useGoBack } from '@/src/shared/navigation/useGoBack';
+import { monthKeyOf } from '@/src/shared/budget/monthBudget';
 import { usePreferences } from '@/src/shared/firestore/preferences';
 
 // Recurring bills/subscriptions/savings transfers don't make sense as
@@ -332,18 +333,19 @@ export function useLogic(goalId: string) {
     setItemAmount('');
     setItemPriority(DEFAULT_PRIORITY);
     setItemNecessity(DEFAULT_NECESSITY);
-    setItemCategoryIdState(categoryOptions[0]?.id ?? '');
+    // The basket's own defaults first (the New basket form), then the app's.
+    setItemCategoryIdState(bucket?.categoryId && categoryOptions.some((c) => c.id === bucket.categoryId) ? bucket.categoryId : (categoryOptions[0]?.id ?? ''));
     setItemAccountId('');
     setItemToAccountId('');
     setItemCharges('');
-    setItemDueDate('');
+    setItemDueDate(bucket?.startMonth && bucket.startMonth > monthKeyOf(new Date()) ? `${bucket.startMonth}-01` : '');
     setItemRecurrenceFrequency('Monthly');
     setItemSubItems([]);
-    setItemRepeat(bucket?.kind === 'Fixed' ? 'Monthly' : 'none');
+    setItemRepeat(bucket?.repeats ? (bucket.repeats === 'monthly' ? 'Monthly' : 'none') : bucket?.kind === 'Fixed' ? 'Monthly' : 'none');
     setItemCustomFrequency('Quarterly');
     setItemInterval(1);
-    setItemPaidFrom('');
-    setItemAutomationMode(prefs.automationDefault);
+    setItemPaidFrom(bucket?.defaultPaidFrom && bucket.defaultPaidFrom !== 'savings' ? bucket.defaultPaidFrom : '');
+    setItemAutomationMode(bucket?.automationDefault ?? prefs.automationDefault);
     setItemNotBefore('');
     setItemNeededBy('');
     setItemSplittable(false);

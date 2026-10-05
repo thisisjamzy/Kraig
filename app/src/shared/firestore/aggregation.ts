@@ -1034,7 +1034,24 @@ export async function deleteTransferWithAggregation(uid: string, transferId: str
 // Buckets — `PRD Files/prd debt n goals` section 1.
 // ---------------------------------------------------------------------
 
-export interface CreateBucketInput {
+/** The New and Edit basket form's defaults for the basket's items (FirestoreBucket). */
+export interface BasketDefaults {
+  categoryId?: string | null;
+  startMonth?: string | null;
+  repeats?: 'monthly' | 'once' | null;
+  defaultPaidFrom?: string | null;
+  automationDefault?: 'off' | 'remind' | 'prepare' | null;
+  targetAmount?: number | null;
+}
+
+const basketDefaults = (input: BasketDefaults) =>
+  Object.fromEntries(
+    (['categoryId', 'startMonth', 'repeats', 'defaultPaidFrom', 'automationDefault', 'targetAmount'] as const)
+      .filter((k) => input[k] !== undefined)
+      .map((k) => [k, input[k] ?? null])
+  );
+
+export interface CreateBucketInput extends BasketDefaults {
   name: string;
   description: string;
   deadline: Date | null;
@@ -1057,6 +1074,7 @@ export async function createBucket(uid: string, input: CreateBucketInput): Promi
     archived: false,
     kind: input.kind,
     type: input.type,
+    ...basketDefaults(input),
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
@@ -1073,7 +1091,7 @@ export async function restoreBucket(uid: string, goalId: string): Promise<void> 
   await updateDoc(bucketRef(uid, goalId), { archived: false, updatedAt: serverTimestamp() });
 }
 
-export interface UpdateBucketInput {
+export interface UpdateBucketInput extends BasketDefaults {
   name: string;
   description: string;
   deadline: Date | null;
@@ -1098,6 +1116,7 @@ export async function updateBucket(uid: string, goalId: string, input: UpdateBuc
     currency: input.currency,
     kind: input.kind,
     type: input.type,
+    ...basketDefaults(input),
     updatedAt: serverTimestamp(),
   });
 }
