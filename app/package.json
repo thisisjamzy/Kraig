@@ -18,6 +18,7 @@
     "@heroui/styles": "^3.2.4",
     "@internationalized/date": "^3.12.4",
     "bcryptjs": "^3.0.3",
+    "exceljs": "^4.4.0",
     "firebase": "^12.18.0",
     "firebase-admin": "^14.3.0",
     "lucide-react": "^1.32.0",

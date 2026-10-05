@@ -248,6 +248,33 @@
   font-weight: 700;
 }
 
+.subTitle {
+  margin: 4px 0 0;
+  color: var(--tf-label);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.sheetList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.9375rem;
+}
+
+.sheetList .hint {
+  margin-left: 6px;
+}
+
+/* A row's parsed values in plain words, under its name. */
+.table td > .hint,
+.item > .hint {
+  display: block;
+}
+
 /* Wide screens: the review as a table (0 corners, page standard). */
 .table {
   width: 100%;
@@ -337,6 +364,10 @@
 
 .status[data-status='new'] {
   color: #1f7a4d;
+}
+
+.status[data-status='linked'] {
+  color: var(--tf-accent);
 }
 
 .status[data-status='duplicate'] {

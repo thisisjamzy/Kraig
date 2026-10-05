@@ -189,7 +189,7 @@ export interface PushOptions {
 }
 
 type TaskShape = Pick<FirestoreTask, 'startTime' | 'dueDate'> &
-  Partial<Pick<FirestoreTask, 'allDay' | 'timeMode' | 'type' | 'archived' | 'rrule'>>;
+  Partial<Pick<FirestoreTask, 'allDay' | 'timeMode' | 'type' | 'archived' | 'rrule' | 'pushToGoogle'>>;
 
 /** Could this task (or series) ever be pushed? Timed, not deleted, and
  * blocked (or free, with the setting on). Per-date state (cancelled,
@@ -197,7 +197,8 @@ type TaskShape = Pick<FirestoreTask, 'startTime' | 'dueDate'> &
 export function isPushableTask(task: TaskShape, includeFree: boolean): boolean {
   if (task.archived) return false;
   if (!task.startTime || !task.dueDate || task.allDay) return false;
-  return includeFree || effectiveTimeMode(task) === 'blocked';
+  if (task.pushToGoogle === false) return false;
+  return task.pushToGoogle === true || includeFree || effectiveTimeMode(task) === 'blocked';
 }
 
 /** One task or one date of a series, at `now`. */

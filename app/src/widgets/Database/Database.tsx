@@ -356,8 +356,9 @@ export function Database<T>(props: DatabaseProps<T>) {
                 className={styles.menuRow}
                 data-row
                 onClick={() => {
+                  const anchor = newMenu;
                   setNewMenu(null);
-                  t.onSelect();
+                  t.onSelect(anchor);
                 }}
               >
                 {t.label}

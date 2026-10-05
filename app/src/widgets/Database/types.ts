@@ -125,7 +125,8 @@ export interface RowAction<T> {
 export interface NewTemplate {
   id: string;
   label: string;
-  onSelect: () => void;
+  /** `anchor`: the New button, for a choice that opens its own popover there. */
+  onSelect: (anchor?: HTMLElement | null) => void;
 }
 
 /** How a row reads as a two-line list item (List view, and Table on phones). */

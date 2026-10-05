@@ -12,6 +12,7 @@
 //   next milestone. Medium and phones: one column.
 
 import { useMemo, useState } from 'react';
+import { TemplateChooser } from '@/src/widgets/TemplateChooser/TemplateChooser';
 import Link from 'next/link';
 import { serverTimestamp, updateDoc } from 'firebase/firestore';
 import { Activity } from 'lucide-react';
@@ -63,6 +64,8 @@ const MILESTONE_COLUMNS: ColumnDef<MilestoneStat>[] = [
 export function ProjectDetailScreen({ projectId }: { projectId: string }) {
   const router = useRouter();
   const formLink = useFormLink();
+  // "Download template" from the tasks' New menu: the chooser, anchored there.
+  const [templateAnchor, setTemplateAnchor] = useState<HTMLElement | null | undefined>(undefined);
   const taskPanel = useTaskPanel();
   const { deviceClass } = useLayout();
   const { db, rows, setDates, setStatus, loading } = useProjectsDb();
@@ -161,9 +164,13 @@ export function ProjectDetailScreen({ projectId }: { projectId: string }) {
           }}
           onOpen={(r) => taskPanel.open(r.id)}
           onNew={() => taskPanel.open('new', { projectId })}
-          newTemplates={[{ id: 'import', label: 'Import tasks', onSelect: () => router.push(formLink('import', { project: projectId })) }]}
+          newTemplates={[
+            { id: 'import', label: 'Import tasks', onSelect: () => router.push(formLink('import', { project: projectId })) },
+            { id: 'template', label: 'Download template', onSelect: (anchor) => setTemplateAnchor(anchor ?? null) },
+          ]}
           emptyText="No tasks yet."
         />
+        {templateAnchor !== undefined && <TemplateChooser anchor={templateAnchor} onClose={() => setTemplateAnchor(undefined)} />}
       </Block>
       <Block title="Project insights">
         <ProjectInsightsBlock tasks={tasks} row={row} />

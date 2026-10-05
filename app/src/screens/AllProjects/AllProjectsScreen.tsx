@@ -9,7 +9,7 @@
 //   active projects; Table shows every project (filter by Status).
 //   Cards: 4 across on large screens, 3 expanded, 2 medium, 1 on phones.
 
-import { Suspense, useMemo } from 'react';
+import { Suspense, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { FolderKanban } from 'lucide-react';
@@ -23,6 +23,7 @@ import { TAG_ACCENT } from '@/src/widgets/TaskDb/Tag';
 import { HEALTH_COLOR, healthAccent, projectCardSpec, projectColumns, projectGroups, projectListSpec } from '@/src/widgets/ProjectDb/projectDatabase';
 import { useFormLink } from '@/src/shared/navigation/useFormLink';
 import { NotificationsLink } from '@/src/widgets/Notifications/NotificationsLink';
+import { TemplateChooser } from '@/src/widgets/TemplateChooser/TemplateChooser';
 
 const ALL = ['name', 'health', 'progress', 'dates', 'start', 'end', 'tasks', 'overdue', 'area', 'status', 'description', 'lastActivity'];
 const showOnly = (ids: string[]) => ALL.filter((id) => !ids.includes(id));
@@ -49,6 +50,8 @@ export function AllProjectsScreen() {
 function ProjectsPage() {
   const formLink = useFormLink();
   const router = useRouter();
+  // "Download template" from the New menu: the chooser, anchored there.
+  const [templateAnchor, setTemplateAnchor] = useState<HTMLElement | null | undefined>(undefined);
   const openView = useSearchParams().get('view');
   const { rows, setDates, loading } = useProjectsDb();
   const columns = useMemo(() => projectColumns(), []);
@@ -109,10 +112,14 @@ function ProjectsPage() {
         )}
         onOpen={open}
         onNew={() => router.push(formLink('project'))}
-        newTemplates={[{ id: 'import', label: 'Import from spreadsheet', onSelect: () => router.push(formLink('import')) }]}
+        newTemplates={[
+          { id: 'import', label: 'Import from spreadsheet', onSelect: () => router.push(formLink('import')) },
+          { id: 'template', label: 'Download template', onSelect: (anchor) => setTemplateAnchor(anchor ?? null) },
+        ]}
         newLabel="New"
         emptyText="No projects yet."
       />
+      {templateAnchor !== undefined && <TemplateChooser anchor={templateAnchor} onClose={() => setTemplateAnchor(undefined)} />}
     </NotionPage>
   );
 }

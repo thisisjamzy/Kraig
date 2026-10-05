@@ -995,6 +995,8 @@ export interface FirestoreProject {
   // Checkpoints on the way to endDate (the deadline) — Insights forecasts
   // each from its linked tasks. Absent on projects written before them.
   milestones?: ProjectMilestone[];
+  // Free labels, set by a spreadsheet import's Tags column.
+  tags?: string[];
   description: string; // required
   // The project page's free-text notes block. Absent on older projects.
   notes?: string;
@@ -1149,6 +1151,12 @@ export interface FirestoreTask {
   // Google Calendar sync (src/shared/calendarSync) — only on tasks pushed to
   // Google as Busy blocks. Absent = never pushed.
   googleSync?: TaskGoogleSync;
+  // This task's own choice to push to Google (set by a spreadsheet import's
+  // "Push to Google Calendar"). Absent = the rule: blocked tasks are
+  // pushed, free ones only with "Also mark free tasks as busy" on.
+  pushToGoogle?: boolean | null;
+  // The spreadsheet import that created it (Undo finds it by this).
+  importId?: string;
 }
 
 /** A pushed task's Google Calendar state. `pending` is set in the same

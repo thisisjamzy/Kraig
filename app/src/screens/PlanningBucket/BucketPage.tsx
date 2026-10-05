@@ -227,7 +227,7 @@ export function BucketPage({ bucketId, b }: { bucketId: string; b: BucketLogic }
                     onNew: () => router.push(formLink('basket-item', { basket: bucketId })),
                     newTemplates: [
                       { id: 'item', label: 'New item', onSelect: () => router.push(formLink('basket-item', { basket: bucketId })) },
-                      { id: 'import', label: 'Import items', onSelect: () => router.push('/settings/import?mode=restore') },
+                      { id: 'import', label: 'Import items', onSelect: () => router.push(formLink('import', { kind: 'money' })) },
                     ],
                   })}
               rowActions={[

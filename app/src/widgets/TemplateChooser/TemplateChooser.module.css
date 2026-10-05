@@ -1,0 +1,84 @@
+.heading {
+  margin: 0;
+  padding: 10px 12px 2px;
+  color: var(--tf-label, var(--color-text-secondary));
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px;
+}
+
+.option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  min-height: 56px;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: var(--color-text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.option:hover:not(:disabled),
+.option:focus-visible {
+  background: var(--tf-hover, var(--color-surface));
+  outline: none;
+}
+
+.option:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+
+.icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--tf-accent, var(--color-primary));
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.about {
+  color: var(--color-text-secondary);
+  font-size: 0.8125rem;
+  line-height: 1.35;
+}
+
+.error {
+  margin: 4px 12px;
+  color: #b42d3c;
+  font-size: 0.8125rem;
+}
+
+/* Phone: the bottom sheet's options are larger cards. */
+@media (max-width: 767px) {
+  .list {
+    padding: 0;
+    gap: 8px;
+  }
+
+  .option {
+    min-height: 64px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md, 12px);
+  }
+}

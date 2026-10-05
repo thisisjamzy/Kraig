@@ -1058,6 +1058,8 @@ export interface CreateBucketInput extends BasketDefaults {
   currency: string;
   kind: 'Fixed' | 'Variable';
   type: 'Expense' | 'Income' | 'Savings' | 'Transfer';
+  /** Set by a spreadsheet import, so Undo can find what it created. */
+  importId?: string;
 }
 
 export async function createBucket(uid: string, input: CreateBucketInput): Promise<string> {
@@ -1075,6 +1077,7 @@ export async function createBucket(uid: string, input: CreateBucketInput): Promi
     kind: input.kind,
     type: input.type,
     ...basketDefaults(input),
+    ...(input.importId ? { importId: input.importId } : {}),
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
@@ -1228,6 +1231,10 @@ export interface CreateBucketLineItemInput {
   // .subItems's header) — ticking one off afterward from Bucket Detail goes
   // through toggleBucketLineItemSubItem instead, not this.
   subItems?: BucketLineItemSubItem[];
+  // Income baskets: what kind of income it is (src/shared/budget/flow.ts).
+  incomeSubtype?: IncomeSubtype | null;
+  /** Set by a spreadsheet import, so Undo can find what it created. */
+  importId?: string;
 }
 
 /**
@@ -1273,6 +1280,8 @@ export async function createBucketLineItem(
     recurrence: input.recurrence ?? null,
     subItems: input.subItems ?? [],
     ...lineItemExtras(input),
+    ...(input.incomeSubtype ? { incomeSubtype: input.incomeSubtype } : {}),
+    ...(input.importId ? { importId: input.importId } : {}),
     // A new item always lands at the end of the cross-bucket to-do list's
     // custom order — Date.now() is always greater than any earlier item's
     // rank without needing to read the whole list first to find a max.

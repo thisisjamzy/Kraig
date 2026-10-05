@@ -59,3 +59,45 @@
   color: rgba(255, 255, 255, 0.85);
   cursor: not-allowed;
 }
+
+.option {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-md);
+  width: 100%;
+  min-height: 72px;
+  padding: var(--space-md) var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.option:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+
+.optionIcon {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--color-primary);
+}
+
+.optionText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.optionTitle {
+  font-weight: 700;
+}
+
+.optionAbout {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}

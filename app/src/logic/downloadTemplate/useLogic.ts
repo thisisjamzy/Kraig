@@ -1,20 +1,13 @@
 'use client';
 
-import { useState } from 'react';
-import { ENTITY_ORDER, type EntityKey } from '@/src/shared/firestore/dataEntities';
-import { buildTemplateWorkbook, downloadWorkbook } from '@/src/shared/firestore/dataWorkbook';
+// /settings/download-template: the Time and Money templates, each one tap
+// (useTemplateDownload makes the file with the person's own names).
+
+import { useTemplateDownload } from '@/src/logic/importData/useTemplateDownload';
 import { useGoBack } from '@/src/shared/navigation/useGoBack';
 
 export function useLogic() {
-  const [selected, setSelected] = useState<Set<EntityKey>>(new Set(ENTITY_ORDER));
-  const [done, setDone] = useState(false);
-
-  function handleDownload() {
-    if (selected.size === 0) return;
-    const workbook = buildTemplateWorkbook([...selected]);
-    downloadWorkbook(workbook, 'dreda-import-template.xlsx');
-    setDone(true);
-  }
+  const { download, busy, error, done } = useTemplateDownload();
 
   // Back to the page the user came from (skipping forms); '/settings' only
   // when there's no history — see src/shared/navigation/useGoBack.ts.
@@ -23,5 +16,5 @@ export function useLogic() {
     navigateBack('/settings');
   }
 
-  return { selected, setSelected, done, handleDownload, goBack };
+  return { download, busy, error, done, goBack };
 }

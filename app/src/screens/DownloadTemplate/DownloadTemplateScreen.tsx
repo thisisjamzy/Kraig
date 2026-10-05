@@ -1,13 +1,15 @@
 'use client';
 
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, FileSpreadsheet } from 'lucide-react';
 import { useLogic } from '@/src/logic/downloadTemplate/useLogic';
-import { EntityPicker } from '@/src/widgets/EntityPicker/EntityPicker';
+import { TEMPLATE_ABOUT, TEMPLATE_FILE, TEMPLATE_LABEL, type TemplateKind } from '@/src/shared/import/templates';
 import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import styles from './DownloadTemplateScreen.module.css';
 
+const KINDS: TemplateKind[] = ['time', 'money'];
+
 export function DownloadTemplateScreen() {
-  const { selected, setSelected, done, handleDownload, goBack } = useLogic();
+  const { download, busy, error, done, goBack } = useLogic();
 
   return (
     <div className={styles.page}>
@@ -21,17 +23,21 @@ export function DownloadTemplateScreen() {
       />
 
       <p className={styles.helperText}>
-        Pick what you plan to fill in. You&rsquo;ll get one Excel file with a tab per entity, a header row plus a
-        couple of example rows to follow.
+        Pick a template. Each has a Read me sheet, an example row on every sheet and dropdowns for the columns with fixed values.
       </p>
 
-      <EntityPicker selected={selected} onChange={setSelected} />
+      {KINDS.map((kind) => (
+        <button key={kind} type="button" className={styles.option} disabled={busy !== null} onClick={() => void download(kind)}>
+          <FileSpreadsheet size={20} strokeWidth={2} aria-hidden className={styles.optionIcon} />
+          <span className={styles.optionText}>
+            <span className={styles.optionTitle}>{busy === kind ? 'Preparing…' : TEMPLATE_LABEL[kind]}</span>
+            <span className={styles.optionAbout}>{TEMPLATE_ABOUT[kind]}</span>
+          </span>
+        </button>
+      ))}
 
-      {done && <p className={styles.successText}>Your template downloaded.</p>}
-
-      <button type="button" className={styles.primaryButton} disabled={selected.size === 0} onClick={handleDownload}>
-        Download template
-      </button>
+      {error && <p className={styles.errorText}>{error}</p>}
+      {done && <p className={styles.successText}>{TEMPLATE_FILE[done]} downloaded.</p>}
     </div>
   );
 }

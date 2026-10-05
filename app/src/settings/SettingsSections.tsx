@@ -15,6 +15,7 @@ import { useFormLink } from '@/src/shared/navigation/useFormLink';
 import { sectionInfo, type SettingsLogic, type SettingsSection } from '@/src/logic/settingsCenter/useLogic';
 import pkg from '@/package.json';
 import styles from './Settings.module.css';
+import { TemplateChooserButton } from '@/src/widgets/TemplateChooser/TemplateChooser';
 
 const money = (n: number) => Math.round(n).toLocaleString('en-US');
 
@@ -451,15 +452,13 @@ function Data() {
   return (
     <>
       <Group title="Import">
-        <Row label="Import projects and tasks" description="From an Excel or CSV file, with duplicates checked first.">
+        <Row label="Import from a spreadsheet" description="Projects and tasks, or baskets and wallets, from an Excel or CSV file. Duplicates are checked first.">
           <Link className={styles.button} href="/settings/import">
             Import
           </Link>
         </Row>
-        <Row label="Templates" description="Spreadsheets with the right columns to fill in.">
-          <Link className={styles.link} href="/settings/download-template">
-            Download
-          </Link>
+        <Row label="Templates" description="Time (areas, sections, projects and tasks) or Money (baskets, items, income and wallets), with dropdowns.">
+          <TemplateChooserButton className={styles.link} label="Download" />
         </Row>
       </Group>
       <Group title="Export">
