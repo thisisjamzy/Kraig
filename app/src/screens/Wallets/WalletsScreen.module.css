@@ -1,169 +1,114 @@
-.page {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-lg);
-  padding: var(--space-lg);
-  padding-top: 0;
-}
+/* Wallets on tablet and web (WalletsScreen.tsx). */
 
-
-.backButton {
-  display: flex;
+.name {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  flex-shrink: 0;
-  border-radius: 50%;
-  border: 1px solid var(--color-border);
-  background: none;
-  color: var(--color-text-primary);
-  cursor: pointer;
-}
-
-
-.totalCaption {
-  margin: 0;
-  font-family: var(--font-family-heading);
-  font-size: var(--font-size-lg);
-  font-weight: 800;
-  color: var(--color-text-primary);
-}
-
-.totalCurrency {
-  font-family: var(--font-family-body);
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  color: var(--color-text-secondary);
-}
-
-.list {
-  display: flex;
-  flex-direction: column;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-}
-
-.row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  padding: var(--space-md) var(--space-lg);
-  border-bottom: 1px solid var(--color-border);
-  text-decoration: none;
-  color: inherit;
-}
-
-.row:last-child {
-  border-bottom: none;
+  gap: 8px;
+  min-width: 0;
 }
 
 .dot {
+  flex-shrink: 0;
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  flex-shrink: 0;
 }
 
-.name {
-  flex: 1;
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  color: var(--color-text-primary);
-}
-
-.amount {
-  font-size: var(--font-size-sm);
-  font-weight: 700;
-  color: var(--color-text-primary);
-}
-
-.chevron {
-  color: var(--color-text-secondary);
-  flex-shrink: 0;
-}
-
-.archivedSection {
+.form {
   display: flex;
   flex-direction: column;
-  gap: var(--space-sm);
+  gap: 12px;
 }
 
-.archivedTitle {
-  margin: 0;
-  font-size: var(--font-size-sm);
-  font-weight: 700;
-  color: var(--color-text-secondary);
-}
-
-.addWalletButton {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-xs);
-  padding: var(--space-md);
-  border: 1.5px dashed var(--color-border);
-  border-radius: var(--radius-lg);
-  background: none;
-  font-family: inherit;
-  font-size: var(--font-size-sm);
-  font-weight: 700;
-  color: var(--color-text-primary);
-  cursor: pointer;
-}
-
-.formField {
+.form label {
   display: flex;
   flex-direction: column;
-  gap: var(--space-xs);
-  margin-bottom: var(--space-md);
-}
-
-.formHint {
-  margin: 0;
-  font-size: 0.7rem;
+  gap: 6px;
+  font-size: 0.8125rem;
   color: var(--color-text-secondary);
 }
 
-.formLabel {
-  font-size: var(--font-size-sm);
-  font-weight: 600;
+.form input,
+.form select {
+  min-height: 40px;
+  padding: 0 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-background);
   color: var(--color-text-primary);
+  font: inherit;
+  font-size: 0.9375rem;
 }
 
-.formInput {
-  padding: var(--space-md);
-  border: none;
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
-  color: var(--color-text-primary);
-  font-family: inherit;
-  font-size: var(--font-size-sm);
-  outline: none;
-}
-
-.errorText {
-  margin: 0 0 var(--space-sm);
-  font-size: var(--font-size-sm);
+.error {
+  margin: 0;
+  font-size: 0.875rem;
   color: var(--color-danger);
 }
 
-.modalSaveButton {
-  width: 100%;
-  padding: var(--space-md) var(--space-lg);
+.primary {
+  min-height: 40px;
   border: none;
-  border-radius: var(--radius-lg);
-  background: var(--ink-bg);
-  color: var(--color-brand);
-  font-family: inherit;
-  font-size: var(--font-size-md);
-  font-weight: 700;
+  border-radius: 6px;
+  background: var(--color-brand);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
   cursor: pointer;
 }
 
-.modalSaveButton:disabled {
-  background: #6b7380;
-  color: rgba(255, 255, 255, 0.85);
-  cursor: not-allowed;
+.primary:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  height: 100%;
+  padding: 14px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-background);
+  color: var(--color-text-primary);
+  text-decoration: none;
+}
+
+.card:hover {
+  border-color: var(--color-brand);
+}
+
+.card[data-archived] {
+  opacity: 0.6;
+}
+
+.cardType {
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+}
+
+.cardBalance {
+  margin-top: 6px;
+  font-size: 1.375rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.cardSub {
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.cardSub[data-tone='bad'] {
+  color: #d6404f;
+}
+
+.cardSub[data-tone='watch'] {
+  color: #93600c;
+}
+
+.cardSub[data-tone='good'] {
+  color: #1f7a4d;
 }

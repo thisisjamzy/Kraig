@@ -1,17 +1,19 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { query, where, orderBy, Timestamp } from 'firebase/firestore';
+import { limit, query, where, orderBy, Timestamp } from 'firebase/firestore';
 import { RefreshCw, ArrowLeftRight, Clock, Download } from 'lucide-react';
 import { useFirestoreCollection, useFirestoreDoc } from '@/src/shared/firestore/hooks';
-import { transactionsRef, transfersRef, plannedPaymentsRef, accountRef } from '@/src/shared/firestore/refs';
+import { transactionsRef, transfersRef, plannedPaymentsRef, accountRef, reconciliationsRef } from '@/src/shared/firestore/refs';
 import { useAccounts, useCategories, useCurrencyContext } from '@/src/shared/firestore/queries';
 import { toDisplay, round2 } from '@/src/shared/firestore/currency';
 import { computeUpcomingPayments } from '@/src/shared/firestore/upcomingPayments';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { walletColor } from '@/src/viewmodels/wallets';
-import type { FirestoreAccount, FirestoreTransaction, FirestoreTransfer, FirestorePlannedPayment } from '@/src/shared/firestore/types';
+import type { FirestoreAccount, FirestoreTransaction, FirestoreTransfer, FirestorePlannedPayment, FirestoreReconciliation } from '@/src/shared/firestore/types';
 import { countsInFigures } from '@/src/shared/firestore/types';
+import { useMonthBudget } from '@/src/shared/hooks/useMonthBudget';
+import { balanceHistory, committedByAccount, freeTone, lastReconciledByAccount } from '@/src/logic/wallets/model';
 import { useGoBack } from '@/src/shared/navigation/useGoBack';
 
 const ICONS = [RefreshCw, ArrowLeftRight, Clock, Download];
@@ -93,6 +95,10 @@ export function useLogic(walletId: string, periods: readonly string[]) {
     currency: ctx.display,
     date: formatDate(transaction.date),
     iconColor: walletColor(index),
+    // The web page's table.
+    when: transaction.date.toDate(),
+    description: transaction.description || categoryName(transaction.categoryId),
+    signed: toDisplay(ctx, transaction.direction === 'Inflow' ? transaction.amount : -transaction.amount, wallet?.currency ?? ctx.base),
   }));
 
   // History (last HISTORY_MONTHS, independent of the transaction list's own
@@ -239,10 +245,45 @@ export function useLogic(walletId: string, periods: readonly string[]) {
 
   const availableAmount = wallet ? toDisplay(ctx, wallet.currentBalance - (wallet.lockedAmount ?? 0), wallet.currency) : 0;
   const lockedAmount = wallet ? toDisplay(ctx, wallet.lockedAmount ?? 0, wallet.currency) : 0;
+  // ---- The wallet's page on tablet and web ----
+  // Committed: this month's unpaid lines paid from this wallet; free: the
+  // balance after them; the last reconciliation that reported it; the
+  // balance at each month end; and those unpaid lines as upcoming payments.
+  const { budget } = useMonthBudget(monthKeyOf(new Date()));
+  const linesFromWallet = useMemo(
+    () => budget.items.filter((l) => l.type !== 'Income' && !l.archived && !l.closed && l.accountId === walletId && l.available - l.actual > 0.5),
+    [budget.items, walletId]
+  );
+  const committed = round2(committedByAccount(budget.items).get(walletId) ?? 0);
+  const balanceNow = wallet ? toDisplay(ctx, wallet.currentBalance, wallet.currency) : 0;
+  const free = round2(balanceNow - committed);
+  const { data: reconciliations } = useFirestoreCollection<FirestoreReconciliation>(
+    useMemo(() => (uid ? query(reconciliationsRef(uid), orderBy('performedAt', 'desc'), limit(30)) : null), [uid])
+  );
+  const lastReconciled =
+    lastReconciledByAccount(reconciliations.map((r) => ({ performedAt: r.performedAt.toDate(), reportedBalances: r.reportedBalances }))).get(walletId) ?? null;
+  const balanceByMonth = useMemo(() => {
+    const flows = [
+      ...historyTransactions.map((t) => ({ date: t.date.toDate(), signed: toDisplay(ctx, t.direction === 'Inflow' ? t.amount : -t.amount, nativeCurrency) })),
+      ...transfersIn.map((t) => ({ date: t.date.toDate(), signed: toDisplay(ctx, t.amount, nativeCurrency) })),
+      ...transfersOut.map((t) => ({ date: t.date.toDate(), signed: -toDisplay(ctx, t.amount + (t.charges ?? 0), nativeCurrency) })),
+    ];
+    return balanceHistory(balanceNow, flows, monthBuckets.map((m) => m.key), new Date()).map((p, i) => ({ ...p, label: monthBuckets[i].label }));
+  }, [historyTransactions, transfersIn, transfersOut, ctx, nativeCurrency, balanceNow, monthBuckets]);
+  const upcomingLines = linesFromWallet
+    .map((l) => ({ key: l.key, name: l.name, basket: l.bucketName, due: l.due, amount: round2(l.available - l.actual), href: `/budget/item/${l.bucketId}/${l.itemId}?month=${l.month}` }))
+    .sort((a, b) => (a.due?.getTime() ?? Infinity) - (b.due?.getTime() ?? Infinity));
+
   const upcomingShortfall = round2(Math.max(0, upcomingTotal - availableAmount));
 
   return {
     wallet,
+    committed,
+    free,
+    freeTone: freeTone(free, balanceNow),
+    lastReconciled,
+    balanceByMonth,
+    upcomingLines,
     balance: wallet ? toDisplay(ctx, wallet.currentBalance, wallet.currency) : 0,
     lockedAmount,
     availableAmount,
