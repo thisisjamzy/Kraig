@@ -2,25 +2,28 @@
 
 // A basket's page on tablet and web, full width: two columns from 1024px
 // (main ~65%, a sticky side column ~35%), one column below with the side
-// blocks first.
+// blocks first. The side column can be hidden (the panel button beside the
+// title, or "Hide side panel" in the "..." menu), remembered on this
+// device, and the main column then takes the whole width.
 //   main: the basket's name (no icon) over "Expense basket"; four
-//   properties (Month as a dropdown, Category, Account: the default paid
+//   properties (Month as a dropdown, Repeats: Recurring or One time (a
+//   basket has no category, its items do), Account: the default paid
 //   from for new items, Automation "3 of 5 items"), more behind "Show more
 //   properties" (Type, Created, Items mix, Highest priority); the items
 //   database (Table, Cards, Board by Status; New with New item and Import
 //   items; row actions Mark paid, Edit, Move to month, Delete; sums and a
 //   count in the footer); Upcoming payments with their Ready to pay state;
-//   this month's transactions; the adjustments timeline; notes.
+//   this month's transactions; the adjustments timeline.
 //   side: Summary (Planned, Spent, Left, Items; spent against planned; On
 //   track, Over plan or Unused), Automation (each automated item and the
-//   next one), Payments due (with Open priorities).
+//   next one), Payments due (with Open priorities), Notes.
 // Item-level things (kind, need, priority) live on the items, not here.
 // The phone keeps its BASELINE basket screen.
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Check, MoveRight, Pencil, Trash2, Zap } from 'lucide-react';
+import { Check, MoveRight, PanelRightClose, PanelRightOpen, Pencil, Trash2, Zap } from 'lucide-react';
 import type { useLogic as useBucketLogic } from '@/src/logic/planningBucket/useLogic';
 import { useBudgetMonth } from '@/src/logic/budgetMonth/useLogic';
 import type { LineRow } from '@/src/logic/budgetMonth/lines';
@@ -29,7 +32,7 @@ import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { useReadyToPay } from '@/src/shared/hooks/useReadyToPay';
 import { updateBucketFields, updateItemFields } from '@/src/shared/firestore/bucketBudget';
 import { deleteBucketLineItem } from '@/src/shared/firestore/aggregation';
-import { automationLabel, FLOW_LABEL, FLOW_NOUN, type FlowType } from '@/src/shared/budget/flow';
+import { automationLabel, BASKET_REPEATS_LABEL, basketRepeats, FLOW_LABEL, FLOW_NOUN, type FlowType } from '@/src/shared/budget/flow';
 import { addMonths, monthKeyOf } from '@/src/shared/budget/monthBudget';
 import { monthTitle } from '@/src/viewmodels/planning';
 import { useBreadcrumb, usePageMenu } from '@/src/widgets/AppShell/breadcrumb';
@@ -49,12 +52,37 @@ import type { ColumnContext } from '@/src/screens/BudgetMonth/columns';
 import bm from '@/src/screens/BudgetMonth/BudgetMonth.module.css';
 import { AdjustmentRow, AdjustmentSheet } from './Adjustments';
 import { CloseBucketSheet } from './CloseBucketSheet';
+import { ReceiptPanel } from './ReceiptPanel';
 import { basketItemColumns, statusGroup } from './itemColumns';
 import styles from './BucketPage.module.css';
 import { useFormLink } from '@/src/shared/navigation/useFormLink';
 
 type BucketLogic = ReturnType<typeof useBucketLogic>;
 type TxRow = BucketLogic['rows'][number];
+
+const SIDE_KEY = 'dreda.basketPage.side';
+
+/** The side column's visibility, remembered on this device. */
+function useSidePanel(): [boolean, () => void] {
+  const [open, setOpen] = useState(() => {
+    try {
+      return localStorage.getItem(SIDE_KEY) !== 'hidden';
+    } catch {
+      return true;
+    }
+  });
+  function toggle() {
+    setOpen((was) => {
+      try {
+        localStorage.setItem(SIDE_KEY, was ? 'hidden' : 'shown');
+      } catch {
+        // Not remembered; still applies on this page.
+      }
+      return !was;
+    });
+  }
+  return [open, toggle];
+}
 
 const ADD_LABEL: Record<FlowType, string> = { Income: 'Record income', Expense: 'Add expense', Savings: 'Add savings', Transfer: 'Record transfer' };
 const day = (d: Date) => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
@@ -69,6 +97,8 @@ export function BucketPage({ bucketId, b }: { bucketId: string; b: BucketLogic }
   const scope = useScopeChooser();
   const peek = usePeek<LineRow>((r) => `/budget/item/${r.bucketId}/${r.itemId}?month=${r.month}`);
   const [closing, setClosing] = useState(false);
+  const [receipt, setReceipt] = useState(false);
+  const [sideOpen, toggleSide] = useSidePanel();
   const [moving, setMoving] = useState<LineRow | null>(null);
   const bucket = b.bucket;
   const type = (bucket?.type ?? 'Expense') as FlowType;
@@ -84,6 +114,10 @@ export function BucketPage({ bucketId, b }: { bucketId: string; b: BucketLogic }
           ...(b.card?.prompt?.kind === 'over' || b.card?.prompt?.kind === 'uncovered' ? [{ label: 'Cover or justify', href: coverHref(b.month, bucketId) }] : []),
           ...(b.card?.prompt?.kind === 'leftover' ? [{ label: 'Reallocate', href: reallocateHref(b.month, bucketId) }] : []),
           { label: 'All transactions', href: `/transactions?month=${b.month}&bucket=${bucketId}` },
+          { label: sideOpen ? 'Hide side panel' : 'Show side panel', onSelect: toggleSide },
+          // Both open the budget snapshot's options step, with Print and Export as PDF.
+          { label: 'Print basket', onSelect: () => setReceipt(true), replacesPageExport: true },
+          { label: 'Export as PDF', onSelect: () => setReceipt(true), replacesPageExport: true },
         ]
       : undefined
   );
@@ -129,11 +163,7 @@ export function BucketPage({ bucketId, b }: { bucketId: string; b: BucketLogic }
   const peekLine = peek.row ? (lines.find((r) => r.key === peek.row!.key) ?? peek.row) : null;
   const over = actual > planned + 0.5 && type !== 'Income';
 
-  // The basket's defaults (the New basket form's Category and Default paid from).
-  const categoryOptions = b.categories
-    .filter((c) => !c.archived && (type === 'Transfer' || c.transactionType === type))
-    .map((c) => ({ value: c.id, label: c.name }))
-    .sort((x, y) => x.label.localeCompare(y.label));
+  // The basket's default paid from (the New basket form's own).
   const live = v.accounts.filter((a) => !a.archived);
   const paidFromOptions = [
     ...live.map((a) => ({ value: `account:${a.id}`, label: a.name })),
@@ -168,18 +198,41 @@ export function BucketPage({ bucketId, b }: { bucketId: string; b: BucketLogic }
   }
 
   return (
-    <div className={`${bm.page} ${styles.layout}`}>
+    <div className={`${bm.page} ${styles.layout}`} data-side={sideOpen ? undefined : 'hidden'}>
       <div className={styles.main}>
-        <NotionPageHeader title={bucket.name} kind={`${FLOW_NOUN[type]} basket`}>
+        <NotionPageHeader
+          title={bucket.name}
+          kind={`${FLOW_NOUN[type]} basket`}
+          actions={
+            <button
+              type="button"
+              className={styles.sideToggle}
+              onClick={toggleSide}
+              aria-pressed={sideOpen}
+              aria-label={sideOpen ? 'Hide side panel' : 'Show side panel'}
+              title={sideOpen ? 'Hide summary and notes' : 'Show summary and notes'}
+            >
+              {sideOpen ? <PanelRightClose size={18} strokeWidth={2} /> : <PanelRightOpen size={18} strokeWidth={2} />}
+            </button>
+          }
+        >
           <PropertiesBlock
             visible={4}
             properties={[
               { id: 'month', label: 'Month', display: <MonthPicker value={b.month} onChange={b.setMonth} /> },
               {
-                id: 'category',
-                label: 'Category',
-                display: categoryOptions.find((o) => o.value === bucket.categoryId)?.label ?? (b.category || null),
-                ...(type === 'Transfer' ? {} : { edit: { type: 'select' as const, value: bucket.categoryId ?? null, options: categoryOptions, onSave: (next) => save({ categoryId: next || null }) } }),
+                id: 'repeats',
+                label: 'Repeats',
+                display: BASKET_REPEATS_LABEL[basketRepeats(bucket)],
+                edit: {
+                  type: 'select' as const,
+                  value: basketRepeats(bucket),
+                  options: [
+                    { value: 'monthly', label: BASKET_REPEATS_LABEL.monthly },
+                    { value: 'once', label: BASKET_REPEATS_LABEL.once },
+                  ],
+                  onSave: (next) => save({ repeats: next === 'once' ? 'once' : 'monthly' }),
+                },
               },
               {
                 id: 'account',
@@ -303,83 +356,89 @@ export function BucketPage({ bucketId, b }: { bucketId: string; b: BucketLogic }
           </Block>
         )}
 
-        <Block title="Notes">
-          <NotesBlock bucketId={bucketId} initial={bucket.notes ?? ''} />
-        </Block>
       </div>
 
-      <aside className={styles.side} aria-label="Summary">
-        <section className={styles.sideCard}>
-          <div className={styles.sideHead}>
-            <h2>Summary</h2>
-            <span className={styles.status} data-tone={status.tone}>
-              {status.text}
-            </span>
-          </div>
-          <dl className={styles.grid}>
-            <div>
-              <dt>{type === 'Income' ? 'Expected' : 'Planned'}</dt>
-              <dd>{money(planned)}</dd>
-            </div>
-            <div>
-              <dt>{actualLabel}</dt>
-              <dd data-tone={over ? 'bad' : undefined}>{money(actual)}</dd>
-            </div>
-            <div>
-              <dt>{left < 0 ? 'Over' : type === 'Income' ? 'To come' : 'Left'}</dt>
-              <dd data-tone={over ? 'bad' : undefined}>{money(Math.abs(left))}</dd>
-            </div>
-            <div>
-              <dt>Items</dt>
-              <dd>{lines.length}</dd>
-            </div>
-          </dl>
-          <SpentBar planned={planned} actual={actual} label={`${actualLabel} ${money(actual)} of ${money(planned)}`} />
-        </section>
-
-        {type !== 'Income' && (
+      {sideOpen && (
+        <aside className={styles.side} aria-label="Summary and notes">
           <section className={styles.sideCard}>
             <div className={styles.sideHead}>
-              <h2>Automation</h2>
-              <Zap size={16} strokeWidth={2.25} aria-hidden />
+              <h2>Summary</h2>
+              <span className={styles.status} data-tone={status.tone}>
+                {status.text}
+              </span>
             </div>
-            {automated.length ? (
-              <ul className={styles.autoList}>
-                {automated.map((l) => (
-                  <li key={l.key}>
-                    <strong>{l.name}</strong>
-                    <span>{automationLabel(l.automation, (id) => v.incomeLines.find((i) => i.itemId === id)?.name)}</span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p>Nothing in this basket is prepared automatically. Set it per item in the Automation column.</p>
-            )}
-            {next && (
-              <p className={styles.next}>
-                Next: {next.name}, {money(next.amount)}
-                {next.date ? ` on ${day(next.date)}` : ''}
+            <dl className={styles.grid}>
+              <div>
+                <dt>{type === 'Income' ? 'Expected' : 'Planned'}</dt>
+                <dd>{money(planned)}</dd>
+              </div>
+              <div>
+                <dt>{actualLabel}</dt>
+                <dd data-tone={over ? 'bad' : undefined}>{money(actual)}</dd>
+              </div>
+              <div>
+                <dt>{left < 0 ? 'Over' : type === 'Income' ? 'To come' : 'Left'}</dt>
+                <dd data-tone={over ? 'bad' : undefined}>{money(Math.abs(left))}</dd>
+              </div>
+              <div>
+                <dt>Items</dt>
+                <dd>{lines.length}</dd>
+              </div>
+            </dl>
+            <SpentBar planned={planned} actual={actual} label={`${actualLabel} ${money(actual)} of ${money(planned)}`} />
+          </section>
+
+          {type !== 'Income' && (
+            <section className={styles.sideCard}>
+              <div className={styles.sideHead}>
+                <h2>Automation</h2>
+                <Zap size={16} strokeWidth={2.25} aria-hidden />
+              </div>
+              {automated.length ? (
+                <ul className={styles.autoList}>
+                  {automated.map((l) => (
+                    <li key={l.key}>
+                      <strong>{l.name}</strong>
+                      <span>{automationLabel(l.automation, (id) => v.incomeLines.find((i) => i.itemId === id)?.name)}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p>Nothing in this basket is prepared automatically. Set it per item in the Automation column.</p>
+              )}
+              {next && (
+                <p className={styles.next}>
+                  Next: {next.name}, {money(next.amount)}
+                  {next.date ? ` on ${day(next.date)}` : ''}
+                </p>
+              )}
+            </section>
+          )}
+
+          {type !== 'Income' && (
+            <section className={styles.sideCard}>
+              <div className={styles.sideHead}>
+                <h2>Payments due</h2>
+              </div>
+              <p>
+                {due.count
+                  ? `${due.count} ${due.count === 1 ? 'payment' : 'payments'} still to pay in ${monthTitle(b.month).split(' ')[0]}: ${money(due.total)}.`
+                  : `Nothing left to pay in ${monthTitle(b.month).split(' ')[0]}.`}
               </p>
-            )}
-          </section>
-        )}
+              <Link href="/baskets/items" className={bm.inlineAction}>
+                Open priorities
+              </Link>
+            </section>
+          )}
 
-        {type !== 'Income' && (
           <section className={styles.sideCard}>
             <div className={styles.sideHead}>
-              <h2>Payments due</h2>
+              <h2>Notes</h2>
             </div>
-            <p>
-              {due.count
-                ? `${due.count} ${due.count === 1 ? 'payment' : 'payments'} still to pay in ${monthTitle(b.month).split(' ')[0]}: ${money(due.total)}.`
-                : `Nothing left to pay in ${monthTitle(b.month).split(' ')[0]}.`}
-            </p>
-            <Link href="/baskets/items" className={bm.inlineAction}>
-              Open priorities
-            </Link>
+            <NotesBlock bucketId={bucketId} initial={bucket.notes ?? ''} />
           </section>
-        )}
-      </aside>
+        </aside>
+      )}
 
       {peekLine && (
         <SidePeek title={peekLine.name} mode={peek.mode} onMode={peek.setMode} onClose={peek.close} fullHref={peek.href}>
@@ -420,6 +479,7 @@ export function BucketPage({ bucketId, b }: { bucketId: string; b: BucketLogic }
           </div>
         </Modal>
       )}
+      {receipt && <ReceiptPanel bucketId={bucketId} month={b.month} onClose={() => setReceipt(false)} />}
       {closing && (
         <CloseBucketSheet
           month={monthTitle(b.month)}

@@ -16,7 +16,7 @@
 // Pages draw their own title (useBreadcrumb / useOwnsTitle); a page that
 // doesn't gets one from the page tree here, so every page has exactly one.
 // Page controls (TopBarControls) render in a row under that title, not in
-// the top bar. The page area is full width (capped at 1600px) or, for
+// the top bar. The page area is full width (the whole content area) or, for
 // pages without a wide layout, the standard 900px column; the top bar's
 // "..." switches it per page.
 

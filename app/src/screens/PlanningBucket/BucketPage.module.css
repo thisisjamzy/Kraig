@@ -1,6 +1,6 @@
 /* A basket's page on tablet and web (BucketPage.tsx), full width: one
    column from 768px (side blocks first), two from 1024px: the main column
-   (~65%) and a sticky side column (~35%). */
+   and a sticky side column (28%, 300 to 400px) that can be hidden. */
 
 .layout {
   display: grid;
@@ -11,12 +11,20 @@
 
 @media (min-width: 1024px) {
   .layout {
-    grid-template-columns: minmax(0, 65fr) minmax(300px, 35fr);
+    grid-template-columns: minmax(0, 1fr) clamp(300px, 28%, 400px);
     gap: 32px;
+  }
+  /* The side column hidden: the main column takes the whole width. */
+  .layout[data-side='hidden'] {
+    grid-template-columns: minmax(0, 1fr);
   }
   .side {
     position: sticky;
     top: calc(64px + var(--safe-top) + 16px);
+    /* Summary to Notes can outgrow the screen: the column scrolls on its own. */
+    max-height: calc(100dvh - 64px - var(--safe-top) - 32px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 }
 
@@ -32,6 +40,30 @@
   flex-direction: column;
   gap: 12px;
   min-width: 0;
+}
+
+/* The panel button beside the title. */
+.sideToggle {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #6b7085;
+  cursor: pointer;
+}
+
+.sideToggle:hover {
+  background: rgba(55, 53, 47, 0.08);
+  color: var(--color-text-primary);
+}
+
+.sideToggle:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
 }
 
 /* Medium: one column, the summary first. */

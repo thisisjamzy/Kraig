@@ -206,3 +206,14 @@ export function automationLabel(a: ItemAutomation, incomeName?: (itemId: string)
   if (a.trigger === 'income') return `${amount}Prepare when ${(a.incomeItemId && incomeName?.(a.incomeItemId)) || 'income'} arrives`;
   return `${amount}Prepare when income arrives`;
 }
+
+/**
+ * A basket repeats every month or is for one month only (the basket form's
+ * Repeats). Older baskets without it: Fixed ones repeat. A basket has no
+ * category of its own; each of its items does.
+ */
+export function basketRepeats(bucket: { repeats?: 'monthly' | 'once' | null; kind?: 'Fixed' | 'Variable' | null }): 'monthly' | 'once' {
+  return bucket.repeats ?? (bucket.kind === 'Fixed' ? 'monthly' : 'once');
+}
+
+export const BASKET_REPEATS_LABEL: Record<'monthly' | 'once', string> = { monthly: 'Recurring', once: 'One time' };

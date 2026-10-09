@@ -123,6 +123,9 @@ export interface PageMenuItem {
   href?: string;
   onSelect?: () => void;
   danger?: boolean;
+  /** The page prints its own document (a basket's receipt): the menu's
+   * whole-page "Export as PDF" is left out. */
+  replacesPageExport?: boolean;
 }
 
 const menuStack: { id: number; items: PageMenuItem[] }[] = [];
@@ -132,7 +135,7 @@ const menuListeners = new Set<() => void>();
 /** Registers the page's menu items while it's mounted. */
 export function usePageMenu(items: PageMenuItem[] | undefined) {
   // Functions can't be compared; the labels and links say when the list changed.
-  const key = items ? JSON.stringify(items.map((i) => [i.label, i.href ?? '', Boolean(i.danger)])) : '';
+  const key = items ? JSON.stringify(items.map((i) => [i.label, i.href ?? '', Boolean(i.danger), Boolean(i.replacesPageExport)])) : '';
   const latest = items;
   useEffect(() => {
     if (!key || !latest?.length) return;
@@ -162,4 +165,9 @@ export function usePageMenuItems(): PageMenuItem[] {
     () => menuItems,
     () => menuItems
   );
+}
+
+/** False when the page's own items replace the whole-page "Export as PDF". */
+export function usePageExport(): boolean {
+  return !usePageMenuItems().some((i) => i.replacesPageExport);
 }

@@ -18,7 +18,7 @@ import { useSyncStatus } from '@/src/shared/hooks/useSyncStatus';
 import { useLocationSearch } from '@/src/shared/navigation/locationSearch';
 import { Popover } from '@/src/widgets/ListQuery/Popover';
 import { showToast } from '@/src/widgets/Toast/Toast';
-import { setPageWidth, usePageMeta, usePageWidth, type Crumb } from './breadcrumb';
+import { setPageWidth, usePageExport, usePageMeta, usePageWidth, type Crumb } from './breadcrumb';
 import { PageMenuRows } from './PageMenuRows';
 import menu from './Sidebar.module.css';
 import styles from './TopBar.module.css';
@@ -53,6 +53,7 @@ export function TopBar({
   const favorites = useFavorites();
   const width = usePageWidth(pathname, defaultWidth);
   const [options, setOptions] = useState<HTMLElement | null>(null);
+  const pageExport = usePageExport();
   const [info, setInfo] = useState(false);
 
   const crumbs = meta.crumbs ?? defaultCrumbs(pathname);
@@ -144,17 +145,19 @@ export function TopBar({
               <StretchHorizontal size={15} strokeWidth={2} aria-hidden />
               {width === 'full' ? 'Standard width' : 'Full width'}
             </button>
-            <button
-              type="button"
-              className={menu.menuRow}
-              data-row
-              onClick={() => {
-                setOptions(null);
-                window.setTimeout(() => window.print(), 50);
-              }}
-            >
-              <Printer size={15} strokeWidth={2} aria-hidden /> Export as PDF
-            </button>
+            {pageExport && (
+              <button
+                type="button"
+                className={menu.menuRow}
+                data-row
+                onClick={() => {
+                  setOptions(null);
+                  window.setTimeout(() => window.print(), 50);
+                }}
+              >
+                <Printer size={15} strokeWidth={2} aria-hidden /> Export as PDF
+              </button>
+            )}
             <Link href={settingsLink('preferences')} scroll={false} className={menu.menuRow} data-row onClick={() => setOptions(null)}>
               <Settings size={15} strokeWidth={2} aria-hidden /> Settings
             </Link>

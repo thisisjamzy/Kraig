@@ -19,7 +19,7 @@ import { usePathname } from 'next/navigation';
 import { ChevronLeft, Lightbulb, MoreHorizontal } from 'lucide-react';
 import { hasAppHeader } from '@/src/shared/config/chromeVisibility';
 import { useHasTopBar } from '@/src/widgets/AppShell/TopBarSlot';
-import { useBreadcrumb, usePageMenu, type Crumb, type PageMenuItem } from '@/src/widgets/AppShell/breadcrumb';
+import { useBreadcrumb, usePageExport, usePageMenu, type Crumb, type PageMenuItem } from '@/src/widgets/AppShell/breadcrumb';
 import { PageMenuRows } from '@/src/widgets/AppShell/PageMenuRows';
 import { Popover } from '@/src/widgets/ListQuery/Popover';
 import { showToast } from '@/src/widgets/Toast/Toast';
@@ -95,6 +95,7 @@ export function Callout({ icon, children }: { icon?: ReactNode; tone?: 'bad' | '
 /** The phone header for pages that aren't hubs: "‹ Parent", notifications, "...". */
 function CompactHeader({ parent }: { parent: Crumb | null }) {
   const [menu, setMenu] = useState<HTMLElement | null>(null);
+  const pageExport = usePageExport();
   return (
     <header className={frame.compactHeader}>
       {parent?.href ? (
@@ -126,17 +127,19 @@ function CompactHeader({ parent }: { parent: Crumb | null }) {
             >
               Copy link
             </button>
-            <button
-              type="button"
-              className={styles.menuRow}
-              data-row
-              onClick={() => {
-                setMenu(null);
-                window.setTimeout(() => window.print(), 50);
-              }}
-            >
-              Export as PDF
-            </button>
+            {pageExport && (
+              <button
+                type="button"
+                className={styles.menuRow}
+                data-row
+                onClick={() => {
+                  setMenu(null);
+                  window.setTimeout(() => window.print(), 50);
+                }}
+              >
+                Export as PDF
+              </button>
+            )}
           </div>
         </Popover>
       )}

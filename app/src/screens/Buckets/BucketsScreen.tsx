@@ -9,6 +9,7 @@
 // bottom. One "New" button, for the current type. Each bucket opens its
 // own page.
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { LayoutGrid } from 'lucide-react';
@@ -26,6 +27,7 @@ import { FLOW_ICON } from '@/src/screens/BudgetMonth/BudgetMonthPage';
 import { useFlowLinks } from '@/src/screens/Planning/PlanningParts';
 import bm from '@/src/screens/BudgetMonth/BudgetMonth.module.css';
 import styles from './BucketsScreen.module.css';
+import { ReceiptPanel } from '@/src/screens/PlanningBucket/ReceiptPanel';
 import { useFormLink } from '@/src/shared/navigation/useFormLink';
 
 // Kept here for the screens that already import it from this file.
@@ -118,6 +120,7 @@ export function BucketsScreen() {
   const v = useLogic();
   const router = useRouter();
   const swipeRef = useSwipeModeSwitch('money');
+  const [receiptFor, setReceiptFor] = useState<string | null>(null);
   const counts = FLOW_TYPES.map((t) => {
     const n = v.byType[t].length;
     const noun = t === 'Income' ? 'income' : t === 'Savings' ? 'savings' : t === 'Expense' ? (n === 1 ? 'expense' : 'expenses') : n === 1 ? 'transfer' : 'transfers';
@@ -186,6 +189,8 @@ export function BucketsScreen() {
                 { id: 'paid', label: 'Mark overdue paid', show: (r) => Boolean(r.summary?.overdue.length) && (r.type === 'Expense' || r.type === 'Savings'), run: () => router.push('/baskets/items') },
                 { id: 'cover', label: 'Cover or justify', show: (r) => r.card.prompt?.kind === 'over' || r.card.prompt?.kind === 'uncovered', run: (r) => router.push(coverHref(v.month, r.id)) },
                 { id: 'reallocate', label: 'Reallocate', show: (r) => r.card.prompt?.kind === 'leftover', run: (r) => router.push(reallocateHref(v.month, r.id)) },
+                { id: 'print', label: 'Print basket', run: (r) => setReceiptFor(r.id) },
+                { id: 'export', label: 'Export as PDF', run: (r) => setReceiptFor(r.id) },
               ]}
               onOpen={(r) => router.push(`/budget/basket/${r.id}?month=${v.month}`)}
               onNew={() => router.push(formLink('basket', { type: v.flow }))}
@@ -195,6 +200,7 @@ export function BucketsScreen() {
           </div>
         )}
       </NotionPage>
+      {receiptFor && <ReceiptPanel bucketId={receiptFor} month={v.month} onClose={() => setReceiptFor(null)} />}
     </div>
   );
 }

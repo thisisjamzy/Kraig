@@ -1,0 +1,92 @@
+/* The preview takes most of the panel, the options a 320px column beside
+   it; on a narrow panel (a tablet held upright) the preview sits on top. */
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+@media (min-width: 1100px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr) 320px;
+  }
+}
+
+/* A white page on a light tray; the snapshot keeps its own length and the
+   tray scrolls, so the white never stops short. */
+.preview {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  max-height: calc(100vh - 140px);
+  overflow: auto;
+  padding: 20px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+}
+
+.preview > article {
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.16);
+}
+
+@media (min-width: 1100px) {
+  .preview {
+    position: sticky;
+    top: 0;
+  }
+}
+
+.options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.note {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--tf-label);
+}
+
+.error {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--color-danger);
+}
+
+.actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.secondary {
+  min-height: 44px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.secondary:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.secondary:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+}

@@ -4,7 +4,9 @@
 // horizontally, either direction — the delete button sits fixed behind the
 // row on whichever side the row got dragged away from, iOS-Mail style.
 // Built as its own widget (rather than baked into one screen) so any
-// future swipe-to-delete list can reuse it as-is.
+// future swipe-to-delete list can reuse it as-is. An action exists only
+// while the row is dragged toward it: at rest nothing shows behind the
+// row, even if the row itself isn't opaque.
 
 import { useRef, useState, type ReactNode, type PointerEvent as ReactPointerEvent, type MouseEvent as ReactMouseEvent } from 'react';
 import { Trash2 } from 'lucide-react';
@@ -32,6 +34,7 @@ export function SwipeableListItem({
   swipeLeft,
   swipeRight,
   className,
+  contentClassName,
 }: {
   children: ReactNode;
   /** Both directions reveal Delete, unless a side has its own action. */
@@ -42,6 +45,8 @@ export function SwipeableListItem({
   /** Revealed when the row is swiped to the right (shown on the left). */
   swipeRight?: SwipeAction;
   className?: string;
+  /** The sliding row's own class (its card surface). */
+  contentClassName?: string;
 }) {
   const deleteAction: SwipeAction | undefined = onDelete ? { label: deleteLabel, icon: <Trash2 size={18} strokeWidth={2} />, tone: 'danger', onSelect: onDelete } : undefined;
   const leftAction = swipeLeft ?? deleteAction;
@@ -117,14 +122,14 @@ export function SwipeableListItem({
 
   return (
     <div className={`${styles.wrapper} ${className ?? ''}`}>
-      {leftAction && (
-        <div className={`${styles.actions} ${styles.actionsRight}`} aria-hidden={dragX >= 0}>
+      {leftAction && dragX < 0 && (
+        <div className={`${styles.actions} ${styles.actionsRight}`}>
           <button
             type="button"
             className={styles.deleteButton}
             data-tone={leftAction.tone ?? 'danger'}
             aria-label={leftAction.label}
-            tabIndex={dragX < 0 ? 0 : -1}
+            tabIndex={0}
             onClick={() => {
               close();
               leftAction.onSelect();
@@ -134,14 +139,14 @@ export function SwipeableListItem({
           </button>
         </div>
       )}
-      {rightAction && (
-        <div className={`${styles.actions} ${styles.actionsLeft}`} aria-hidden={dragX <= 0}>
+      {rightAction && dragX > 0 && (
+        <div className={`${styles.actions} ${styles.actionsLeft}`}>
           <button
             type="button"
             className={styles.deleteButton}
             data-tone={rightAction.tone ?? 'danger'}
             aria-label={rightAction.label}
-            tabIndex={dragX > 0 ? 0 : -1}
+            tabIndex={0}
             onClick={() => {
               close();
               rightAction.onSelect();
@@ -152,7 +157,7 @@ export function SwipeableListItem({
         </div>
       )}
       <div
-        className={styles.content}
+        className={`${styles.content} ${contentClassName ?? ''}`}
         style={{ transform: `translateX(${dragX}px)` }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}

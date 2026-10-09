@@ -3,8 +3,8 @@
 // New basket and Edit basket on the form standard (src/logic/createBucket):
 // a side peek on tablet and web, the BASELINE full-screen form on a phone.
 // "New basket" (24px, no icon) with "Money · October 2026" under it; field
-// cards in order: Name; Type; Kind (Expenses only); Category; Starts |
-// Repeats; Default paid from (not for income); Target amount | Target date
+// cards in order: Name; Type; Kind (Expenses only); Starts | Repeats
+// (a basket has no category: each of its items has its own); Default paid from (not for income); Target amount | Target date
 // (savings only); More options: Description, Currency, Automation default.
 // Impact, then "Create basket" and the text button "Create and add items".
 // No corner checkmark.
@@ -66,10 +66,6 @@ export function BasketForm({ basketId = null }: { basketId?: string | null }) {
               ]}
               hint={v.kind === 'Fixed' ? 'Set bills: rent, school fees, subscriptions.' : 'A limit used through the month: food, transport.'}
             />
-          )}
-
-          {v.type !== 'Transfer' && (
-            <SelectField label="Category" value={v.categoryId} onChange={v.setCategoryId} options={v.categoryOptions} placeholder="Choose a category" />
           )}
 
           <FieldRow>

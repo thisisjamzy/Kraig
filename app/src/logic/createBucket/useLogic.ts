@@ -2,7 +2,7 @@
 
 // New basket and Edit basket (src/forms/BasketForm): one form, one logic.
 //   Name; Type (Income, Expenses, Savings, Transfers); Kind (Expenses
-//   only: Fixed or Variable); Category; Starts | Repeats; Default paid from
+//   only: Fixed or Variable); Starts | Repeats; Default paid from
 //   (Expenses, Savings, Transfers); Savings only: Target amount | Target
 //   date; More options: Description, Currency (the Settings currency to
 //   start), Automation default for its items.
@@ -16,7 +16,7 @@
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { query } from 'firebase/firestore';
-import { useAccounts, useCategories, useCurrencyContext, useExchangeRates } from '@/src/shared/firestore/queries';
+import { useAccounts, useCurrencyContext, useExchangeRates } from '@/src/shared/firestore/queries';
 import { createBucket, updateBucket } from '@/src/shared/firestore/aggregation';
 import { useFirestoreCollection, useFirestoreDoc } from '@/src/shared/firestore/hooks';
 import { bucketLineItemsRef, bucketRef } from '@/src/shared/firestore/refs';
@@ -70,7 +70,6 @@ export function useLogic(basketId: string | null = null) {
     return wanted === 'Income' || wanted === 'Savings' || wanted === 'Transfer' ? wanted : 'Expense';
   });
   const [kind, setKind] = useState<'Fixed' | 'Variable'>('Fixed');
-  const [categoryId, setCategoryId] = useState('');
   const [startMonth, setStartMonth] = useState(thisMonth);
   const [repeats, setRepeats] = useState<'monthly' | 'once'>('monthly');
   const [paidFrom, setPaidFrom] = useState('');
@@ -88,7 +87,6 @@ export function useLogic(basketId: string | null = null) {
     setDescription(existing.description ?? '');
     setTypeState(existing.type ?? 'Expense');
     setKind(existing.kind ?? 'Variable');
-    setCategoryId(existing.categoryId ?? '');
     setStartMonth(existing.startMonth ?? thisMonth);
     setRepeats(existing.repeats ?? (existing.kind === 'Fixed' ? 'monthly' : 'once'));
     setPaidFrom(existing.defaultPaidFrom ?? '');
@@ -103,13 +101,9 @@ export function useLogic(basketId: string | null = null) {
   function setType(next: BasketType) {
     if (typeLocked) return;
     setTypeState(next);
-    setCategoryId('');
     if (next !== 'Savings') setTargetAmount('');
   }
 
-  // Categories of the basket's type (transfers have none).
-  const { data: categories } = useCategories(type === 'Transfer' ? undefined : type);
-  const categoryOptions = type === 'Transfer' ? [] : categories.map((c) => ({ value: c.id, label: c.name })).sort((a, b) => a.label.localeCompare(b.label));
 
   const months = useMemo(() => Array.from({ length: 13 }, (_, i) => addMonths(thisMonth, i - 1)), [thisMonth]);
   const monthOptions = months.map((m) => ({ value: m, label: monthTitleOf(m) }));
@@ -141,7 +135,6 @@ export function useLogic(basketId: string | null = null) {
       currency: currency || ctx.base,
       kind: effectiveKind,
       type,
-      categoryId: categoryId || null,
       startMonth,
       repeats,
       defaultPaidFrom: showPaidFrom ? paidFrom || null : null,
@@ -185,9 +178,6 @@ export function useLogic(basketId: string | null = null) {
     showKind,
     kind,
     setKind,
-    categoryId,
-    setCategoryId,
-    categoryOptions,
     startMonth,
     setStartMonth,
     monthOptions,

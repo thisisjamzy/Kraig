@@ -49,9 +49,9 @@
   outline: none;
 }
 
+/* Full width: the whole content area, however wide the screen. */
 .page {
   width: 100%;
-  max-width: 1600px;
   margin: 0 auto;
 }
 
