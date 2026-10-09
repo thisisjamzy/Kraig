@@ -123,3 +123,21 @@
   background: var(--p-navy);
   color: var(--p-card);
 }
+
+/* One solid card per notification; the swipe actions sit behind it and
+   only show while it's dragged. */
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.swipe {
+  border-radius: 20px;
+  box-shadow: var(--p-shadow);
+}
+
+.card {
+  border-radius: 20px;
+  background: var(--p-card);
+}

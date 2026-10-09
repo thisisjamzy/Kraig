@@ -6,7 +6,7 @@
 //   - title over the period, a slim segmented bar (one segment per item,
 //     spent solid, left lighter) with a legend under it (the bucket's
 //     totals live once, in the grid below);
-//   - a 2 × 2 grid (planned, spent, left, items), then type / category,
+//   - a 2 × 2 grid (planned, spent, left, items), then type / repeats,
 //     linked payments (status chips) and last activity as their own rows;
 //   - the action card (only when something needs doing);
 //   - item cards, latest transactions, and a sticky bar.
@@ -15,7 +15,7 @@ import { DismissibleCta } from '@/src/phone/widgets/DismissibleCard/DismissibleC
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { AlertCircle, Archive, ArrowLeft, ArrowRight, Lock, LockOpen, MoreHorizontal, Pencil, Plus, Sparkles } from 'lucide-react';
+import { AlertCircle, Archive, ArrowLeft, ArrowRight, Lock, LockOpen, MoreHorizontal, Pencil, Plus, Printer, FileDown, Sparkles } from 'lucide-react';
 import { useLogic } from '@/src/logic/planningBucket/useLogic';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { ActionMenu } from '@/src/widgets/ActionMenu/ActionMenu';
@@ -25,11 +25,13 @@ import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import p from '@/src/phone/screens/Planning/Planning.module.css';
 import { AdjustmentRow, AdjustmentSheet } from '@/src/phone/screens/PlanningBucket/Adjustments';
 import { CloseBucketSheet } from '@/src/phone/screens/PlanningBucket/CloseBucketSheet';
+import { ReceiptSheet } from '@/src/phone/screens/PlanningBucket/ReceiptSheet';
 import adj from '@/src/phone/screens/PlanningBucket/Adjustments.module.css';
 import styles from '@/src/phone/screens/PlanningBucket/PlanningBucketScreen.module.css';
 import { useReadyToPay } from '@/src/shared/hooks/useReadyToPay';
 import { monthKeyOf, type ItemMonth } from '@/src/shared/budget/monthBudget';
 import { upcomingPayments } from '@/src/logic/planningBucket/basketPage';
+import { BASKET_REPEATS_LABEL, basketRepeats } from '@/src/shared/budget/flow';
 import type { LineRow } from '@/src/logic/budgetMonth/lines';
 
 // Distinct brand-blue shades, one per item (segment and legend dot).
@@ -60,6 +62,7 @@ export function PlanningBucketScreen({ bucketId }: { bucketId: string }) {
 export function PlanningBucketView({ bucketId, b }: { bucketId: string; b: ReturnType<typeof useLogic> }) {
   const router = useRouter();
   const [closing, setClosing] = useState(false);
+  const [receipt, setReceipt] = useState(false);
   const card = b.card;
   const currency = b.currency;
 
@@ -123,6 +126,8 @@ export function PlanningBucketView({ bucketId, b }: { bucketId: string; b: Retur
                   onSelect: () => router.push(`/budget?tab=history&month=${b.month}&bucket=${bucketId}`),
                 },
                 { key: 'edit', label: 'Edit basket', icon: <Pencil size={14} strokeWidth={2} />, onSelect: () => router.push(`/baskets/${bucketId}`) },
+                { key: 'print', label: 'Print', icon: <Printer size={14} strokeWidth={2} />, onSelect: () => setReceipt(true) },
+                { key: 'export', label: 'Export as PDF', icon: <FileDown size={14} strokeWidth={2} />, onSelect: () => setReceipt(true) },
               ]}
             />
           </>
@@ -231,8 +236,8 @@ export function PlanningBucketView({ bucketId, b }: { bucketId: string; b: Retur
             <span className={styles.detailValue}>{b.bucket.kind === 'Fixed' ? 'Fixed' : 'Planned'}</span>
           </div>
           <div className={styles.detail}>
-            <span className={p.specLabel}>Category</span>
-            <span className={styles.detailValue}>{b.category}</span>
+            <span className={p.specLabel}>Repeats</span>
+            <span className={styles.detailValue}>{BASKET_REPEATS_LABEL[basketRepeats(b.bucket)]}</span>
           </div>
         </div>
 
@@ -355,6 +360,7 @@ export function PlanningBucketView({ bucketId, b }: { bucketId: string; b: Retur
           </div>
         </>
       )}
+      {receipt && <ReceiptSheet bucketId={bucketId} month={b.month} onClose={() => setReceipt(false)} />}
       {closing && (
         <CloseBucketSheet
           month={monthTitle(b.month)}

@@ -1,10 +1,11 @@
 'use client';
 
-// Notifications on a phone: a full-screen list in the BASELINE list style.
-// A filter row (All, Money, Time, Unread); each day (Today, Yesterday, This
-// week, Earlier) as its own card of rows. A row shows the severity, title,
-// one line of body and when; tapping it opens the notification's own page
-// (its items and actions). Swipe left to archive, right to mark it read.
+// Notifications on a phone: a full-screen list in the BASELINE style.
+// A filter row (All, Money, Time, Unread); under each day (Today,
+// Yesterday, This week, Earlier) every notification is its own solid card:
+// the severity, title, two lines of body and when; tapping it opens the
+// notification's own page (its items and actions). Nothing else shows on
+// the card: swipe left to archive, right to mark it read (or unread).
 // The header menu has Mark all as read, and the snoozed, resolved and
 // archived ones. The shared notifications logic does the work, the same
 // as the web inbox.
@@ -116,7 +117,7 @@ export function NotificationsScreen() {
             <div className={p.sectionHead}>
               <h2>{group}</h2>
             </div>
-            <div className={p.rows}>
+            <div className={styles.cards}>
               {rows.map((n) => (
                 <Row key={n.id} n={n} v={v} />
               ))}
@@ -149,6 +150,8 @@ function Row({ n, v }: { n: StoredNotification; v: Logic }) {
           ? { label: 'Mark read', icon: <CheckCheck size={18} strokeWidth={2} />, tone: 'brand', onSelect: () => void v.markRead(n.id) }
           : { label: 'Mark unread', icon: <Bell size={18} strokeWidth={2} />, tone: 'brand', onSelect: () => void v.markRead(n.id, false) }
       }
+      className={styles.swipe}
+      contentClassName={styles.card}
     >
       <Link href={`/notifications/${encodeURIComponent(n.id)}`} className={`${p.row} ${styles.row}`} data-unread={unread || undefined}>
         <span className={styles.icon} data-severity={n.severity} aria-hidden>

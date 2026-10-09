@@ -18,6 +18,12 @@ export function syncLabel(lastSync: number | null, online: boolean, now: number)
 }
 
 export function useSyncStatus(): string {
+  const { lastSync, online, now } = useSyncState();
+  return syncLabel(lastSync, online, now);
+}
+
+/** When the app was last in step with the server, and whether it's online now. */
+export function useSyncState(): { lastSync: number | null; online: boolean; now: number } {
   const [lastSync, setLastSync] = useState<number | null>(null);
   const [online, setOnline] = useState(true);
   const [now, setNow] = useState(() => Date.now());
@@ -37,5 +43,5 @@ export function useSyncStatus(): string {
     };
   }, []);
 
-  return syncLabel(lastSync, online, now);
+  return { lastSync, online, now };
 }

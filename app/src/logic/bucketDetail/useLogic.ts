@@ -334,7 +334,7 @@ export function useLogic(goalId: string) {
     setItemPriority(DEFAULT_PRIORITY);
     setItemNecessity(DEFAULT_NECESSITY);
     // The basket's own defaults first (the New basket form), then the app's.
-    setItemCategoryIdState(bucket?.categoryId && categoryOptions.some((c) => c.id === bucket.categoryId) ? bucket.categoryId : (categoryOptions[0]?.id ?? ''));
+    setItemCategoryIdState(categoryOptions[0]?.id ?? '');
     setItemAccountId('');
     setItemToAccountId('');
     setItemCharges('');

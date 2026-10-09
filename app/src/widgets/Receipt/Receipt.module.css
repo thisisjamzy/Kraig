@@ -1,0 +1,253 @@
+/* A budget snapshot: paper, not app UI. Always white with black text and
+   one grey, whatever the app's theme, so it prints well on any printer.
+   A4 (the default) is set large enough to read at a glance; the 80 mm roll
+   is small print. */
+
+@font-face {
+  font-family: 'Dreda Receipt Mono';
+  src: url('/fonts/JetBrainsMono-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Dreda Receipt Mono';
+  src: url('/fonts/JetBrainsMono-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-display: swap;
+}
+
+.receipt {
+  --ink: #000;
+  --grey: #666;
+  --rule: #d1d1d1;
+  --body: 8pt;
+  --small: 6.5pt;
+  --title: 9pt;
+  --name: 11pt;
+  --total: 9pt;
+  --logo: 18pt;
+  --pad: 3px;
+  box-sizing: border-box;
+  /* Grows with its content: the white runs the whole length. */
+  flex: none;
+  align-self: flex-start;
+  width: 80mm;
+  max-width: 100%;
+  height: auto;
+  padding: 5mm;
+  background: #fff;
+  color: var(--ink);
+  font-family: 'Dreda Receipt Mono', 'JetBrains Mono', 'IBM Plex Mono', 'Courier New', monospace;
+  font-size: var(--body);
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.receipt[data-paper='a4'] {
+  --body: 11pt;
+  --small: 8.5pt;
+  --title: 12pt;
+  --name: 17pt;
+  --total: 12.5pt;
+  --logo: 30pt;
+  --pad: 5px;
+  width: 150mm;
+  padding: 12mm 10mm;
+}
+
+.receipt p {
+  margin: 0;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding-bottom: calc(var(--pad) * 2);
+  text-align: center;
+}
+
+.logo {
+  display: block;
+  height: var(--logo);
+  width: auto;
+  margin-bottom: calc(var(--pad) * 3);
+}
+
+.title {
+  font-size: var(--title);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--grey);
+}
+
+.name {
+  margin-top: var(--pad) !important;
+  font-size: var(--name);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.muted,
+.label,
+.empty,
+.footer {
+  color: var(--grey);
+}
+
+.muted,
+.footer,
+.label {
+  font-size: var(--small);
+}
+
+.section {
+  border-top: 1px dashed var(--ink);
+  padding: calc(var(--pad) * 2) 0;
+}
+
+.label {
+  margin-bottom: var(--pad) !important;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.rowLabel {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.amount {
+  flex: none;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.row[data-strong] {
+  font-size: var(--total);
+  font-weight: 700;
+}
+
+.totals {
+  border-bottom: 1px dashed var(--ink);
+}
+
+.over {
+  font-weight: 700;
+  text-align: center;
+}
+
+/* The items: Item, Planned, Spent. */
+.items {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--body);
+}
+
+.items th,
+.items td {
+  padding: var(--pad) 0;
+  vertical-align: top;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.items th:first-child,
+.items td:first-child {
+  width: 100%;
+  padding-right: calc(var(--pad) * 2);
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.items th:not(:first-child),
+.items td:not(:first-child) {
+  padding-left: calc(var(--pad) * 2);
+}
+
+.items thead th {
+  font-weight: 700;
+  border-bottom: 1px solid var(--ink);
+}
+
+.items tbody tr:not(.groupRow, .subtotal) td {
+  border-bottom: 1px solid var(--rule);
+}
+
+.items tr {
+  break-inside: avoid;
+}
+
+.groupRow th {
+  padding-top: calc(var(--pad) * 2);
+  text-align: left;
+  font-weight: 700;
+}
+
+.subtotal td {
+  font-weight: 700;
+}
+
+.empty {
+  padding: calc(var(--pad) * 2) 0 0;
+  text-align: center;
+}
+
+.notes {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: calc(var(--pad) * 2);
+  text-align: center;
+}
+
+.qr {
+  width: 22mm;
+  height: 22mm;
+  margin-top: 6px;
+}
+
+.receipt[data-paper='a4'] .qr {
+  width: 26mm;
+  height: 26mm;
+}
+
+/* What window.print() gets: kept off screen until printing. */
+.printRoot {
+  position: fixed;
+  left: -10000px;
+  top: 0;
+  background: #fff;
+}
+
+.printRoot .receipt {
+  max-width: none;
+}
+
+.printRoot .receipt[data-paper='a4'] {
+  margin: 0 auto;
+  padding: 0;
+}
+
+@media print {
+  .printRoot {
+    width: 100%;
+  }
+}
