@@ -981,13 +981,6 @@ export const stringConstants = {
     changeMonthLabel: 'Change month',
   },
 
-  bucketsAnalytics: {
-    fixedVsVariableTitle: 'Fixed vs. variable',
-    trendTitle: 'Dedicated spend (last 6 months)',
-    breakdownTitle: 'Breakdown',
-    emptyText: 'Complete a basket line item to see it show up here.',
-  },
-
   archivedBuckets: {
     title: 'Archived baskets',
     hint: 'Archiving a basket never deletes it, bring one back here whenever you need it again.',

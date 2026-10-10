@@ -181,6 +181,20 @@
   color: var(--tf-label);
 }
 
+.chip {
+  align-self: flex-start;
+  min-height: 36px;
+  padding: 6px 14px;
+  border: 1px solid var(--color-brand);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-brand);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
 .more {
   display: flex;
   flex-direction: column;
@@ -279,6 +293,106 @@
 
 .select:focus-within {
   box-shadow: inset 0 0 0 2px var(--tf-accent);
+}
+
+/* ListSelectField: the trigger, and the full-screen list on a phone */
+.listTrigger {
+  width: 100%;
+  border: 0;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.listSheet {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  /* Clear of the notch and the home indicator. */
+  padding: calc(var(--safe-top) + 12px) 0 calc(var(--safe-bottom) + 12px);
+  background: var(--tf-bg, var(--color-background));
+  color: var(--color-text-primary);
+}
+
+.listHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 8px 8px 20px;
+}
+
+.listTitle {
+  margin: 0;
+  font-family: var(--font-family-heading);
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.listClose {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+.listBody {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 24px;
+}
+
+.listGroup + .listGroup {
+  margin-top: 16px;
+}
+
+.listGroupLabel {
+  margin: 0;
+  padding: 0 20px 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
+.listOption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 52px;
+  padding: 14px 20px;
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 1rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.listOption[aria-pressed='true'] {
+  color: var(--color-brand);
+  font-weight: 600;
+}
+
+.listOption:focus-visible,
+.listClose:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: -2px;
 }
 
 /* SwitchField */

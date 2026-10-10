@@ -75,7 +75,7 @@ export function usePlansData() {
           ? Array.from({ length: BACK + AHEAD + 1 }, (_, i) => shiftMonth(current, i - BACK))
           : [monthKey(anchor)];
         for (const month of months) {
-          const occurrence = itemOccurrence(item, month);
+          const occurrence = itemOccurrence(item, month, bucket);
           if (!occurrence) continue;
           const key = `${item.id}@${month}`;
           const planItem = data.plan(month).items.find((i) => i.key === key);

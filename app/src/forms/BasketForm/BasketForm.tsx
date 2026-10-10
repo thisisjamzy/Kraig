@@ -3,13 +3,14 @@
 // New basket and Edit basket on the form standard (src/logic/createBucket):
 // a side peek on tablet and web, the BASELINE full-screen form on a phone.
 // "New basket" (24px, no icon) with "Money · October 2026" under it; field
-// cards in order: Name; Type; Kind (Expenses only); Starts | Repeats
+// cards in order: Name; Type; Kind (Expenses only); Starts | Cadence (a
+// Custom cadence takes an RRULE)
 // (a basket has no category: each of its items has its own); Default paid from (not for income); Target amount | Target date
 // (savings only); More options: Description, Currency, Automation default.
 // Impact, then "Create basket" and the text button "Create and add items".
 // No corner checkmark.
 
-import { useLogic, BASKET_TYPES, BASKET_TYPE_LABEL } from '@/src/logic/createBucket/useLogic';
+import { useLogic, BASKET_TYPES, BASKET_TYPE_LABEL, CADENCE_OPTIONS } from '@/src/logic/createBucket/useLogic';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { FieldCard, FieldRow, FormFrame, ImpactCard, MoreOptions, SegmentedField, SelectField, formFrameStyles as ff } from '@/src/widgets/FormFrame/FormFrame';
 import styles from './BasketForm.module.css';
@@ -70,16 +71,14 @@ export function BasketForm({ basketId = null }: { basketId?: string | null }) {
 
           <FieldRow>
             <SelectField label="Starts" value={v.startMonth} onChange={v.setStartMonth} options={v.monthOptions} />
-            <SelectField
-              label="Repeats"
-              value={v.repeats}
-              onChange={(next) => v.setRepeats(next as 'monthly' | 'once')}
-              options={[
-                { value: 'monthly', label: 'Every month' },
-                { value: 'once', label: 'This month only' },
-              ]}
-            />
+            <SelectField label="Cadence" value={v.cadence} onChange={(next) => v.setCadence(next as typeof v.cadence)} options={CADENCE_OPTIONS} />
           </FieldRow>
+          {v.cadence === 'Custom' && (
+            <FieldCard label="Repeat rule">
+              <input className={ff.input} value={v.cadenceRule} onChange={(e) => v.setCadenceRule(e.target.value)} placeholder="FREQ=WEEKLY;BYDAY=MO,FR" />
+              <span className={ff.hint}>{v.ruleValid ? 'Items repeat on this schedule unless they set their own.' : 'Use an RRULE, for example FREQ=MONTHLY;BYMONTHDAY=15.'}</span>
+            </FieldCard>
+          )}
 
           {v.showPaidFrom && <SelectField label="Default paid from" value={v.paidFrom} onChange={v.setPaidFrom} groups={v.paidFromGroups} placeholder="Choose" />}
 

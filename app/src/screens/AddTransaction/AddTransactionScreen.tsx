@@ -4,7 +4,8 @@
 // page instead of the old four steps and keypad.
 //   Type; the savings mode or the income type when it applies
 //   Amount | Date
-//   Basket item (fills in the rest), Category (this month's budgeted ones,
+//   Basket, then Item (never fills in the amount; a Payment offers its
+//   full due amount as a chip), Category (this month's budgeted ones,
 //   or every one when recording unplanned)
 //   Account, or From | To with Charges for a transfer
 //   Description
@@ -19,6 +20,7 @@ import {
   FieldCard,
   FieldRow,
   FormFrame,
+  ListSelectField,
   MoreOptions,
   SegmentedField,
   SelectField,
@@ -54,6 +56,8 @@ export function AddTransactionScreen() {
           ? `Adds ${formatMoney(v.amountString)} to ${v.fromAccount}${when}${what}.`
           : `Takes ${formatMoney(v.amountString)} from ${v.fromAccount}${when}${what}.`
       : null;
+  // A basket item says what the money does to it: "Hangouts will have 12,000 left."
+  const impactText = [impact, v.itemImpact].filter(Boolean).join(' ') || null;
   const showCategory = v.categoriesForType.length > 0 || !v.hasBudgetedCategories;
 
   return (
@@ -61,7 +65,7 @@ export function AddTransactionScreen() {
       title={t.title}
       onClose={v.close}
       phoneHeader="bar"
-      impact={impact}
+      impact={impactText}
       primary={v.loading ? null : { label: `Add ${t.types[v.type].label.toLowerCase()}`, disabled: !v.canSave, busy: v.submitting, busyLabel: t.saving }}
       onSubmit={() => void v.handleConfirm()}
       error={v.submitError}
@@ -92,14 +96,31 @@ export function AddTransactionScreen() {
             </FieldCard>
           </FieldRow>
 
-          {(v.linkableBucketItems.length > 0 || v.linkedBucketItem) && (
-            <SelectField
-              label="Basket item"
-              value={v.linkedBucketItem?.id ?? ''}
-              onChange={(id) => (id ? v.selectLinkedBucketItem(id) : v.clearLinkedBucketItem())}
-              options={v.linkableBucketItems.map((item) => ({ value: item.id, label: `${item.bucketName}: ${item.name} · ${formatMoney(String(item.amount))}` }))}
-              placeholder="None"
-            />
+          {(v.basketOptions.length > 0 || v.linkedBucketItem) && (
+            <>
+              <ListSelectField
+                label="Basket"
+                value={v.basketChoice}
+                onChange={v.chooseBasket}
+                options={[...v.basketOptions, { value: 'unsure', label: 'Not sure yet' }]}
+                placeholder="Choose a basket"
+              />
+              {v.basketChoice && v.basketChoice !== 'unsure' && (
+                <ListSelectField
+                  label="Item"
+                  value={v.linkedBucketItem?.id ?? ''}
+                  onChange={(id) => (id ? v.selectLinkedBucketItem(id) : v.clearLinkedBucketItem())}
+                  options={v.itemOptions}
+                  placeholder="Choose an item"
+                />
+              )}
+              {v.itemHelper && <p className={ff.hint}>{v.itemHelper}</p>}
+              {v.payFull !== null && Number(v.amountString) !== v.payFull && (
+                <button type="button" className={ff.chip} onClick={v.usePayFull}>
+                  Pay the full {formatMoney(String(v.payFull))} due
+                </button>
+              )}
+            </>
           )}
 
           {showCategory && !v.linkedBucketItem && (

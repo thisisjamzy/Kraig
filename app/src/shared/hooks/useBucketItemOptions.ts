@@ -51,7 +51,7 @@ export function useBucketItemOptions({
       .filter((item) => item.categoryId === categoryId)
       .flatMap((item) =>
         months
-          .filter((month) => itemOccurrence(item, month))
+          .filter((month) => itemOccurrence(item, month, buckets.find((bucket) => bucket.id === item.goalId)))
           .map((month) => ({
             key: `${item.id}@${month}`,
             link: { bucketId: item.goalId, itemId: item.id, month },

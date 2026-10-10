@@ -5,7 +5,8 @@
 // basket page's logic (src/logic/bucketDetail) owns the fields and the
 // save; this file only lays them out, in this order:
 //   1. Name
-//   2. Amount
+//   2. Amount, then Kind (Payment, Allowance, Set aside) or, for income,
+//      Comes in as (Lump sum, Trickle)
 //   3. Category | Need
 //   4. Priority
 //   5. Repeats | Due day
@@ -34,7 +35,15 @@ import {
   formFrameStyles as ff,
   useFormExits,
 } from '@/src/widgets/FormFrame/FormFrame';
-import type { Frequency, ItemAutomation } from '@/src/shared/firestore/types';
+import type { Frequency, IncomeMode, ItemAutomation, ItemKind } from '@/src/shared/firestore/types';
+import { INCOME_MODE_LABEL, ITEM_KINDS, ITEM_KIND_LABEL } from '@/src/shared/budget/itemKinds';
+
+const KIND_HINT: Record<ItemKind, string> = {
+  payment: 'A set amount due on a date.',
+  allowance: 'Money for the period, spent bit by bit.',
+  set_aside: 'Put away toward a target, month after month.',
+};
+const AVAILABLE_DAY_OPTIONS = Array.from({ length: 28 }, (_, i) => ({ value: String(i + 1), label: `From the ${ordinal(i + 1)}` }));
 import styles from './BasketItemForm.module.css';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -48,6 +57,7 @@ function ordinal(n: number) {
 
 const DAY_OPTIONS = Array.from({ length: 31 }, (_, i) => ({ value: String(i + 1), label: `${ordinal(i + 1)} of the month` }));
 const REPEAT_OPTIONS: { value: ItemRepeat; label: string }[] = [
+  { value: 'basket', label: 'Same as basket' },
   { value: 'none', label: "Doesn't repeat" },
   { value: 'Monthly', label: 'Monthly' },
   { value: 'Weekly', label: 'Weekly' },
@@ -66,6 +76,10 @@ const AUTOMATION_OPTIONS: { value: ItemAutomation['mode']; label: string }[] = [
   { value: 'remind', label: 'Remind me' },
   { value: 'prepare', label: 'Prepare it' },
 ];
+
+function basketCadenceWord(cadence: string | null | undefined) {
+  return cadence === 'Once' ? 'the basket, once' : cadence === 'Custom' ? "the basket's schedule" : `the basket's ${(cadence ?? 'monthly').toLowerCase()} cadence`;
+}
 
 function isoOf(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -101,6 +115,11 @@ export function BasketItemForm({ goalId, itemId }: { goalId: string; itemId?: st
   const amount = Number(v.itemAmount) || 0;
   const accounts = v.accountOptionsForCategory(v.itemCategoryId);
   const monthly = v.itemRepeat === 'Monthly';
+  const allowance = !v.isIncomeItem && !transfer && v.itemKind === 'allowance';
+  const setAside = !v.isIncomeItem && !transfer && v.itemKind === 'set_aside';
+  const trickle = v.isIncomeItem && v.itemIncomeMode === 'trickle';
+  // Only payments and lump-sum income fall due on a date.
+  const dateLabel = allowance || setAside || trickle ? 'Starts' : v.isIncomeItem ? 'Expected on' : 'Due date';
   const dueDay = v.itemDueDate ? new Date(`${v.itemDueDate}T00:00:00`).getDate() : null;
 
   function setDueDay(day: string) {
@@ -113,7 +132,9 @@ export function BasketItemForm({ goalId, itemId }: { goalId: string; itemId?: st
   const first = v.itemDueDate ? new Date(`${v.itemDueDate}T00:00:00`) : new Date();
   const monthName = MONTHS[first.getMonth()];
   const when =
-    v.itemRepeat === 'none'
+    v.itemRepeat === 'basket'
+      ? `on ${basketCadenceWord(v.bucket?.cadence)}`
+      : v.itemRepeat === 'none'
       ? v.itemDueDate
         ? `due ${first.getDate()} ${SHORT[first.getMonth()]}`
         : `for ${monthName}`
@@ -186,6 +207,26 @@ export function BasketItemForm({ goalId, itemId }: { goalId: string; itemId?: st
             </FieldCard>
           )}
 
+          {v.isIncomeItem ? (
+            <SegmentedField
+              label="Comes in as"
+              value={v.itemIncomeMode}
+              onChange={(next) => v.setItemIncomeMode(next as IncomeMode)}
+              options={(['lump_sum', 'trickle'] as IncomeMode[]).map((m) => ({ value: m, label: INCOME_MODE_LABEL[m] }))}
+              hint={trickle ? 'Small amounts over the period. The amount is the total expected.' : 'The expected amount on one date.'}
+            />
+          ) : (
+            !transfer && (
+              <SegmentedField
+                label="Kind"
+                value={v.itemKind}
+                onChange={(next) => v.setItemKind(next as ItemKind)}
+                options={ITEM_KINDS.map((k) => ({ value: k, label: ITEM_KIND_LABEL[k] }))}
+                hint={KIND_HINT[v.itemKind]}
+              />
+            )
+          )}
+
           {v.hasNeed ? (
             <FieldRow>
               <SelectField
@@ -221,16 +262,31 @@ export function BasketItemForm({ goalId, itemId }: { goalId: string; itemId?: st
               label="Repeats"
               value={v.itemRepeat}
               onChange={(next) => v.setItemRepeat(next as ItemRepeat)}
-              options={REPEAT_OPTIONS.filter((o) => !fixed || o.value !== 'none')}
+              options={REPEAT_OPTIONS.filter((o) => (!fixed || o.value !== 'none') && (o.value !== 'basket' || v.basketHasCadence))}
             />
-            {monthly ? (
+            {monthly && !allowance && !setAside && !trickle ? (
               <SelectField label="Due day" value={dueDay ? String(dueDay) : ''} onChange={setDueDay} options={DAY_OPTIONS} placeholder={fixed ? 'Choose a day' : 'No due day'} />
             ) : (
-              <FieldCard label="Due date">
+              <FieldCard label={dateLabel}>
                 <input type="date" className={ff.input} value={v.itemDueDate} onChange={(e) => v.setItemDueDate(e.target.value)} />
               </FieldCard>
             )}
           </FieldRow>
+
+          {allowance && (
+            <SelectField label="Available" value={v.itemAvailableDay} onChange={v.setItemAvailableDay} options={AVAILABLE_DAY_OPTIONS} placeholder="From the start of the period" />
+          )}
+
+          {setAside && (
+            <FieldRow>
+              <FieldCard label={`Target${currency ? ` (${currency})` : ''}`}>
+                <input className={ff.input} inputMode="decimal" value={v.itemTargetAmount} onChange={(e) => v.setItemTargetAmount(e.target.value)} placeholder="0" />
+              </FieldCard>
+              <FieldCard label="By">
+                <input type="date" className={ff.input} value={v.itemTargetDate} onChange={(e) => v.setItemTargetDate(e.target.value)} />
+              </FieldCard>
+            </FieldRow>
+          )}
 
           {v.itemRepeat === 'Custom' && (
             <FieldRow>

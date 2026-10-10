@@ -2,7 +2,8 @@
 
 // Keeps the budget set up while the app is open — no Cloud Functions, so
 // the client does it (same pattern as CalendarSyncRunner):
-//   1. once per session, runs the flow-type migration if it hasn't run yet;
+//   1. once per session, runs the flow-type migration and the baskets
+//      migration (item kinds, basket cadences) if they haven't run yet;
 //   2. sets up the current and next month (and any skipped since the last
 //      visit) from the recurring items, once each (monthSetup.ts);
 //   3. once, repairs the Ready to pay copies stored by older versions:
@@ -20,6 +21,7 @@ import { useMonthBudget } from '@/src/shared/hooks/useMonthBudget';
 import { useFirestoreCollection } from '@/src/shared/firestore/hooks';
 import { bucketLineItemsRef, bucketsRef, categoriesRef, paymentQueueRef } from '@/src/shared/firestore/refs';
 import { runFlowMigration } from '@/src/shared/firestore/flowMigration';
+import { runBasketsMigration } from '@/src/shared/firestore/basketsMigration';
 import { existingMonths, setUpMonths } from '@/src/shared/firestore/budgetMonths';
 import { repairQueue } from '@/src/shared/firestore/paymentQueue';
 import { showToast } from '@/src/widgets/Toast/Toast';
@@ -66,6 +68,12 @@ export function BudgetRunner() {
         await runFlowMigration(uid);
       } catch (error) {
         console.error('[budget] flow-type migration failed', error);
+      }
+      try {
+        // Item kinds and basket cadences, stored once, with a review list.
+        await runBasketsMigration(uid);
+      } catch (error) {
+        console.error('[budget] baskets migration failed', error);
       }
       try {
         await setUpOpenMonths(uid);

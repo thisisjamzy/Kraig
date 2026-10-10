@@ -18,6 +18,7 @@
 // once by its deterministic id: when the month was set up, the lines it
 // started with (for the start-of-month banner) and whether it's reviewed.
 
+import type { BasketCadence } from '../firestore/types';
 import { addMonths, itemOccurrence, monthKeyOf, monthTitleOf, type BudgetItemLike } from './monthBudget';
 import { itemFlow, type FlowType } from './flow';
 
@@ -55,7 +56,7 @@ export interface SetupLine {
 /** The lines a month has from its (non-archived) buckets' items. */
 export function monthLines(
   month: string,
-  buckets: { id: string; type?: FlowType | null; archived?: boolean }[],
+  buckets: { id: string; type?: FlowType | null; archived?: boolean; cadence?: BasketCadence | null; cadenceRule?: string | null; startMonth?: string | null }[],
   itemsByBucket: Record<string, BudgetItemLike[]>,
   categories: Map<string, { transactionType: 'Expense' | 'Income' | 'Savings' }>
 ): SetupLine[] {
@@ -63,7 +64,7 @@ export function monthLines(
   for (const bucket of buckets) {
     if (bucket.archived) continue;
     for (const item of itemsByBucket[bucket.id] ?? []) {
-      if (!itemOccurrence(item, month)) continue;
+      if (!itemOccurrence(item, month, bucket)) continue;
       out.push({ key: `${item.id}@${month}`, bucketId: bucket.id, itemId: item.id, type: itemFlow(bucket.type ?? 'Expense', item.categoryId, categories) });
     }
   }

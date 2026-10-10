@@ -8,7 +8,7 @@
 
 import { useMemo, useState } from 'react';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
-import { useBudgetMonthDoc, useFlowMigrationReport } from '@/src/shared/hooks/useBudgetMonthState';
+import { useBasketsMigrationReview, useBudgetMonthDoc, useFlowMigrationReport } from '@/src/shared/hooks/useBudgetMonthState';
 import { editMonthLine, skipItemMonth, updateItemFields, type EditScope } from '@/src/shared/firestore/bucketBudget';
 import { createBucketLineItem, recordBucketLineItemPayment, updateTransactionWithAggregation } from '@/src/shared/firestore/aggregation';
 import { dismissMonthBanner, snoozeIncomePrompt } from '@/src/shared/firestore/budgetMonths';
@@ -36,6 +36,7 @@ export function useBudgetMonth(month: string, data: PlanningData) {
 
   const { data: monthDoc } = useBudgetMonthDoc(month);
   const migration = useFlowMigrationReport();
+  const kindReview = useBasketsMigrationReview();
 
   const phase = monthPhase(month, today);
   const daysLeft = daysLeftIn(month, today);
@@ -205,6 +206,8 @@ export function useBudgetMonth(month: string, data: PlanningData) {
     reviewed: Boolean(monthDoc?.reviewedAt),
     dismissBanner: () => uid && dismissMonthBanner(uid, month),
     migrationPending: migration.pending,
+    /** The one-time "Check your items" list (item kinds) is waiting. */
+    kindReviewPending: kindReview.pending,
     prompts: prompts.map((p) => rows.Income.find((r) => r.key === p.key)!).filter(Boolean),
     recordIncome,
     notYet,

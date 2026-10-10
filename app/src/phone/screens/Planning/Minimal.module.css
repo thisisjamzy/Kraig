@@ -1,0 +1,958 @@
+/* The minimal phone budget look (Budget tab, Baskets, a basket, Payments):
+   full-width sections instead of floating cards. Lists run edge to edge on
+   the card colour with 20px inside, rows split by thin dividers, 24px
+   between sections, 14 to 16px row padding. One card per screen at most
+   (the tab's money card). Navy text, grey secondary text, blue for actions,
+   red only for a real problem number. Needs Planning's tokens
+   (Planning.module.css .page or .tokens) on an ancestor. */
+
+/* Cancels the page's side padding so a section can run edge to edge. */
+.bleed {
+  margin-inline: calc(-1 * var(--space-lg));
+}
+
+.section {
+  margin-top: 24px;
+}
+
+.sectionHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 20px 8px;
+}
+
+.label {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--p-muted);
+}
+
+.groupToggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--p-muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.groupToggle svg {
+  transition: transform 160ms ease;
+}
+
+.groupToggle[aria-expanded='false'] svg {
+  transform: rotate(-90deg);
+}
+
+.groupTotal {
+  font-size: 0.8125rem;
+  color: var(--p-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.list {
+  background: var(--p-card);
+  border-top: 1px solid var(--p-divider);
+  border-bottom: 1px solid var(--p-divider);
+}
+
+.row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 14px 20px;
+  color: inherit;
+  text-decoration: none;
+  background: none;
+  border: 0;
+  width: 100%;
+  font: inherit;
+  text-align: left;
+}
+
+.row + .row,
+.row + .rowWrap,
+.rowWrap + .row,
+.rowWrap + .rowWrap {
+  border-top: 1px solid var(--p-divider);
+}
+
+/* A row with an action beside its link (Pay): the link and the action share one line. */
+.rowWrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.rowWrap > .row {
+  flex: 1;
+  min-width: 0;
+  padding-right: 8px;
+}
+
+.icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--p-blue-tint);
+  color: var(--p-blue);
+}
+
+.main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Names wrap to two lines instead of cutting important words. */
+.name {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--p-navy);
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line {
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  color: var(--p-muted);
+}
+
+.line[data-tone='problem'] {
+  color: var(--p-red);
+}
+
+.side {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.figure {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--p-navy);
+  white-space: nowrap;
+}
+
+.figure small {
+  font-weight: 400;
+  color: var(--p-muted);
+}
+
+.figure[data-tone='problem'] {
+  color: var(--p-red);
+}
+
+/* A row's progress: a short bar under its amounts. */
+.sideBar {
+  display: block;
+  width: 100%;
+  min-width: 64px;
+  height: 3px;
+  margin-top: 4px;
+  border-radius: 2px;
+  background: var(--p-track);
+  overflow: hidden;
+}
+
+.sideBar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--p-blue);
+}
+
+.sideBar > span[data-tone='problem'] {
+  background: var(--p-red);
+}
+
+/* Blue text actions ("Pay", "Mark as paid", "Details"). */
+.action {
+  flex: none;
+  min-height: 44px;
+  padding: 0 20px 0 8px;
+  border: 0;
+  background: none;
+  color: var(--p-blue);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.textLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--p-blue);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+/* The quiet "+ New basket" row at the end of a list. */
+.quiet {
+  composes: row;
+  color: var(--p-blue);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  min-height: 52px;
+}
+
+.empty {
+  margin: 0;
+  padding: 16px 20px;
+  font-size: 0.875rem;
+  color: var(--p-muted);
+}
+
+/* ---- Info icons and sheets ---- */
+
+.info {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin: -8px 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: inherit;
+  opacity: 0.7;
+  cursor: pointer;
+}
+
+/* ---- Needs you ---- */
+
+.needs {
+  composes: row;
+  color: var(--p-navy);
+}
+
+.needs .name {
+  font-weight: 500;
+}
+
+.needsDot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--p-red);
+}
+
+/* ---- Three figures in one row (Planned, Used, Left) ---- */
+
+.figures {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  padding: 0 20px;
+}
+
+.figureCell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.figureLabel {
+  font-size: 0.75rem;
+  color: var(--p-muted);
+}
+
+.figureValue {
+  font-size: 1.0625rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.figureValue[data-tone='problem'] {
+  color: var(--p-red);
+}
+
+/* ---- Headers ---- */
+
+.title {
+  margin: 4px 0 2px;
+  font-family: var(--font-family-heading);
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--p-navy);
+  overflow-wrap: anywhere;
+}
+
+.subtitle {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--p-muted);
+}
+
+.oneLine {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin: 6px 0 0;
+  font-size: 0.875rem;
+  color: var(--p-muted);
+}
+
+.oneLine > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---- Primary action at the bottom ---- */
+
+.bottomAction {
+  position: sticky;
+  bottom: calc(12px + var(--safe-bottom, 0px));
+  display: flex;
+  margin-top: 24px;
+}
+
+.primary {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 52px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--p-blue);
+  color: #fff;
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+/* ---- Week strip (Payments) ---- */
+
+.week {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  background: var(--p-card);
+  border-top: 1px solid var(--p-divider);
+  border-bottom: 1px solid var(--p-divider);
+  touch-action: pan-y;
+}
+
+.weekNav {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--p-muted);
+  cursor: pointer;
+}
+
+.weekDays {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+}
+
+.weekDay {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-height: 56px;
+  padding: 4px 0;
+  border: 0;
+  border-radius: 12px;
+  background: none;
+  color: var(--p-navy);
+  font: inherit;
+  cursor: pointer;
+}
+
+.weekDay[data-outside] {
+  color: var(--p-light);
+}
+
+.weekDay[aria-pressed='true'] {
+  background: var(--p-blue-tint);
+}
+
+.weekDay[data-today] .weekNum {
+  color: var(--p-blue);
+}
+
+.weekName {
+  font-size: 0.6875rem;
+  color: var(--p-muted);
+}
+
+.weekNum {
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.dots {
+  display: flex;
+  gap: 2px;
+  height: 5px;
+}
+
+.dots > span {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--p-blue);
+}
+
+.dots > span[data-status='paid'] {
+  background: var(--p-green);
+}
+
+.dots > span[data-status='overdue'] {
+  background: var(--p-red);
+}
+
+.monthGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  padding: 8px 12px;
+  background: var(--p-card);
+  border-bottom: 1px solid var(--p-divider);
+}
+
+.calendarFoot {
+  display: flex;
+  justify-content: center;
+  background: var(--p-card);
+  border-bottom: 1px solid var(--p-divider);
+}
+
+/* ---- Bottom sheets ---- */
+
+.sheetText {
+  margin: 0 0 12px;
+  white-space: normal;
+  font-size: 0.9375rem;
+  line-height: 1.45;
+  color: var(--p-navy);
+}
+
+.sheetRows {
+  display: flex;
+  flex-direction: column;
+}
+
+.sheetRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  font-size: 0.9375rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.sheetRow + .sheetRow {
+  border-top: 1px solid var(--p-divider);
+}
+
+.sheetRow > span:first-child {
+  color: var(--p-muted);
+}
+
+.sheetRow strong {
+  color: var(--p-navy);
+}
+
+.sheetRow strong[data-tone='problem'] {
+  color: var(--p-red);
+}
+
+.sheetField {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+  font-size: 0.8125rem;
+  color: var(--p-muted);
+}
+
+.sheetField input,
+.sheetField select {
+  min-height: 48px;
+  padding: 0 14px;
+  border: 1px solid var(--p-divider);
+  border-radius: 12px;
+  background: var(--p-card);
+  color: var(--p-navy);
+  font: inherit;
+  font-size: 1rem;
+}
+
+.error {
+  margin: 0 0 12px;
+  font-size: 0.8125rem;
+  color: var(--p-red);
+}
+
+.row:focus-visible,
+.action:focus-visible,
+.textLink:focus-visible,
+.weekDay:focus-visible,
+.primary:focus-visible,
+.info:focus-visible,
+.groupToggle:focus-visible {
+  outline: 2px solid var(--p-blue);
+  outline-offset: -2px;
+}
+
+/* ---- Header: the month dropdown and the icon tabs on one row ---- */
+
+.headerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.monthWrap {
+  position: relative;
+  min-width: 0;
+}
+
+.monthPicker {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--p-navy);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.monthPickerText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.monthPickerTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-family-heading);
+  font-size: 1.125rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* The arrow at 45 degrees: a chevron turned to point down and right. */
+.monthPickerArrow {
+  transform: rotate(-45deg);
+  color: var(--p-blue);
+  transition: transform 160ms ease;
+}
+
+.monthPicker[aria-expanded='true'] .monthPickerArrow {
+  transform: rotate(0deg);
+}
+
+.monthPickerCaption {
+  font-size: 0.75rem;
+  color: var(--p-muted);
+}
+
+.monthMenu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 50;
+  width: 260px;
+  padding: 10px;
+  border-radius: 16px;
+  background: var(--p-card);
+  box-shadow: 0 12px 32px rgba(28, 31, 58, 0.18), 0 2px 6px rgba(28, 31, 58, 0.08);
+  color: var(--p-navy);
+}
+
+.monthMenuYear {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 6px;
+  font-weight: 700;
+}
+
+.monthMenuGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+}
+
+.monthMenuGrid button {
+  min-height: 40px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.monthMenuGrid button[aria-checked='true'] {
+  background: var(--p-blue);
+  color: #fff;
+  font-weight: 600;
+}
+
+.iconTabs {
+  flex: none;
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--p-track);
+}
+
+.iconTabs button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 40px;
+  height: 36px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--p-muted);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.iconTabs button[aria-selected='true'] {
+  background: var(--p-card);
+  color: var(--p-navy);
+  box-shadow: 0 1px 2px rgba(28, 31, 58, 0.12);
+}
+
+.iconTabs button:focus-visible,
+.monthPicker:focus-visible,
+.monthMenuGrid button:focus-visible {
+  outline: 2px solid var(--p-blue);
+  outline-offset: 2px;
+}
+
+/* ---- The month card, laid out like Home's balance card ---- */
+
+.moneyCard {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 16px;
+  padding: 20px;
+  border-radius: var(--radius-lg, 20px);
+  background: linear-gradient(135deg, var(--money-ink) 0%, var(--money-blue) 65%, var(--money-blue-soft) 100%);
+  color: #fff;
+}
+
+.moneyTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.moneyAmount {
+  margin: 0;
+  font-family: var(--font-family-heading);
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.moneyLabel {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.moneyChip {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 999px;
+  background: none;
+  color: #fff;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.moneyCard[data-tone='teal'] {
+  background: linear-gradient(135deg, #0b2a2e 0%, #0f766e 60%, #5eead4 100%);
+}
+
+.moneyMeter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.moneyMeterText {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.75);
+  white-space: nowrap;
+}
+
+.moneyTrack {
+  flex: none;
+  width: 112px;
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.22);
+  overflow: hidden;
+}
+
+.moneyTrack > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #fff;
+}
+
+.moneyTrack > span[data-tone='problem'] {
+  background: #ffb3ba;
+}
+
+.moneyFigures {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.moneyFigure {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.moneyFigureLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.moneyFigureValue {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.moneyFigureValue[data-tone='problem'] {
+  color: #ffc2c8;
+}
+
+.moneyChip:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+/* ---- Priorities ---- */
+
+.controlsRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.segment {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--p-track);
+}
+
+.segment button {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--p-muted);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.segment button[aria-pressed='true'] {
+  background: var(--p-card);
+  color: var(--p-navy);
+  box-shadow: 0 1px 2px rgba(28, 31, 58, 0.12);
+}
+
+.menuButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 40px;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  color: var(--p-blue);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.rowMenu {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 44px;
+  margin-right: 8px;
+  border: 0;
+  background: none;
+  color: var(--p-muted);
+  cursor: pointer;
+}
+
+.rowWrap[data-faded] .name,
+.rowWrap[data-faded] .figure {
+  color: var(--p-muted);
+}
+
+.line[data-tone='good'] {
+  color: var(--p-green);
+}
+
+/* Where the money runs out, between two rows. */
+.runsOut {
+  padding: 8px 20px;
+  border-top: 1px dashed var(--p-red);
+  background: var(--p-red-tint);
+  color: var(--p-red);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.segment button:focus-visible,
+.menuButton:focus-visible,
+.rowMenu:focus-visible {
+  outline: 2px solid var(--p-blue);
+  outline-offset: 2px;
+}
+
+/* Priorities rows sit inside a swipe wrapper: divide the wrappers. */
+.list > [data-index] + [data-index],
+.list > .runsOut + [data-index] {
+  border-top: 1px solid var(--p-divider);
+}
+
+/* Baskets: the two filters beside the month. */
+.filters {
+  flex: none;
+  display: flex;
+  gap: 6px;
+}
+
+.filterButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--p-divider);
+  border-radius: 999px;
+  background: var(--p-card);
+  color: var(--p-navy);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.filterButton svg {
+  color: var(--p-blue);
+}
+
+.filterButton:focus-visible {
+  outline: 2px solid var(--p-blue);
+  outline-offset: 2px;
+}

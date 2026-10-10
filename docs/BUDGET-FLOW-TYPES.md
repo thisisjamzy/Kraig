@@ -56,3 +56,39 @@ checks the entry is still ready, so it can't be recorded twice; Undo deletes the
 type are split (`<bucketId>__<type>`, named "<name> · <Type>"); items get explicit
 subtypes; negative savings amounts are corrected; "Loan received" income is tagged as debt
 financing. Planning already-migrated data yields no writes, so it is safe to run again.
+
+## Baskets: cadence and item kinds
+
+A basket is an envelope. Each month's budget is every basket's items that fall in that
+month, and spending is recorded against a basket and an item for what was actually spent.
+
+- **Cadence** (`src/shared/budget/cadence.ts`): a basket is Monthly (the default), Weekly,
+  Daily, Quarterly, Yearly, Custom (an RRULE in `cadenceRule`) or One-off. An item without a
+  `recurrence` of its own runs on its basket's cadence. A month's planned amount is the
+  item's amount times its occurrences that month ("4 weeks × 10,000"). Dates are stepped on
+  the calendar, never by adding milliseconds.
+- **Item kinds** (`src/shared/budget/itemKinds.ts`, `itemKind` on the item):
+  - Payment: a fixed amount due on a date. Paid, Due or Overdue (overdue only for the
+    occurrences already due); partial payments show "40,000 of 160,000 paid".
+  - Allowance: money for the period, spent bit by bit. Spent / Left and a pace; an optional
+    release day (`availableFrom.day`). Never overdue.
+  - Set aside: money put away toward `targetAmount` (by `targetDate`). Contributions add up
+    across months (`setAsideHistory` in monthBudget.ts); spending recorded against it counts
+    as used, not as more saved.
+- **Transfers** have no kind: a transfer moves money between your own wallets (into one where
+  it can be spent). It's never a payment, never due or overdue, never in Payments or Ready to
+  pay, and only its fee counts as spending (and comes off what's available). A basket page
+  lists transfer items under "Moves between wallets" with a Move action.
+- **Income** (`incomeMode`): a lump sum on a date, or a trickle of small receipts over the
+  period (Received / Expected and "62,000 received, 70,000 expected by today").
+- Only payments have due dates in the month's lines (`ItemMonth.due`, `dueDates`), so only
+  payments appear in Payments, Upcoming payments and Ready to pay. A savings item can be made
+  a Payment to keep "pay yourself first" in Ready to pay.
+- Add expense never fills in the amount from the basket. Basket, then Item (or "Not sure
+  yet"); a Payment offers "Pay the full 12,000 due" as a chip. "Mark as paid" opens the form
+  with the remaining due amount suggested.
+- **Migration** (`src/shared/budget/basketsMigration.ts`, run by BudgetRunner, stored at
+  `migrations/basketKindsV1`): stores each item's kind and each basket's cadence, pins
+  one-off items so they don't start inheriting a cadence, and lists every inferred kind for
+  the one-time review page `/budget/item-kinds`.
+- Tests: `test/basketKinds.test.ts` (`npm run test:baskets`).

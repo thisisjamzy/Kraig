@@ -18,6 +18,7 @@ const WIDE_ROUTES = [
   '/budget/ready',
   '/budget/review',
   '/budget/migration',
+  '/budget/item-kinds',
   '/transactions',
   '/payments',
   '/wallets',

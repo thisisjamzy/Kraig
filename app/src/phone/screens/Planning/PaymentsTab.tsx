@@ -1,64 +1,85 @@
 'use client';
 
-// Planning > Payments — "what's coming and when?": the month on a black
-// calendar (a dot per payment: blue upcoming, green paid, red overdue; up
-// to 3 a day) and the payments below — tap a day to narrow the list to it.
-// Paid ones fold into "Paid this month".
+// Planning > Payments on a phone, minimal (Minimal.module.css): a card like
+// Home's (spent so far this month, then payments paid, still to pay and
+// overdue in smaller type), one week
+// strip with a dot per payment (swipe or the arrows for other weeks, "Show
+// month" for the whole grid), then the month's payments as a full-width
+// list grouped by Overdue, This week, Later this month and Paid. Each row:
+// its type icon (the same circle as the basket rows), name, one grey line ("1 Oct · Momo Virtual Card · House"), the amount, and
+// a blue "Pay" that opens the expense form with what's still due suggested.
+// Only Payment items are listed: allowances and set asides are never due.
 
-import { ChevronLeft, ChevronRight, CircleCheck, X } from 'lucide-react';
-import { usePaymentsTab, type MonthPayment } from '@/src/logic/planning/usePaymentsTab';
+import Link from 'next/link';
+import { useRef, useState } from 'react';
+import { ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { payHref, usePaymentsTab, type MonthPayment } from '@/src/logic/planning/usePaymentsTab';
 import type { PlanningData } from '@/src/logic/planning/useLogic';
-import { Modal } from '@/src/widgets/Modal/Modal';
-import { money, monthTitle, shiftMonth, dayMonth } from '@/src/viewmodels/planning';
+import { dayMonth, money, monthTitle } from '@/src/viewmodels/planning';
 import { IconCircle } from '@/src/phone/screens/Planning/PlanningParts';
-import styles from '@/src/phone/screens/Planning/Planning.module.css';
-import tab from '@/src/phone/screens/Planning/PlanningTabs.module.css';
-import { Fragment } from 'react';
-import { useHasTopBar } from '@/src/widgets/AppShell/TopBarSlot';
-import wide from '@/src/phone/screens/Planning/Planning.wide.module.css';
+import { MoneyCard } from '@/src/phone/screens/Planning/MinimalParts';
+import m from '@/src/phone/screens/Planning/Minimal.module.css';
 
-const WEEKDAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
 function key(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-function PaymentCard({ payment, currency, onPay }: { payment: MonthPayment; currency: string; onPay: () => void }) {
+function startOfWeek(d: Date) {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate() - d.getDay());
+}
+
+function addDays(d: Date, n: number) {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+}
+
+function PaymentRow({ payment, month }: { payment: MonthPayment; month: string }) {
+  const paid = payment.status === 'paid';
+  const line = [dayMonth(payment.due), payment.method, payment.bucketName].filter(Boolean).join(' · ');
   return (
-    <article className={tab.payCard} data-status={payment.status}>
-      <IconCircle type={payment.categoryType} />
-      <div className={tab.payMain}>
-        <span className={tab.payName}>{payment.name}</span>
-        <span className={tab.payLine}>
-          {payment.frequency} · {dayMonth(payment.due)}
+    <div className={m.rowWrap}>
+      <Link href={`/budget/item/${payment.bucketId}/${payment.itemId}?month=${month}`} className={m.row}>
+        <IconCircle type={payment.categoryType} />
+        <span className={m.main}>
+          <span className={m.name}>{payment.name}</span>
+          <span className={m.line}>{payment.paid > 0 && !paid ? `${line} · ${money(payment.paid)} of ${money(payment.amount)} paid` : line}</span>
         </span>
-        <span className={tab.payLine}>{payment.method}</span>
-        <span className={tab.payChips}>
-          <span className={styles.chip}>{payment.bucketName}</span>
-          {payment.status === 'overdue' && (
-            <span className={styles.chip} data-tone="over">
-              Overdue
-            </span>
-          )}
-          {payment.status === 'paid' && (
-            <span className={styles.chip} data-tone="neutral">
-              <CircleCheck size={11} strokeWidth={2.5} aria-hidden /> Paid
-            </span>
-          )}
+        <span className={m.side}>
+          <span className={m.figure} data-tone={payment.status === 'overdue' ? 'problem' : undefined}>
+            {money(paid ? payment.amount : payment.remaining || payment.amount)}
+          </span>
         </span>
-      </div>
-      <div className={tab.paySide}>
-        <span className={tab.payAmount}>
-          {payment.categoryType === 'Income' ? '+' : '-'}
-          {money(payment.amount)} {currency}
-        </span>
-        {payment.status !== 'paid' && (
-          <button type="button" className={styles.textButton} data-tone={payment.status} onClick={onPay}>
-            Mark as paid
-          </button>
-        )}
-      </div>
-    </article>
+      </Link>
+      {!paid && (
+        <Link className={m.action} href={payHref(payment, month)}>
+          Pay
+        </Link>
+      )}
+    </div>
+  );
+}
+
+function Day({ d, inMonth, today, selected, dots, onPick }: { d: Date; inMonth: boolean; today: boolean; selected: boolean; dots: string[]; onPick: () => void }) {
+  return (
+    <button
+      type="button"
+      className={m.weekDay}
+      data-outside={!inMonth || undefined}
+      data-today={today || undefined}
+      aria-pressed={selected}
+      disabled={!inMonth}
+      onClick={onPick}
+      aria-label={`${dayMonth(d)}${dots.length ? `, ${dots.length} ${dots.length === 1 ? 'payment' : 'payments'}` : ''}`}
+    >
+      <span className={m.weekName}>{WEEKDAYS[d.getDay()]}</span>
+      <span className={m.weekNum}>{d.getDate()}</span>
+      <span className={m.dots} aria-hidden>
+        {dots.slice(0, 3).map((status, i) => (
+          <span key={i} data-status={status} />
+        ))}
+      </span>
+    </button>
   );
 }
 
@@ -76,155 +97,157 @@ export function PaymentsTab({
   setBucket: (bucket: string | null) => void;
 }) {
   const p = usePaymentsTab(month, data, bucket);
-  const inShell = useHasTopBar();
-  const [y, m] = month.split('-').map(Number);
-  const first = new Date(y, m - 1, 1);
-  const lead = first.getDay();
-  const gridStart = new Date(y, m - 1, 1 - lead);
-  const weeks = Math.ceil((lead + new Date(y, m, 0).getDate()) / 7);
-  const cells = Array.from({ length: weeks * 7 }, (_, i) => new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + i));
-  const todayKey = key(new Date());
-  const selectedLabel = p.selectedDay
-    ? dayMonth(new Date(`${p.selectedDay}T00:00:00`))
-    : null;
+  const [y, mo] = month.split('-').map(Number);
+  const today = new Date();
+  const todayKey = key(today);
+  const inThisMonth = today.getFullYear() === y && today.getMonth() === mo - 1;
+  const [weekStart, setWeekStart] = useState(() => startOfWeek(inThisMonth ? today : new Date(y, mo - 1, 1)));
+  const [showMonth, setShowMonth] = useState(false);
+  // Follow the month when it changes in the header.
+  const [weekMonth, setWeekMonth] = useState(month);
+  if (weekMonth !== month) {
+    setWeekMonth(month);
+    setWeekStart(startOfWeek(inThisMonth ? today : new Date(y, mo - 1, 1)));
+  }
 
-  // Medium screens and up: the calendar card on the left, the payments
-  // for the chosen day or month beside it. Fragments on a phone.
-  const Column = inShell ? 'div' : Fragment;
-  const col = (className: string) => (inShell ? { className } : {});
+  const first = new Date(y, mo - 1, 1);
+  const last = new Date(y, mo, 0);
+  function shiftWeek(delta: number) {
+    const next = addDays(weekStart, delta * 7);
+    // Past the month's edge: move to the next or previous month.
+    if (addDays(next, 6) < first) return onMonth(`${first.getMonth() === 0 ? y - 1 : y}-${String(first.getMonth() === 0 ? 12 : first.getMonth()).padStart(2, '0')}`);
+    if (next > last) return onMonth(`${mo === 12 ? y + 1 : y}-${String(mo === 12 ? 1 : mo + 1).padStart(2, '0')}`);
+    setWeekStart(next);
+  }
+  const touch = useRef<number | null>(null);
+
+  const week = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+  const gridStart = startOfWeek(first);
+  const weeks = Math.ceil((first.getDay() + last.getDate()) / 7);
+  const grid = Array.from({ length: weeks * 7 }, (_, i) => addDays(gridStart, i));
+  const day = (d: Date) => (
+    <Day
+      key={key(d)}
+      d={d}
+      inMonth={d.getMonth() === mo - 1}
+      today={key(d) === todayKey}
+      selected={p.selectedDay === key(d)}
+      dots={p.dotsByDay.get(key(d)) ?? []}
+      onPick={() => p.pickDay(key(d))}
+    />
+  );
+
+  // Groups: Overdue, This week, Later this month, Paid.
+  const weekEnd = addDays(startOfWeek(today), 7);
+  const overdue = p.open.filter((x) => x.status === 'overdue');
+  const thisWeek = p.open.filter((x) => x.status !== 'overdue' && inThisMonth && x.due < weekEnd);
+  const later = p.open.filter((x) => x.status !== 'overdue' && !thisWeek.includes(x));
+  const groups: { label: string; rows: MonthPayment[] }[] = [
+    { label: 'Overdue', rows: overdue },
+    { label: 'This week', rows: thisWeek },
+    { label: inThisMonth ? 'Later this month' : monthTitle(month), rows: later },
+    { label: 'Paid', rows: p.paid },
+  ];
+
+  // The card: spent so far this month, then this month's payments.
+  const r2 = (n: number) => Math.round(n * 100) / 100;
+  const due = r2(p.payments.reduce((sum, x) => sum + x.amount, 0));
+  const paidSoFar = r2(p.payments.reduce((sum, x) => sum + (x.status === 'paid' ? x.amount : x.paid), 0));
+  const overdueLeft = r2(p.payments.filter((x) => x.status === 'overdue').reduce((sum, x) => sum + (x.remaining || x.amount), 0));
+  const monthName = monthTitle(month).split(' ')[0];
 
   return (
     <>
-      <Column {...col(wide.split)}>
-      <Column {...col(wide.left)}>
-      <section className={tab.calendar} aria-label={`Payments in ${monthTitle(month)}`}>
-        <header className={tab.calHead}>
-          <button type="button" onClick={() => onMonth(shiftMonth(month, -1))} aria-label="Previous month">
-            <ChevronLeft size={18} strokeWidth={2.25} />
-          </button>
-          <span>{monthTitle(month)}</span>
-          <button type="button" onClick={() => onMonth(shiftMonth(month, 1))} aria-label="Next month">
-            <ChevronRight size={18} strokeWidth={2.25} />
-          </button>
-        </header>
-        <div className={tab.calGrid}>
-          {WEEKDAYS.map((d) => (
-            <span key={d} className={tab.calWeekday}>
-              {d}
-            </span>
-          ))}
-          {cells.map((d) => {
-            const k = key(d);
-            const inMonth = d.getMonth() === m - 1;
-            const dots = (p.dotsByDay.get(k) ?? []).slice(0, 3);
-            return (
-              <button
-                key={k}
-                type="button"
-                className={tab.calDay}
-                data-outside={!inMonth || undefined}
-                data-today={k === todayKey || undefined}
-                aria-pressed={p.selectedDay === k}
-                disabled={!inMonth}
-                onClick={() => p.pickDay(k)}
-                aria-label={`${d.getDate()}${dots.length ? `, ${dots.length} ${dots.length === 1 ? 'payment' : 'payments'}` : ''}`}
-              >
-                <span className={tab.calNum}>{d.getDate()}</span>
-                <span className={tab.calDots} aria-hidden>
-                  {dots.map((status, i) => (
-                    <span key={i} data-status={status} />
-                  ))}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-        <ul className={tab.calLegend}>
-          <li>
-            <span data-status="upcoming" /> Upcoming
-          </li>
-          <li>
-            <span data-status="paid" /> Paid
-          </li>
-          <li>
-            <span data-status="overdue" /> Overdue
-          </li>
-        </ul>
-      </section>
-      </Column>
-      <Column {...col(wide.right)}>
+      <MoneyCard
+        amount={data.totals.expenses.spent}
+        label={`Spent in ${monthName}`}
+        fill={due > 0 ? paidSoFar / due : 0}
+        fillLabel="of payments paid"
+        figures={[
+          { label: 'Payments paid', value: paidSoFar },
+          { label: 'Still to pay', value: r2(Math.max(0, due - paidSoFar)) },
+          { label: 'Overdue', value: overdueLeft, problem: overdueLeft > 0 },
+        ]}
+      />
 
-      <div className={tab.sectionHead}>
-        <h2 className={tab.sectionTitle}>{selectedLabel ? `Payments on ${selectedLabel}` : 'Upcoming payments'}</h2>
-        {selectedLabel && (
-          <button type="button" className={styles.textButton} onClick={p.clearDay}>
-            Clear
-          </button>
+      <div className={`${m.bleed} ${m.section}`}>
+        {showMonth ? (
+          <>
+            <div className={m.monthGrid}>{grid.map(day)}</div>
+          </>
+        ) : (
+          <div
+            className={m.week}
+            onTouchStart={(e) => (touch.current = e.touches[0].clientX)}
+            onTouchEnd={(e) => {
+              const start = touch.current;
+              touch.current = null;
+              if (start === null) return;
+              const dx = e.changedTouches[0].clientX - start;
+              if (Math.abs(dx) > 40) shiftWeek(dx < 0 ? 1 : -1);
+            }}
+          >
+            <button type="button" className={m.weekNav} onClick={() => shiftWeek(-1)} aria-label="Previous week">
+              <ChevronLeft size={18} strokeWidth={2.25} />
+            </button>
+            <div className={m.weekDays}>{week.map(day)}</div>
+            <button type="button" className={m.weekNav} onClick={() => shiftWeek(1)} aria-label="Next week">
+              <ChevronRight size={18} strokeWidth={2.25} />
+            </button>
+          </div>
         )}
+        <div className={m.calendarFoot}>
+          <button type="button" className={m.textLink} onClick={() => setShowMonth((x) => !x)}>
+            {showMonth ? 'Show week' : 'Show month'}
+          </button>
+        </div>
       </div>
 
-      {p.bucketName && (
-        <div className={tab.chips}>
-          <button type="button" aria-pressed="true" onClick={() => setBucket(null)} aria-label={`Clear filter: ${p.bucketName}`}>
-            {p.bucketName}
-            <X size={14} strokeWidth={2.5} aria-hidden />
+      {(p.bucketName || p.selectedDay) && (
+        <p className={m.oneLine}>
+          <span>
+            {p.selectedDay ? `Due on ${dayMonth(new Date(`${p.selectedDay}T00:00:00`))}` : ''}
+            {p.selectedDay && p.bucketName ? ' · ' : ''}
+            {p.bucketName ?? ''}
+          </span>
+          <button
+            type="button"
+            className={m.textLink}
+            onClick={() => {
+              p.clearDay();
+              setBucket(null);
+            }}
+          >
+            <X size={14} strokeWidth={2.5} aria-hidden /> Clear
           </button>
-        </div>
-      )}
-
-      {p.open.length === 0 ? (
-        <p className={styles.empty}>
-          {p.payments.length === 0
-            ? 'No payments scheduled this month. Give a basket item a due date to see it here.'
-            : selectedLabel
-              ? 'Nothing left to pay on this day.'
-              : 'Everything this month is paid.'}
         </p>
-      ) : (
-        <div className={tab.cardList}>
-          {p.open.map((payment) => (
-            <PaymentCard key={payment.id} payment={payment} currency={p.currency} onPay={() => p.startPaying(payment)} />
-          ))}
-        </div>
       )}
 
-      {p.paid.length > 0 && (
-        <details className={tab.paidGroup}>
-          <summary>
-            Paid this month
-            <span>{p.paid.length}</span>
-          </summary>
-          <div className={tab.cardList}>
-            {p.paid.map((payment) => (
-              <PaymentCard key={payment.id} payment={payment} currency={p.currency} onPay={() => undefined} />
-            ))}
+      <div className={m.bleed}>
+        {p.payments.length === 0 ? (
+          <div className={m.section}>
+            <p className={m.empty}>No payments due this month.</p>
           </div>
-        </details>
-      )}
-      </Column>
-      </Column>
-
-      {p.paying && (
-        <Modal title="Mark as paid" onClose={p.cancelPaying}>
-          <p className={tab.sheetHint}>
-            {p.paying.name} · {money(p.paying.amount)} {p.currency}, recorded today against {monthTitle(month)}.
-          </p>
-          <label className={tab.field}>
-            {p.paying.categoryType === 'Income' ? 'Received into' : p.paying.categoryType === 'Savings' ? 'Saved into' : 'Paid from'}
-            <select value={p.payAccountId} onChange={(e) => p.setPayAccountId(e.target.value)}>
-              {p.accounts.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          {p.error && <p className={tab.error}>{p.error}</p>}
-          <button type="button" className={`${styles.fillButton} ${tab.fullButton}`} disabled={!p.payAccountId || p.busy} onClick={p.confirmPaid}>
-            {p.busy ? 'Saving…' : 'Confirm payment'}
-          </button>
-        </Modal>
-      )}
+        ) : (
+          groups.map((group) =>
+            group.rows.length ? (
+              <section key={group.label} className={m.section} aria-label={group.label}>
+                <div className={m.sectionHead}>
+                  <span className={m.label} style={group.label === 'Overdue' ? { color: 'var(--p-red)' } : undefined}>
+                    {group.label}
+                  </span>
+                  <span className={m.groupTotal}>{money(group.rows.reduce((s, r) => s + (r.status === 'paid' ? r.amount : r.remaining || r.amount), 0))}</span>
+                </div>
+                <div className={m.list}>
+                  {group.rows.map((payment) => (
+                    <PaymentRow key={payment.id} payment={payment} month={month} />
+                  ))}
+                </div>
+              </section>
+            ) : null
+          )
+        )}
+      </div>
     </>
   );
 }

@@ -66,6 +66,9 @@ import type {
   Priority,
   BucketItemNecessity,
   Frequency,
+  BasketCadence,
+  IncomeMode,
+  ItemKind,
   BucketLineItemSubItem,
   BucketItemLink,
   FirestoreTransaction,
@@ -1042,11 +1045,13 @@ export interface BasketDefaults {
   defaultPaidFrom?: string | null;
   automationDefault?: 'off' | 'remind' | 'prepare' | null;
   targetAmount?: number | null;
+  cadence?: BasketCadence | null;
+  cadenceRule?: string | null;
 }
 
 const basketDefaults = (input: BasketDefaults) =>
   Object.fromEntries(
-    (['categoryId', 'startMonth', 'repeats', 'defaultPaidFrom', 'automationDefault', 'targetAmount'] as const)
+    (['categoryId', 'startMonth', 'repeats', 'defaultPaidFrom', 'automationDefault', 'targetAmount', 'cadence', 'cadenceRule'] as const)
       .filter((k) => input[k] !== undefined)
       .map((k) => [k, input[k] ?? null])
   );
@@ -1216,13 +1221,21 @@ export interface CreateBucketLineItemInput {
   charges?: number | null;
   dueDate: Date | null;
   // Fixed-bucket items only — see FirestoreBucketLineItem.recurrence's header.
-  recurrence?: { frequency: Frequency; interval: number } | null;
+  recurrence?: { frequency: Frequency; interval: number; rule?: string | null } | null;
   // How it's paid and when it can move (the form standard's Paid from and
   // More options). Left out, an update keeps what the item has.
   automation?: ItemAutomation | null;
   notBefore?: Date | null;
   neededBy?: Date | null;
   splittable?: boolean;
+  // Basket kinds (types.ts's ItemKind, IncomeMode): how the item uses its
+  // money, for allowances when it's released, for set asides the target.
+  // Left out, an update keeps what the item has.
+  itemKind?: ItemKind | null;
+  incomeMode?: IncomeMode | null;
+  availableFrom?: { day?: number | null; incomeItemId?: string | null } | null;
+  targetAmount?: number | null;
+  targetDate?: Date | null;
   // The item's own shopping-list checklist, edited as a batch alongside
   // every other field on this same form (see FirestoreBucketLineItem
   // .subItems's header) — ticking one off afterward from Bucket Detail goes
@@ -1351,6 +1364,11 @@ function lineItemExtras(input: CreateBucketLineItemInput) {
   if (input.notBefore !== undefined) out.notBefore = input.notBefore ? Timestamp.fromDate(input.notBefore) : null;
   if (input.neededBy !== undefined) out.neededBy = input.neededBy ? Timestamp.fromDate(input.neededBy) : null;
   if (input.splittable !== undefined) out.splittable = input.splittable;
+  if (input.itemKind !== undefined) out.itemKind = input.itemKind;
+  if (input.incomeMode !== undefined) out.incomeMode = input.incomeMode;
+  if (input.availableFrom !== undefined) out.availableFrom = input.availableFrom;
+  if (input.targetAmount !== undefined) out.targetAmount = input.targetAmount;
+  if (input.targetDate !== undefined) out.targetDate = input.targetDate ? Timestamp.fromDate(input.targetDate) : null;
   return out;
 }
 

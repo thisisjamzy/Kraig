@@ -1,72 +1,61 @@
 'use client';
 
-// Bucket details — one bucket in one month, as a full page. Every figure
-// is readable in full: amounts never truncate (a cell wraps, or the figure
-// steps down a size), only names do. Top to bottom:
-//   - title over the period, a slim segmented bar (one segment per item,
-//     spent solid, left lighter) with a legend under it (the bucket's
-//     totals live once, in the grid below);
-//   - a 2 × 2 grid (planned, spent, left, items), then type / repeats,
-//     linked payments (status chips) and last activity as their own rows;
-//   - the action card (only when something needs doing);
-//   - item cards, latest transactions, and a sticky bar.
+// A basket in one month on a phone, minimal (Minimal.module.css):
+//   - its name over one grey line ("Monthly · Expenses"), the description
+//     as one line with More;
+//   - Planned, Used and Left in one row;
+//   - one "needs you" line when it's over plan (cover or justify) or has
+//     money left over near the month's end (reallocate);
+//   - its items as a full-width list grouped by kind: Payments ("5 Oct ·
+//     Paid", with Pay for what's still due), Allowances ("22,000 left ·
+//     about 1,000 a day"), Set aside ("Saved 27,000 of 120,000 · by Dec");
+//     income items with "Add received"; transfers as Moves between wallets
+//     ("Not moved yet · fee 500", with Move), never payments;
+//   - the month's transactions, with See all;
+//   - "Add expense to this basket" at the bottom (the basket chosen, the
+//     amount empty). Notes and adjustments are behind More.
 
-import { DismissibleCta } from '@/src/phone/widgets/DismissibleCard/DismissibleCard';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { AlertCircle, Archive, ArrowLeft, ArrowRight, Lock, LockOpen, MoreHorizontal, Pencil, Plus, Printer, FileDown, Sparkles } from 'lucide-react';
+import { ArrowLeft, ChevronRight, FileDown, Lock, LockOpen, MoreHorizontal, Pencil, Plus, Printer, ArrowRight } from 'lucide-react';
 import { useLogic } from '@/src/logic/planningBucket/useLogic';
+import { payHref } from '@/src/logic/planning/usePaymentsTab';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { ActionMenu } from '@/src/widgets/ActionMenu/ActionMenu';
-import { dayMonth, fillOf, money, monthTitle } from '@/src/viewmodels/planning';
-import { HistoryRowView, coverHref, reallocateHref } from '@/src/phone/screens/Planning/PlanningParts';
+import { Modal } from '@/src/widgets/Modal/Modal';
 import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
-import p from '@/src/phone/screens/Planning/Planning.module.css';
+import { dayMonth, money, monthTitle } from '@/src/viewmodels/planning';
+import { ITEM_KIND_GROUP, type ItemKind } from '@/src/shared/budget/itemKinds';
+import { occurrenceBuild } from '@/src/shared/budget/cadence';
+import type { ItemMonth } from '@/src/shared/budget/monthBudget';
+import { coverHref, reallocateHref } from '@/src/phone/screens/Planning/PlanningParts';
+import { InfoButton, MoreText, NeedsYouRow } from '@/src/phone/screens/Planning/MinimalParts';
 import { AdjustmentRow, AdjustmentSheet } from '@/src/phone/screens/PlanningBucket/Adjustments';
 import { CloseBucketSheet } from '@/src/phone/screens/PlanningBucket/CloseBucketSheet';
 import { ReceiptSheet } from '@/src/phone/screens/PlanningBucket/ReceiptSheet';
+import p from '@/src/phone/screens/Planning/Planning.module.css';
+import m from '@/src/phone/screens/Planning/Minimal.module.css';
 import adj from '@/src/phone/screens/PlanningBucket/Adjustments.module.css';
-import styles from '@/src/phone/screens/PlanningBucket/PlanningBucketScreen.module.css';
-import { useReadyToPay } from '@/src/shared/hooks/useReadyToPay';
-import { monthKeyOf, type ItemMonth } from '@/src/shared/budget/monthBudget';
-import { upcomingPayments } from '@/src/logic/planningBucket/basketPage';
-import { BASKET_REPEATS_LABEL, basketRepeats } from '@/src/shared/budget/flow';
-import type { LineRow } from '@/src/logic/budgetMonth/lines';
 
-// Distinct brand-blue shades, one per item (segment and legend dot).
-const SHADES = ['#3b63f0', '#243a8c', '#7d97f6', '#1c2a6b', '#a9baf9', '#4f6fd8', '#5c6fae', '#c7d3fc'];
-const LEGEND_ROWS = 4;
-
-/** An amount with "XAF" after it; the pieces may wrap, never truncate. */
-function Amount({ value, currency, prefix }: { value: number; currency: string; prefix?: string }) {
-  return (
-    <span className={styles.amount}>
-      {prefix && <span className={styles.amountPrefix}>{prefix}</span>}
-      <span className={styles.amountNumber}>{money(value)}</span>
-      <span className={styles.amountUnit}>{currency}</span>
-    </span>
-  );
-}
-
-function scrollToItem(itemId: string) {
-  document.getElementById(`item-${itemId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-}
+type Group = ItemKind | 'income' | 'move';
+const GROUPS: Group[] = ['income', 'payment', 'allowance', 'set_aside', 'move'];
+const GROUP_LABEL: Record<Group, string> = { income: 'Income', ...ITEM_KIND_GROUP, move: 'Moves between wallets' };
 
 export function PlanningBucketScreen({ bucketId }: { bucketId: string }) {
   return <PlanningBucketView bucketId={bucketId} b={useLogic(bucketId)} />;
 }
 
-/** The page, fed by its logic — presentational, so it can also be
- * rendered with sample data. */
+/** The page, fed by its logic: presentational, so it can also be rendered with sample data. */
 export function PlanningBucketView({ bucketId, b }: { bucketId: string; b: ReturnType<typeof useLogic> }) {
   const router = useRouter();
   const [closing, setClosing] = useState(false);
   const [receipt, setReceipt] = useState(false);
+  const [more, setMore] = useState(false);
   const card = b.card;
-  const currency = b.currency;
+  const view = b.view;
 
-  if (b.loading || !card || !b.bucket) {
+  if (b.loading || !card || !b.bucket || !view) {
     return (
       <div className={`${p.page} ${p.detail}`}>
         <ScreenHeader
@@ -85,20 +74,15 @@ export function PlanningBucketView({ bucketId, b }: { bucketId: string; b: Retur
   }
 
   const prompt = card.prompt;
-  // Still needs action: never settled, or settled with part left open.
   const over = prompt?.kind === 'over' || prompt?.kind === 'uncovered';
   const leftover = prompt?.kind === 'leftover';
-  const actionCard = over || leftover;
-  const left = card.planned - card.spent;
-  const spentPct = card.planned > 0 ? Math.round((card.spent / card.planned) * 100) : card.spent > 0 ? 100 : 0;
-  const total = Math.max(1, card.items.reduce((s, i) => s + Math.max(0, i.available), 0));
-  const legend = card.items.length > LEGEND_ROWS ? card.items.slice(0, LEGEND_ROWS - 1) : card.items;
-  const moreCount = card.items.length - legend.length;
-  const shade = (i: number) => SHADES[i % SHADES.length];
-  const stickyText = money(Math.abs(left));
+  const income = b.bucket.type === 'Income';
+  const entries = b.items.map((x) => x.item);
+  const groupOf = (entry: ItemMonth): Group => (entry.type === 'Income' ? 'income' : entry.type === 'Transfer' ? 'move' : (entry.itemKind ?? 'payment'));
+  const addLabel = income ? 'Add income to this basket' : b.bucket.type === 'Savings' ? 'Add to this basket' : b.bucket.type === 'Transfer' ? 'Add transfer to this basket' : 'Add expense to this basket';
 
   return (
-    <div className={`${p.page} ${p.detail} ${styles.page}`}>
+    <div className={`${p.page} ${p.detail}`}>
       <ScreenHeader
         left={
           <button type="button" className={p.roundButton} onClick={b.goBack} aria-label="Back">
@@ -106,265 +90,195 @@ export function PlanningBucketView({ bucketId, b }: { bucketId: string; b: Retur
           </button>
         }
         right={
-          <>
-            <Link href={`/baskets/${bucketId}`} className={p.roundButton} aria-label="Edit basket">
-              <Pencil size={17} strokeWidth={2} />
-            </Link>
-            <ActionMenu
-              ariaLabel="More"
-              triggerClassName={p.roundButton}
-              triggerIcon={<MoreHorizontal size={18} strokeWidth={2} />}
-              items={[
-                { key: 'add', label: 'Add item', icon: <Plus size={14} strokeWidth={2} />, onSelect: () => router.push(`/add-basket-item/${bucketId}`) },
-                b.closed
-                  ? { key: 'reopen', label: 'Reopen basket', icon: <LockOpen size={14} strokeWidth={2} />, onSelect: () => b.reopenBucket() }
-                  : { key: 'close', label: `Close basket for ${monthTitle(b.month)}`, icon: <Lock size={14} strokeWidth={2} />, onSelect: () => setClosing(true) },
-                {
-                  key: 'history',
-                  label: 'All transactions',
-                  icon: <ArrowRight size={14} strokeWidth={2} />,
-                  onSelect: () => router.push(`/budget?tab=history&month=${b.month}&bucket=${bucketId}`),
-                },
-                { key: 'edit', label: 'Edit basket', icon: <Pencil size={14} strokeWidth={2} />, onSelect: () => router.push(`/baskets/${bucketId}`) },
-                { key: 'print', label: 'Print', icon: <Printer size={14} strokeWidth={2} />, onSelect: () => setReceipt(true) },
-                { key: 'export', label: 'Export as PDF', icon: <FileDown size={14} strokeWidth={2} />, onSelect: () => setReceipt(true) },
-              ]}
-            />
-          </>
+          <ActionMenu
+            ariaLabel="More"
+            triggerClassName={p.roundButton}
+            triggerIcon={<MoreHorizontal size={18} strokeWidth={2} />}
+            items={[
+              { key: 'add', label: 'Add item', icon: <Plus size={14} strokeWidth={2} />, onSelect: () => router.push(`/add-basket-item/${bucketId}`) },
+              { key: 'edit', label: 'Edit basket', icon: <Pencil size={14} strokeWidth={2} />, onSelect: () => router.push(`/baskets/${bucketId}`) },
+              b.closed
+                ? { key: 'reopen', label: 'Reopen basket', icon: <LockOpen size={14} strokeWidth={2} />, onSelect: () => b.reopenBucket() }
+                : { key: 'close', label: `Close for ${monthTitle(b.month)}`, icon: <Lock size={14} strokeWidth={2} />, onSelect: () => setClosing(true) },
+              { key: 'history', label: 'All transactions', icon: <ArrowRight size={14} strokeWidth={2} />, onSelect: () => router.push(`/budget?tab=history&month=${b.month}&bucket=${bucketId}`) },
+              { key: 'print', label: 'Print', icon: <Printer size={14} strokeWidth={2} />, onSelect: () => setReceipt(true) },
+              { key: 'export', label: 'Export as PDF', icon: <FileDown size={14} strokeWidth={2} />, onSelect: () => setReceipt(true) },
+            ]}
+          />
         }
       />
 
-      <h1 className={p.heroTitle}>{card.name}</h1>
-      <p className={p.heroSub}>{monthTitle(b.month)}</p>
+      <h1 className={m.title}>{card.name}</h1>
+      <p className={m.subtitle}>
+        {b.cadenceLine} · {monthTitle(b.month)}
+      </p>
+      {b.bucket.description && <MoreText title={card.name} text={b.bucket.description} />}
 
       {b.archived && (
-        <div className={styles.closedBanner}>
-          <Archive size={15} strokeWidth={2.25} aria-hidden />
-          <span className={styles.closedText}>
-            <strong>Archived</strong>
-            <span>Its recorded payments still count. Nothing new is expected from it.</span>
-          </span>
-          <button type="button" className={p.textButton} onClick={() => b.unarchiveBucket()}>
+        <p className={m.oneLine}>
+          <span>Archived. Its payments still count.</span>
+          <button type="button" className={m.textLink} onClick={() => b.unarchiveBucket()}>
             Unarchive
           </button>
-        </div>
+        </p>
       )}
-
       {b.closed && (
-        <div className={styles.closedBanner}>
-          <Lock size={15} strokeWidth={2.25} aria-hidden />
-          <span className={styles.closedText}>
-            <strong>Closed for {monthTitle(b.month)}</strong>
-            {b.closed.note ? <span>“{b.closed.note}”</span> : <span>No note added.</span>}
-          </span>
-          <button type="button" className={p.textButton} onClick={() => b.reopenBucket()}>
+        <p className={m.oneLine}>
+          <span>Closed for {monthTitle(b.month)}.</span>
+          <button type="button" className={m.textLink} onClick={() => b.reopenBucket()}>
             Reopen
           </button>
-        </div>
+        </p>
       )}
 
-      {/* 1. Segment bar and legend */}
-      <div className={styles.segments}>
-        {card.items.map((item, i) => {
-          const share = (Math.max(0, item.available) / total) * 100;
-          // Red only for a real overspend (the bucket as a whole went over).
-          const isOver = item.type !== 'Income' && item.unfunded > 0;
+      <div className={`${m.bleed} ${m.section}`}>
+        <div className={m.figures}>
+          <div className={m.figureCell}>
+            <span className={m.figureLabel}>{income ? 'Expected' : 'Planned'}</span>
+            <span className={m.figureValue}>{money(view.planned)}</span>
+          </div>
+          <div className={m.figureCell}>
+            <span className={m.figureLabel}>{income ? 'Received' : 'Used'}</span>
+            <span className={m.figureValue}>{money(view.used)}</span>
+          </div>
+          <div className={m.figureCell}>
+            <span className={m.figureLabel}>{view.left < 0 && !income ? 'Over' : income ? 'To come' : 'Left'}</span>
+            <span className={m.figureValue} data-tone={view.left < -0.5 && !income ? 'problem' : undefined}>
+              {money(Math.abs(view.left))}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {over && (
+        <NeedsYouRow
+          text={prompt!.kind === 'uncovered' ? `${money(prompt!.amount)} not covered yet` : `Over by ${money(prompt!.amount)}`}
+          amount={null}
+          onOpen={() => router.push(coverHref(b.month, bucketId))}
+        />
+      )}
+      {leftover && <NeedsYouRow text={`${money(prompt!.amount)} left over to move`} amount={null} onOpen={() => router.push(reallocateHref(b.month, bucketId))} />}
+
+      <div className={m.bleed}>
+        {GROUPS.map((kind) => {
+          const list = entries.filter((e) => groupOf(e) === kind);
+          if (!list.length) return null;
           return (
-            <button
-              key={item.key}
-              type="button"
-              className={styles.segment}
-              style={{ flexGrow: Math.max(share, 1.5), ['--c' as string]: isOver ? 'var(--p-red)' : shade(i) }}
-              onClick={() => scrollToItem(item.itemId)}
-              aria-label={`${item.name}: ${money(item.actual)} of ${money(item.available)} ${currency}`}
-            >
-              <span className={styles.segmentSpent} style={{ width: `${fillOf(item.actual, item.available) * 100}%` }} />
-            </button>
+            <section key={kind} className={m.section} aria-label={GROUP_LABEL[kind]}>
+              <div className={m.sectionHead}>
+                <span className={m.label}>{GROUP_LABEL[kind]}</span>
+                {kind === 'allowance' && <InfoButton topic="pace" label="About the daily pace" />}
+              </div>
+              <div className={m.list}>
+                {list.map((entry) => (
+                  <ItemRow key={entry.key} entry={entry} b={b} bucketId={bucketId} />
+                ))}
+              </div>
+            </section>
           );
         })}
-      </div>
-      <ul className={styles.legend}>
-        {legend.map((item, i) => (
-          <li key={item.key}>
-            <button type="button" onClick={() => scrollToItem(item.itemId)}>
-              <span className={styles.dot} style={{ background: item.type !== 'Income' && item.unfunded > 0 ? 'var(--p-red)' : shade(i) }} aria-hidden />
-              <span className={styles.legendName}>{item.name}</span>
-              <span className={styles.legendPair}>
-                <strong>{money(item.actual)}</strong> / {money(item.available)}
-              </span>
-            </button>
-          </li>
-        ))}
-        {moreCount > 0 && <li className={styles.legendMore}>+{moreCount} more</li>}
-      </ul>
-
-      {/* 2. Spec card */}
-      <section className={styles.spec}>
-        <div className={styles.grid}>
-          <div className={styles.cell}>
-            <span className={p.specLabel}>Planned</span>
-            <Amount value={card.planned} currency={currency} />
-          </div>
-          <div className={styles.cell}>
-            <span className={p.specLabel}>Spent</span>
-            <Amount value={card.spent} currency={currency} />
-            <span className={styles.cellSub}>{spentPct}% of plan</span>
-          </div>
-          <div className={styles.cell} data-tone={left < 0 ? 'over' : undefined}>
-            <span className={styles.cellLabelRow}>
-              <span className={p.specLabel}>Left</span>
-              {!actionCard && left >= 0 && prompt?.kind !== 'justified' && <span className={p.chip}>On track</span>}
-              {prompt?.kind === 'justified' && (
-                <span className={p.chip} data-tone="neutral">
-                  Justified
-                </span>
-              )}
-            </span>
-            {left < 0 ? <Amount value={-left} currency={currency} prefix="Over by" /> : <Amount value={left} currency={currency} />}
-          </div>
-          <div className={styles.cell}>
-            <span className={p.specLabel}>Items</span>
-            <span className={styles.amount}>
-              <span className={styles.amountNumber}>{card.itemCount}</span>
-            </span>
-          </div>
-        </div>
-
-        <div className={styles.pairRow}>
-          <div className={styles.detail}>
-            <span className={p.specLabel}>Type</span>
-            <span className={styles.detailValue}>{b.bucket.kind === 'Fixed' ? 'Fixed' : 'Planned'}</span>
-          </div>
-          <div className={styles.detail}>
-            <span className={p.specLabel}>Repeats</span>
-            <span className={styles.detailValue}>{BASKET_REPEATS_LABEL[basketRepeats(b.bucket)]}</span>
-          </div>
-        </div>
-
-        <Link href={b.paymentsHref} className={styles.lineRow}>
-          <span className={p.specLabel}>Linked payments</span>
-          <span className={styles.lineValue}>
-            {b.upcomingCount > 0 && <span className={p.chip}>{b.upcomingCount} upcoming</span>}
-            {b.overdueCount > 0 && (
-              <span className={p.chip} data-tone="over">
-                {b.overdueCount} overdue
-              </span>
-            )}
-            {b.upcomingCount === 0 && b.overdueCount === 0 && <span className={styles.muted}>None due</span>}
-            <ArrowRight size={14} strokeWidth={2.25} className={styles.lineArrow} aria-hidden />
-          </span>
-        </Link>
-
-        <div className={styles.lineRow}>
-          <span className={p.specLabel}>Last activity</span>
-          <span className={styles.lineValue}>
-            {b.lastActivity ? (
-              <span className={styles.lastActivity}>
-                {dayMonth(b.lastActivity.date)}, {b.lastActivity.what}
-              </span>
-            ) : (
-              <span className={styles.muted}>No spending yet</span>
-            )}
-          </span>
-        </div>
-      </section>
-
-      {/* 3. Action card — the situation and what to do. */}
-      {actionCard && (
-        <DismissibleCta
-          cardId={`basket:${bucketId}`}
-          state={{ key: `${prompt!.kind}:${b.month}:${Math.round(prompt!.amount)}` }}
-          label="this card"
-          toast="Card hidden. It comes back if the amount changes."
-          className={p.promptCard}
-          tone={over ? 'over' : 'leftover'}
-        >
-          <span className={p.promptCardText}>
-            <span className={p.promptCardTitle}>
-              {over ? <AlertCircle size={16} strokeWidth={2.5} aria-hidden /> : <Sparkles size={16} strokeWidth={2.5} aria-hidden />}
-              {over ? (prompt?.kind === 'uncovered' ? 'Still uncovered' : 'Over budget') : 'Money left over'}
-            </span>
-            <span className={p.promptCardSub}>
-              {over
-                ? `Cover ${money(prompt!.amount)} ${currency} from another basket or add a reason.`
-                : `Move ${money(prompt!.amount)} ${currency} to another basket or savings.`}
-            </span>
-          </span>
-          <Link
-            href={over ? coverHref(b.month, bucketId) : reallocateHref(b.month, bucketId)}
-            className={p.fillButton}
-            data-tone={over ? 'over' : 'blue'}
-          >
-            {over ? 'Cover or justify' : 'Reallocate'}
+        <div className={`${m.list} ${m.section}`}>
+          <Link href={`/add-basket-item/${bucketId}`} className={m.quiet}>
+            <Plus size={16} strokeWidth={2.5} aria-hidden />
+            Add item
           </Link>
-        </DismissibleCta>
+        </div>
+
+        <section className={m.section} aria-label="Transactions">
+          <div className={m.sectionHead}>
+            <span className={m.label}>Transactions</span>
+            <Link href={`/budget?tab=history&month=${b.month}&bucket=${bucketId}`} className={m.textLink}>
+              See all
+            </Link>
+          </div>
+          <div className={m.list}>
+            {b.rows.length === 0 ? (
+              <p className={m.empty}>Nothing recorded this month.</p>
+            ) : (
+              b.rows.slice(0, 5).map((row) => (
+                <Link key={`${row.kind}-${row.id}`} href={row.href} className={m.row}>
+                  <span className={m.main}>
+                    <span className={m.name}>{row.note || row.name}</span>
+                    <span className={m.line}>
+                      {dayMonth(row.date)}
+                      {row.method ? ` · ${row.method}` : ''}
+                    </span>
+                  </span>
+                  <span className={m.side}>
+                    <span className={m.figure}>
+                      {row.kind === 'transaction' ? (row.amount > 0 ? '+' : '-') : ''}
+                      {money(Math.abs(row.amount))}
+                    </span>
+                  </span>
+                </Link>
+              ))
+            )}
+          </div>
+        </section>
+
+        <div className={`${m.list} ${m.section}`}>
+          <button type="button" className={m.row} aria-expanded={more} onClick={() => setMore((x) => !x)}>
+            <span className={m.main}>
+              <span className={m.name}>More</span>
+              <span className={m.line}>Notes and adjustments</span>
+            </span>
+            <ChevronRight size={18} strokeWidth={2} aria-hidden style={{ transform: more ? 'rotate(90deg)' : undefined }} />
+          </button>
+        </div>
+      </div>
+
+      {more && (
+        <>
+          {b.bucket.notes ? <MoreText title="Notes" text={b.bucket.notes} /> : <p className={m.oneLine}>No notes.</p>}
+          {b.adjustments.length > 0 ? (
+            <div className={adj.list} style={{ marginTop: 12 }}>
+              {b.adjustments.map((entry) => (
+                <AdjustmentRow key={entry.id} entry={entry} currency={b.currency} onOpen={() => b.setOpenAdjustment(entry.id)} />
+              ))}
+            </div>
+          ) : (
+            <p className={m.oneLine}>No adjustments this month.</p>
+          )}
+        </>
       )}
 
-      {/* 4. Items */}
-      <div className={p.sectionHead}>
-        <h2>Items</h2>
-        <Link href={`/add-basket-item/${bucketId}`} className={p.textButton}>
-          <Plus size={14} strokeWidth={2.5} aria-hidden />
-          Add item
+      <div className={m.bottomAction}>
+        <Link href={b.addToBasketHref} className={m.primary}>
+          <Plus size={18} strokeWidth={2.5} aria-hidden />
+          {addLabel}
         </Link>
       </div>
-      <div className={styles.itemGrid}>
-        {b.items.map(({ item, over: itemOver, justified: itemJustified, aboveEstimate, movedOut }) => (
-          <Link
-            key={item.key}
-            id={`item-${item.itemId}`}
-            href={`/budget/item/${bucketId}/${item.itemId}?month=${b.month}`}
-            className={styles.itemCard}
-          >
-            <span className={styles.itemName}>{item.name}</span>
-            <span className={styles.itemLeft} data-tone={itemOver ? 'over' : undefined}>
-              {item.type === 'Income'
-                ? `${money(item.actual)} in`
-                : item.remaining < 0
-                  ? aboveEstimate
-                    ? `${money(-item.remaining)} above estimate`
-                    : `${money(-item.remaining)} over`
-                  : `${money(item.remaining)} left`}
-            </span>
-            <span className={styles.itemOf}>
-              {money(item.actual)} / {money(item.available)} {currency}
-              {item.due && ` · due ${dayMonth(item.due)}`}
-              {movedOut > 0 && <span className={styles.itemMoved}> · −{money(movedOut)} moved</span>}
-            </span>
-            <span className={styles.itemBar} role="presentation">
-              <span data-tone={itemOver ? 'over' : undefined} style={{ width: `${fillOf(item.actual, item.available) * 100}%` }} />
-            </span>
-            <span className={styles.itemChips}>
-              <span className={styles.statusChip} data-tone={itemOver ? 'over' : undefined}>
-                {itemOver ? 'OVER' : itemJustified ? 'JUSTIFIED' : aboveEstimate ? 'ABOVE ESTIMATE' : item.kind === 'Fixed' ? 'FIXED' : 'PLANNED'}
-              </span>
-              {(item.necessity || item.priority) && (
-                <span className={styles.categoryChip}>{[item.necessity === 'MustHave' ? 'Must have' : item.necessity === 'NiceToHave' ? 'Nice to have' : null, item.priority].filter(Boolean).join(' · ')}</span>
-              )}
-            </span>
-          </Link>
-        ))}
-      </div>
 
-      <UpcomingList bucketId={bucketId} month={b.month} items={b.items.map((x) => x.item)} accounts={b.data.accounts} currency={currency} />
-
-      {b.adjustments.length > 0 && (
-        <>
-          <div className={p.sectionHead}>
-            <h2>Adjustments</h2>
-          </div>
-          <div className={adj.list}>
-            {b.adjustments.map((entry) => (
-              <AdjustmentRow key={entry.id} entry={entry} currency={currency} onOpen={() => b.setOpenAdjustment(entry.id)} />
-            ))}
-          </div>
-        </>
+      {b.receiving && (
+        <Modal title={`Add received · ${b.receiving.name}`} onClose={b.cancelReceiving}>
+          <p className={m.sheetText}>
+            {money(b.receiving.actual)} received of {money(b.receiving.available)} expected.
+          </p>
+          <label className={m.sheetField}>
+            Amount
+            <input inputMode="decimal" value={b.receiveAmount} onChange={(e) => b.setReceiveAmount(e.target.value)} placeholder="0" autoFocus />
+          </label>
+          <label className={m.sheetField}>
+            Received into
+            <select value={b.receiveAccountId} onChange={(e) => b.setReceiveAccountId(e.target.value)}>
+              {b.receiveAccounts.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          {b.adjustmentError && <p className={m.error}>{b.adjustmentError}</p>}
+          <button type="button" className={m.primary} style={{ width: '100%' }} disabled={!(Number(b.receiveAmount) > 0) || !b.receiveAccountId || b.adjustmentBusy} onClick={() => void b.confirmReceived()}>
+            {b.adjustmentBusy ? 'Saving…' : 'Add received'}
+          </button>
+        </Modal>
       )}
       {receipt && <ReceiptSheet bucketId={bucketId} month={b.month} onClose={() => setReceipt(false)} />}
       {closing && (
         <CloseBucketSheet
           month={monthTitle(b.month)}
-          currency={currency}
+          currency={b.currency}
           leftover={b.netLeftover}
           over={b.netOver}
           busy={b.adjustmentBusy}
@@ -380,7 +294,7 @@ export function PlanningBucketView({ bucketId, b }: { bucketId: string; b: Retur
         <AdjustmentSheet
           key={b.openAdjustment.id}
           entry={b.openAdjustment}
-          currency={currency}
+          currency={b.currency}
           busy={b.adjustmentBusy}
           error={b.adjustmentError}
           onClose={() => b.setOpenAdjustment(null)}
@@ -388,107 +302,62 @@ export function PlanningBucketView({ bucketId, b }: { bucketId: string; b: Retur
           onSave={(fields) => b.editJustification(b.openAdjustment!.justification!.id, fields)}
         />
       )}
-
-      <div className={p.sectionHead}>
-        <h2>Transactions</h2>
-        <Link href={`/budget?tab=history&month=${b.month}&bucket=${bucketId}`} className={p.textButton}>
-          See all
-        </Link>
-      </div>
-      {b.rows.length === 0 ? (
-        <p className={p.empty}>No transactions in this basket yet this month.</p>
-      ) : (
-        <div className={p.rows}>
-          {b.rows.slice(0, 5).map((row) => (
-            <HistoryRowView key={`${row.kind}-${row.id}`} row={row} currency={currency} showDate />
-          ))}
-        </div>
-      )}
-
-      {/* 5. Sticky bar: the amount left, Add expense (or edit), the next step. */}
-      <div className={p.sticky}>
-        <span className={p.stickyAmount}>
-          <span className={p.stickyLabel}>{left < 0 ? 'Over' : 'Left'}</span>
-          <span className={`${p.stickyValue} ${styles.stickyValue}`} data-size={stickyText.length > 9 ? 'small' : undefined}>
-            {stickyText}
-            <small>{currency}</small>
-          </span>
-        </span>
-        {actionCard ? (
-          <Link href={b.addExpenseHref} className={p.squareButton} aria-label="Add expense" title="Add expense">
-            <Plus size={20} strokeWidth={2.25} />
-          </Link>
-        ) : (
-          <Link href={`/baskets/${bucketId}`} className={p.squareButton} aria-label="Edit basket" title="Edit basket">
-            <Pencil size={18} strokeWidth={2} />
-          </Link>
-        )}
-        {over ? (
-          <Link href={coverHref(b.month, bucketId)} className={`${p.fillButton} ${p.bigButton}`} data-tone="over">
-            Cover overspend
-          </Link>
-        ) : leftover ? (
-          <Link href={reallocateHref(b.month, bucketId)} className={`${p.fillButton} ${p.bigButton}`} data-tone="blue">
-            Reallocate
-          </Link>
-        ) : (
-          <Link href={b.addExpenseHref} className={`${p.fillButton} ${p.bigButton}`}>
-            Add expense
-          </Link>
-        )}
-      </div>
     </div>
   );
 }
 
-/** Upcoming payments: this month's next payments from the basket's items, with their Ready to pay state. */
-function UpcomingList({
-  bucketId,
-  month,
-  items,
-  accounts,
-  currency,
-}: {
-  bucketId: string;
-  month: string;
-  items: ItemMonth[];
-  accounts: { id: string; name: string }[];
-  currency: string;
-}) {
-  const ready = useReadyToPay();
-  const current = month === monthKeyOf(new Date());
-  const occurrences = current ? ready.all.filter((o) => o.bucketId === bucketId).map((o) => ({ itemId: o.itemId, state: o.state, waitingFor: o.waitingFor })) : [];
-  const rows = upcomingPayments(
-    items.map((i) => ({ ...i, left: i.available - i.actual, accountName: accounts.find((a) => a.id === i.accountId)?.name ?? null }) as LineRow),
-    occurrences,
-    new Date(),
-    4
+/** One item: name, its one line, the figure on the right, and its one action (Pay, Add received). */
+function ItemRow({ entry, b, bucketId }: { entry: ItemMonth; b: ReturnType<typeof useLogic>; bucketId: string }) {
+  const row = b.rowsByItem.get(entry.key);
+  if (!row) return null;
+  const href = `/budget/item/${bucketId}/${entry.itemId}?month=${b.month}`;
+  const build = occurrenceBuild(entry.occurrences, entry.frequency, entry.unitAmount);
+  const figure =
+    row.kind === 'payment' ? (
+      <span className={m.figure} data-tone={row.problem ? 'problem' : undefined}>
+        {money(row.planned)}
+      </span>
+    ) : (
+      <span className={m.figure} data-tone={row.problem ? 'problem' : undefined}>
+        {money(row.used)}
+        <small> / {money(row.planned)}</small>
+      </span>
+    );
+  const action =
+    row.kind === 'payment' && row.payable > 0.5 && !entry.closed ? (
+      <Link className={m.action} href={payHref({ bucketId, itemId: entry.itemId, remaining: row.payable, amount: row.planned, due: entry.due ?? new Date() }, b.month)}>
+        Pay
+      </Link>
+    ) : row.kind === 'move' && entry.actual < entry.available - 0.5 && !entry.closed ? (
+      // Opens the transfer form for this move; the amount is left to type.
+      <Link className={m.action} href={`/add-transaction?bucketItem=${encodeURIComponent(`${bucketId}:${entry.itemId}:${b.month}`)}`}>
+        Move
+      </Link>
+    ) : row.kind === 'income' && !entry.closed ? (
+      <button type="button" className={m.action} onClick={() => b.startReceiving(entry)}>
+        Add received
+      </button>
+    ) : null;
+  const link = (
+    <Link href={href} className={m.row}>
+      <span className={m.main}>
+        <span className={m.name}>{entry.name}</span>
+        <span className={m.line} data-tone={row.problem ? 'problem' : undefined}>
+          {row.line}
+        </span>
+      </span>
+      <span className={m.side}>
+        {figure}
+        {build && <span className={m.line}>{build}</span>}
+      </span>
+    </Link>
   );
-  if (!rows.length || items.every((i) => i.type === 'Income')) return null;
-  return (
-    <>
-      <div className={p.sectionHead}>
-        <h2>Upcoming payments</h2>
-      </div>
-      <div className={p.rows}>
-        {rows.map((u) => (
-          <Link key={u.key} href={`/budget/item/${bucketId}/${u.itemId}?month=${month}`} className={p.row}>
-            <span className={p.rowMain}>
-              <span className={p.rowName}>{u.name}</span>
-              <span className={p.rowNote}>
-                {u.state}
-                {u.paidFrom ? ` · ${u.paidFrom}` : ''}
-              </span>
-            </span>
-            <span className={p.rowSide}>
-              <span className={p.rowAmount}>
-                {money(u.amount)} {currency}
-              </span>
-              {u.date && <span className={p.rowWhen}>{dayMonth(u.date)}</span>}
-            </span>
-          </Link>
-        ))}
-      </div>
-    </>
+  return action ? (
+    <div className={m.rowWrap}>
+      {link}
+      {action}
+    </div>
+  ) : (
+    link
   );
 }

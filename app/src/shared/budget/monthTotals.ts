@@ -12,6 +12,7 @@
 //   Available by month end = available now + expected income not received yet (an estimate)
 
 import type { ItemMonth, MonthBudget } from './monthBudget';
+import { paymentProgress } from './itemKinds';
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 const sum = (list: ItemMonth[], pick: (entry: ItemMonth) => number) => r2(list.reduce((total, entry) => total + pick(entry), 0));
@@ -82,6 +83,11 @@ function isPastDue(entry: ItemMonth, today: Date) {
   return Boolean(entry.due && startOfDay(entry.due) < startOfDay(today));
 }
 
+/** A payment behind on the occurrences already due (itemKinds.ts). */
+function overduePayment(entry: ItemMonth, today: Date) {
+  return entry.dueDates.length ? paymentProgress(entry, today).state === 'Overdue' : isPastDue(entry, today);
+}
+
 /** Done with: fully paid/received, or closed for the month. */
 function settled(entry: ItemMonth) {
   return entry.closed || (entry.available > 0 && entry.actual >= entry.available - 0.5);
@@ -97,15 +103,17 @@ export function lineStatus(entry: ItemMonth, today: Date): LineStatus {
     case 'Savings':
       if (settled(entry)) return 'Saved';
       if (entry.actual > 0) return 'Partly saved';
-      return isPastDue(entry, today) ? 'Overdue' : 'Not saved';
+      // A set aside builds up over time: it's never overdue.
+      return entry.itemKind === 'payment' && overduePayment(entry, today) ? 'Overdue' : 'Not saved';
     case 'Transfer':
-      if (settled(entry)) return 'Moved';
-      return isPastDue(entry, today) ? 'Overdue' : 'Not moved';
+      // A move between your own wallets is never overdue.
+      return settled(entry) ? 'Moved' : 'Not moved';
     default:
       if (entry.actual > entry.available + 0.5) return 'Over plan';
       if (settled(entry)) return 'Paid';
-      // A variable limit isn't "due" on a day; only fixed bills go overdue.
-      return entry.expenseKind !== 'variable' && isPastDue(entry, today) ? 'Overdue' : 'Unpaid';
+      // Only payments fall due on a day: an allowance or set aside never
+      // reads as overdue.
+      return entry.itemKind === 'payment' && overduePayment(entry, today) ? 'Overdue' : 'Unpaid';
   }
 }
 

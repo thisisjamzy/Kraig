@@ -323,6 +323,16 @@ export interface FirestoreTransactionTemplate {
 }
 
 export type Frequency = 'Once' | 'Daily' | 'Weekly' | 'Monthly' | 'Quarterly' | 'Yearly';
+// A basket's cadence (src/shared/budget/cadence.ts): when its items apply.
+// 'Custom' reads FirestoreBucket.cadenceRule (an RRULE); 'Once' is one-off.
+export type BasketCadence = 'Monthly' | 'Weekly' | 'Daily' | 'Quarterly' | 'Yearly' | 'Custom' | 'Once';
+// How money leaves a basket through an item (src/shared/budget/itemKinds.ts):
+// a payment is a fixed amount due on a date; an allowance is money made
+// available for the period and spent bit by bit; a set aside is money put
+// away toward a target, accumulating across months.
+export type ItemKind = 'payment' | 'allowance' | 'set_aside';
+// Income items: a lump sum on a date, or a trickle of small receipts over the period.
+export type IncomeMode = 'lump_sum' | 'trickle';
 export type EndCondition = 'Never' | 'After Occurrences' | 'On Date';
 
 // The four kinds of money a bucket (and so a bucket item) can be about —
@@ -482,6 +492,12 @@ export interface FirestoreBucket {
   automationDefault?: 'off' | 'remind' | 'prepare' | null;
   // Savings baskets: the amount to reach (by `deadline`).
   targetAmount?: number | null;
+  // When its items apply (src/shared/budget/cadence.ts). Items without a
+  // recurrence of their own inherit it. Absent on older baskets: their
+  // items keep their own recurrence (or are one-off on their due date).
+  cadence?: BasketCadence | null;
+  // cadence 'Custom': an RRULE such as "FREQ=WEEKLY;BYDAY=MO,FR".
+  cadenceRule?: string | null;
   // "YYYY-MM" → closed for that month: the household is done with this
   // bucket then. Its items count as closed (leftover can be moved on, no
   // more payments expected), with an optional note on how it went.
@@ -550,7 +566,10 @@ export interface FirestoreBucketLineItem {
   // `endDate` (optional) stops the recurrence after that date — set by
   // scripts/migrate-budgets-v2.ts for a budget rule that had an end
   // condition ("for 3 months", "until March"); absent = repeats forever.
-  recurrence?: { frequency: Frequency; interval: number; endDate?: Timestamp | null } | null;
+  // `rule` (optional): a custom RRULE; `frequency` then holds the closest
+  // plain frequency for older readers. No recurrence: the item inherits
+  // its basket's cadence when the basket has one (cadence.ts's itemSchedule).
+  recurrence?: { frequency: Frequency; interval: number; endDate?: Timestamp | null; rule?: string | null } | null;
   // Legacy, read by scripts/migrate-budgets-v2.ts only — the budget rule an
   // item created long ago auto-generated. Budget rules no longer exist
   // (PRD-BUDGETS-V2.md); nothing writes this any more.
@@ -646,6 +665,19 @@ export interface FirestoreBucketLineItem {
   savingsMode?: SavingsMode | null;
   // Variable expenses: roll an unused amount into next month (off by default).
   rollover?: boolean;
+  // Expense, savings and transfer items: how money leaves the basket
+  // (types.ts's ItemKind). Absent on older items, inferred on read
+  // (itemKinds.ts's itemKindOf) until the baskets migration stores it.
+  itemKind?: ItemKind | null;
+  // Income items: lump sum (the default) or trickle.
+  incomeMode?: IncomeMode | null;
+  // Allowances: released on this day of the period, or when this income
+  // line arrives. Absent: available from the period's start.
+  availableFrom?: { day?: number | null; incomeItemId?: string | null } | null;
+  // Set asides: the amount to reach and, optionally, by when. Contributions
+  // count across months toward it.
+  targetAmount?: number | null;
+  targetDate?: Timestamp | null;
   automation?: ItemAutomation | null;
   // The item page's free-text notes block.
   notes?: string;
