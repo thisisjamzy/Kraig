@@ -7,6 +7,7 @@ import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { useFirestoreCollection, useFirestoreDoc } from '@/src/shared/firestore/hooks';
 import { categoryRef, bucketsRef, transactionTemplateRef, unjustifiedWalletRef } from '@/src/shared/firestore/refs';
 import { useAccounts, useCategories, useCurrencyContext } from '@/src/shared/firestore/queries';
+import { itemCurrencyOf, toDisplay } from '@/src/shared/firestore/currency';
 import { createDebt, createTransferWithAggregation, recordBucketLineItemPayment } from '@/src/shared/firestore/aggregation';
 import { inferIncomeSubtype, type IncomeSubtype } from '@/src/shared/budget/flow';
 import { recordHistoricEntry } from '@/src/shared/firestore/unaccountedBalance';
@@ -390,7 +391,8 @@ export function useLogic() {
             occurrenceMonth,
             bucketName: occurrenceMonth === dateMonthKey ? bucketName : `${bucketName} · ${monthLabel(occurrenceMonth)}`,
             name: item.name,
-            amount: occurrence.planned,
+            // Display currency: an item may be in its own (24 USD).
+            amount: toDisplay(ctx, occurrence.planned, itemCurrencyOf(item, bucketById.get(item.goalId), ctx.base)),
             categoryId: item.categoryId!,
             accountId: item.accountId,
             toAccountId: item.toAccountId ?? null,
@@ -400,7 +402,7 @@ export function useLogic() {
           }];
         })
       );
-  }, [type, itemsByBucket, fetchedCategories, bucketById, bucketNameById, bucketKindById, bucketTypeById, dateMonthKey]);
+  }, [type, itemsByBucket, fetchedCategories, bucketById, bucketNameById, bucketKindById, bucketTypeById, dateMonthKey, ctx]);
   const linkedBucketItem = linkableBucketItems.find((item) => item.id === linkedBucketItemId) ?? null;
   // A linked Expense/Income/Savings item is settled as a direct write against
   // its own accountId (see handleConfirm below) even when savingsMode still

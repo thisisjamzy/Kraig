@@ -142,7 +142,7 @@ export function computeUpcomingPaymentsFromBucketItems(
         until
       );
       if (!due) continue;
-      const native = item.accountId ? accountCurrency.get(item.accountId) ?? bucket.currency : bucket.currency;
+      const native = item.currency || (item.accountId ? accountCurrency.get(item.accountId) ?? bucket.currency : bucket.currency);
       out.push({
         id: item.id,
         goalId: bucket.id,

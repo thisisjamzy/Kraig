@@ -11,6 +11,7 @@
 // transactions to their account's, allocations to whatever they were
 // entered in).
 
+import { itemCurrencyOf } from '../firestore/currency';
 import { itemSchedule, isRecurring, occurrenceDates, type CadenceBasket } from './cadence';
 import { incomeModeOf, itemKindOf } from './itemKinds';
 import {
@@ -87,6 +88,7 @@ export type BudgetItemLike = Pick<
   Partial<
     Pick<
       FirestoreBucketLineItem,
+      | 'currency'
       | 'payments'
       | 'expenseId'
       | 'transferId'
@@ -437,7 +439,7 @@ export function buildMonthBudget(input: MonthBudgetInput): MonthBudget {
       const occurrence = itemOccurrenceDetail(item, month, bucket);
       if (!occurrence) continue;
       const type = itemType(bucketType, item.categoryId, categories);
-      const planned = round2(toDisplay(occurrence.planned, bucket.currency));
+      const planned = round2(toDisplay(occurrence.planned, itemCurrencyOf(item, bucket)));
       const recurring = occurrence.recurring;
       const categoryName = (item.categoryId && categories.get(item.categoryId)?.name) || null;
       const savingsMode = type === 'Savings' ? savingsModeOf(item) : null;
@@ -471,14 +473,14 @@ export function buildMonthBudget(input: MonthBudgetInput): MonthBudget {
         itemKind: kindOfItem,
         incomeMode,
         dueDates: dated ? occurrence.dates : [],
-        unitAmount: round2(toDisplay(occurrence.unitAmount, bucket.currency)),
+        unitAmount: round2(toDisplay(occurrence.unitAmount, itemCurrencyOf(item, bucket))),
         occurrences: occurrence.dates.length,
         frequency: occurrence.frequency,
         availableFrom: releaseDay ? new Date(Number(month.slice(0, 4)), Number(month.slice(5)) - 1, Math.min(releaseDay, new Date(Number(month.slice(0, 4)), Number(month.slice(5)), 0).getDate())) : null,
         setAside:
           kindOfItem === 'set_aside'
             ? {
-                target: item.targetAmount ? round2(toDisplay(item.targetAmount, bucket.currency)) : null,
+                target: item.targetAmount ? round2(toDisplay(item.targetAmount, itemCurrencyOf(item, bucket))) : null,
                 targetDate: item.targetDate?.toDate() ?? null,
                 savedBefore: round2(history?.saved ?? 0),
                 usedBefore: round2(history?.used ?? 0),
@@ -486,7 +488,7 @@ export function buildMonthBudget(input: MonthBudgetInput): MonthBudget {
             : null,
         accountId: item.accountId ?? null,
         toAccountId: item.toAccountId ?? null,
-        fee: type === 'Transfer' && item.charges ? round2(toDisplay(item.charges, bucket.currency)) : 0,
+        fee: type === 'Transfer' && item.charges ? round2(toDisplay(item.charges, itemCurrencyOf(item, bucket))) : 0,
         rollover: Boolean(item.rollover),
         month,
         planned,
@@ -834,7 +836,7 @@ export function buildMonthBudget(input: MonthBudgetInput): MonthBudget {
   const plannedTransferCharges = transferItems.reduce((total, entry) => {
     const bucket = bucketById.get(entry.bucketId);
     const item = input.itemsByBucket[entry.bucketId]?.find((candidate) => candidate.id === entry.itemId);
-    return total + (bucket && item?.charges ? toDisplay(item.charges, bucket.currency) : 0);
+    return total + (bucket && item?.charges ? toDisplay(item.charges, itemCurrencyOf(item, bucket)) : 0);
   }, 0);
 
   const plannedIncome = round2(sum(incomeItems, (entry) => entry.planned));

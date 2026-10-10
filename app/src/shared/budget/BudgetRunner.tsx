@@ -21,7 +21,7 @@ import { useMonthBudget } from '@/src/shared/hooks/useMonthBudget';
 import { useFirestoreCollection } from '@/src/shared/firestore/hooks';
 import { bucketLineItemsRef, bucketsRef, categoriesRef, paymentQueueRef } from '@/src/shared/firestore/refs';
 import { runFlowMigration } from '@/src/shared/firestore/flowMigration';
-import { runBasketsMigration } from '@/src/shared/firestore/basketsMigration';
+import { runBasketsMigration, runClaudeUsdFix } from '@/src/shared/firestore/basketsMigration';
 import { existingMonths, setUpMonths } from '@/src/shared/firestore/budgetMonths';
 import { repairQueue } from '@/src/shared/firestore/paymentQueue';
 import { showToast } from '@/src/widgets/Toast/Toast';
@@ -74,6 +74,12 @@ export function BudgetRunner() {
         await runBasketsMigration(uid);
       } catch (error) {
         console.error('[budget] baskets migration failed', error);
+      }
+      try {
+        // The Claude subscriptions are 24 USD, not 24 in the basket's currency.
+        await runClaudeUsdFix(uid);
+      } catch (error) {
+        console.error('[budget] Claude USD fix failed', error);
       }
       try {
         await setUpOpenMonths(uid);

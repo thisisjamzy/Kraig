@@ -33,6 +33,11 @@ export function convert(amount: number, from: string, to: string, rates: Record<
   return (amount * rFrom) / rTo;
 }
 
+/** The currency a basket item's amounts are in: its own, else its basket's. */
+export function itemCurrencyOf(item: { currency?: string | null } | null | undefined, bucket: { currency?: string | null } | null | undefined, fallback = ''): string {
+  return item?.currency || bucket?.currency || fallback;
+}
+
 export function toDisplay(ctx: CurrencyContext, amount: number, nativeCurrency: string): number {
   return round2(convert(amount, nativeCurrency, ctx.display, ctx.rates));
 }

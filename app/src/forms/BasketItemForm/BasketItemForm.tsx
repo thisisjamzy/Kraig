@@ -111,7 +111,7 @@ export function BasketItemForm({ goalId, itemId }: { goalId: string; itemId?: st
   const editing = Boolean(itemId);
   const fixed = v.isFixedBucket;
   const transfer = v.isTransferBucket;
-  const currency = v.bucket?.currency ?? '';
+  const currency = v.itemCurrency || v.bucket?.currency || '';
   const amount = Number(v.itemAmount) || 0;
   const accounts = v.accountOptionsForCategory(v.itemCategoryId);
   const monthly = v.itemRepeat === 'Monthly';
@@ -202,9 +202,17 @@ export function BasketItemForm({ goalId, itemId }: { goalId: string; itemId?: st
               </FieldCard>
             </FieldRow>
           ) : (
-            <FieldCard label={`Amount${currency ? ` (${currency})` : ''}`}>
-              <input className={ff.input} inputMode="decimal" value={v.itemAmount} onChange={(e) => v.setItemAmount(e.target.value.replace(/[^0-9.]/g, ''))} placeholder="0" />
-            </FieldCard>
+            <FieldRow>
+              <FieldCard label="Amount">
+                <input className={ff.input} inputMode="decimal" value={v.itemAmount} onChange={(e) => v.setItemAmount(e.target.value.replace(/[^0-9.]/g, ''))} placeholder="0" />
+              </FieldCard>
+              <SelectField
+                label="Currency"
+                value={v.itemCurrency || v.bucket?.currency || ''}
+                onChange={(code) => v.setItemCurrency(code === v.bucket?.currency ? '' : code)}
+                options={v.currencyOptions.map((c) => ({ value: c.code, label: c.code === v.bucket?.currency ? `${c.code} (basket)` : c.code }))}
+              />
+            </FieldRow>
           )}
 
           {v.isIncomeItem ? (
