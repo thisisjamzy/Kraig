@@ -549,6 +549,17 @@ test('Priorities: one card, one row of controls, the order as a menu, a plain gr
   assert.equal(/rowChips/.test(pr), false, 'no chips on each row');
 });
 
+test('Unplanned: an expense or transfer with nothing planned can still be recorded', () => {
+  const logic = read('logic/addTransaction/useLogic.ts');
+  const screen = read('screens/AddTransaction/AddTransactionScreen.tsx');
+  // Nothing of this type planned this month: every category is offered.
+  assert.match(logic, /recordingUnplanned = [^;]*!hasBudgetedCategories/);
+  assert.match(logic, /recordingUnplanned \? categoriesForType : budgetedCategoriesForType/);
+  // "Record as unplanned" is offered for transfers too, not only expenses.
+  assert.doesNotMatch(screen, /!v\.isTransferLike && \(\s*<SwitchField/);
+  assert.match(screen, /label=\{t\.recordUnplannedCta\}/);
+});
+
 test('UI copy uses no long dashes', () => {
   for (const file of [
     'phone/screens/Planning/BudgetTab.tsx',

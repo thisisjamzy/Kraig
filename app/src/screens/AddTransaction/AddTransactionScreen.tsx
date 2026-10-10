@@ -134,18 +134,17 @@ export function AddTransactionScreen() {
                   placeholder="Choose one"
                 />
               )}
-              {!v.hasBudgetedCategories && !v.showUnplanned && (
+              {v.hasBudgetedCategories ? (
+                <SwitchField
+                  label={t.recordUnplannedCta}
+                  description={v.recordingUnplanned ? t.unplannedNotice : t.unplannedOffHint}
+                  checked={v.recordingUnplanned}
+                  onChange={v.setShowUnplanned}
+                />
+              ) : (
                 <p className={ff.hint}>
                   {t.noBudgetTitle} {t.noBudgetBody} <Link href={v.budgetHref}>{t.addBudgetCta}</Link>
                 </p>
-              )}
-              {!v.isTransferLike && (
-                <SwitchField
-                  label={t.recordUnplannedCta}
-                  description={v.showUnplanned ? t.unplannedNotice : 'Show every category, not only this month’s budget.'}
-                  checked={v.showUnplanned}
-                  onChange={v.setShowUnplanned}
-                />
               )}
             </>
           )}
