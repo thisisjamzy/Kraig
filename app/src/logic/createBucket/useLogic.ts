@@ -30,7 +30,19 @@ import { formPageHref, peekAwareParams } from '@/src/shared/navigation/formPeek'
 import { useFormLink } from '@/src/shared/navigation/useFormLink';
 import { addMonths, monthKeyOf, monthTitleOf } from '@/src/shared/budget/monthBudget';
 import { useIncomeLines } from '@/src/logic/debtForm/planFields';
-import type { FirestoreBucket, FirestoreBucketLineItem } from '@/src/shared/firestore/types';
+import { BASKET_CADENCES, CADENCE_LABEL, basketCadenceOf, parseRRule } from '@/src/shared/budget/cadence';
+import type { BasketCadence, FirestoreBucket, FirestoreBucketLineItem } from '@/src/shared/firestore/types';
+
+export const CADENCE_OPTIONS = BASKET_CADENCES.map((value) => ({ value, label: CADENCE_LABEL[value] }));
+const CADENCE_PHRASE: Record<BasketCadence, string> = {
+  Monthly: 'repeating every month',
+  Weekly: 'repeating every week',
+  Daily: 'repeating every day',
+  Quarterly: 'repeating every quarter',
+  Yearly: 'repeating every year',
+  Custom: 'on its own schedule',
+  Once: 'for that month only',
+};
 
 export type BasketType = 'Income' | 'Expense' | 'Savings' | 'Transfer';
 export const BASKET_TYPES: BasketType[] = ['Income', 'Expense', 'Savings', 'Transfer'];
@@ -71,7 +83,10 @@ export function useLogic(basketId: string | null = null) {
   });
   const [kind, setKind] = useState<'Fixed' | 'Variable'>('Fixed');
   const [startMonth, setStartMonth] = useState(thisMonth);
-  const [repeats, setRepeats] = useState<'monthly' | 'once'>('monthly');
+  // When its items apply; items inherit it unless they set their own.
+  const [cadence, setCadence] = useState<BasketCadence>('Monthly');
+  const [cadenceRule, setCadenceRule] = useState('');
+  const repeats: 'monthly' | 'once' = cadence === 'Once' ? 'once' : 'monthly';
   const [paidFrom, setPaidFrom] = useState('');
   const [targetAmount, setTargetAmount] = useState('');
   const [deadline, setDeadline] = useState('');
@@ -88,7 +103,8 @@ export function useLogic(basketId: string | null = null) {
     setTypeState(existing.type ?? 'Expense');
     setKind(existing.kind ?? 'Variable');
     setStartMonth(existing.startMonth ?? thisMonth);
-    setRepeats(existing.repeats ?? (existing.kind === 'Fixed' ? 'monthly' : 'once'));
+    setCadence(basketCadenceOf(existing));
+    setCadenceRule(existing.cadenceRule ?? '');
     setPaidFrom(existing.defaultPaidFrom ?? '');
     setTargetAmount(existing.targetAmount ? String(existing.targetAmount) : '');
     setDeadline(existing.deadline ? existing.deadline.toDate().toISOString().slice(0, 10) : '');
@@ -119,9 +135,10 @@ export function useLogic(basketId: string | null = null) {
 
   const effectiveKind: 'Fixed' | 'Variable' = type === 'Expense' ? kind : repeats === 'monthly' ? 'Fixed' : 'Variable';
   const impact = name.trim()
-    ? `${editing ? 'Saves' : 'Creates'} ${TYPE_NOUN[type]} basket for ${monthWord(startMonth)}, ${repeats === 'monthly' ? 'repeating every month' : 'for that month only'}.${editing ? '' : ' Add items next.'}`
+    ? `${editing ? 'Saves' : 'Creates'} ${TYPE_NOUN[type]} basket for ${monthWord(startMonth)}, ${CADENCE_PHRASE[cadence]}.${editing ? '' : ' Add items next.'}`
     : `Name the basket to see what ${editing ? 'changes' : 'it creates'}.`;
-  const canSave = name.trim().length > 0 && (type !== 'Savings' || !targetAmount || Number(targetAmount) > 0);
+  const ruleValid = cadence !== 'Custom' || parseRRule(cadenceRule) !== null;
+  const canSave = name.trim().length > 0 && ruleValid && (type !== 'Savings' || !targetAmount || Number(targetAmount) > 0);
 
   /** Saves; `addItems` then opens New basket item in its place. */
   async function save(addItems = false) {
@@ -137,6 +154,8 @@ export function useLogic(basketId: string | null = null) {
       type,
       startMonth,
       repeats,
+      cadence,
+      cadenceRule: cadence === 'Custom' ? cadenceRule.trim() : null,
       defaultPaidFrom: showPaidFrom ? paidFrom || null : null,
       automationDefault: automation || null,
       targetAmount: type === 'Savings' && Number(targetAmount) > 0 ? Number(targetAmount) : null,
@@ -181,8 +200,11 @@ export function useLogic(basketId: string | null = null) {
     startMonth,
     setStartMonth,
     monthOptions,
-    repeats,
-    setRepeats,
+    cadence,
+    setCadence,
+    cadenceRule,
+    setCadenceRule,
+    ruleValid,
     showPaidFrom,
     paidFrom,
     setPaidFrom,

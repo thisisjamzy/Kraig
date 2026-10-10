@@ -11,7 +11,8 @@
 // transactions to their account's, allocations to whatever they were
 // entered in).
 
-import { bucketLineItemAppliesToMonth } from '../firestore/recurrence';
+import { itemSchedule, isRecurring, occurrenceDates, type CadenceBasket } from './cadence';
+import { incomeModeOf, itemKindOf } from './itemKinds';
 import {
   automationOf,
   expenseKindOf,
@@ -31,6 +32,9 @@ import type {
   Priority,
   SavingsMode,
   BucketItemLink,
+  Frequency,
+  IncomeMode,
+  ItemKind,
   FirestoreAllocation,
   FirestoreBucket,
   FirestoreBucketLineItem,
@@ -98,6 +102,12 @@ export type BudgetItemLike = Pick<
       | 'automation'
       | 'rollover'
       | 'subItems'
+      | 'itemKind'
+      | 'incomeMode'
+      | 'availableFrom'
+      | 'targetAmount'
+      | 'targetDate'
+      | 'createdAt'
     >
   >;
 
@@ -143,23 +153,57 @@ export function resolveLink(
  */
 export function itemOccurrence(
   item: BudgetItemLike,
-  month: string
+  month: string,
+  bucket?: CadenceBasket | null
 ): { planned: number; isOverride: boolean; due: Date | null } | null {
+  const detail = itemOccurrenceDetail(item, month, bucket);
+  return detail ? { planned: detail.planned, isOverride: detail.isOverride, due: detail.due } : null;
+}
+
+export interface OccurrenceDetail {
+  planned: number;
+  isOverride: boolean;
+  /** The first occurrence's date this month. */
+  due: Date | null;
+  /** Every occurrence date this month (a weekly item has four or five). */
+  dates: Date[];
+  /** The amount of one occurrence. */
+  unitAmount: number;
+  frequency: Frequency;
+  recurring: boolean;
+}
+
+/**
+ * itemOccurrence with how the month was built: every occurrence date, the
+ * per-occurrence amount and the cadence (cadence.ts). An item without a
+ * recurrence of its own runs on its basket's cadence when the basket has
+ * one; `bucket` is optional so older callers keep the item-only rule.
+ */
+export function itemOccurrenceDetail(item: BudgetItemLike, month: string, bucket?: CadenceBasket | null): OccurrenceDetail | null {
   if (item.excludedMonths?.includes(month)) return null;
   const [year, monthNum] = month.split('-').map(Number);
-  const occurrence = bucketLineItemAppliesToMonth(item, year, monthNum);
-  if (!occurrence) return null;
+  const spec = itemSchedule(item, bucket);
+  if (!spec) return null;
+  const recurring = isRecurring(spec);
   // "This and future months" edits: the latest change on or before this month.
   const change = latestChange(item.changesFrom, month);
   const amount = change?.amount ?? item.amount;
-  const anchor = item.dueDate?.toDate() ?? null;
-  const recurring = Boolean(item.recurrence && item.recurrence.frequency !== 'Once');
-  const day = change?.dueDay ?? anchor?.getDate() ?? 1;
-  let due: Date | null = anchor && recurring ? new Date(year, monthNum - 1, Math.min(day, new Date(year, monthNum, 0).getDate())) : anchor;
+  // A changed due day moves a monthly-style item's day in this month.
+  const anchor = change?.dueDay && recurring ? new Date(spec.anchor.getFullYear(), spec.anchor.getMonth(), change.dueDay) : spec.anchor;
+  const monthlyStyle = !spec.rule && (spec.frequency === 'Monthly' || spec.frequency === 'Quarterly' || spec.frequency === 'Yearly');
+  let dates = occurrenceDates(monthlyStyle ? { ...spec, anchor } : spec, year, monthNum);
+  if (monthlyStyle && change?.dueDay && dates.length) {
+    dates = [new Date(year, monthNum - 1, Math.min(change.dueDay, new Date(year, monthNum, 0).getDate()))];
+  }
+  if (!dates.length) return null;
   const override = item.monthOverrides?.[month];
-  if (override?.dueDate) due = override.dueDate.toDate();
-  if (override) return { planned: override.amount, isOverride: true, due };
-  return { planned: amount * occurrence.multiplier, isOverride: false, due };
+  let due: Date | null = dates[0];
+  if (override?.dueDate) {
+    due = override.dueDate.toDate();
+    if (dates.length === 1) dates = [due];
+  }
+  if (override) return { planned: override.amount, isOverride: true, due, dates, unitAmount: override.amount / dates.length, frequency: spec.frequency, recurring };
+  return { planned: amount * dates.length, isOverride: false, due, dates, unitAmount: amount, frequency: spec.frequency, recurring };
 }
 
 function latestChange(changes: BudgetItemLike['changesFrom'], month: string) {
@@ -201,8 +245,31 @@ export interface ItemMonth {
   priority: Priority | null;
   automation: ItemAutomation;
   recurring: boolean;
-  /** This month's due date (or expected date, for income). */
+  /**
+   * This month's due date (or expected date, for lump-sum income). Null for
+   * allowances, set asides and trickle income: they're never "due" on a
+   * day, so they never read as overdue or late.
+   */
   due: Date | null;
+  /** How money leaves the basket through it (itemKinds.ts); null for income. */
+  itemKind: ItemKind | null;
+  /** Income only: lump sum or trickle. */
+  incomeMode: IncomeMode | null;
+  /** Every occurrence this month (a weekly payment has four or five due dates). */
+  dueDates: Date[];
+  /** One occurrence's planned amount, display currency. */
+  unitAmount: number;
+  /** How many times it occurs this month ("4 weeks × 10,000"). */
+  occurrences: number;
+  frequency: Frequency;
+  /** Allowances: released on this day (or null, from the period's start). */
+  availableFrom: Date | null;
+  /**
+   * Set asides: the target, and what was put away and used in the months
+   * before this one (MonthBudgetInput.setAsideHistory). itemKinds.ts's
+   * setAsideProgress adds this month's.
+   */
+  setAside: { target: number | null; targetDate: Date | null; savedBefore: number; usedBefore: number } | null;
   accountId: string | null;
   toAccountId: string | null;
   /** Transfer lines: the planned fee, an expense of its own. */
@@ -311,7 +378,13 @@ export interface MonthBudgetInput {
   // Archived buckets may be passed too: their items then only appear in a
   // month where something was recorded against them (payments, moves), so
   // archiving never hides money that was actually spent or received.
-  buckets: (Pick<FirestoreBucket, 'id' | 'name' | 'currency' | 'type' | 'kind' | 'closedMonths'> & { archived?: boolean })[];
+  buckets: (Pick<FirestoreBucket, 'id' | 'name' | 'currency' | 'type' | 'kind' | 'closedMonths'> &
+    Partial<Pick<FirestoreBucket, 'cadence' | 'cadenceRule' | 'startMonth'>> & { archived?: boolean })[];
+  // Set asides: per item id, what was put away (`saved`) and spent from it
+  // or withdrawn (`used`) in every month before this one, display
+  // currency (setAsideHistory below). Optional: without it a set aside
+  // shows only this month.
+  setAsideHistory?: Map<string, { saved: number; used: number }>;
   itemsByBucket: Record<string, BudgetItemLike[]>;
   // Every transaction dated in `month` AND every transaction linked to an
   // occurrence in `month` (bucketItem.month) — the two can differ for an
@@ -361,14 +434,22 @@ export function buildMonthBudget(input: MonthBudgetInput): MonthBudget {
     const bucketType = (bucket.type ?? 'Expense') as BudgetItemType;
     const kind = bucket.kind === 'Fixed' ? 'Fixed' : 'Planned';
     for (const item of bucketItems) {
-      const occurrence = itemOccurrence(item, month);
+      const occurrence = itemOccurrenceDetail(item, month, bucket);
       if (!occurrence) continue;
       const type = itemType(bucketType, item.categoryId, categories);
       const planned = round2(toDisplay(occurrence.planned, bucket.currency));
-      const recurring = Boolean(item.recurrence && item.recurrence.frequency !== 'Once');
+      const recurring = occurrence.recurring;
       const categoryName = (item.categoryId && categories.get(item.categoryId)?.name) || null;
       const savingsMode = type === 'Savings' ? savingsModeOf(item) : null;
       const spending = type === 'Expense' || type === 'Savings';
+      const expenseKind =
+        type === 'Expense' ? expenseKindOf(item, { categoryName, recurring: kind === 'Fixed' && recurring, hasDueDate: Boolean(item.dueDate) }) : null;
+      const kindOfItem = itemKindOf(item, { flow: type, expenseKind, hasDueDate: Boolean(item.dueDate), transactionCount: item.payments?.length ?? 0 });
+      const incomeMode = type === 'Income' ? incomeModeOf(item) : null;
+      // Only payments and lump-sum income fall due on a day.
+      const dated = type === 'Income' ? incomeMode !== 'trickle' : kindOfItem === 'payment';
+      const releaseDay = kindOfItem === 'allowance' ? item.availableFrom?.day : null;
+      const history = input.setAsideHistory?.get(item.id);
       const entry: ItemMonth = {
         key: itemMonthKey(item.id, month),
         bucketId,
@@ -380,14 +461,29 @@ export function buildMonthBudget(input: MonthBudgetInput): MonthBudget {
         type,
         kind,
         incomeSubtype: type === 'Income' ? incomeSubtypeOf(item, categoryName) : null,
-        expenseKind:
-          type === 'Expense' ? expenseKindOf(item, { categoryName, recurring: kind === 'Fixed' && recurring, hasDueDate: Boolean(item.dueDate) }) : null,
+        expenseKind,
         savingsMode,
         necessity: spending ? (item.necessity ?? 'NiceToHave') : null,
         priority: spending ? (item.priority ?? 'Medium') : null,
         automation: automationOf(type, item, savingsMode),
         recurring,
-        due: occurrence.due,
+        due: dated ? occurrence.due : null,
+        itemKind: kindOfItem,
+        incomeMode,
+        dueDates: dated ? occurrence.dates : [],
+        unitAmount: round2(toDisplay(occurrence.unitAmount, bucket.currency)),
+        occurrences: occurrence.dates.length,
+        frequency: occurrence.frequency,
+        availableFrom: releaseDay ? new Date(Number(month.slice(0, 4)), Number(month.slice(5)) - 1, Math.min(releaseDay, new Date(Number(month.slice(0, 4)), Number(month.slice(5)), 0).getDate())) : null,
+        setAside:
+          kindOfItem === 'set_aside'
+            ? {
+                target: item.targetAmount ? round2(toDisplay(item.targetAmount, bucket.currency)) : null,
+                targetDate: item.targetDate?.toDate() ?? null,
+                savedBefore: round2(history?.saved ?? 0),
+                usedBefore: round2(history?.used ?? 0),
+              }
+            : null,
         accountId: item.accountId ?? null,
         toAccountId: item.toAccountId ?? null,
         fee: type === 'Transfer' && item.charges ? round2(toDisplay(item.charges, bucket.currency)) : 0,
@@ -456,6 +552,7 @@ export function buildMonthBudget(input: MonthBudgetInput): MonthBudget {
   let unplannedSaved = 0;
   let withdrawnTotal = 0;
   let borrowedTotal = 0;
+  let spentFromSetAside = 0;
   const seenTransactions = new Set<string>();
   for (const t of input.transactions) {
     if (seenTransactions.has(t.id)) continue;
@@ -475,6 +572,13 @@ export function buildMonthBudget(input: MonthBudgetInput): MonthBudget {
       if (isSavings && sign < 0) {
         linkedEntry.withdrawn += amount;
         withdrawnTotal += amount;
+      } else if (t.type === 'Expense' && linkedEntry.itemKind === 'set_aside') {
+        // Spending from a set aside: real spending, paid for by the money
+        // put away, so it's counted as used from the item (and withdrawn
+        // from savings), never as more saved.
+        linkedEntry.withdrawn += amount;
+        withdrawnTotal += amount;
+        spentFromSetAside += amount;
       } else {
         linkedEntry.actual += amount;
       }
@@ -752,7 +856,9 @@ export function buildMonthBudget(input: MonthBudgetInput): MonthBudget {
     flows: {
       receivedBorrowed: round2(borrowedTotal),
       unplannedIncome: round2(unplannedIncome),
-      spent: round2(sum(items.filter((entry) => entry.type === 'Expense'), (entry) => entry.actual) + unplannedSpent + actualTransferCharges),
+      spent: round2(
+        sum(items.filter((entry) => entry.type === 'Expense'), (entry) => entry.actual) + unplannedSpent + actualTransferCharges + spentFromSetAside
+      ),
       unplannedSpent: round2(unplannedSpent),
       plannedTransferFees: round2(plannedTransferCharges),
       actualTransferFees: round2(actualTransferCharges),
@@ -761,4 +867,43 @@ export function buildMonthBudget(input: MonthBudgetInput): MonthBudget {
       transferred: round2(transferredTotal),
     },
   };
+}
+
+/**
+ * Set asides accumulate across months: per item, what was put away and
+ * what was used (spent from it or withdrawn) in every month BEFORE `month`,
+ * from the transactions linked to it (bucketItem). Savings set aside count
+ * as saved, savings taken back out and expenses recorded against the item
+ * as used. Display currency. buildMonthBudget adds `month`'s own.
+ */
+export function setAsideHistory(input: {
+  month: string;
+  transactions: (Pick<FirestoreTransaction, 'id' | 'accountId' | 'amount' | 'direction' | 'type' | 'bucketItem'> &
+    Partial<Pick<FirestoreTransaction, 'isFrozenSavings'>>)[];
+  accountType?: Map<string, string>;
+  accountCurrency: Map<string, string>;
+  baseCurrency: string;
+  toDisplay: (amount: number, currency: string) => number;
+}): Map<string, { saved: number; used: number }> {
+  const out = new Map<string, { saved: number; used: number }>();
+  const seen = new Set<string>();
+  for (const t of input.transactions) {
+    const link = t.bucketItem;
+    if (!link || link.month >= input.month || seen.has(t.id)) continue;
+    seen.add(t.id);
+    const amount = input.toDisplay(t.amount, input.accountCurrency.get(t.accountId) ?? input.baseCurrency);
+    const entry = out.get(link.itemId) ?? { saved: 0, used: 0 };
+    if (t.type === 'Savings') {
+      if (savingsSign(t, input.accountType) > 0) entry.saved += amount;
+      else entry.used += amount;
+    } else if (t.type === 'Expense') {
+      entry.used += t.direction === 'Outflow' ? amount : -amount;
+    } else continue;
+    out.set(link.itemId, entry);
+  }
+  for (const entry of out.values()) {
+    entry.saved = round2(entry.saved);
+    entry.used = round2(entry.used);
+  }
+  return out;
 }

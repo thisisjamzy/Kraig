@@ -21,7 +21,7 @@
 // as the hub.
 const MONEY_HUB_ROUTES = ['/home', '/statistics', '/budget'];
 const PROJECTS_HUB_ROUTES = ['/projects', '/projects/calendar', '/projects/focus', '/projects/insights', '/projects/analytics'];
-const BUCKETS_HUB_ROUTES = ['/baskets', '/baskets/analytics', '/baskets/items'];
+const BUCKETS_HUB_ROUTES = ['/baskets', '/baskets/items'];
 
 export type NavMode = 'money' | 'projects' | 'buckets' | 'none';
 

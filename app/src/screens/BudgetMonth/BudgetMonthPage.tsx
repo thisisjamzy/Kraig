@@ -129,6 +129,12 @@ export function BudgetMonthPage({ month, data, onMonth }: { month: string; data:
                   <Link href="/budget/migration">see what changed</Link>.
                 </>
               )}
+              {v.kindReviewPending && (
+                <>
+                  {' '}
+                  Each basket item now has a kind: <Link href="/budget/item-kinds">check your items</Link>.
+                </>
+              )}
               <NotificationsLink types={BUDGET_TYPES} about="this month" />
             </p>
           </Callout>

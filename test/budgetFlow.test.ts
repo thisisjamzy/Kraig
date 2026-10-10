@@ -227,6 +227,10 @@ describe('automation queue', () => {
             categoryId: 'save',
             amount: 150_000,
             savingsMode: 'absolute',
+            // Paid into savings like a bill when the salary arrives. Only
+            // payments are prepared in Ready to pay; a set aside (the
+            // default for savings) is not.
+            itemKind: 'payment',
             automation: { mode: 'prepare', trigger: 'income', incomeItemId: 'aims', amountMode: 'percent', percent: 10 },
           }),
         ],
@@ -259,6 +263,17 @@ describe('automation queue', () => {
       ],
     });
     assert.deepEqual(preparePayments(paid, new Date(2026, 10, 25), new Set()).map((d) => d.itemId), ['emergency']);
+  });
+
+  test('a set aside is never prepared as a payment', () => {
+    const asSetAside = budgetFor('2026-11', {
+      itemsByBucket: {
+        pay: [item('aims', { name: 'AIMS salary', categoryId: 'salary', amount: 1_013_381, dueDate: ts('2026-01-25') })],
+        save: [item('emergency', { categoryId: 'save', amount: 150_000, savingsMode: 'absolute', automation: { mode: 'prepare', trigger: 'any_income', amountMode: 'fixed' } })],
+      },
+      transactions: [tx('sal', 1_013_381, { type: 'Income', direction: 'Inflow', categoryId: 'salary' })],
+    });
+    assert.deepEqual(preparePayments(asSetAside, new Date(2026, 10, 25), new Set()), []);
   });
 
   test('10. 200,000 received with 300,000 prepared: highest priority first, the rest wait', () => {

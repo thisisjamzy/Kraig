@@ -19,7 +19,7 @@ import { useAccounts, useCategories, useCurrencyContext } from '@/src/shared/fir
 import { toDisplay } from '@/src/shared/firestore/currency';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { useBucketLineItemsByBucket } from '@/src/shared/hooks/useBucketLineItemsByBucket';
-import { buildMonthBudget, monthKeyOf } from '@/src/shared/budget/monthBudget';
+import { buildMonthBudget, monthKeyOf, setAsideHistory } from '@/src/shared/budget/monthBudget';
 import { monthTotals } from '@/src/shared/budget/monthTotals';
 import type {
   FirestoreAllocation,
@@ -76,6 +76,13 @@ export function useMonthBudget(monthOrNull: string | null) {
     useMemo(() => (uid ? query(transfersRef(uid), where('bucketItem.month', '==', month)) : null), [uid, month])
   );
 
+  // Set asides add up across months: every linked transaction (the same
+  // query useBucketProgress reads, so the listener is shared), for what
+  // was put away and used before this month.
+  const { data: linkedEver, loading: linkedEverLoading } = useFirestoreCollection<FirestoreTransaction>(
+    useMemo(() => (uid ? query(transactionsRef(uid), where('bucketItem', '!=', null)) : null), [uid])
+  );
+
   const { data: allocations, loading: allocationsLoading } = useFirestoreCollection<FirestoreAllocation>(
     useMemo(() => (uid ? query(allocationsRef(uid), where('months', 'array-contains', month)) : null), [uid, month])
   );
@@ -94,7 +101,17 @@ export function useMonthBudget(monthOrNull: string | null) {
       categoryDocs.map((category) => [category.id, { name: category.name, transactionType: category.transactionType }])
     );
     const toMonthed = (t: FirestoreTransfer) => ({ ...t, month: monthKeyOf(t.date.toDate()) });
+    const accountType = new Map(accounts.map((account) => [account.id, account.type]));
+    const display = (amount: number, currency: string) => toDisplay(ctx, amount, currency);
     return buildMonthBudget({
+      setAsideHistory: setAsideHistory({
+        month,
+        transactions: linkedEver.filter(countsInFigures),
+        accountType,
+        accountCurrency,
+        baseCurrency: ctx.base,
+        toDisplay: display,
+      }),
       month,
       buckets,
       itemsByBucket: itemsByBucket,
@@ -106,12 +123,12 @@ export function useMonthBudget(monthOrNull: string | null) {
       allocations,
       justifications,
       accountCurrency,
-      accountType: new Map(accounts.map((account) => [account.id, account.type])),
+      accountType,
       categories,
       baseCurrency: ctx.base,
-      toDisplay: (amount, currency) => toDisplay(ctx, amount, currency),
+      toDisplay: display,
     });
-  }, [month, buckets, itemsByBucket, linkedTransactions, datedTransactions, linkedTransfers, datedTransfers, allocations, justifications, accounts, categoryDocs, ctx]);
+  }, [month, buckets, itemsByBucket, linkedTransactions, datedTransactions, linkedTransfers, datedTransfers, linkedEver, allocations, justifications, accounts, categoryDocs, ctx]);
 
   // Per flow type: expected, received, spent, saved, moved, available.
   const totals = useMemo(() => monthTotals(budget, new Date()), [budget]);
@@ -146,6 +163,7 @@ export function useMonthBudget(monthOrNull: string | null) {
       linkedLoading ||
       datedTransfersLoading ||
       linkedTransfersLoading ||
+      linkedEverLoading ||
       allocationsLoading ||
       justificationsLoading ||
       accountsLoading ||

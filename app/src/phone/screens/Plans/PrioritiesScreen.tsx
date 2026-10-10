@@ -1,14 +1,23 @@
 'use client';
 
-// Priorities — "What should I pay next?". The open items in a reasoned
-// order, grouped by urgency, with a clear line where the money runs out:
-// items above it are covered, items below say when they'd fit. Swipe right
-// to mark paid, left to postpone; tap for the item.
+// Priorities on a phone: "What should I pay next?", minimal
+// (src/phone/screens/Planning/Minimal.module.css), top to bottom:
+//   - one card like the Budget card: what's still to pay, how much of it
+//     the money covers, then Available, Spare (or Gap, in red) and Must
+//     haves; its chip switches between money now and by month end;
+//   - one row of controls: This month / All open, and the order as a menu;
+//   - the filter bar;
+//   - the items grouped by when they're due (Overdue in red), as a
+//     full-width list: name, one grey line ("House · Due 30 Oct · Must
+//     have"), the amount with "Covered" or "Fits in Nov" under it, and a
+//     line where the money runs out. Swipe right to mark paid, left to
+//     postpone; tap to open; "..." for the rest.
+// How the order works is behind the info icon.
 
-import { Fragment, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Check, GripVertical, Info, MoreHorizontal, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Check, ChevronDown, GripVertical, Info, MoreHorizontal } from 'lucide-react';
 import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -20,9 +29,11 @@ import { Modal } from '@/src/widgets/Modal/Modal';
 import { ListQueryBar } from '@/src/widgets/ListQuery/ListQueryBar';
 import { URGENCY_LABEL, dueText, monthLabel, remaining, statusOf, urgency, type Occurrence } from '@/src/viewmodels/plans/model';
 import { type SortMode, type WalkRow } from '@/src/viewmodels/plans/priorities';
-import { Card, Figure, Segmented, full, monthShort } from '@/src/phone/screens/Plans/parts';
+import { full, monthShort } from '@/src/phone/screens/Plans/parts';
+import { MoneyCard, NeedsYouRow, Sheet } from '@/src/phone/screens/Planning/MinimalParts';
+import planning from '@/src/phone/screens/Planning/Planning.module.css';
+import m from '@/src/phone/screens/Planning/Minimal.module.css';
 import styles from '@/src/phone/screens/Plans/Plans.module.css';
-import { NotificationsLink } from '@/src/widgets/Notifications/NotificationsLink';
 
 const SORTS: { value: SortMode; label: string }[] = [
   { value: 'recommended', label: 'Recommended' },
@@ -41,29 +52,24 @@ export function PrioritiesScreen() {
   const v = { ...base, ...usePriorityWalk(base) };
   const router = useRouter();
   const [howOpen, setHowOpen] = useState(false);
-  const c = v.currency;
   const w = v.walk;
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
-
-  const scrollToDivider = () => document.getElementById('money-divider')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-
-  // The due total split by need, and where the available money reaches.
   const must = w.rows.filter((r) => r.item.need === 'must').reduce((s, r) => s + r.remaining, 0);
-  const nice = w.due - must;
-  const scale = Math.max(w.due, w.available, 1);
+  const coveredAmount = w.rows.filter((r) => r.covered).reduce((s, r) => s + r.remaining, 0);
+  const sortLabel = SORTS.find((s) => s.value === v.mode)?.label ?? 'Recommended';
+
   const rowOf = (row: WalkRow, index: number) => (
     <PriorityRow key={row.item.key} row={row} index={index} v={v} draggable={v.mode === 'mine'} onOpen={() => router.push(itemHref(row.item))} />
   );
-
-  // Rows in display order, with the divider where the money runs out.
+  // Rows in display order, with the line where the money runs out.
   function renderRows(rows: WalkRow[], offset: number) {
     const out: ReactNode[] = [];
     rows.forEach((row, i) => {
       const index = offset + i;
       if (index === w.divider) {
         out.push(
-          <div key="divider" id="money-divider" className={styles.divider} role="separator">
-            Money runs out · {full(Math.max(0, w.spare), c)} left
+          <div key="divider" className={m.runsOut} role="separator">
+            Money runs out here · {full(Math.max(0, w.spare))} left
           </div>
         );
       }
@@ -84,169 +90,129 @@ export function PrioritiesScreen() {
     }
   }
 
-  // Medium screens and up: "Can I cover it?" and the order controls in a
-  // sticky left column, the list beside it. Fragments on a phone.
-
   return (
-    <div className={styles.page}>
+    <div className={planning.page}>
       <ScreenHeader
         left={
-          <Link href="/baskets" className={styles.roundButton} aria-label="Back to Baskets">
+          <Link href="/baskets" className={planning.roundButton} aria-label="Back to Baskets">
             <ArrowLeft size={20} strokeWidth={2} />
           </Link>
         }
         title="Priorities"
         right={
-          <button type="button" className={styles.roundButton} aria-label="How is this ordered?" aria-expanded={howOpen} onClick={() => setHowOpen((o) => !o)}>
+          <button type="button" className={planning.roundButton} aria-label="How is this ordered?" onClick={() => setHowOpen(true)}>
             <Info size={18} strokeWidth={2} />
           </button>
         }
       />
-
-      <div className={styles.controls}>
-        <Segmented
-          label="Which items"
-          value={v.view}
-          onChange={v.setView}
-          options={[
-            { value: 'month', label: 'This month' },
-            { value: 'open', label: 'All open' },
-          ]}
-        />
-      </div>
       {howOpen && (
-        <div className={styles.infoBox}>
-          Items are grouped by when they&apos;re due. Inside each group, Recommended ranks:
-          <ol>
-            <li>Overdue first.</li>
-            <li>Must have before Nice to have.</li>
-            <li>Priority: High, Medium, Low.</li>
-            <li>Items with a penalty if late.</li>
-            <li>Smaller amounts first, then earlier dates.</li>
-          </ol>
-          The line shows where the money you have runs out, walking down the list in this order.
-        </div>
+        <Sheet title="How this is ordered" onClose={() => setHowOpen(false)}>
+          <p className={m.sheetText}>Grouped by when it&apos;s due. Recommended puts overdue first, then must haves, higher priority, a penalty if late, and smaller amounts.</p>
+          <p className={m.sheetText}>The line shows where your money runs out, going down the list.</p>
+        </Sheet>
       )}
 
       <ScreenState loading={v.loading} />
 
       {!v.loading && (
         <>
-          <>
-          <Card
-            navy
-            title="Can I cover it?"
-            chip={
-              <Segmented
-                dark
-                label="Money to use"
-                value={v.includeExpected ? 'expected' : 'now'}
-                onChange={(x) => v.setIncludeExpected(x === 'expected')}
-                options={[
-                  { value: 'now', label: 'Now' },
-                  { value: 'expected', label: 'Month end' },
-                ]}
-              />
-            }
-            action={{ label: 'Forecast', href: '/baskets/forecast' }}
-          >
-            <div className={styles.figureGrid} data-cols="3">
-              <Figure label="Due" value={w.due} />
-              <Figure label="Available" value={w.available} />
-              <Figure label={w.gap < 0 ? 'Gap' : 'Spare'} value={Math.abs(w.gap)} tone={w.gap < 0 ? 'bad' : undefined} />
-            </div>
-            {w.due > 0 && (
-              <>
-                <div className={styles.stack} role="img" aria-label={`Must haves ${full(must)}, nice to haves ${full(nice)}, available ${full(w.available)}`}>
-                  <span style={{ width: `${(must / scale) * 100}%`, background: '#ffffff' }} />
-                  <span style={{ width: `${(nice / scale) * 100}%`, background: '#b9c9fb' }} />
-                  <i className={styles.stackMarker} style={{ left: `${Math.min(100, (Math.max(0, w.available) / scale) * 100)}%` }} aria-hidden />
-                </div>
-                <ul className={styles.legend}>
-                  <li>
-                    <span className={styles.swatch} style={{ '--c': '#ffffff' } as React.CSSProperties} aria-hidden />
-                    Must have {full(must)}
-                  </li>
-                  <li>
-                    <span className={styles.swatch} style={{ '--c': '#b9c9fb' } as React.CSSProperties} aria-hidden />
-                    Nice to have {full(nice)}
-                  </li>
-                  <li>
-                    <span className={styles.swatch} data-style="marker" aria-hidden />
-                    Available
-                  </li>
-                </ul>
-              </>
-            )}
-            <p className={styles.coverageLine}>{v.summary}</p>
-          </Card>
+          <MoneyCard
+            amount={w.due}
+            label={v.view === 'month' ? 'Still to pay this month' : 'Still to pay, all open'}
+            chip={{ label: v.includeExpected ? 'By month end' : 'Money now', onClick: () => v.setIncludeExpected(!v.includeExpected) }}
+            fill={w.due > 0 ? coveredAmount / w.due : 1}
+            fillLabel="covered"
+            problem={w.gap < 0}
+            figures={[
+              { label: 'Available', value: w.available },
+              w.gap < 0 ? { label: 'Gap', value: -w.gap, problem: true } : { label: 'Spare', value: w.spare },
+              { label: 'Must haves', value: must },
+            ]}
+          />
 
-          <div className={styles.sticky}>
-            <div className={styles.sortChips} role="group" aria-label="Order">
-              {SORTS.map((s) => (
-                <button key={s.value} type="button" aria-pressed={v.mode === s.value} onClick={() => v.setMode(s.value)}>
-                  {s.label}
+          <div className={m.controlsRow}>
+            <div className={m.segment} role="group" aria-label="Which items">
+              {(
+                [
+                  { value: 'month', label: 'This month' },
+                  { value: 'open', label: 'All open' },
+                ] as const
+              ).map((o) => (
+                <button key={o.value} type="button" aria-pressed={v.view === o.value} onClick={() => v.setView(o.value)}>
+                  {o.label}
                 </button>
               ))}
             </div>
-            <ListQueryBar
-              fields={v.fields}
-              query={v.list.query}
-              setQuery={v.list.setQuery}
-              onClear={v.list.clear}
-              count={w.rows.length}
-              noun={['item', 'items']}
-              hideSort
-              className={styles.staticBar}
+            <ActionMenu
+              ariaLabel="Order"
+              triggerClassName={m.menuButton}
+              triggerIcon={
+                <>
+                  {sortLabel}
+                  <ChevronDown size={14} strokeWidth={2.5} aria-hidden />
+                </>
+              }
+              items={SORTS.map((s) => ({
+                key: s.value,
+                label: s.label,
+                icon: s.value === v.mode ? <Check size={14} strokeWidth={2.5} /> : <span style={{ width: 14 }} />,
+                onSelect: () => v.setMode(s.value),
+              }))}
             />
           </div>
-          </>
 
-          <>
+          <ListQueryBar
+            fields={v.fields}
+            query={v.list.query}
+            setQuery={v.list.setQuery}
+            onClear={v.list.clear}
+            count={w.rows.length}
+            noun={['item', 'items']}
+            hideSort
+            className={styles.staticBar}
+          />
+
           {w.mustShort > 0 && (
-            <p className={styles.quietLine} data-tone="bad">
-              <AlertCircle size={14} strokeWidth={2.5} aria-hidden />
-              <span>
-                {w.mustShort} must-{w.mustShort === 1 ? 'have' : 'haves'} short · {full(w.mustShortAmount, c)}
-                <NotificationsLink types={['must_haves_short', 'payment_overdue']} about="payments" />
-              </span>
-            </p>
+            <NeedsYouRow
+              text={`${w.mustShort} must ${w.mustShort === 1 ? 'have' : 'haves'} not covered`}
+              amount={w.mustShortAmount}
+              onOpen={() => document.querySelector(`.${m.runsOut}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+            />
           )}
 
-          {w.rows.length === 0 ? (
-            <p className={styles.muted}>Nothing left to pay.</p>
-          ) : v.mode === 'mine' ? (
-            <DndContext
-              sensors={sensors}
-              onDragEnd={(e: DragEndEvent) => {
-                if (!e.over || e.active.id === e.over.id) return;
-                v.move(String(e.active.id), w.rows.findIndex((r) => r.item.key === e.over!.id));
-              }}
-            >
-              <SortableContext items={w.rows.map((r) => r.item.key)} strategy={verticalListSortingStrategy}>
-                <div className={styles.list}>{renderRows(w.rows, 0)}</div>
-              </SortableContext>
-            </DndContext>
-          ) : (
-            groups.map((g) => (
-              <section key={g.label} className={styles.group} aria-label={g.label}>
-                <h2 className={styles.groupHead} data-overdue={g.overdue || undefined}>
-                  {g.label} · {g.rows.length}
-                  <span>{full(g.rows.reduce((s, r) => s + r.remaining, 0), c)}</span>
-                </h2>
-                <div className={styles.list}>{renderRows(g.rows, g.start)}</div>
-              </section>
-            ))
-          )}
-
-          {w.rows.length > 0 && (
-            <div className={styles.footer}>
-              <button type="button" data-tone={w.gap < 0 ? 'bad' : undefined} onClick={scrollToDivider}>
-                {w.coveredCount}/{w.rows.length} covered · {w.gap < 0 ? `${full(-w.gap)} short` : `${full(w.spare)} spare`}
-              </button>
-            </div>
-          )}
-          </>
+          <div className={m.bleed}>
+            {w.rows.length === 0 ? (
+              <div className={m.section}>
+                <p className={m.empty}>Nothing left to pay.</p>
+              </div>
+            ) : v.mode === 'mine' ? (
+              <DndContext
+                sensors={sensors}
+                onDragEnd={(e: DragEndEvent) => {
+                  if (!e.over || e.active.id === e.over.id) return;
+                  v.move(String(e.active.id), w.rows.findIndex((r) => r.item.key === e.over!.id));
+                }}
+              >
+                <SortableContext items={w.rows.map((r) => r.item.key)} strategy={verticalListSortingStrategy}>
+                  <section className={m.section}>
+                    <div className={m.list}>{renderRows(w.rows, 0)}</div>
+                  </section>
+                </SortableContext>
+              </DndContext>
+            ) : (
+              groups.map((g) => (
+                <section key={g.label} className={m.section} aria-label={g.label}>
+                  <div className={m.sectionHead}>
+                    <span className={m.label} style={g.overdue ? { color: 'var(--p-red)' } : undefined}>
+                      {g.label} · {g.rows.length}
+                    </span>
+                    <span className={m.groupTotal}>{full(g.rows.reduce((s, r) => s + r.remaining, 0))}</span>
+                  </div>
+                  <div className={m.list}>{renderRows(g.rows, g.start)}</div>
+                </section>
+              ))
+            )}
+          </div>
         </>
       )}
 
@@ -268,7 +234,6 @@ function PriorityRow({ row, index, v, draggable, onOpen }: { row: WalkRow; index
   const start = useRef<{ x: number; y: number; axis: 'x' | 'y' | null } | null>(null);
   const status = statusOf(o);
   const overdue = urgency(o, v.today) === 'overdue';
-  const faded = !row.covered;
 
   function down(e: ReactPointerEvent) {
     if (draggable || (e.pointerType === 'mouse' && e.button !== 0)) return;
@@ -292,65 +257,8 @@ function PriorityRow({ row, index, v, draggable, onOpen }: { row: WalkRow; index
     setDx(0);
   }
 
-  const body = (
-    <div
-      className={styles.row}
-      data-need={o.need}
-      data-faded={faded || undefined}
-      style={{ transform: dx ? `translateX(${dx}px)` : draggable ? CSS.Transform.toString(transform) : undefined, transition: dx ? 'none' : transition }}
-      onPointerDown={down}
-      onPointerMove={moveHandler}
-      onPointerUp={up}
-      onPointerCancel={up}
-    >
-      {draggable && (
-        <button type="button" className={styles.dragHandle} aria-label={`Drag ${o.name}`} {...attributes} {...listeners}>
-          <GripVertical size={16} strokeWidth={2} />
-        </button>
-      )}
-      <button
-        type="button"
-        className={`${styles.rowMain} ${styles.rowButton}`}
-        onClick={() => {
-          if (!dx) onOpen();
-        }}
-      >
-        <span className={styles.rowPlan}>{o.bucketName}</span>
-        <span className={styles.rowName}>{o.name}</span>
-        <span className={styles.rowChips}>
-          <span data-need={o.need}>{o.need === 'must' ? 'Must have' : 'Nice to have'}</span>
-          <span data-priority={o.priority}>{o.priority}</span>
-          {status === 'postponed' && <span data-need="nice">Postponed</span>}
-        </span>
-      </button>
-      <span className={styles.rowSide}>
-        <span className={styles.rowAmount}>{full(row.remaining, v.currency)}</span>
-        {o.paid > 0 && <span className={styles.rowSub}>of {full(o.planned)}</span>}
-        <span className={styles.rowSub} data-tone={overdue ? 'bad' : undefined}>
-          {dueText(o.due, v.today)}
-        </span>
-        {row.covered ? (
-          <span className={styles.rowSub} data-tone="good">
-            <Check size={11} strokeWidth={3} aria-hidden /> covered
-          </span>
-        ) : (
-          <span className={styles.rowSub}>{row.fitsIn ? `Fits in ${monthShort(row.fitsIn, v.today)}` : 'Beyond forecast'}</span>
-        )}
-      </span>
-      <span className={styles.rowMenu}>
-        <ActionMenu
-          ariaLabel={`Actions for ${o.name}`}
-          triggerIcon={<MoreHorizontal size={16} strokeWidth={2} />}
-          items={[
-            { key: 'paid', label: 'Mark paid', icon: <Check size={14} strokeWidth={2} />, onSelect: () => v.setPaying(o) },
-            { key: 'postpone', label: o.recurring ? 'Skip this month' : 'Postpone', icon: <MoreHorizontal size={14} strokeWidth={2} />, onSelect: () => v.setPostponing(o) },
-            { key: 'drop', label: o.recurring ? 'Drop this month' : 'Drop it', icon: <MoreHorizontal size={14} strokeWidth={2} />, onSelect: () => v.drop(o), danger: true },
-            { key: 'open', label: 'Open item', icon: <MoreHorizontal size={14} strokeWidth={2} />, onSelect: onOpen },
-          ]}
-        />
-      </span>
-    </div>
-  );
+  // One grey line: basket, when, need (and postponed).
+  const line = [o.bucketName, dueText(o.due, v.today), o.need === 'must' ? 'Must have' : null, status === 'postponed' ? 'Postponed' : null].filter(Boolean).join(' · ');
 
   return (
     <div ref={setNodeRef} className={styles.swipe} data-index={index}>
@@ -364,7 +272,56 @@ function PriorityRow({ row, index, v, draggable, onOpen }: { row: WalkRow; index
           Postpone
         </span>
       )}
-      {body}
+      <div
+        className={m.rowWrap}
+        data-faded={!row.covered || undefined}
+        style={{
+          background: 'var(--p-card)',
+          transform: dx ? `translateX(${dx}px)` : draggable ? CSS.Transform.toString(transform) : undefined,
+          transition: dx ? 'none' : transition,
+        }}
+        onPointerDown={down}
+        onPointerMove={moveHandler}
+        onPointerUp={up}
+        onPointerCancel={up}
+      >
+        {draggable && (
+          <button type="button" className={styles.dragHandle} aria-label={`Drag ${o.name}`} {...attributes} {...listeners}>
+            <GripVertical size={16} strokeWidth={2} />
+          </button>
+        )}
+        <button
+          type="button"
+          className={m.row}
+          onClick={() => {
+            if (!dx) onOpen();
+          }}
+        >
+          <span className={m.main}>
+            <span className={m.name}>{o.name}</span>
+            <span className={m.line} data-tone={overdue ? 'problem' : undefined}>
+              {line}
+            </span>
+          </span>
+          <span className={m.side}>
+            <span className={m.figure}>{full(row.remaining)}</span>
+            <span className={m.line} data-tone={row.covered ? 'good' : undefined}>
+              {row.covered ? 'Covered' : row.fitsIn ? `Fits in ${monthShort(row.fitsIn, v.today)}` : 'Not yet covered'}
+            </span>
+          </span>
+        </button>
+        <ActionMenu
+          ariaLabel={`Actions for ${o.name}`}
+          triggerClassName={m.rowMenu}
+          triggerIcon={<MoreHorizontal size={16} strokeWidth={2} />}
+          items={[
+            { key: 'paid', label: 'Mark paid', icon: <Check size={14} strokeWidth={2} />, onSelect: () => v.setPaying(o) },
+            { key: 'postpone', label: o.recurring ? 'Skip this month' : 'Postpone', icon: <MoreHorizontal size={14} strokeWidth={2} />, onSelect: () => v.setPostponing(o) },
+            { key: 'drop', label: o.recurring ? 'Drop this month' : 'Drop it', icon: <MoreHorizontal size={14} strokeWidth={2} />, onSelect: () => v.drop(o), danger: true },
+            { key: 'open', label: 'Open item', icon: <MoreHorizontal size={14} strokeWidth={2} />, onSelect: onOpen },
+          ]}
+        />
+      </div>
     </div>
   );
 }

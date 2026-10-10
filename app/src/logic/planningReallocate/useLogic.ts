@@ -56,7 +56,7 @@ export function useLogic() {
   const nextPots = pots.filter((p) => {
     const e = budget.itemsByKey.get(p.key)!;
     const raw = itemsByBucket[e.bucketId]?.find((i) => i.id === e.itemId);
-    return Boolean(raw && itemOccurrence(raw, nextMonth));
+    return Boolean(raw && itemOccurrence(raw, nextMonth, data.buckets.find((b) => b.id === e.bucketId)));
   });
   const nextTotal = Math.round(nextPots.reduce((s, p) => s + p.amount, 0) * 100) / 100;
 

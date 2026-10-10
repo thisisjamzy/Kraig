@@ -238,7 +238,7 @@ export function useLogic(categoryId: string) {
       for (const [goalId, items] of Object.entries(itemsByBucket)) {
         for (const item of items) {
           if (item.categoryId !== categoryId) continue;
-          const occurrence = itemOccurrence(item, ms);
+          const occurrence = itemOccurrence(item, ms, bucketDocs.find((g) => g.id === goalId));
           if (occurrence) budgeted += toDisplay(ctx, occurrence.planned, bucketCurrency.get(goalId) ?? ctx.base);
         }
       }

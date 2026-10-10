@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, ChartNoAxesCombined, ListOrdered, Plus, FolderPlus, ListPlus, HandCoins, CalendarPlus } from 'lucide-react';
+import { Home, ListOrdered, Plus, FolderPlus, ListPlus, HandCoins, CalendarPlus } from 'lucide-react';
 import { query, where } from 'firebase/firestore';
 import { navMode } from '@/src/shared/config/chromeVisibility';
 import { useFirestoreCollection } from '@/src/shared/firestore/hooks';
@@ -17,7 +17,6 @@ import styles from '@/src/phone/widgets/BucketsBottomNav/BucketsBottomNav.module
 // mobile and web can never drift apart on what Buckets mode contains.
 export const NAV_ITEMS = [
   { href: '/baskets', label: 'Home', icon: Home },
-  { href: '/baskets/analytics', label: 'Insights', icon: ChartNoAxesCombined },
   { href: '/baskets/items', label: 'Priorities', icon: ListOrdered },
 ];
 

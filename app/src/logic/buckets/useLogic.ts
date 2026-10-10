@@ -118,6 +118,9 @@ export function useLogic() {
     nextMonth: () => setMonth(shiftMonth(month, 1)),
     isCurrent: month === current,
     totals,
+    /** The month's derived budget and every basket, for the grouped list (src/logic/planning/basketList.ts). */
+    budget,
+    buckets,
     lines,
     must,
     flow,

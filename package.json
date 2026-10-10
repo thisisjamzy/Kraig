@@ -19,6 +19,7 @@
     "test:rules": "firebase emulators:exec --only firestore --project dreda-rules-test \"tsx --test test/firestore-rules.test.ts\"",
     "test:functions": "npm run build --prefix functions && firebase emulators:exec --only functions,firestore,auth --project dreda-emu-test \"node --test functions/lib/integration/*.test.js\"",
     "test:budget": "tsx --test test/monthBudget.test.ts test/budgetFlow.test.ts",
+    "test:baskets": "tsx --tsconfig app/tsconfig.json --test test/basketKinds.test.ts",
     "test:calendar": "tsx --test test/dayLayout.test.ts",
     "test:calendar-sync": "tsx --test test/calendarBridge.test.ts test/calendarSync.test.ts",
     "test:insights": "tsx --test test/financeInsights.test.ts test/keyCharts.test.ts",

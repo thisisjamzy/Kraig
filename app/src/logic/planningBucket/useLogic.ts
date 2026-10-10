@@ -16,9 +16,16 @@ import { buildAdjustments, type AdjustmentEntry } from '@/src/logic/planning/adj
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { revertAllocation, revertJustification, updateJustification } from '@/src/shared/firestore/overspend';
 import { closeBucketMonth, reopenBucketMonth } from '@/src/shared/firestore/bucketBudget';
-import { restoreBucket } from '@/src/shared/firestore/aggregation';
+import { recordBucketLineItemPayment, restoreBucket } from '@/src/shared/firestore/aggregation';
+import { basketMonthView, itemRowView } from '@/src/shared/budget/itemKinds';
+import { basketCadenceOf, CADENCE_LABEL } from '@/src/shared/budget/cadence';
+import { FLOW_LABEL } from '@/src/shared/budget/flow';
+import { isSavingsAccount } from '@/src/viewmodels/wallets';
+import type { ItemMonth } from '@/src/shared/budget/monthBudget';
 import { showToast } from '@/src/widgets/Toast/Toast';
 import type { OverspendAvoidability, OverspendAwareness, OverspendReason } from '@/src/shared/firestore/types';
+
+const ADD_TYPE = { Expense: 'expense', Income: 'income', Savings: 'savings', Transfer: 'transfer' } as const;
 
 function monthFromSearch(): string {
   if (typeof window === 'undefined') return monthOf(new Date());
@@ -119,6 +126,54 @@ export function useLogic(bucketId: string) {
       .filter(({ item }) => item.type !== 'Income')
       .sort((a, b) => b.item.remaining - a.item.remaining)[0]?.item ?? group?.items[0] ?? null;
 
+  // The basket in this month (itemKinds.ts): Planned, Used and Left, and
+  // each item's one line by its kind.
+  const view = group ? basketMonthView(group, today) : null;
+  const rowsByItem = new Map((group?.items ?? []).map((entry) => [entry.key, itemRowView(entry, today)]));
+  const cadenceLine = bucket ? `${CADENCE_LABEL[basketCadenceOf(bucket)]} · ${FLOW_LABEL[bucket.type ?? 'Expense']}` : '';
+
+  // "Add received": a quick amount against a trickle (or any) income item,
+  // never assuming the full expected amount.
+  const [receiving, setReceiving] = useState<ItemMonth | null>(null);
+  const [receiveAmount, setReceiveAmount] = useState('');
+  const [receiveAccountId, setReceiveAccountId] = useState('');
+  const receiveAccounts = accounts.filter((a) => !a.archived && !isSavingsAccount(a));
+  function startReceiving(entry: ItemMonth) {
+    setReceiving(entry);
+    setReceiveAmount('');
+    setReceiveAccountId(entry.accountId ?? receiveAccounts[0]?.id ?? '');
+    setAdjustmentError(null);
+  }
+  async function confirmReceived() {
+    const uid = user?.uid;
+    const amount = Number(receiveAmount);
+    if (!uid || !receiving || !receiveAccountId || !(amount > 0)) return;
+    const entry = receiving;
+    await run(
+      async () => {
+        await recordBucketLineItemPayment(
+          uid,
+          entry.bucketId,
+          entry.itemId,
+          amount,
+          false,
+          {
+            accountId: receiveAccountId,
+            categoryId: entry.categoryId,
+            date: new Date(),
+            description: entry.name,
+            categoryType: 'Income',
+            occurrenceMonth: month,
+            incomeSubtype: entry.incomeSubtype,
+          },
+          ctx
+        );
+        setReceiving(null);
+      },
+      'Received.'
+    );
+  }
+
   const navigateBack = useGoBack();
   // Closing the bucket for this month (with a note), or reopening it.
   const spendingItems = (group?.items ?? []).filter((i) => i.type !== 'Income');
@@ -158,6 +213,20 @@ export function useLogic(bucketId: string) {
     unarchiveBucket,
     card,
     items,
+    view,
+    rowsByItem,
+    cadenceLine,
+    receiving,
+    startReceiving,
+    cancelReceiving: () => setReceiving(null),
+    receiveAmount,
+    setReceiveAmount: (value: string) => setReceiveAmount(value.replace(/[^0-9.]/g, '')),
+    receiveAccountId,
+    setReceiveAccountId,
+    receiveAccounts,
+    confirmReceived,
+    /** "Add expense to this basket": the basket chosen, the amount empty. */
+    addToBasketHref: `/add-transaction?basket=${encodeURIComponent(bucketId)}&type=${ADD_TYPE[bucket?.type ?? 'Expense']}&month=${Number(month.slice(5)) - 1}&year=${month.slice(0, 4)}`,
     category,
     rows,
     lastActivity: rows[0] ? { date: rows[0].date, what: rows[0].note || rows[0].name } : null,

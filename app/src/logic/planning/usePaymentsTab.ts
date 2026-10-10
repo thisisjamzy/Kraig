@@ -11,13 +11,9 @@
 // (aggregation.ts's recordBucketLineItemPayment).
 
 import { useMemo, useState } from 'react';
-import { nextOccurrenceOnOrAfter } from '@dreda/shared-recurrence';
 import { recordBucketLineItemPayment } from '@/src/shared/firestore/aggregation';
 import { useCategories } from '@/src/shared/firestore/queries';
-import { toDisplay } from '@/src/shared/firestore/currency';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
-import { itemMonthKey } from '@/src/shared/budget/monthBudget';
-import { isItemClosed } from '@/src/shared/budget/bucketProgress';
 import { isSavingsAccount } from '@/src/viewmodels/wallets';
 import type { FirestoreCategory, Frequency } from '@/src/shared/firestore/types';
 import type { PlanningData } from './useLogic';
@@ -38,7 +34,11 @@ export interface MonthPayment {
   accountId: string | null;
   toAccountId: string | null;
   charges: number | null;
+  /** This occurrence's planned amount. */
   amount: number;
+  /** Paid toward it so far, and what's still to pay. */
+  paid: number;
+  remaining: number;
   due: Date;
   dueKey: string;
   status: PaymentStatus;
@@ -65,81 +65,69 @@ export function frequencyLabel(recurrence: { frequency: Frequency; interval?: nu
   return n === 1 ? `Every ${unit[0]}` : `Every ${n} ${unit[1]}`;
 }
 
-/** Every scheduled payment in the month, with its status. */
+/**
+ * Every scheduled payment in the month, with its status: one row per
+ * occurrence of each Payment item (allowances and set asides are never
+ * "due", so they never show here). Read from the month's derived lines, so
+ * the cadence (a weekly payment has four or five dates), month-only edits
+ * and skips all apply. Money recorded pays occurrences in date order; one
+ * paid in part shows "40,000 of 160,000 paid" and stays due.
+ */
 export function monthPayments(
   month: string,
   data: Pick<PlanningData, 'budget' | 'buckets' | 'itemsByBucket' | 'accounts' | 'ctx'>,
   categories: FirestoreCategory[]
 ): MonthPayment[] {
-  const { budget, buckets, itemsByBucket, accounts, ctx } = data;
-  const [y, m] = month.split('-').map(Number);
-  const monthStart = new Date(y, m - 1, 1);
-  const monthEnd = new Date(y, m, 0, 23, 59, 59, 999);
+  const { budget, accounts } = data;
   const todayStart = new Date(new Date().setHours(0, 0, 0, 0));
   const accountName = new Map(accounts.map((a) => [a.id, a.name]));
-  const accountCurrency = new Map(accounts.map((a) => [a.id, a.currency]));
   const category = new Map(categories.map((c) => [c.id, c]));
   const out: MonthPayment[] = [];
-  for (const bucket of buckets) {
-    for (const item of itemsByBucket[bucket.id] ?? []) {
-      if (!item.dueDate || item.excludedMonths?.includes(month)) continue;
-      const rule = {
-        frequency: (bucket.kind === 'Fixed' ? item.recurrence?.frequency : undefined) ?? ('Once' as Frequency),
-        interval: item.recurrence?.interval ?? 1,
-        anchorDate: item.dueDate.toDate(),
-        endCondition: 'Never' as const,
-      };
-      const endDate = item.recurrence?.endDate?.toDate() ?? null;
-      const dates: Date[] = [];
-      let from = monthStart;
-      for (let guard = 0; guard < 40; guard++) {
-        const next = nextOccurrenceOnOrAfter(rule, from, monthEnd);
-        if (!next || (endDate && next > endDate)) break;
-        dates.push(next);
-        from = new Date(next.getFullYear(), next.getMonth(), next.getDate() + 1);
-      }
-      if (!dates.length) continue;
-      const native = item.accountId ? (accountCurrency.get(item.accountId) ?? bucket.currency) : bucket.currency;
-      const amount = toDisplay(ctx, item.amount, native);
-      const entry = budget.itemsByKey.get(itemMonthKey(item.id, month));
-      // Closed (the item, or its bucket for this month): nothing more is due.
-      const closed = isItemClosed(item, bucket.kind) || Boolean(entry?.closed);
-      // A payment counts as paid once anything is recorded against it —
-      // the amount may differ from the plan (a mis-estimate, not a missed
-      // payment). Several records pay several dates; a large one can pay
-      // more than one.
-      const records = entry ? entry.transactionIds.length + entry.transferIds.length : 0;
-      const byAmount = entry && amount > 0 ? Math.floor((entry.actual + 0.01) / amount) : 0;
-      const paidCount = closed ? dates.length : Math.min(dates.length, Math.max(records, byAmount));
-      const cat = item.categoryId ? category.get(item.categoryId) : undefined;
-      dates.forEach((due, index) => {
-        const paid = index < paidCount;
-        // An archived bucket keeps its payment history, but nothing more is
-        // due from it.
-        if (bucket.archived && !paid) return;
-        out.push({
-          id: `${item.id}@${dayKey(due)}`,
-          bucketId: bucket.id,
-          bucketName: bucket.name,
-          itemId: item.id,
-          name: item.name || cat?.name || 'Payment',
-          categoryId: item.categoryId ?? null,
-          categoryName: cat?.name ?? (bucket.type === 'Transfer' ? (item.categoryId ?? 'Transfer') : ''),
-          categoryType: bucket.type === 'Transfer' ? 'Transfer' : (cat?.transactionType ?? 'Expense'),
-          frequency: frequencyLabel(bucket.kind === 'Fixed' ? item.recurrence : null),
-          method: (item.accountId && accountName.get(item.accountId)) || 'No wallet set',
-          accountId: item.accountId ?? null,
-          toAccountId: item.toAccountId ?? null,
-          charges: item.charges ?? null,
-          amount,
-          due,
-          dueKey: dayKey(due),
-          status: paid ? 'paid' : due < todayStart ? 'overdue' : 'upcoming',
-        });
+  for (const entry of budget.items) {
+    if (entry.type === 'Income' || entry.itemKind !== 'payment' || !entry.dueDates.length) continue;
+    const dates = entry.dueDates;
+    const unit = entry.available / dates.length;
+    let paidLeft = entry.closed ? entry.available : entry.actual;
+    const cat = entry.categoryId ? category.get(entry.categoryId) : undefined;
+    dates.forEach((due) => {
+      const paidHere = Math.max(0, Math.min(unit, paidLeft));
+      paidLeft -= paidHere;
+      const paid = entry.closed || paidHere >= unit - 0.5;
+      // An archived bucket keeps its payment history, but nothing more is due from it.
+      if (entry.archived && !paid) return;
+      out.push({
+        id: `${entry.itemId}@${dayKey(due)}`,
+        bucketId: entry.bucketId,
+        bucketName: entry.bucketName,
+        itemId: entry.itemId,
+        name: entry.name || cat?.name || 'Payment',
+        categoryId: entry.categoryId,
+        categoryName: cat?.name ?? (entry.type === 'Transfer' ? (entry.categoryId ?? 'Transfer') : ''),
+        categoryType: entry.type === 'Transfer' ? 'Transfer' : (cat?.transactionType ?? entry.type),
+        frequency: entry.recurring ? frequencyLabel({ frequency: entry.frequency, interval: 1 }) : 'One-off',
+        method: (entry.accountId && accountName.get(entry.accountId)) || 'No wallet set',
+        accountId: entry.accountId,
+        toAccountId: entry.toAccountId,
+        charges: entry.fee || null,
+        amount: Math.round(unit * 100) / 100,
+        paid: Math.round(paidHere * 100) / 100,
+        remaining: paid ? 0 : Math.round((unit - paidHere) * 100) / 100,
+        due,
+        dueKey: dayKey(due),
+        status: paid ? 'paid' : due < todayStart ? 'overdue' : 'upcoming',
       });
-    }
+    });
   }
   return out.sort((a, b) => a.due.getTime() - b.due.getTime() || a.name.localeCompare(b.name));
+}
+
+/**
+ * The expense form for one payment occurrence, with what's still due
+ * suggested (editable): the phone's "Pay" and "Mark as paid".
+ */
+export function payHref(payment: Pick<MonthPayment, 'bucketId' | 'itemId' | 'remaining' | 'amount' | 'due'>, month: string) {
+  const amount = Math.round((payment.remaining || payment.amount) * 100) / 100;
+  return `/add-transaction?bucketItem=${encodeURIComponent(`${payment.bucketId}:${payment.itemId}:${month}`)}&amount=${amount}`;
 }
 
 export function usePaymentsTab(month: string, data: PlanningData, bucketFilter: string | null = null) {
@@ -150,6 +138,9 @@ export function usePaymentsTab(month: string, data: PlanningData, bucketFilter: 
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [paying, setPaying] = useState<MonthPayment | null>(null);
   const [payAccountId, setPayAccountId] = useState('');
+  // What "Mark as paid" records: the remaining due amount, editable, so a
+  // payment can be made in parts.
+  const [payAmount, setPayAmount] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -180,10 +171,12 @@ export function usePaymentsTab(month: string, data: PlanningData, bucketFilter: 
     setPaying(payment);
     const pool = accounts.filter((a) => (payment.categoryType === 'Savings' ? isSavingsAccount(a) : !isSavingsAccount(a)));
     setPayAccountId(payment.accountId ?? pool[0]?.id ?? '');
+    setPayAmount(String(payment.remaining || payment.amount));
     setError(null);
   }
   async function confirmPaid() {
-    if (!uid || !paying || !payAccountId || busy) return;
+    const amount = Number(payAmount);
+    if (!uid || !paying || !payAccountId || busy || !(amount > 0)) return;
     setBusy(true);
     setError(null);
     try {
@@ -191,8 +184,8 @@ export function usePaymentsTab(month: string, data: PlanningData, bucketFilter: 
         uid,
         paying.bucketId,
         paying.itemId,
-        paying.amount,
-        true,
+        amount,
+        amount >= (paying.remaining || paying.amount) - 0.5,
         {
           accountId: payAccountId,
           categoryId: paying.categoryId,
@@ -228,6 +221,9 @@ export function usePaymentsTab(month: string, data: PlanningData, bucketFilter: 
     cancelPaying: () => setPaying(null),
     payAccountId,
     setPayAccountId,
+    payAmount,
+    setPayAmount: (value: string) => setPayAmount(value.replace(/[^0-9.]/g, '')),
+    payHref,
     accounts: payAccounts,
     confirmPaid,
     busy,

@@ -11,6 +11,8 @@ import { createDebt, createTransferWithAggregation, recordBucketLineItemPayment 
 import { inferIncomeSubtype, type IncomeSubtype } from '@/src/shared/budget/flow';
 import { recordHistoricEntry } from '@/src/shared/firestore/unaccountedBalance';
 import { useBucketLineItemsByBucket } from '@/src/shared/hooks/useBucketLineItemsByBucket';
+import { useMonthBudget } from '@/src/shared/hooks/useMonthBudget';
+import { basketItemFormFields, recordHint } from '@/src/shared/budget/itemKinds';
 import { addMonths, itemOccurrence, monthLabel } from '@/src/shared/budget/monthBudget';
 import { TRANSFER_CATEGORIES } from '@/src/viewmodels/categories';
 import { isSavingsAccount } from '@/src/viewmodels/wallets';
@@ -128,6 +130,21 @@ function templateIdFromSearch(): string {
 // The bucket item month sheet's "Record payment" (src/screens/
 // BucketItemMonth) deep-links here with ?bucketItem=bucketId:itemId:yyyy-MM
 // — that exact occurrence gets pre-linked once items load.
+// "Mark as paid" also passes the amount still due (&amount=), suggested in
+// the Amount field and editable. Nothing else ever fills the amount in.
+function amountFromSearch(): string {
+  if (typeof window === 'undefined') return '';
+  const raw = peekAwareParams(window.location.search).get('amount');
+  return raw && Number(raw) > 0 ? String(Number(raw)) : '';
+}
+
+// A basket page's "Add expense to this basket" (?basket=): the basket is
+// chosen, the item and the amount are left to the user.
+function basketFromSearch(): string {
+  if (typeof window === 'undefined') return '';
+  return peekAwareParams(window.location.search).get('basket') ?? '';
+}
+
 function bucketItemFromSearch(): { bucketId: string; itemId: string; month: string } | null {
   if (typeof window === 'undefined') return null;
   const raw = peekAwareParams(window.location.search).get('bucketItem');
@@ -144,6 +161,7 @@ export function useLogic() {
   const [prefillCategoryId] = useState(categoryIdFromSearch);
   const [prefillTemplateId] = useState(templateIdFromSearch);
   const [prefillBucketItem] = useState(bucketItemFromSearch);
+  const [prefillAmount] = useState(amountFromSearch);
   const [step, setStep] = useState<Step>(() => (prefillCategoryId || prefillTemplateId ? 'details' : 'type'));
   const [type, setType] = useState<TransactionType>(typeFromSearch);
   const [savingsMode, setSavingsModeState] = useState<SavingsMode>('moved');
@@ -266,15 +284,16 @@ export function useLogic() {
     useMemo(() => (uid ? query(bucketsRef(uid), where('archived', '==', false)) : null), [uid])
   );
   const { itemsByBucket, loading: bucketItemsLoading } = useBucketLineItemsByBucket(activeBuckets);
+  const bucketById = useMemo(() => new Map(activeBuckets.map((bucket) => [bucket.id, bucket])), [activeBuckets]);
   const [dateYear, dateMonth] = dateValue.split('-').map(Number);
   const dateMonthKey = `${dateYear}-${pad2(dateMonth)}`;
   const budgetedCategoryIds = useMemo(() => {
     const ids = new Set<string>();
     for (const item of Object.values(itemsByBucket).flat()) {
-      if (item.categoryId && itemOccurrence(item, dateMonthKey)) ids.add(item.categoryId);
+      if (item.categoryId && itemOccurrence(item, dateMonthKey, bucketById.get(item.goalId))) ids.add(item.categoryId);
     }
     return ids;
-  }, [dateMonthKey, itemsByBucket]);
+  }, [dateMonthKey, itemsByBucket, bucketById]);
 
   // Default both account pickers once accounts load, distinct accounts for
   // from/to. fromAccountId defaults to a spendable one — the initial type
@@ -330,7 +349,14 @@ export function useLogic() {
   // THIS type's categories (fetchedCategories is already filtered to
   // CATEGORY_TYPE[type]), so a Savings pick never lists an Expense item or
   // vice versa.
-  const [linkedBucketItemId, setLinkedBucketItemId] = useState('');
+  const [linkedBucketItemId, setLinkedBucketItemIdState] = useState('');
+  // The basket picked first ('' none yet, 'unsure' for "Not sure yet":
+  // recorded without a basket), then one of its items.
+  const [basketChoice, setBasketChoice] = useState(basketFromSearch);
+  function setLinkedBucketItemId(id: string) {
+    setLinkedBucketItemIdState(id);
+    if (!id) setBasketChoice((current) => (current === 'unsure' ? current : ''));
+  }
   const bucketNameById = useMemo(() => new Map(activeBuckets.map((bucket) => [bucket.id, bucket.name])), [activeBuckets]);
   const bucketKindById = useMemo(() => new Map(activeBuckets.map((bucket) => [bucket.id, bucket.kind ?? 'Variable'])), [activeBuckets]);
   const bucketTypeById = useMemo(() => new Map(activeBuckets.map((bucket) => [bucket.id, bucket.type ?? 'Expense'])), [activeBuckets]);
@@ -354,7 +380,7 @@ export function useLogic() {
       .filter((item) => bucketKindById.get(item.goalId) === 'Fixed' || !item.completed)
       .flatMap((item) =>
         months.flatMap((occurrenceMonth) => {
-          const occurrence = itemOccurrence(item, occurrenceMonth);
+          const occurrence = itemOccurrence(item, occurrenceMonth, bucketById.get(item.goalId));
           if (!occurrence) return [];
           const bucketName = bucketNameById.get(item.goalId) ?? 'Basket';
           return [{
@@ -374,7 +400,7 @@ export function useLogic() {
           }];
         })
       );
-  }, [type, itemsByBucket, fetchedCategories, bucketNameById, bucketKindById, bucketTypeById, dateMonthKey]);
+  }, [type, itemsByBucket, fetchedCategories, bucketById, bucketNameById, bucketKindById, bucketTypeById, dateMonthKey]);
   const linkedBucketItem = linkableBucketItems.find((item) => item.id === linkedBucketItemId) ?? null;
   // A linked Expense/Income/Savings item is settled as a direct write against
   // its own accountId (see handleConfirm below) even when savingsMode still
@@ -383,21 +409,53 @@ export function useLogic() {
   // Transfer item stays a transfer.
   const isEffectivelyTransferLike = isTransferLike && (!linkedBucketItem || linkedBucketItem.isTransfer);
 
+  // Picking a basket item never fills in the amount: the amount is what
+  // was actually spent, typed by the user (a Payment offers its full due
+  // amount as a chip, filled only when tapped).
   function selectLinkedBucketItem(id: string) {
     const item = linkableBucketItems.find((entry) => entry.id === id);
     if (!item) return;
-    setLinkedBucketItemId(id);
-    setCategory(item.categoryId);
-    setDescription(`${item.bucketName}: ${item.name}`);
-    setAmountString(String(item.amount));
-    if (item.accountId) setFromAccountId(item.accountId);
-    if (item.toAccountId) setToAccountId(item.toAccountId);
-    if (item.isTransfer && item.charges != null) setChargesString(String(item.charges));
+    setLinkedBucketItemIdState(id);
+    setBasketChoice(item.goalId);
+    const fields = basketItemFormFields(item);
+    setCategory(fields.category);
+    setDescription(fields.description);
+    if (fields.fromAccountId) setFromAccountId(fields.fromAccountId);
+    if (fields.toAccountId) setToAccountId(fields.toAccountId);
+    if (fields.charges !== undefined) setChargesString(fields.charges);
   }
 
   function clearLinkedBucketItem() {
     setLinkedBucketItemId('');
   }
+
+  // Basket, then item.
+  const basketOptions = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const item of linkableBucketItems) if (!seen.has(item.goalId)) seen.set(item.goalId, bucketNameById.get(item.goalId) ?? 'Basket');
+    return [...seen.entries()].sort((a, b) => a[1].localeCompare(b[1])).map(([value, label]) => ({ value, label }));
+  }, [linkableBucketItems, bucketNameById]);
+  function chooseBasket(id: string) {
+    setBasketChoice(id);
+    const current = linkableBucketItems.find((entry) => entry.id === linkedBucketItemId);
+    if (!current || current.goalId !== id) {
+      setLinkedBucketItemIdState('');
+      // The only item in the basket is the obvious pick (amount still empty).
+      const inBasket = linkableBucketItems.filter((entry) => entry.goalId === id && entry.occurrenceMonth === dateMonthKey);
+      if (inBasket.length === 1) selectLinkedBucketItem(inBasket[0].id);
+    }
+  }
+  const itemOptions = linkableBucketItems
+    .filter((entry) => entry.goalId === basketChoice)
+    .map((entry) => ({ value: entry.id, label: entry.occurrenceMonth === dateMonthKey ? entry.name : `${entry.name} · ${monthLabel(entry.occurrenceMonth)}` }));
+
+  // What's left on the chosen item this month (the shared month budget).
+  const monthData = useMonthBudget(type === 'transfer' ? null : dateMonthKey);
+  const linkedEntry = linkedBucketItem ? monthData.budget.itemsByKey.get(linkedBucketItem.id) ?? null : null;
+  const hint = linkedEntry ? recordHint(linkedEntry, linkedBucketItem!.bucketName.split(' · ')[0]) : null;
+  const amountTyped = Number(amountString) || 0;
+  // Only a Payment offers "Pay the full 12,000 due".
+  const payFull = hint?.payFull ?? null;
 
   // ?bucketItem= deep link: switch to the item's own type and month, then
   // pre-link that occurrence once it shows up in linkableBucketItems.
@@ -429,6 +487,7 @@ export function useLogic() {
     const key = `${prefillBucketItem.itemId}@${prefillBucketItem.month}`;
     if (!linkableBucketItems.some((item) => item.id === key)) return;
     selectLinkedBucketItem(key);
+    if (prefillAmount) setAmountString(prefillAmount);
     setStep('details');
     setBucketItemApplied(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -460,6 +519,7 @@ export function useLogic() {
     setChargesString('');
     setExplainsUnjustifiedBalance(false);
     setLinkedBucketItemId('');
+    setBasketChoice('');
   }
 
   function chooseSavingsMode(mode: SavingsMode) {
@@ -479,7 +539,7 @@ export function useLogic() {
     const monthKey = `${year}-${pad2(month)}`;
     return Object.values(itemsByBucket)
       .flat()
-      .some((item) => item.categoryId === categoryId && itemOccurrence(item, monthKey) != null);
+      .some((item) => item.categoryId === categoryId && itemOccurrence(item, monthKey, bucketById.get(item.goalId)) != null);
   }
 
   function chooseDate(iso: string) {
@@ -691,8 +751,12 @@ export function useLogic() {
 
   // The one-page form (the form standard): every field at once, so it can
   // save as soon as all of them are valid, whatever step the wizard is on.
+  // Expenses go to a basket and an item, or explicitly "Not sure yet".
+  const needsBasket = type === 'expense' && basketOptions.length > 0;
+  const basketDone = !needsBasket || basketChoice === 'unsure' || Boolean(linkedBucketItem);
   const canSave =
     !submitting &&
+    basketDone &&
     category.length > 0 &&
     description.trim().length > 0 &&
     Number(amountString) > 0 &&
@@ -723,6 +787,17 @@ export function useLogic() {
     setCategory: chooseCategory,
     linkableBucketItems,
     linkedBucketItem,
+    basketOptions,
+    basketChoice,
+    chooseBasket,
+    itemOptions,
+    needsBasket,
+    /** "Leisure · Hangouts: 22,000 left of 30,000" */
+    itemHelper: hint?.helper ?? (linkedBucketItem ? `${linkedBucketItem.bucketName} · ${linkedBucketItem.name}: ${formatMoney(String(linkedBucketItem.amount))} planned` : null),
+    payFull,
+    usePayFull: () => payFull && setAmountString(String(payFull)),
+    /** "Hangouts will have 12,000 left." */
+    itemImpact: hint ? hint.impact(amountTyped) : null,
     selectLinkedBucketItem,
     clearLinkedBucketItem,
     description,

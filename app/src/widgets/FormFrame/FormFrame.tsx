@@ -19,9 +19,10 @@
 // full-width primary button named verb plus object, disabled until valid.
 // No corner checkmark buttons.
 
-import { useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
-import { ArrowLeft, ChevronDown, Maximize2, X } from 'lucide-react';
+import { ArrowLeft, Check, ChevronDown, Maximize2, X } from 'lucide-react';
 import { useLayout } from '@/src/shared/hooks/useLayout';
 import { FormPeekContext, useFormPeek, type FormPeekState } from '@/src/shared/navigation/formPeekContext';
 import cf from '@/src/widgets/CardForm/CardForm.module.css';
@@ -339,6 +340,76 @@ export function SelectField({
         )}
       </select>
     </label>
+  );
+}
+
+/**
+ * A select for long lists (a basket, a basket item). On a phone it opens a
+ * full-screen list instead of the system picker: full width and height,
+ * padded past the notch and the home indicator, scrolling on its own so
+ * every option can be reached. Tablet and web keep SelectField.
+ */
+export function ListSelectField(props: Parameters<typeof SelectField>[0]) {
+  const { isWide } = useLayout();
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    const before = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = before;
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+  if (isWide) return <SelectField {...props} />;
+  const { label, value, onChange, options = [], groups, placeholder, error } = props;
+  const all = [...options, ...(groups ?? []).flatMap((g) => g.options)];
+  const chosen = all.find((o) => o.value === value);
+  const sections = [{ label: '', options }, ...(groups ?? [])].filter((g) => g.options.length);
+  const pick = (next: string) => {
+    onChange(next);
+    setOpen(false);
+  };
+  return (
+    <>
+      <button type="button" className={`${cf.card} ${cf.pickerCard} ${styles.listTrigger}`} data-invalid={error ? '' : undefined} onClick={() => setOpen(true)} aria-haspopup="dialog">
+        <span className={cf.pickerText}>
+          <span className={cf.label}>{label}</span>
+          <span className={cf.value} data-placeholder={chosen ? undefined : ''}>
+            {chosen ? chosen.label : (placeholder ?? 'Choose')}
+          </span>
+          {error && <span className={styles.fieldError}>{error}</span>}
+        </span>
+        <ChevronDown size={22} strokeWidth={1.5} className={cf.chevron} aria-hidden />
+      </button>
+      {open &&
+        createPortal(
+          <div className={styles.listSheet} role="dialog" aria-modal="true" aria-label={label}>
+            <div className={styles.listHead}>
+              <h2 className={styles.listTitle}>{label}</h2>
+              <button type="button" className={styles.listClose} onClick={() => setOpen(false)} aria-label="Close">
+                <X size={20} strokeWidth={2} />
+              </button>
+            </div>
+            <div className={styles.listBody}>
+              {sections.map((section) => (
+                <div key={section.label || 'options'} className={styles.listGroup}>
+                  {section.label && <p className={styles.listGroupLabel}>{section.label}</p>}
+                  {section.options.map((o) => (
+                    <button key={o.value} type="button" className={styles.listOption} aria-pressed={o.value === value} onClick={() => pick(o.value)}>
+                      <span>{o.label}</span>
+                      {o.value === value && <Check size={18} strokeWidth={2.25} aria-hidden />}
+                    </button>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>,
+          document.body
+        )}
+    </>
   );
 }
 

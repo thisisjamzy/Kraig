@@ -4,6 +4,7 @@
 // reviewed or not, "Not yet" answers to income prompts) and the one-time
 // flow-type migration report — what the Budget page's banners read.
 
+import { BASKETS_MIGRATION_ID } from '@/src/shared/budget/basketsMigration';
 import { useMemo } from 'react';
 import { useFirestoreDoc } from '@/src/shared/firestore/hooks';
 import { budgetMonthRef, migrationRef } from '@/src/shared/firestore/refs';
@@ -27,4 +28,13 @@ export function useFlowMigrationReport() {
     /** Finished, with changes the household hasn't looked at yet. */
     pending: Boolean(doc?.completedAt && !doc.reviewedAt && doc.report?.length),
   };
+}
+
+/** The baskets migration's review list ("Check your items"), until it's been looked at. */
+export function useBasketsMigrationReview() {
+  const { user } = useFirebaseUser();
+  const uid = user?.uid;
+  const state = useFirestoreDoc<FirestoreMigration>(useMemo(() => (uid ? migrationRef(uid, BASKETS_MIGRATION_ID) : null), [uid]));
+  const doc = state.data;
+  return { ...state, pending: Boolean(doc?.completedAt && !doc.reviewedAt && doc.report?.length) };
 }

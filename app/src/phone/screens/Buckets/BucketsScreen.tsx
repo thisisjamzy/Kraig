@@ -1,45 +1,66 @@
 'use client';
 
-// Buckets — one month's buckets, one flow type at a time: Income,
-// Expenses, Savings and Transfers each on their own tab, never mixed.
-//
-// Phone: the money plan card and the month's figures per type (from the
-// shared totals, so savings read as positive amounts set aside and
-// "available" is money actually received), whether the must-haves are
-// covered, what's coming in, then the type tabs with the bucket cards.
+// Baskets on a phone, minimal: the same month dropdown as the Budget
+// section on one row with two filters (the money type, and All / Fixed /
+// Variable), a summary card laid out like the Budget card (in its own
+// gradient) and the grouped basket list, both for the chosen money type:
+// income and expenses are never totalled together. The grouped basket
+// list the Budget tab shows (Income, Expenses, Savings, Transfers). The
+// "..." menu has Archived baskets, Import and Print. What must be paid
+// first lives in Priorities.
 
 import Link from 'next/link';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Archive, ChevronLeft, ChevronRight, MoreHorizontal, Pencil, TrendingUp } from 'lucide-react';
-import { useLogic, type BucketRow, type BucketsLogic } from '@/src/logic/buckets/useLogic';
+import { ArrowLeft, Archive, Check, ChevronDown, MoreHorizontal, Printer, Upload } from 'lucide-react';
+import { FLOW_LABEL, FLOW_TYPES, type FlowType } from '@/src/shared/budget/flow';
+import { useLogic } from '@/src/logic/buckets/useLogic';
+import { basketList, basketsSummary, filterBaskets, type BasketKindFilter } from '@/src/logic/planning/basketList';
 import { useSwipeModeSwitch } from '@/src/shared/hooks/useSwipeModeSwitch';
-import { FLOW_LABEL, FLOW_TYPES, INCOME_SUBTYPE_LABEL, type FlowType } from '@/src/shared/budget/flow';
 import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { ActionMenu } from '@/src/widgets/ActionMenu/ActionMenu';
-import { BucketCardView } from '@/src/phone/screens/Planning/BucketCardView';
-import planning from '@/src/phone/screens/Planning/Planning.module.css';
-import { Card, Chip, Figure, full } from '@/src/phone/screens/Plans/parts';
-import styles from '@/src/phone/screens/Plans/Plans.module.css';
-import phone from '@/src/phone/screens/Buckets/BucketsScreen.module.css';
+import { BasketGroups, MoneyCard, MonthPicker } from '@/src/phone/screens/Planning/MinimalParts';
+import { monthTitle } from '@/src/viewmodels/planning';
+import p from '@/src/phone/screens/Planning/Planning.module.css';
+import m from '@/src/phone/screens/Planning/Minimal.module.css';
 
 // Kept here for the screens that already import it from this file.
 export { formatAmount } from '@/src/viewmodels/format';
 
+/** How each money type's card reads. */
+const FLOW_WORDS: Record<FlowType, { title: string; done: string; left: string }> = {
+  Expense: { title: 'Planned expenses', done: 'Used', left: 'Left' },
+  Income: { title: 'Expected income', done: 'Received', left: 'To come' },
+  Savings: { title: 'Planned savings', done: 'Saved', left: 'To save' },
+  Transfer: { title: 'Planned moves', done: 'Moved', left: 'To move' },
+};
+
+const FILTERS: { value: BasketKindFilter; label: string }[] = [
+  { value: 'all', label: 'All' },
+  { value: 'fixed', label: 'Fixed' },
+  { value: 'variable', label: 'Variable' },
+];
+
 export function BucketsScreen() {
   const v = useLogic();
-  return <BucketsPhone v={v} />;
-}
-
-function BucketsPhone({ v }: { v: BucketsLogic }) {
   const router = useRouter();
   const swipeRef = useSwipeModeSwitch('money');
-  const rows = v.byType[v.flow].filter((r) => r.itemCount > 0 || !r.archived);
+  const [filter, setFilter] = useState<BasketKindFilter>('all');
+  const all = useMemo(() => basketList(v.budget, v.buckets, v.today, true), [v.budget, v.buckets, v.today]);
+  const groups = useMemo(() => filterBaskets(all, filter), [all, filter]);
+  // The card totals one money type at a time: income and expenses are never added together.
+  const [flow, setFlow] = useState<FlowType>('Expense');
+  // The list follows the same choice, so what's listed is what's totalled.
+  const shown = groups.filter((g) => g.type === flow);
+  const sum = basketsSummary(shown);
+  const words = FLOW_WORDS[flow];
+  const kindWord = filter === 'all' ? '' : `${filter} `;
   return (
-    <div className={styles.page} ref={swipeRef}>
+    <div className={p.page} ref={swipeRef}>
       <ScreenHeader
         left={
-          <Link href="/home" className={styles.roundButton} aria-label="Back to Home">
+          <Link href="/home" className={p.roundButton} aria-label="Back to Home">
             <ArrowLeft size={20} strokeWidth={2} />
           </Link>
         }
@@ -47,202 +68,78 @@ function BucketsPhone({ v }: { v: BucketsLogic }) {
         right={
           <ActionMenu
             ariaLabel="More"
-            triggerClassName={styles.roundButton}
+            triggerClassName={p.roundButton}
             triggerIcon={<MoreHorizontal size={18} strokeWidth={2} />}
             items={[
               { key: 'archived', label: 'Archived baskets', icon: <Archive size={14} strokeWidth={2} />, onSelect: () => router.push('/settings/archived-baskets') },
-              { key: 'plan', label: 'Edit plan', icon: <Pencil size={14} strokeWidth={2} />, onSelect: () => router.push(`/budget?month=${v.month}`) },
-              { key: 'forecast', label: 'Plans forecast', icon: <TrendingUp size={14} strokeWidth={2} />, onSelect: () => router.push('/baskets/forecast') },
+              { key: 'import', label: 'Import', icon: <Upload size={14} strokeWidth={2} />, onSelect: () => router.push('/settings/import?mode=restore') },
+              { key: 'print', label: 'Print', icon: <Printer size={14} strokeWidth={2} />, onSelect: () => window.print() },
             ]}
           />
         }
       />
+      {/* One row: the month on the left; the money type and All / Fixed / Variable on the right. */}
+      <div className={m.headerRow}>
+        <MonthPicker month={v.month} onMonth={v.setMonth} />
+        <div className={m.filters}>
+          <FilterMenu
+            label="Money type"
+            value={flow}
+            options={FLOW_TYPES.map((type) => ({ value: type, label: FLOW_LABEL[type] }))}
+            onChange={setFlow}
+          />
+          <FilterMenu label="Which baskets" value={filter} options={FILTERS} onChange={setFilter} />
+        </div>
+      </div>
       <ScreenState loading={v.loading} />
       {!v.loading && (
         <>
-          <MoneyPlanCard v={v} />
-          <PlanCards v={v} />
-          <MustCard v={v} />
-          <IncomeCard v={v} />
-          <div className={planning.tokens}>
-            <TypeTabs v={v} />
-          </div>
-          {rows.length ? (
-            <div className={planning.tokens} style={{ display: 'flex', flexDirection: 'column', gap: 10 }} role="tabpanel" aria-label={FLOW_LABEL[v.flow]}>
-              {rows.map((row) => (
-                <BucketCardView key={row.id} card={row.card} currency={v.currency} month={v.month} extras={extrasOf(row, v)} flow={row.type} />
-              ))}
+          <MoneyCard
+            tone="teal"
+            amount={sum.planned}
+            label={`${words.title} in ${kindWord}baskets · ${monthTitle(v.month).split(' ')[0]}`}
+            fill={sum.planned > 0 ? sum.used / sum.planned : 0}
+            fillLabel={words.done.toLowerCase()}
+            problem={flow !== 'Income' && sum.left < -0.5}
+            figures={[
+              { label: words.done, value: sum.used },
+              flow !== 'Income' && sum.left < -0.5 ? { label: 'Over', value: -sum.left, problem: true } : { label: words.left, value: Math.max(0, sum.left) },
+              { label: sum.count === 1 ? 'Basket' : 'Baskets', value: sum.count },
+            ]}
+          />
+          {shown.length === 0 && (
+            <div className={`${m.bleed} ${m.section}`}>
+              <p className={m.empty}>
+                No {kindWord}
+                {FLOW_LABEL[flow].toLowerCase()} baskets.
+              </p>
             </div>
-          ) : (
-            <p className={styles.muted}>No {FLOW_LABEL[v.flow].toLowerCase()} baskets yet.</p>
           )}
+          <BasketGroups groups={shown} month={v.month} newHref={`/baskets/new?type=${flow}`} />
         </>
       )}
     </div>
   );
 }
 
-function extrasOf(row: BucketRow, v: BucketsLogic) {
-  const s = row.summary;
-  if (!s) return undefined;
-  return {
-    line: s.line,
-    // Need chips only on expense and savings buckets.
-    topNeed: v.showsNeed(row.type) ? s.topNeed : null,
-    overdue:
-      v.showsNeed(row.type) && s.overdue.length
-        ? { count: s.overdue.length, amount: s.overdue.reduce((sum, o) => sum + Math.max(0, o.planned - o.paid), 0), href: '/baskets/items' }
-        : undefined,
-  };
-}
-
-function TypeTabs({ v }: { v: BucketsLogic }) {
+/** A compact filter: its current choice with a chevron, opening a menu of choices. */
+function FilterMenu<T extends string>({ label, value, options, onChange }: { label: string; value: T; options: { value: T; label: string }[]; onChange: (next: T) => void }) {
   return (
-    <div className={phone.typeTabs} role="tablist" aria-label="Money type">
-      {FLOW_TYPES.map((type) => (
-        <button key={type} type="button" role="tab" aria-selected={v.flow === type} onClick={() => v.setFlow(type)}>
-          {FLOW_LABEL[type]}
-          <span>{v.byType[type].length}</span>
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function MonthPicker({ v }: { v: BucketsLogic }) {
-  return (
-    <div className={styles.monthPill}>
-      <button type="button" onClick={v.previousMonth} aria-label="Previous month">
-        <ChevronLeft size={18} strokeWidth={2.25} />
-      </button>
-      <span aria-live="polite">{v.monthText}</span>
-      <button type="button" onClick={v.nextMonth} aria-label="Next month">
-        <ChevronRight size={18} strokeWidth={2.25} />
-      </button>
-    </div>
-  );
-}
-
-/**
- * The month at a glance: expected income against what's planned out
- * (expenses and savings; transfers are moves, not money out), then one bar
- * from 0 to the expected income, filled to what's planned.
- */
-function MoneyPlanCard({ v }: { v: BucketsLogic }) {
-  const t = v.totals;
-  const plannedOut = t.expenses.planned + t.savings.planned;
-  const pct = t.income.expected > 0 ? Math.round((plannedOut / t.income.expected) * 100) : plannedOut > 0 ? 100 : 0;
-  const over = t.leftToPlan < 0;
-  return (
-    <Card navy title="Money plan" chip={<MonthPicker v={v} />}>
-      <div className={styles.planFigures}>
-        <Figure label="Expected in" value={t.income.expected} currency={v.currency} />
-        <Figure label="Planned out" value={plannedOut} currency={v.currency} />
-      </div>
-      {t.income.expectedBorrowed > 0 && <p className={styles.planNote}>of which {full(t.income.expectedBorrowed)} borrowed</p>}
-      <div className={styles.planMeter}>
-        <p className={styles.planMeterTop}>
-          <span>{pct}% of income planned</span>
-          <strong data-tone={over || undefined}>
-            {full(Math.abs(t.leftToPlan))} {over ? 'over' : 'left to plan'}
-          </strong>
-        </p>
-        <span className={styles.planBar} role="img" aria-label={`${pct}% of expected income planned`}>
-          <span style={{ width: `${Math.min(100, pct)}%` }} data-tone={over ? 'bad' : undefined} />
-        </span>
-        <p className={styles.planMeterEnds} aria-hidden>
-          <span>0</span>
-          <span>{full(t.income.expected)} expected</span>
-        </p>
-      </div>
-    </Card>
-  );
-}
-
-/** Planned vs actual, one small card per flow type, never mixed. */
-function PlanCards({ v }: { v: BucketsLogic }) {
-  const t = v.totals;
-  const cards: { type: FlowType; label: string; soFar: number; planned: number; foot: string; over: boolean }[] = [
-    { type: 'Income', label: 'Income', soFar: t.income.received, planned: t.income.expected, foot: `${full(t.income.notYetReceived)} to come · ${full(t.income.borrowed)} borrowed`, over: false },
-    { type: 'Expense', label: 'Expenses', soFar: t.expenses.spent, planned: t.expenses.planned, foot: t.expenses.left >= 0 ? `${full(t.expenses.left)} left` : `${full(-t.expenses.left)} over`, over: t.expenses.left < -0.5 },
-    { type: 'Savings', label: 'Savings', soFar: t.savings.saved, planned: t.savings.planned, foot: t.savings.withdrawn ? `${full(t.savings.withdrawn)} withdrawn` : `${full(t.savings.left)} to save`, over: false },
-    { type: 'Transfer', label: 'Transfers', soFar: t.transfers.moved, planned: t.transfers.planned, foot: `${full(t.transfers.left)} to move`, over: false },
-  ];
-  return (
-    <section aria-label="Planned vs actual">
-      <h2 className={styles.railTitle}>Planned vs actual</h2>
-      <div className={styles.rail}>
-        {cards.map((c) => {
-          const pct = c.planned > 0 ? Math.min(100, (c.soFar / c.planned) * 100) : 0;
-          return (
-            <button key={c.type} type="button" className={styles.kindCard} onClick={() => v.setFlow(c.type)}>
-              <span className={styles.kindHead}>
-                <span>{c.label}</span>
-                {c.over && <Chip tone="bad">Over</Chip>}
-              </span>
-              <strong className={styles.kindValue}>
-                {full(c.soFar)}
-                <small>of {full(c.planned)}</small>
-              </strong>
-              <span className={styles.thinBar}>
-                <span style={{ width: `${pct}%` }} data-tone={c.over ? 'bad' : undefined} />
-              </span>
-              <span className={styles.kindFoot} data-tone={c.over || undefined}>
-                {c.foot}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
-
-/** Must-haves against money actually available (never expected income). */
-function MustCard({ v }: { v: BucketsLogic }) {
-  const m = v.must;
-  if (!m.count) return null;
-  const chip = m.status === 'short' ? <Chip tone="bad">Short</Chip> : m.status === 'waiting' ? <Chip tone="watch">Waiting on income</Chip> : <Chip tone="good">Covered</Chip>;
-  return (
-    <Card title="Must-haves" chip={chip} action={{ label: 'Open priorities', href: '/baskets/items' }}>
-      <div className={styles.figureGrid} data-cols="3">
-        <Figure label="Available now" value={m.availableNow} />
-        <Figure label="Still due" value={m.due} />
-        <Figure label={m.spareNow >= 0 ? 'Spare' : 'Short now'} value={Math.abs(m.spareNow)} tone={m.spareNow < 0 ? 'bad' : undefined} />
-      </div>
-      {m.spareNow < 0 && (
-        <p className={styles.muted}>
-          {m.status === 'waiting' ? `Covered once expected income arrives: ${full(m.spareByMonthEnd)} spare by month end (estimate).` : `${full(-m.spareByMonthEnd)} short even by month end.`}
-        </p>
-      )}
-    </Card>
-  );
-}
-
-function IncomeCard({ v }: { v: BucketsLogic }) {
-  const income = v.lines.Income;
-  const t = v.totals.income;
-  return (
-    <Card title="Coming in" chip={income.length ? <span className={styles.headFigure}>{full(t.received)} / {full(t.expected)}</span> : undefined}>
-      {income.length ? (
-        <ul className={styles.incomeList}>
-          {income.map((i) => (
-            <li key={i.key}>
-              <span>
-                <strong>{i.name}</strong>
-                <span className={styles.muted}>
-                  {i.due ? i.due.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'No date'}
-                  {i.incomeSubtype && i.incomeSubtype !== 'earned' ? ` · ${INCOME_SUBTYPE_LABEL[i.incomeSubtype]}` : ''}
-                </span>
-              </span>
-              <strong>{full(i.planned)}</strong>
-              <Chip tone={i.state === 'Received' ? 'good' : i.state === 'Late' ? 'bad' : 'neutral'}>{i.state}</Chip>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className={styles.muted}>No income planned.</p>
-      )}
-    </Card>
+    <ActionMenu
+      ariaLabel={label}
+      triggerClassName={m.filterButton}
+      triggerIcon={
+        <>
+          {options.find((o) => o.value === value)?.label ?? label}
+          <ChevronDown size={14} strokeWidth={2.5} aria-hidden />
+        </>
+      }
+      items={options.map((o) => ({
+        key: o.value,
+        label: o.label,
+        icon: o.value === value ? <Check size={14} strokeWidth={2.5} /> : <span style={{ width: 14 }} />,
+        onSelect: () => onChange(o.value),
+      }))}
+    />
   );
 }

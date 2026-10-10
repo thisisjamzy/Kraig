@@ -43,7 +43,11 @@ import type {
   BudgetLineType,
   BucketLineItemSubItem,
   ItemAutomation,
+  IncomeMode,
+  ItemKind,
 } from '@/src/shared/firestore/types';
+import { inferItemKind } from '@/src/shared/budget/itemKinds';
+import { expenseKindOf } from '@/src/shared/budget/flow';
 import { scheduleItem } from '@/src/shared/firestore/bucketBudget';
 import { useBucketProgress } from '@/src/shared/hooks/useBucketProgress';
 import { isItemClosed } from '@/src/shared/budget/bucketProgress';
@@ -57,7 +61,8 @@ import { usePreferences } from '@/src/shared/firestore/preferences';
 export const FIXED_ITEM_FREQUENCIES: Frequency[] = ['Monthly', 'Quarterly', 'Yearly'];
 
 /** The basket item form's Repeats: the common choices, or Custom (any frequency, every N). */
-export type ItemRepeat = 'none' | 'Monthly' | 'Weekly' | 'Custom';
+// 'basket': no recurrence of its own, it runs on the basket's cadence.
+export type ItemRepeat = 'basket' | 'none' | 'Monthly' | 'Weekly' | 'Custom';
 export const CUSTOM_FREQUENCIES: Frequency[] = ['Daily', 'Weekly', 'Monthly', 'Quarterly', 'Yearly'];
 
 function toIso(date: Date) {
@@ -275,6 +280,14 @@ export function useLogic(goalId: string) {
   const [itemNotBefore, setItemNotBefore] = useState('');
   const [itemNeededBy, setItemNeededBy] = useState('');
   const [itemSplittable, setItemSplittable] = useState(false);
+  // Basket kinds: how the item uses its money (expense, savings and
+  // transfer items) or how income comes in, with the allowance's release
+  // day and the set aside's target.
+  const [itemKind, setItemKind] = useState<ItemKind>('payment');
+  const [itemIncomeMode, setItemIncomeMode] = useState<IncomeMode>('lump_sum');
+  const [itemAvailableDay, setItemAvailableDay] = useState('');
+  const [itemTargetAmount, setItemTargetAmount] = useState('');
+  const [itemTargetDate, setItemTargetDate] = useState('');
 
   // Paid from: one of the household's accounts (savings wallets last), any
   // income, or one specific income line (its arrival pays this item).
@@ -341,7 +354,13 @@ export function useLogic(goalId: string) {
     setItemDueDate(bucket?.startMonth && bucket.startMonth > monthKeyOf(new Date()) ? `${bucket.startMonth}-01` : '');
     setItemRecurrenceFrequency('Monthly');
     setItemSubItems([]);
-    setItemRepeat(bucket?.repeats ? (bucket.repeats === 'monthly' ? 'Monthly' : 'none') : bucket?.kind === 'Fixed' ? 'Monthly' : 'none');
+    // A basket with a cadence: new items run on it. Older baskets: their repeats.
+    setItemRepeat(bucket?.cadence ? 'basket' : bucket?.repeats ? (bucket.repeats === 'monthly' ? 'Monthly' : 'none') : bucket?.kind === 'Fixed' ? 'Monthly' : 'none');
+    setItemKind(bucketType === 'Savings' ? 'set_aside' : bucketType === 'Expense' && bucket?.kind !== 'Fixed' ? 'allowance' : 'payment');
+    setItemIncomeMode('lump_sum');
+    setItemAvailableDay('');
+    setItemTargetAmount('');
+    setItemTargetDate('');
     setItemCustomFrequency('Quarterly');
     setItemInterval(1);
     setItemPaidFrom(bucket?.defaultPaidFrom && bucket.defaultPaidFrom !== 'savings' ? bucket.defaultPaidFrom : '');
@@ -370,8 +389,28 @@ export function useLogic(goalId: string) {
     const freq = lineItem.recurrence?.frequency;
     const interval = lineItem.recurrence?.interval ?? 1;
     setItemRepeat(
-      !freq || freq === 'Once' ? 'none' : (freq === 'Monthly' || freq === 'Weekly') && interval === 1 ? freq : 'Custom'
+      !lineItem.recurrence && bucket?.cadence
+        ? 'basket'
+        : !freq || freq === 'Once'
+          ? 'none'
+          : (freq === 'Monthly' || freq === 'Weekly') && interval === 1 && !lineItem.recurrence?.rule
+            ? freq
+            : 'Custom'
     );
+    const flow = isTransferBucket ? 'Transfer' : (categoryTransactionType.get(lineItem.categoryId ?? '') ?? bucketType);
+    setItemKind(
+      lineItem.itemKind ??
+        inferItemKind({
+          flow: flow as 'Expense',
+          expenseKind: flow === 'Expense' ? expenseKindOf(lineItem, { recurring: Boolean(freq && freq !== 'Once'), hasDueDate: Boolean(lineItem.dueDate) }) : null,
+          hasDueDate: Boolean(lineItem.dueDate),
+          transactionCount: lineItem.payments?.length ?? 0,
+        })
+    );
+    setItemIncomeMode(lineItem.incomeMode ?? 'lump_sum');
+    setItemAvailableDay(lineItem.availableFrom?.day ? String(lineItem.availableFrom.day) : '');
+    setItemTargetAmount(lineItem.targetAmount ? String(lineItem.targetAmount) : '');
+    setItemTargetDate(lineItem.targetDate ? toIso(lineItem.targetDate.toDate()) : '');
     setItemCustomFrequency(freq && freq !== 'Once' ? freq : 'Quarterly');
     setItemInterval(interval);
     const a = lineItem.automation;
@@ -399,16 +438,22 @@ export function useLogic(goalId: string) {
   // as the RecurrenceRule's anchorDate), so without one it would never
   // appear on the Payments Calendar at all despite recurring in the
   // budget. A Variable item's due date stays optional.
+  const itemFlowType = isTransferBucket ? 'Transfer' : (categoryTransactionType.get(itemCategoryId) ?? bucketType);
+  const isIncomeItem = itemFlowType === 'Income';
+  // Only a payment (and lump-sum income) needs a date: an allowance or a
+  // set aside on a basket cadence starts with the basket.
+  const needsDate = isIncomeItem ? itemIncomeMode === 'lump_sum' && itemRepeat !== 'basket' : itemKind === 'payment' && (isFixedBucket || itemRepeat !== 'basket');
   const canSaveLineItem =
     itemName.trim().length > 0 &&
     Number(itemAmount) > 0 &&
     itemCategoryId.length > 0 &&
-    (!isFixedBucket || itemDueDate.length > 0) &&
+    (!(needsDate && isFixedBucket) || itemDueDate.length > 0) &&
     (!isTransferBucket || (itemAccountId.length > 0 && itemToAccountId.length > 0 && itemAccountId !== itemToAccountId));
 
   /** The recurrence the form's Repeats stands for (null: doesn't repeat). */
   function recurrenceFromForm(): { frequency: Frequency; interval: number } | null {
-    if (itemRepeat === 'none') return null;
+    if (itemRepeat === 'basket') return null;
+    if (itemRepeat === 'none') return bucket?.cadence ? { frequency: 'Once', interval: 1 } : null;
     if (itemRepeat === 'Custom') return { frequency: itemCustomFrequency, interval: Math.max(1, Math.round(itemInterval) || 1) };
     return { frequency: itemRepeat, interval: 1 };
   }
@@ -450,6 +495,15 @@ export function useLogic(goalId: string) {
         notBefore: itemNotBefore ? new Date(`${itemNotBefore}T00:00:00`) : null,
         neededBy: itemNeededBy ? new Date(`${itemNeededBy}T00:00:00`) : null,
         splittable: itemSplittable,
+        ...(isIncomeItem
+          ? { incomeMode: itemIncomeMode, itemKind: null }
+          : {
+              itemKind,
+              incomeMode: null,
+              availableFrom: itemKind === 'allowance' && Number(itemAvailableDay) > 0 ? { day: Number(itemAvailableDay) } : null,
+              targetAmount: itemKind === 'set_aside' && Number(itemTargetAmount) > 0 ? Number(itemTargetAmount) : null,
+              targetDate: itemKind === 'set_aside' && itemTargetDate ? new Date(`${itemTargetDate}T00:00:00`) : null,
+            }),
       };
       if (editingItemId) {
         // This month's line before the edit: a payment already recorded
@@ -716,6 +770,18 @@ export function useLogic(goalId: string) {
     setItemNeededBy,
     itemSplittable,
     setItemSplittable,
+    itemKind,
+    setItemKind,
+    itemIncomeMode,
+    setItemIncomeMode,
+    itemAvailableDay,
+    setItemAvailableDay,
+    itemTargetAmount,
+    setItemTargetAmount: (value: string) => setItemTargetAmount(value.replace(/[^0-9.]/g, '')),
+    itemTargetDate,
+    setItemTargetDate,
+    isIncomeItem,
+    basketHasCadence: Boolean(bucket?.cadence),
     incomeLineOptions,
     spendableAccounts,
     savingsAccounts,

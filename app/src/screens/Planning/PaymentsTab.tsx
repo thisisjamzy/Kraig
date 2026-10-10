@@ -207,8 +207,12 @@ export function PaymentsTab({
       {p.paying && (
         <Modal title="Mark as paid" onClose={p.cancelPaying}>
           <p className={tab.sheetHint}>
-            {p.paying.name} · {money(p.paying.amount)} {p.currency}, recorded today against {monthTitle(month)}.
+            {p.paying.name} · {p.paying.paid > 0 ? `${money(p.paying.paid)} of ${money(p.paying.amount)} paid` : `${money(p.paying.amount)} ${p.currency}`}, recorded today against {monthTitle(month)}.
           </p>
+          <label className={tab.field}>
+            Amount
+            <input inputMode="decimal" value={p.payAmount} onChange={(e) => p.setPayAmount(e.target.value)} />
+          </label>
           <label className={tab.field}>
             {p.paying.categoryType === 'Income' ? 'Received into' : p.paying.categoryType === 'Savings' ? 'Saved into' : 'Paid from'}
             <select value={p.payAccountId} onChange={(e) => p.setPayAccountId(e.target.value)}>
@@ -220,7 +224,7 @@ export function PaymentsTab({
             </select>
           </label>
           {p.error && <p className={tab.error}>{p.error}</p>}
-          <button type="button" className={`${styles.fillButton} ${tab.fullButton}`} disabled={!p.payAccountId || p.busy} onClick={p.confirmPaid}>
+          <button type="button" className={`${styles.fillButton} ${tab.fullButton}`} disabled={!p.payAccountId || !(Number(p.payAmount) > 0) || p.busy} onClick={p.confirmPaid}>
             {p.busy ? 'Saving…' : 'Confirm payment'}
           </button>
         </Modal>

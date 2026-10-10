@@ -84,7 +84,12 @@ export function paymentOf(
   events: ReturnType<typeof incomeEvents>,
   incomeName?: (itemId: string) => string | undefined
 ): { draft: QueueDraft; fired: boolean; waitingFor: string | null } | null {
-  if (entry.type === 'Income' || entry.archived || entry.closed) return null;
+  // Income comes in, and a transfer only moves money between your own
+  // wallets: neither is a payment to prepare.
+  if (entry.type === 'Income' || entry.type === 'Transfer' || entry.archived || entry.closed) return null;
+  // Ready to pay lists payments only: an allowance is spent bit by bit and
+  // a set aside builds up, so neither is ever prepared as a payment.
+  if (entry.itemKind && entry.itemKind !== 'payment') return null;
   const a = entry.automation;
   if (a.mode !== 'prepare') return null;
 

@@ -78,7 +78,7 @@ export function useLogic({ entry, month, budget, buckets, itemsByBucket, allocat
   const bucket = buckets.find((candidate) => candidate.id === entry.bucketId);
   const rawItem = itemsByBucket[entry.bucketId]?.find((candidate) => candidate.id === entry.itemId);
   const nextMonth = addMonths(month, 1);
-  const nextOccurrence = rawItem ? itemOccurrence(rawItem, nextMonth) : null;
+  const nextOccurrence = rawItem ? itemOccurrence(rawItem, nextMonth, bucket) : null;
   const accountName = useMemo(() => new Map(accounts.map((account) => [account.id, account.name])), [accounts]);
 
   function itemName(bucketId: string, itemId: string) {

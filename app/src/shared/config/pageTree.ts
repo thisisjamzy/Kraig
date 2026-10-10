@@ -42,7 +42,7 @@ export interface TreePage {
 export const PAGE_TREE: Record<AppMode, TreePage[]> = {
   money: [
     { id: 'wallets', href: '/wallets', label: 'Wallets', icon: WalletCards },
-    { id: 'budget', href: '/budget', label: 'Budget', icon: Wallet, also: ['/budget/item', '/budget/review', '/budget/migration', '/budget/cover', '/budget/reallocate'] },
+    { id: 'budget', href: '/budget', label: 'Budget', icon: Wallet, also: ['/budget/item', '/budget/review', '/budget/migration', '/budget/item-kinds', '/budget/cover', '/budget/reallocate'] },
     {
       id: 'buckets',
       href: '/baskets',
