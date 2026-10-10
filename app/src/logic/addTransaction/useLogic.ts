@@ -437,6 +437,7 @@ export function useLogic() {
   }, [linkableBucketItems, bucketNameById]);
   function chooseBasket(id: string) {
     setBasketChoice(id);
+    if (id !== 'unsure') setShowUnplanned(false);
     const current = linkableBucketItems.find((entry) => entry.id === linkedBucketItemId);
     if (!current || current.goalId !== id) {
       setLinkedBucketItemIdState('');
@@ -501,11 +502,24 @@ export function useLogic() {
     if (linkedBucketItemId) setLinkedBucketItemId('');
   }
   const hasBudgetedCategories = isSavingsMoved || budgetedCategoriesForType.length > 0;
-  // Shown list: budgeted-only by default. When nothing's budgeted this
-  // month, that's an empty list — the screen shows the "add a budget /
-  // record as unplanned" prompt instead — until the user explicitly opts
-  // into unplanned mode, which reveals every category of this type.
-  const categoryOptions = isSavingsMoved ? [] : showUnplanned ? categoriesForType : budgetedCategoriesForType;
+  // Unplanned: recorded outside this month's budget, so every category of
+  // this type is offered. On when asked for ("Record as unplanned" or the
+  // basket "Not sure yet"), and always when nothing of this type is planned
+  // this month, so an unplanned expense or transfer can always be saved.
+  const recordingUnplanned = !isSavingsMoved && !linkedBucketItemId && (showUnplanned || basketChoice === 'unsure' || !hasBudgetedCategories);
+  // Shown list: this month's budgeted categories, or every one when unplanned.
+  const categoryOptions = isSavingsMoved ? [] : recordingUnplanned ? categoriesForType : budgetedCategoriesForType;
+  function setUnplanned(on: boolean) {
+    setShowUnplanned(on);
+    if (on) {
+      setLinkedBucketItemIdState('');
+      setBasketChoice('unsure');
+    } else {
+      if (basketChoice === 'unsure') setBasketChoice('');
+      // Back to the budget: a category it doesn't plan has to be picked again.
+      if (category && !budgetedCategoryIds.has(category)) setCategory('');
+    }
+  }
   // Where "plan it" sends them — budgets are built from bucket items now
   // (PRD-BUDGETS-V2.md), so that's Buckets, not the Budget screen.
   const budgetHref = '/baskets';
@@ -550,7 +564,7 @@ export function useLogic() {
     // chosen one. Unplanned mode is exempt: it opted out of the budget
     // filter entirely.
     const [isoYear, isoMonth] = iso.split('-').map(Number);
-    if (!linkedBucketItemId && !showUnplanned && category && !categoryBudgetedFor(category, isoYear, isoMonth)) {
+    if (!linkedBucketItemId && !recordingUnplanned && category && !categoryBudgetedFor(category, isoYear, isoMonth)) {
       setCategory('');
       setStep((current) => (current === 'details' || current === 'review' ? 'category' : current));
     }
@@ -813,7 +827,9 @@ export function useLogic() {
     categoriesForType: categoryOptions,
     hasBudgetedCategories,
     showUnplanned,
-    setShowUnplanned,
+    setShowUnplanned: setUnplanned,
+    /** Recorded outside this month's budget: every category is offered. */
+    recordingUnplanned,
     budgetHref,
     accounts,
     spendableAccounts,

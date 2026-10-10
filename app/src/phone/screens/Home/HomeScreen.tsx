@@ -421,8 +421,8 @@ export function HomeScreen() {
     );
   }
 
-  // Shared between mobile and the web dashboard, same reasoning as above —
-  // not part of what the user asked to redesign, just reposition.
+  // Web dashboard only: the phone Home leaves it out (payments live on the
+  // Budget screen's Payments tab).
   function renderUpcomingPaymentsSection() {
     return (
       <section className={styles.section}>
@@ -927,8 +927,6 @@ export function HomeScreen() {
           !loading && <p className={styles.emptyText}>{strings.home.noWallets}</p>
         )}
       </section>
-
-      {renderUpcomingPaymentsSection()}
 
       {renderCashflowSection()}
 
