@@ -9,6 +9,7 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { ArrowDown, ArrowRight, ArrowUp, ChevronDown, ChevronUp } from 'lucide-react';
 import styles from '@/src/phone/screens/FinanceInsights/FinanceInsights.module.css';
+import { styleGuide } from '@/src/styles/tokens/styleGuide';
 
 export function full(n: number, currency?: string) {
   const v = Math.round(n).toLocaleString('en-US');
@@ -40,7 +41,8 @@ export const COLORS = {
 };
 
 /** A categorical palette for donuts / stacks (labels always shown too). */
-export const PALETTE = ['#3b63f0', '#1c1f3a', '#2fa36b', '#d98a1c', '#8e5cf0', '#e0679c', '#a3a8b8'];
+// The style guide's chart colours, then its neutrals.
+export const PALETTE = [...styleGuide.chart, styleGuide.neutrals[600], styleGuide.neutrals[300]];
 
 export function Section({
   id,

@@ -63,6 +63,12 @@ function Items({ n, v }: { n: StoredNotification; v: NotificationsLogic }) {
               {item.action.label}
             </button>
           )}
+          {/* One payment, snoozed on its own until tomorrow. */}
+          {(n.type === 'payment_overdue' || n.type === 'payment_due_soon') && item.entityType === 'line' && (
+            <button type="button" className={styles.smallButton} onClick={() => void v.snoozePayment(item.entityId, 1)}>
+              Snooze
+            </button>
+          )}
         </li>
       ))}
     </ul>

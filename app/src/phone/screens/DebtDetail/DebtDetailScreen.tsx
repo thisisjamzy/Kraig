@@ -13,6 +13,7 @@ import { formatAmount } from '@/src/phone/screens/Buckets/BucketsScreen';
 import { debtScheduleRows } from '@/src/logic/debtDetail/schedule';
 import { useAccounts } from '@/src/shared/firestore/queries';
 import styles from '@/src/phone/screens/DebtDetail/DebtDetailScreen.module.css';
+import { styleGuide } from '@/src/styles/tokens/styleGuide';
 
 const INTERVAL_LABEL: Record<string, string> = {
   weekly: 'Weekly',
@@ -23,7 +24,7 @@ const INTERVAL_LABEL: Record<string, string> = {
 
 const TREND_COLOR: Record<string, string> = {
   high: 'var(--color-danger)',
-  medium: '#e8a33d',
+  medium: styleGuide.brand.accent,
   low: 'var(--color-brand)',
 };
 

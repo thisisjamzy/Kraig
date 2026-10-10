@@ -31,7 +31,7 @@ import { planBasketsMigration } from '../app/src/shared/budget/basketsMigration'
 import { planClaudeUsdFix } from '../app/src/shared/budget/claudeUsdFix';
 import { convert, itemCurrencyOf } from '../app/src/shared/firestore/currency';
 import { monthPayments } from '../app/src/logic/planning/usePaymentsTab';
-import { basketList, monthSummary, needsYou } from '../app/src/logic/planning/basketList';
+import { basketList, monthSummary } from '../app/src/logic/planning/basketList';
 
 const ts = (iso: string) => ({ toDate: () => new Date(`${iso}T00:00:00`) }) as never;
 const day = (iso: string) => new Date(`${iso}T09:00:00`);
@@ -335,7 +335,7 @@ test('a basket row: "8 of 9 paid", "61,560 left" or "Saved 27,000 of 120,000"', 
   assert.equal(basketMonthView(leisure.buckets[0], day('2026-10-10')).line, '61,560 left');
 });
 
-test('the month summary and "Needs you"', () => {
+test('the month summary', () => {
   const budget = budgetOf({
     itemsByBucket: {
       income: [item('salary', { goalId: 'income', amount: 100_000, categoryId: 'biz' })],
@@ -348,8 +348,45 @@ test('the month summary and "Needs you"', () => {
   const groups = basketList(budget, [{ id: 'house', name: 'House', type: 'Expense', archived: false }, { id: 'income', name: 'Running Limbe', type: 'Income', archived: false }], day('2026-10-10'));
   assert.deepEqual(groups.map((g) => g.label), ['Income', 'Expenses']);
   const payments = monthPayments('2026-10', { budget, buckets: [], itemsByBucket: {}, accounts: [], ctx: {} as never }, []);
-  assert.equal(needsYou(payments, groups)?.text, '1 payment overdue');
-  assert.equal(needsYou(payments, groups)?.amount, 160_000);
+  assert.equal(payments.filter((p) => p.status === 'overdue').length, 1);
+});
+
+test('alerts live in Notifications only: no "Needs you" rows or notice cards on phone pages', () => {
+  for (const path of ['phone/screens/Planning/BudgetTab.tsx', 'phone/screens/PlanningBucket/PlanningBucketScreen.tsx', 'phone/screens/Plans/PrioritiesScreen.tsx', 'phone/screens/Home/HomeScreen.tsx']) {
+    const file = read(path);
+    assert.doesNotMatch(file, /NeedsYouRow|HomeActionCards/, path);
+  }
+});
+
+test('a part payment leaves the rest due: the occurrence stays open, and a repeating item never closes', () => {
+  // 3 weekly payments of 10,000 in a Variable basket; 15,000 paid.
+  const weekly = item('gym', { amount: 10_000, dueDate: ts('2026-10-05'), recurrence: { frequency: 'Weekly' as const, interval: 1 }, itemKind: 'payment' });
+  const budget = budgetOf({
+    itemsByBucket: { leisure: [weekly] },
+    transactions: [tx('t', 15_000, { bucketItem: { bucketId: 'leisure', itemId: 'gym', month: '2026-10' } })],
+  });
+  const payments = monthPayments('2026-10', { budget, buckets: [], itemsByBucket: {}, accounts: [], ctx: {} as never }, []);
+  assert.equal(payments[0].status, 'paid');
+  assert.equal(payments[1].remaining, 5_000, 'the second occurrence still has 5,000 due');
+  assert.notEqual(payments[1].status, 'paid');
+  // Marked complete by mistake: a repeating item is never closed for good.
+  const marked = budgetOf({ itemsByBucket: { leisure: [{ ...weekly, completed: true }] } });
+  assert.equal(marked.itemsByKey.get('gym@2026-10')?.closed, false);
+});
+
+test('the Budget card: planned spending is one money type, savings and income apart', () => {
+  const budget = budgetOf({
+    itemsByBucket: {
+      income: [item('salary', { goalId: 'income', amount: 500_000, categoryId: 'biz' })],
+      house: [item('rent', { goalId: 'house', amount: 160_000, categoryId: 'rent', dueDate: ts('2026-10-01'), itemKind: 'payment' })],
+      savings: [item('fund', { goalId: 'savings', amount: 40_000, categoryId: 'save', itemKind: 'set_aside' })],
+    },
+  });
+  const summary = monthSummary(monthTotals(budget, day('2026-10-10')));
+  assert.equal(summary.plannedSpending, 160_000, 'expenses only: not savings, not income');
+  assert.equal(summary.plannedSavings, 40_000);
+  assert.equal(summary.comingIn, 500_000);
+  assert.equal(summary.unplanned, 300_000, 'left to plan: income minus spending and savings');
 });
 
 test('a transfer moves money between wallets: never a payment or overdue, only its fee is spending', () => {
@@ -463,7 +500,11 @@ test('7. phone Budget tab: no paragraph, one summary card, one tab level, a grou
   assert.match(parts, /Details/);
   assert.match(parts, /label: 'Details'/, 'Details opens the full breakdown');
   assert.match(parts, /createPortal\(/, 'sheets render outside the card, so their numbers keep their colour');
-  assert.match(parts, /label=\{`Budgeted for \$\{monthName\}`\}/, 'the main figure is the total budgeted');
+  // One money type as the main figure, said in its label, with an info button.
+  assert.match(parts, /amount=\{summary\.plannedSpending\}/, 'the main figure is planned spending');
+  assert.match(parts, /label=\{`Planned spending in \$\{monthName\}`\}/);
+  assert.match(parts, /labelInfo="plannedSpending"/);
+  for (const figure of ['Income expected', 'Savings planned', 'Left to plan']) assert.match(parts, new RegExp(`label: '${figure}'`));
   for (const label of ['Income', 'Expenses', 'Savings', 'Transfers', 'Borrowed', 'Available now', 'By month end']) assert.match(parts, new RegExp(label));
 });
 

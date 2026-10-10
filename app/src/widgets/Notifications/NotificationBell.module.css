@@ -22,3 +22,11 @@
 .badge[data-urgent] {
   background: #d6404f;
 }
+
+/* The style guide on the phone (docs/STYLE-MIGRATION.md): only its
+   colours. */
+@media (max-width: 767.98px) {
+  .badge[data-urgent] {
+    background: var(--sg-destructive);
+  }
+}

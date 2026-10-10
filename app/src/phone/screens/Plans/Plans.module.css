@@ -1,28 +1,28 @@
-/* Buckets, Priorities and Plans forecast. Dreda plan theme: blue #3B63F0,
-   navy #1C1F3A for summary cards, dark buttons and active chips, light
-   background #F5F8FE, white 20px cards; red #E04B5A only for problems,
-   amber #E0A13B for warnings. Nothing that matters truncates at 320px:
+/* Buckets, Priorities and Plans forecast, in the style guide's colours
+   (docs/STYLE-MIGRATION.md): primary for actions, primary dark for summary
+   cards, dark buttons and active chips, neutral 50 background, white 20px
+   cards; the guide's red only for problems, the lime accent for warnings. Nothing that matters truncates at 320px:
    figures never wrap; labels and row headings wrap instead. Cards hold
    figures and visuals; longer descriptions sit under the card. */
 
 .page {
-  --pl-blue: #3b63f0;
-  --pl-navy: #1c1f3a;
-  --pl-bg: #f5f8fe;
+  --pl-blue: var(--sg-primary);
+  --pl-navy: var(--sg-primary-dark);
+  --pl-bg: var(--sg-neutral-50);
   --pl-card: #ffffff;
-  --pl-red: #e04b5a;
-  --pl-red-tint: #fdecee;
-  --pl-amber: #e0a13b;
-  --pl-amber-tint: #fdf3e2;
-  --pl-green: #2fa36b;
-  --pl-green-tint: #e4f5ec;
-  --pl-light-blue: #b9c9fb;
-  --pl-blue-tint: #e8eeff;
-  --pl-grey: #c8ccd8;
-  --pl-muted: #6b7085;
-  --pl-light: #a3a8b8;
-  --pl-track: #e7eaf3;
-  --pl-divider: #edf0f6;
+  --pl-red: var(--sg-destructive);
+  --pl-red-tint: var(--sg-neutral-100);
+  --pl-amber: var(--sg-accent);
+  --pl-amber-tint: var(--sg-accent);
+  --pl-green: var(--sg-primary);
+  --pl-green-tint: var(--sg-primary-light);
+  --pl-light-blue: var(--sg-primary-light);
+  --pl-blue-tint: var(--sg-primary-light);
+  --pl-grey: var(--sg-neutral-300);
+  --pl-muted: var(--sg-neutral-600);
+  --pl-light: var(--sg-neutral-400);
+  --pl-track: var(--sg-neutral-200);
+  --pl-divider: var(--sg-neutral-200);
   --pl-shadow: 0 1px 2px rgba(28, 31, 58, 0.04), 0 8px 24px rgba(28, 31, 58, 0.05);
   --screen-header-bg: var(--pl-bg);
   --screen-header-color: var(--pl-navy);
@@ -34,7 +34,7 @@
   min-height: 100%;
   padding: 0 var(--space-lg) calc(140px + var(--safe-bottom));
   background: var(--pl-bg);
-  color: var(--pl-navy);
+  color: var(--sg-neutral-900);
   font-family: var(--font-family-body);
 }
 
@@ -62,7 +62,7 @@
   border: none;
   border-radius: 50%;
   background: var(--pl-card);
-  color: var(--pl-navy);
+  color: var(--sg-neutral-900);
   box-shadow: var(--pl-shadow);
   cursor: pointer;
   text-decoration: none;
@@ -84,7 +84,7 @@
   border: none;
   border-radius: 50%;
   background: transparent;
-  color: var(--pl-navy);
+  color: var(--sg-neutral-900);
   cursor: pointer;
 }
 
@@ -141,7 +141,7 @@
 
 .segmented[data-dark] button[aria-checked='true'] {
   background: #ffffff;
-  color: var(--pl-navy);
+  color: var(--sg-neutral-900);
 }
 
 /* ---- Cards ---- */
@@ -205,7 +205,7 @@
 }
 
 .chip[data-tone='watch'] {
-  --tone: #9a6a14;
+  --tone: var(--sg-accent);
   --tint: var(--pl-amber-tint);
 }
 
@@ -292,7 +292,7 @@
   border-radius: 12px;
   background: var(--pl-card);
   box-shadow: 0 8px 24px rgba(28, 31, 58, 0.12);
-  color: var(--pl-navy);
+  color: var(--sg-neutral-900);
   font-size: 0.75rem;
 }
 
@@ -354,11 +354,11 @@
 }
 
 .figure[data-tone='bad'] strong {
-  color: #ff9aa4;
+  color: var(--sg-accent);
 }
 
 .figure[data-tone='good'] strong {
-  color: #b9c9fb;
+  color: var(--sg-primary-light);
 }
 
 .bigFigure {
@@ -384,7 +384,7 @@
 }
 
 .bigFigure[data-tone='bad'] strong {
-  color: #ff9aa4;
+  color: var(--sg-accent);
 }
 
 /* A single stacked bar (money plan, due vs available). */
@@ -535,7 +535,7 @@
 .strip button {
   border: none;
   background: none;
-  color: var(--pl-navy);
+  color: var(--sg-neutral-900);
   font: inherit;
   font-weight: 700;
   text-decoration: none;
@@ -597,7 +597,7 @@
   border: 1px solid var(--pl-track);
   border-radius: 999px;
   background: var(--pl-card);
-  color: var(--pl-navy);
+  color: var(--sg-neutral-900);
   font-family: inherit;
   font-size: 0.8125rem;
   font-weight: 600;
@@ -727,7 +727,7 @@
 
 .rowChips span[data-need='must'] {
   background: var(--pl-amber-tint);
-  color: #9a6a14;
+  color: var(--sg-primary-dark);
 }
 
 .rowChips span[data-need='nice'] {
@@ -742,7 +742,7 @@
 
 .rowChips span[data-priority='Medium'] {
   background: var(--pl-blue-tint);
-  color: var(--pl-navy);
+  color: var(--sg-neutral-900);
 }
 
 .rowChips span[data-priority='Low'] {
@@ -808,7 +808,7 @@
   border-top: 2px dashed var(--pl-navy);
   border-bottom: 2px dashed var(--pl-navy);
   background: var(--pl-blue-tint);
-  color: var(--pl-navy);
+  color: var(--sg-neutral-900);
   font-size: 0.8125rem;
   font-weight: 700;
   scroll-margin-top: calc(var(--header-height) + 90px);
@@ -921,8 +921,8 @@
 }
 
 .reasons button[aria-pressed='true'] {
-  border-color: #1c1f3a;
-  background: #1c1f3a;
+  border-color: var(--sg-primary-dark);
+  background: var(--sg-primary-dark);
   color: #ffffff;
 }
 
@@ -937,7 +937,7 @@
   padding: 0 18px;
   border: none;
   border-radius: 999px;
-  background: #1c1f3a;
+  background: var(--sg-primary-dark);
   color: #ffffff;
   font-family: inherit;
   font-weight: 700;
@@ -954,7 +954,7 @@
   padding: 0 14px;
   border: none;
   background: none;
-  color: #3b63f0;
+  color: var(--sg-primary);
   font-family: inherit;
   font-weight: 700;
   cursor: pointer;
@@ -963,7 +963,7 @@
 .error {
   margin: 0;
   font-size: 0.8125rem;
-  color: #e04b5a;
+  color: var(--sg-destructive);
 }
 
 /* ---- Buckets sections ---- */
@@ -1041,7 +1041,7 @@
 
 .needChip[data-need='must'] {
   background: var(--pl-amber-tint);
-  color: #9a6a14;
+  color: var(--sg-primary-dark);
 }
 
 .needChip[data-need='nice'] {
@@ -1124,7 +1124,7 @@
   padding: 10px 14px;
   border-radius: 14px;
   background: var(--pl-amber-tint);
-  color: #7a520d;
+  color: var(--sg-primary-dark);
   font-size: 0.8125rem;
   font-weight: 700;
 }
@@ -1501,7 +1501,7 @@
 }
 
 .planMeterTop strong[data-tone] {
-  color: #ff9aa4;
+  color: var(--sg-accent);
 }
 
 .planMeterEnds {
@@ -1526,7 +1526,7 @@
 }
 
 .planBar span[data-tone='bad'] {
-  background: #ff9aa4;
+  background: var(--sg-accent);
 }
 
 /* Priorities: the Coverage cell. */
@@ -1540,15 +1540,15 @@
 }
 
 .coverage[data-tone='good'] {
-  color: #1f7a4d;
+  color: var(--sg-primary);
 }
 
 .coverage[data-tone='watch'] {
-  color: #93600c;
+  color: var(--sg-primary-dark);
 }
 
 .coverage[data-tone='bad'] {
-  color: #b42d3c;
+  color: var(--sg-destructive);
 }
 
 /* Priorities: the coverage summary under "Can I cover it?". */
@@ -1572,7 +1572,7 @@
 }
 
 .quietLine[data-tone='bad'] {
-  color: #b42d3c;
+  color: var(--sg-destructive);
 }
 
 .quietLine svg {

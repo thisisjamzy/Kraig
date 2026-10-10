@@ -43,13 +43,15 @@
   color: var(--ink-text);
 }
 
+/* The style guide's accent tile ("icon / accent"): lime with a dark icon,
+   clear against the primary-dark pill. */
 .itemActive {
-  background: var(--color-brand);
-  color: #ffffff;
+  background: var(--sg-accent);
+  color: var(--sg-neutral-900);
 }
 
 .itemActive:hover {
-  color: #ffffff;
+  color: var(--sg-neutral-900);
 }
 
 .badge {

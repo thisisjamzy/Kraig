@@ -12,6 +12,8 @@ export function SplashScreen() {
 
   return (
     <div className={styles.page}>
+      {/* Phone: the style guide's lockup (public/brand). */}
+      <img src="/brand/dreda-full.png" alt="Dreda" className={styles.phoneLogo} />
       <div className={styles.logoRow}>
         <span className={styles.logoBadge}>
           <Image src={logomark} alt="" width={24} height={24} />

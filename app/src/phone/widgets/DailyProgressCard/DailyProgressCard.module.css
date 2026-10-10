@@ -17,10 +17,6 @@
   color: var(--dp-text);
 }
 
-:global([data-theme='dark']) .card {
-  --dp-card: var(--color-surface);
-}
-
 .top {
   display: flex;
   align-items: flex-start;

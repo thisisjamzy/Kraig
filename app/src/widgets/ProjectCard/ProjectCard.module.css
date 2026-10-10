@@ -277,3 +277,12 @@
     transform: none;
   }
 }
+
+/* The style guide on the phone (docs/STYLE-MIGRATION.md): only its
+   colours. */
+@media (max-width: 767.98px) {
+  .compact .priorityChip[data-priority='High'] {
+    background: var(--sg-accent);
+    color: var(--sg-neutral-900);
+  }
+}

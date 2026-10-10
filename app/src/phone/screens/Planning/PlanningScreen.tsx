@@ -67,7 +67,7 @@ export function PlanningScreen({ defaultTab = 'budget' }: { defaultTab?: Plannin
 
       {!data.loading && (
         <div key={tab} className={tabStyles.fade}>
-          {tab === 'budget' && <BudgetTab month={month} data={data} onOpenPayments={() => setTab('payments')} />}
+          {tab === 'budget' && <BudgetTab month={month} data={data} />}
           {tab === 'payments' && <PaymentsTab month={month} data={data} onMonth={setMonth} bucket={bucketFilter} setBucket={setBucketFilter} />}
           {tab === 'history' && <HistoryTab month={month} data={data} bucket={bucketFilter} category={categoryFilter} onClearFilters={clearFilters} />}
         </div>

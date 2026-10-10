@@ -1,36 +1,41 @@
 /* Planning — the Budget section's shared look, used by the Planning page
    and every screen it opens (bucket, item, transaction details, the cover
-   and reallocate flows). Brand tokens are defined once on .tokens (and again
-   for dark mode). One accent per card: red only for problems, blue for
+   and reallocate flows). Brand tokens are defined once on .tokens (the phone
+   is light only). One accent per card: red only for problems, blue for
    actions and positive states. Black appears only on the summary and
-   calendar cards. */
+   calendar cards. On the phone these are the style guide's colours: the
+   blue is its primary purple, the black its primary dark. */
 
 /* Planning's colour tokens — on the page, and on anything that shows
    Planning pieces elsewhere (the Buckets page's bucket cards). */
 .tokens {
-  --p-blue: #3b63f0;
-  --p-blue-deep: #243a8c;
-  --p-navy: #1c1f3a;
-  --p-bg: #f5f8fe;
-  --p-card: #ffffff;
-  --p-muted: #6b7085;
-  --p-light: #a3a8b8;
-  --p-chip: #e3e9ff;
-  --p-red: #e04b5a;
-  --p-red-tint: #fdecee;
-  --p-blue-tint: #e8eeff;
-  --p-green: #2fa36b;
-  --p-green-tint: #e4f5ec;
-  --p-pink-tint: #fde8ef;
-  --p-item: #eef1f8;
-  --p-track: #e7eaf3;
-  --p-divider: #edf0f6;
-  --p-btn: #1c1f3a;
-  --p-btn-text: #ffffff;
-  --p-shadow: 0 1px 2px rgba(28, 31, 58, 0.04), 0 8px 24px rgba(28, 31, 58, 0.05);
-  --p-black: #0f1115;
-  --p-black-muted: #7c8190;
-  --p-black-track: #2a2d35;
+  /* The style guide (docs/STYLE-MIGRATION.md): only its own colours. */
+  --p-blue: var(--sg-primary);
+  --p-blue-deep: var(--sg-primary-dark);
+  --p-navy: var(--sg-neutral-900);
+  --p-bg: var(--sg-neutral-50);
+  --p-card: var(--sg-neutral-0);
+  --p-muted: var(--sg-neutral-600);
+  --p-light: var(--sg-neutral-400);
+  --p-chip: var(--sg-primary-light);
+  /* No status colours: red is the guide's Delete red, green its primary. */
+  --p-red: var(--sg-destructive);
+  --p-red-tint: var(--sg-neutral-100);
+  --p-blue-tint: var(--sg-primary-light);
+  --p-green: var(--sg-primary);
+  --p-green-tint: var(--sg-primary-light);
+  --p-pink-tint: var(--sg-neutral-100);
+  --p-item: var(--sg-neutral-100);
+  --p-track: var(--sg-neutral-200);
+  --p-divider: var(--sg-neutral-200);
+  --p-btn: var(--sg-primary);
+  --p-btn-text: var(--sg-neutral-0);
+  /* Cards have a border, not a shadow. */
+  --p-shadow: 0 0 0 1px var(--sg-neutral-200);
+  /* Dark cards (summary, calendar): primary dark. */
+  --p-black: var(--sg-primary-dark);
+  --p-black-muted: var(--sg-neutral-300);
+  --p-black-track: var(--sg-primary);
   /* The filter / sort toolbar (src/widgets/ListQuery) sits on this page. */
   --lq-bg: var(--p-bg);
   --lq-primary: var(--p-blue);
@@ -45,29 +50,6 @@
   background: var(--p-bg);
   color: var(--p-navy);
   font-family: var(--font-family-body);
-}
-
-:global([data-theme='dark']) .page {
-  --p-navy: #eef0ff;
-  --p-bg: var(--color-page);
-  --p-card: #1b1d36;
-  --p-muted: #a3a7c8;
-  --p-light: #6f7396;
-  --p-chip: rgba(59, 99, 240, 0.22);
-  --p-red: #ff7a86;
-  --p-red-tint: rgba(224, 75, 90, 0.16);
-  --p-blue: #6f8dff;
-  --p-blue-tint: rgba(59, 99, 240, 0.18);
-  --p-green: #5fd197;
-  --p-green-tint: rgba(47, 163, 107, 0.18);
-  --p-pink-tint: rgba(224, 75, 120, 0.18);
-  --p-item: #23264a;
-  --p-track: #2d3056;
-  --p-divider: rgba(255, 255, 255, 0.07);
-  --p-btn: #eef0ff;
-  --p-btn-text: #1c1f3a;
-  --p-shadow: none;
-  --p-black: #08090c;
 }
 
 .srOnly {
@@ -100,22 +82,19 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 38px;
+  /* The guide's secondary button, small: purple outline, 10 corners. */
+  height: var(--sg-button-sm);
   padding: 0 14px;
-  border: 1.5px solid #dfe4f0;
-  border-radius: 999px;
+  border: 1.5px solid var(--sg-primary);
+  border-radius: var(--radius-md);
   background: var(--p-card);
-  color: var(--p-navy);
+  color: var(--sg-primary);
   font-family: inherit;
   font-size: 0.8125rem;
   font-weight: 600;
   text-decoration: none;
   white-space: nowrap;
   cursor: pointer;
-}
-
-:global([data-theme='dark']) .outlineButton {
-  border-color: rgba(255, 255, 255, 0.12);
 }
 
 /* ---- Tabs ---- */
@@ -146,7 +125,7 @@
 .tabs button[aria-selected='true'] {
   background: var(--p-card);
   color: var(--p-navy);
-  box-shadow: 0 2px 8px rgba(28, 31, 58, 0.1);
+  box-shadow: 0 0 0 1px var(--sg-neutral-200);
 }
 
 /* ---- Month selector ---- */
@@ -243,7 +222,7 @@
 /* ---- Cards ---- */
 .card {
   padding: 16px;
-  border-radius: 22px;
+  border-radius: var(--radius-lg);
   background: var(--p-card);
   box-shadow: var(--p-shadow);
 }
@@ -257,11 +236,6 @@
   border-radius: 50%;
   background: var(--p-navy);
   color: var(--p-card);
-}
-
-:global([data-theme='dark']) .iconCircle {
-  background: #2d3160;
-  color: #eef0ff;
 }
 
 /* ---- Action prompt strip (inside a card, on its bottom edge) ---- */

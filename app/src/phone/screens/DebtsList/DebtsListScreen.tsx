@@ -15,6 +15,7 @@ import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import { formatAmount } from '@/src/phone/screens/Buckets/BucketsScreen';
 import styles from '@/src/phone/screens/DebtsList/DebtsListScreen.module.css';
 import { useGoBack } from '@/src/shared/navigation/useGoBack';
+import { styleGuide } from '@/src/styles/tokens/styleGuide';
 
 const PRIORITY_LABEL_KEY = { high: 'priorityHigh', medium: 'priorityMedium', low: 'priorityLow' } as const;
 
@@ -30,9 +31,9 @@ export function DebtsListScreen() {
   // (danger red / amber / brand teal) — a full-strength donut ring read as
   // too dark against the page.
   const prioritySegments = [
-    { label: strings.buckets[PRIORITY_LABEL_KEY.high], value: debtSummary.byPriority.high, color: '#f3948c' },
-    { label: strings.buckets[PRIORITY_LABEL_KEY.medium], value: debtSummary.byPriority.medium, color: '#f2c680' },
-    { label: strings.buckets[PRIORITY_LABEL_KEY.low], value: debtSummary.byPriority.low, color: '#7fe4bf' },
+    { label: strings.buckets[PRIORITY_LABEL_KEY.high], value: debtSummary.byPriority.high, color: styleGuide.brand.primaryDark },
+    { label: strings.buckets[PRIORITY_LABEL_KEY.medium], value: debtSummary.byPriority.medium, color: styleGuide.brand.primary },
+    { label: strings.buckets[PRIORITY_LABEL_KEY.low], value: debtSummary.byPriority.low, color: styleGuide.brand.accent },
   ];
 
   return (
@@ -56,9 +57,7 @@ export function DebtsListScreen() {
                 <div className={styles.heroCard}>
                   <div className={styles.heroTopRow}>
                     <span className={styles.heroLabel}>{strings.buckets.totalDebtLabel}</span>
-                    <div data-theme="dark">
-                      <Logo height={14} className={styles.heroLogo} />
-                    </div>
+                    <Logo variant="dark" height={14} className={styles.heroLogo} />
                   </div>
                   <p className={styles.heroAmount}>
                     {formatAmount(debtSummary.totalDebt)} {currency}

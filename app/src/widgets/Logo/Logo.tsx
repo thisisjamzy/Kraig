@@ -35,18 +35,34 @@ export function Logo({
   const style = height ? { height, width: 'auto' as const } : undefined;
   const combinedClassName = (variant: string) => (className ? `${variant} ${className}` : variant);
 
+  // Phone (under 768px): the style guide's lockups (public/brand, from
+  // Remix/Logos), light only like the rest of the phone. Web keeps the
+  // older files until the web moves over (docs/STYLE-MIGRATION.md).
+  const phone = (src: string) => <img src={src} alt={alt} style={style} className={combinedClassName(styles.phone)} />;
+
   if (variant === 'dark') {
-    return <img src="/logo_alt.png" alt={alt} style={style} className={className} />;
+    return (
+      <>
+        {phone('/brand/dreda-full-reversed.png')}
+        <img src="/logo_alt.png" alt={alt} style={style} className={combinedClassName(styles.web)} />
+      </>
+    );
   }
 
   if (variant === 'light') {
-    return <img src="/logo_primary.png" alt={alt} style={style} className={className} />;
+    return (
+      <>
+        {phone('/brand/dreda-full.png')}
+        <img src="/logo_primary.png" alt={alt} style={style} className={combinedClassName(styles.web)} />
+      </>
+    );
   }
 
   return (
     <>
-      <img src="/logo_primary.png" alt={alt} style={style} className={combinedClassName(styles.light)} />
-      <img src="/logo_alt.png" alt={alt} style={style} className={combinedClassName(styles.dark)} />
+      {phone('/brand/dreda-full.png')}
+      <img src="/logo_primary.png" alt={alt} style={style} className={combinedClassName(`${styles.web} ${styles.light}`)} />
+      <img src="/logo_alt.png" alt={alt} style={style} className={combinedClassName(`${styles.web} ${styles.dark}`)} />
     </>
   );
 }

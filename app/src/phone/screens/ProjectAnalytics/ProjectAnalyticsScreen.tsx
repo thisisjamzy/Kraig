@@ -7,6 +7,7 @@ import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import styles from '@/src/phone/screens/ProjectAnalytics/ProjectAnalyticsScreen.module.css';
 import { useHasTopBar } from '@/src/widgets/AppShell/TopBarSlot';
 import { useOwnsTitle } from '@/src/widgets/AppShell/breadcrumb';
+import { styleGuide } from '@/src/styles/tokens/styleGuide';
 
 export function ProjectAnalyticsScreen() {
   // Draws its own title: the shell adds none on wide screens.
@@ -90,7 +91,7 @@ export function ProjectAnalyticsScreen() {
               <DonutChart
                 segments={[
                   { label: 'On time', value: projectReschedule.onTime, color: 'var(--color-brand)' },
-                  { label: 'Rescheduled', value: projectReschedule.rescheduled, color: '#e8a33d' },
+                  { label: 'Rescheduled', value: projectReschedule.rescheduled, color: styleGuide.brand.accent },
                 ]}
               />
             </div>
@@ -102,7 +103,7 @@ export function ProjectAnalyticsScreen() {
               <DonutChart
                 segments={[
                   { label: 'On time', value: taskReschedule.onTime, color: 'var(--color-brand)' },
-                  { label: 'Rescheduled', value: taskReschedule.rescheduled, color: '#e8a33d' },
+                  { label: 'Rescheduled', value: taskReschedule.rescheduled, color: styleGuide.brand.accent },
                 ]}
               />
             </div>

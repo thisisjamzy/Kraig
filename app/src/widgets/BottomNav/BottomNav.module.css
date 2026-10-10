@@ -93,3 +93,14 @@
   font: inherit;
   cursor: pointer;
 }
+
+/* The style guide on the phone (docs/STYLE-MIGRATION.md): the active tab is
+   the guide's accent tile ("icon / accent"), lime with a dark icon, clear
+   against the primary-dark pill. */
+@media (max-width: 767.98px) {
+  .itemActive,
+  .itemActive:hover {
+    background: var(--sg-accent);
+    color: var(--sg-neutral-900);
+  }
+}

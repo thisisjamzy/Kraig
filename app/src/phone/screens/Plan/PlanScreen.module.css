@@ -58,7 +58,7 @@
 }
 
 .lowest[data-tone='watch'] {
-  color: var(--color-warning, #b7791f);
+  color: var(--color-warning, var(--sg-primary-dark));
 }
 
 .muted {
@@ -338,7 +338,7 @@
 }
 
 .point[data-tone='watch'] {
-  fill: var(--color-warning, #b7791f);
+  fill: var(--color-warning, var(--sg-primary-dark));
 }
 
 .point[data-tone='bad'] {

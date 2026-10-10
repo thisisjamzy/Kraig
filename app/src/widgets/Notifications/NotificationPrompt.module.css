@@ -69,3 +69,12 @@
     animation: none;
   }
 }
+
+/* The style guide on the phone (docs/STYLE-MIGRATION.md): only its
+   colours. */
+@media (max-width: 767.98px) {
+  .card,
+  .secondary {
+    border-color: var(--sg-neutral-200);
+  }
+}

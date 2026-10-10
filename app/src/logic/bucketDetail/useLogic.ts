@@ -174,7 +174,7 @@ export function useLogic(goalId: string) {
     () =>
       lineItemDocs
         .map((item) => {
-          const closed = isItemClosed(item, bucket?.kind);
+          const closed = isItemClosed(item, bucket?.kind, bucket);
           const spent = itemSpend.get(item.id)?.total ?? 0;
           // In the basket's currency, like every figure on this page (an
           // item may be in its own: 24 USD in an XAF basket).

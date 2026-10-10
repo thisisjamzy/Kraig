@@ -30,7 +30,7 @@ import { ListQueryBar } from '@/src/widgets/ListQuery/ListQueryBar';
 import { URGENCY_LABEL, dueText, monthLabel, remaining, statusOf, urgency, type Occurrence } from '@/src/viewmodels/plans/model';
 import { type SortMode, type WalkRow } from '@/src/viewmodels/plans/priorities';
 import { full, monthShort } from '@/src/phone/screens/Plans/parts';
-import { MoneyCard, NeedsYouRow, Sheet } from '@/src/phone/screens/Planning/MinimalParts';
+import { MoneyCard, Sheet } from '@/src/phone/screens/Planning/MinimalParts';
 import planning from '@/src/phone/screens/Planning/Planning.module.css';
 import m from '@/src/phone/screens/Planning/Minimal.module.css';
 import styles from '@/src/phone/screens/Plans/Plans.module.css';
@@ -172,13 +172,7 @@ export function PrioritiesScreen() {
             className={styles.staticBar}
           />
 
-          {w.mustShort > 0 && (
-            <NeedsYouRow
-              text={`${w.mustShort} must ${w.mustShort === 1 ? 'have' : 'haves'} not covered`}
-              amount={w.mustShortAmount}
-              onOpen={() => document.querySelector(`.${m.runsOut}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
-            />
-          )}
+          {/* Must-haves not covered: in Notifications, not here. */}
 
           <div className={m.bleed}>
             {w.rows.length === 0 ? (
