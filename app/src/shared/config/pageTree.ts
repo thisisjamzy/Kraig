@@ -132,3 +132,37 @@ export function fallbackTitle(pathname: string | null): string {
   if (pathname === '/home') return 'Home';
   return pageForPath(pathname)?.label ?? (pathname?.startsWith('/settings') ? 'Settings' : 'Dreda');
 }
+
+/**
+ * The main page of the feature a path is in: /budget/item → /budget,
+ * /baskets/x → /baskets, /wallets/x → /wallets, /settings/x → /settings.
+ * Null when it's in none (Home, a form such as /add-transaction).
+ */
+export function featurePageOf(pathname: string): string | null {
+  const shared = /^\/(settings|notifications)(\/|$)/.exec(pathname);
+  if (shared) return `/${shared[1]}`;
+  // A project (and a new one) belongs to Projects, not Today's /projects.
+  if (/^\/projects\/(?!all$|focus|calendar|insights|analytics)[^/]+/.test(pathname)) return '/projects/all';
+  const page = pageForPath(pathname);
+  return page ? pathOf(page.href) : null;
+}
+
+/**
+ * Where a back button goes: always a feature's main page.
+ *   - On a page inside a feature: that feature's main page.
+ *   - On a feature's main page: the mode's home (/home, /projects).
+ *   - Elsewhere (a form, Home): the main page of the feature it was opened
+ *     from (`from`, the previous page), else `from` itself.
+ * Null: nowhere better, the caller uses its fallback.
+ */
+export function backTargetFor(url: string, from: string | null): string | null {
+  const path = pathOf(url);
+  const feature = featurePageOf(path);
+  if (feature && feature !== path) return feature;
+  if (feature) {
+    const home = MODE_HOME[modeOfPath(path) ?? 'money'];
+    return home === path ? null : home;
+  }
+  if (!from) return null;
+  return featurePageOf(pathOf(from)) ?? from;
+}
