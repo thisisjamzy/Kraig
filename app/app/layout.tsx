@@ -27,7 +27,7 @@ export const metadata: Metadata = {
   // apple-touch-icon.png is referenced here, not app/manifest.ts — iOS Safari
   // ignores the manifest's icons array entirely (see public/icons/README.md).
   icons: {
-    apple: '/icons/apple-touch-icon.png',
+    apple: '/icons/apple-touch-icon.png?v=2',
   },
   appleWebApp: {
     capable: true,

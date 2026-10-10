@@ -10,6 +10,8 @@ import { getDoc, getDocs, serverTimestamp, setDoc, updateDoc, writeBatch } from 
 import { getFirebaseFirestore } from '@/src/shared/config/firebaseClient';
 import { bucketLineItemRef, bucketLineItemsRef, bucketRef, bucketsRef, categoriesRef, migrationRef } from './refs';
 import { BASKETS_MIGRATION_ID, BASKETS_MIGRATION_VERSION, planBasketsMigration, type KindReviewEntry } from '../budget/basketsMigration';
+import { CLAUDE_USD_FIX_ID, planClaudeUsdFix } from '../budget/claudeUsdFix';
+import { recalcBucketTotals } from './aggregation';
 import type { FirestoreBucket, FirestoreBucketLineItem, ItemKind } from './types';
 
 const BATCH_LIMIT = 400;
@@ -85,4 +87,36 @@ export async function setItemKind(uid: string, bucketId: string, itemId: string,
 
 export async function markBasketsMigrationReviewed(uid: string) {
   await setDoc(migrationRef(uid, BASKETS_MIGRATION_ID), { reviewedAt: serverTimestamp() }, { merge: true });
+}
+
+/**
+ * The Claude subscriptions to USD (src/shared/budget/claudeUsdFix.ts), once
+ * per household. Returns how many items changed, or null when already done.
+ */
+export async function runClaudeUsdFix(uid: string): Promise<number | null> {
+  const done = await getDoc(migrationRef(uid, CLAUDE_USD_FIX_ID));
+  if (done.exists() && done.data()?.completedAt) return null;
+  const bucketSnap = await getDocs(bucketsRef(uid));
+  const buckets = bucketSnap.docs.map((d) => ({ ...(d.data() as FirestoreBucket), id: d.id }));
+  const itemsByBucket: Record<string, (FirestoreBucketLineItem & { id: string })[]> = {};
+  await Promise.all(
+    buckets.map(async (bucket) => {
+      const snap = await getDocs(bucketLineItemsRef(uid, bucket.id));
+      itemsByBucket[bucket.id] = snap.docs.map((d) => ({ ...(d.data() as FirestoreBucketLineItem), id: d.id }));
+    })
+  );
+  const plan = planClaudeUsdFix(buckets, itemsByBucket);
+  if (plan.length) {
+    const batch = writeBatch(getFirebaseFirestore());
+    for (const p of plan) batch.update(bucketLineItemRef(uid, p.bucketId, p.itemId), { currency: 'USD', updatedAt: serverTimestamp() });
+    await batch.commit();
+    await Promise.all([...new Set(plan.map((p) => p.bucketId))].map((id) => recalcBucketTotals(uid, id)));
+  }
+  await setDoc(migrationRef(uid, CLAUDE_USD_FIX_ID), {
+    version: 1,
+    completedAt: serverTimestamp(),
+    reviewedAt: null,
+    report: plan.map((p) => ({ kind: 'currency', subject: `${p.bucketId}/${p.itemId}`, detail: 'USD' })),
+  });
+  return plan.length;
 }

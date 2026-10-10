@@ -28,6 +28,8 @@ import { lineStatus, monthTotals } from '../app/src/shared/budget/monthTotals';
 import { deriveOccurrences } from '../app/src/shared/budget/occurrences';
 import { preparePayments } from '../app/src/shared/budget/automation';
 import { planBasketsMigration } from '../app/src/shared/budget/basketsMigration';
+import { planClaudeUsdFix } from '../app/src/shared/budget/claudeUsdFix';
+import { convert, itemCurrencyOf } from '../app/src/shared/firestore/currency';
 import { monthPayments } from '../app/src/logic/planning/usePaymentsTab';
 import { basketList, monthSummary, needsYou } from '../app/src/logic/planning/basketList';
 
@@ -558,6 +560,38 @@ test('Unplanned: an expense or transfer with nothing planned can still be record
   // "Record as unplanned" is offered for transfers too, not only expenses.
   assert.doesNotMatch(screen, /!v\.isTransferLike && \(\s*<SwitchField/);
   assert.match(screen, /label=\{t\.recordUnplannedCta\}/);
+});
+
+test('Item currency: a 24 USD item in an XAF basket converts at the rate, and follows it', () => {
+  const rates = { XAF: 1, USD: 605, EUR: 655.957 };
+  const usd = item('claude', { name: 'Claude', amount: 24, currency: 'USD' });
+  const build = (display: string) =>
+    budgetOf({ itemsByBucket: { leisure: [usd] }, toDisplay: (amount, currency) => Math.round(convert(amount, currency, display, rates) * 100) / 100 });
+  assert.equal(itemCurrencyOf(usd, { currency: 'XAF' }), 'USD');
+  assert.equal(itemCurrencyOf({}, { currency: 'XAF' }), 'XAF');
+  assert.equal(build('XAF').itemsByKey.get('claude@2026-10')?.planned, 14_520);
+  // Shown in USD it is 24 again, not 24 XAF converted.
+  assert.equal(build('USD').itemsByKey.get('claude@2026-10')?.planned, 24);
+  // Without its own currency the same 24 stays 24 XAF.
+  const xaf = budgetOf({ itemsByBucket: { leisure: [item('claude', { name: 'Claude', amount: 24 })] }, toDisplay: (amount, currency) => convert(amount, currency, 'XAF', rates) });
+  assert.equal(xaf.itemsByKey.get('claude@2026-10')?.planned, 24);
+});
+
+test('Claude USD fix: only Claude items of 24 not already in USD', () => {
+  const plan = planClaudeUsdFix(
+    [{ id: 'subs', currency: 'XAF' }, { id: 'usd', currency: 'USD' }],
+    {
+      subs: [
+        { id: 'a', name: 'Claude Pro', amount: 24 },
+        { id: 'b', name: 'claude', amount: 24, currency: 'XAF' },
+        { id: 'c', name: 'Claude', amount: 24, currency: 'USD' },
+        { id: 'd', name: 'Claude', amount: 14_520 },
+        { id: 'e', name: 'Netflix', amount: 24 },
+      ],
+      usd: [{ id: 'f', name: 'Claude', amount: 24 }],
+    }
+  );
+  assert.deepEqual(plan, [{ bucketId: 'subs', itemId: 'a' }, { bucketId: 'subs', itemId: 'b' }]);
 });
 
 test('UI copy uses no long dashes', () => {

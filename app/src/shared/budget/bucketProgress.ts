@@ -18,6 +18,7 @@
 //  - Planned (one-off): "how much of the whole plan is paid?" — every
 //    month's spend against each item's amount.
 
+import { itemCurrencyOf } from '../firestore/currency';
 import { buildLegacyLinks, resolveLink, monthKeyOf, type BudgetItemLike, type MonthBudget } from './monthBudget';
 import type {
   FirestoreBucket,
@@ -160,7 +161,7 @@ export function bucketProgress(
     }
   } else {
     for (const item of items) {
-      const itemPlanned = toDisplay(item.amount, bucket.currency);
+      const itemPlanned = toDisplay(item.amount, itemCurrencyOf(item, bucket));
       const itemSpent = spend.get(item.id)?.total ?? 0;
       itemCount += 1;
       planned += itemPlanned;

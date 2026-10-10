@@ -176,15 +176,19 @@ export function useLogic(goalId: string) {
         .map((item) => {
           const closed = isItemClosed(item, bucket?.kind);
           const spent = itemSpend.get(item.id)?.total ?? 0;
+          // In the basket's currency, like every figure on this page (an
+          // item may be in its own: 24 USD in an XAF basket).
+          const amount = item.currency && item.currency !== currency ? round2(convert(item.amount, item.currency, currency, ctx.rates)) : item.amount;
           return {
           ...item,
+          amount,
           // A recurring item is never closed for good — a stale `completed`
           // written by pre-v2 code is ignored (isItemClosed).
           completed: closed,
           priority: item.priority ?? DEFAULT_PRIORITY,
           necessity: item.necessity ?? DEFAULT_NECESSITY,
-          shortfall: Math.max(0, round2(item.amount - availableFrozen)),
-          hasFunds: availableFrozen >= item.amount,
+          shortfall: Math.max(0, round2(amount - availableFrozen)),
+          hasFunds: availableFrozen >= amount,
           categoryName: categoryNameFallback(item.categoryId),
           categoryColor: categoryAccentColor(categoryNameFallback(item.categoryId)),
           // A recurring (Fixed) item's own dueDate is just its recurrence
@@ -218,7 +222,7 @@ export function useLogic(goalId: string) {
           subItems: item.subItems ?? [],
           subItemsConsumed: round2((item.subItems ?? []).filter((s) => s.completed).reduce((sum, s) => sum + s.amount, 0)),
           subItemsRemaining: round2(
-            item.amount - (item.subItems ?? []).filter((s) => s.completed).reduce((sum, s) => sum + s.amount, 0)
+            amount - (item.subItems ?? []).filter((s) => s.completed).reduce((sum, s) => sum + s.amount, 0)
           ),
           // Every payment recorded against this item, for the "go to the
           // transaction" chips (BucketDetailScreen.tsx).
@@ -229,14 +233,14 @@ export function useLogic(goalId: string) {
           // item's status is per month, the "this month" row.
           spentAmount: round2(spent),
           displaySpentAmount: round2(spent),
-          remainingAmount: Math.max(0, round2(item.amount - spent)),
+          remainingAmount: Math.max(0, round2(amount - spent)),
           // Some real money recorded, but the item isn't closed yet — an
           // expense being paid off across more than one transaction.
           isPartial: !closed && spent > 0,
           };
         })
         .sort((a, b) => Number(a.completed) - Number(b.completed)),
-    [lineItemDocs, availableFrozen, categoryNameFallback, bucket?.kind, itemSpend]
+    [lineItemDocs, availableFrozen, categoryNameFallback, bucket?.kind, itemSpend, currency, ctx.rates]
   );
 
   // The progress card: a Fixed bucket's figures are this month's, a
@@ -287,6 +291,8 @@ export function useLogic(goalId: string) {
   const [itemIncomeMode, setItemIncomeMode] = useState<IncomeMode>('lump_sum');
   const [itemAvailableDay, setItemAvailableDay] = useState('');
   const [itemTargetAmount, setItemTargetAmount] = useState('');
+  // '' = the basket's currency; else the item's own (a 24 USD subscription).
+  const [itemCurrency, setItemCurrency] = useState('');
   const [itemTargetDate, setItemTargetDate] = useState('');
 
   // Paid from: one of the household's accounts (savings wallets last), any
@@ -360,6 +366,7 @@ export function useLogic(goalId: string) {
     setItemIncomeMode('lump_sum');
     setItemAvailableDay('');
     setItemTargetAmount('');
+    setItemCurrency('');
     setItemTargetDate('');
     setItemCustomFrequency('Quarterly');
     setItemInterval(1);
@@ -372,7 +379,9 @@ export function useLogic(goalId: string) {
     setAddOpen(true);
   }
 
-  function openEditItem(lineItem: FirestoreBucketLineItem) {
+  function openEditItem(shown: FirestoreBucketLineItem) {
+    // The stored item: the list shows amounts in the basket's currency.
+    const lineItem = lineItemDocs.find((doc) => doc.id === shown.id) ?? shown;
     setEditingItemId(lineItem.id);
     setItemName(lineItem.name);
     setItemDescription(lineItem.description);
@@ -410,6 +419,7 @@ export function useLogic(goalId: string) {
     setItemIncomeMode(lineItem.incomeMode ?? 'lump_sum');
     setItemAvailableDay(lineItem.availableFrom?.day ? String(lineItem.availableFrom.day) : '');
     setItemTargetAmount(lineItem.targetAmount ? String(lineItem.targetAmount) : '');
+    setItemCurrency(lineItem.currency && lineItem.currency !== bucket?.currency ? lineItem.currency : '');
     setItemTargetDate(lineItem.targetDate ? toIso(lineItem.targetDate.toDate()) : '');
     setItemCustomFrequency(freq && freq !== 'Once' ? freq : 'Quarterly');
     setItemInterval(interval);
@@ -472,6 +482,7 @@ export function useLogic(goalId: string) {
         name: itemName.trim(),
         description: itemDescription.trim(),
         amount,
+        currency: itemCurrency && itemCurrency !== bucket?.currency ? itemCurrency : null,
         priority: itemPriority,
         necessity: itemNecessity,
         categoryId: itemCategoryId,
@@ -512,7 +523,7 @@ export function useLogic(goalId: string) {
         await updateBucketLineItem(uid, goalId, editingItemId, input);
         const paid = line && line.transactionIds.length === 1 && !line.transferIds.length ? monthBudget.transactionsById.get(line.transactionIds[0]) : undefined;
         const ctx = monthBudget.ctx;
-        const newAmount = convert(amount, bucket?.currency ?? ctx.display, ctx.display, ctx.rates);
+        const newAmount = convert(amount, itemCurrency || (bucket?.currency ?? ctx.display), ctx.display, ctx.rates);
         if (paid && line && Math.abs(line.actual - newAmount) >= 0.5) {
           setAddOpen(false);
           setEditingItemId(null);
@@ -777,6 +788,8 @@ export function useLogic(goalId: string) {
     itemAvailableDay,
     setItemAvailableDay,
     itemTargetAmount,
+    itemCurrency,
+    setItemCurrency,
     setItemTargetAmount: (value: string) => setItemTargetAmount(value.replace(/[^0-9.]/g, '')),
     itemTargetDate,
     setItemTargetDate,

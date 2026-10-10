@@ -13,7 +13,7 @@
 import { useMemo, useState } from 'react';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { useAccounts, useCurrencyContext } from '@/src/shared/firestore/queries';
-import { convert, round2, toDisplay } from '@/src/shared/firestore/currency';
+import { convert, round2, toDisplay, itemCurrencyOf } from '@/src/shared/firestore/currency';
 import {
   createAllocation,
   setItemMonthOverride,
@@ -187,7 +187,7 @@ export function useLogic({ entry, month, budget, buckets, itemsByBucket, allocat
       options.push({
         id: 'next',
         label: `${entry.name} · ${monthLabel(nextMonth)}`,
-        available: toDisplay(ctx, nextOccurrence.planned, bucket.currency),
+        available: toDisplay(ctx, nextOccurrence.planned, itemCurrencyOf(rawItem, bucket)),
         endpoint: { kind: 'item', bucketId: entry.bucketId, itemId: entry.itemId, month: nextMonth },
         reason: 'borrow_next_month',
         isSavings: false,
@@ -318,14 +318,14 @@ export function useLogic({ entry, month, budget, buckets, itemsByBucket, allocat
     }
   }
 
-  // The override is stored in the bucket's own currency, same as the
-  // item's `amount` — the household typed it in display currency.
+  // The override is stored in the item's own currency (else the
+  // bucket's), same as its `amount` — the household typed it in display currency.
   async function saveOverride(amount: number | null) {
     if (!uid || !bucket) return;
     if (amount !== null && !(amount >= 0)) return setError('Enter an amount of zero or more.');
     setBusy(true);
     try {
-      const native = amount === null ? null : round2(convert(amount, ctx.display, bucket.currency, ctx.rates));
+      const native = amount === null ? null : round2(convert(amount, ctx.display, itemCurrencyOf(rawItem, bucket), ctx.rates));
       await setItemMonthOverride(uid, entry.bucketId, entry.itemId, month, native);
       setMode('view');
     } finally {

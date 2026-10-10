@@ -16,7 +16,7 @@ import { getFirebaseFirestore } from '@/src/shared/config/firebaseClient';
 import { useFirestoreDoc } from '@/src/shared/firestore/hooks';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { usePlansData } from '@/src/logic/plans/usePlansData';
-import { convert } from '@/src/shared/firestore/currency';
+import { convert, itemCurrencyOf } from '@/src/shared/firestore/currency';
 import type { ForecastFacts } from '@/src/shared/notifications/rules';
 import { isOpen, monthKey, remaining, shiftMonth } from '@/src/viewmodels/plans/model';
 import { applyDraft, UNSCHEDULED, type IncomeLine, type PlanChange, type PlanLine } from '@/src/viewmodels/plans/planDraft';
@@ -121,7 +121,7 @@ export function usePlanModel() {
           priority: item.priority === 'Urgent' || item.priority === 'High' ? 'High' : item.priority === 'Low' ? 'Low' : 'Medium',
           month: null,
           due: null,
-          amount: r2(convert(item.amount, bucket.currency, ctx.display, ctx.rates)),
+          amount: r2(convert(item.amount, itemCurrencyOf(item, bucket), ctx.display, ctx.rates)),
           accountId: item.accountId ?? null,
           recurring: false,
           incomeItemId: item.automation?.mode === 'prepare' && item.automation.trigger === 'income' ? (item.automation.incomeItemId ?? null) : null,

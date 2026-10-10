@@ -49,6 +49,7 @@ import {
   bucketRef,
   bucketLineItemsRef,
   bucketLineItemRef,
+  exchangeRatesRef,
   debtRef,
   repaymentsRef,
   repaymentRef,
@@ -1183,7 +1184,14 @@ export async function deleteBucket(uid: string, goalId: string): Promise<void> {
 export async function recalcBucketTotals(uid: string, goalId: string) {
   const snap = await getDocs(bucketLineItemsRef(uid, goalId));
   const lineItems = snap.docs.map((d) => d.data());
-  const totalAmount = lineItems.reduce((sum, li) => sum + (Number(li.amount) || 0), 0);
+  // An item in its own currency (a 24 USD subscription in an XAF basket)
+  // counts in the basket's currency at today's rate.
+  const foreign = lineItems.some((li) => li.currency);
+  const bucketCurrency = foreign ? ((await getDoc(bucketRef(uid, goalId))).data()?.currency ?? '') : '';
+  const rates: Record<string, number> = {};
+  if (foreign) (await getDocs(exchangeRatesRef(uid))).docs.forEach((d) => (rates[d.id] = d.data().rateToBase));
+  const inBucket = (amount: number, currency: string | null | undefined) => (currency ? convert(amount, currency, bucketCurrency, rates) : amount);
+  const totalAmount = round2(lineItems.reduce((sum, li) => sum + inBucket(Number(li.amount) || 0, li.currency), 0));
   const completed = lineItems.filter((li) => li.completed);
   await updateDoc(bucketRef(uid, goalId), {
     totalAmount,
@@ -1236,6 +1244,9 @@ export interface CreateBucketLineItemInput {
   availableFrom?: { day?: number | null; incomeItemId?: string | null } | null;
   targetAmount?: number | null;
   targetDate?: Date | null;
+  // The currency the amounts are in, when not the basket's (null: the
+  // basket's). Left out, an update keeps what the item has.
+  currency?: string | null;
   // The item's own shopping-list checklist, edited as a batch alongside
   // every other field on this same form (see FirestoreBucketLineItem
   // .subItems's header) — ticking one off afterward from Bucket Detail goes
@@ -1368,6 +1379,7 @@ function lineItemExtras(input: CreateBucketLineItemInput) {
   if (input.incomeMode !== undefined) out.incomeMode = input.incomeMode;
   if (input.availableFrom !== undefined) out.availableFrom = input.availableFrom;
   if (input.targetAmount !== undefined) out.targetAmount = input.targetAmount;
+  if (input.currency !== undefined) out.currency = input.currency || null;
   if (input.targetDate !== undefined) out.targetDate = input.targetDate ? Timestamp.fromDate(input.targetDate) : null;
   return out;
 }

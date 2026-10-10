@@ -13,7 +13,7 @@ import { Timestamp, arrayUnion, serverTimestamp, updateDoc } from 'firebase/fire
 import { useFinanceData } from '@/src/logic/financeInsights/useFinanceData';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { bucketLineItemRef } from '@/src/shared/firestore/refs';
-import { toDisplay } from '@/src/shared/firestore/currency';
+import { toDisplay, itemCurrencyOf } from '@/src/shared/firestore/currency';
 import { itemOccurrence } from '@/src/shared/budget/monthBudget';
 import { automationLabel, automationOf, expenseKindOf, savingsModeOf, type FlowType } from '@/src/shared/budget/flow';
 import { skipItemMonth } from '@/src/shared/firestore/bucketBudget';
@@ -91,7 +91,7 @@ export function usePlansData() {
             priority,
             tag: category?.name ?? (type === 'Transfer' ? 'Transfer' : ''),
             due: recurring ? dueIn(month, anchor) : anchor,
-            planned: r2(toDisplay(ctx, occurrence.planned, bucket.currency)),
+            planned: r2(toDisplay(ctx, occurrence.planned, itemCurrencyOf(item, bucket))),
             paid: planItem ? r2(Math.max(0, planItem.actual)) : 0,
             recurring,
             inPlan: bucket.kind !== 'Fixed' && Boolean(anchor) && kind !== 'variable' && kind !== 'income' && kind !== 'transfer',

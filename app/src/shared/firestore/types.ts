@@ -526,6 +526,12 @@ export interface FirestoreBucketLineItem {
   name: string;
   description: string;
   amount: number;
+  // The currency `amount` (and charges, targetAmount, monthOverrides) is
+  // in, when it isn't the basket's: a 24 USD subscription in an XAF basket.
+  // Converted to the display currency at read time (itemCurrencyOf in
+  // currency.ts), so it follows the rate instead of keeping one number.
+  // Absent: the basket's currency.
+  currency?: string | null;
   // What this item actually is, budget-wise — every line item is
   // budgetable now, not just a wish-list entry, and Income is a valid bucket
   // item type too (an expected income source, not just Expense/Savings
