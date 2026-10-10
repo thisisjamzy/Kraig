@@ -2,7 +2,8 @@
 // Transfers; empty groups left out), each row with the one line its kind
 // calls for ("8 of 9 paid", "61,560 left", "Saved 27,000 of 120,000") and
 // used / planned. Shared by the phone Budget tab and Baskets screen so the
-// two lists can't differ. Also the month summary and the "Needs you" line.
+// two lists can't differ. Also the month summary. Alerts (overdue
+// payments, baskets over plan) are only in Notifications.
 // Every figure comes from the shared calculation (monthBudget.ts,
 // monthTotals.ts, itemKinds.ts).
 
@@ -11,7 +12,6 @@ import { basketMonthView } from '@/src/shared/budget/itemKinds';
 import type { MonthBudget } from '@/src/shared/budget/monthBudget';
 import type { MonthTotals } from '@/src/shared/budget/monthTotals';
 import type { FirestoreBucket } from '@/src/shared/firestore/types';
-import type { MonthPayment } from './usePaymentsTab';
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
@@ -111,6 +111,10 @@ export function basketList(
 
 export interface MonthSummary {
   comingIn: number;
+  /** Planned expenses, transfer fees included: one money type. */
+  plannedSpending: number;
+  plannedSavings: number;
+  /** Planned expenses and savings together, for what's left to plan. */
   plannedOut: number;
   /** Positive: income not yet planned. Negative: planned beyond income. */
   unplanned: number;
@@ -126,24 +130,11 @@ export function monthSummary(totals: MonthTotals): MonthSummary {
   const unplanned = r2(totals.leftToPlan);
   return {
     comingIn,
+    plannedSpending: r2(totals.expenses.planned),
+    plannedSavings: r2(totals.savings.planned),
     plannedOut,
     unplanned,
     overPlanned: unplanned < -0.5,
     fill: comingIn > 0 ? Math.min(1, plannedOut / comingIn) : plannedOut > 0 ? 1 : 0,
   };
-}
-
-/** The one "Needs you" line, or null when nothing does. */
-export function needsYou(payments: MonthPayment[], groups: BasketListGroup[]): { text: string; amount: number | null; target: 'payments' | 'baskets' } | null {
-  const overdue = payments.filter((p) => p.status === 'overdue');
-  if (overdue.length) {
-    return {
-      text: `${overdue.length} ${overdue.length === 1 ? 'payment' : 'payments'} overdue`,
-      amount: r2(overdue.reduce((s, p) => s + (p.remaining || p.amount), 0)),
-      target: 'payments',
-    };
-  }
-  const over = groups.flatMap((g) => g.rows).filter((r) => r.problem);
-  if (over.length) return { text: `${over.length} ${over.length === 1 ? 'basket needs' : 'baskets need'} a look`, amount: null, target: 'baskets' };
-  return null;
 }

@@ -890,3 +890,22 @@ input:focus-visible + .switch {
     border-radius: 6px;
   }
 }
+
+/* The style guide on the phone (docs/STYLE-MIGRATION.md): light only, and
+   only the guide's colours. Doubled class so it wins over the dark-mode
+   rule above. The amber (errors, Delete, high priority) is the guide's
+   Delete red. */
+@media (max-width: 767.98px) {
+  .page.page {
+    --tf-bg: var(--sg-neutral-50);
+    --tf-card: var(--sg-neutral-0);
+    --tf-text: var(--sg-neutral-900);
+    --tf-label: var(--sg-neutral-600);
+    --tf-placeholder: var(--sg-neutral-400);
+    --tf-track: var(--sg-neutral-200);
+    --tf-accent: var(--sg-primary);
+    --tf-accent-muted: var(--sg-primary-light);
+    --tf-orange: var(--sg-destructive);
+    --tf-watermark: var(--sg-neutral-100);
+  }
+}

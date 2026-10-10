@@ -84,6 +84,12 @@ export function NotificationDetailScreen({ id }: { id: string }) {
                           {item.action.label}
                         </button>
                       )}
+                      {/* One payment, snoozed on its own until tomorrow. */}
+                      {(n.type === 'payment_overdue' || n.type === 'payment_due_soon') && item.entityType === 'line' && (
+                        <button type="button" className={p.textButton} onClick={() => void v.snoozePayment(item.entityId, 1)}>
+                          Snooze
+                        </button>
+                      )}
                     </span>
                   </div>
                 ))}

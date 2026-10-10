@@ -30,6 +30,7 @@ import { evaluateRules, type MoneyFacts, type NotificationFacts } from '@/src/sh
 import { reconcileNotifications } from '@/src/shared/notifications/reconcile';
 import type { PlanSnapshot } from '@/src/shared/notifications/types';
 import { useBudgetMonth } from '@/src/logic/budgetMonth/useLogic';
+import { useBasketsMigrationReview } from '@/src/shared/hooks/useBudgetMonthState';
 import { rangeFor } from '@/src/viewmodels/insights/dates';
 import { nextPayment } from '@/src/viewmodels/debt';
 import type { FirestoreDebt, FirestoreTask } from '@/src/shared/firestore/types';
@@ -51,6 +52,8 @@ export function NotificationsRunner() {
     useMemo(() => (uid ? query(debtsRef(uid), where('archivedAt', '==', null)) : null), [uid])
   );
   const { data: snapshotDoc } = useFirestoreDoc<Record<string, unknown>>(useMemo(() => (uid ? planSnapshotRef(uid) : null), [uid]));
+
+  const kindReview = useBasketsMigrationReview();
 
   // ---- Time and system ----
   const time = useInsightsSources();
@@ -83,12 +86,14 @@ export function NotificationsRunner() {
       currency: ctx.display,
       month,
       lines: b.lines,
+      snoozedLines: prefs.snoozedLines,
       overspends: b.overspends,
       leftovers: b.leftovers,
       mustHaves: must.count ? { status: must.status, count: must.count, due: must.due, short: Math.max(0, -must.spareByMonthEnd), waitingFor } : null,
       readyToPay: queue.map((q) => ({ id: q.id, name: q.name, amount: q.amount })),
       incomeReceived: [...byIncome].map(([key, v]) => ({ key, name: v.name, amount: v.amount, readyCount: v.count })),
       monthReview: budgetMonth.banner ? { month, text: budgetMonth.banner } : null,
+      itemsToCheck: kindReview.pending ? (kindReview.data?.report?.length ?? 0) : 0,
       unassigned,
       reconcile: snapshot?.reconcile ?? [],
       debts: debts
@@ -131,7 +136,7 @@ export function NotificationsRunner() {
       time: timeFacts({ tasks, projects: result.projects, settings: time.settings, now, summaryTime: prefs.summaryTime || null, conflicts }),
       system: { syncProblems },
     };
-  }, [uid, data, budgetMonth, queue, queueLoading, debts, debtsLoading, snapshotDoc, time, sync, prefs.summaryTime, month]);
+  }, [uid, data, budgetMonth, queue, queueLoading, debts, debtsLoading, snapshotDoc, time, sync, prefs.summaryTime, prefs.snoozedLines, kindReview.pending, kindReview.data, month]);
 
   // Reconcile and write. One write at a time; the next run sees the result.
   const writing = useRef(false);

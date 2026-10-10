@@ -127,7 +127,7 @@ export function computeUpcomingPaymentsFromBucketItems(
 
   for (const bucket of buckets) {
     for (const item of itemsByBucket[bucket.id] ?? []) {
-      if (isItemClosed(item, bucket.kind) || !item.dueDate) continue;
+      if (isItemClosed(item, bucket.kind, bucket) || !item.dueDate) continue;
       // No recurrence field (a Variable item) defaults to 'Once' — a single
       // occurrence on the stored dueDate, same as a plain plannedPayment
       // used to behave.

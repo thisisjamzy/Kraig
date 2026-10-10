@@ -105,3 +105,15 @@
 .row:active {
   background: rgba(55, 53, 47, 0.08);
 }
+
+/* The style guide on the phone (docs/STYLE-MIGRATION.md): only its
+   colours. */
+@media (max-width: 767.98px) {
+  .head {
+    border-bottom-color: var(--sg-neutral-200);
+  }
+
+  .mode {
+    border-color: var(--sg-neutral-200);
+  }
+}

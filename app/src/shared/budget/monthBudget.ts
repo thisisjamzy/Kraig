@@ -505,7 +505,8 @@ export function buildMonthBudget(input: MonthBudgetInput): MonthBudget {
         justified: null,
         settlement: null,
         archived: Boolean(bucket.archived),
-        closed: (kind === 'Planned' && item.completed) || Boolean(bucket.closedMonths?.[month]),
+        // A repeating item never closes for good (bucketProgress.ts's isItemClosed).
+        closed: (kind === 'Planned' && item.completed && !recurring) || Boolean(bucket.closedMonths?.[month]),
         transactionIds: [],
         transferIds: [],
         allocationIds: [],

@@ -11,13 +11,9 @@
   font-family: var(--font-family-body);
   border-radius: var(--radius-lg);
   background: var(--color-background);
-  box-shadow: 0 1px 2px rgba(27, 27, 57, 0.04), 0 6px 18px rgba(27, 27, 57, 0.05);
+  /* Cards have a border, not a shadow. */
+  box-shadow: 0 0 0 1px var(--sg-neutral-200);
   transition: opacity var(--duration-morph) var(--ease-out);
-}
-
-:global([data-theme='dark']) .row {
-  background: var(--color-surface);
-  box-shadow: none;
 }
 
 /* ---- The ring checkbox ---- */
@@ -50,13 +46,14 @@
     transform var(--duration-press) var(--ease-out);
 }
 
-/* very important red, important orange, normal blue, low grey */
+/* The style guide's colours only: very important red (its Delete red),
+   important primary dark, normal primary, low grey. */
 .check[data-priority='Urgent'] {
   --ring: var(--color-danger);
 }
 
 .check[data-priority='High'] {
-  --ring: #e8a33d;
+  --ring: var(--sg-primary-dark);
 }
 
 .check[data-priority='Medium'] {
@@ -64,7 +61,7 @@
 }
 
 .check[data-priority='Low'] {
-  --ring: var(--color-text-secondary);
+  --ring: var(--sg-neutral-400);
 }
 
 .check:active::before {
@@ -135,17 +132,18 @@
 }
 
 .priority[data-priority='High'] {
-  background: color-mix(in srgb, #e8a33d 18%, transparent);
-  color: #c9861f;
+  /* The guide's accent badge ("Due soon"): lime, dark text. */
+  background: var(--sg-accent);
+  color: var(--sg-neutral-900);
 }
 
 .priority[data-priority='Medium'] {
-  background: color-mix(in srgb, var(--color-brand) 14%, transparent);
+  background: var(--sg-primary-light);
   color: var(--color-brand);
 }
 
 .priority[data-priority='Low'] {
-  background: color-mix(in srgb, var(--color-text-secondary) 16%, transparent);
+  background: var(--sg-neutral-100);
   color: var(--color-text-secondary);
 }
 

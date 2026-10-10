@@ -4,8 +4,7 @@
 //   - its name over one grey line ("Monthly · Expenses"), the description
 //     as one line with More;
 //   - Planned, Used and Left in one row;
-//   - one "needs you" line when it's over plan (cover or justify) or has
-//     money left over near the month's end (reallocate);
+//   - no alerts: over plan, not covered or left over are in Notifications;
 //   - its items as a full-width list grouped by kind: Payments ("5 Oct ·
 //     Paid", with Pay for what's still due), Allowances ("22,000 left ·
 //     about 1,000 a day"), Set aside ("Saved 27,000 of 120,000 · by Dec");
@@ -29,8 +28,7 @@ import { dayMonth, money, monthTitle } from '@/src/viewmodels/planning';
 import { ITEM_KIND_GROUP, type ItemKind } from '@/src/shared/budget/itemKinds';
 import { occurrenceBuild } from '@/src/shared/budget/cadence';
 import type { ItemMonth } from '@/src/shared/budget/monthBudget';
-import { coverHref, reallocateHref } from '@/src/phone/screens/Planning/PlanningParts';
-import { InfoButton, MoreText, NeedsYouRow } from '@/src/phone/screens/Planning/MinimalParts';
+import { InfoButton, MoreText } from '@/src/phone/screens/Planning/MinimalParts';
 import { AdjustmentRow, AdjustmentSheet } from '@/src/phone/screens/PlanningBucket/Adjustments';
 import { CloseBucketSheet } from '@/src/phone/screens/PlanningBucket/CloseBucketSheet';
 import { ReceiptSheet } from '@/src/phone/screens/PlanningBucket/ReceiptSheet';
@@ -73,9 +71,6 @@ export function PlanningBucketView({ bucketId, b }: { bucketId: string; b: Retur
     );
   }
 
-  const prompt = card.prompt;
-  const over = prompt?.kind === 'over' || prompt?.kind === 'uncovered';
-  const leftover = prompt?.kind === 'leftover';
   const income = b.bucket.type === 'Income';
   const entries = b.items.map((x) => x.item);
   const groupOf = (entry: ItemMonth): Group => (entry.type === 'Income' ? 'income' : entry.type === 'Transfer' ? 'move' : (entry.itemKind ?? 'payment'));
@@ -150,14 +145,7 @@ export function PlanningBucketView({ bucketId, b }: { bucketId: string; b: Retur
         </div>
       </div>
 
-      {over && (
-        <NeedsYouRow
-          text={prompt!.kind === 'uncovered' ? `${money(prompt!.amount)} not covered yet` : `Over by ${money(prompt!.amount)}`}
-          amount={null}
-          onOpen={() => router.push(coverHref(b.month, bucketId))}
-        />
-      )}
-      {leftover && <NeedsYouRow text={`${money(prompt!.amount)} left over to move`} amount={null} onOpen={() => router.push(reallocateHref(b.month, bucketId))} />}
+      {/* Over plan, not covered or left over: in Notifications, not here. */}
 
       <div className={m.bleed}>
         {GROUPS.map((kind) => {

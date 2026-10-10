@@ -248,3 +248,12 @@
   color: rgba(255, 255, 255, 0.85);
   cursor: not-allowed;
 }
+
+/* The style guide on the phone (docs/STYLE-MIGRATION.md): the medium
+   button, 48 high with 10 corners. */
+@media (max-width: 767.98px) {
+  .continueButton {
+    min-height: var(--sg-button-md);
+    border-radius: var(--radius-md);
+  }
+}

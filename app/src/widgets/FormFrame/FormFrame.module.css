@@ -134,7 +134,7 @@
 }
 
 .primary[data-tone='danger'] {
-  background: #e04b5a;
+  background: var(--sg-destructive, #e04b5a);
 }
 
 .primary:disabled {
@@ -172,7 +172,7 @@
 .fieldError {
   font-size: 0.8125rem;
   font-weight: 500;
-  color: #d6404f;
+  color: var(--sg-destructive, #d6404f);
 }
 
 .hint {
@@ -259,7 +259,7 @@
   margin: 0;
   padding: 0 4px;
   font-size: 0.875rem;
-  color: #d6404f;
+  color: var(--sg-destructive, #d6404f);
 }
 
 .after {
@@ -495,5 +495,19 @@ textarea.input {
     bottom: calc(12px + var(--safe-bottom));
     z-index: 5;
     box-shadow: 0 8px 24px rgba(28, 31, 58, 0.12);
+  }
+}
+
+/* The style guide on the phone (docs/STYLE-MIGRATION.md): the medium
+   button, 48 high with 10 corners, Figtree semibold; switches in primary. */
+@media (max-width: 767.98px) {
+  .primary {
+    min-height: var(--sg-button-md);
+    border-radius: var(--radius-md);
+    font-weight: 600;
+  }
+
+  .chip {
+    border-radius: var(--radius-full);
   }
 }

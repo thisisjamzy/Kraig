@@ -73,5 +73,5 @@
 }
 
 .badge[data-urgent] {
-  background: #e04b5a;
+  background: var(--sg-destructive);
 }

@@ -94,8 +94,8 @@
 .rescheduleBadge {
   padding: 2px var(--space-sm);
   border-radius: var(--radius-full);
-  background: color-mix(in srgb, #e8a33d 22%, transparent);
-  color: #a3671c;
+  background: color-mix(in srgb, var(--sg-accent) 22%, transparent);
+  color: var(--sg-primary-dark);
   font-size: 0.7rem;
   font-weight: 700;
 }

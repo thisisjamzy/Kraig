@@ -174,6 +174,11 @@ export function usePaymentsTab(month: string, data: PlanningData, bucketFilter: 
     setPayAmount(String(payment.remaining || payment.amount));
     setError(null);
   }
+  // What's still due on the payment's whole line this month (every occurrence).
+  function lineLeft(payment: MonthPayment) {
+    const line = budget.itemsByKey.get(`${payment.itemId}@${month}`);
+    return line ? Math.max(0, line.available - line.actual) : payment.remaining || payment.amount;
+  }
   async function confirmPaid() {
     const amount = Number(payAmount);
     if (!uid || !paying || !payAccountId || busy || !(amount > 0)) return;
@@ -185,7 +190,9 @@ export function usePaymentsTab(month: string, data: PlanningData, bucketFilter: 
         paying.bucketId,
         paying.itemId,
         amount,
-        amount >= (paying.remaining || paying.amount) - 0.5,
+        // Closes the item only when this clears everything still due on it
+        // this month, never on one occurrence or a part payment.
+        amount >= lineLeft(paying) - 0.5,
         {
           accountId: payAccountId,
           categoryId: paying.categoryId,

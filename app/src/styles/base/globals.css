@@ -140,6 +140,99 @@
   --color-danger: #ff8b6b;
 }
 
+/* The Dreda style guide on the phone (under 768px): Remix/Dreda Remix.free,
+   mirrored in src/styles/tokens/styleGuide.ts (change both together). Only
+   the guide's own values: four brand colours, the fixed neutrals, the one
+   red it uses (Delete), its fonts, type scale, corners and spacing. No
+   status colours and no dark theme (the guide has neither), so the phone
+   stays light whatever the appearance setting. The app's existing
+   variables are pointed at guide values here, so every phone screen that
+   reads them follows; screens with a palette of their own move over one at
+   a time (docs/STYLE-MIGRATION.md). Web and tablet are unchanged. */
+@media (max-width: 767.98px) {
+  :root,
+  [data-theme='light'],
+  [data-theme='dark'] {
+    color-scheme: light;
+
+    /* Guide tokens */
+    --sg-primary: #553199;
+    --sg-primary-dark: #342066;
+    --sg-accent: #d3fc72;
+    --sg-primary-light: #e6eef8;
+    --sg-neutral-0: #ffffff;
+    --sg-neutral-50: #f9fafb;
+    --sg-neutral-100: #f3f4f6;
+    --sg-neutral-200: #e5e7eb;
+    --sg-neutral-300: #d1d5db;
+    --sg-neutral-400: #9ca3af;
+    --sg-neutral-500: #6b7280;
+    --sg-neutral-600: #4b5563;
+    --sg-neutral-700: #374151;
+    --sg-neutral-800: #1f2937;
+    --sg-neutral-900: #111827;
+    --sg-destructive: #c62828;
+    --font-family-mono: var(--font-plex-mono), 'IBM Plex Mono', ui-monospace, monospace;
+    --sg-button-sm: 36px;
+    --sg-button-md: 48px;
+    --sg-button-lg: 56px;
+    --space-12: 12px;
+
+    /* Type: Bricolage Grotesque headings, Figtree body, the guide's scale
+       (small 14, body 16, body-large 18, h3 22, h2 28, display 48). */
+    --font-family-body: var(--font-figtree), 'Figtree', system-ui, sans-serif;
+    --font-family-heading: var(--font-bricolage), 'Bricolage Grotesque', system-ui, sans-serif;
+    --font-size-sm: 0.875rem;
+    --font-size-md: 1rem;
+    --font-size-lg: 1.125rem;
+    --font-size-xl: 1.375rem;
+    --font-size-2xl: 1.75rem;
+    --font-size-display: 3rem;
+
+    /* Corners: 5, 10, 20 and pills. */
+    --radius-sm: 5px;
+    --radius-md: 10px;
+    --radius-lg: 20px;
+    --radius-full: 9999px;
+
+    /* Theme colours */
+    --color-page: var(--sg-neutral-50);
+    --color-background: var(--sg-neutral-0);
+    --color-surface: var(--sg-neutral-100);
+    --color-text-primary: var(--sg-neutral-900);
+    --color-text-secondary: var(--sg-neutral-600);
+    --color-primary: var(--sg-primary);
+    --color-link: var(--sg-primary);
+    --color-primary-hover: var(--sg-primary-dark);
+    --color-accent: var(--sg-primary);
+    --color-border: var(--sg-neutral-200);
+    /* No status colours: success reads as the brand, danger is the
+       guide's Delete red. */
+    --color-success: var(--sg-primary);
+    --color-danger: var(--sg-destructive);
+
+    --color-brand: var(--sg-primary);
+    --color-brand-strong: var(--sg-primary-dark);
+    --color-brand-soft: var(--sg-primary-light);
+    --color-brand-tint: var(--sg-primary-light);
+
+    /* Dark surfaces (hero and total cards, the nav pill): primary dark. */
+    --ink-bg: var(--sg-primary-dark);
+    --ink-surface: var(--sg-primary);
+    --ink-border: var(--sg-primary);
+    --ink-text: var(--sg-neutral-0);
+    --ink-text-secondary: var(--sg-primary-light);
+
+    --money-blue: var(--sg-primary);
+    --money-blue-soft: var(--sg-primary-light);
+    --money-red: var(--sg-destructive);
+    --money-lime: var(--sg-accent);
+    --money-tint-blue: var(--sg-primary-light);
+    --money-tint-yellow: var(--sg-neutral-50);
+    --money-ink: var(--sg-neutral-900);
+  }
+}
+
 * {
   box-sizing: border-box;
 }

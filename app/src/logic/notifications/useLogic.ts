@@ -18,6 +18,7 @@ import {
   markNotificationsRead,
   setTypeMuted,
   snoozeNotifications,
+  snoozePaymentLines,
   unarchiveNotifications,
 } from '@/src/shared/firestore/notificationWrites';
 import { compareNewest, comparePriority, DAY_GROUPS, dayGroup, inView, unreadCount, type DayGroup, type InboxView } from '@/src/shared/notifications/inbox';
@@ -76,6 +77,8 @@ export const FIELDS: FieldDef<StoredNotification>[] = [
 ];
 
 const VIEWS: InboxView[] = ['inbox', 'unread', 'snoozed', 'resolved', 'archived'];
+/** Notifications about payments: their items can be snoozed one by one. */
+const PAYMENT_TYPES: NotificationType[] = ['payment_overdue', 'payment_due_soon'];
 const SORTS = ['priority', 'newest'] as const;
 export type SortId = (typeof SORTS)[number];
 
@@ -212,9 +215,22 @@ export function useLogic() {
     markRead: (target: string | string[], read = true) => act(() => markNotificationsRead(uid!, ids(target), read), 'Could not update that.'),
     snooze: (target: string | string[], days: number) =>
       act(async () => {
-        await snoozeNotifications(uid!, ids(target), new Date(Date.now() + days * 86_400_000));
+        const until = new Date(Date.now() + days * 86_400_000);
+        await snoozeNotifications(uid!, ids(target), until);
+        // A payment notification's payments are snoozed too, so it stays
+        // quiet even when it's grouped again (due soon is grouped by day).
+        const lines = notifications
+          .filter((n) => ids(target).includes(n.id) && PAYMENT_TYPES.includes(n.type))
+          .flatMap((n) => n.items.filter((item) => item.entityType === 'line').map((item) => item.entityId));
+        await snoozePaymentLines(uid!, lines, until, prefs.snoozedLines ?? {});
         showToast(days === 1 ? 'Snoozed until tomorrow' : 'Snoozed for a week');
       }, 'Could not snooze that.'),
+    /** One payment inside a notification, on its own. */
+    snoozePayment: (lineKey: string, days: number) =>
+      act(async () => {
+        await snoozePaymentLines(uid!, [lineKey], new Date(Date.now() + days * 86_400_000), prefs.snoozedLines ?? {});
+        showToast(days === 1 ? 'Payment snoozed until tomorrow' : 'Payment snoozed for a week');
+      }, 'Could not snooze that payment.'),
     archive: (target: string | string[]) => act(() => archiveNotifications(uid!, ids(target)), 'Could not archive that.'),
     unarchive: (target: string | string[]) => act(() => unarchiveNotifications(uid!, ids(target)), 'Could not move that back.'),
     mute: (type: NotificationType) =>

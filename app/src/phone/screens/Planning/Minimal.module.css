@@ -107,7 +107,8 @@
   place-items: center;
   width: 32px;
   height: 32px;
-  border-radius: 50%;
+  /* The guide's icon tile ("icon / primary"). */
+  border-radius: var(--radius-md);
   background: var(--p-blue-tint);
   color: var(--p-blue);
 }
@@ -154,8 +155,10 @@
 }
 
 .figure {
+  /* Amounts in the guide's mono. */
+  font-family: var(--font-family-mono);
   font-size: 0.9375rem;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--p-navy);
   white-space: nowrap;
 }
@@ -258,25 +261,6 @@
   cursor: pointer;
 }
 
-/* ---- Needs you ---- */
-
-.needs {
-  composes: row;
-  color: var(--p-navy);
-}
-
-.needs .name {
-  font-weight: 500;
-}
-
-.needsDot {
-  flex: none;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--p-red);
-}
-
 /* ---- Three figures in one row (Planned, Used, Left) ---- */
 
 .figures {
@@ -358,9 +342,10 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  min-height: 52px;
+  /* The guide's medium button: 48 high, 10 corners. */
+  min-height: var(--sg-button-md);
   border: 0;
-  border-radius: 14px;
+  border-radius: var(--radius-md);
   background: var(--p-blue);
   color: #fff;
   font: inherit;
@@ -706,8 +691,9 @@
   margin-top: 16px;
   padding: 20px;
   border-radius: var(--radius-lg, 20px);
-  background: linear-gradient(135deg, var(--money-ink) 0%, var(--money-blue) 65%, var(--money-blue-soft) 100%);
-  color: #fff;
+  /* The style guide's hero: primary dark into primary. */
+  background: linear-gradient(135deg, var(--sg-primary-dark) 0%, var(--sg-primary) 100%);
+  color: var(--sg-neutral-0);
 }
 
 .moneyTop {
@@ -721,14 +707,16 @@
   margin: 0;
   font-family: var(--font-family-heading);
   font-size: 2rem;
-  font-weight: 800;
+  font-weight: 700;
   line-height: 1.1;
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
 }
 
 .moneyLabel {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 2px;
   margin-top: 2px;
   font-size: 0.8125rem;
   font-weight: 600;
@@ -751,8 +739,10 @@
   cursor: pointer;
 }
 
+/* The second card (Baskets): the guide's "reversed on dark", neutral 900
+   into primary dark. */
 .moneyCard[data-tone='teal'] {
-  background: linear-gradient(135deg, #0b2a2e 0%, #0f766e 60%, #5eead4 100%);
+  background: linear-gradient(135deg, var(--sg-neutral-900) 0%, var(--sg-primary-dark) 100%);
 }
 
 .moneyMeter {
@@ -786,7 +776,8 @@
 }
 
 .moneyTrack > span[data-tone='problem'] {
-  background: #ffb3ba;
+  /* No status colours: a problem is the accent. */
+  background: var(--sg-accent);
 }
 
 .moneyFigures {
@@ -819,7 +810,7 @@
 }
 
 .moneyFigureValue[data-tone='problem'] {
-  color: #ffc2c8;
+  color: var(--sg-accent);
 }
 
 .moneyChip:focus-visible {

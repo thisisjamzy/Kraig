@@ -44,6 +44,20 @@ export const snoozeNotifications = (uid: string, ids: string[], until: Date) => 
 export const archiveNotifications = (uid: string, ids: string[]) => patchMany(uid, ids, { archivedAt: new Date(), readAt: new Date() });
 export const unarchiveNotifications = (uid: string, ids: string[]) => patchMany(uid, ids, { archivedAt: null, snoozedUntil: null });
 
+/**
+ * Snoozes payments one by one (NotificationPrefs.snoozedLines): each line
+ * key until `until`. Expired snoozes are dropped while writing.
+ */
+export async function snoozePaymentLines(uid: string, lineKeys: string[], until: Date, current: Record<string, string>): Promise<void> {
+  if (!lineKeys.length) return;
+  const now = Date.now();
+  const kept = Object.fromEntries(Object.entries(current).filter(([, iso]) => new Date(iso).getTime() > now));
+  for (const key of lineKeys) kept[key] = until.toISOString();
+  // The whole map replaced (mergeFields), so expired snoozes really go;
+  // every other setting is kept.
+  await setDoc(notificationPrefsRef(uid), { snoozedLines: kept }, { mergeFields: ['snoozedLines'] });
+}
+
 export async function saveNotificationPrefs(uid: string, patch: Partial<NotificationPrefs>): Promise<void> {
   await setDoc(notificationPrefsRef(uid), patch, { merge: true });
 }

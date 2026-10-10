@@ -19,6 +19,7 @@
 //    month's spend against each item's amount.
 
 import { itemCurrencyOf } from '../firestore/currency';
+import { isRecurring, itemSchedule, type CadenceBasket, type CadenceItem } from './cadence';
 import { buildLegacyLinks, resolveLink, monthKeyOf, type BudgetItemLike, type MonthBudget } from './monthBudget';
 import type {
   FirestoreBucket,
@@ -33,9 +34,22 @@ function round2(value: number) {
 
 type ItemLike = BudgetItemLike & Partial<Pick<FirestoreBucketLineItem, 'completedAt' | 'actualAmount'>>;
 
-/** A one-off item is closed when marked so; a recurring item never is. */
-export function isItemClosed(item: { completed: boolean }, bucketKind: FirestoreBucket['kind']): boolean {
-  return bucketKind !== 'Fixed' && item.completed;
+/**
+ * A one-off item is closed when marked so; an item that repeats (its own
+ * recurrence, or its basket's cadence) never is: paying one occurrence used
+ * to close it and hide every later one, even when only part was paid.
+ */
+export function isItemClosed(
+  item: { completed: boolean } & Partial<CadenceItem>,
+  bucketKind: FirestoreBucket['kind'],
+  bucket?: CadenceBasket | null
+): boolean {
+  return bucketKind !== 'Fixed' && item.completed && !itemRepeats(item, bucket);
+}
+
+/** Whether an item has more than one occurrence: it can never close for good. */
+export function itemRepeats(item: Partial<CadenceItem>, bucket?: CadenceBasket | null): boolean {
+  return isRecurring(itemSchedule({ dueDate: item.dueDate ?? null, recurrence: item.recurrence ?? null, createdAt: item.createdAt ?? null }, bucket));
 }
 
 export interface ItemSpend {
@@ -139,7 +153,7 @@ export interface BucketProgress {
 }
 
 export function bucketProgress(
-  bucket: Pick<FirestoreBucket, 'id' | 'kind' | 'currency'>,
+  bucket: Pick<FirestoreBucket, 'id' | 'kind' | 'currency'> & CadenceBasket,
   items: ItemLike[],
   spend: Map<string, ItemSpend>,
   monthBudget: MonthBudget | null, // only read for a Fixed bucket
@@ -166,7 +180,7 @@ export function bucketProgress(
       itemCount += 1;
       planned += itemPlanned;
       spent += itemSpent;
-      if (isItemClosed(item, bucket.kind) || (itemPlanned > 0 && itemSpent >= itemPlanned)) doneCount += 1;
+      if (isItemClosed(item, bucket.kind, bucket) || (itemPlanned > 0 && itemSpent >= itemPlanned)) doneCount += 1;
     }
   }
 

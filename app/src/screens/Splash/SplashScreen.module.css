@@ -100,3 +100,31 @@
   font-weight: 700;
   text-decoration: underline;
 }
+
+/* The style guide's lockup on the phone, in place of the badge and wordmark. */
+.phoneLogo {
+  display: none;
+}
+
+@media (max-width: 767.98px) {
+  .phoneLogo {
+    display: block;
+    height: 32px;
+    width: auto;
+    flex: 0 0 auto;
+    align-self: flex-start;
+  }
+
+  .logoRow.logoRow {
+    display: none;
+  }
+}
+
+/* The style guide on the phone (docs/STYLE-MIGRATION.md): the medium
+   button, 48 high with 10 corners. */
+@media (max-width: 767.98px) {
+  .ctaButton {
+    min-height: var(--sg-button-md);
+    border-radius: var(--radius-md);
+  }
+}

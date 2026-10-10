@@ -45,6 +45,7 @@ export const BUDGET_TYPES: NotificationType[] = [
   'income_late',
   'ready_to_pay',
   'month_review',
+  'items_to_check',
   'unassigned_transactions',
   'savings_behind',
 ];

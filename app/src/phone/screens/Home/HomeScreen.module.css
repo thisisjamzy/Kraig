@@ -12,7 +12,8 @@
    always render in their light-on-dark variants rather than following
    data-theme. Recolored onto the Money redesign's own brand blue (Lunacy/
    Images/colors.png's #0052FF/#80B1ED pairing) in place of the older
-   indigo-to-violet gradient. */
+   indigo-to-violet gradient; on the phone, the style guide's hero (the
+   phone block at the end of this file). */
 .balanceCard {
   display: flex;
   flex-direction: column;
@@ -799,40 +800,54 @@
   }
 }
 
-/* Compact action cards above the balance card (HomeActionCards). */
-.actionCards {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
-}
+/* ---- The style guide on the phone (docs/STYLE-MIGRATION.md) ----
+   The web dashboard reuses some of these classes, so the phone's look is
+   kept to this block. */
+@media (max-width: 767.98px) {
+  /* The guide's hero: primary dark into primary, dark all the way so the
+     white text and logo never sit on a light corner. */
+  .balanceCard {
+    background: linear-gradient(135deg, var(--sg-primary-dark) 0%, var(--sg-primary) 100%);
+  }
 
-.actionCard {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  padding: var(--space-sm) var(--space-md);
-  border-radius: var(--radius-lg);
-  background: var(--color-surface);
-}
+  /* The guide's charts pair primary with the lime accent. */
+  .breakdownBarIncome,
+  .legendDotIncome {
+    background: var(--sg-accent);
+  }
 
-.actionCardText {
-  flex: 1;
-  min-width: 0;
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  color: var(--color-text-primary);
-}
+  /* Wallet cards in the guide's light fills, dark text on all of them. */
+  .walletCard[data-tone='0'] {
+    background: var(--sg-primary-light);
+  }
 
-.actionCardButton {
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  min-height: 36px;
-  padding: 0 var(--space-md);
-  border-radius: var(--radius-full);
-  background: var(--color-brand);
-  color: #fff;
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  text-decoration: none;
+  .walletCard[data-tone='1'] {
+    background: var(--sg-accent);
+  }
+
+  .walletCard[data-tone='2'] {
+    background: var(--sg-neutral-100);
+  }
+
+  .walletCard {
+    color: var(--sg-neutral-900);
+    box-shadow: 0 0 0 1px var(--sg-neutral-200);
+  }
+
+  /* The page is near white: each quick action's round button is white with
+     a primary border so it stands out. */
+  .quickActionIcon {
+    border: 1.5px solid var(--sg-primary);
+    background: var(--sg-neutral-0);
+    color: var(--sg-primary);
+  }
+
+  /* The page is near white, so cards are white with a neutral-200 border. */
+  .summaryCard,
+  .paymentRow,
+  .trendCard,
+  .searchRow {
+    border: 1px solid var(--sg-neutral-200);
+    background: var(--sg-neutral-0);
+  }
 }

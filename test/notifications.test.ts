@@ -79,6 +79,39 @@ test('8 overdue payments make one batched notification with 8 items', () => {
   assert.equal(overdue[0].items[0].action?.handler, 'markPaid');
 });
 
+test('a missed payment that was partly paid is still overdue, for what is left', () => {
+  const drafts = evaluateRules(facts({ lines: [line(1, { name: 'Rent', left: 40_000 })] }));
+  const overdue = drafts.find((d) => d.type === 'payment_overdue');
+  assert.equal(overdue?.title, 'Rent is overdue · 40,000 XAF');
+  assert.equal(overdue?.items[0].amount, 40_000);
+});
+
+test('a snoozed payment stays out of overdue and due soon until the snooze ends, however they are grouped', () => {
+  const lines = [line(1), line(2, { state: 'Unpaid', due: new Date(2026, 9, 4) })];
+  const snoozedLines = { [lines[0].key]: new Date(2026, 9, 4, 10).toISOString(), [lines[1].key]: new Date(2026, 9, 4, 10).toISOString() };
+  const drafts = evaluateRules(facts({ lines, snoozedLines }));
+  assert.equal(drafts.some((d) => d.type === 'payment_overdue' || d.type === 'payment_due_soon'), false);
+  // The next day's due soon group (a new group key) still leaves them out.
+  const nextMorning = evaluateRules({ ...facts({ lines, snoozedLines }), now: new Date(2026, 9, 4, 8) });
+  assert.equal(nextMorning.some((d) => d.type === 'payment_due_soon' || d.type === 'payment_overdue'), false);
+  // After it ends, both come back.
+  const later = evaluateRules({ ...facts({ lines, snoozedLines }), now: new Date(2026, 9, 4, 11) });
+  assert.ok(later.some((d) => d.type === 'payment_overdue'));
+  assert.ok(later.some((d) => d.type === 'payment_due_soon'));
+  // Snoozing one leaves the other.
+  const one = evaluateRules(facts({ lines, snoozedLines: { [lines[0].key]: snoozedLines[lines[0].key] } }));
+  assert.equal(one.some((d) => d.type === 'payment_overdue'), false);
+  assert.ok(one.some((d) => d.type === 'payment_due_soon'));
+});
+
+test('items whose basket kind was guessed make one notification that opens the check', () => {
+  const drafts = evaluateRules(facts({ itemsToCheck: 3 }));
+  const check = drafts.find((d) => d.type === 'items_to_check');
+  assert.equal(check?.title, '3 items to check');
+  assert.equal(check?.primaryAction?.route, '/budget/item-kinds');
+  assert.equal(evaluateRules(facts({ itemsToCheck: 0 })).some((d) => d.type === 'items_to_check'), false);
+});
+
 test('paying one updates it to 7 (still one notification); paying all resolves it', () => {
   let stored = run([], facts({ lines: Array.from({ length: 8 }, (_, i) => line(i)) }));
   assert.equal(stored.length, 1);
@@ -195,6 +228,7 @@ test('every rule speaks without long dashes or emoji', () => {
       readyToPay: [{ id: 'q', name: 'Rent', amount: 100_000 }],
       incomeReceived: [{ key: 'salary@2026-10', name: 'Salary', amount: 900_000, readyCount: 2 }],
       monthReview: { month: '2026-11', text: '14 lines added.' },
+      itemsToCheck: 2,
       unassigned: [{ id: 't', label: 'Taxi', amount: 2000, date: now }],
       reconcile: [{ accountId: 'a', name: 'MTN', difference: 500 }],
       debts: [{ id: 'd', name: 'Momokash', amount: 50_000, due: new Date(2026, 8, 28) }],

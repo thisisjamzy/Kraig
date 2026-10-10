@@ -109,8 +109,12 @@ export const INFO = {
     text: 'Your baskets plan more than the income you expect this month. Lower a basket or plan more income to close the gap.',
   },
   notPlanned: {
-    title: 'Not yet planned',
-    text: 'Expected income no basket has claimed yet. Give it a job in a basket, or keep it as a cushion.',
+    title: 'Left to plan',
+    text: 'Expected income minus planned spending and planned savings: money no basket has claimed yet. Give it a job in a basket, or keep it as a cushion.',
+  },
+  plannedSpending: {
+    title: 'Planned spending',
+    text: 'The expenses planned in your baskets this month, transfer fees included. Income, savings and moves between your own wallets are not in this figure: they are shown under it and in Details.',
   },
   pace: {
     title: 'Pace',
@@ -212,9 +216,12 @@ export function MoneyCard({
   problem,
   figures,
   tone,
+  labelInfo,
 }: {
   amount: number;
   label: string;
+  /** An info button beside the label: what the main figure counts. */
+  labelInfo?: InfoKey;
   chip?: { label: string; onClick: () => void };
   fill: number;
   /** What the meter measures: "of income", "paid". */
@@ -230,7 +237,10 @@ export function MoneyCard({
       <div className={m.moneyTop}>
         <div>
           <p className={m.moneyAmount}>{money(amount)}</p>
-          <span className={m.moneyLabel}>{label}</span>
+          <span className={m.moneyLabel}>
+            {label}
+            {labelInfo && <InfoButton topic={labelInfo} />}
+          </span>
           {/* A short meter under the label, not the card's whole width. */}
           <span className={m.moneyMeter}>
             <span className={m.moneyTrack} role="img" aria-label={`${pct}% ${fillLabel}`}>
@@ -271,19 +281,23 @@ export function BudgetCard({ summary, totals, currency, month }: { summary: Mont
   const monthName = monthTitle(month).split(' ')[0];
   return (
     <>
+      {/* One money type as the main figure: planned spending (expenses and
+          transfer fees). Income and savings each have their own figure;
+          moves between wallets are in Details. */}
       <MoneyCard
-        amount={summary.plannedOut}
-        label={`Budgeted for ${monthName}`}
+        amount={summary.plannedSpending}
+        label={`Planned spending in ${monthName}`}
+        labelInfo="plannedSpending"
         chip={{ label: 'Details', onClick: () => setDetails(true) }}
-        fill={summary.comingIn > 0 ? summary.plannedOut / summary.comingIn : summary.fill}
+        fill={summary.comingIn > 0 ? summary.plannedSpending / summary.comingIn : summary.plannedSpending > 0 ? 1 : 0}
         fillLabel="of income"
         problem={summary.overPlanned}
         figures={[
-          { label: 'Coming in', value: summary.comingIn },
+          { label: 'Income expected', value: summary.comingIn },
+          { label: 'Savings planned', value: summary.plannedSavings },
           summary.overPlanned
             ? { label: 'Over income', value: -summary.unplanned, problem: true, info: 'plannedBeyond' }
-            : { label: 'Not planned', value: Math.max(0, summary.unplanned), info: 'notPlanned' },
-          { label: 'Available', value: totals.availableNow, info: 'availableNow' },
+            : { label: 'Left to plan', value: Math.max(0, summary.unplanned), info: 'notPlanned' },
         ]}
       />
       {details && (
@@ -421,22 +435,3 @@ export function BasketGroups({ groups, month, newHref }: { groups: BasketListGro
   );
 }
 
-/** "3 payments overdue · 43,900 ›" — one line, only when something needs doing. */
-export function NeedsYouRow({ text, amount, onOpen }: { text: string; amount: number | null; onOpen: () => void }) {
-  return (
-    <div className={`${m.bleed} ${m.section}`}>
-      <div className={m.list}>
-        <button type="button" className={m.needs} onClick={onOpen}>
-          <span className={m.needsDot} aria-hidden />
-          <span className={m.main}>
-            <span className={m.name}>
-              {text}
-              {amount !== null && ` · ${money(amount)}`}
-            </span>
-          </span>
-          <ChevronRight size={18} strokeWidth={2} aria-hidden />
-        </button>
-      </div>
-    </div>
-  );
-}

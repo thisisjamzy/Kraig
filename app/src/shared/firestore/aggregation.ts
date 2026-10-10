@@ -57,6 +57,7 @@ import {
   unjustifiedWalletRef,
 } from './refs';
 import { convert, round2, type CurrencyContext } from './currency';
+import { itemRepeats } from '../budget/bucketProgress';
 import { writeDebtActivity } from './debtWrites';
 import type {
   DebtPaidFrom,
@@ -1508,7 +1509,7 @@ export async function recordBucketLineItemPayment(
       // A Fixed item recurs — paying one month's occurrence never closes
       // the item itself (that used to hide it from every later month).
       // Per-month status is derived instead (src/shared/budget/monthBudget.ts).
-      const closes = fullyPaid && bucketSnap.data()?.kind !== 'Fixed';
+      const closes = fullyPaid && bucketSnap.data()?.kind !== 'Fixed' && !itemRepeats(lineItemSnap.data() ?? {}, bucketSnap.data());
       if (fromSnap.data()?.frozen || toSnap.data()?.frozen) {
         throw new Error('One of these wallets is frozen, unfreeze it before transferring.');
       }
@@ -1564,7 +1565,7 @@ export async function recordBucketLineItemPayment(
       tx.get(bucketLineItemRef(uid, goalId, lineItemId)),
       tx.get(bucketRef(uid, goalId)),
     ]);
-    const closes = fullyPaid && bucketSnap.data()?.kind !== 'Fixed';
+    const closes = fullyPaid && bucketSnap.data()?.kind !== 'Fixed' && !itemRepeats(lineItemSnap.data() ?? {}, bucketSnap.data());
     writeTransactionContribution(
       tx,
       uid,

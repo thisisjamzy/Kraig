@@ -270,8 +270,8 @@
   }
 
   .healthChip[data-health='watch'] {
-    background: color-mix(in srgb, #e8a33d 18%, transparent);
-    color: #9a6415;
+    background: color-mix(in srgb, var(--sg-accent) 18%, transparent);
+    color: var(--sg-primary-dark);
   }
 
   .healthChip[data-health='at risk'] {

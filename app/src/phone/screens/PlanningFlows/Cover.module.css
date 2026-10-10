@@ -316,7 +316,7 @@
   border: none;
   border-radius: 50%;
   background: none;
-  color: #d98a1c;
+  color: var(--sg-primary-dark);
   cursor: pointer;
 }
 
@@ -324,8 +324,8 @@
   margin: 0 8px 8px 46px;
   padding: 8px 12px;
   border-radius: 12px;
-  background: #fdf3e2;
-  color: #8a5a12;
+  background: var(--sg-accent);
+  color: var(--sg-primary-dark);
   font-size: 0.8125rem;
 }
 
@@ -408,7 +408,7 @@
 }
 
 .warning {
-  color: #8a5a12;
+  color: var(--sg-primary-dark);
 }
 
 .landsIn {

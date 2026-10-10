@@ -53,12 +53,16 @@ export interface MoneyFacts {
   /** yyyy-MM */
   month: string;
   lines: FactLine[];
+  /** Payments snoozed one by one: line key to an ISO date (NotificationPrefs). */
+  snoozedLines?: Record<string, string>;
   overspends: { key: string; bucketId: string; itemId: string; name: string; amount: number }[];
   leftovers: { bucketId: string; name: string; amount: number }[];
   mustHaves: { status: 'covered' | 'waiting' | 'short'; count: number; due: number; short: number; waitingFor: string[] } | null;
   readyToPay: { id: string; name: string; amount: number }[];
   incomeReceived: { key: string; name: string; amount: number; readyCount: number }[];
   monthReview: { month: string; text: string } | null;
+  /** Items whose basket kind was guessed and still needs a look (/budget/item-kinds). */
+  itemsToCheck?: number;
   unassigned: { id: string; label: string; amount: number; date: Date }[];
   reconcile: { accountId: string; name: string; difference: number }[];
   debts: { id: string; name: string; amount: number; due: Date }[];
@@ -138,9 +142,16 @@ function moneyRules(m: MoneyFacts, now: Date): NotificationDraft[] {
   const month = m.month;
   const today = startOfDay(now);
   const amountText = (n: number) => `${fmt(n)} ${c}`;
+  // A payment snoozed on its own stays out until then, however its
+  // notification is grouped (due soon is grouped by day).
+  const snoozed = (l: FactLine) => {
+    const until = m.snoozedLines?.[l.key];
+    return Boolean(until && new Date(until) > now);
+  };
 
-  // Payments overdue (bills and savings past their date).
-  const overdue = m.lines.filter((l) => (l.type === 'Expense' || l.type === 'Savings' || l.type === 'Transfer') && l.state === 'Overdue' && !l.closed && l.left > 0);
+  // Payments overdue (missed): past their date with something still to pay,
+  // part payments included.
+  const overdue = m.lines.filter((l) => (l.type === 'Expense' || l.type === 'Savings' || l.type === 'Transfer') && l.state === 'Overdue' && !l.closed && l.left > 0 && !snoozed(l));
   if (overdue.length) {
     const items: NotificationItem[] = overdue.map((l) => ({
       key: `payment_overdue:${l.key}`,
@@ -168,7 +179,7 @@ function moneyRules(m: MoneyFacts, now: Date): NotificationDraft[] {
 
   // Due today or in the next 3 days.
   const soon = m.lines.filter((l) => {
-    if (l.type === 'Income' || l.closed || l.left <= 0 || !l.due || l.state === 'Overdue') return false;
+    if (l.type === 'Income' || l.closed || l.left <= 0 || !l.due || l.state === 'Overdue' || snoozed(l)) return false;
     const d = daysBetween(today, l.due);
     return d >= 0 && d <= 3;
   });
@@ -332,6 +343,21 @@ function moneyRules(m: MoneyFacts, now: Date): NotificationDraft[] {
   }
 
   // New month set up, waiting for review.
+  // Basket kinds guessed by the migration, waiting for one look.
+  if (m.itemsToCheck) {
+    out.push(
+      make(
+        'items_to_check',
+        'info',
+        'items_to_check',
+        `${m.itemsToCheck} ${plural(m.itemsToCheck, 'item', 'items')} to check`,
+        'Each item was sorted as a payment, an allowance or a set aside from how you used it. Confirm or change them once.',
+        [],
+        { label: 'Check items', route: '/budget/item-kinds' }
+      )
+    );
+  }
+
   if (m.monthReview) {
     out.push(
       make('month_review', 'info', `month_review:${m.monthReview.month}`, `${monthName(m.monthReview.month)} is set up`, m.monthReview.text, [], {

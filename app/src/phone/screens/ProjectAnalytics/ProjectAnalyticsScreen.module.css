@@ -88,19 +88,19 @@
 }
 
 .tilePurple {
-  background: color-mix(in srgb, #7b7ef3 16%, var(--color-background));
+  background: color-mix(in srgb, var(--sg-primary) 16%, var(--color-background));
 }
 
 .tileOrange {
-  background: color-mix(in srgb, #ff9800 16%, var(--color-background));
+  background: color-mix(in srgb, var(--sg-accent) 16%, var(--color-background));
 }
 
 .tileBlue {
-  background: color-mix(in srgb, #3a81f8 16%, var(--color-background));
+  background: color-mix(in srgb, var(--sg-primary) 16%, var(--color-background));
 }
 
 .tileGreen {
-  background: color-mix(in srgb, #8bc34a 16%, var(--color-background));
+  background: color-mix(in srgb, var(--sg-primary) 16%, var(--color-background));
 }
 
 .statLabel {

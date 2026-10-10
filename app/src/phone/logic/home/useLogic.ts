@@ -7,7 +7,7 @@ import { useFirestoreCollection, useFirestoreDoc } from '@/src/shared/firestore/
 import { transactionsRef, settingsRef, unjustifiedWalletRef, bucketsRef } from '@/src/shared/firestore/refs';
 import { useAccounts, useCategories, useCurrencyContext, useExchangeRates } from '@/src/shared/firestore/queries';
 import { toDisplay, round2 } from '@/src/shared/firestore/currency';
-import { computeUpcomingPaymentsFromBucketItems } from '@/src/shared/firestore/upcomingPayments';
+import { monthPayments } from '@/src/logic/planning/usePaymentsTab';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { useMonthBudget } from '@/src/shared/hooks/useMonthBudget';
 import { isItemClosed } from '@/src/shared/budget/bucketProgress';
@@ -137,7 +137,7 @@ export function useLogic() {
     const totals = new Map<string, number>();
     for (const bucket of bucketDocs) {
       for (const item of itemsByBucket[bucket.id] ?? []) {
-        if (isItemClosed(item, bucket.kind) || !item.accountId) continue;
+        if (isItemClosed(item, bucket.kind, bucket) || !item.accountId) continue;
         totals.set(item.accountId, (totals.get(item.accountId) ?? 0) + toDisplay(ctx, item.amount, bucket.currency));
       }
     }
@@ -389,17 +389,27 @@ export function useLogic() {
   }, [rangeTransactions, period, now, accountCurrency, ctx]);
   const breakdownMax = Math.max(1, ...breakdown.flatMap((entry) => [entry.income, entry.expense]));
 
-  const upcomingPayments = useMemo(
-    () =>
-      computeUpcomingPaymentsFromBucketItems(bucketDocs, itemsByBucket, accounts, categories, ctx, UPCOMING_PAYMENTS_HORIZON_DAYS)
-        .slice(0, UPCOMING_PAYMENTS_PREVIEW_COUNT)
-        .map((payment) => ({
-          ...payment,
-          dueDateLabel: formatDueDate(payment.dueDate),
-          dueInLabel: dueLabel(payment.dueDate),
-        })),
-    [bucketDocs, itemsByBucket, accounts, categories, ctx]
-  );
+  // What's still due this month, per occurrence, from the month budget (the
+  // Payments tab's own list): a part payment stays here with what's left,
+  // and a missed one stays first, as overdue.
+  const upcomingPayments = useMemo(() => {
+    const until = new Date(now.getTime() + UPCOMING_PAYMENTS_HORIZON_DAYS * 86_400_000);
+    return monthPayments(monthStr, { budget: monthBudget, buckets: bucketDocs, itemsByBucket, accounts, ctx }, categories)
+      .filter((payment) => payment.status !== 'paid' && payment.due <= until)
+      .slice(0, UPCOMING_PAYMENTS_PREVIEW_COUNT)
+      .map((payment) => {
+        const dueDate = payment.dueKey;
+        return {
+          id: payment.id,
+          title: payment.name,
+          amount: payment.remaining || payment.amount,
+          dueDate,
+          dueDateLabel: formatDueDate(dueDate),
+          dueInLabel: dueLabel(dueDate),
+        };
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [monthBudget, bucketDocs, itemsByBucket, accounts, categories, ctx, monthStr]);
 
   return {
     balance,

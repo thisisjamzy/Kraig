@@ -76,7 +76,7 @@
   /* Soft purple — same swatch as this app's own PROJECT_COLORS[0], not the
      mockup's literal hue, but the closest already-established color in the
      palette to it. */
-  background: #7b7ef3;
+  background: var(--sg-primary);
   color: #ffffff;
 }
 
@@ -233,7 +233,7 @@
 }
 
 .priorityDot_medium {
-  background: #e8a33d;
+  background: var(--sg-accent);
 }
 
 .priorityDot_low {

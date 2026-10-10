@@ -11,27 +11,18 @@
   --i-free: color-mix(in srgb, var(--color-success) 38%, var(--color-background));
   --i-planned: color-mix(in srgb, var(--color-text-secondary) 26%, var(--color-background));
   --i-cancel: var(--color-danger);
-  --i-amber: #d98a1c;
+  --i-amber: var(--sg-accent);
   --i-grid: color-mix(in srgb, var(--color-text-secondary) 14%, transparent);
-  --i-q-do: #e5484d;
+  --i-q-do: var(--sg-destructive);
   --i-q-schedule: var(--color-brand);
-  --i-q-delegate: #e8873a;
-  --i-q-eliminate: #8b90a0;
+  --i-q-delegate: var(--sg-accent);
+  --i-q-eliminate: var(--sg-neutral-400);
   min-height: 100%;
   --screen-header-bg: transparent;
   padding: 0 var(--space-lg) 110px;
   background: var(--color-surface);
   color: var(--color-text-primary);
   font-family: var(--font-family-body);
-}
-
-:global([data-theme='dark']) .page {
-  --i-card: var(--color-surface);
-  --i-shadow: none;
-  --i-free: color-mix(in srgb, var(--color-success) 40%, var(--color-surface));
-  --i-planned: color-mix(in srgb, var(--color-text-secondary) 30%, var(--color-surface));
-  --i-amber: #f0a948;
-  background: var(--color-page);
 }
 
 .srOnly {
@@ -844,12 +835,6 @@ button.tile:focus-visible {
     --i-card: var(--color-background);
     --i-shadow: 0 1px 2px rgba(27, 27, 57, 0.04), 0 8px 24px rgba(27, 27, 57, 0.05);
   }
-
-  :global([data-theme='dark']) .topVars {
-    --i-card: var(--color-surface);
-    --i-shadow: none;
-  }
-
   .topRanges .ranges {
     width: 340px;
   }

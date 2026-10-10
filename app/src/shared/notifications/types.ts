@@ -17,6 +17,7 @@ export const NOTIFICATION_TYPES = [
   'income_received',
   'ready_to_pay',
   'month_review',
+  'items_to_check',
   'unassigned_transactions',
   'reconcile_mismatch',
   'debt_payment_due',
@@ -114,6 +115,12 @@ export interface NotificationPrefs {
   email: NotificationType[];
   /** "08:00": when the morning summary is written. */
   summaryTime: string;
+  /**
+   * Payments snoozed one by one: line key ("bucket/item@2026-10" as the
+   * budget writes it) to an ISO date. Until then the line is left out of
+   * the overdue and due soon notifications, whatever they're grouped by.
+   */
+  snoozedLines: Record<string, string>;
 }
 
 export const DEFAULT_PREFS: NotificationPrefs = {
@@ -121,6 +128,7 @@ export const DEFAULT_PREFS: NotificationPrefs = {
   push: ['payment_overdue', 'debt_payment_late', 'forecast_below_zero', 'projects_at_risk', 'spending_off_pace', 'morning_summary', 'evening_nudge', 'calendar_sync_failed'],
   email: [],
   summaryTime: '08:00',
+  snoozedLines: {},
 };
 
 export const MODULE_OF: Record<NotificationType, NotificationModule> = Object.fromEntries(
@@ -156,6 +164,7 @@ export const TYPE_LABEL: Record<NotificationType, string> = {
   income_received: 'Income received',
   ready_to_pay: 'Ready to pay',
   month_review: 'New month to review',
+  items_to_check: 'Basket items to check',
   unassigned_transactions: 'Transactions without a basket',
   reconcile_mismatch: 'Balances to reconcile',
   debt_payment_due: 'Debt payments due',

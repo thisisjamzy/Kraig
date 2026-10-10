@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   Plus,
-  SlidersHorizontal,
   History,
   ArrowUpRight,
   ArrowDownLeft,
@@ -38,7 +37,6 @@ import webStyles from '@/src/phone/screens/Home/HomeScreen.web.module.css';
 // directly rather than duplicating them (same convention Budget's own
 // month-transactions panel already uses).
 import cardStyles from '@/src/phone/screens/TransactionHistory/TransactionHistoryScreen.module.css';
-import { HomeActionCards } from '@/src/phone/screens/Home/HomeActionCards';
 
 // A zeroed-out unaccounted balance is displayed as six asterisks rather than
 // "0" — a deliberate "nothing to see here" placeholder distinct from the
@@ -71,19 +69,6 @@ const MAX_STATS_SEGMENTS = 4;
 // own accent palette (Lunacy/Images/colors.png) rather than the generic
 // brand ramp, so the donut reads as part of this page's own color story.
 const STATS_CHART_COLORS = ['#0052ff', '#80b1ed', '#ed3e5a', '#5c5f82'];
-
-// Quick Actions' own icon-chip tints — a small local ramp built from the
-// Money redesign's palette (Lunacy/Images/colors.png), replacing the
-// generic app-wide iconTint() rotation so this page's icon chips read as
-// part of its own color story rather than the shared hue set every other
-// screen's badges cycle through.
-const QUICK_ACTION_TINTS = [
-  'var(--money-tint-blue)',
-  'color-mix(in srgb, var(--money-lime) 45%, transparent)',
-  'var(--money-tint-yellow)',
-  'color-mix(in srgb, var(--money-blue-soft) 30%, transparent)',
-  'color-mix(in srgb, var(--money-red) 14%, transparent)',
-];
 
 // Recent Transactions' own status dot (Lunacy/Images' own "Current
 // Priorities" colored-dot rows) — reads the icon useLogic/home already
@@ -153,7 +138,6 @@ export function HomeScreen() {
   }[] = [
     { label: strings.home.quickActionAddNew, icon: Plus, href: '/add-transaction' },
     { label: strings.home.quickActionHistory, icon: History, href: '/transactions' },
-    { label: strings.home.quickActionSeeBudget, icon: SlidersHorizontal, href: '/budget' },
     { label: strings.home.quickActionBuckets, icon: Target, href: '/baskets' },
     { label: strings.home.quickActionDebts, icon: CreditCard, href: '/debts' },
   ];
@@ -831,7 +815,6 @@ export function HomeScreen() {
     <div className={styles.page} ref={swipeRef}>
       <ScreenState loading={loading} error={error} />
 
-      {!loading && <HomeActionCards />}
 
       {renderBalanceCard()}
 
@@ -859,12 +842,9 @@ export function HomeScreen() {
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>{strings.home.quickActionsTitle}</h2>
         <div className={styles.quickActions}>
-          {quickActions.map(({ label, icon: Icon, href }, index) => (
+          {quickActions.map(({ label, icon: Icon, href }) => (
             <Link key={label} href={href} className={styles.quickAction}>
-              <span
-                className={styles.quickActionIcon}
-                style={{ background: QUICK_ACTION_TINTS[index % QUICK_ACTION_TINTS.length] }}
-              >
+              <span className={styles.quickActionIcon}>
                 <Icon size={18} strokeWidth={1.75} />
               </span>
               {label}
@@ -885,12 +865,13 @@ export function HomeScreen() {
 
         {wallets.length > 0 ? (
           <div className={styles.walletCardsRow} data-hscroll="true">
-            {wallets.map((wallet) => (
+            {wallets.map((wallet, index) => (
               <Link
                 key={wallet.id}
                 href={`/wallets/${wallet.id}`}
                 className={styles.walletCard}
-                style={{ background: wallet.color }}
+                // The style guide's light fills, in turn (HomeScreen.module.css).
+                data-tone={index % 3}
               >
                 <div className={styles.walletCardTop}>
                   <p className={styles.walletCardType}>{wallet.type}</p>

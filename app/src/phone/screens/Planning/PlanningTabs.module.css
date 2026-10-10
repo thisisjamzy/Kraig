@@ -33,7 +33,7 @@
   width: 260px;
   height: 260px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(59, 99, 240, 0.55) 0%, rgba(59, 99, 240, 0) 70%);
+  background: radial-gradient(circle, color-mix(in srgb, var(--sg-primary) 55%, transparent) 0%, transparent 70%);
   opacity: 0.3;
   pointer-events: none;
 }
@@ -121,11 +121,11 @@
   position: absolute;
   inset: 0 auto 0 0;
   border-radius: 999px;
-  background: #3b63f0;
+  background: var(--sg-primary);
 }
 
 .sumFill[data-tone='over'] {
-  background: #e04b5a;
+  background: var(--sg-destructive);
 }
 
 .sumMeta {
@@ -151,8 +151,8 @@
 }
 
 .sumChip[data-tone='blue'] {
-  background: rgba(59, 99, 240, 0.22);
-  color: #9fb3ff;
+  background: color-mix(in srgb, var(--sg-primary) 22%, transparent);
+  color: var(--sg-primary-light);
 }
 
 .sumChip[data-tone='grey'] {
@@ -161,8 +161,8 @@
 }
 
 .sumChip[data-tone='red'] {
-  background: rgba(224, 75, 90, 0.2);
-  color: #ff8a95;
+  background: color-mix(in srgb, var(--sg-destructive) 20%, transparent);
+  color: var(--sg-accent);
 }
 
 .leftRow {
@@ -188,7 +188,7 @@
 }
 
 .leftValue[data-tone='over'] {
-  color: #ff8a95;
+  color: var(--sg-accent);
 }
 
 .summaryButton {
@@ -199,7 +199,7 @@
   height: 46px;
   border-radius: 999px;
   background: #ffffff;
-  color: #1c1f3a;
+  color: var(--sg-neutral-900);
   font-size: 0.875rem;
   font-weight: 700;
   text-decoration: none;
@@ -207,7 +207,7 @@
 
 .summaryButton:focus-visible,
 .currencyChip:focus-visible {
-  outline: 2px solid #6f8dff;
+  outline: 2px solid var(--sg-primary);
   outline-offset: 2px;
 }
 
@@ -450,7 +450,7 @@
 }
 
 .calDay[data-outside] {
-  color: #3d404a;
+  color: var(--sg-neutral-700);
   cursor: default;
 }
 
@@ -474,12 +474,12 @@
   width: 12px;
   height: 2px;
   border-radius: 1px;
-  background: #3b63f0;
+  background: var(--sg-primary);
   transform: translateX(-50%);
 }
 
 .calDay[aria-pressed='true'] .calNum {
-  background: #3b63f0;
+  background: var(--sg-primary);
   font-weight: 700;
 }
 
@@ -488,7 +488,7 @@
 }
 
 .calDay:focus-visible .calNum {
-  outline: 2px solid #6f8dff;
+  outline: 2px solid var(--sg-primary);
   outline-offset: 1px;
 }
 
@@ -503,17 +503,17 @@
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: #3b63f0;
+  background: var(--sg-primary);
 }
 
 .calDots span[data-status='paid'],
 .calLegend span[data-status='paid'] {
-  background: #35c07f;
+  background: var(--sg-primary);
 }
 
 .calDots span[data-status='overdue'],
 .calLegend span[data-status='overdue'] {
-  background: #e04b5a;
+  background: var(--sg-destructive);
 }
 
 .calLegend {
@@ -948,8 +948,8 @@
 }
 
 .needChip[data-need='must'] {
-  background: #fdf3e2;
-  color: #9a6a14;
+  background: var(--sg-accent);
+  color: var(--sg-primary-dark);
 }
 
 .needChip[data-need='nice'] {

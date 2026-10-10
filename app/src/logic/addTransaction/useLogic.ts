@@ -686,7 +686,9 @@ export function useLogic() {
           linkedBucketItem.goalId,
           linkedBucketItem.itemId,
           Number(amountString),
-          Number(amountString) >= linkedBucketItem.amount,
+          // Fully paid only when this clears what's still due on the line
+          // this month (what was paid before counts), never on a part.
+          Number(amountString) >= (linkedEntry ? Math.max(0, linkedEntry.available - linkedEntry.actual) : linkedBucketItem.amount) - 0.5,
           {
             occurrenceMonth: linkedBucketItem.occurrenceMonth,
             accountId: fromAccountId,

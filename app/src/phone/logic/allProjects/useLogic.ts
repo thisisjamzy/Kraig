@@ -70,9 +70,9 @@ export function projectFields(areas: { id: string; name: string }[]): FieldDef<P
       type: 'select',
       get: (p) => p.status,
       options: [
-        { value: 'active', label: 'Active', color: '#3b63f0' },
-        { value: 'completed', label: 'Completed', color: '#2fa36b' },
-        { value: 'archived', label: 'Archived', color: '#8b90a0' },
+        { value: 'active', label: 'Active', color: styleGuide.brand.primary },
+        { value: 'completed', label: 'Completed', color: styleGuide.brand.primaryDark },
+        { value: 'archived', label: 'Archived', color: styleGuide.neutrals[400] },
       ],
     },
     { id: 'progress', label: 'Progress %', type: 'number', get: (p) => p.progress },
@@ -87,9 +87,9 @@ export function projectFields(areas: { id: string; name: string }[]): FieldDef<P
       type: 'select',
       get: (p) => p.health,
       options: [
-        { value: 'at risk', label: 'At risk', color: '#e04b5a' },
-        { value: 'watch', label: 'Watch', color: '#d98a1c' },
-        { value: 'on track', label: 'On track', color: '#2fa36b' },
+        { value: 'at risk', label: 'At risk', color: styleGuide.destructive },
+        { value: 'watch', label: 'Watch', color: styleGuide.brand.accent },
+        { value: 'on track', label: 'On track', color: styleGuide.brand.primary },
       ],
     },
     {
@@ -104,6 +104,7 @@ export function projectFields(areas: { id: string; name: string }[]): FieldDef<P
   ];
 }
 import { useGoBack } from '@/src/shared/navigation/useGoBack';
+import { styleGuide } from '@/src/styles/tokens/styleGuide';
 
 export function useLogic() {
   const router = useRouter();

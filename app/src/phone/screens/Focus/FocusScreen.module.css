@@ -5,25 +5,20 @@
 
 .page {
   --f-card: var(--color-background);
-  --f-shadow: 0 1px 2px rgba(31, 36, 48, 0.04), 0 10px 30px rgba(61, 90, 160, 0.08);
-  --tint-red: #e5484d;
-  --tint-blue: #3d7be8;
-  --tint-peach: #e8873a;
-  --tint-pink: #d6409f;
-  --tint-grey: #8b90a0;
-  --tint-green: #2f9e6b;
+  /* Cards have a border, not a shadow (the style guide). */
+  --f-shadow: 0 0 0 1px var(--sg-neutral-200);
+  --tint-red: var(--sg-destructive);
+  --tint-blue: var(--sg-primary);
+  --tint-peach: var(--sg-accent);
+  --tint-pink: var(--sg-primary-dark);
+  --tint-grey: var(--sg-neutral-400);
+  --tint-green: var(--sg-primary);
   min-height: 100%;
   --screen-header-bg: transparent;
   padding: 0 var(--space-lg) 96px;
-  background: linear-gradient(180deg, #efeaff 0%, #e6f1ff 100%);
+  background: linear-gradient(180deg, var(--sg-primary-light) 0%, var(--sg-primary-light) 100%);
   font-family: var(--font-family-heading);
   color: var(--color-text-primary);
-}
-
-:global([data-theme='dark']) .page {
-  --f-card: var(--color-surface);
-  --f-shadow: none;
-  background: var(--color-page);
 }
 
 /* ---- Header: menu · title · new, one row ---- */

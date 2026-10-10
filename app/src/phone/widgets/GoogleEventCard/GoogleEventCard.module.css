@@ -9,15 +9,10 @@
   padding: 12px var(--space-md);
   border-radius: var(--radius-lg);
   background: var(--color-background);
-  box-shadow: 0 1px 2px rgba(27, 27, 57, 0.04), 0 6px 18px rgba(27, 27, 57, 0.05);
+  box-shadow: 0 0 0 1px var(--sg-neutral-200);
   color: inherit;
   font-family: var(--font-family-body);
   text-decoration: none;
-}
-
-:global([data-theme='dark']) .card {
-  background: var(--color-surface);
-  box-shadow: none;
 }
 
 .card:focus-visible {

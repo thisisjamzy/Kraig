@@ -1,23 +1,24 @@
-/* Finance Insights (Money mode). Brand: blue #3B63F0, navy #1C1F3A, light
-   background #F5F8FE, white rounded cards; red #E04B5A only for problems.
+/* Finance Insights (Money mode), in the style guide's colours
+   (docs/STYLE-MIGRATION.md): primary, primary dark, neutral 50 background,
+   white rounded cards; the guide's red only for problems.
    Sits under AppHeader, which already clears the safe area. */
 
 .page {
-  --fi-blue: #3b63f0;
-  --fi-navy: #1c1f3a;
-  --fi-bg: #f5f8fe;
+  --fi-blue: var(--sg-primary);
+  --fi-navy: var(--sg-primary-dark);
+  --fi-bg: var(--sg-neutral-50);
   --fi-card: #ffffff;
-  --fi-red: #e04b5a;
-  --fi-red-tint: #fdecee;
-  --fi-green: #2fa36b;
-  --fi-green-tint: #e4f5ec;
-  --fi-amber: #d98a1c;
-  --fi-amber-tint: #fdf3e2;
-  --fi-blue-tint: #e8eeff;
-  --fi-muted: #6b7085;
-  --fi-light: #a3a8b8;
-  --fi-track: #e7eaf3;
-  --fi-grid: #edf0f6;
+  --fi-red: var(--sg-destructive);
+  --fi-red-tint: var(--sg-neutral-100);
+  --fi-green: var(--sg-primary);
+  --fi-green-tint: var(--sg-primary-light);
+  --fi-amber: var(--sg-accent);
+  --fi-amber-tint: var(--sg-accent);
+  --fi-blue-tint: var(--sg-primary-light);
+  --fi-muted: var(--sg-neutral-600);
+  --fi-light: var(--sg-neutral-400);
+  --fi-track: var(--sg-neutral-200);
+  --fi-grid: var(--sg-neutral-200);
   --fi-shadow: 0 1px 2px rgba(28, 31, 58, 0.04), 0 8px 24px rgba(28, 31, 58, 0.05);
   display: flex;
   flex-direction: column;
@@ -25,7 +26,7 @@
   min-height: 100%;
   padding: 4px var(--space-lg) 32px;
   background: var(--fi-bg);
-  color: var(--fi-navy);
+  color: var(--sg-neutral-900);
   font-family: var(--font-family-body);
 }
 
@@ -74,7 +75,7 @@
   border: none;
   border-radius: 50%;
   background: var(--fi-card);
-  color: var(--fi-navy);
+  color: var(--sg-neutral-900);
   box-shadow: var(--fi-shadow);
   cursor: pointer;
 }
@@ -199,7 +200,7 @@
   border: 1px solid var(--fi-track);
   border-radius: 12px;
   background: var(--fi-card);
-  color: var(--fi-navy);
+  color: var(--sg-neutral-900);
   font-family: inherit;
   font-size: 16px;
 }
@@ -485,7 +486,7 @@
 }
 
 .statusChip[data-status='watch'] {
-  --tone: #b06f10;
+  --tone: var(--sg-accent);
   --tint: var(--fi-amber-tint);
 }
 
@@ -534,7 +535,7 @@
 }
 
 .rating strong {
-  color: var(--fi-navy);
+  color: var(--sg-neutral-900);
 }
 
 .trendFigures {
@@ -634,7 +635,7 @@
 
 .alertText strong {
   font-size: 0.875rem;
-  color: var(--fi-navy);
+  color: var(--sg-neutral-900);
 }
 
 .alertLevel {
@@ -1000,7 +1001,7 @@
   border: 2px solid transparent;
   border-radius: 14px;
   background: var(--fi-red-tint);
-  color: var(--fi-navy);
+  color: var(--sg-neutral-900);
   font-family: inherit;
   font-size: 0.6875rem;
   text-align: left;
@@ -1086,7 +1087,7 @@
   border-radius: 14px;
   background: var(--fi-amber-tint);
   font-size: 0.8125rem;
-  color: #8a5a12;
+  color: var(--sg-primary-dark);
 }
 
 /* ---- Forecast ---- */
@@ -1102,7 +1103,7 @@
   padding: 6px 10px;
   border-radius: 10px;
   background: var(--fi-amber-tint);
-  color: #8a5a12;
+  color: var(--sg-primary-dark);
   font-size: 0.75rem;
   font-weight: 600;
 }
@@ -1453,7 +1454,7 @@ tr[data-short] .gapCell span {
   font-family: var(--font-family-heading);
   font-size: 1.0625rem;
   font-weight: 800;
-  color: var(--fi-navy);
+  color: var(--sg-neutral-900);
   text-transform: capitalize;
 }
 
@@ -1487,7 +1488,7 @@ tr[data-short] .gapCell span {
   border: 2px solid transparent;
   border-radius: 8px;
   background: color-mix(in srgb, var(--fi-blue) calc(var(--level) * 100%), var(--fi-bg));
-  color: var(--fi-navy);
+  color: var(--sg-neutral-900);
   font-family: inherit;
   font-size: 0.6875rem;
   font-weight: 600;

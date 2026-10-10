@@ -35,8 +35,8 @@
 }
 
 .icon[data-severity='warning'] {
-  background: rgba(183, 121, 31, 0.14);
-  color: #b7791f;
+  background: var(--sg-accent);
+  color: var(--sg-primary-dark);
 }
 
 .icon[data-severity='positive'] {
@@ -95,6 +95,11 @@
   align-items: flex-start;
 }
 
+/* Scoped so it wins over Planning's own .row padding. */
+.cards .row {
+  padding-inline: var(--space-lg);
+}
+
 /* The filter row: All, Money, Time, Unread (BASELINE chips). */
 .filters {
   display: flex;
@@ -126,18 +131,20 @@
 
 /* One solid card per notification; the swipe actions sit behind it and
    only show while it's dragged. */
+/* Each notification runs the full screen width: out past the page's side
+   padding, square, one line between them, the content in line with the
+   page's own margin. */
 .cards {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  margin-inline: calc(-1 * var(--space-lg));
+  border-top: 1px solid var(--sg-neutral-200);
 }
 
 .swipe {
-  border-radius: 20px;
-  box-shadow: var(--p-shadow);
+  border-bottom: 1px solid var(--sg-neutral-200);
 }
 
 .card {
-  border-radius: 20px;
   background: var(--p-card);
 }

@@ -75,10 +75,6 @@
   touch-action: pan-y;
 }
 
-:global([data-theme='dark']) .calendarPanel {
-  background: var(--color-surface);
-}
-
 .weekdays,
 .grid {
   display: grid;
