@@ -930,6 +930,12 @@ export interface FirestoreReconciliation {
   reportedBalances: Record<string, number>; // accountId -> what the person entered
   ledgerBalancesAtTime: Record<string, number>; // accountId -> currentBalance read at the same moment
   totalGap: number; // signed: total ledger minus total reported
+  // yyyy-MM the check was done in, and the Unjustified wallet before and
+  // after it (earlier gaps not yet explained, then plus this gap). Absent
+  // on checks saved before these existed.
+  month?: string;
+  unaccountedBefore?: number;
+  unaccountedAfter?: number;
   notes: string;
 }
 

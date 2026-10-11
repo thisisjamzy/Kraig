@@ -29,8 +29,11 @@ export function useHistoryTab(month: string, data: PlanningData, bucket: string 
       data.justifications,
       { itemsByBucket: data.itemsByBucket, accounts, ctx }
     );
-    return [...buildRows(transactions, transfers, { accounts, categories, budget, bucketName, ctx }), ...adjustmentRows(moves, month, bucketName)];
-  }, [transactionsById, transfersById, month, accounts, categories, budget, bucketName, ctx, data.allocations, data.justifications, data.itemsByBucket]);
+    const all = [...buildRows(transactions, transfers, { accounts, categories, budget, bucketName, ctx }), ...adjustmentRows(moves, month, bucketName)];
+    // A basket's "See all": only that basket's transactions, whatever the
+    // saved list setup (the filter below may load after the saved one).
+    return bucket ? all.filter((r) => r.bucketId === bucket) : all;
+  }, [transactionsById, transfersById, month, accounts, categories, budget, bucketName, ctx, data.allocations, data.justifications, data.itemsByBucket, bucket]);
 
   const fields = useMemo(
     () =>

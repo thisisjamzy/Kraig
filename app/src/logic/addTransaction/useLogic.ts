@@ -8,6 +8,7 @@ import { useFirestoreCollection, useFirestoreDoc } from '@/src/shared/firestore/
 import { categoryRef, bucketsRef, transactionTemplateRef, unjustifiedWalletRef } from '@/src/shared/firestore/refs';
 import { useAccounts, useCategories, useCurrencyContext } from '@/src/shared/firestore/queries';
 import { itemCurrencyOf, toDisplay } from '@/src/shared/firestore/currency';
+import { useMonthUnaccounted } from '@/src/shared/hooks/useMonthUnaccounted';
 import { createDebt, createTransferWithAggregation, recordBucketLineItemPayment } from '@/src/shared/firestore/aggregation';
 import { inferIncomeSubtype, type IncomeSubtype } from '@/src/shared/budget/flow';
 import { recordHistoricEntry } from '@/src/shared/firestore/unaccountedBalance';
@@ -200,7 +201,9 @@ export function useLogic() {
   // nonzero balance to explain. Reset whenever the date or type changes
   // away from where the toggle would even apply, so a leftover checked
   // state can't silently apply to an unrelated entry.
-  const [explainsUnjustifiedBalance, setExplainsUnjustifiedBalance] = useState(false);
+  // null: the suggestion below decides (on for an entry dated before a
+  // check done in its own month); true or false once chosen.
+  const [explainsChoice, setExplainsUnjustifiedBalance] = useState<boolean | null>(null);
   const unjustifiedWalletDocRef = useMemo(() => (uid ? unjustifiedWalletRef(uid) : null), [uid]);
   const { data: unjustifiedWallet } = useFirestoreDoc<FirestoreAccount>(unjustifiedWalletDocRef);
   const unjustifiedBalance = unjustifiedWallet?.currentBalance ?? 0;
@@ -533,7 +536,7 @@ export function useLogic() {
     setCategory(key === 'savings' ? 'Wallet to savings' : '');
     setShowUnplanned(false);
     setChargesString('');
-    setExplainsUnjustifiedBalance(false);
+    setExplainsUnjustifiedBalance(null);
     setLinkedBucketItemId('');
     setBasketChoice('');
   }
@@ -542,7 +545,7 @@ export function useLogic() {
     setSavingsModeState(mode);
     setCategory(mode === 'moved' ? 'Wallet to savings' : '');
     setShowUnplanned(false);
-    setExplainsUnjustifiedBalance(false);
+    setExplainsUnjustifiedBalance(null);
     setLinkedBucketItemId('');
   }
 
@@ -560,7 +563,7 @@ export function useLogic() {
 
   function chooseDate(iso: string) {
     setDateValue(iso);
-    if (iso === todayIso()) setExplainsUnjustifiedBalance(false);
+    setExplainsUnjustifiedBalance(null);
     // Don't silently keep an out-of-budget selection across a date change —
     // clear it and send the user back to re-pick, same as if they'd never
     // chosen one. Unplanned mode is exempt: it opted out of the budget
@@ -629,6 +632,15 @@ export function useLogic() {
     dateValue !== todayIso() &&
     unjustifiedBalance !== 0 &&
     (unjustifiedBalance > 0 ? type === 'expense' || type === 'savings' : type === 'income');
+  // The month the entry is dated in: what its checks recorded as
+  // unaccounted. An expense dated before one of those checks most likely
+  // is part of the gap it found, so it's suggested as paid from it.
+  const monthUnaccountedState = useMonthUnaccounted(dateMonthKey);
+  const entryDate = new Date(`${dateValue}T23:59:59`);
+  const suggestExplains = Boolean(
+    canExplainUnjustifiedBalance && monthUnaccountedState.unaccounted > 0 && monthUnaccountedState.lastCheckAt && entryDate <= monthUnaccountedState.lastCheckAt
+  );
+  const explainsUnjustifiedBalance = explainsChoice ?? suggestExplains;
 
   async function handleConfirm() {
     if (submitting) return;
@@ -843,7 +855,9 @@ export function useLogic() {
     toAccountId,
     canExplainUnjustifiedBalance,
     explainsUnjustifiedBalance,
-    setExplainsUnjustifiedBalance,
+    setExplainsUnjustifiedBalance: (on: boolean) => setExplainsUnjustifiedBalance(on),
+    /** What the entry's month's checks recorded as unaccounted, for the switch's hint. */
+    monthUnaccounted: monthUnaccountedState,
     unjustifiedBalance,
     canContinue,
     selectType,

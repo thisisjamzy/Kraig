@@ -109,3 +109,11 @@
 .numCol {
   text-align: right;
 }
+
+/* A heading per month: checks and what they recorded as unaccounted. */
+.monthHead {
+  margin: var(--space-md) 0 0;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}

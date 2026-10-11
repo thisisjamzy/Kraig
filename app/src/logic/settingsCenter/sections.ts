@@ -10,6 +10,7 @@ export type SettingsSection =
   | 'budget'
   | 'work'
   | 'data'
+  | 'tools'
   | 'about';
 
 export const SETTINGS_GROUPS: { label: string; sections: { id: SettingsSection; label: string; description: string }[] }[] = [
@@ -30,7 +31,13 @@ export const SETTINGS_GROUPS: { label: string; sections: { id: SettingsSection; 
     ],
   },
   { label: 'Time', sections: [{ id: 'work', label: 'Work hours and tasks', description: 'Working hours, daily capacity and task defaults.' }] },
-  { label: 'Data', sections: [{ id: 'data', label: 'Import and export', description: 'Spreadsheets in, CSV and JSON out, and data tools.' }] },
+  {
+    label: 'Data',
+    sections: [
+      { id: 'data', label: 'Import and export', description: 'Spreadsheets in, CSV and JSON out.' },
+      { id: 'tools', label: 'Tools', description: 'Categories, templates, reconciliation, audits and backfill.' },
+    ],
+  },
   { label: '', sections: [{ id: 'about', label: 'About', description: 'Version, terms, privacy and support.' }] },
 ];
 

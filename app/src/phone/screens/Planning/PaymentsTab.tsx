@@ -17,6 +17,7 @@ import { payHref, usePaymentsTab, type MonthPayment } from '@/src/logic/planning
 import type { PlanningData } from '@/src/logic/planning/useLogic';
 import { dayMonth, money, monthTitle } from '@/src/viewmodels/planning';
 import { IconCircle } from '@/src/phone/screens/Planning/PlanningParts';
+import { showToast } from '@/src/widgets/Toast/Toast';
 import { MoneyCard } from '@/src/phone/screens/Planning/MinimalParts';
 import m from '@/src/phone/screens/Planning/Minimal.module.css';
 
@@ -34,7 +35,7 @@ function addDays(d: Date, n: number) {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
 }
 
-function PaymentRow({ payment, month }: { payment: MonthPayment; month: string }) {
+function PaymentRow({ payment, month, onClose }: { payment: MonthPayment; month: string; onClose: (payment: MonthPayment) => void }) {
   const paid = payment.status === 'paid';
   const line = [dayMonth(payment.due), payment.method, payment.bucketName].filter(Boolean).join(' · ');
   return (
@@ -51,6 +52,12 @@ function PaymentRow({ payment, month }: { payment: MonthPayment; month: string }
           </span>
         </span>
       </Link>
+      {/* Part paid, and the cost turned out lower: close it at what was paid. */}
+      {!paid && payment.paid > 0 && (
+        <button type="button" className={m.action} onClick={() => onClose(payment)} aria-label={`Close ${payment.name} for the month at ${money(payment.paid)}`}>
+          Close
+        </button>
+      )}
       {!paid && (
         <Link className={m.action} href={payHref(payment, month)}>
           Pay
@@ -240,7 +247,7 @@ export function PaymentsTab({
                 </div>
                 <div className={m.list}>
                   {group.rows.map((payment) => (
-                    <PaymentRow key={payment.id} payment={payment} month={month} />
+                    <PaymentRow key={payment.id} payment={payment} month={month} onClose={(x) => void p.closeAtPaid(x).then((message) => message && showToast(message))} />
                   ))}
                 </div>
               </section>

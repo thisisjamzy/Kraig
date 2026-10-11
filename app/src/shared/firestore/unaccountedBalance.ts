@@ -74,6 +74,9 @@ export interface ReconciliationResult {
   totalLedger: number;
   totalReported: number;
   totalGap: number;
+  /** Unaccounted before this check (earlier gaps not yet explained), and after it. */
+  unaccountedBefore: number;
+  unaccountedAfter: number;
 }
 
 /**
@@ -102,7 +105,10 @@ export async function performReconciliation(
   uid: string,
   reportedBalances: Record<string, number>
 ): Promise<ReconciliationResult> {
-  const accountsSnap = await getDocs(accountsRef(uid));
+  // What was already unaccounted for before this check: earlier gaps not
+  // yet explained. Stored with the check, so each one says where it started.
+  const [accountsSnap, unjustifiedSnap] = await Promise.all([getDocs(accountsRef(uid)), getDoc(unjustifiedWalletRef(uid))]);
+  const unaccountedBefore = round2(unjustifiedSnap.data()?.currentBalance ?? 0);
   const realWallets = accountsSnap.docs
     .map((d) => ({ ...d.data(), id: d.id }) as FirestoreAccount)
     .filter((a) => !a.archived && !a.isSystemWallet);
@@ -124,17 +130,21 @@ export async function performReconciliation(
     batch.update(accountRef(uid, wallet.id), { currentBalance: round2(reported), updatedAt: serverTimestamp() });
   }
   batch.update(unjustifiedWalletRef(uid), { currentBalance: increment(totalGap), updatedAt: serverTimestamp() });
+  const now = new Date();
   batch.set(reconciliationRef(uid, crypto.randomUUID()), {
     uid,
     performedAt: serverTimestamp(),
+    month: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`,
     reportedBalances,
     ledgerBalancesAtTime,
     totalGap,
+    unaccountedBefore,
+    unaccountedAfter: round2(unaccountedBefore + totalGap),
     notes: '',
   });
   await batch.commit();
 
-  return { totalLedger: round2(totalLedger), totalReported: round2(totalReported), totalGap };
+  return { totalLedger: round2(totalLedger), totalReported: round2(totalReported), totalGap, unaccountedBefore, unaccountedAfter: round2(unaccountedBefore + totalGap) };
 }
 
 export async function listReconciliations(uid: string, take = 50): Promise<FirestoreReconciliation[]> {

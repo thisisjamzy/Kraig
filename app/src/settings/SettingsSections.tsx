@@ -118,6 +118,7 @@ export function SettingsSectionView({ id, v, showTitle = true }: { id: SettingsS
       {id === 'budget' && <Budget v={v} />}
       {id === 'work' && <Work v={v} />}
       {id === 'data' && <Data />}
+      {id === 'tools' && <Tools />}
       {id === 'about' && <About />}
     </div>
   );
@@ -477,7 +478,14 @@ function Data() {
           </span>
         </Row>
       </Group>
-      <Group title="Tools">
+    </>
+  );
+}
+
+function Tools() {
+  return (
+    <>
+      <Group>
         {[
           { href: '/categories', label: 'Categories', description: 'Expense, income and savings categories.' },
           { href: '/transaction-templates', label: 'Transaction templates', description: 'Saved transactions you record often.' },

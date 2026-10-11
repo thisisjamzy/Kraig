@@ -15,6 +15,8 @@
 
 import { useMemo } from 'react';
 import { basketList, monthSummary } from '@/src/logic/planning/basketList';
+import { unhealthySpend } from '@/src/shared/budget/unaccounted';
+import { useMonthUnaccounted } from '@/src/shared/hooks/useMonthUnaccounted';
 import type { PlanningData } from '@/src/logic/planning/useLogic';
 import { BasketGroups, BudgetCard } from '@/src/phone/screens/Planning/MinimalParts';
 import m from '@/src/phone/screens/Planning/Minimal.module.css';
@@ -22,10 +24,13 @@ import m from '@/src/phone/screens/Planning/Minimal.module.css';
 export function BudgetTab({ month, data }: { month: string; data: PlanningData }) {
   const groups = useMemo(() => basketList(data.budget, data.buckets, new Date()), [data.budget, data.buckets]);
   const summary = monthSummary(data.totals);
+  // The month's unhealthy spend: unplanned spending plus unaccounted money.
+  const unaccounted = useMonthUnaccounted(month);
+  const unhealthy = { ...unhealthySpend(data.budget.flows.unplannedSpent, unaccounted.unaccounted), checks: unaccounted.checks };
 
   return (
     <>
-      <BudgetCard summary={summary} totals={data.totals} currency={data.ctx.display} month={month} />
+      <BudgetCard summary={summary} totals={data.totals} currency={data.ctx.display} month={month} unhealthy={unhealthy} />
 
       {groups.length === 0 ? (
         <div className={`${m.bleed} ${m.section}`}>
