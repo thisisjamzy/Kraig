@@ -110,6 +110,20 @@ export function ReconciliationScreen() {
                   {formatAmount(liveGap)} {currency}
                 </span>
               </div>
+              {/* What was already unaccounted before this check is kept: this
+                  gap is added to it, never in place of it. */}
+              <div className={styles.totalsRow}>
+                <span>Already unaccounted for</span>
+                <span>
+                  {formatAmount(unaccountedBalance)} {currency}
+                </span>
+              </div>
+              <div className={styles.totalsRow}>
+                <span>Unaccounted for after this check</span>
+                <span className={unaccountedBalance + liveGap === 0 ? undefined : styles.gapHighlight}>
+                  {formatAmount(unaccountedBalance + liveGap)} {currency}
+                </span>
+              </div>
 
               {saveError && <p className={styles.errorText}>{saveError}</p>}
 

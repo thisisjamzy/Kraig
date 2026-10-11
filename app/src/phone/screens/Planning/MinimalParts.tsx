@@ -120,6 +120,10 @@ export const INFO = {
     title: 'Pace',
     text: 'What’s left, divided by the days left in the month, today included. Spend about this much a day to finish on plan.',
   },
+  unhealthySpend: {
+    title: 'Unhealthy spend',
+    text: 'Spending no basket planned, plus money unaccounted for: the gaps your reconciliations found this month, minus what you have since explained as past expenses. It is money that went somewhere you did not choose.',
+  },
   byMonthEnd: {
     title: 'By month end',
     text: 'Available now plus the income still expected this month. An estimate: it assumes that income arrives.',
@@ -275,7 +279,20 @@ export function MoneyCard({
 }
 
 /** Budget tab: the main figure is the month's total budgeted; Details opens the full breakdown. */
-export function BudgetCard({ summary, totals, currency, month }: { summary: MonthSummary; totals: MonthTotals; currency: string; month: string }) {
+export function BudgetCard({
+  summary,
+  totals,
+  currency,
+  month,
+  unhealthy,
+}: {
+  summary: MonthSummary;
+  totals: MonthTotals;
+  currency: string;
+  month: string;
+  /** Unplanned spending and unaccounted money (src/shared/budget/unaccounted.ts). */
+  unhealthy?: { unplanned: number; unaccounted: number; total: number; checks: number };
+}) {
   const [details, setDetails] = useState(false);
   const pair = (actual: number, planned: number) => `${money(actual)} / ${money(planned)}`;
   const monthName = monthTitle(month).split(' ')[0];
@@ -330,6 +347,22 @@ export function BudgetCard({ summary, totals, currency, month }: { summary: Mont
             >
               {money(totals.availableByMonthEnd)}
             </SheetRow>
+            {unhealthy && (
+              <>
+                <SheetRow label="Unplanned spending">{money(unhealthy.unplanned)}</SheetRow>
+                <SheetRow label={`Unaccounted for · ${unhealthy.checks} ${unhealthy.checks === 1 ? 'check' : 'checks'}`}>{money(unhealthy.unaccounted)}</SheetRow>
+                <SheetRow
+                  label={
+                    <>
+                      Unhealthy spend <InfoButton topic="unhealthySpend" />
+                    </>
+                  }
+                  tone={unhealthy.total > 0.5 ? 'problem' : undefined}
+                >
+                  {money(unhealthy.total)}
+                </SheetRow>
+              </>
+            )}
           </div>
         </Sheet>
       )}

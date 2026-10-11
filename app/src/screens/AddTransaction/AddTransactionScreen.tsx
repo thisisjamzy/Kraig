@@ -21,7 +21,6 @@ import {
   FieldRow,
   FormFrame,
   ListSelectField,
-  MoreOptions,
   SegmentedField,
   SelectField,
   SwitchField,
@@ -35,6 +34,8 @@ const INCOME_SUBTYPES: { value: IncomeSubtype; label: string }[] = [
   { value: 'other', label: 'Other' },
   { value: 'debt_financing', label: 'Borrowed' },
 ];
+const MONTH_WORDS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const monthWord = (iso: string) => MONTH_WORDS[Number(iso.slice(5, 7)) - 1] ?? '';
 const SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 export function AddTransactionScreen() {
@@ -180,15 +181,20 @@ export function AddTransactionScreen() {
             <input className={ff.input} value={v.description} onChange={(e) => v.setDescription(e.target.value)} placeholder={t.descriptionPlaceholder} />
           </FieldCard>
 
+          {/* A past entry can come out of the money reconciliations found
+              missing ("unaccounted for"): suggested when it's dated before a
+              check done in its own month. */}
           {v.canExplainUnjustifiedBalance && (
-            <MoreOptions defaultOpen>
-              <SwitchField
-                label={t.explainUnjustifiedLabel}
-                description={`${t.explainUnjustifiedHint} ${formatMoney(String(Math.abs(v.unjustifiedBalance)))}`}
-                checked={v.explainsUnjustifiedBalance}
-                onChange={v.setExplainsUnjustifiedBalance}
-              />
-            </MoreOptions>
+            <SwitchField
+              label={v.type === 'income' ? t.explainUnjustifiedIncomeLabel : t.explainUnjustifiedLabel}
+              description={
+                v.monthUnaccounted.checks > 0
+                  ? `${monthWord(v.dateValue)}: ${formatMoney(String(v.monthUnaccounted.unaccounted))} still unaccounted for after ${v.monthUnaccounted.checks} ${v.monthUnaccounted.checks === 1 ? 'check' : 'checks'}. ${t.explainUnjustifiedHint} ${formatMoney(String(Math.abs(v.unjustifiedBalance)))}.`
+                  : `${t.explainUnjustifiedHint} ${formatMoney(String(Math.abs(v.unjustifiedBalance)))}.`
+              }
+              checked={v.explainsUnjustifiedBalance}
+              onChange={v.setExplainsUnjustifiedBalance}
+            />
           )}
         </>
       )}

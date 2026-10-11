@@ -548,6 +548,27 @@
   margin-top: 4px;
 }
 
+/* The Budget page's month and tabs stay in view: fixed under the app
+   header, on the page's own background, full width. A tab's own sticky
+   toolbar (History's filters and summary) sits just under it:
+   --planning-head is this row's height. */
+.stickyHead {
+  position: sticky;
+  top: var(--header-height);
+  z-index: 15;
+  height: var(--planning-head);
+  margin: 0 calc(-1 * var(--space-lg));
+  padding: 6px var(--space-lg);
+  background: var(--p-bg);
+}
+
+.headLeft {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
 .monthWrap {
   position: relative;
   min-width: 0;

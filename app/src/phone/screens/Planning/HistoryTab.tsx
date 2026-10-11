@@ -8,7 +8,8 @@ import type { PlanningData } from '@/src/logic/planning/useLogic';
 import { HistoryView } from '@/src/phone/screens/Planning/HistoryView';
 
 // Pinned under the app bar.
-const STICKY_TOP = 'var(--header-height)';
+// Under the app header and the Budget page's fixed month and tabs row.
+const STICKY_TOP = 'calc(var(--header-height) + var(--planning-head))';
 
 export function HistoryTab({
   month,

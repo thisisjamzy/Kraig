@@ -7,7 +7,7 @@
 //   1. Name
 //   2. Amount, then Kind (Payment, Allowance, Set aside) or, for income,
 //      Comes in as (Lump sum, Trickle)
-//   3. Category | Need
+//   3. Category, then Need (each on its own row)
 //   4. Priority
 //   5. Repeats | Due day
 //   6. Paid from (an account, any income, one income line, or savings)
@@ -88,7 +88,8 @@ function isoOf(date: Date) {
 export function BasketItemForm({ goalId, itemId }: { goalId: string; itemId?: string }) {
   const router = useRouter();
   const v = useLogic(goalId);
-  const basketHref = `/baskets/${goalId}`;
+  // The basket's page (the month view), not the older /baskets/<id> page.
+  const basketHref = `/budget/basket/${goalId}`;
   const exits = useFormExits({ close: () => router.replace(basketHref) });
 
   // Seed the form once the item (if any) has loaded: during render, the
@@ -235,8 +236,9 @@ export function BasketItemForm({ goalId, itemId }: { goalId: string; itemId?: st
             )
           )}
 
+          {/* Category and Need each on a row of their own. */}
           {v.hasNeed ? (
-            <FieldRow>
+            <>
               <SelectField
                 label="Category"
                 value={v.itemCategoryId}
@@ -250,7 +252,7 @@ export function BasketItemForm({ goalId, itemId }: { goalId: string; itemId?: st
                 onChange={v.setItemNecessity}
                 options={NECESSITY_OPTIONS.map((n) => ({ value: n, label: NECESSITY_LABEL[n] }))}
               />
-            </FieldRow>
+            </>
           ) : (
             <SelectField
               label={transfer ? 'Transfer type' : 'Category'}
@@ -357,7 +359,8 @@ export function BasketItemForm({ goalId, itemId }: { goalId: string; itemId?: st
                 <input type="date" className={ff.input} value={v.itemNeededBy} onChange={(e) => v.setItemNeededBy(e.target.value)} />
               </FieldCard>
             </FieldRow>
-            <SwitchField label="Splittable" description="Can be paid in several parts." checked={v.itemSplittable} onChange={v.setItemSplittable} />
+            {/* Income that trickles in already arrives in parts: no second switch for it. */}
+            {!trickle && <SwitchField label="Splittable" description="Can be paid in several parts." checked={v.itemSplittable} onChange={v.setItemSplittable} />}
             <div className={styles.list}>
               <span className={styles.listHead}>
                 <span>Shopping list</span>

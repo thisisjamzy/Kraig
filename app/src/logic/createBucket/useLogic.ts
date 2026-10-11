@@ -168,8 +168,8 @@ export function useLogic(basketId: string | null = null) {
         router.replace(peek ? formLink('basket-item', { basket: id }) : formPageHref('basket-item', { basket: id }), { scroll: false });
         return;
       }
-      finish(`/baskets/${id}`);
-      if (peek && !basketId) router.push(`/baskets/${id}`);
+      finish(`/budget/basket/${id}`);
+      if (peek && !basketId) router.push(`/budget/basket/${id}`);
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : editing ? 'Could not save this basket.' : 'Could not create this basket.');
       setSaving(false);
@@ -180,7 +180,7 @@ export function useLogic(basketId: string | null = null) {
   // when there's no history (src/shared/navigation/useGoBack.ts).
   const navigateBack = useGoBack();
   function goBack() {
-    navigateBack(basketId ? `/baskets/${basketId}` : '/baskets');
+    navigateBack(basketId ? `/budget/basket/${basketId}` : '/baskets');
   }
 
   return {

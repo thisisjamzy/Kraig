@@ -18,11 +18,10 @@
   cursor: pointer;
 }
 
+/* Fixed, at the end of <body>; ActionMenu.tsx sets where. */
 .popover {
-  position: absolute;
-  top: calc(100% + 6px);
-  right: 0;
-  z-index: 30;
+  position: fixed;
+  z-index: 1000;
   display: flex;
   flex-direction: column;
   min-width: 168px;
@@ -31,12 +30,6 @@
   background: var(--color-background);
   border: 1px solid var(--color-border);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
-}
-
-/* Trigger in the left half of the screen: open rightward instead. */
-.popover[data-align='start'] {
-  right: auto;
-  left: 0;
 }
 
 .item {

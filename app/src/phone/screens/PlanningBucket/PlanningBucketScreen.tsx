@@ -29,6 +29,7 @@ import { ITEM_KIND_GROUP, type ItemKind } from '@/src/shared/budget/itemKinds';
 import { occurrenceBuild } from '@/src/shared/budget/cadence';
 import type { ItemMonth } from '@/src/shared/budget/monthBudget';
 import { InfoButton, MoreText } from '@/src/phone/screens/Planning/MinimalParts';
+import { IconCircle } from '@/src/phone/screens/Planning/PlanningParts';
 import { AdjustmentRow, AdjustmentSheet } from '@/src/phone/screens/PlanningBucket/Adjustments';
 import { CloseBucketSheet } from '@/src/phone/screens/PlanningBucket/CloseBucketSheet';
 import { ReceiptSheet } from '@/src/phone/screens/PlanningBucket/ReceiptSheet';
@@ -91,7 +92,7 @@ export function PlanningBucketView({ bucketId, b }: { bucketId: string; b: Retur
             triggerIcon={<MoreHorizontal size={18} strokeWidth={2} />}
             items={[
               { key: 'add', label: 'Add item', icon: <Plus size={14} strokeWidth={2} />, onSelect: () => router.push(`/add-basket-item/${bucketId}`) },
-              { key: 'edit', label: 'Edit basket', icon: <Pencil size={14} strokeWidth={2} />, onSelect: () => router.push(`/baskets/${bucketId}`) },
+              { key: 'edit', label: 'Edit basket', icon: <Pencil size={14} strokeWidth={2} />, onSelect: () => router.push(`/baskets/${bucketId}/edit`) },
               b.closed
                 ? { key: 'reopen', label: 'Reopen basket', icon: <LockOpen size={14} strokeWidth={2} />, onSelect: () => b.reopenBucket() }
                 : { key: 'close', label: `Close for ${monthTitle(b.month)}`, icon: <Lock size={14} strokeWidth={2} />, onSelect: () => setClosing(true) },
@@ -185,6 +186,8 @@ export function PlanningBucketView({ bucketId, b }: { bucketId: string; b: Retur
             ) : (
               b.rows.slice(0, 5).map((row) => (
                 <Link key={`${row.kind}-${row.id}`} href={row.href} className={m.row}>
+                  {/* The transaction type in a round icon, like Payments. */}
+                  <IconCircle type={row.type} />
                   <span className={m.main}>
                     <span className={m.name}>{row.note || row.name}</span>
                     <span className={m.line}>

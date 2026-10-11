@@ -9,6 +9,9 @@
 /* Planning's colour tokens — on the page, and on anything that shows
    Planning pieces elsewhere (the Buckets page's bucket cards). */
 .tokens {
+  /* The height of the Budget page's fixed month and tabs row
+     (Minimal.module.css's .stickyHead). */
+  --planning-head: 52px;
   /* The style guide (docs/STYLE-MIGRATION.md): only its own colours. */
   --p-blue: var(--sg-primary);
   --p-blue-deep: var(--sg-primary-dark);

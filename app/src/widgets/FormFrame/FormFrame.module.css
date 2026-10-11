@@ -2,7 +2,11 @@
    from CardForm.module.css: 16px padding, 8px apart, a 12px label over a
    20px value; 10px corners from 768px up, the BASELINE radius on phones. */
 
+/* Above the watermark title (an absolutely placed heading), so the first
+   card covers the lower half of it rather than the title sitting on top. */
 .cards {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   gap: 8px;

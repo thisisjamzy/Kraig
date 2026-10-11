@@ -12,6 +12,8 @@
 
 import { useMemo, useState } from 'react';
 import { recordBucketLineItemPayment } from '@/src/shared/firestore/aggregation';
+import { setItemMonthOverride } from '@/src/shared/firestore/bucketBudget';
+import { convert, itemCurrencyOf } from '@/src/shared/firestore/currency';
 import { useCategories } from '@/src/shared/firestore/queries';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { isSavingsAccount } from '@/src/viewmodels/wallets';
@@ -213,9 +215,35 @@ export function usePaymentsTab(month: string, data: PlanningData, bucketFilter: 
     }
   }
 
+  /**
+   * The cost turned out lower than planned (6,000 planned, 5,600 paid):
+   * closes the item for this month at what was paid, so it's settled and
+   * no longer late. Other months keep their planned amount.
+   */
+  async function closeAtPaid(payment: MonthPayment): Promise<string | null> {
+    const line = budget.itemsByKey.get(`${payment.itemId}@${month}`);
+    if (!uid || !line || !(line.actual > 0) || busy) return null;
+    const item = itemsByBucket[payment.bucketId]?.find((entry) => entry.id === payment.itemId);
+    const bucket = buckets.find((b) => b.id === payment.bucketId);
+    // The override is stored in the item's own currency, like its amount.
+    const native = Math.round(convert(line.actual, ctx.display, itemCurrencyOf(item, bucket, ctx.base), ctx.rates) * 100) / 100;
+    setBusy(true);
+    setError(null);
+    try {
+      await setItemMonthOverride(uid, payment.bucketId, payment.itemId, month, native);
+      return `${payment.name} closed for the month at ${Math.round(line.actual).toLocaleString('en-US')}.`;
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not close this payment.');
+      return null;
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return {
     currency: ctx.display,
     payments,
+    closeAtPaid,
     bucketName: bucketFilter ? (data.buckets.find((b) => b.id === bucketFilter)?.name ?? 'Basket') : null,
     dotsByDay,
     selectedDay,

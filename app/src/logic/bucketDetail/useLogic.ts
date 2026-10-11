@@ -527,7 +527,7 @@ export function useLogic(goalId: string) {
         if (paid && line && Math.abs(line.actual - newAmount) >= 0.5) {
           setAddOpen(false);
           setEditingItemId(null);
-          setRecordedAsk({ name: input.name, transactionId: paid.id, amount: newAmount, done: onDone ?? (() => router.replace(`/baskets/${goalId}`)) });
+          setRecordedAsk({ name: input.name, transactionId: paid.id, amount: newAmount, done: onDone ?? (() => router.replace(`/budget/basket/${goalId}`)) });
           return;
         }
       } else {
@@ -538,7 +538,7 @@ export function useLogic(goalId: string) {
       // Add/edit lives on its own page (or a side peek on wide screens): a
       // successful save returns to the basket and never back into the form.
       if (onDone) onDone();
-      else router.replace(`/baskets/${goalId}`);
+      else router.replace(`/budget/basket/${goalId}`);
     } catch (error) {
       setItemError(error instanceof Error ? error.message : 'Could not save this line item.');
     } finally {
