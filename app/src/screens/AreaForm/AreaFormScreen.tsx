@@ -28,6 +28,8 @@ export function AreaFormScreen({ areaId }: { areaId?: string }) {
     setColor,
     description,
     setDescription,
+    weeklyTarget,
+    setWeeklyTarget,
     isValid,
     saving,
     saveError,
@@ -95,6 +97,10 @@ export function AreaFormScreen({ areaId }: { areaId?: string }) {
               placeholder="Description"
               rows={2}
             />
+          </FieldCard>
+
+          <FieldCard label="Weekly hour target">
+            <input className={styles.notesInput} inputMode="decimal" value={weeklyTarget} onChange={(event) => setWeeklyTarget(event.target.value)} placeholder="None" />
           </FieldCard>
 
           <div className={styles.row}>

@@ -1,0 +1,195 @@
+/* The dashboards' page (Remix/Dashboard/dashboards-redesign.md, sections 3
+   and 5): one header row fixed under the app's own header while the page
+   scrolls (the Insights title, then the period dropdowns), the
+   period heading, then a 12-column grid rendered from the period's layout. At 760 px and below
+   (the page's own width, a container query) every chart is full width and
+   KPI tiles sit two per row. No horizontal page scroll from 320 px. */
+
+.root {
+  container-type: inline-size;
+  container-name: dash;
+  min-height: 100%;
+  background: var(--color-page);
+  color: var(--color-text-primary);
+}
+
+.head {
+  position: sticky;
+  top: var(--dash-top, 0px);
+  z-index: 18;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px max(32px, calc((100% - 1280px) / 2 + 32px));
+  background: var(--color-page);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.pageTitle {
+  margin: 0;
+  flex: none;
+  font-family: var(--font-family-heading);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+/* The filter: the period kind, then the specific period. */
+.filter {
+  display: flex;
+  margin-left: auto;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+}
+
+.dropdown {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  min-width: 0;
+  color: var(--color-text-primary);
+}
+
+.dropdown[data-wide] {
+  flex: 0 1 auto;
+}
+
+.dropdown select {
+  appearance: none;
+  width: 100%;
+  min-width: 0;
+  min-height: 40px;
+  padding: 0 32px 0 12px;
+  overflow: hidden;
+  border: 1px solid var(--color-brand);
+  border-radius: 12px;
+  background: var(--color-background);
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+/* The down chevron turned back 45 degrees. */
+.dropdown svg {
+  position: absolute;
+  right: 11px;
+  transform: rotate(-45deg);
+  pointer-events: none;
+}
+
+/* Web: no page background behind the cards; the big heading sits in the
+   fixed row, left of the filters. */
+.root[data-web] {
+  background: none;
+}
+
+.root[data-web] .head {
+  padding-top: 16px;
+  padding-bottom: 12px;
+  background: var(--color-background);
+}
+
+.root[data-web] .head .title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.root[data-web] .body {
+  padding-top: 8px;
+}
+
+.body {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 20px 32px 120px;
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-family-heading);
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.subtitle {
+  margin: 4px 0 20px;
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 20px;
+  align-items: start;
+}
+
+.grid > * {
+  grid-column: span var(--span, 12);
+  min-width: 0;
+}
+
+.section {
+  grid-column: 1 / -1 !important;
+  margin: 12px 0 -8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  align-self: stretch;
+}
+
+@container dash (max-width: 760px) {
+  .head {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+  .pageTitle {
+    font-size: 19px;
+  }
+  .filter {
+    gap: 6px;
+  }
+  .dropdown select {
+    padding: 0 28px 0 10px;
+    font-size: 13px;
+  }
+  .dropdown svg {
+    right: 8px;
+  }
+  .body {
+    padding: 14px 12px 120px;
+  }
+  .title {
+    font-size: 24px;
+  }
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+  /* Every card full width on a phone. */
+  .grid > * {
+    grid-column: 1 / -1;
+  }
+  .kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
