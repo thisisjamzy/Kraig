@@ -41,4 +41,8 @@ test('a part-paid payment can be closed for the month at what was paid', () => {
   assert.match(logic, /async function closeAtPaid/);
   assert.match(logic, /setItemMonthOverride\(uid, payment\.bucketId, payment\.itemId, month, native\)/);
   assert.match(read('phone/screens/Planning/PaymentsTab.tsx'), /payment\.paid > 0 &&/);
+  // The web Payments page too.
+  const web = read('screens/Planning/PaymentsTab.tsx');
+  assert.match(web, /Close at \{money\(payment\.paid\)\}/);
+  assert.match(web, /p\.closeAtPaid\(payment\)/);
 });
