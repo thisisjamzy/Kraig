@@ -9,6 +9,7 @@ import { ChevronLeft, ChevronRight, CircleCheck, X } from 'lucide-react';
 import { usePaymentsTab, type MonthPayment } from '@/src/logic/planning/usePaymentsTab';
 import type { PlanningData } from '@/src/logic/planning/useLogic';
 import { Modal } from '@/src/widgets/Modal/Modal';
+import { showToast } from '@/src/widgets/Toast/Toast';
 import { money, monthTitle, shiftMonth, dayMonth } from '@/src/viewmodels/planning';
 import { IconCircle } from './PlanningParts';
 import styles from './Planning.module.css';
@@ -23,7 +24,7 @@ function key(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-function PaymentCard({ payment, currency, onPay }: { payment: MonthPayment; currency: string; onPay: () => void }) {
+function PaymentCard({ payment, currency, onPay, onClose }: { payment: MonthPayment; currency: string; onPay: () => void; onClose?: () => void }) {
   return (
     <article className={tab.payCard} data-status={payment.status}>
       <IconCircle type={payment.categoryType} />
@@ -33,6 +34,11 @@ function PaymentCard({ payment, currency, onPay }: { payment: MonthPayment; curr
           {payment.frequency} · {dayMonth(payment.due)}
         </span>
         <span className={tab.payLine}>{payment.method}</span>
+        {payment.paid > 0 && payment.status !== 'paid' && (
+          <span className={tab.payLine}>
+            {money(payment.paid)} of {money(payment.amount)} paid
+          </span>
+        )}
         <span className={tab.payChips}>
           <span className={styles.chip}>{payment.bucketName}</span>
           {payment.status === 'overdue' && (
@@ -55,6 +61,12 @@ function PaymentCard({ payment, currency, onPay }: { payment: MonthPayment; curr
         {payment.status !== 'paid' && (
           <button type="button" className={styles.textButton} data-tone={payment.status} onClick={onPay}>
             Mark as paid
+          </button>
+        )}
+        {/* Part paid, and the cost turned out lower: close the month at what was paid. */}
+        {payment.status !== 'paid' && payment.paid > 0 && onClose && (
+          <button type="button" className={styles.textButton} onClick={onClose}>
+            Close at {money(payment.paid)}
           </button>
         )}
       </div>
@@ -183,7 +195,13 @@ export function PaymentsTab({
       ) : (
         <div className={tab.cardList}>
           {p.open.map((payment) => (
-            <PaymentCard key={payment.id} payment={payment} currency={p.currency} onPay={() => p.startPaying(payment)} />
+            <PaymentCard
+              key={payment.id}
+              payment={payment}
+              currency={p.currency}
+              onPay={() => p.startPaying(payment)}
+              onClose={() => void p.closeAtPaid(payment).then((message) => message && showToast(message))}
+            />
           ))}
         </div>
       )}
