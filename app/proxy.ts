@@ -21,7 +21,8 @@ export default function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const signedIn = Boolean(request.cookies.get(SIGNED_IN_KEY));
 
-  if (OPEN_PATHS.has(pathname)) {
+  // Development-only preview pages (app/dev), with sample data.
+  if (OPEN_PATHS.has(pathname) || (process.env.NODE_ENV === 'development' && pathname.startsWith('/dev/'))) {
     return NextResponse.next();
   }
 

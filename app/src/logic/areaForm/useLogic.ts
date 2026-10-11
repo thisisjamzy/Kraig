@@ -27,6 +27,8 @@ export function useLogic(areaId?: string) {
   const [emoji, setEmoji] = useState<string | null>(null);
   const [color, setColor] = useState<string>(PROJECT_COLORS[0]);
   const [description, setDescription] = useState('');
+  // Hours a week this area should get (the Time dashboard's life balance); '' = none.
+  const [weeklyTarget, setWeeklyTarget] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const isValid = Boolean(name.trim() && description.trim());
@@ -41,6 +43,7 @@ export function useLogic(areaId?: string) {
     setEmoji(area.emoji ?? null);
     setColor(area.color);
     setDescription(area.description ?? '');
+    setWeeklyTarget(area.weeklyHoursTarget ? String(area.weeklyHoursTarget) : '');
   }, [area, seededFor, areaId]);
 
   async function handleSave() {
@@ -48,7 +51,7 @@ export function useLogic(areaId?: string) {
     setSaving(true);
     setSaveError(null);
     try {
-      const fields = { name: name.trim(), emoji, color, description: description.trim(), updatedAt: serverTimestamp() };
+      const fields = { name: name.trim(), emoji, color, description: description.trim(), weeklyHoursTarget: Number(weeklyTarget) > 0 ? Number(weeklyTarget) : null, updatedAt: serverTimestamp() };
       if (areaId) {
         await updateDoc(areaRef(uid, areaId), fields);
         router.replace(`/areas/${areaId}`);
@@ -87,6 +90,8 @@ export function useLogic(areaId?: string) {
     setColor,
     description,
     setDescription,
+    weeklyTarget,
+    setWeeklyTarget: (value: string) => setWeeklyTarget(value.replace(/[^0-9.]/g, '')),
     isValid,
     saving,
     saveError,

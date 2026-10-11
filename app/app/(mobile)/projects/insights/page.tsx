@@ -1,10 +1,11 @@
 import type { Metadata } from 'next';
-import { InsightsScreen } from '@/src/routes/Insights/InsightsScreen';
+import { TimeDashboardScreen } from '@/src/routes/TimeDashboard/TimeDashboardScreen';
 
 export const metadata: Metadata = {
-  title: 'Insights · Dreda',
+  title: 'Time dashboard · Dreda',
 };
 
-export default function InsightsPage() {
-  return <InsightsScreen />;
+// Time mode's dashboard (formerly Insights); the route keeps its name.
+export default function TimeDashboardPage() {
+  return <TimeDashboardScreen />;
 }

@@ -953,6 +953,9 @@ export interface FirestoreArea {
   emoji: string | null; // optional, user-picked — viewmodels/projects.ts's EMOJI_OPTIONS
   color: string; // one of viewmodels/projects.ts's PROJECT_COLORS swatches
   description: string; // required — every area names what it actually covers
+  // Hours a week this area should get (the Time dashboard's life balance).
+  // Absent or null: no target, the area is left out of the balance.
+  weeklyHoursTarget?: number | null;
   archived: boolean;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;

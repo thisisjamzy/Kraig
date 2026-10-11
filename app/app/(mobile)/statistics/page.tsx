@@ -1,12 +1,12 @@
 import type { Metadata } from 'next';
-import { FinanceInsightsScreen } from '@/src/routes/FinanceInsights/FinanceInsightsScreen';
+import { MoneyDashboardScreen } from '@/src/routes/MoneyDashboard/MoneyDashboardScreen';
 
 export const metadata: Metadata = {
-  title: 'Insights · Dreda',
+  title: 'Money dashboard · Dreda',
 };
 
-// Money mode's Insights (formerly Statistics) — the route keeps its name so
-// existing links still work.
-export default function InsightsPage() {
-  return <FinanceInsightsScreen />;
+// Money mode's dashboard (formerly Insights and Statistics); the route keeps
+// its name so existing links still work.
+export default function MoneyDashboardPage() {
+  return <MoneyDashboardScreen />;
 }
