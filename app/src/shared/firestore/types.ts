@@ -677,6 +677,13 @@ export interface FirestoreBucketLineItem {
   itemKind?: ItemKind | null;
   // Income items: lump sum (the default) or trickle.
   incomeMode?: IncomeMode | null;
+  // Income items: Confirmed or Expected (the money plan can leave out
+  // expected income). Absent: earned income reads as Confirmed, the rest as
+  // Expected (src/logic/moneyPlan).
+  confidence?: 'Confirmed' | 'Expected' | null;
+  // Fixed costs: paid from this savings goal (a Savings basket's id) first,
+  // the rest from the wallet. Absent: paid from the wallet.
+  fundedByGoalId?: string | null;
   // Allowances: released on this day of the period, or when this income
   // line arrives. Absent: available from the period's start.
   availableFrom?: { day?: number | null; incomeItemId?: string | null } | null;
@@ -1007,6 +1014,9 @@ export interface FirestoreInsightsSettings {
   workStart?: string; // "HH:mm"
   workEnd?: string;
   thresholds?: Partial<Record<string, number>>;
+  // Working hours per weekday, Monday first (the time plan's "Save
+  // capacity"). Absent: capacityHours on weekdays, none at weekends.
+  weekdayHours?: number[] | null;
   notifyMorning?: boolean;
   notifyProjectRed?: boolean;
   notifyEvening?: boolean;
@@ -1186,6 +1196,9 @@ export interface FirestoreTask {
   // Minutes it really took — the optional prompt after ticking it done.
   // Absent = assume the estimate (dueDate − startTime).
   actualMinutes?: number | null;
+  // How many hours the task needs (the time plan spreads them over days
+  // before the due date). Absent: one hour is assumed there.
+  estimateHours?: number | null;
   // Every status change, oldest first, so trends can be rebuilt for any
   // range. `key` names the date of a recurring series it applies to.
   statusLog?: TaskStatusChange[];

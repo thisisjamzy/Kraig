@@ -9,6 +9,7 @@ const WIDE_ROUTES = [
   '/projects/all',
   '/projects/insights',
   '/projects/analytics',
+  '/projects/plan',
   '/home',
   '/statistics',
   '/baskets',

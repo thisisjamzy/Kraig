@@ -492,6 +492,11 @@
   color: var(--c-bad);
 }
 
+.plotFooter {
+  grid-column: 2;
+  min-width: 0;
+}
+
 /* ---- Columns ---- */
 .cols {
   position: absolute;

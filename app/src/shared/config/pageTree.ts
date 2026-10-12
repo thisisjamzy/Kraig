@@ -9,6 +9,7 @@ import {
   BookOpen,
   CalendarCheck,
   CalendarDays,
+  CalendarRange,
   ChartNoAxesCombined,
   FolderKanban,
   HandCoins,
@@ -75,6 +76,7 @@ export const PAGE_TREE: Record<AppMode, TreePage[]> = {
     { id: 'areas', href: '/areas', label: 'Areas', icon: MapIcon },
     { id: 'resources', href: '/resources', label: 'Resources', icon: BookOpen },
     { id: 'insights', href: '/projects/insights', label: 'Insights', icon: ChartNoAxesCombined, also: ['/projects/analytics'] },
+    { id: 'plan', href: '/projects/plan', label: 'Plan your time', icon: CalendarRange },
   ],
 };
 

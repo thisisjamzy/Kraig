@@ -194,6 +194,9 @@ export function TaskEditScreen({ taskId, onClose }: { taskId: string | null; onC
     timeError,
     notes,
     setNotes,
+    estimate,
+    setEstimate,
+    showEstimate,
     isValid,
     saving,
     saveError,
@@ -584,6 +587,13 @@ export function TaskEditScreen({ taskId, onClose }: { taskId: string | null; onC
               </>
             )}
           </PickerCard>
+
+          {/* How long it needs: the time plan spreads it over the days before it's due. */}
+          {showEstimate && (
+            <FieldCard label="Estimate (hours)">
+              <input className={styles.notesInput} inputMode="decimal" value={estimate} onChange={(event) => setEstimate(event.target.value.replace(/[^\d.]/g, ''))} placeholder="None" />
+            </FieldCard>
+          )}
 
           {/* notes — optional, kept so an existing task's notes stay editable */}
           <FieldCard label="Notes">

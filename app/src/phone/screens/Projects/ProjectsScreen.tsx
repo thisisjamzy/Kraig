@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Plus, ArrowUpRight, ListChecks } from 'lucide-react';
+import { Plus, ArrowUpRight, ListChecks, CalendarRange } from 'lucide-react';
+import { useAppBarAction } from '@/src/shared/appBar/appBarAction';
 import { useLogic } from '@/src/phone/logic/projects/useLogic';
 import { useSwipeModeSwitch } from '@/src/shared/hooks/useSwipeModeSwitch';
 import { useStrings } from '@/src/strings/useStrings';
@@ -30,6 +31,8 @@ export function ProjectsScreen() {
 // their own screens (/areas, /projects/analytics).
 function ProjectsHub() {
   const strings = useStrings();
+  // The time plan, on the app bar next to the bell.
+  useAppBarAction({ key: 'time-plan', label: 'Plan your time', icon: CalendarRange, href: '/projects/plan' });
   const {
     todayTasks,
     todayDoneCount,

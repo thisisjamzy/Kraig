@@ -289,6 +289,10 @@ export function useLogic(goalId: string) {
   // day and the set aside's target.
   const [itemKind, setItemKind] = useState<ItemKind>('payment');
   const [itemIncomeMode, setItemIncomeMode] = useState<IncomeMode>('lump_sum');
+  // The money plan: income Confirmed or Expected ('' = from the income
+  // type), and a fixed cost paid from a savings goal ('' = the wallet).
+  const [itemConfidence, setItemConfidence] = useState<'' | 'Confirmed' | 'Expected'>('');
+  const [itemFundedBy, setItemFundedBy] = useState('');
   const [itemAvailableDay, setItemAvailableDay] = useState('');
   const [itemTargetAmount, setItemTargetAmount] = useState('');
   // '' = the basket's currency; else the item's own (a 24 USD subscription).
@@ -364,6 +368,8 @@ export function useLogic(goalId: string) {
     setItemRepeat(bucket?.cadence ? 'basket' : bucket?.repeats ? (bucket.repeats === 'monthly' ? 'Monthly' : 'none') : bucket?.kind === 'Fixed' ? 'Monthly' : 'none');
     setItemKind(bucketType === 'Savings' ? 'set_aside' : bucketType === 'Expense' && bucket?.kind !== 'Fixed' ? 'allowance' : 'payment');
     setItemIncomeMode('lump_sum');
+    setItemConfidence('');
+    setItemFundedBy('');
     setItemAvailableDay('');
     setItemTargetAmount('');
     setItemCurrency('');
@@ -417,6 +423,8 @@ export function useLogic(goalId: string) {
         })
     );
     setItemIncomeMode(lineItem.incomeMode ?? 'lump_sum');
+    setItemConfidence(lineItem.confidence ?? '');
+    setItemFundedBy(lineItem.fundedByGoalId ?? '');
     setItemAvailableDay(lineItem.availableFrom?.day ? String(lineItem.availableFrom.day) : '');
     setItemTargetAmount(lineItem.targetAmount ? String(lineItem.targetAmount) : '');
     setItemCurrency(lineItem.currency && lineItem.currency !== bucket?.currency ? lineItem.currency : '');
@@ -507,10 +515,11 @@ export function useLogic(goalId: string) {
         neededBy: itemNeededBy ? new Date(`${itemNeededBy}T00:00:00`) : null,
         splittable: itemSplittable,
         ...(isIncomeItem
-          ? { incomeMode: itemIncomeMode, itemKind: null }
+          ? { incomeMode: itemIncomeMode, itemKind: null, confidence: itemConfidence || null }
           : {
               itemKind,
               incomeMode: null,
+              fundedByGoalId: itemFlowType === 'Expense' && itemFundedBy ? itemFundedBy : null,
               availableFrom: itemKind === 'allowance' && Number(itemAvailableDay) > 0 ? { day: Number(itemAvailableDay) } : null,
               targetAmount: itemKind === 'set_aside' && Number(itemTargetAmount) > 0 ? Number(itemTargetAmount) : null,
               targetDate: itemKind === 'set_aside' && itemTargetDate ? new Date(`${itemTargetDate}T00:00:00`) : null,
@@ -785,6 +794,11 @@ export function useLogic(goalId: string) {
     setItemKind,
     itemIncomeMode,
     setItemIncomeMode,
+    itemConfidence,
+    setItemConfidence,
+    itemFundedBy,
+    setItemFundedBy,
+    savingsGoalOptions: monthBudget.buckets.filter((b) => !b.archived && b.type === 'Savings').map((b) => ({ value: b.id, label: b.name })),
     itemAvailableDay,
     setItemAvailableDay,
     itemTargetAmount,

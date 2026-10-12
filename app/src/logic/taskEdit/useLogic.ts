@@ -28,6 +28,7 @@ import { useFirestoreCollection, useFirestoreDoc } from '@/src/shared/firestore/
 import { projectsRef, taskRef, taskTypesRef } from '@/src/shared/firestore/refs';
 import {
   createTask,
+  updateTaskFields,
   updateTask,
   updateTaskDone,
   archiveTask,
@@ -282,6 +283,8 @@ export function useLogic(taskId: string | null, { onDone }: TaskEditOptions = {}
   // default (meetings/events blocked, to-dos free) until the user picks.
   const [timeModeChoice, setTimeModeChoice] = useState<TimeMode | null>(null);
   const [notes, setNotes] = useState('');
+  // Hours it needs (the time plan): one-off tasks only. '' = none.
+  const [estimate, setEstimate] = useState('');
   // Repeat: a preset (whose rule follows the date — "weekly on Tuesday"
   // becomes "weekly on Wednesday" when the date moves), or a custom rule.
   const [repeatPreset, setRepeatPreset] = useState<RepeatPreset>('none');
@@ -329,6 +332,7 @@ export function useLogic(taskId: string | null, { onDone }: TaskEditOptions = {}
       setStartTimeOfDay(start);
       setEndTimeOfDay(end);
       setNotes(source.notes ?? '');
+      setEstimate(existingTask.estimateHours ? String(existingTask.estimateHours) : '');
       const rule = existingTask.rrule ? parseRRule(existingTask.rrule) : null;
       const preset = seededDate ? presetFor(rule, keyToDate(seededDate)) : 'none';
       setRepeatPreset(preset);
@@ -551,6 +555,8 @@ export function useLogic(taskId: string | null, { onDone }: TaskEditOptions = {}
     }
   }
 
+  const estimateHours = Number(estimate) > 0 ? Math.round(Number(estimate) * 4) / 4 : null;
+
   async function runSave(scope: EditScope | null, skipConflicts: boolean) {
     if (!uid) return;
     const form = buildForm();
@@ -562,7 +568,8 @@ export function useLogic(taskId: string | null, { onDone }: TaskEditOptions = {}
       if (!isEditing) {
         const { done: _done, rrule: newRule, ...rest } = form;
         void _done;
-        await createTask(uid, { ...rest, createdBy: uid, rrule: newRule, exceptions: newRule ? extra : undefined });
+        const newId = await createTask(uid, { ...rest, createdBy: uid, rrule: newRule, exceptions: newRule ? extra : undefined });
+        if (!newRule && estimateHours !== null) await updateTaskFields(uid, newId, { estimateHours });
         if (usesTime && !newRule && availability?.status === 'shared') {
           const n = availability.overlappingTasks.length;
           showToast(`Added as free, sharing time with ${n} ${n === 1 ? 'task' : 'tasks'}`);
@@ -581,6 +588,7 @@ export function useLogic(taskId: string | null, { onDone }: TaskEditOptions = {}
           done: newRule ? false : isDone,
           ...(newRule ? { rrule: newRule, exceptions: extra } : {}),
         });
+        if (!newRule && estimateHours !== (existingTask?.estimateHours ?? null)) await updateTaskFields(uid, docId, { estimateHours });
         finish(false);
       }
     } catch (error) {
@@ -761,6 +769,9 @@ export function useLogic(taskId: string | null, { onDone }: TaskEditOptions = {}
     timeError,
     notes,
     setNotes,
+    estimate,
+    setEstimate,
+    showEstimate: !rrule && type !== 'Meeting' && type !== 'Event',
     isValid,
     saving,
     saveError,

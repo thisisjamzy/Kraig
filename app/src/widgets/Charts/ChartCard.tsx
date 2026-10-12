@@ -53,8 +53,8 @@ function InfoButton({ open, onToggle, controls, small, buttonRef }: { open: bool
   );
 }
 
-function GuidePanel({ id, type, override, log, onClose }: { id: string; type: ChartType; override?: string; log: boolean; onClose: () => void }) {
-  const guide = GUIDE[type];
+function GuidePanel({ id, type, override, custom, log, onClose }: { id: string; type: ChartType; override?: string; custom?: { title: string; text: string }; log: boolean; onClose: () => void }) {
+  const guide = custom ?? GUIDE[type];
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     document.addEventListener('keydown', onKey);
@@ -123,6 +123,8 @@ export function ChartCard({
   subtitle,
   chartType,
   guideOverride,
+  guide: customGuide,
+  tools,
   scale,
   onScale,
   legend,
@@ -136,6 +138,10 @@ export function ChartCard({
   subtitle?: string;
   chartType: ChartType;
   guideOverride?: string;
+  /** A guide of its own (title and text) instead of the chart type's. */
+  guide?: { title: string; text: string };
+  /** Extra controls beside the info button (a view switch). */
+  tools?: ReactNode;
   /** Present on charts that can switch to a log scale. */
   scale?: ScaleMode;
   onScale?: (mode: ScaleMode) => void;
@@ -162,11 +168,12 @@ export function ChartCard({
           {subtitle && <p className={s.cardSubtitle}>{subtitle}</p>}
         </div>
         <div className={s.cardTools}>
+          {tools}
           {scale && onScale && state.status === 'ready' && <ScaleSwitch mode={scale} onChange={onScale} />}
           <InfoButton open={guide.open} onToggle={() => guide.setOpen(!guide.open)} controls={`${id}-guide`} buttonRef={buttonRef} />
         </div>
       </header>
-      {guide.open && <GuidePanel id={`${id}-guide`} type={chartType} override={guideOverride} log={scale === 'log'} onClose={close} />}
+      {guide.open && <GuidePanel id={`${id}-guide`} type={chartType} override={guideOverride} custom={customGuide} log={scale === 'log'} onClose={close} />}
       {state.status === 'loading' && <div className={s.skeleton} aria-label="Loading" />}
       {state.status === 'error' && (
         <p className={s.error}>
@@ -198,6 +205,8 @@ export function ChartCard({
 export type PillTone = 'good' | 'bad' | 'neutral';
 export interface Kpi {
   label: string;
+  /** Before the label (the plans' lock). */
+  icon?: ReactNode;
   value: string;
   pill: { text: string; tone: PillTone; arrow?: 'up' | 'down' | null } | null;
   sub?: string;
@@ -212,7 +221,10 @@ export function KpiTile({ kpi }: { kpi: Kpi }) {
   return (
     <section className={s.kpi} aria-label={kpi.label}>
       <div className={s.cardHead}>
-        <span className={s.kpiLabel}>{kpi.label}</span>
+        <span className={s.kpiLabel}>
+          {kpi.icon}
+          {kpi.label}
+        </span>
         <InfoButton small open={guide.open} onToggle={() => guide.setOpen(!guide.open)} controls={`${id}-guide`} buttonRef={buttonRef} />
       </div>
       {guide.open && (

@@ -1245,6 +1245,10 @@ export interface CreateBucketLineItemInput {
   availableFrom?: { day?: number | null; incomeItemId?: string | null } | null;
   targetAmount?: number | null;
   targetDate?: Date | null;
+  // The money plan (src/viewmodels/planner): income Confirmed or Expected,
+  // and a fixed cost paid from a savings goal (a Savings basket's id) first.
+  confidence?: 'Confirmed' | 'Expected' | null;
+  fundedByGoalId?: string | null;
   // The currency the amounts are in, when not the basket's (null: the
   // basket's). Left out, an update keeps what the item has.
   currency?: string | null;
@@ -1378,6 +1382,8 @@ function lineItemExtras(input: CreateBucketLineItemInput) {
   if (input.splittable !== undefined) out.splittable = input.splittable;
   if (input.itemKind !== undefined) out.itemKind = input.itemKind;
   if (input.incomeMode !== undefined) out.incomeMode = input.incomeMode;
+  if (input.confidence !== undefined) out.confidence = input.confidence;
+  if (input.fundedByGoalId !== undefined) out.fundedByGoalId = input.fundedByGoalId;
   if (input.availableFrom !== undefined) out.availableFrom = input.availableFrom;
   if (input.targetAmount !== undefined) out.targetAmount = input.targetAmount;
   if (input.currency !== undefined) out.currency = input.currency || null;

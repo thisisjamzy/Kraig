@@ -25,15 +25,18 @@ export function Plot({
   labels,
   sub,
   dense,
+  footer,
   ariaLabel,
   children,
 }: {
   scale: Scale;
   tick: (n: number) => string;
   refs?: RefLine[];
-  labels?: { text: string; future?: boolean }[];
+  labels?: { text: ReactNode; future?: boolean }[];
   sub?: { text: string; tone?: 'good' | 'bad' }[];
   dense?: boolean;
+  /** Under the plot, in line with it (labels placed by the caller). */
+  footer?: ReactNode;
   ariaLabel: string;
   children: ReactNode;
 }) {
@@ -64,7 +67,7 @@ export function Plot({
       {labels && (
         <div className={s.xLabels} data-dense={dense || undefined} aria-hidden>
           {labels.map((l, i) => (
-            <span key={`${l.text}-${i}`} data-future={l.future || undefined}>
+            <span key={i} data-future={l.future || undefined}>
               {l.text}
             </span>
           ))}
@@ -79,6 +82,7 @@ export function Plot({
           ))}
         </div>
       )}
+      {footer && <div className={s.plotFooter}>{footer}</div>}
     </div>
   );
 }
