@@ -381,7 +381,7 @@
     "src/widgets/Charts/Charts.module.css": "2254effa946e37ef",
     "src/widgets/Charts/Columns.tsx": "30c3c129bfdcc111",
     "src/widgets/Charts/Lines.tsx": "dfa27fa6c51e4c9e",
-    "src/widgets/Charts/Lists.tsx": "d90003c88f527f78",
+    "src/widgets/Charts/Lists.tsx": "474dc5407d193261",
     "src/widgets/Charts/Shapes.tsx": "c2c584e80b09b9ca",
     "src/widgets/ConfirmDialog/ConfirmDialog.module.css": "6bba7025a0024853",
     "src/widgets/ConfirmDialog/ConfirmDialog.tsx": "41cd2960ab9ab83f",
