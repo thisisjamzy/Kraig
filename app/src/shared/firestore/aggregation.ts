@@ -1448,6 +1448,13 @@ export interface MarkBucketLineItemCompleteInput {
   occurrenceMonth?: string;
   // Income items only — see FirestoreTransaction.incomeSubtype.
   incomeSubtype?: IncomeSubtype | null;
+  // Paid with money a reconciliation already counted as unaccounted
+  // (PRD-AUDIT-RECONCILIATION.md section 2.5): an expense or savings first
+  // moves the amount from the Unjustified wallet into accountId; an income
+  // moves it back out to the Unjustified wallet. Same as
+  // recordTransactionExplainingUnjustifiedBalance, in the same transaction
+  // as the payment. Not for Transfer items.
+  fromUnaccounted?: boolean;
 }
 
 /**
@@ -1572,6 +1579,29 @@ export async function recordBucketLineItemPayment(
       tx.get(bucketRef(uid, goalId)),
     ]);
     const closes = fullyPaid && bucketSnap.data()?.kind !== 'Fixed' && !itemRepeats(lineItemSnap.data() ?? {}, bucketSnap.data());
+    const unaccounted = Boolean(input.fromUnaccounted);
+    const pairedTransferId = unaccounted ? crypto.randomUUID() : null;
+    let accountData = accountSnap.data();
+    if (unaccounted && direction === 'Outflow') {
+      // Money that came in without being recorded: from the Unjustified
+      // wallet into this one first, so the payment out of it is covered.
+      const at = Timestamp.fromDate(input.date);
+      tx.set(transferRef(uid, pairedTransferId!), {
+        date: at,
+        description: `Reconciliation: ${input.description}`,
+        fromAccountId: UNJUSTIFIED_WALLET_ID,
+        toAccountId: input.accountId,
+        amount: paymentAmount,
+        charges: 0,
+        kind: 'Wallet to wallet',
+        notes: '',
+        createdBy: uid,
+        createdAt: at,
+      });
+      tx.update(unjustifiedWalletRef(uid), { currentBalance: increment(-paymentAmount) });
+      tx.update(accountRef(uid, input.accountId), { currentBalance: increment(paymentAmount) });
+      if (accountData) accountData = { ...accountData, currentBalance: (accountData.currentBalance ?? 0) + paymentAmount };
+    }
     writeTransactionContribution(
       tx,
       uid,
@@ -1587,10 +1617,30 @@ export async function recordBucketLineItemPayment(
         createdBy: uid,
         bucketItem,
         incomeSubtype: categoryType === 'Income' ? (input.incomeSubtype ?? null) : null,
+        ...(unaccounted ? { isUnjustifiedAdjustment: true, pairedTransferId } : {}),
       },
-      accountSnap.data(),
+      accountData,
       ctx
     );
+    if (unaccounted && direction === 'Inflow') {
+      // Income that was already counted in a check: out again to the
+      // Unjustified wallet, so the wallet nets to no change.
+      const at = Timestamp.fromDate(input.date);
+      tx.set(transferRef(uid, pairedTransferId!), {
+        date: at,
+        description: `Reconciliation: ${input.description}`,
+        fromAccountId: input.accountId,
+        toAccountId: UNJUSTIFIED_WALLET_ID,
+        amount: paymentAmount,
+        charges: 0,
+        kind: 'Wallet to wallet',
+        notes: '',
+        createdBy: uid,
+        createdAt: at,
+      });
+      tx.update(accountRef(uid, input.accountId), { currentBalance: increment(-paymentAmount) });
+      tx.update(unjustifiedWalletRef(uid), { currentBalance: increment(paymentAmount) });
+    }
     const payments = [
       ...(lineItemSnap.data()?.payments ?? []),
       { id: clientId, kind: 'expense' as const, amount: paymentAmount, date: Timestamp.fromDate(input.date) },

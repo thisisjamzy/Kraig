@@ -196,8 +196,8 @@ export function useLogic() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   // PRD-AUDIT-RECONCILIATION.md section 2.5 — "this explains part of my
-  // unaccounted balance", shown only for a historic-dated (non-today),
-  // non-transfer entry while the Unjustified wallet actually has a
+  // unaccounted balance", shown for a non-transfer entry (a basket item's
+  // payment included) while the Unjustified wallet actually has a
   // nonzero balance to explain. Reset whenever the date or type changes
   // away from where the toggle would even apply, so a leftover checked
   // state can't silently apply to an unrelated entry.
@@ -617,8 +617,9 @@ export function useLogic() {
     }
   }
 
-  // Section 2.5's visibility condition — shown only for a historic-dated,
-  // non-transfer entry while there's actually something to explain, AND
+  // Section 2.5's visibility condition — shown for any non-transfer entry
+  // (a past payment remembered on the day of a check counts too) while
+  // there's actually something to explain, AND
   // only for whichever direction would actually shrink the gap rather than
   // widen it: a positive gap (section 2.1) means an unrecorded EXPENSE
   // happened somewhere, so only an outflow-shaped entry (expense or
@@ -626,10 +627,10 @@ export function useLogic() {
   // so only an income entry applies. Offering the toggle on the wrong
   // direction would let a well-meaning check make the gap worse instead
   // of closing it.
+  // A basket item's payment can come from it too (not a Transfer item's).
   const canExplainUnjustifiedBalance =
     !isEffectivelyTransferLike &&
-    !linkedBucketItem &&
-    dateValue !== todayIso() &&
+    !linkedBucketItem?.isTransfer &&
     unjustifiedBalance !== 0 &&
     (unjustifiedBalance > 0 ? type === 'expense' || type === 'savings' : type === 'income');
   // The month the entry is dated in: what its checks recorded as
@@ -717,6 +718,7 @@ export function useLogic() {
             toAccountId: linkedBucketItem.isTransfer ? toAccountId : null,
             charges: linkedBucketItem.isTransfer ? Number(chargesString) || 0 : null,
             incomeSubtype: type === 'income' ? incomeSubtype : null,
+            fromUnaccounted: canExplainUnjustifiedBalance && explainsUnjustifiedBalance,
           },
           ctx
         );
