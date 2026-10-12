@@ -123,6 +123,23 @@ export interface StoredEventRef {
   /** The doc id (calendarEventDocId of its Google id). */
   id: string;
   startAt: Date;
+  /** The stored Google fields (dates as Dates), to skip unchanged events. */
+  fields?: Partial<Record<keyof EventFields, unknown>>;
+}
+
+/** A value in one comparable form: dates as times, objects with sorted keys. */
+function canonical(v: unknown): unknown {
+  if (v instanceof Date) return v.getTime();
+  if (v && typeof v === 'object' && typeof (v as { toMillis?: unknown }).toMillis === 'function') return (v as { toMillis: () => number }).toMillis();
+  if (Array.isArray(v)) return v.map(canonical);
+  if (v && typeof v === 'object') return Object.fromEntries(Object.keys(v).sort().map((k) => [k, canonical((v as Record<string, unknown>)[k])]));
+  return v ?? null;
+}
+
+/** True when every Google field stored already matches the pull: no write needed. */
+export function sameEvent(fields: EventFields, stored: StoredEventRef['fields'] | undefined): boolean {
+  if (!stored) return false;
+  return GOOGLE_FIELDS.every((k) => JSON.stringify(canonical(fields[k])) === JSON.stringify(canonical(stored[k])));
 }
 
 export interface ReconcilePlan {
@@ -141,11 +158,14 @@ export function planReconcile(
 ): ReconcilePlan {
   const upserts: EventFields[] = [];
   const returned = new Set<string>();
+  const storedById = new Map(stored.map((d) => [d.id, d]));
   for (const event of pulled) {
     // Returned at all = still live, even if this copy can't be stored.
     if (typeof event?.googleEventId === 'string' && event.googleEventId) returned.add(docIdOf(event.googleEventId));
     const fields = toEventFields(event, calendarTimeZone);
-    if (fields) upserts.push(fields);
+    // Unchanged since the last pull: no write (each one costs a write, and
+    // a read on every screen listening to the calendar).
+    if (fields && !sameEvent(fields, storedById.get(docIdOf(fields.googleEventId))?.fields)) upserts.push(fields);
   }
   const from = window.from.getTime();
   const to = window.to.getTime();
