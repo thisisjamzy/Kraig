@@ -39,6 +39,7 @@ import { useBreadcrumb, usePageMenu } from '@/src/widgets/AppShell/breadcrumb';
 import { Database } from '@/src/widgets/Database/Database';
 import { Block, NotionPageHeader } from '@/src/widgets/Database/NotionPage';
 import { MonthPicker } from '@/src/widgets/Database/MonthPicker';
+import { BasketAllTime } from '@/src/widgets/BasketAllTime/BasketAllTime';
 import { PropertiesBlock } from '@/src/widgets/Database/PropertiesBlock';
 import { SidePeek, usePeek } from '@/src/widgets/Database/SidePeek';
 import { formatNumber } from '@/src/widgets/Database/format';
@@ -219,7 +220,7 @@ export function BucketPage({ bucketId, b }: { bucketId: string; b: BucketLogic }
           <PropertiesBlock
             visible={4}
             properties={[
-              { id: 'month', label: 'Month', display: <MonthPicker value={b.month} onChange={b.setMonth} /> },
+              { id: 'month', label: 'Month', display: <MonthPicker value={b.month} onChange={b.setMonth} allTime={{ active: b.allTime, onPick: () => b.setAllTime(true) }} /> },
               {
                 id: 'repeats',
                 label: 'Repeats',
@@ -252,108 +253,116 @@ export function BucketPage({ bucketId, b }: { bucketId: string; b: BucketLogic }
 
         {bucket.managed && <p className={styles.managed}>Dreda keeps this basket up to date from your debts&apos; scheduled repayments. Change them on each debt&apos;s page.</p>}
 
-        <Block title="Items">
-          <div className={styles.tableBlock}>
-            <Database<LineRow>
-              id={`basket.page.items.${type.toLowerCase()}`}
-              label={`Items in ${bucket.name}`}
-              noun={['item', 'items']}
-              rows={lines}
-              rowKey={(r) => r.key}
-              columns={basketItemColumns(type, ctx, statusOf, (r) => templates.get(r.itemId))}
-              views={[
-                { id: 'table', name: 'Table', layout: 'table' },
-                { id: 'cards', name: 'Cards', layout: 'cards' },
-                { id: 'board', name: 'Board', layout: 'board', group: 'status' },
-              ]}
-              groups={[statusGroup(statusOf)]}
-              board={{ group: 'status' }}
-              defaultGroup="none"
-              card={{
-                title: (r) => r.name,
-                progress: (r) => (r.available > 0 ? { value: r.actual / r.available, over: type !== 'Income' && r.actual > r.available + 0.5 } : null),
-              }}
-              onOpen={peek.open}
-              {...(bucket.managed
-                ? {}
-                : {
-                    onNew: () => router.push(formLink('basket-item', { basket: bucketId })),
-                    newTemplates: [
-                      { id: 'item', label: 'New item', onSelect: () => router.push(formLink('basket-item', { basket: bucketId })) },
-                      { id: 'import', label: 'Import items', onSelect: () => router.push('/settings/import?mode=restore') },
-                    ],
-                  })}
-              rowActions={[
-                ...(type !== 'Income' ? [{ id: 'paid', label: 'Mark paid', icon: Check, run: (r: LineRow) => v.markPaid(r), show: (r: LineRow) => r.left > 0.5 }] : []),
-                { id: 'edit', label: 'Edit', icon: Pencil, run: (r: LineRow) => router.push(formLink('basket-item', { basket: r.bucketId, item: r.itemId })) },
-                { id: 'move', label: 'Move to month', icon: MoveRight, run: (r: LineRow) => setMoving(r), show: (r: LineRow) => !r.recurring && r.actual <= 0 },
-                { id: 'delete', label: 'Delete', icon: Trash2, run: deleteLine },
-              ]}
-              bulkActions={[
-                ...(type !== 'Income' ? [{ id: 'paid', label: 'Mark paid', run: (rows: LineRow[]) => v.bulkMarkPaid(rows) }] : []),
-                { id: 'skip', label: `Delete from ${monthTitle(b.month).split(' ')[0]}`, danger: true, run: (rows: LineRow[]) => v.bulkSkip(rows) },
-              ]}
-              emptyText={`Nothing planned in this basket for ${monthTitle(b.month)}.`}
-            />
-          </div>
-        </Block>
-
-        {type !== 'Income' && upcoming.length > 0 && (
-          <Block title="Upcoming payments">
-            <ul className={styles.upcoming}>
-              {upcoming.map((u) => (
-                <li key={u.key}>
-                  <span className={styles.upDate}>{u.date ? day(u.date) : 'No date'}</span>
-                  <span className={styles.upName}>
-                    <Link className={bm.relation} href={`/budget/item/${bucketId}/${u.itemId}?month=${b.month}`}>
-                      {u.name}
-                    </Link>
-                    {u.paidFrom && <small>{u.paidFrom}</small>}
-                  </span>
-                  <span className={styles.upAmount}>{money(u.amount)}</span>
-                  <span className={styles.status} data-tone={u.tone}>
-                    {u.state}
-                  </span>
-                </li>
-              ))}
-            </ul>
+        {b.allTime ? (
+          <Block title="Every item, all time">
+            <BasketAllTime view={b.allTimeView} bucketId={bucketId} currency={b.currency} loading={b.allTimeLoading} paidWord={type === 'Income' ? 'Received' : type === 'Savings' ? 'Saved' : 'Paid'} />
           </Block>
-        )}
+        ) : (
+          <>
+            <Block title="Items">
+              <div className={styles.tableBlock}>
+                <Database<LineRow>
+                  id={`basket.page.items.${type.toLowerCase()}`}
+                  label={`Items in ${bucket.name}`}
+                  noun={['item', 'items']}
+                  rows={lines}
+                  rowKey={(r) => r.key}
+                  columns={basketItemColumns(type, ctx, statusOf, (r) => templates.get(r.itemId))}
+                  views={[
+                    { id: 'table', name: 'Table', layout: 'table' },
+                    { id: 'cards', name: 'Cards', layout: 'cards' },
+                    { id: 'board', name: 'Board', layout: 'board', group: 'status' },
+                  ]}
+                  groups={[statusGroup(statusOf)]}
+                  board={{ group: 'status' }}
+                  defaultGroup="none"
+                  card={{
+                    title: (r) => r.name,
+                    progress: (r) => (r.available > 0 ? { value: r.actual / r.available, over: type !== 'Income' && r.actual > r.available + 0.5 } : null),
+                  }}
+                  onOpen={peek.open}
+                  {...(bucket.managed
+                    ? {}
+                    : {
+                        onNew: () => router.push(formLink('basket-item', { basket: bucketId })),
+                        newTemplates: [
+                          { id: 'item', label: 'New item', onSelect: () => router.push(formLink('basket-item', { basket: bucketId })) },
+                          { id: 'import', label: 'Import items', onSelect: () => router.push('/settings/import?mode=restore') },
+                        ],
+                      })}
+                  rowActions={[
+                    ...(type !== 'Income' ? [{ id: 'paid', label: 'Mark paid', icon: Check, run: (r: LineRow) => v.markPaid(r), show: (r: LineRow) => r.left > 0.5 }] : []),
+                    { id: 'edit', label: 'Edit', icon: Pencil, run: (r: LineRow) => router.push(formLink('basket-item', { basket: r.bucketId, item: r.itemId })) },
+                    { id: 'move', label: 'Move to month', icon: MoveRight, run: (r: LineRow) => setMoving(r), show: (r: LineRow) => !r.recurring && r.actual <= 0 },
+                    { id: 'delete', label: 'Delete', icon: Trash2, run: deleteLine },
+                  ]}
+                  bulkActions={[
+                    ...(type !== 'Income' ? [{ id: 'paid', label: 'Mark paid', run: (rows: LineRow[]) => v.bulkMarkPaid(rows) }] : []),
+                    { id: 'skip', label: `Delete from ${monthTitle(b.month).split(' ')[0]}`, danger: true, run: (rows: LineRow[]) => v.bulkSkip(rows) },
+                  ]}
+                  emptyText={`Nothing planned in this basket for ${monthTitle(b.month)}.`}
+                />
+              </div>
+            </Block>
 
-        <Block
-          title="Transactions this month"
-          actions={
-            <Link href={`/transactions?bucket=${bucketId}`} className={bm.inlineAction}>
-              See all months
-            </Link>
-          }
-        >
-          <Database<TxRow>
-            id="bucket.transactions"
-            label={`Transactions in ${bucket.name} this month`}
-            noun={['transaction', 'transactions']}
-            rows={b.rows}
-            rowKey={(r) => r.id}
-            columns={txColumns}
-            views={[
-              { id: 'table', name: 'Table', layout: 'table' },
-              { id: 'list', name: 'List', layout: 'list' },
-            ]}
-            defaultGroup="none"
-            card={{ title: (r) => r.note || r.name }}
-            onOpen={(r) => router.push(r.href)}
-            emptyText={`No transactions in ${monthTitle(b.month)} yet.`}
-          />
-        </Block>
+            {type !== 'Income' && upcoming.length > 0 && (
+              <Block title="Upcoming payments">
+                <ul className={styles.upcoming}>
+                  {upcoming.map((u) => (
+                    <li key={u.key}>
+                      <span className={styles.upDate}>{u.date ? day(u.date) : 'No date'}</span>
+                      <span className={styles.upName}>
+                        <Link className={bm.relation} href={`/budget/item/${bucketId}/${u.itemId}?month=${b.month}`}>
+                          {u.name}
+                        </Link>
+                        {u.paidFrom && <small>{u.paidFrom}</small>}
+                      </span>
+                      <span className={styles.upAmount}>{money(u.amount)}</span>
+                      <span className={styles.status} data-tone={u.tone}>
+                        {u.state}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </Block>
+            )}
 
-        {b.adjustments.length > 0 && (
-          <Block title="Adjustments and justifications">
-            <div className={styles.timeline}>
-              {b.adjustments.map((entry) => (
-                <AdjustmentRow key={entry.id} entry={entry} currency={b.currency} onOpen={() => b.setOpenAdjustment(entry.id)} />
-              ))}
-            </div>
-          </Block>
+            <Block
+              title="Transactions this month"
+              actions={
+                <Link href={`/transactions?bucket=${bucketId}`} className={bm.inlineAction}>
+                  See all months
+                </Link>
+              }
+            >
+              <Database<TxRow>
+                id="bucket.transactions"
+                label={`Transactions in ${bucket.name} this month`}
+                noun={['transaction', 'transactions']}
+                rows={b.rows}
+                rowKey={(r) => r.id}
+                columns={txColumns}
+                views={[
+                  { id: 'table', name: 'Table', layout: 'table' },
+                  { id: 'list', name: 'List', layout: 'list' },
+                ]}
+                defaultGroup="none"
+                card={{ title: (r) => r.note || r.name }}
+                onOpen={(r) => router.push(r.href)}
+                emptyText={`No transactions in ${monthTitle(b.month)} yet.`}
+              />
+            </Block>
+
+            {b.adjustments.length > 0 && (
+              <Block title="Adjustments and justifications">
+                <div className={styles.timeline}>
+                  {b.adjustments.map((entry) => (
+                    <AdjustmentRow key={entry.id} entry={entry} currency={b.currency} onOpen={() => b.setOpenAdjustment(entry.id)} />
+                  ))}
+                </div>
+              </Block>
+            )}
+          </>
         )}
 
       </div>
