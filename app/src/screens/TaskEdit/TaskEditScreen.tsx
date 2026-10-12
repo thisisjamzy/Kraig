@@ -34,6 +34,7 @@ import {
   cardFormStyles as styles,
 } from '@/src/widgets/CardForm/CardForm';
 import { TimeWheel } from '@/src/widgets/CardForm/TimeWheel';
+import { SheetCreate } from '@/src/widgets/CardForm/SheetCreate';
 import type { Availability, Slot } from '@/src/viewmodels/scheduling';
 import { keyToDate } from '@/src/viewmodels/recurrence';
 import { ConflictSheet, CustomRepeatSheet, RepeatSheet, ScopeSheet } from './RepeatSheets';
@@ -155,6 +156,7 @@ export function TaskEditScreen({ taskId, onClose }: { taskId: string | null; onC
     setQuadrant,
     projectId,
     setProjectId,
+    createProject,
     done,
     setDone,
     date,
@@ -334,6 +336,15 @@ export function TaskEditScreen({ taskId, onClose }: { taskId: string | null; onC
                 >
                   No project
                 </button>
+                <SheetCreate
+                  noun="project"
+                  initialName={visibleProjects.length === 0 ? projectSearch : ''}
+                  onCreate={async (name) => {
+                    await createProject(name);
+                    setProjectSearch('');
+                    setSheet(null);
+                  }}
+                />
               </div>
             </Modal>
           )}

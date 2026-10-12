@@ -37,7 +37,8 @@ import {
   combineDateAndTime,
 } from '@/src/shared/firestore/taskWrites';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
-import { DEFAULT_PRIORITY, TASK_TYPES, isValidCustomTaskType } from '@/src/viewmodels/projects';
+import { DEFAULT_PRIORITY, PROJECT_COLORS, TASK_TYPES, isValidCustomTaskType } from '@/src/viewmodels/projects';
+import { quickCreateProject } from '@/src/shared/firestore/projectWrites';
 import { isQuadrant, priorityForQuadrant } from '@/src/viewmodels/eisenhower';
 import {
   checkAvailability,
@@ -700,6 +701,13 @@ export function useLogic(taskId: string | null, { onDone }: TaskEditOptions = {}
     else router.back();
   }
 
+  /** "+ New project" in the Project sheet: made and picked, the task form stays open. */
+  async function createProject(name: string) {
+    if (!uid) throw new Error('Not signed in.');
+    const id = await quickCreateProject(uid, name, PROJECT_COLORS[projects.length % PROJECT_COLORS.length]);
+    setProjectId(id);
+  }
+
   // Closing the form returns to the page it was opened from (never another
   // form) — see src/shared/navigation/useGoBack.ts.
   const navigateBack = useGoBack();
@@ -729,6 +737,7 @@ export function useLogic(taskId: string | null, { onDone }: TaskEditOptions = {}
     setQuadrant,
     projectId,
     setProjectId,
+    createProject,
     done,
     setDone,
     date,

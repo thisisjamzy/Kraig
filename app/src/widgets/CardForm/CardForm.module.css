@@ -515,6 +515,64 @@ input:focus-visible + .switch {
   color: var(--tf-label);
 }
 
+/* "+ New project" at the foot of a picker sheet (SheetCreate.tsx). */
+.sheetCreateToggle {
+  margin-top: 6px;
+  color: var(--tf-accent);
+  font-weight: 600;
+}
+
+.sheetCreate {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.sheetCreateError {
+  margin: 0 14px;
+  font-size: 14px;
+  color: var(--sg-destructive, #d6404f);
+}
+
+.sheetCreateActions {
+  display: flex;
+  gap: 8px;
+}
+
+.sheetCreateCancel,
+.sheetCreateSubmit {
+  flex: 1;
+  min-height: 48px;
+  border: none;
+  border-radius: 14px;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform var(--duration-press) var(--ease-out);
+}
+
+.sheetCreateCancel {
+  background: var(--tf-track);
+  color: var(--tf-text);
+}
+
+.sheetCreateSubmit {
+  background: var(--tf-accent);
+  color: #ffffff;
+}
+
+.sheetCreateSubmit:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.sheetCreateCancel:active:not(:disabled),
+.sheetCreateSubmit:active:not(:disabled) {
+  transform: scale(0.985);
+}
+
 /* ---- Time wheel ---- */
 .wheel {
   position: relative;

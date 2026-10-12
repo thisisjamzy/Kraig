@@ -12,7 +12,7 @@ import { useFirestoreCollection, useFirestoreDoc } from '@/src/shared/firestore/
 import { useSections } from '@/src/shared/firestore/queries';
 import { areasRef, projectRef, tasksRef } from '@/src/shared/firestore/refs';
 import { ensureDefaultSection, defaultSectionId } from '@/src/shared/firestore/sections';
-import { deleteProject } from '@/src/shared/firestore/projectWrites';
+import { deleteProject, quickCreateArea, quickCreateSection } from '@/src/shared/firestore/projectWrites';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { PROJECT_COLORS, DEFAULT_PRIORITY } from '@/src/viewmodels/projects';
 import type { FirestoreArea, FirestoreProject, FirestoreTask, Priority, ProjectStatus } from '@/src/shared/firestore/types';
@@ -162,6 +162,18 @@ export function useLogic(projectId?: string) {
     }
   }
 
+  /** "+ New area" and "+ New section" in their sheets: made and picked, this form stays open. */
+  async function createArea(newName: string) {
+    if (!uid) throw new Error('Not signed in.');
+    const id = await quickCreateArea(uid, newName, PROJECT_COLORS[areas.length % PROJECT_COLORS.length]);
+    setAreaId(id);
+  }
+  async function createSection(newName: string) {
+    if (!uid || !areaId) throw new Error('Choose an area first.');
+    const area = areas.find((a) => a.id === areaId);
+    setBucketId(await quickCreateSection(uid, areaId, newName, area?.color ?? color));
+  }
+
   /** Permanently deletes the project; its tasks are deleted or kept standalone. */
   async function handleDelete(deleteTasks: boolean) {
     if (!uid || !projectId || deleting) return;
@@ -195,6 +207,8 @@ export function useLogic(projectId?: string) {
     setEmoji,
     areaId,
     setAreaId,
+    createArea,
+    createSection,
     bucketId,
     setBucketId,
     color,
