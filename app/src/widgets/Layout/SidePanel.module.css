@@ -12,7 +12,7 @@
   position: absolute;
   inset: 0;
   border: none;
-  background: rgba(10, 12, 24, 0.4);
+  background: color-mix(in srgb, var(--sg-primary-dark) 40%, transparent);
   cursor: pointer;
 }
 
@@ -24,7 +24,7 @@
   max-width: 92vw;
   height: 100dvh;
   background: var(--color-background);
-  box-shadow: -16px 0 40px rgba(0, 0, 0, 0.18);
+  box-shadow: -16px 0 40px color-mix(in srgb, var(--sg-neutral-900) 18%, transparent);
   animation: slideIn 200ms var(--ease-out);
 }
 

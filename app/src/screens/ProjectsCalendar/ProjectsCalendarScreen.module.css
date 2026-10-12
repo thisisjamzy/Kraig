@@ -39,7 +39,7 @@
 
 .rangeButton:hover,
 .todayButton:hover {
-  background: rgba(55, 53, 47, 0.06);
+  background: color-mix(in srgb, var(--sg-neutral-800) 6%, transparent);
 }
 
 .todayButton {
@@ -48,7 +48,7 @@
   border: 0;
   border-radius: 6px;
   background: none;
-  color: #787774;
+  color: var(--sg-neutral-500);
   font: inherit;
   font-size: 0.875rem;
   cursor: pointer;
@@ -66,14 +66,14 @@
   flex-direction: column;
   gap: 2px;
   padding: 12px;
-  border: 1px solid #e9e9e7;
+  border: 1px solid var(--sg-neutral-200);
 }
 
 .calendarsTitle {
   margin: 0 0 4px;
   font-size: 0.75rem;
   font-weight: 600;
-  color: #787774;
+  color: var(--sg-neutral-500);
 }
 
 .calendarRow {

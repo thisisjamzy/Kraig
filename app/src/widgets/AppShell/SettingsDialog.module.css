@@ -5,7 +5,7 @@
   display: grid;
   place-items: center;
   padding: 5vh 5vw;
-  background: rgba(10, 12, 24, 0.45);
+  background: color-mix(in srgb, var(--sg-primary-dark) 45%, transparent);
 }
 
 .dialog {
@@ -16,7 +16,7 @@
   overflow: hidden;
   border-radius: 10px;
   background: var(--color-background);
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.28);
+  box-shadow: 0 24px 64px color-mix(in srgb, var(--sg-neutral-900) 28%, transparent);
 }
 
 .nav {
@@ -68,7 +68,7 @@
 
 .navRow[data-danger] {
   margin-top: auto;
-  color: #d6404f;
+  color: var(--sg-destructive);
 }
 
 .content {

@@ -50,6 +50,7 @@ import {
   type TimeScenario,
 } from '@/src/viewmodels/planner/time';
 import type { FirestoreInsightsSettings, FirestoreProject, FirestoreTask } from '@/src/shared/firestore/types';
+import { styleGuide } from '@/src/styles/tokens/styleGuide';
 
 const DAYS = 14;
 /** Brand colours, one per project in order (the style guide has no others). */
@@ -100,7 +101,7 @@ export function useTimePlan() {
         if (!inRange(d)) continue;
         const block = { id: t.id, name: t.title, day: d, time: hhmm(start!), hours: hoursBetween(start!, end!) };
         if (t.seriesId) meetings.push(block);
-        else booked.push({ ...block, project: 'One-off meetings', color: '#cbd5e1' });
+        else booked.push({ ...block, project: 'One-off meetings', color: styleGuide.brand.primaryLight });
         continue;
       }
       if (timed) {
@@ -131,7 +132,7 @@ export function useTimePlan() {
       if (!inRange(d)) continue;
       const block = { id: e.id, name: e.title, day: d, time: hhmm(start), hours: hoursBetween(start, e.endAt.toDate()) };
       if (e.recurringEventId) meetings.push(block);
-      else booked.push({ ...block, project: 'One-off meetings', color: '#cbd5e1' });
+      else booked.push({ ...block, project: 'One-off meetings', color: styleGuide.brand.primaryLight });
     }
     const cap = settings.capacityHours;
     const saved = settingsDoc.data?.weekdayHours;

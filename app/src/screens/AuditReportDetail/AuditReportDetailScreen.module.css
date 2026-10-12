@@ -195,7 +195,7 @@
   color: var(--color-success);
 }
 .statusYellow {
-  color: #d97706;
+  color: var(--sg-primary-dark);
 }
 .statusRed {
   color: var(--color-danger);

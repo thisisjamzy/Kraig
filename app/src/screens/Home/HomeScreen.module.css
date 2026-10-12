@@ -4,13 +4,13 @@
 
 .dash,
 .stack {
-  --h-line: #e9e9e7;
-  --h-navy: #1b1b39;
-  --h-muted: #6b7085;
-  --h-blue: var(--color-brand, #3965fa);
-  --h-lime: #e3f59b;
-  --h-green: #1f6b3a;
-  --h-red: #c62f3e;
+  --h-line: var(--sg-neutral-200);
+  --h-navy: var(--sg-primary-dark);
+  --h-muted: var(--sg-neutral-500);
+  --h-blue: var(--color-brand, var(--sg-primary));
+  --h-lime: var(--sg-accent);
+  --h-green: var(--sg-primary-dark);
+  --h-red: var(--sg-destructive);
   --h-bg: var(--color-background, #fff);
   display: flex;
   flex-direction: column;
@@ -18,15 +18,6 @@
   min-width: 0;
   color: var(--h-navy);
 }
-
-:global([data-theme='dark']) .dash,
-:global([data-theme='dark']) .stack {
-  --h-line: rgba(255, 255, 255, 0.09);
-  --h-navy: var(--color-text-primary);
-  --h-muted: rgba(255, 255, 255, 0.6);
-  --h-lime: #4a5a14;
-}
-
 .row1 {
   display: grid;
   grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
@@ -94,7 +85,7 @@
   width: 28px;
   height: 28px;
   border-radius: 6px;
-  background: rgba(57, 101, 250, 0.1);
+  background: color-mix(in srgb, var(--sg-primary) 10%, transparent);
   color: var(--h-blue);
 }
 
@@ -249,10 +240,10 @@
 .gap {
   margin: 0;
   padding: 8px 10px;
-  border-left: 3px solid #cb912f;
-  background: #fdf4e3;
+  border-left: 3px solid var(--sg-accent);
+  background: var(--sg-accent);
   font-size: 0.8125rem;
-  color: #5a3d00;
+  color: var(--sg-primary-dark);
 }
 
 .balanceActions {
@@ -357,7 +348,7 @@
 .menu a:hover,
 .menu button:hover,
 .menu button[aria-pressed='true'] {
-  background: rgba(55, 53, 47, 0.06);
+  background: color-mix(in srgb, var(--sg-neutral-800) 6%, transparent);
 }
 
 /* ---- Ready to pay / Spend today (lime) ---- */
@@ -391,13 +382,8 @@
 .readyNote {
   margin: 0;
   font-size: 0.875rem;
-  color: #3a4410;
+  color: var(--sg-neutral-900);
 }
-
-:global([data-theme='dark']) .readyNote {
-  color: inherit;
-}
-
 .readyTiles {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -412,20 +398,10 @@
   padding: 10px 12px;
   background: rgba(255, 255, 255, 0.6);
 }
-
-:global([data-theme='dark']) .readyTiles > div {
-  background: rgba(0, 0, 0, 0.2);
-}
-
 .readyTiles span {
   font-size: 0.75rem;
-  color: #3a4410;
+  color: var(--sg-neutral-900);
 }
-
-:global([data-theme='dark']) .readyTiles span {
-  color: inherit;
-}
-
 .readyTiles strong {
   font-size: 1.0625rem;
   font-variant-numeric: tabular-nums;
@@ -467,7 +443,7 @@
 }
 
 .ringTrack {
-  stroke: rgba(27, 27, 57, 0.08);
+  stroke: color-mix(in srgb, var(--sg-neutral-900) 8%, transparent);
 }
 
 .ringValue {
@@ -517,7 +493,7 @@
   align-self: center;
   padding: 4px 10px;
   border-radius: 6px;
-  background: #eef2ff;
+  background: var(--sg-primary-light);
   color: var(--h-blue);
   font-size: 0.8125rem;
   text-align: center;
@@ -569,7 +545,7 @@
   display: block;
   width: 90px;
   height: 3px;
-  background: rgba(27, 27, 57, 0.08);
+  background: color-mix(in srgb, var(--sg-primary-dark) 8%, transparent);
 }
 
 .underline span {
@@ -627,7 +603,7 @@
   padding: 0 7px;
   border-radius: 6px;
   background: var(--h-lime);
-  color: #3a4410;
+  color: var(--sg-neutral-900);
   font-size: 0.75rem;
   font-weight: 600;
 }
@@ -635,7 +611,7 @@
 .bar {
   display: block;
   height: 8px;
-  background: rgba(27, 27, 57, 0.07);
+  background: color-mix(in srgb, var(--sg-primary-dark) 7%, transparent);
 }
 
 .bar > span {
@@ -649,11 +625,11 @@
 }
 
 .bar[data-kind='savings'] > span {
-  background: #448361;
+  background: var(--sg-primary);
 }
 
 .bar[data-kind='transfers'] > span {
-  background: #9b9a97;
+  background: var(--sg-neutral-400);
 }
 
 .bar > span[data-over] {
@@ -695,15 +671,10 @@
 }
 
 .txWaiting {
-  background: #fffaf0;
+  background: var(--sg-accent);
   padding: 4px 6px;
   margin: 0 -6px;
 }
-
-:global([data-theme='dark']) .txWaiting {
-  background: rgba(203, 145, 47, 0.12);
-}
-
 .txIcon {
   display: grid;
   place-items: center;
@@ -711,17 +682,17 @@
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  background: rgba(27, 27, 57, 0.06);
+  background: color-mix(in srgb, var(--sg-primary-dark) 6%, transparent);
   color: var(--h-navy);
 }
 
 .txIcon[data-kind='income'] {
-  background: #eef2ff;
+  background: var(--sg-primary-light);
   color: var(--h-blue);
 }
 
 .txIcon[data-kind='savings'] {
-  background: #edf7ee;
+  background: var(--sg-primary-light);
   color: var(--h-green);
 }
 
@@ -748,7 +719,7 @@
 
 .txNote {
   font-size: 0.75rem;
-  color: #8a5a00;
+  color: var(--sg-primary-dark);
 }
 
 /* Amounts never truncate: the name gives way. */
@@ -896,7 +867,7 @@
   display: inline-flex;
   padding: 2px;
   border-radius: 6px;
-  background: rgba(27, 27, 57, 0.06);
+  background: color-mix(in srgb, var(--sg-primary-dark) 6%, transparent);
 }
 
 .segment button {

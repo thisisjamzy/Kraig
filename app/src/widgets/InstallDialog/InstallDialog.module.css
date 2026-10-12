@@ -6,7 +6,7 @@
   align-items: center;
   justify-content: center;
   padding: calc(var(--space-lg) + var(--safe-top)) var(--space-lg) calc(var(--space-lg) + var(--safe-bottom));
-  background: rgba(0, 0, 0, 0.5);
+  background: color-mix(in srgb, var(--sg-neutral-900) 50%, transparent);
 }
 
 .dialog {
@@ -18,7 +18,7 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: var(--space-xl);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 20px 60px color-mix(in srgb, var(--sg-neutral-900) 25%, transparent);
 }
 
 .header {
@@ -98,7 +98,7 @@
   background: var(--color-background);
   border-color: var(--color-accent);
   color: var(--color-text-primary);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--sg-neutral-900) 8%, transparent);
 }
 
 .steps {

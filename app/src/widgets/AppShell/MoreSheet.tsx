@@ -9,7 +9,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Check, Search, Settings, X } from 'lucide-react';
 import { MODE_HOME, MODE_LABEL, type AppMode } from '@/src/shared/config/pageTree';
-import logomark from '@/public/logos/black_logomark.png';
+import logomark from '@/public/brand/dreda-mark.png';
 import { FavoritesSection, PageTree } from './PageTree';
 import { SearchPalette } from './SearchPalette';
 import { useAppMode } from './Sidebar';

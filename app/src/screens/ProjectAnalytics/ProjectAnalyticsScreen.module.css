@@ -26,16 +26,16 @@
 .barTrack {
   display: block;
   height: 10px;
-  background: rgba(55, 53, 47, 0.08);
+  background: color-mix(in srgb, var(--sg-neutral-800) 8%, transparent);
 }
 
 .barTrack span {
   display: block;
   height: 100%;
-  background: var(--color-brand, #3965fa);
+  background: var(--color-brand, var(--sg-primary));
 }
 
 .barValue {
   font-variant-numeric: tabular-nums;
-  color: #6b7085;
+  color: var(--sg-neutral-500);
 }

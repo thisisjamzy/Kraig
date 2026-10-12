@@ -35,6 +35,7 @@ import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { Tag, type TagColor } from '@/src/widgets/TaskDb/Tag';
 import styles from './DebtDetailScreen.module.css';
 import { NotificationsLink } from '@/src/widgets/Notifications/NotificationsLink';
+import { styleGuide } from '@/src/styles/tokens/styleGuide';
 
 const PRIORITY_LABEL = { high: 'High', medium: 'Medium', low: 'Low' } as const;
 const PRIORITY_COLOR: Record<keyof typeof PRIORITY_LABEL, TagColor> = { high: 'red', medium: 'yellow', low: 'gray' };
@@ -339,12 +340,12 @@ export function DebtDetailScreen({ debtId }: { debtId: string }) {
               >
                 <ResponsiveContainer width="100%" height={220}>
                   <LineChart data={v.trend} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
-                    <CartesianGrid vertical={false} stroke="#edf0f6" />
+                    <CartesianGrid vertical={false} stroke={styleGuide.neutrals[200]} />
                     <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 12 }} />
                     <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 12 }} width={48} tickFormatter={axis} />
                     <Tooltip formatter={(n) => money(Number(n ?? 0))} />
-                    <Line dataKey="owed" name="Owed" stroke="#c62f3e" strokeWidth={2.5} dot={{ r: 3 }} connectNulls={false} />
-                    <Line dataKey="projected" name="At this plan" stroke="#c62f3e" strokeWidth={2} strokeDasharray="5 5" dot={false} connectNulls />
+                    <Line dataKey="owed" name="Owed" stroke={styleGuide.destructive} strokeWidth={2.5} dot={{ r: 3 }} connectNulls={false} />
+                    <Line dataKey="projected" name="At this plan" stroke={styleGuide.destructive} strokeWidth={2} strokeDasharray="5 5" dot={false} connectNulls />
                   </LineChart>
                 </ResponsiveContainer>
               </ChartBlock>

@@ -1,50 +1,9 @@
-/* logo_primary.png/logo_alt.png are ~2.7:1 wide, never square — width must
-   always stay auto so the wordmark never stretches. !important because a
-   consuming screen's own .logo class (set via the className prop) has the
-   same selector specificity as the plain rules below and could otherwise
-   win by source order alone and force a width, e.g. from a fixed
-   width/height pair or a 100%-width layout rule. Preserving the aspect
-   ratio isn't a style preference here, it's a correctness requirement. */
-.light,
-.dark,
-.phone,
-.web {
+/* The lockups are wide, never square: width always stays auto so the
+   wordmark never stretches. !important because a consuming screen's own
+   class (set via the className prop) has the same specificity and could
+   otherwise force a width by source order alone. */
+.logo {
   width: auto !important;
   max-width: none;
   object-fit: contain;
-}
-
-.light {
-  display: block;
-}
-
-.dark {
-  display: none;
-}
-
-/* ThemeProvider sets data-theme on a wrapping div (not :root), so this has
-   to be a descendant selector, not a :root-scoped one. */
-[data-theme='dark'] .light {
-  display: none;
-}
-
-[data-theme='dark'] .dark {
-  display: block;
-}
-
-/* The style guide's lockups on the phone only (Logo.tsx). Doubled classes
-   so a consuming screen's own class (e.g. Onboarding's .logo with
-   display: block) can't show both images. */
-.phone.phone {
-  display: none;
-}
-
-@media (max-width: 767.98px) {
-  .phone.phone {
-    display: block;
-  }
-
-  .web.web {
-    display: none;
-  }
 }

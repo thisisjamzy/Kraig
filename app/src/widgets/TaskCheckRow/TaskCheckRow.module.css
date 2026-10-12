@@ -11,15 +11,9 @@
   font-family: var(--font-family-body);
   border-radius: 10px;
   background: var(--color-background);
-  box-shadow: 0 1px 2px rgba(27, 27, 57, 0.04), 0 6px 18px rgba(27, 27, 57, 0.05);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--sg-primary-dark) 4%, transparent), 0 6px 18px color-mix(in srgb, var(--sg-primary-dark) 5%, transparent);
   transition: opacity var(--duration-morph) var(--ease-out);
 }
-
-:global([data-theme='dark']) .row {
-  background: var(--color-surface);
-  box-shadow: none;
-}
-
 /* ---- The ring checkbox ---- */
 .check {
   --ring: var(--color-brand);
@@ -56,7 +50,7 @@
 }
 
 .check[data-priority='High'] {
-  --ring: #e8a33d;
+  --ring: var(--sg-accent);
 }
 
 .check[data-priority='Medium'] {
@@ -135,8 +129,8 @@
 }
 
 .priority[data-priority='High'] {
-  background: color-mix(in srgb, #e8a33d 18%, transparent);
-  color: #c9861f;
+  background: color-mix(in srgb, var(--sg-accent) 18%, transparent);
+  color: var(--sg-primary-dark);
 }
 
 .priority[data-priority='Medium'] {

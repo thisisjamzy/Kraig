@@ -18,7 +18,7 @@
   --tf-track: var(--color-surface);
   --tf-accent: var(--color-brand);
   --tf-accent-muted: color-mix(in srgb, var(--color-brand) 38%, var(--color-surface));
-  --tf-orange: #e8a33d;
+  --tf-orange: var(--sg-accent);
   --tf-watermark: color-mix(in srgb, var(--color-text-primary) 8%, var(--color-surface));
   min-height: 100%;
   padding: calc(8px + var(--safe-top)) 12px 40px;
@@ -26,15 +26,6 @@
   color: var(--tf-text);
   font-family: var(--font-family-body);
 }
-
-:global([data-theme='dark']) .page {
-  --tf-bg: var(--color-page);
-  --tf-card: var(--color-surface);
-  --tf-track: color-mix(in srgb, var(--color-page) 60%, var(--color-surface));
-  --tf-accent-muted: color-mix(in srgb, var(--color-brand) 35%, var(--color-surface));
-  --tf-watermark: color-mix(in srgb, var(--color-text-primary) 7%, var(--color-page));
-}
-
 /* ---- Watermark header ---- */
 .top {
   position: relative;
@@ -137,7 +128,7 @@
 
 /* A field with a validation message: a red outline, the message inside. */
 .card[data-invalid] {
-  box-shadow: inset 0 0 0 1px #d6404f;
+  box-shadow: inset 0 0 0 1px var(--sg-destructive);
 }
 
 .valueInput {
@@ -532,7 +523,7 @@ input:focus-visible + .switch {
 .sheetCreateError {
   margin: 0 14px;
   font-size: 14px;
-  color: var(--sg-destructive, #d6404f);
+  color: var(--sg-destructive, var(--sg-destructive));
 }
 
 .sheetCreateActions {
@@ -603,8 +594,8 @@ input:focus-visible + .switch {
   overflow-y: auto;
   scroll-snap-type: y mandatory;
   overscroll-behavior: contain;
-  -webkit-mask-image: linear-gradient(transparent, #000 30%, #000 70%, transparent);
-  mask-image: linear-gradient(transparent, #000 30%, #000 70%, transparent);
+  -webkit-mask-image: linear-gradient(transparent, var(--sg-neutral-900) 30%, var(--sg-neutral-900) 70%, transparent);
+  mask-image: linear-gradient(transparent, var(--sg-neutral-900) 30%, var(--sg-neutral-900) 70%, transparent);
 }
 
 .wheelColumn:focus-visible {

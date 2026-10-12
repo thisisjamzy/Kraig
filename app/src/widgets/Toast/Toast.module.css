@@ -16,7 +16,7 @@
   font-size: 0.875rem;
   font-weight: 500;
   text-align: center;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 10px 30px color-mix(in srgb, var(--sg-neutral-900) 20%, transparent);
   animation: toastIn 220ms var(--ease-out);
 }
 

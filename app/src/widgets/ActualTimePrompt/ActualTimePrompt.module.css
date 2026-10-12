@@ -11,17 +11,12 @@
   padding: 12px 10px 12px 14px;
   border-radius: 18px;
   background: var(--color-background);
-  box-shadow: 0 12px 32px rgba(27, 27, 57, 0.18);
+  box-shadow: 0 12px 32px color-mix(in srgb, var(--sg-primary-dark) 18%, transparent);
   color: var(--color-text-primary);
   font-family: var(--font-family-body);
   transform: translateX(-50%);
   animation: rise 220ms var(--ease-out);
 }
-
-:global([data-theme='dark']) .prompt {
-  background: var(--color-surface);
-}
-
 @keyframes rise {
   from {
     opacity: 0;
@@ -39,11 +34,6 @@
   background: var(--color-brand-tint);
   color: var(--color-brand);
 }
-
-:global([data-theme='dark']) .icon {
-  background: color-mix(in srgb, var(--color-brand) 20%, transparent);
-}
-
 .body {
   flex: 1;
   min-width: 0;

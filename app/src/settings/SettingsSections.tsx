@@ -175,18 +175,6 @@ const DATE_FORMATS: { value: DateFormat; label: string }[] = [
 function PreferencesSection({ v }: { v: SettingsLogic }) {
   return (
     <Group>
-      <Row label="Appearance" description="System follows your device.">
-        <Choice
-          label="Appearance"
-          value={v.appearance}
-          onChange={v.setAppearance}
-          options={[
-            { value: 'light', label: 'Light' },
-            { value: 'dark', label: 'Dark' },
-            { value: 'system', label: 'System' },
-          ]}
-        />
-      </Row>
       <Row label="Start page on the web" description="What opens on a computer or tablet.">
         <Select label="Start page on the web" value={v.prefs.startPageWeb} onChange={(x) => v.setPref('startPageWeb', x)} options={START_PAGES} />
       </Row>

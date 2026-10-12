@@ -34,12 +34,13 @@ import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { Tag, type TagColor } from '@/src/widgets/TaskDb/Tag';
 import styles from './DebtsListScreen.module.css';
 import { NotificationsLink } from '@/src/widgets/Notifications/NotificationsLink';
+import { styleGuide } from '@/src/styles/tokens/styleGuide';
 
 type DebtRow = ReturnType<typeof useLogic>['debts'][number];
 
 const PRIORITY_LABEL = { high: 'High', medium: 'Medium', low: 'Low' } as const;
 const PRIORITY_COLOR: Record<DebtRow['priority'], TagColor> = { high: 'red', medium: 'yellow', low: 'gray' };
-const PRIORITY_FILL = { high: '#d44c47', medium: '#cb912f', low: '#9b9a97' } as const;
+const PRIORITY_FILL = { high: styleGuide.destructive, medium: styleGuide.brand.accent, low: styleGuide.neutrals[400] } as const;
 
 const shortDate = (d: Date | null) => (d ? d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : null);
 
@@ -175,11 +176,11 @@ export function DebtsListScreen() {
                       <ChartBlock id="trend" title="Is my debt going down?" summary={trend.length > 1 ? `${trend[trend.length - 1].total < trend[0].total ? 'Down' : 'Up'} from ${fmt(trend[0].total)} in ${trend[0].label} to ${fmt(trend[trend.length - 1].total)} now.` : null} empty={trend.length < 2 ? 'Needs two months of history.' : null}>
                         <ResponsiveContainer width="100%" height={220}>
                           <LineChart data={trend} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
-                            <CartesianGrid vertical={false} stroke="#edf0f6" />
+                            <CartesianGrid vertical={false} stroke={styleGuide.neutrals[200]} />
                             <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 12 }} />
                             <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 12 }} width={48} tickFormatter={axis} />
                             <Tooltip formatter={(n) => fmt(Number(n ?? 0))} />
-                            <Line dataKey="total" name="Owed" stroke="#c62f3e" strokeWidth={2.5} dot={{ r: 3 }} />
+                            <Line dataKey="total" name="Owed" stroke={styleGuide.destructive} strokeWidth={2.5} dot={{ r: 3 }} />
                           </LineChart>
                         </ResponsiveContainer>
                       </ChartBlock>
@@ -212,12 +213,12 @@ export function DebtsListScreen() {
                       <ChartBlock id="flow" title="Borrowed vs repaid" summary={`${fmt(v.repaidThisYear)} repaid and ${fmt(v.borrowedThisYear)} borrowed this year.`}>
                         <ResponsiveContainer width="100%" height={220}>
                           <BarChart data={v.monthly} margin={{ top: 8, right: 4, bottom: 0, left: 0 }}>
-                            <CartesianGrid vertical={false} stroke="#edf0f6" />
+                            <CartesianGrid vertical={false} stroke={styleGuide.neutrals[200]} />
                             <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 12 }} />
                             <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 12 }} width={48} tickFormatter={axis} />
                             <Tooltip formatter={(n) => fmt(Number(n ?? 0))} />
-                            <Bar dataKey="borrowed" name="Borrowed" fill="#3965fa" />
-                            <Bar dataKey="repaid" name="Repaid" fill="#448361" />
+                            <Bar dataKey="borrowed" name="Borrowed" fill={styleGuide.brand.primary} />
+                            <Bar dataKey="repaid" name="Repaid" fill={styleGuide.brand.accent} />
                           </BarChart>
                         </ResponsiveContainer>
                       </ChartBlock>

@@ -7,7 +7,7 @@
 }
 
 .amount[data-flow='Income'] {
-  color: #1f7a4d;
+  color: var(--sg-primary);
 }
 
 .amount[data-flow='Expense'] {
@@ -15,15 +15,15 @@
 }
 
 .amount[data-flow='Savings'] {
-  color: #2748d6;
+  color: var(--sg-primary);
 }
 
 .amount[data-flow='Transfer'] {
-  color: #787774;
+  color: var(--sg-neutral-500);
 }
 
 .amount[data-negative][data-flow='Savings'] {
-  color: #b7791f;
+  color: var(--sg-primary-dark);
 }
 
 .date {
@@ -35,7 +35,7 @@
 
 .time {
   font-size: 0.75rem;
-  color: #a5a49f;
+  color: var(--sg-neutral-400);
 }
 
 /* Excluded transactions (a debt changed to record only): listed with

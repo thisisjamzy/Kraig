@@ -20,7 +20,7 @@
   border: 0;
   border-bottom: 2px solid transparent;
   background: none;
-  color: #787774;
+  color: var(--sg-neutral-500);
   font: inherit;
   font-size: 0.9375rem;
   font-weight: 500;
@@ -48,7 +48,7 @@
 
 .count {
   font-size: 0.75rem;
-  color: #a5a49f;
+  color: var(--sg-neutral-400);
   font-variant-numeric: tabular-nums;
 }
 

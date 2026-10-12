@@ -23,7 +23,7 @@
 .tag[data-tone='warn'] {
   padding-left: 8px;
   background: color-mix(in srgb, var(--tf-orange) 16%, transparent);
-  color: #9a6415;
+  color: var(--sg-primary-dark);
 }
 
 .sub {

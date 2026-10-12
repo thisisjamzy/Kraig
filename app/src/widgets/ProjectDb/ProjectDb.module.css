@@ -36,7 +36,7 @@
   flex: 1;
   height: 4px;
   overflow: hidden;
-  background: rgba(55, 53, 47, 0.1);
+  background: color-mix(in srgb, var(--sg-neutral-800) 10%, transparent);
 }
 
 .track > span {
@@ -49,7 +49,7 @@
   flex: none;
   min-width: 34px;
   font-size: 0.75rem;
-  color: #787774;
+  color: var(--sg-neutral-500);
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
@@ -59,19 +59,14 @@
   flex-direction: column;
   height: 100%;
   min-width: 0;
-  border: 1px solid #e9e9e7;
+  border: 1px solid var(--sg-neutral-200);
   background: var(--color-background);
   cursor: pointer;
 }
 
 .card:hover {
-  background: rgba(55, 53, 47, 0.02);
+  background: color-mix(in srgb, var(--sg-neutral-800) 2%, transparent);
 }
-
-:global([data-theme='dark']) .card {
-  border-color: rgba(255, 255, 255, 0.09);
-}
-
 .cardBody {
   display: flex;
   flex: 1;
@@ -108,17 +103,17 @@
 .muted {
   margin: 0;
   font-size: 0.8125rem;
-  color: #787774;
+  color: var(--sg-neutral-500);
 }
 
 .muted[data-alert] {
-  color: #787774;
+  color: var(--sg-neutral-500);
 }
 
 .description {
   margin: 0;
   font-size: 0.8125rem;
-  color: var(--color-text-secondary, #5f5e5b);
+  color: var(--color-text-secondary, var(--sg-neutral-600));
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -139,7 +134,7 @@
 /* The bar along the bottom edge, spanning the card's full width. */
 .cardFoot {
   padding: 8px 14px 10px;
-  border-top: 1px solid #f1f1ef;
+  border-top: 1px solid var(--sg-neutral-100);
 }
 
 .listMeta {
@@ -147,7 +142,7 @@
   align-items: center;
   gap: 10px;
   font-size: 0.8125rem;
-  color: #787774;
+  color: var(--sg-neutral-500);
 }
 
 .listMeta .progress {

@@ -188,7 +188,7 @@
   background: var(--color-background);
   box-shadow:
     0 0 0 1px var(--color-border),
-    0 12px 32px rgba(27, 27, 57, 0.16);
+    0 12px 32px color-mix(in srgb, var(--sg-primary-dark) 16%, transparent);
   color: var(--color-text-primary);
   font-family: var(--font-family-body);
   transform-origin: top left;
@@ -206,11 +206,6 @@
   width: min(380px, calc(100vw - 16px));
   max-width: min(380px, calc(100vw - 16px));
 }
-
-:global([data-theme='dark']) .popover {
-  background: var(--color-surface);
-}
-
 @keyframes pop {
   from {
     opacity: 0;
@@ -248,7 +243,7 @@
   inset: 0;
   z-index: 89;
   display: block;
-  background: rgba(15, 17, 21, 0.35);
+  background: color-mix(in srgb, var(--sg-neutral-900) 35%, transparent);
 }
 
 /* The sheet's own header: handle, title, Done (sheets only). */
@@ -315,11 +310,6 @@
   background: var(--color-surface);
   color: var(--color-text-secondary);
 }
-
-:global([data-theme='dark']) .menuSearch {
-  background: rgba(255, 255, 255, 0.06);
-}
-
 .menuSearch input {
   flex: 1;
   min-width: 0;
@@ -359,12 +349,6 @@
   background: var(--color-surface);
   outline: none;
 }
-
-:global([data-theme='dark']) .row:hover,
-:global([data-theme='dark']) .row:focus-visible {
-  background: rgba(255, 255, 255, 0.06);
-}
-
 .row[data-danger],
 .row[data-missing] {
   color: var(--color-danger);
@@ -449,11 +433,6 @@
   appearance: none;
   cursor: pointer;
 }
-
-:global([data-theme='dark']) .dropdown select {
-  background: rgba(255, 255, 255, 0.06);
-}
-
 .dropdown svg {
   position: absolute;
   right: 7px;
@@ -478,12 +457,6 @@
   font-size: 16px;
   font-variant-numeric: tabular-nums;
 }
-
-:global([data-theme='dark']) .input,
-:global([data-theme='dark']) .select {
-  background: rgba(255, 255, 255, 0.04);
-}
-
 .input:focus,
 .select:focus,
 .dropdown select:focus-visible {
@@ -558,12 +531,6 @@
   text-align: left;
   cursor: pointer;
 }
-
-:global([data-theme='dark']) .presetGrid button,
-:global([data-theme='dark']) .customRow button {
-  background: rgba(255, 255, 255, 0.06);
-}
-
 .presetGrid button[aria-pressed='true'],
 .customRow button[aria-pressed='true'] {
   background: var(--color-brand);
@@ -609,13 +576,8 @@
   background: var(--color-background);
   box-shadow:
     0 0 0 1px var(--color-border),
-    0 10px 24px rgba(27, 27, 57, 0.16);
+    0 10px 24px color-mix(in srgb, var(--sg-primary-dark) 16%, transparent);
 }
-
-:global([data-theme='dark']) .dotsMenu {
-  background: var(--color-surface);
-}
-
 /* Sort rows */
 .sortRows {
   display: flex;
@@ -634,7 +596,7 @@
 
 .sortRow[data-dragging] {
   z-index: 1;
-  box-shadow: 0 6px 18px rgba(27, 27, 57, 0.18);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--sg-primary-dark) 18%, transparent);
 }
 
 .handle {
@@ -669,11 +631,6 @@
   border-radius: 10px;
   background: var(--color-surface);
 }
-
-:global([data-theme='dark']) .ruleLine {
-  background: rgba(255, 255, 255, 0.04);
-}
-
 .ruleLine + .ruleLine {
   margin-top: 6px;
 }

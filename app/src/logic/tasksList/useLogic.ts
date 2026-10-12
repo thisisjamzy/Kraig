@@ -26,6 +26,7 @@ import { QUADRANTS, isQuadrant, taskQuadrant } from '@/src/viewmodels/eisenhower
 import { effectiveTimeMode } from '@/src/viewmodels/scheduling';
 import type { FirestoreArea, FirestoreProject, Quadrant, TaskType, TimeMode } from '@/src/shared/firestore/types';
 import type { TaskCheckRowTask } from '@/src/widgets/TaskCheckRow/TaskCheckRow';
+import { styleGuide } from '@/src/styles/tokens/styleGuide';
 
 export type TaskListFilter = 'today' | 'week' | 'overdue' | 'all';
 
@@ -122,9 +123,9 @@ export function taskFields(projects: { id: string; name: string }[]): FieldDef<T
       type: 'select',
       get: (t) => t.status,
       options: [
-        { value: 'pending', label: 'Pending', color: '#3b63f0' },
-        { value: 'done', label: 'Done', color: '#2fa36b' },
-        { value: 'cancelled', label: 'Cancelled', color: '#8b90a0' },
+        { value: 'pending', label: 'Pending', color: styleGuide.brand.primary },
+        { value: 'done', label: 'Done', color: styleGuide.brand.primaryDark },
+        { value: 'cancelled', label: 'Cancelled', color: styleGuide.neutrals[400] },
       ],
     },
     {
@@ -133,7 +134,7 @@ export function taskFields(projects: { id: string; name: string }[]): FieldDef<T
       label: 'Importance',
       type: 'select',
       get: (t) => t.quadrant,
-      options: QUADRANTS.map((q, i) => ({ value: q.id, label: q.label, color: ['#e5484d', '#3b63f0', '#e8873a', '#8b90a0'][i] })),
+      options: QUADRANTS.map((q, i) => ({ value: q.id, label: q.label, color: [styleGuide.destructive, styleGuide.brand.primary, styleGuide.brand.accent, styleGuide.neutrals[400]][i] })),
     },
     {
       id: 'type',

@@ -15,14 +15,14 @@
      lime accent. Text on it stays near-black. */
   --c-accent: color-mix(in srgb, var(--c-primary) 55%, #ffffff);
   --c-accent-text: var(--color-text-primary);
-  --c-grey: #9ca3af;
+  --c-grey: var(--sg-neutral-400);
   --c-text: var(--color-text-primary);
   --c-muted: var(--color-text-secondary);
-  --c-axis: #d1d5db;
-  --c-grid: #eef0f3;
+  --c-axis: var(--sg-neutral-300);
+  --c-grid: var(--sg-neutral-100);
   --c-card: var(--color-background);
   --c-border: var(--color-border);
-  --c-future: #d1d5db;
+  --c-future: var(--sg-neutral-300);
   --c-bad: var(--color-danger);
   --c-guide-bg: var(--color-brand-tint);
   --plot-h: 250px;
@@ -330,13 +330,13 @@
 }
 
 .pill[data-tone='bad'] {
-  background: #f3f4f6;
+  background: var(--sg-neutral-100);
   color: var(--c-bad);
 }
 
 .pill[data-tone='neutral'] {
-  background: #f3f4f6;
-  color: #374151;
+  background: var(--sg-neutral-100);
+  color: var(--sg-neutral-700);
 }
 
 .kpiSub {
@@ -395,7 +395,7 @@
   right: 0;
   transform: translateY(50%);
   font-size: 11px;
-  color: #6b7280;
+  color: var(--sg-neutral-500);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -458,7 +458,7 @@
   flex: 1 1 0;
   min-width: 0;
   font-size: 11px;
-  color: #6b7280;
+  color: var(--sg-neutral-500);
   text-align: center;
   white-space: nowrap;
   overflow: hidden;
@@ -832,7 +832,7 @@
 
 .tag[data-tone='accent'] {
   background: var(--c-accent);
-  color: #111827;
+  color: var(--sg-neutral-900);
 }
 
 .tag[data-tone='good'] {
@@ -841,7 +841,7 @@
 }
 
 .tag[data-tone='bad'] {
-  background: #f3f4f6;
+  background: var(--sg-neutral-100);
   color: var(--c-bad);
 }
 
@@ -1049,7 +1049,7 @@
 .calHead {
   font-size: 11px;
   font-weight: 600;
-  color: #6b7280;
+  color: var(--sg-neutral-500);
   text-align: center;
 }
 
@@ -1060,7 +1060,7 @@
   min-height: 44px;
   padding: 4px 5px;
   border-radius: 6px;
-  background: #f3f4f6;
+  background: var(--sg-neutral-100);
   font-size: 11px;
   font-variant-numeric: tabular-nums;
   overflow: hidden;
@@ -1089,7 +1089,7 @@
   place-items: center;
   min-height: 30px;
   border-radius: 5px;
-  background: #f3f4f6;
+  background: var(--sg-neutral-100);
   font-variant-numeric: tabular-nums;
   font-size: 11px;
   overflow: hidden;
@@ -1103,7 +1103,7 @@
 .matrixHead {
   font-size: 11px;
   font-weight: 600;
-  color: #6b7280;
+  color: var(--sg-neutral-500);
   text-align: center;
   align-self: end;
   white-space: nowrap;
@@ -1112,7 +1112,7 @@
 .matrixRowHead {
   font-size: 11px;
   font-weight: 600;
-  color: #6b7280;
+  color: var(--sg-neutral-500);
   align-self: center;
   white-space: nowrap;
 }
@@ -1131,7 +1131,7 @@
 
 .yearCell {
   border-radius: 3px;
-  background: #f3f4f6;
+  background: var(--sg-neutral-100);
 }
 
 .yearCell[data-future] {
@@ -1148,7 +1148,7 @@
 .yearMonths span {
   position: absolute;
   font-size: 11px;
-  color: #6b7280;
+  color: var(--sg-neutral-500);
 }
 
 .scaleKey {
@@ -1156,7 +1156,7 @@
   align-items: center;
   gap: 4px;
   font-size: 11px;
-  color: #6b7280;
+  color: var(--sg-neutral-500);
 }
 
 .scaleKey i {
@@ -1182,7 +1182,7 @@
   right: 6px;
   transform: translateY(-50%);
   font-size: 11px;
-  color: #6b7280;
+  color: var(--sg-neutral-500);
   font-variant-numeric: tabular-nums;
 }
 
@@ -1275,7 +1275,7 @@
   position: absolute;
   transform: translateX(-50%);
   font-size: 11px;
-  color: #6b7280;
+  color: var(--sg-neutral-500);
   white-space: nowrap;
 }
 

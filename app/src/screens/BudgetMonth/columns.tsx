@@ -20,6 +20,7 @@ import { formatNumber } from '@/src/widgets/Database/format';
 import { coverHref, reallocateHref } from '@/src/screens/Planning/PlanningParts';
 import type { LineRow } from '@/src/logic/budgetMonth/lines';
 import styles from './BudgetMonth.module.css';
+import { styleGuide } from '@/src/styles/tokens/styleGuide';
 
 export interface ColumnContext {
   month: string;
@@ -37,14 +38,14 @@ export interface ColumnContext {
 }
 
 const NEED: FieldOption[] = [
-  { value: 'MustHave', label: 'Must have', color: '#fde8ef' },
-  { value: 'NiceToHave', label: 'Nice to have', color: '#e8eeff' },
+  { value: 'MustHave', label: 'Must have', color: styleGuide.brand.primaryLight },
+  { value: 'NiceToHave', label: 'Nice to have', color: styleGuide.neutrals[100] },
 ];
 const PRIORITY: FieldOption[] = [
-  { value: 'Urgent', label: 'Urgent', color: '#fdecee' },
-  { value: 'High', label: 'High', color: '#fdecee' },
-  { value: 'Medium', label: 'Medium', color: '#fff3dc' },
-  { value: 'Low', label: 'Low', color: '#eef1f8' },
+  { value: 'Urgent', label: 'Urgent', color: styleGuide.brand.accent },
+  { value: 'High', label: 'High', color: styleGuide.brand.accent },
+  { value: 'Medium', label: 'Medium', color: styleGuide.brand.primaryLight },
+  { value: 'Low', label: 'Low', color: styleGuide.neutrals[100] },
 ];
 const STATUS_OPTIONS = (states: string[]): FieldOption[] => states.map((s) => ({ value: s, label: s }));
 

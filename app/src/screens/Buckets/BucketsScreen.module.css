@@ -9,5 +9,5 @@
 
 .figure span {
   font-weight: 400;
-  color: #787774;
+  color: var(--sg-neutral-500);
 }

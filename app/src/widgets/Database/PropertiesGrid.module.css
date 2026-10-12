@@ -2,23 +2,16 @@
    colored by meaning. */
 
 .wrap {
-  --pg-line: #e9e9e7;
-  --pg-label: #6b7085;
-  --pg-text: var(--color-text-primary, #1b1b39);
+  --pg-line: var(--sg-neutral-200);
+  --pg-label: var(--sg-neutral-500);
+  --pg-text: var(--color-text-primary, var(--sg-neutral-900));
   --pg-bg: var(--color-background, #fff);
-  --pg-hover: rgba(55, 53, 47, 0.03);
+  --pg-hover: color-mix(in srgb, var(--sg-neutral-800) 3%, transparent);
   display: flex;
   flex-direction: column;
   gap: 6px;
   min-width: 0;
 }
-
-:global([data-theme='dark']) .wrap {
-  --pg-line: rgba(255, 255, 255, 0.09);
-  --pg-label: rgba(255, 255, 255, 0.6);
-  --pg-hover: rgba(255, 255, 255, 0.04);
-}
-
 .grid {
   display: grid;
   gap: 8px;
@@ -38,27 +31,27 @@
 }
 
 .tile[data-tone='in'] {
-  background: #eef2ff;
-  --pg-value: var(--color-brand, #3965fa);
+  background: var(--sg-primary-light);
+  --pg-value: var(--color-brand, var(--sg-primary));
 }
 
 .tile[data-tone='out'] {
-  --pg-value: #1b1b39;
+  --pg-value: var(--sg-primary-dark);
 }
 
 .tile[data-tone='good'] {
-  background: #edf7ee;
-  --pg-value: #1f6b3a;
+  background: var(--sg-primary-light);
+  --pg-value: var(--sg-primary-dark);
 }
 
 /* Warning and problem states: colored text with an icon on a white tile
    (no pale amber or red backgrounds; one accent per tile). */
 .tile[data-tone='watch'] {
-  --pg-value: #8a5a00;
+  --pg-value: var(--sg-primary-dark);
 }
 
 .tile[data-tone='bad'] {
-  --pg-value: #c62f3e;
+  --pg-value: var(--sg-destructive);
 }
 
 .toneIcon {
@@ -67,25 +60,6 @@
   margin-right: 4px;
   vertical-align: -2px;
 }
-
-:global([data-theme='dark']) .tile[data-tone='in'] {
-  background: rgba(110, 140, 255, 0.14);
-  --pg-value: #9db1ff;
-}
-:global([data-theme='dark']) .tile[data-tone='out'] {
-  --pg-value: var(--color-text-primary);
-}
-:global([data-theme='dark']) .tile[data-tone='good'] {
-  background: rgba(68, 131, 97, 0.18);
-  --pg-value: #8fd3a8;
-}
-:global([data-theme='dark']) .tile[data-tone='watch'] {
-  --pg-value: #f0c37a;
-}
-:global([data-theme='dark']) .tile[data-tone='bad'] {
-  --pg-value: #ff9b94;
-}
-
 /* The whole tile is the edit target, under its content. */
 .editable {
   position: absolute;
@@ -101,7 +75,7 @@
 }
 
 .editable:focus-visible {
-  outline: 2px solid var(--color-brand, #3965fa);
+  outline: 2px solid var(--color-brand, var(--sg-primary));
   outline-offset: -2px;
 }
 
@@ -177,7 +151,7 @@
 
 .empty {
   font-weight: 400;
-  color: #a5a49f;
+  color: var(--sg-neutral-400);
 }
 
 .progress {
@@ -193,13 +167,13 @@
   flex: 1;
   height: 6px;
   overflow: hidden;
-  background: rgba(55, 53, 47, 0.1);
+  background: color-mix(in srgb, var(--sg-neutral-800) 10%, transparent);
 }
 
 .progressTrack > span {
   position: absolute;
   inset: 0 auto 0 0;
-  background: var(--pg-value, var(--color-brand, #3965fa));
+  background: var(--pg-value, var(--color-brand, var(--sg-primary)));
 }
 
 .progressPct {
@@ -214,7 +188,7 @@
   padding: 0 4px;
   border: 0;
   background: none;
-  color: var(--color-brand, #3965fa);
+  color: var(--color-brand, var(--sg-primary));
   font: inherit;
   font-size: 0.875rem;
   cursor: pointer;
@@ -229,5 +203,5 @@
 .error {
   margin: 0;
   font-size: 0.875rem;
-  color: #c62f3e;
+  color: var(--sg-destructive);
 }

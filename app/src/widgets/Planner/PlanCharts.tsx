@@ -15,6 +15,7 @@ import { compact, signedCompact } from '@/src/shared/dashboard/format';
 import { Plot } from '@/src/widgets/Charts/Columns';
 import s from '@/src/widgets/Charts/Charts.module.css';
 import p from './Planner.module.css';
+import { styleGuide } from '@/src/styles/tokens/styleGuide';
 
 export function LockGlyph({ label = 'Locked' }: { label?: string }) {
   return <Lock className={p.lock} size={12} strokeWidth={2.4} aria-label={label} role="img" />;
@@ -402,7 +403,7 @@ export function DailyLoad({ days, ariaLabel }: { days: LoadColumn[]; ariaLabel: 
                       className={s.seg}
                       style={{
                         height: `${(d.meetings / d.total) * 100}%`,
-                        background: '#cbd5e1',
+                        background: styleGuide.brand.primaryLight,
                       }}
                     />
                   )}

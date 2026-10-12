@@ -1,8 +1,8 @@
 /* A chart block: square, 1px border, 20px padding (16px on phones). */
 
 .block {
-  --cb-line: #e9e9e7;
-  --cb-muted: #787774;
+  --cb-line: var(--sg-neutral-200);
+  --cb-muted: var(--sg-neutral-500);
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -12,12 +12,6 @@
   background: var(--color-background);
   color: var(--color-text-primary);
 }
-
-:global([data-theme='dark']) .block {
-  --cb-line: rgba(255, 255, 255, 0.09);
-  --cb-muted: rgba(255, 255, 255, 0.6);
-}
-
 @media (max-width: 767px) {
   .block {
     padding: 16px;
@@ -36,7 +30,7 @@
   width: 18px;
   height: 24px;
   margin-left: -8px;
-  color: #c4c4c0;
+  color: var(--sg-neutral-300);
   cursor: grab;
 }
 
@@ -52,7 +46,7 @@
   flex: none;
   padding: 1px 8px;
   border-radius: 6px;
-  background: rgba(55, 53, 47, 0.08);
+  background: color-mix(in srgb, var(--sg-neutral-800) 8%, transparent);
   font-size: 0.75rem;
   font-weight: 600;
   line-height: 1.6;
@@ -60,18 +54,18 @@
 }
 
 .chip[data-tone='good'] {
-  background: #dbeddb;
-  color: #1c3829;
+  background: var(--sg-primary-light);
+  color: var(--sg-primary-dark);
 }
 
 .chip[data-tone='watch'] {
-  background: #fdecc8;
-  color: #402c1b;
+  background: var(--sg-neutral-100);
+  color: var(--sg-neutral-700);
 }
 
 .chip[data-tone='bad'] {
-  background: #ffe2dd;
-  color: #5d1715;
+  background: var(--sg-accent);
+  color: var(--sg-neutral-900);
 }
 
 .more {
@@ -97,7 +91,7 @@
 }
 
 .more:hover {
-  background: rgba(55, 53, 47, 0.06);
+  background: color-mix(in srgb, var(--sg-neutral-800) 6%, transparent);
 }
 
 .summary {
@@ -145,7 +139,7 @@
 }
 
 .toggle:hover {
-  background: rgba(55, 53, 47, 0.06);
+  background: color-mix(in srgb, var(--sg-neutral-800) 6%, transparent);
   color: var(--color-text-primary);
 }
 
@@ -207,5 +201,5 @@
 }
 
 .menuRow:hover {
-  background: rgba(55, 53, 47, 0.06);
+  background: color-mix(in srgb, var(--sg-neutral-800) 6%, transparent);
 }

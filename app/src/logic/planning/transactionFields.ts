@@ -4,6 +4,7 @@
 
 import type { FieldDef, ListQuery } from '@/src/shared/listQuery/engine';
 import type { HistoryRow } from './rows';
+import { styleGuide } from '@/src/styles/tokens/styleGuide';
 
 const DIRECTION = { Income: 'income', Expense: 'expense', Savings: 'savings', Transfer: 'transfer', Adjustment: 'budget_move' } as const;
 
@@ -27,11 +28,11 @@ export function transactionFields({
       type: 'select',
       get: (r) => DIRECTION[r.type],
       options: [
-        { value: 'income', label: 'Income', color: '#2fa36b' },
-        { value: 'expense', label: 'Expense', color: '#e04b5a' },
-        { value: 'savings', label: 'Savings', color: '#d98a1c' },
-        { value: 'transfer', label: 'Transfer', color: '#3b63f0' },
-        { value: 'budget_move', label: 'Budget move', color: '#6b7085' },
+        { value: 'income', label: 'Income', color: styleGuide.brand.primary },
+        { value: 'expense', label: 'Expense', color: styleGuide.destructive },
+        { value: 'savings', label: 'Savings', color: styleGuide.brand.accent },
+        { value: 'transfer', label: 'Transfer', color: styleGuide.brand.primaryDark },
+        { value: 'budget_move', label: 'Budget move', color: styleGuide.neutrals[500] },
       ],
     },
     {

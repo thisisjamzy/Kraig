@@ -21,6 +21,7 @@ import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { BarRows, ColumnWaterfall, DailyLoad, LockGlyph } from './PlanCharts';
 import { ScenarioBar } from './ScenarioBar';
 import p from './Planner.module.css';
+import { styleGuide } from '@/src/styles/tokens/styleGuide';
 
 const h = (x: number) => `${Math.round(x * 10) / 10} h`;
 const short = (d: Day) => `${WEEKDAY[weekdayOf(d)]} ${ymd(d).d}`;
@@ -88,7 +89,7 @@ export function TimePlanPage({ logic, web = false }: { logic: TimePlanLogic; web
             subtitle="Planned hours each day against the hours you set"
             chartType="stacked"
             guide={PLAN_GUIDE.load}
-            legend={[{ label: 'Meetings (locked)', color: '#cbd5e1' }, ...projects.map(([name, color]) => ({ label: name, color })), { label: 'Your hours', line: true }]}
+            legend={[{ label: 'Meetings (locked)', color: styleGuide.brand.primaryLight }, ...projects.map(([name, color]) => ({ label: name, color })), { label: 'Your hours', line: true }]}
           >
             <DailyLoad ariaLabel="Daily load" days={view.load.map((d) => ({ label: short(d.day), capacity: d.capacity, meetings: d.meetings, parts: d.parts, total: d.total }))} />
             {view.risks.length || view.over.length ? (
@@ -138,7 +139,7 @@ export function TimePlanPage({ logic, web = false }: { logic: TimePlanLogic; web
               ariaLabel="Hours waterfall"
               steps={[
                 { label: 'Working', kind: 'total', value: wf.capacity, color: 'var(--c-grey)' },
-                { label: 'Meetings', kind: 'delta', value: -wf.meetings, color: '#94a3b8', lock: true },
+                { label: 'Meetings', kind: 'delta', value: -wf.meetings, color: styleGuide.brand.primary, lock: true },
                 { label: 'For tasks', kind: 'sub', color: 'var(--c-primary-light)' },
                 { label: 'Tasks due', kind: 'delta', value: -wf.due, color: 'var(--c-primary)' },
                 { label: wf.spare < 0 ? 'Short' : 'Spare', kind: 'total', color: wf.spare < 0 ? 'var(--c-bad)' : 'var(--c-primary-dark)' },
@@ -157,7 +158,7 @@ export function TimePlanPage({ logic, web = false }: { logic: TimePlanLogic; web
             <BarRows
               format={h}
               ariaLabel="Hours by project"
-              rows={[{ label: 'Meetings', value: kpis.meetings, color: '#94a3b8', lock: true }, ...view.byProject.map((x) => ({ label: x.project, value: x.hours, color: x.color }))].filter((r) => r.value > 0).sort((a, b) => b.value - a.value)}
+              rows={[{ label: 'Meetings', value: kpis.meetings, color: styleGuide.brand.primary, lock: true }, ...view.byProject.map((x) => ({ label: x.project, value: x.hours, color: x.color }))].filter((r) => r.value > 0).sort((a, b) => b.value - a.value)}
             />
           </ChartCard>
         </div>
@@ -376,7 +377,7 @@ function WeekBoard({ logic }: { logic: TimePlanLogic }) {
                 </span>
               </div>
               <div className={p.meter} role="img" aria-label={`${h(used)} of ${h(cap)} used`}>
-                <i style={{ width: `${Math.min(100, (meet / base) * 100)}%`, background: '#cbd5e1' }} />
+                <i style={{ width: `${Math.min(100, (meet / base) * 100)}%`, background: styleGuide.brand.primaryLight }} />
                 <i style={{ width: `${Math.max(0, Math.min(100 - (meet / base) * 100, ((used - meet) / base) * 100))}%`, background: 'var(--c-primary)' }} />
               </div>
               <span className={p.muted}>{free < -0.01 ? <b data-bad>{h(-free)} over</b> : `${h(free)} free`}</span>

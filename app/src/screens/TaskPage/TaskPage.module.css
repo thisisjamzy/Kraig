@@ -12,7 +12,7 @@
   position: absolute;
   inset: 0;
   border: 0;
-  background: rgba(15, 15, 15, 0.08);
+  background: color-mix(in srgb, var(--sg-neutral-900) 8%, transparent);
   cursor: default;
 }
 
@@ -23,7 +23,7 @@
   width: min(600px, 100vw);
   height: 100%;
   overflow-y: auto;
-  border-left: 1px solid #e9e9e7;
+  border-left: 1px solid var(--sg-neutral-200);
   background: var(--color-background);
   outline: none;
   animation: slide 160ms ease-out;
@@ -66,12 +66,12 @@
   border: 0;
   border-radius: 6px;
   background: none;
-  color: #787774;
+  color: var(--sg-neutral-500);
   cursor: pointer;
 }
 
 .iconButton:hover {
-  background: rgba(55, 53, 47, 0.06);
+  background: color-mix(in srgb, var(--sg-neutral-800) 6%, transparent);
   color: var(--color-text-primary);
 }
 
@@ -127,7 +127,7 @@
 }
 
 .titleInput[data-done] {
-  color: #a5a49f;
+  color: var(--sg-neutral-400);
   text-decoration: line-through;
 }
 
@@ -147,13 +147,13 @@
 
 .muted {
   margin: 0;
-  color: #787774;
+  color: var(--sg-neutral-500);
   font-size: 0.875rem;
 }
 
 .error {
   margin: 0;
-  color: #d44c47;
+  color: var(--sg-destructive);
   font-size: 0.875rem;
 }
 
@@ -162,7 +162,7 @@
   flex-direction: column;
   gap: 6px;
   padding-top: 12px;
-  border-top: 1px solid #e9e9e7;
+  border-top: 1px solid var(--sg-neutral-200);
 }
 
 .blockTitle {
@@ -177,7 +177,7 @@
 .count {
   font-size: 0.8125rem;
   font-weight: 400;
-  color: #787774;
+  color: var(--sg-neutral-500);
 }
 
 .checklist {
@@ -203,7 +203,7 @@
 }
 
 .checklist li span[data-done] {
-  color: #a5a49f;
+  color: var(--sg-neutral-400);
   text-decoration: line-through;
 }
 
@@ -231,7 +231,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #a5a49f;
+  color: var(--sg-neutral-400);
 }
 
 .addRow input {
@@ -278,13 +278,13 @@
   flex-direction: column;
   gap: 4px;
   font-size: 0.8125rem;
-  color: #787774;
+  color: var(--sg-neutral-500);
 }
 
 .timeRow input {
   min-height: 36px;
   padding: 0 8px;
-  border: 1px solid #e9e9e7;
+  border: 1px solid var(--sg-neutral-200);
   border-radius: 6px;
   background: none;
   color: var(--color-text-primary);
@@ -337,5 +337,5 @@
 }
 
 .menuRow:hover {
-  background: rgba(55, 53, 47, 0.06);
+  background: color-mix(in srgb, var(--sg-neutral-800) 6%, transparent);
 }

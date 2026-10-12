@@ -127,7 +127,7 @@
   border: none;
   background: var(--ink-bg);
   color: var(--color-brand);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--sg-neutral-900) 25%, transparent);
   cursor: pointer;
   text-decoration: none;
 }

@@ -23,12 +23,13 @@ import { TAG_ACCENT } from '@/src/widgets/TaskDb/Tag';
 import { HEALTH_COLOR, healthAccent, projectCardSpec, projectColumns, projectGroups, projectListSpec } from '@/src/widgets/ProjectDb/projectDatabase';
 import { useFormLink } from '@/src/shared/navigation/useFormLink';
 import { NotificationsLink } from '@/src/widgets/Notifications/NotificationsLink';
+import { styleGuide } from '@/src/styles/tokens/styleGuide';
 
 const ALL = ['name', 'health', 'progress', 'dates', 'start', 'end', 'tasks', 'overdue', 'area', 'status', 'description', 'lastActivity'];
 const showOnly = (ids: string[]) => ALL.filter((id) => !ids.includes(id));
 const active = (r: ProjectRow) => r.status === 'Active';
 
-const FILL: Record<string, string> = { red: '#ffe2dd', yellow: '#fdecc8', green: '#dbeddb', gray: '#e3e2e0' };
+const FILL: Record<string, string> = { red: styleGuide.brand.accent, yellow: styleGuide.neutrals[200], green: styleGuide.brand.primaryLight, gray: styleGuide.neutrals[100] };
 
 const VIEWS: DefaultView<ProjectRow>[] = [
   { id: 'gallery', name: 'Gallery', layout: 'cards', group: 'area', filter: active, hidden: showOnly(['name', 'dates', 'description', 'health', 'tasks', 'overdue', 'area', 'progress']) },
@@ -99,7 +100,7 @@ function ProjectsPage() {
         phoneLayouts={[]}
         renderLayout={(_, shown) => (
           <ProjectTimeline
-            rows={shown.map((r) => ({ id: r.id, name: r.name, start: r.start, end: r.end, accent: healthAccent(r.health), fill: FILL[HEALTH_COLOR[r.health]] ?? '#e3e2e0', label: `${r.name} · ${Math.round(r.progress * 100)}%` }))}
+            rows={shown.map((r) => ({ id: r.id, name: r.name, start: r.start, end: r.end, accent: healthAccent(r.health), fill: FILL[HEALTH_COLOR[r.health]] ?? styleGuide.neutrals[200], label: `${r.name} · ${Math.round(r.progress * 100)}%` }))}
             onOpen={(id) => router.push(`/projects/${id}`)}
             onChange={(id, start, end) => {
               const row = rows.find((r) => r.id === id);

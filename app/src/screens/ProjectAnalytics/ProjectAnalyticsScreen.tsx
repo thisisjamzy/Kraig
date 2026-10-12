@@ -17,6 +17,7 @@ import { MasonryGrid } from '@/src/widgets/Database/MasonryGrid';
 import { NotionPage } from '@/src/widgets/Database/NotionPage';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import styles from './ProjectAnalyticsScreen.module.css';
+import { styleGuide } from '@/src/styles/tokens/styleGuide';
 
 function Shares({ segments }: { segments: DonutSegment[] }) {
   if (segments.length <= 3) return <DonutChart segments={segments} legendPosition="bottom" />;
@@ -51,11 +52,11 @@ export function ProjectAnalyticsScreen() {
         <ChartBlock id="weekly" title="Completed per week" summary={weeks.length ? `${weeks[weeks.length - 1].value} completed in the latest week.` : null} empty={weeks.length ? null : 'Complete a few tasks to see this.'}>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={weeks} margin={{ top: 8, right: 4, bottom: 0, left: 0 }}>
-              <CartesianGrid vertical={false} stroke="#edf0f6" />
+              <CartesianGrid vertical={false} stroke={styleGuide.neutrals[200]} />
               <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 12 }} />
               <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 12 }} width={32} allowDecimals={false} />
               <Tooltip />
-              <Bar dataKey="value" name="Completed" fill="#3965fa" />
+              <Bar dataKey="value" name="Completed" fill={styleGuide.brand.primary} />
             </BarChart>
           </ResponsiveContainer>
         </ChartBlock>
@@ -93,8 +94,8 @@ export function ProjectAnalyticsScreen() {
         <ChartBlock id="projectsOnTime" title="Finished projects: on time vs rescheduled" empty={projectReschedule.onTime + projectReschedule.rescheduled ? null : 'No finished projects yet.'}>
           <Shares
             segments={[
-              { label: 'On time', value: projectReschedule.onTime, color: '#3965fa' },
-              { label: 'Rescheduled', value: projectReschedule.rescheduled, color: '#cb912f' },
+              { label: 'On time', value: projectReschedule.onTime, color: styleGuide.brand.primary },
+              { label: 'Rescheduled', value: projectReschedule.rescheduled, color: styleGuide.brand.accent },
             ]}
           />
         </ChartBlock>
@@ -106,8 +107,8 @@ export function ProjectAnalyticsScreen() {
         <ChartBlock id="tasksOnTime" title="Finished tasks: on time vs rescheduled" empty={taskReschedule.onTime + taskReschedule.rescheduled ? null : 'No finished tasks yet.'}>
           <Shares
             segments={[
-              { label: 'On time', value: taskReschedule.onTime, color: '#3965fa' },
-              { label: 'Rescheduled', value: taskReschedule.rescheduled, color: '#cb912f' },
+              { label: 'On time', value: taskReschedule.onTime, color: styleGuide.brand.primary },
+              { label: 'Rescheduled', value: taskReschedule.rescheduled, color: styleGuide.brand.accent },
             ]}
           />
         </ChartBlock>

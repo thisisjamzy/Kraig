@@ -5,7 +5,7 @@
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.5);
+  background: color-mix(in srgb, var(--sg-neutral-900) 50%, transparent);
   padding: var(--space-lg);
   /* A sheet that grows to full height still stops below the status bar
      and clears a landscape notch. */
@@ -23,7 +23,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-lg);
-  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 -8px 32px color-mix(in srgb, var(--sg-neutral-900) 20%, transparent);
   margin-bottom: var(--safe-bottom);
 }
 
