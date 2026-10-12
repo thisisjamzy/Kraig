@@ -33,7 +33,7 @@
 
 .scroll {
   overflow-x: auto;
-  border: 1px solid #e9e9e7;
+  border: 1px solid var(--sg-neutral-200);
   background: var(--color-background);
 }
 

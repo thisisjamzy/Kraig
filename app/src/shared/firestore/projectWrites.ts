@@ -6,9 +6,10 @@
 // either deleted too, or kept as standalone tasks: projectId, and the
 // areaId/bucketId mirrored from the project, cleared.
 
-import { getDocs, query, where, writeBatch } from 'firebase/firestore';
+import { getDocs, query, serverTimestamp, setDoc, Timestamp, where, writeBatch } from 'firebase/firestore';
 import { getFirebaseFirestore } from '@/src/shared/config/firebaseClient';
-import { projectRef, tasksRef } from './refs';
+import { DEFAULT_PRIORITY } from '@/src/viewmodels/projects';
+import { areaRef, projectRef, sectionRef, tasksRef } from './refs';
 
 // Firestore caps a batch at 500 writes.
 const BATCH_LIMIT = 450;
@@ -36,4 +37,60 @@ export async function deleteProject(uid: string, projectId: string, options: { d
   const last = writeBatch(db);
   last.delete(projectRef(uid, projectId));
   await last.commit();
+}
+
+// ---- Made from a picker (New task's Project, New project's Area and
+// Section): just a name, the rest as the full forms default it. Their
+// own pages fill in the rest later.
+
+export async function quickCreateProject(uid: string, name: string, color: string): Promise<string> {
+  const id = crypto.randomUUID();
+  const today = new Date();
+  await setDoc(projectRef(uid, id), {
+    name: name.trim(),
+    emoji: null,
+    areaId: null,
+    bucketId: null,
+    color,
+    priority: DEFAULT_PRIORITY,
+    startDate: Timestamp.fromDate(new Date(today.getFullYear(), today.getMonth(), today.getDate())),
+    endDate: null,
+    originalEndDate: null,
+    rescheduleCount: 0,
+    description: '',
+    status: 'Active',
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+  return id;
+}
+
+export async function quickCreateArea(uid: string, name: string, color: string): Promise<string> {
+  const id = crypto.randomUUID();
+  await setDoc(areaRef(uid, id), {
+    name: name.trim(),
+    emoji: null,
+    color,
+    description: '',
+    weeklyHoursTarget: null,
+    archived: false,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+  return id;
+}
+
+export async function quickCreateSection(uid: string, areaId: string, name: string, color: string): Promise<string> {
+  const id = crypto.randomUUID();
+  await setDoc(sectionRef(uid, id), {
+    name: name.trim(),
+    emoji: null,
+    color,
+    description: '',
+    areaId,
+    archived: false,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+  return id;
 }

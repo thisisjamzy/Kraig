@@ -11,35 +11,18 @@
 .peek,
 .callout,
 .menu {
-  --db-line: #e9e9e7;
-  --db-hover: rgba(55, 53, 47, 0.04);
-  --db-muted: #787774;
-  --db-light: #a5a49f;
-  --db-red: #d6404f;
-  --db-red-tint: #fdecee;
-  --db-blue: var(--color-brand, #3965fa);
-  --db-blue-tint: #eaefff;
-  --db-chip: rgba(55, 53, 47, 0.08);
+  --db-line: var(--sg-neutral-200);
+  --db-hover: color-mix(in srgb, var(--sg-neutral-800) 4%, transparent);
+  --db-muted: var(--sg-neutral-500);
+  --db-light: var(--sg-neutral-400);
+  --db-red: var(--sg-destructive);
+  --db-red-tint: var(--sg-neutral-100);
+  --db-blue: var(--color-brand, var(--sg-primary));
+  --db-blue-tint: var(--sg-primary-light);
+  --db-chip: color-mix(in srgb, var(--sg-neutral-800) 8%, transparent);
   --db-bg: var(--color-background, #fff);
   --db-text: var(--color-text-primary);
 }
-
-:global([data-theme='dark']) .database,
-:global([data-theme='dark']) .properties,
-:global([data-theme='dark']) .pageHeader,
-:global([data-theme='dark']) .block,
-:global([data-theme='dark']) .peek,
-:global([data-theme='dark']) .callout,
-:global([data-theme='dark']) .menu {
-  --db-line: rgba(255, 255, 255, 0.09);
-  --db-hover: rgba(255, 255, 255, 0.05);
-  --db-muted: rgba(255, 255, 255, 0.6);
-  --db-light: rgba(255, 255, 255, 0.4);
-  --db-chip: rgba(255, 255, 255, 0.08);
-  --db-blue-tint: rgba(110, 140, 255, 0.16);
-  --db-red-tint: rgba(255, 139, 107, 0.14);
-}
-
 /* ---- Page anatomy ---- */
 
 .pageHeader {
@@ -152,7 +135,7 @@
   align-items: flex-start;
   padding: 14px 16px;
   border: 1px solid var(--db-line);
-  background: rgba(55, 53, 47, 0.03);
+  background: color-mix(in srgb, var(--sg-neutral-800) 3%, transparent);
   color: var(--db-text);
   font-size: 0.9375rem;
   line-height: 1.5;
@@ -166,11 +149,11 @@
 }
 
 .callout[data-tone='good'] .calloutIcon {
-  color: #1f7a4d;
+  color: var(--sg-primary);
 }
 
 .callout[data-tone='watch'] .calloutIcon {
-  color: #b7791f;
+  color: var(--sg-primary-dark);
 }
 
 .calloutIcon {
@@ -339,7 +322,7 @@
   border-radius: 50%;
   background: var(--db-blue);
   color: #fff;
-  box-shadow: 0 6px 20px rgba(57, 101, 250, 0.35);
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--sg-primary) 35%, transparent);
   cursor: pointer;
 }
 
@@ -423,7 +406,7 @@
 
 .menuRow:hover,
 .menuRow:focus-visible {
-  background: var(--db-hover, rgba(55, 53, 47, 0.04));
+  background: var(--db-hover, color-mix(in srgb, var(--sg-neutral-800) 4%, transparent));
   outline: none;
 }
 
@@ -712,10 +695,7 @@
 
 @media (hover: hover) and (pointer: fine) {
   .row:hover > td {
-    background: #f9f9f8;
-  }
-  :global([data-theme='dark']) .row:hover > td {
-    background: #262626;
+    background: var(--sg-neutral-50);
   }
   .row:hover .rowHover,
   .rowHover:focus-within {
@@ -831,23 +811,23 @@
 }
 
 .chip[data-tone='good'] {
-  background: #dbeddb;
-  color: #1c3829;
+  background: var(--sg-primary-light);
+  color: var(--sg-primary-dark);
 }
 
 .chip[data-tone='bad'] {
-  background: #ffe2dd;
-  color: #5d1715;
+  background: var(--sg-accent);
+  color: var(--sg-neutral-900);
 }
 
 .chip[data-tone='watch'] {
-  background: #fdecc8;
-  color: #402c1b;
+  background: var(--sg-neutral-100);
+  color: var(--sg-neutral-700);
 }
 
 .chip[data-tone='blue'] {
-  background: #d3e5ef;
-  color: #183347;
+  background: var(--sg-primary-light);
+  color: var(--sg-primary);
 }
 
 .progressCell {
@@ -1133,9 +1113,9 @@
 .error {
   margin: 0 0 6px;
   padding: 8px 10px;
-  border: 1px solid rgba(214, 64, 79, 0.25);
-  background: var(--db-red-tint, #fdecee);
-  color: var(--db-red, #d6404f);
+  border: 1px solid color-mix(in srgb, var(--sg-destructive) 25%, transparent);
+  background: var(--db-red-tint, var(--sg-neutral-100));
+  color: var(--db-red, var(--sg-destructive));
   font-size: 0.8125rem;
 }
 
@@ -1228,10 +1208,7 @@
 
 @media (hover: hover) and (pointer: fine) {
   .card[data-clickable]:hover {
-    background: #fbfbfa;
-  }
-  :global([data-theme='dark']) .card[data-clickable]:hover {
-    background: #252525;
+    background: var(--sg-neutral-50);
   }
 }
 
@@ -1375,7 +1352,7 @@
 
 @media (hover: hover) and (pointer: fine) {
   .listItem:hover {
-    background: #f9f9f8;
+    background: var(--sg-neutral-50);
   }
 }
 
@@ -1444,16 +1421,16 @@
   display: flex;
   align-items: center;
   padding: 0 16px;
-  background: #e4f5ec;
-  color: #1f7a4d;
+  background: var(--sg-primary-light);
+  color: var(--sg-primary);
   font-size: 0.875rem;
   font-weight: 600;
 }
 
 .swipeHint[data-side='left'] {
   justify-content: flex-end;
-  background: #fff3dc;
-  color: #93600c;
+  background: var(--sg-accent);
+  color: var(--sg-primary-dark);
 }
 
 .totalBar,
@@ -1479,7 +1456,7 @@
   padding-bottom: calc(10px + var(--safe-bottom));
   flex-wrap: wrap;
   z-index: 70;
-  box-shadow: 0 -6px 20px rgba(15, 15, 15, 0.08);
+  box-shadow: 0 -6px 20px color-mix(in srgb, var(--sg-neutral-900) 8%, transparent);
 }
 
 .selectBar .iconButton {
@@ -1535,7 +1512,7 @@
   min-width: 0;
   padding: 8px;
   border: 1px solid var(--db-line);
-  background: rgba(55, 53, 47, 0.025);
+  background: color-mix(in srgb, var(--sg-neutral-800) 2.5%, transparent);
 }
 
 .database[data-compact] .boardColumn {
@@ -1796,12 +1773,12 @@
   position: absolute;
   inset: 0;
   border: 0;
-  background: rgba(15, 15, 15, 0.25);
+  background: color-mix(in srgb, var(--sg-neutral-900) 25%, transparent);
   cursor: pointer;
 }
 
 .peekOverlay[data-mode='side'] .peekBackdrop {
-  background: rgba(15, 15, 15, 0.06);
+  background: color-mix(in srgb, var(--sg-neutral-900) 6%, transparent);
 }
 
 .peek {
@@ -1812,7 +1789,7 @@
   height: 100dvh;
   background: var(--db-bg);
   border-left: 1px solid var(--db-line);
-  box-shadow: -12px 0 32px rgba(15, 15, 15, 0.1);
+  box-shadow: -12px 0 32px color-mix(in srgb, var(--sg-neutral-900) 10%, transparent);
   animation: peekIn 200ms var(--ease-out);
 }
 
@@ -1834,7 +1811,7 @@
   height: min(86dvh, 900px);
   border: 1px solid var(--db-line);
   border-radius: 10px;
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 24px 64px color-mix(in srgb, var(--sg-neutral-900) 20%, transparent);
   animation: peekPop 180ms var(--ease-out);
 }
 
@@ -1896,7 +1873,7 @@
 }
 
 .monthButton:hover {
-  background: rgba(55, 53, 47, 0.04);
+  background: color-mix(in srgb, var(--sg-neutral-800) 4%, transparent);
 }
 
 @media (pointer: coarse) {
@@ -1938,13 +1915,13 @@
 }
 
 .monthMarker[data-kind='current'] {
-  background: #d3e5ef;
-  color: #183347;
+  background: var(--sg-primary-light);
+  color: var(--sg-neutral-900);
 }
 
 .monthMarker[data-kind='overdue'] {
-  background: #ffe2dd;
-  color: #5d1715;
+  background: var(--sg-neutral-200);
+  color: var(--sg-destructive);
 }
 
 @media (prefers-reduced-motion: reduce) {

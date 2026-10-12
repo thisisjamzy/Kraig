@@ -29,9 +29,10 @@ import styles from './PlanningBucketScreen.module.css';
 import { useHasTopBar } from '@/src/widgets/AppShell/TopBarSlot';
 import { BucketPage } from './BucketPage';
 import { useFormLink } from '@/src/shared/navigation/useFormLink';
+import { styleGuide } from '@/src/styles/tokens/styleGuide';
 
 // Distinct brand-blue shades, one per item (segment and legend dot).
-const SHADES = ['#3b63f0', '#243a8c', '#7d97f6', '#1c2a6b', '#a9baf9', '#4f6fd8', '#5c6fae', '#c7d3fc'];
+const SHADES = [...styleGuide.chart, styleGuide.neutrals[600], styleGuide.neutrals[300], styleGuide.neutrals[800]];
 const LEGEND_ROWS = 4;
 
 /** An amount with "XAF" after it; the pieces may wrap, never truncate. */

@@ -251,7 +251,7 @@
   padding: var(--space-md) var(--space-lg);
   display: flex;
   flex-direction: column;
-  box-shadow: 0 12px 24px -12px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 12px 24px -12px color-mix(in srgb, var(--sg-neutral-900) 40%, transparent);
 }
 
 .floatingCardValue {
@@ -738,5 +738,5 @@
   font-weight: 600;
   font-size: var(--font-size-sm);
   cursor: pointer;
-  box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 12px 24px -8px color-mix(in srgb, var(--sg-neutral-900) 35%, transparent);
 }

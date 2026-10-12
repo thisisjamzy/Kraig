@@ -29,7 +29,7 @@
   margin: -8px calc(-1 * max(16px, var(--safe-right))) 0 calc(-1 * max(16px, var(--safe-left)));
   padding: var(--safe-top) max(8px, var(--safe-right)) 0 max(8px, var(--safe-left));
   background: var(--color-background);
-  border-bottom: 1px solid #e9e9e7;
+  border-bottom: 1px solid var(--sg-neutral-200);
 }
 
 .up {
@@ -84,5 +84,5 @@
 .sub {
   margin: -4px 0 4px;
   font-size: 0.9375rem;
-  color: #6b7085;
+  color: var(--sg-neutral-500);
 }

@@ -118,7 +118,7 @@
   position: absolute;
   inset: 0;
   border: none;
-  background: rgba(15, 15, 15, 0.35);
+  background: color-mix(in srgb, var(--sg-neutral-900) 35%, transparent);
   cursor: pointer;
   animation: fadeIn 160ms ease;
 }

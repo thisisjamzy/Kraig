@@ -25,7 +25,7 @@
 
 .section[data-kind='needs-attention'] h2,
 .section[data-kind='kind-guessed'] h2 {
-  color: #b7791f;
+  color: var(--sg-primary-dark);
 }
 
 .section ul {
@@ -34,7 +34,7 @@
   margin: 0;
   padding: 0;
   list-style: none;
-  border: 1px solid #e9e9e7;
+  border: 1px solid var(--sg-neutral-200);
   background: var(--color-background);
 }
 

@@ -7,28 +7,14 @@
 .tree,
 .palette,
 .menu {
-  --sb-bg: #f7f7f5;
-  --sb-line: #e9e9e7;
-  --sb-text: #37352f;
-  --sb-muted: #5f5e5b;
-  --sb-faint: #91918e;
-  --sb-hover: rgba(55, 53, 47, 0.06);
-  --sb-active: rgba(55, 53, 47, 0.1);
+  --sb-bg: var(--sg-neutral-100);
+  --sb-line: var(--sg-neutral-200);
+  --sb-text: var(--sg-neutral-800);
+  --sb-muted: var(--sg-neutral-600);
+  --sb-faint: var(--sg-neutral-400);
+  --sb-hover: color-mix(in srgb, var(--sg-neutral-800) 6%, transparent);
+  --sb-active: color-mix(in srgb, var(--sg-neutral-800) 10%, transparent);
 }
-
-:global([data-theme='dark']) .sidebar,
-:global([data-theme='dark']) .tree,
-:global([data-theme='dark']) .palette,
-:global([data-theme='dark']) .menu {
-  --sb-bg: #202020;
-  --sb-line: rgba(255, 255, 255, 0.09);
-  --sb-text: rgba(255, 255, 255, 0.86);
-  --sb-muted: rgba(255, 255, 255, 0.62);
-  --sb-faint: rgba(255, 255, 255, 0.42);
-  --sb-hover: rgba(255, 255, 255, 0.06);
-  --sb-active: rgba(255, 255, 255, 0.1);
-}
-
 .sidebar {
   position: relative;
   display: flex;
@@ -47,11 +33,11 @@
   height: calc(100dvh - 88px);
   margin-top: 44px;
   border: 1px solid var(--sb-line);
-  box-shadow: 0 8px 28px rgba(15, 15, 15, 0.12);
+  box-shadow: 0 8px 28px color-mix(in srgb, var(--sg-neutral-900) 12%, transparent);
 }
 
 .sidebar[data-variant='overlay'] {
-  box-shadow: 8px 0 28px rgba(15, 15, 15, 0.18);
+  box-shadow: 8px 0 28px color-mix(in srgb, var(--sg-neutral-900) 18%, transparent);
 }
 
 .top {
@@ -386,7 +372,7 @@
 .resizer:hover,
 .resizer:active,
 .resizer:focus-visible {
-  background: rgba(57, 101, 250, 0.35);
+  background: color-mix(in srgb, var(--sg-primary) 35%, transparent);
   outline: none;
 }
 
@@ -449,7 +435,7 @@
   position: absolute;
   inset: 0;
   border: 0;
-  background: rgba(15, 15, 15, 0.4);
+  background: color-mix(in srgb, var(--sg-neutral-900) 40%, transparent);
 }
 
 .palette {
@@ -461,7 +447,7 @@
   background: var(--color-background);
   border: 1px solid var(--sb-line);
   border-radius: 6px;
-  box-shadow: 0 16px 48px rgba(15, 15, 15, 0.2);
+  box-shadow: 0 16px 48px color-mix(in srgb, var(--sg-neutral-900) 20%, transparent);
   overflow: hidden;
   color: var(--sb-text);
 }

@@ -1,6 +1,6 @@
 // A basket's budget snapshot as a PDF (pdf-lib): selectable, searchable
 // text in JetBrains Mono (embedded and subset, from public/fonts), the Dreda
-// logo (public/logo_primary.png) at the top, the optional QR code as
+// logo (public/brand/dreda-full.png) at the top, the optional QR code as
 // squares. Never an image of the page. Draws the data from
 // basketReceipt.ts, nothing else.
 //   A4 (the default): a 150 mm column centred on the page in readable type;
@@ -16,7 +16,7 @@ import type { BasketReceipt, ReceiptLine } from './basketReceipt';
 // ---- Shared with the HTML view (src/widgets/Receipt) ----
 
 /** The Dreda logo printed at the top (dark text, for white paper). */
-export const RECEIPT_LOGO_SRC = '/logo_primary.png';
+export const RECEIPT_LOGO_SRC = '/brand/dreda-full.png';
 
 /** The QR code's dark modules as one path on a size x size grid. */
 export function qrPath(text: string): { size: number; d: string } {

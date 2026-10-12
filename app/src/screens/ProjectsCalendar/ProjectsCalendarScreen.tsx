@@ -35,6 +35,7 @@ import { MiniCalendar } from '@/src/widgets/TimeCalendar/MiniCalendar';
 import { MonthGrid } from '@/src/widgets/TimeCalendar/MonthGrid';
 import { TimeGrid } from '@/src/widgets/TimeCalendar/TimeGrid';
 import styles from './ProjectsCalendarScreen.module.css';
+import { styleGuide } from '@/src/styles/tokens/styleGuide';
 
 type Source = 'Dreda tasks' | 'Google' | 'Project dates';
 
@@ -196,9 +197,9 @@ export function ProjectsCalendarScreen() {
               <p className={styles.calendarsTitle}>Calendars</p>
               {(
                 [
-                  ['tasks', 'Dreda tasks', '#337ea9'],
-                  ['google', 'Google', '#448361'],
-                  ['projectDates', 'Project dates', '#9f6b53'],
+                  ['tasks', 'Dreda tasks', styleGuide.brand.primary],
+                  ['google', 'Google', styleGuide.neutrals[700]],
+                  ['projectDates', 'Project dates', styleGuide.brand.primaryDark],
                 ] as [keyof CalendarSources, string, string][]
               ).map(([key, label, color]) => (
                 <label key={key} className={styles.calendarRow}>

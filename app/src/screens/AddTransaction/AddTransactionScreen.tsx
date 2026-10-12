@@ -97,16 +97,41 @@ export function AddTransactionScreen() {
             </FieldCard>
           </FieldRow>
 
-          {(v.basketOptions.length > 0 || v.linkedBucketItem) && (
+          {(v.basketOptions.length > 0 || v.linkedBucketItem || v.canCreateBasket) && (
             <>
               <ListSelectField
                 label="Basket"
                 value={v.basketChoice}
                 onChange={v.chooseBasket}
-                options={[...v.basketOptions, { value: 'unsure', label: 'Not sure yet' }]}
+                options={[...v.basketOptions, ...(v.canCreateBasket ? [{ value: 'new', label: '+ New basket' }] : []), { value: 'unsure', label: 'Not sure yet' }]}
                 placeholder="Choose a basket"
               />
-              {v.basketChoice && v.basketChoice !== 'unsure' && (
+              {v.basketChoice === 'new' && (
+                <>
+                  <FieldCard label="New basket name">
+                    <input className={ff.input} value={v.newBasketName} onChange={(e) => v.setNewBasketName(e.target.value)} placeholder="Car repairs" autoFocus />
+                  </FieldCard>
+                  {v.newBasketCategories.length > 0 && (
+                    <SelectField
+                      label={v.isTransferLike ? 'Transfer type' : 'Category'}
+                      value={v.newBasketCategory}
+                      onChange={v.setNewBasketCategory}
+                      options={v.newBasketCategories.map((c) => ({ value: c.id, label: c.name }))}
+                      placeholder="Choose one"
+                    />
+                  )}
+                  <p className={ff.hint}>
+                    {Number(v.amountString) > 0
+                      ? `Adds this ${formatMoney(v.amountString)} as the basket's first item, on this date, then links it.`
+                      : 'Enter the amount first. It becomes the basket\'s first item.'}
+                  </p>
+                  {v.newBasketError && <p className={ff.fieldError}>{v.newBasketError}</p>}
+                  <button type="button" className={ff.chip} onClick={v.createBasketHere} disabled={!v.newBasketReady}>
+                    {v.creatingBasket || v.linkingNewBasket ? 'Creating basket…' : 'Create basket'}
+                  </button>
+                </>
+              )}
+              {v.basketChoice && v.basketChoice !== 'unsure' && v.basketChoice !== 'new' && (
                 <ListSelectField
                   label="Item"
                   value={v.linkedBucketItem?.id ?? ''}

@@ -26,7 +26,7 @@
   gap: 12px;
   min-height: 44px;
   padding: 6px 0;
-  border-bottom: 1px solid rgba(27, 27, 57, 0.09);
+  border-bottom: 1px solid color-mix(in srgb, var(--sg-primary-dark) 9%, transparent);
 }
 
 .upDate {
@@ -64,7 +64,7 @@
   gap: 2px;
   padding: 2px;
   border-radius: 6px;
-  background: rgba(55, 53, 47, 0.06);
+  background: color-mix(in srgb, var(--sg-neutral-800) 6%, transparent);
 }
 
 .periods button {
@@ -82,5 +82,5 @@
 .periods button[aria-checked='true'] {
   background: var(--color-background);
   color: var(--color-text-primary);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--sg-neutral-900) 8%, transparent);
 }

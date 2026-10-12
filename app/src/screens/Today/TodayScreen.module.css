@@ -12,14 +12,9 @@
   flex-direction: column;
   gap: 8px;
   padding: 12px;
-  border: 1px solid #e9e9e7;
+  border: 1px solid var(--sg-neutral-200);
   background: var(--color-background);
 }
-
-:global([data-theme='dark']) .panel {
-  border-color: rgba(255, 255, 255, 0.09);
-}
-
 .panelTitle {
   margin: 0;
   font-size: 0.875rem;
@@ -29,13 +24,13 @@
 .muted {
   margin: 0;
   font-size: 0.875rem;
-  color: #787774;
+  color: var(--sg-neutral-500);
 }
 
 .bar {
   display: block;
   height: 4px;
-  background: rgba(55, 53, 47, 0.09);
+  background: color-mix(in srgb, var(--sg-neutral-800) 9%, transparent);
 }
 
 .bar span {
@@ -54,7 +49,7 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  border: 1.5px solid #a5a49f;
+  border: 1.5px solid var(--sg-neutral-400);
 }
 
 .dots span[data-done] {
@@ -68,9 +63,9 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
   padding-top: 8px;
-  border-top: 1px solid #e9e9e7;
+  border-top: 1px solid var(--sg-neutral-200);
   font-size: 0.8125rem;
-  color: #787774;
+  color: var(--sg-neutral-500);
 }
 
 .figures span {
@@ -86,7 +81,7 @@
 }
 
 .figures span[data-alert] strong {
-  color: #d44c47;
+  color: var(--sg-destructive);
 }
 
 .nextList {
@@ -109,14 +104,14 @@
 .nextTime {
   flex: none;
   width: 42px;
-  color: #787774;
+  color: var(--sg-neutral-500);
   font-variant-numeric: tabular-nums;
 }
 
 .nextIcon {
   flex: none;
   display: inline-grid;
-  color: #787774;
+  color: var(--sg-neutral-500);
 }
 
 .nextTitle {
@@ -141,7 +136,7 @@
   display: flex;
   padding: 2px;
   border-radius: 6px;
-  background: rgba(55, 53, 47, 0.06);
+  background: color-mix(in srgb, var(--sg-neutral-800) 6%, transparent);
 }
 
 .segmented button {
@@ -150,7 +145,7 @@
   border: 0;
   border-radius: 6px;
   background: none;
-  color: #787774;
+  color: var(--sg-neutral-500);
   font: inherit;
   font-size: 0.875rem;
   cursor: pointer;
@@ -169,14 +164,14 @@
 }
 
 .overdueLink {
-  color: #d44c47;
+  color: var(--sg-destructive);
   font-weight: 500;
 }
 
 .progressLine {
   margin: 4px 0 0;
   font-size: 0.8125rem;
-  color: #787774;
+  color: var(--sg-neutral-500);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

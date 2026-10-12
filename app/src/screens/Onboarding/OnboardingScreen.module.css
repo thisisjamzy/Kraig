@@ -207,7 +207,7 @@
 }
 
 .addButton:disabled {
-  background: #6b7380;
+  background: var(--sg-neutral-500);
   color: rgba(255, 255, 255, 0.85);
   cursor: not-allowed;
 }
@@ -244,7 +244,7 @@
 }
 
 .continueButton:disabled {
-  background: #6b7380;
+  background: var(--sg-neutral-500);
   color: rgba(255, 255, 255, 0.85);
   cursor: not-allowed;
 }

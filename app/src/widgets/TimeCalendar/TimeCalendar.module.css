@@ -10,50 +10,26 @@
 .preview,
 .slotList,
 .monthMenu {
-  --tc-line: #e9e9e7;
-  --tc-hover: rgba(55, 53, 47, 0.06);
-  --tc-muted: #787774;
-  --tc-light: #a5a49f;
-  --tc-text: var(--color-text-primary, #37352f);
+  --tc-line: var(--sg-neutral-200);
+  --tc-hover: color-mix(in srgb, var(--sg-neutral-800) 6%, transparent);
+  --tc-muted: var(--sg-neutral-500);
+  --tc-light: var(--sg-neutral-400);
+  --tc-text: var(--color-text-primary, var(--sg-neutral-800));
   --tc-bg: var(--color-background, #fff);
-  --tc-brand: var(--color-brand, #3965fa);
-  --tc-select: rgba(55, 53, 47, 0.08);
+  --tc-brand: var(--color-brand, var(--sg-primary));
+  --tc-select: color-mix(in srgb, var(--sg-neutral-800) 8%, transparent);
 }
-
-:global([data-theme='dark']) .mini,
-:global([data-theme='dark']) .strip,
-:global([data-theme='dark']) .grid,
-:global([data-theme='dark']) .monthGrid,
-:global([data-theme='dark']) .monthCompact,
-:global([data-theme='dark']) .preview,
-:global([data-theme='dark']) .slotList,
-:global([data-theme='dark']) .monthMenu {
-  --tc-line: rgba(255, 255, 255, 0.09);
-  --tc-hover: rgba(255, 255, 255, 0.06);
-  --tc-muted: rgba(255, 255, 255, 0.6);
-  --tc-light: rgba(255, 255, 255, 0.4);
-  --tc-select: rgba(255, 255, 255, 0.1);
-}
-
 /* Item colors by kind: pale fill and accent. */
 :is(.block, .allDayItem, .pill, .slotRow, .preview)[data-kind] {
-  --k-fill: #e3e2e0;
-  --k-accent: #9b9a97;
+  --k-fill: var(--sg-neutral-100);
+  --k-accent: var(--sg-neutral-500);
 }
-:is(.block, .allDayItem, .pill, .slotRow, .preview)[data-kind='todo'] { --k-fill: #d3e5ef; --k-accent: #337ea9; }
-:is(.block, .allDayItem, .pill, .slotRow, .preview)[data-kind='meeting'] { --k-fill: #e8deee; --k-accent: #9065b0; }
-:is(.block, .allDayItem, .pill, .slotRow, .preview)[data-kind='event'] { --k-fill: #fadec9; --k-accent: #d9730d; }
-:is(.block, .allDayItem, .pill, .slotRow, .preview)[data-kind='google'] { --k-fill: #dbeddb; --k-accent: #448361; }
-:is(.block, .allDayItem, .pill, .slotRow, .preview)[data-kind='project'] { --k-fill: #eee0da; --k-accent: #9f6b53; }
-:is(.block, .allDayItem, .pill, .slotRow, .preview)[data-kind='payment'] { --k-fill: #fdecc8; --k-accent: #cb912f; }
-
-:global([data-theme='dark']) :is(.block, .allDayItem, .pill, .slotRow, .preview)[data-kind='todo'] { --k-fill: #143a4e; }
-:global([data-theme='dark']) :is(.block, .allDayItem, .pill, .slotRow, .preview)[data-kind='meeting'] { --k-fill: #3c2d49; }
-:global([data-theme='dark']) :is(.block, .allDayItem, .pill, .slotRow, .preview)[data-kind='event'] { --k-fill: #5c3b23; }
-:global([data-theme='dark']) :is(.block, .allDayItem, .pill, .slotRow, .preview)[data-kind='google'] { --k-fill: #243d30; }
-:global([data-theme='dark']) :is(.block, .allDayItem, .pill, .slotRow, .preview)[data-kind='project'] { --k-fill: #4a3228; }
-:global([data-theme='dark']) :is(.block, .allDayItem, .pill, .slotRow, .preview)[data-kind='payment'] { --k-fill: #564328; }
-
+:is(.block, .allDayItem, .pill, .slotRow, .preview)[data-kind='todo'] { --k-fill: var(--sg-primary-light); --k-accent: var(--sg-primary); }
+:is(.block, .allDayItem, .pill, .slotRow, .preview)[data-kind='meeting'] { --k-fill: color-mix(in srgb, var(--sg-primary) 16%, var(--sg-neutral-0)); --k-accent: var(--sg-primary-dark); }
+:is(.block, .allDayItem, .pill, .slotRow, .preview)[data-kind='event'] { --k-fill: color-mix(in srgb, var(--sg-accent) 55%, var(--sg-neutral-0)); --k-accent: var(--sg-primary-dark); }
+:is(.block, .allDayItem, .pill, .slotRow, .preview)[data-kind='google'] { --k-fill: var(--sg-neutral-200); --k-accent: var(--sg-neutral-700); }
+:is(.block, .allDayItem, .pill, .slotRow, .preview)[data-kind='project'] { --k-fill: color-mix(in srgb, var(--sg-primary-dark) 12%, var(--sg-neutral-0)); --k-accent: var(--sg-primary-dark); }
+:is(.block, .allDayItem, .pill, .slotRow, .preview)[data-kind='payment'] { --k-fill: var(--sg-accent); --k-accent: var(--sg-neutral-900); }
 .muted {
   margin: 0;
   font-size: 0.875rem;
@@ -63,7 +39,7 @@
 .error {
   margin: 0 0 8px;
   font-size: 0.875rem;
-  color: #d44c47;
+  color: var(--sg-destructive);
 }
 
 .textButton {
@@ -590,7 +566,7 @@
   margin-right: 4px;
   border-radius: 3px;
   background: var(--tc-bg);
-  color: #448361;
+  color: var(--sg-primary);
   font-size: 0.5625rem;
   font-weight: 700;
   vertical-align: 1px;
@@ -642,7 +618,7 @@
   right: 0;
   z-index: 4;
   height: 0;
-  border-top: 2px solid #d44c47;
+  border-top: 2px solid var(--sg-destructive);
   pointer-events: none;
 }
 
@@ -653,7 +629,7 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #d44c47;
+  background: var(--sg-destructive);
 }
 
 .dropMark {
@@ -779,7 +755,7 @@
 }
 
 .monthCell[data-outside] {
-  background: rgba(55, 53, 47, 0.025);
+  background: color-mix(in srgb, var(--sg-neutral-800) 2.5%, transparent);
 }
 
 .monthCell[data-outside] .monthNum {
@@ -923,7 +899,7 @@
 }
 
 .dateButton:hover {
-  background: rgba(55, 53, 47, 0.06);
+  background: color-mix(in srgb, var(--sg-neutral-800) 6%, transparent);
 }
 
 .dateButton > span {
@@ -953,7 +929,7 @@
 .dateShortcuts button {
   flex: 1;
   min-height: 32px;
-  border: 1px solid #e9e9e7;
+  border: 1px solid var(--sg-neutral-200);
   border-radius: 6px;
   background: none;
   color: inherit;
@@ -963,7 +939,7 @@
 }
 
 .dateShortcuts button:hover {
-  background: rgba(55, 53, 47, 0.06);
+  background: color-mix(in srgb, var(--sg-neutral-800) 6%, transparent);
 }
 
 @media (pointer: coarse) {

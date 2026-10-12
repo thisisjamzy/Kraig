@@ -38,7 +38,7 @@
 .error {
   margin: 0 0 8px;
   font-size: 0.875rem;
-  color: #d6404f;
+  color: var(--sg-destructive);
 }
 
 .summary {
@@ -225,7 +225,7 @@
 .segmented button[aria-checked='true'] {
   background: var(--tf-card);
   color: var(--tf-text);
-  box-shadow: 0 1px 3px rgba(28, 31, 58, 0.12);
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--sg-primary-dark) 12%, transparent);
 }
 
 @media (min-width: 768px) {
@@ -271,7 +271,7 @@
 }
 
 .table tr[data-attention] td {
-  background: color-mix(in srgb, #d6404f 5%, transparent);
+  background: color-mix(in srgb, var(--sg-destructive) 5%, transparent);
 }
 
 .num {
@@ -304,7 +304,7 @@
 }
 
 .item[data-attention] {
-  box-shadow: inset 0 0 0 1px #d6404f;
+  box-shadow: inset 0 0 0 1px var(--sg-destructive);
 }
 
 .itemTop {
@@ -336,7 +336,7 @@
 }
 
 .status[data-status='new'] {
-  color: #1f7a4d;
+  color: var(--sg-primary);
 }
 
 .status[data-status='duplicate'] {
@@ -344,11 +344,11 @@
 }
 
 .status[data-status='possible'] {
-  color: #93600c;
+  color: var(--sg-primary-dark);
 }
 
 .status[data-status='problem'] {
-  color: #b42d3c;
+  color: var(--sg-destructive);
 }
 
 .fixer {

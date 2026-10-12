@@ -22,6 +22,7 @@ import type { CardSpec } from '@/src/widgets/Database/CardsView';
 import type { ColumnDef, GroupDef, ListSpec, RowAction } from '@/src/widgets/Database/types';
 import { Tag, TAG_ACCENT, type TagColor } from './Tag';
 import styles from './TaskDb.module.css';
+import { styleGuide } from '@/src/styles/tokens/styleGuide';
 
 export const IMPORTANCE_COLOR: Record<Quadrant, TagColor> = { do: 'red', schedule: 'blue', delegate: 'yellow', eliminate: 'gray' };
 export const STATUS_COLOR: Record<TaskRowStatus, TagColor> = { Pending: 'gray', Done: 'green', Cancelled: 'brown' };
@@ -93,7 +94,7 @@ export function ProjectLabel({ name, color }: { name: string | null; color: stri
   if (!name) return null;
   return (
     <span className={styles.project}>
-      <span className={styles.projectDot} style={{ background: color ?? '#a5a49f' }} aria-hidden />
+      <span className={styles.projectDot} style={{ background: color ?? styleGuide.neutrals[400] }} aria-hidden />
       {name}
     </span>
   );

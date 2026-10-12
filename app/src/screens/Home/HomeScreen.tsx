@@ -46,6 +46,7 @@ import { Money, formatMoney } from '@/src/widgets/Money/Money';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import styles from './HomeScreen.module.css';
 import { useFormLink } from '@/src/shared/navigation/useFormLink';
+import { styleGuide } from '@/src/styles/tokens/styleGuide';
 
 const pct = (n: number) => `${Math.round(Math.abs(n) * 100)}%`;
 
@@ -614,13 +615,13 @@ function CashFlowBlock({ v }: { v: HomeLogic }) {
       <div className={styles.chart}>
         <ResponsiveContainer width="100%" height={220}>
           <BarChart data={v.flow} margin={{ top: 22, right: 4, bottom: 0, left: 0 }} barGap={2}>
-            <CartesianGrid vertical={false} stroke="#edf0f6" />
+            <CartesianGrid vertical={false} stroke={styleGuide.neutrals[200]} />
             <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 12 }} />
             <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 12 }} width={44} tickFormatter={short} />
             <Tooltip formatter={(value) => (hidden ? HIDDEN_AMOUNT : formatMoney(Number(value ?? 0)))} />
-            <Bar dataKey="income" name="Income" fill="#3965fa" />
-            <Bar dataKey="expense" name="Expenses" fill="#1b1b39">
-              <LabelList dataKey="net" position="top" formatter={(n) => (hidden ? '' : `${Number(n) >= 0 ? '+' : '−'}${short(Math.abs(Number(n)))}`)} style={{ fontSize: 12, fill: '#6b7085' }} />
+            <Bar dataKey="income" name="Income" fill={styleGuide.brand.primary} />
+            <Bar dataKey="expense" name="Expenses" fill={styleGuide.brand.primaryDark}>
+              <LabelList dataKey="net" position="top" formatter={(n) => (hidden ? '' : `${Number(n) >= 0 ? '+' : '−'}${short(Math.abs(Number(n)))}`)} style={{ fontSize: 12, fill: styleGuide.neutrals[500] }} />
             </Bar>
           </BarChart>
         </ResponsiveContainer>

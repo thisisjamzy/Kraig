@@ -19,7 +19,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { BadgeCheck, Bell, Check, ChevronDown, ChevronsLeft, Home, LogOut, Plus, Search, Settings, Sun, User } from 'lucide-react';
 import { signOut } from 'firebase/auth';
-import logomark from '@/public/logos/black_logomark.png';
+import logomark from '@/public/brand/dreda-mark.png';
 import { MODE_HOME, MODE_LABEL, modeOfPath, type AppMode } from '@/src/shared/config/pageTree';
 import { getFirebaseAuth } from '@/src/shared/config/firebaseClient';
 import { clearSignedIn } from '@/src/shared/config/authSession';

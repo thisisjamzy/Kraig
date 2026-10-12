@@ -9,7 +9,7 @@
   border: 0;
   border-radius: 6px;
   background: none;
-  color: #787774;
+  color: var(--sg-neutral-500);
   font: inherit;
   font-size: 0.875rem;
   text-decoration: none;
@@ -17,25 +17,25 @@
 }
 
 .ghost:hover {
-  background: rgba(55, 53, 47, 0.06);
+  background: color-mix(in srgb, var(--sg-neutral-800) 6%, transparent);
   color: var(--color-text-primary);
 }
 
 .muted {
   margin: 0;
   font-size: 0.875rem;
-  color: #787774;
+  color: var(--sg-neutral-500);
 }
 
 .rows {
   margin: 0;
   padding: 0;
   list-style: none;
-  border-top: 1px solid #e9e9e7;
+  border-top: 1px solid var(--sg-neutral-200);
 }
 
 .rows li {
-  border-bottom: 1px solid #e9e9e7;
+  border-bottom: 1px solid var(--sg-neutral-200);
 }
 
 .rows button {
@@ -56,5 +56,5 @@
 }
 
 .rows button:hover {
-  background: rgba(55, 53, 47, 0.04);
+  background: color-mix(in srgb, var(--sg-neutral-800) 4%, transparent);
 }

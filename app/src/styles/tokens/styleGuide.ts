@@ -1,9 +1,9 @@
-// The Dreda style guide (Remix/Dreda Remix.free and Remix/Style Guide),
-// phone first: src/styles/base/globals.css applies these under 768px.
+// The Dreda style guide (Remix/Dreda Remix.free and Remix/Style Guide):
+// src/styles/base/globals.css applies these at every width.
 // Only what the guide defines: four brand colours, the fixed neutrals, the
 // one red it uses (destructive actions such as Delete), its type scale,
 // corners and spacing. No status colours and no dark theme: the guide has
-// neither. Keep globals.css's phone block in step with this file.
+// neither. Keep globals.css's guide block in step with this file.
 
 export const styleGuide = {
   brand: {

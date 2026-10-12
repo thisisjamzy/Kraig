@@ -1,17 +1,12 @@
-// The full "dreda" logo lockup (mark + wordmark) — only two source files
-// exist for it (public/logo_primary.png, public/logo_alt.png), one per
-// surface, not one per screen. logo_primary.png has dark text, for light
-// surfaces; logo_alt.png has white text, for dark/colored surfaces. Since
-// this app has a real light/dark theme toggle (ThemeProvider sets
-// data-theme on a wrapping div, not just prefers-color-scheme), a screen's
-// surface color can change at runtime — so both images render, and
-// Logo.module.css shows only the one matching the current data-theme
-// ancestor. This is the single place that decides which file to use;
-// screens should never hardcode logo_primary.png/logo_alt.png directly.
+// The full "dreda" logo lockup (mark + wordmark): the style guide's lockups
+// in public/brand (from Remix/Logos), at every width. dreda-full.png has a
+// dark wordmark, for light surfaces; dreda-full-reversed.png is white, for
+// dark or coloured surfaces. The app is light only (docs/STYLE-MIGRATION.md),
+// so 'auto' is the light-surface lockup. This is the single place that
+// decides which file to use; screens never hardcode the files directly.
 //
-// Neither source file is square (logo_primary.png is 140x52, logo_alt.png
-// 266x87) — pass `height` and let width scale automatically, never a fixed
-// width, or the wordmark distorts.
+// Neither file is square: pass `height` and let width scale automatically,
+// never a fixed width, or the wordmark distorts.
 
 import styles from './Logo.module.css';
 
@@ -24,45 +19,11 @@ export function Logo({
   className?: string;
   height?: number;
   alt?: string;
-  // 'auto' (default) follows the ThemeProvider's data-theme ancestor, same
-  // as always. 'dark' forces the white-text lockup regardless of theme —
-  // for a surface that's hardcoded dark/colored (e.g. a gradient card) no
-  // matter which app theme is active. 'light' is the mirror image — the
-  // dark-text lockup, forced regardless of theme, for a surface that's
-  // hardcoded light/pastel (e.g. Home's wallet cards).
+  // 'dark' is for a dark or coloured surface (a hero card): the reversed
+  // lockup. 'light' and 'auto' are for light surfaces.
   variant?: 'auto' | 'dark' | 'light';
 }) {
   const style = height ? { height, width: 'auto' as const } : undefined;
-  const combinedClassName = (variant: string) => (className ? `${variant} ${className}` : variant);
-
-  // Phone (under 768px): the style guide's lockups (public/brand, from
-  // Remix/Logos), light only like the rest of the phone. Web keeps the
-  // older files until the web moves over (docs/STYLE-MIGRATION.md).
-  const phone = (src: string) => <img src={src} alt={alt} style={style} className={combinedClassName(styles.phone)} />;
-
-  if (variant === 'dark') {
-    return (
-      <>
-        {phone('/brand/dreda-full-reversed.png')}
-        <img src="/logo_alt.png" alt={alt} style={style} className={combinedClassName(styles.web)} />
-      </>
-    );
-  }
-
-  if (variant === 'light') {
-    return (
-      <>
-        {phone('/brand/dreda-full.png')}
-        <img src="/logo_primary.png" alt={alt} style={style} className={combinedClassName(styles.web)} />
-      </>
-    );
-  }
-
-  return (
-    <>
-      {phone('/brand/dreda-full.png')}
-      <img src="/logo_primary.png" alt={alt} style={style} className={combinedClassName(`${styles.web} ${styles.light}`)} />
-      <img src="/logo_alt.png" alt={alt} style={style} className={combinedClassName(`${styles.web} ${styles.dark}`)} />
-    </>
-  );
+  const src = variant === 'dark' ? '/brand/dreda-full-reversed.png' : '/brand/dreda-full.png';
+  return <img src={src} alt={alt} style={style} className={className ? `${styles.logo} ${className}` : styles.logo} />;
 }

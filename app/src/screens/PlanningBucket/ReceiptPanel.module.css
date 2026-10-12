@@ -28,7 +28,7 @@
 }
 
 .preview > article {
-  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.16);
+  box-shadow: 0 1px 6px color-mix(in srgb, var(--sg-neutral-900) 16%, transparent);
 }
 
 @media (min-width: 1100px) {

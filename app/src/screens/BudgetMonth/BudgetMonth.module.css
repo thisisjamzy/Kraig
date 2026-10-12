@@ -2,17 +2,17 @@
    shared cells of the line databases (columns.tsx). */
 
 .page {
-  --bm-blue: var(--color-brand, #3965fa);
-  --bm-blue-tint: #eaefff;
-  --bm-red: #d6404f;
-  --bm-red-tint: #fdecee;
-  --bm-green: #1f7a4d;
-  --bm-green-tint: #e4f5ec;
-  --bm-amber: #93600c;
-  --bm-amber-tint: #fff3dc;
-  --bm-muted: #6b7085;
-  --bm-line: rgba(27, 27, 57, 0.09);
-  --bm-chip: #eef1f8;
+  --bm-blue: var(--color-brand, var(--sg-primary));
+  --bm-blue-tint: var(--sg-primary-light);
+  --bm-red: var(--sg-destructive);
+  --bm-red-tint: var(--sg-neutral-100);
+  --bm-green: var(--sg-primary);
+  --bm-green-tint: var(--sg-primary-light);
+  --bm-amber: var(--sg-primary-dark);
+  --bm-amber-tint: var(--sg-accent);
+  --bm-muted: var(--sg-neutral-500);
+  --bm-line: color-mix(in srgb, var(--sg-primary-dark) 9%, transparent);
+  --bm-chip: var(--sg-primary-light);
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -21,17 +21,6 @@
   padding-bottom: 48px;
   min-width: 0;
 }
-
-:global([data-theme='dark']) .page {
-  --bm-blue-tint: rgba(110, 140, 255, 0.16);
-  --bm-red-tint: rgba(255, 139, 107, 0.14);
-  --bm-green-tint: rgba(127, 206, 104, 0.14);
-  --bm-amber-tint: rgba(255, 196, 92, 0.14);
-  --bm-muted: #aeb2da;
-  --bm-line: rgba(233, 235, 255, 0.1);
-  --bm-chip: rgba(233, 235, 255, 0.08);
-}
-
 /* ---- Header actions ---- */
 
 .iconLink {
@@ -66,7 +55,7 @@
 
 .primaryButton {
   border: 0;
-  background: var(--bm-blue, #3965fa);
+  background: var(--bm-blue, var(--sg-primary));
   color: #fff;
 }
 
@@ -75,19 +64,19 @@
 }
 
 .ghostButton {
-  border: 1px solid var(--bm-line, rgba(27, 27, 57, 0.12));
+  border: 1px solid var(--bm-line, color-mix(in srgb, var(--sg-primary-dark) 12%, transparent));
   background: none;
   color: var(--color-text-primary);
 }
 
 .ghostButton[data-danger] {
-  color: var(--bm-red, #d6404f);
+  color: var(--bm-red, var(--sg-destructive));
 }
 
 @media (hover: hover) and (pointer: fine) {
   .iconLink:hover,
   .ghostButton:hover {
-    background: rgba(27, 27, 57, 0.04);
+    background: color-mix(in srgb, var(--sg-primary-dark) 4%, transparent);
   }
 }
 
@@ -111,7 +100,7 @@
   gap: 8px;
   min-width: 0;
   padding: 14px 16px;
-  border: 1px solid #e9e9e7;
+  border: 1px solid var(--sg-neutral-200);
   border-radius: 0;
   background: var(--color-background);
   color: var(--color-text-primary);
@@ -261,7 +250,7 @@
   align-items: center;
   padding: 2px 8px;
   border-radius: 6px;
-  background: var(--bm-chip, #eef1f8);
+  background: var(--bm-chip, var(--sg-primary-light));
   color: var(--color-text-primary);
   font-size: 0.8125rem;
   font-weight: 500;
@@ -269,18 +258,18 @@
 }
 
 .chip[data-tone='good'] {
-  background: var(--bm-green-tint, #e4f5ec);
-  color: var(--bm-green, #1f7a4d);
+  background: var(--bm-green-tint, var(--sg-primary-light));
+  color: var(--bm-green, var(--sg-primary));
 }
 
 .chip[data-tone='bad'] {
-  background: var(--bm-red-tint, #fdecee);
-  color: var(--bm-red, #d6404f);
+  background: var(--bm-red-tint, var(--sg-neutral-100));
+  color: var(--bm-red, var(--sg-destructive));
 }
 
 .chip[data-tone='watch'] {
-  background: var(--bm-amber-tint, #fff3dc);
-  color: var(--bm-amber, #93600c);
+  background: var(--bm-amber-tint, var(--sg-accent));
+  color: var(--bm-amber, var(--sg-primary-dark));
 }
 
 .statusCell,
@@ -296,7 +285,7 @@
   border: 0;
   border-radius: 6px;
   background: none;
-  color: var(--bm-blue, #3965fa);
+  color: var(--bm-blue, var(--sg-primary));
   font: inherit;
   font-size: 0.8125rem;
   font-weight: 600;
@@ -306,7 +295,7 @@
 }
 
 .inlineAction:hover {
-  background: var(--bm-blue-tint, #eaefff);
+  background: var(--bm-blue-tint, var(--sg-primary-light));
 }
 
 .nameCell {
@@ -320,8 +309,8 @@
 .tag {
   padding: 1px 6px;
   border-radius: 6px;
-  background: var(--bm-blue-tint, #eaefff);
-  color: var(--bm-blue, #3965fa);
+  background: var(--bm-blue-tint, var(--sg-primary-light));
+  color: var(--bm-blue, var(--sg-primary));
   font-size: 0.6875rem;
   font-weight: 600;
 }
@@ -329,7 +318,7 @@
 .relation {
   color: inherit;
   text-decoration: underline;
-  text-decoration-color: rgba(27, 27, 57, 0.25);
+  text-decoration-color: color-mix(in srgb, var(--sg-neutral-900) 25%, transparent);
   text-underline-offset: 3px;
 }
 
@@ -345,7 +334,7 @@
   flex-wrap: wrap;
   gap: 8px 12px;
   padding: 10px 12px;
-  border: 1px solid #e9e9e7;
+  border: 1px solid var(--sg-neutral-200);
   font-size: 0.875rem;
 }
 

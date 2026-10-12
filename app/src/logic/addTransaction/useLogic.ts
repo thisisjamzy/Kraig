@@ -9,7 +9,7 @@ import { categoryRef, bucketsRef, transactionTemplateRef, unjustifiedWalletRef }
 import { useAccounts, useCategories, useCurrencyContext } from '@/src/shared/firestore/queries';
 import { itemCurrencyOf, toDisplay } from '@/src/shared/firestore/currency';
 import { useMonthUnaccounted } from '@/src/shared/hooks/useMonthUnaccounted';
-import { createDebt, createTransferWithAggregation, recordBucketLineItemPayment } from '@/src/shared/firestore/aggregation';
+import { createBucket, createBucketLineItem, createDebt, createTransferWithAggregation, recordBucketLineItemPayment } from '@/src/shared/firestore/aggregation';
 import { inferIncomeSubtype, type IncomeSubtype } from '@/src/shared/budget/flow';
 import { recordHistoricEntry } from '@/src/shared/firestore/unaccountedBalance';
 import { useBucketLineItemsByBucket } from '@/src/shared/hooks/useBucketLineItemsByBucket';
@@ -21,6 +21,7 @@ import { isSavingsAccount } from '@/src/viewmodels/wallets';
 import type {
   FirestoreCategory,
   FirestoreAccount,
+  BudgetLineType,
   FirestoreBucket,
   FirestoreTransactionTemplate,
 } from '@/src/shared/firestore/types';
@@ -455,6 +456,66 @@ export function useLogic() {
     .filter((entry) => entry.goalId === basketChoice)
     .map((entry) => ({ value: entry.id, label: entry.occurrenceMonth === dateMonthKey ? entry.name : `${entry.name} · ${monthLabel(entry.occurrenceMonth)}` }));
 
+  // "New basket" (basketChoice 'new'): the basket isn't in the list, so it
+  // is made right here with one item for this entry (this date, this
+  // amount, a one-off), then linked like any other item once it shows up.
+  const [newBasketName, setNewBasketName] = useState('');
+  const [newBasketCategory, setNewBasketCategory] = useState('');
+  const [creatingBasket, setCreatingBasket] = useState(false);
+  const [newBasketError, setNewBasketError] = useState<string | null>(null);
+  const [pendingLink, setPendingLink] = useState('');
+  const canCreateBasket = !isSavingsMoved;
+  const newBasketCategoryId = newBasketCategory || category;
+  const newBasketReady = Boolean(newBasketName.trim() && newBasketCategoryId && Number(amountString) > 0 && !creatingBasket);
+  async function createBasketHere() {
+    if (!uid || !newBasketReady) return;
+    setCreatingBasket(true);
+    setNewBasketError(null);
+    const basketType: BudgetLineType = isTransfer ? 'Transfer' : type === 'income' ? 'Income' : type === 'savings' ? 'Savings' : 'Expense';
+    const name = newBasketName.trim();
+    try {
+      const goalId = await createBucket(uid, {
+        name,
+        description: '',
+        deadline: null,
+        currency: ctx.base,
+        kind: 'Variable',
+        type: basketType,
+        startMonth: dateMonthKey,
+        repeats: 'monthly',
+        cadence: 'Monthly',
+        defaultPaidFrom: fromAccountId || null,
+      });
+      const itemId = await createBucketLineItem(uid, goalId, 'Variable', {
+        name: description.trim() || name,
+        description: '',
+        amount: Number(amountString),
+        priority: 'Medium',
+        necessity: 'MustHave',
+        categoryId: newBasketCategoryId,
+        categoryType: basketType,
+        accountId: fromAccountId || null,
+        toAccountId: isTransfer ? toAccountId || null : null,
+        dueDate: new Date(`${dateValue}T00:00:00`),
+        recurrence: { frequency: 'Once', interval: 1 },
+      });
+      setPendingLink(`${itemId}@${dateMonthKey}`);
+      setNewBasketName('');
+      setNewBasketCategory('');
+    } catch (error) {
+      setNewBasketError(error instanceof Error ? error.message : 'Could not create this basket.');
+    } finally {
+      setCreatingBasket(false);
+    }
+  }
+  // Link the new basket's item as soon as the live list has it.
+  useEffect(() => {
+    if (!pendingLink || !linkableBucketItems.some((item) => item.id === pendingLink)) return;
+    selectLinkedBucketItem(pendingLink);
+    setPendingLink('');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingLink, linkableBucketItems]);
+
   // What's left on the chosen item this month (the shared month budget).
   const monthData = useMonthBudget(type === 'transfer' ? null : dateMonthKey);
   const linkedEntry = linkedBucketItem ? monthData.budget.itemsByKey.get(linkedBucketItem.id) ?? null : null;
@@ -823,6 +884,17 @@ export function useLogic() {
     basketChoice,
     chooseBasket,
     itemOptions,
+    canCreateBasket,
+    newBasketCategories: categoriesForType,
+    newBasketName,
+    setNewBasketName,
+    newBasketCategory: newBasketCategoryId,
+    setNewBasketCategory,
+    newBasketReady,
+    creatingBasket,
+    linkingNewBasket: Boolean(pendingLink),
+    newBasketError,
+    createBasketHere,
     needsBasket,
     /** "Leisure · Hangouts: 22,000 left of 30,000" */
     itemHelper: hint?.helper ?? (linkedBucketItem ? `${linkedBucketItem.bucketName} · ${linkedBucketItem.name}: ${formatMoney(String(linkedBucketItem.amount))} planned` : null),

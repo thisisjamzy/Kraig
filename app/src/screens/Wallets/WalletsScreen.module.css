@@ -102,13 +102,13 @@
 }
 
 .cardSub[data-tone='bad'] {
-  color: #d6404f;
+  color: var(--sg-destructive);
 }
 
 .cardSub[data-tone='watch'] {
-  color: #93600c;
+  color: var(--sg-primary-dark);
 }
 
 .cardSub[data-tone='good'] {
-  color: #1f7a4d;
+  color: var(--sg-primary);
 }

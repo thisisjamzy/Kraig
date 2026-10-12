@@ -5,18 +5,18 @@
 
 .page {
   --i-card: var(--color-background);
-  --i-shadow: 0 1px 2px rgba(27, 27, 57, 0.04), 0 8px 24px rgba(27, 27, 57, 0.05);
+  --i-shadow: 0 1px 2px color-mix(in srgb, var(--sg-primary-dark) 4%, transparent), 0 8px 24px color-mix(in srgb, var(--sg-primary-dark) 5%, transparent);
   --i-done: var(--color-success);
   --i-blocked: var(--color-success);
   --i-free: color-mix(in srgb, var(--color-success) 38%, var(--color-background));
   --i-planned: color-mix(in srgb, var(--color-text-secondary) 26%, var(--color-background));
   --i-cancel: var(--color-danger);
-  --i-amber: #d98a1c;
+  --i-amber: var(--sg-accent);
   --i-grid: color-mix(in srgb, var(--color-text-secondary) 14%, transparent);
-  --i-q-do: #e5484d;
+  --i-q-do: var(--sg-destructive);
   --i-q-schedule: var(--color-brand);
-  --i-q-delegate: #e8873a;
-  --i-q-eliminate: #8b90a0;
+  --i-q-delegate: var(--sg-accent);
+  --i-q-eliminate: var(--sg-neutral-400);
   min-height: 100%;
   --screen-header-bg: transparent;
   padding: 0 var(--space-lg) 110px;
@@ -24,16 +24,6 @@
   color: var(--color-text-primary);
   font-family: var(--font-family-body);
 }
-
-:global([data-theme='dark']) .page {
-  --i-card: var(--color-surface);
-  --i-shadow: none;
-  --i-free: color-mix(in srgb, var(--color-success) 40%, var(--color-surface));
-  --i-planned: color-mix(in srgb, var(--color-text-secondary) 30%, var(--color-surface));
-  --i-amber: #f0a948;
-  background: var(--color-page);
-}
-
 .srOnly {
   position: absolute;
   width: 1px;
@@ -477,7 +467,7 @@ button.tile:focus-visible {
 .miniToggle button[aria-checked='true'] {
   background: var(--i-card);
   color: var(--color-text-primary);
-  box-shadow: 0 1px 3px rgba(27, 27, 57, 0.1);
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--sg-primary-dark) 10%, transparent);
 }
 
 .matrix {
@@ -842,14 +832,8 @@ button.tile:focus-visible {
 
   .topVars {
     --i-card: var(--color-background);
-    --i-shadow: 0 1px 2px rgba(27, 27, 57, 0.04), 0 8px 24px rgba(27, 27, 57, 0.05);
+    --i-shadow: 0 1px 2px color-mix(in srgb, var(--sg-primary-dark) 4%, transparent), 0 8px 24px color-mix(in srgb, var(--sg-primary-dark) 5%, transparent);
   }
-
-  :global([data-theme='dark']) .topVars {
-    --i-card: var(--color-surface);
-    --i-shadow: none;
-  }
-
   .topRanges .ranges {
     width: 340px;
   }
@@ -918,32 +902,25 @@ button.tile:focus-visible {
   --i-free: color-mix(in srgb, var(--color-success) 38%, var(--color-background));
   --i-planned: color-mix(in srgb, var(--color-text-secondary) 26%, var(--color-background));
   --i-cancel: var(--color-danger);
-  --i-amber: #d98a1c;
+  --i-amber: var(--sg-accent);
   --i-grid: color-mix(in srgb, var(--color-text-secondary) 14%, transparent);
-  --i-q-do: #d44c47;
+  --i-q-do: var(--sg-destructive);
   --i-q-schedule: var(--color-brand);
-  --i-q-delegate: #cb912f;
-  --i-q-eliminate: #9b9a97;
+  --i-q-delegate: var(--sg-accent);
+  --i-q-eliminate: var(--sg-neutral-400);
   min-width: 0;
 }
-
-:global([data-theme='dark']) .tokens {
-  --i-free: color-mix(in srgb, var(--color-success) 40%, var(--color-background));
-  --i-planned: color-mix(in srgb, var(--color-text-secondary) 30%, var(--color-background));
-  --i-amber: #f0a948;
-}
-
 .settingsLink {
   display: grid;
   place-items: center;
   width: 32px;
   height: 32px;
   border-radius: 6px;
-  color: #787774;
+  color: var(--sg-neutral-500);
 }
 
 .settingsLink:hover {
-  background: rgba(55, 53, 47, 0.06);
+  background: color-mix(in srgb, var(--sg-neutral-800) 6%, transparent);
   color: var(--color-text-primary);
 }
 
@@ -965,7 +942,7 @@ button.tile:focus-visible {
 }
 
 .attention > li[data-severity='red']::marker {
-  color: #d44c47;
+  color: var(--sg-destructive);
 }
 
 .attention a {
@@ -998,7 +975,7 @@ button.tile:focus-visible {
   padding: 0;
   border: 0;
   background: none;
-  color: #787774;
+  color: var(--sg-neutral-500);
   font: inherit;
   font-size: 0.875rem;
   text-decoration: underline;
@@ -1024,7 +1001,7 @@ button.tile:focus-visible {
   gap: 4px;
   min-width: 0;
   padding: 12px 14px;
-  border: 1px solid #e9e9e7;
+  border: 1px solid var(--sg-neutral-200);
   border-radius: 0;
   background: var(--color-background);
   color: inherit;
@@ -1037,12 +1014,12 @@ button.summaryBlock {
 }
 
 button.summaryBlock:hover {
-  background: rgba(55, 53, 47, 0.02);
+  background: color-mix(in srgb, var(--sg-neutral-800) 2%, transparent);
 }
 
 .summaryLabel {
   font-size: 0.8125rem;
-  color: #787774;
+  color: var(--sg-neutral-500);
 }
 
 .summaryValue {
@@ -1054,7 +1031,7 @@ button.summaryBlock:hover {
 .summaryEmpty {
   font-size: 0.9375rem;
   font-weight: 500;
-  color: #787774;
+  color: var(--sg-neutral-500);
   padding: 6px 0 4px;
 }
 
@@ -1063,15 +1040,15 @@ button.summaryBlock:hover {
   align-items: center;
   gap: 3px;
   font-size: 0.75rem;
-  color: #787774;
+  color: var(--sg-neutral-500);
 }
 
 .summaryChange[data-tone='better'] {
-  color: #448361;
+  color: var(--sg-primary);
 }
 
 .summaryChange[data-tone='worse'] {
-  color: #d44c47;
+  color: var(--sg-destructive);
 }
 
 .riskList {
@@ -1086,14 +1063,14 @@ button.summaryBlock:hover {
   gap: 8px;
   min-height: 36px;
   padding: 0 4px;
-  border-bottom: 1px solid #f1f1ef;
+  border-bottom: 1px solid var(--sg-neutral-100);
   color: inherit;
   font-size: 0.875rem;
   text-decoration: none;
 }
 
 .riskRow:hover {
-  background: rgba(55, 53, 47, 0.04);
+  background: color-mix(in srgb, var(--sg-neutral-800) 4%, transparent);
 }
 
 .riskName {
@@ -1105,7 +1082,7 @@ button.summaryBlock:hover {
 }
 
 .riskMeta {
-  color: #787774;
+  color: var(--sg-neutral-500);
   font-variant-numeric: tabular-nums;
 }
 

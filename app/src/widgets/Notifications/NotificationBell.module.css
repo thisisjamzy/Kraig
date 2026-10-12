@@ -20,7 +20,7 @@
 }
 
 .badge[data-urgent] {
-  background: #d6404f;
+  background: var(--sg-destructive);
 }
 
 /* The style guide on the phone (docs/STYLE-MIGRATION.md): only its

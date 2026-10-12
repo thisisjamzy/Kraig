@@ -6,7 +6,7 @@
   --st-muted: var(--color-text-secondary);
   --st-border: var(--color-border);
   --st-card: var(--color-surface);
-  --st-danger: #d6404f;
+  --st-danger: var(--sg-destructive);
   color: var(--st-text);
   font-family: var(--font-family-body);
 }
@@ -249,7 +249,7 @@
 .segmented button[aria-checked='true'] {
   background: var(--color-background);
   color: var(--st-text);
-  box-shadow: 0 1px 3px rgba(28, 31, 58, 0.12);
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--sg-primary-dark) 12%, transparent);
 }
 
 .frame[data-layout='phone'] .segmented button[aria-checked='true'] {
@@ -279,7 +279,7 @@
   height: 18px;
   border-radius: 50%;
   background: #ffffff;
-  box-shadow: 0 1px 3px rgba(28, 31, 58, 0.25);
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--sg-primary-dark) 25%, transparent);
   transition: transform 160ms ease;
 }
 

@@ -56,7 +56,7 @@
 }
 
 .primaryButton:disabled {
-  background: #6b7380;
+  background: var(--sg-neutral-500);
   color: rgba(255, 255, 255, 0.85);
   cursor: not-allowed;
 }
@@ -92,7 +92,7 @@
 .warningText {
   margin: 0;
   font-size: var(--font-size-sm);
-  color: #a3671c;
+  color: var(--sg-primary-dark);
 }
 
 .summaryText {

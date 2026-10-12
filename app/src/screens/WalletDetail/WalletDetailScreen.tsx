@@ -19,6 +19,7 @@ import { formatNumber } from '@/src/widgets/Database/format';
 import type { ColumnDef } from '@/src/widgets/Database/types';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import styles from './WalletDetailScreen.module.css';
+import { styleGuide } from '@/src/styles/tokens/styleGuide';
 
 const day = (d: Date) => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 
@@ -62,11 +63,11 @@ export function WalletDetailScreen({ walletId }: { walletId: string }) {
             <div className={styles.chart} role="img" aria-label={`Balance at each month end: ${v.balanceByMonth.map((p) => `${p.label} ${formatNumber(p.balance)}`).join(', ')}`}>
               <ResponsiveContainer width="100%" height={220}>
                 <AreaChart data={v.balanceByMonth} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
-                  <CartesianGrid vertical={false} stroke="rgba(27, 27, 57, 0.08)" />
+                  <CartesianGrid vertical={false} stroke={styleGuide.neutrals[200]} />
                   <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={12} />
                   <YAxis tickLine={false} axisLine={false} fontSize={12} width={64} tickFormatter={(n: number) => (hidden ? '' : formatNumber(n))} />
                   <Tooltip formatter={(n) => money(Number(n))} />
-                  <Area type="monotone" dataKey="balance" name="Balance" stroke="#3965fa" fill="rgba(57, 101, 250, 0.12)" strokeWidth={2} isAnimationActive={false} />
+                  <Area type="monotone" dataKey="balance" name="Balance" stroke={styleGuide.brand.primary} fill={styleGuide.brand.primaryLight} strokeWidth={2} isAnimationActive={false} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>

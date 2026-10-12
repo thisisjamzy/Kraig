@@ -25,6 +25,7 @@ import {
   capitalize,
   cardFormStyles as styles,
 } from '@/src/widgets/CardForm/CardForm';
+import { SheetCreate } from '@/src/widgets/CardForm/SheetCreate';
 import { FormFrame } from '@/src/widgets/FormFrame/FormFrame';
 
 function formatDate(value: string): string {
@@ -50,6 +51,8 @@ export function ProjectFormScreen({ projectId }: { projectId?: string }) {
     setEmoji,
     areaId,
     setAreaId,
+    createArea,
+    createSection,
     bucketId,
     setBucketId,
     color,
@@ -169,6 +172,13 @@ export function ProjectFormScreen({ projectId }: { projectId?: string }) {
                 >
                   {strings.createProject.noAreaOption}
                 </button>
+                <SheetCreate
+                  noun="area"
+                  onCreate={async (newName) => {
+                    await createArea(newName);
+                    setSheet(null);
+                  }}
+                />
               </div>
             </Modal>
           )}
@@ -192,6 +202,13 @@ export function ProjectFormScreen({ projectId }: { projectId?: string }) {
                   </button>
                 ))}
                 {sections.length === 0 && <p className={styles.sheetEmpty}>This area has no sections yet.</p>}
+                <SheetCreate
+                  noun="section"
+                  onCreate={async (newName) => {
+                    await createSection(newName);
+                    setSheet(null);
+                  }}
+                />
               </div>
             </Modal>
           )}

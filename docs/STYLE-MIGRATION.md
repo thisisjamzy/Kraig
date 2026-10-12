@@ -1,4 +1,4 @@
-# Style migration (phone first)
+# Style migration
 
 The app moves to the Dreda style guide in `Remix/` (`Dreda Remix.free`, the
 Lunacy board, and `Style Guide/Style Guide Starter.html`). Phone first, then
@@ -102,7 +102,22 @@ full size are in `Remix/Logos`.
 5. **Charts and empty states.** The chart palette and the illustrations.
 6. **Lock it in.** A test against hard-coded colours in `src/phone` CSS,
    the per-screen palettes removed, `UI-PLATFORM-RULES.md` updated.
-7. **Tablet and web.** The `globals.css` phone block becomes the default,
-   then the Notion-style parts are restyled.
+7. **Tablet and web.** Done:
+   - The `globals.css` guide block applies at every width; the old blue
+     light and dark blocks and the Inter and Poppins fonts are gone.
+   - Every web stylesheet is on guide tokens (`var(--sg-*)`), mapped by role
+     as on the phone; tints are `color-mix` of a guide colour. Status chips
+     use the guide's badges (good: primary light; a problem: the lime
+     accent). Calendar kinds are guide tints. Only the receipt keeps its
+     printed black and grey.
+   - Every `[data-theme='dark']` rule outside `src/phone` removed, and the
+     Appearance setting with them: the app is light only.
+   - Colours set in web code (charts, option colours) come from
+     `styleGuide`. Palettes the user picks from (project, category, wallet
+     and tag colours) are their data and stay as they are.
+   - `Logo`, the sidebar mark and the receipt use `public/brand`.
+   - `test/styleGuide.test.ts` holds every web stylesheet to guide tokens.
+   Still per screen: type sizes and spacing against the board, and the
+   marketing page's hero photo (it shows the old app).
 
 Each phase is its own PR ("Layouts touched: phone" until phase 7).

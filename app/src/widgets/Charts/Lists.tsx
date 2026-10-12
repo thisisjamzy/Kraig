@@ -127,8 +127,9 @@ export function HorizontalWaterfall({ steps, format, ariaLabel }: { steps: Water
   const at = (v: number) => ((v - lo) / (hi - lo)) * 100;
   return (
     <div className={s.rows} style={{ gap: 8 }} role="img" aria-label={ariaLabel}>
-      {spans.map(({ step, from, to }) => (
-        <div key={step.label} className={s.wfRow}>
+      {/* By position: a label can repeat ("Everything else" for money in and out). */}
+      {spans.map(({ step, from, to }, i) => (
+        <div key={`${i}-${step.label}`} className={s.wfRow}>
           <span className={s.rowLabel}>{step.label}</span>
           <span className={s.wfTrack}>
             <span

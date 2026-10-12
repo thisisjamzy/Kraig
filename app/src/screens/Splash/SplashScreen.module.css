@@ -61,7 +61,7 @@
   max-width: 32ch;
   font-size: var(--font-size-md);
   line-height: 1.5;
-  color: rgba(17, 24, 38, 0.68);
+  color: color-mix(in srgb, var(--sg-neutral-900) 68%, transparent);
   margin: 0;
 }
 
@@ -90,7 +90,7 @@
 .inviteNote {
   font-size: 0.75rem;
   line-height: 1.45;
-  color: rgba(17, 24, 38, 0.72);
+  color: color-mix(in srgb, var(--sg-neutral-900) 72%, transparent);
   margin: 0;
   padding-top: 2px;
 }
