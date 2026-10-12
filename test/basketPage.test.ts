@@ -2,7 +2,7 @@
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { itemStatus, itemsMix, highestPriority, nextAutomated, paymentsDue, summaryStatus, upcomingPayments } from '../app/src/logic/planningBucket/basketPage';
+import { basketAllTime, itemStatus, itemsMix, highestPriority, nextAutomated, paymentsDue, summaryStatus, upcomingPayments } from '../app/src/logic/planningBucket/basketPage';
 import type { LineRow } from '../app/src/logic/budgetMonth/lines';
 
 const d = (iso: string) => new Date(`${iso}T00:00:00`);
@@ -84,4 +84,35 @@ describe('basket page', () => {
     assert.deepEqual(summaryStatus(500, 200, 'Expense'), { text: 'On track', tone: 'good' });
     assert.deepEqual(summaryStatus(500, 600, 'Expense'), { text: 'Over plan', tone: 'bad' });
   });
+});
+
+test('All time: every item whatever its months, with all it was paid, open ones first', () => {
+  const ts = (y: number, m: number, d: number) => ({ toDate: () => new Date(y, m - 1, d) });
+  const today = new Date(2026, 9, 12);
+  const items = [
+    { id: 'rent', name: 'Rent', amount: 120_000, dueDate: ts(2026, 1, 1), recurrence: { frequency: 'Monthly' as const, interval: 1 }, completed: false },
+    { id: 'sofa', name: 'Sofa', amount: 90_000, dueDate: ts(2026, 3, 4), recurrence: null, completed: true },
+    { id: 'wish', name: 'Camera', amount: 200_000, dueDate: null, recurrence: null, completed: false },
+    { id: 'old', name: 'Gym', amount: 15_000, dueDate: ts(2025, 1, 5), recurrence: { frequency: 'Monthly' as const, interval: 1, endDate: ts(2025, 6, 30) }, completed: false },
+  ] as never[];
+  const txs = [
+    { itemId: 'rent', amount: 120_000, date: new Date(2026, 8, 1) },
+    { itemId: 'rent', amount: 120_000, date: new Date(2026, 9, 1) },
+    { itemId: 'sofa', amount: 85_000, date: new Date(2026, 2, 4) },
+  ];
+  const v = basketAllTime(items, txs, null, today, (_i, n) => n);
+  assert.deepEqual(
+    v.items.map((i) => [i.name, i.status, i.paid]),
+    [
+      ['Rent', 'Open', 240_000],
+      ['Camera', 'Not scheduled', 0],
+      ['Gym', 'Ended', 0],
+      ['Sofa', 'Done', 85_000],
+    ]
+  );
+  assert.equal(v.items[0].next?.getTime(), new Date(2026, 10, 1).getTime());
+  assert.equal(v.paid, 325_000);
+  assert.equal(v.payments, 3);
+  assert.equal(v.open, 2);
+  assert.equal(v.firstPaid?.getTime(), new Date(2026, 2, 4).getTime());
 });

@@ -5,7 +5,13 @@
 // category, linked payments, last activity, health, the action it needs,
 // its items and latest transactions, and a sticky bar with the next step.
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { query, where } from 'firebase/firestore';
+import { useFirestoreCollection } from '@/src/shared/firestore/hooks';
+import { transactionsRef, transfersRef } from '@/src/shared/firestore/refs';
+import { itemCurrencyOf, toDisplay } from '@/src/shared/firestore/currency';
+import { basketAllTime } from '@/src/logic/planningBucket/basketPage';
+import type { FirestoreTransaction, FirestoreTransfer } from '@/src/shared/firestore/types';
 import { useCategories } from '@/src/shared/firestore/queries';
 import { useMonthBudget } from '@/src/shared/hooks/useMonthBudget';
 import { useGoBack } from '@/src/shared/navigation/useGoBack';
@@ -27,6 +33,11 @@ import type { OverspendAvoidability, OverspendAwareness, OverspendReason } from 
 
 const ADD_TYPE = { Expense: 'expense', Income: 'income', Savings: 'savings', Transfer: 'transfer' } as const;
 
+function allTimeFromSearch(): boolean {
+  if (typeof window === 'undefined') return false;
+  return new URLSearchParams(window.location.search).get('view') === 'all';
+}
+
 function monthFromSearch(): string {
   if (typeof window === 'undefined') return monthOf(new Date());
   const raw = new URLSearchParams(window.location.search).get('month');
@@ -35,11 +46,22 @@ function monthFromSearch(): string {
 
 export function useLogic(bucketId: string) {
   const [month, setMonthState] = useState(monthFromSearch);
-  /** The basket's month dropdown: kept in the URL (?month=). */
+  // "All time": every item in the basket, whatever its months (?view=all).
+  const [allTime, setAllTimeState] = useState(allTimeFromSearch);
+  /** The basket's month dropdown: kept in the URL (?month=). Picking a month leaves All time. */
   function setMonth(next: string) {
     setMonthState(next);
+    setAllTimeState(false);
     const params = new URLSearchParams(window.location.search);
     params.set('month', next);
+    params.delete('view');
+    window.history.replaceState(window.history.state, '', `${window.location.pathname}?${params.toString()}`);
+  }
+  function setAllTime(next: boolean) {
+    setAllTimeState(next);
+    const params = new URLSearchParams(window.location.search);
+    if (next) params.set('view', 'all');
+    else params.delete('view');
     window.history.replaceState(window.history.state, '', `${window.location.pathname}?${params.toString()}`);
   }
   const data = useMonthBudget(month);
@@ -174,6 +196,25 @@ export function useLogic(bucketId: string) {
     );
   }
 
+  // ---- All time: only this basket's transactions and transfers, read only while it's shown ----
+  const { user: me } = useFirebaseUser();
+  const meId = me?.uid;
+  const allTxQuery = useMemo(() => (allTime && meId ? query(transactionsRef(meId), where('bucketItem.bucketId', '==', bucketId)) : null), [allTime, meId, bucketId]);
+  const allTrQuery = useMemo(() => (allTime && meId ? query(transfersRef(meId), where('bucketItem.bucketId', '==', bucketId)) : null), [allTime, meId, bucketId]);
+  const allTx = useFirestoreCollection<FirestoreTransaction>(allTxQuery);
+  const allTr = useFirestoreCollection<FirestoreTransfer>(allTrQuery);
+  const allTimeView = useMemo(() => {
+    if (!allTime) return null;
+    const currencyOfAccount = new Map(accounts.map((a) => [a.id, a.currency]));
+    const flows = [
+      ...allTx.data.filter((t) => t.bucketItem?.itemId).map((t) => ({ itemId: t.bucketItem!.itemId, amount: toDisplay(ctx, t.amount, currencyOfAccount.get(t.accountId) ?? ctx.display), date: t.date.toDate() })),
+      ...allTr.data.filter((t) => t.bucketItem?.itemId).map((t) => ({ itemId: t.bucketItem!.itemId, amount: toDisplay(ctx, t.amount, currencyOfAccount.get(t.fromAccountId) ?? ctx.display), date: t.date.toDate() })),
+    ];
+    const own = data.itemsByBucket[bucketId] ?? [];
+    return basketAllTime(own, flows, bucket, today, (item, amount) => toDisplay(ctx, amount, itemCurrencyOf(item, bucket ?? undefined)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allTime, allTx.data, allTr.data, accounts, ctx, data.itemsByBucket, bucketId, bucket]);
+
   const navigateBack = useGoBack();
   // Closing the bucket for this month (with a note), or reopening it.
   const spendingItems = (group?.items ?? []).filter((i) => i.type !== 'Income');
@@ -197,6 +238,10 @@ export function useLogic(bucketId: string) {
   return {
     month,
     setMonth,
+    allTime,
+    setAllTime,
+    allTimeView,
+    allTimeLoading: allTime && (allTx.loading || allTr.loading),
     categories,
     /** The basket's own items (templates): next month's automated payment. */
     templates: data.itemsByBucket[bucketId] ?? [],

@@ -4,7 +4,8 @@
 // previous and next arrows. Its menu (a bottom sheet on phones) starts with
 // "This month" and "Next month", then lists months grouped by year, newest
 // first, each with small markers: the current month, months not reviewed
-// yet, and months with overdue items.
+// yet, and months with overdue items. Pages that can show everything
+// (a basket) pass `allTime`: the menu then starts with "All time".
 
 import { useMemo, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
@@ -33,9 +34,12 @@ export function MonthPicker({
   markers,
   from,
   to,
+  allTime,
 }: {
   value: string;
   onChange: (month: string) => void;
+  /** Offers "All time" first; `active` shows it on the button. */
+  allTime?: { active: boolean; onPick: () => void };
   markers?: (month: string) => MonthMarker[];
   /** Earliest month offered (default: two years back). */
   from?: string;
@@ -61,12 +65,26 @@ export function MonthPicker({
   return (
     <>
       <button type="button" className={styles.monthButton} aria-haspopup="dialog" onClick={(e) => setAnchor(e.currentTarget)}>
-        {monthName(value)}
+        {allTime?.active ? 'All time' : monthName(value)}
         <ChevronDown size={15} strokeWidth={2} aria-hidden />
       </button>
       {anchor && (
         <Popover anchor={anchor} label="Choose month" onClose={() => setAnchor(null)}>
           <div className={styles.menu}>
+            {allTime && (
+              <button
+                type="button"
+                className={styles.menuRow}
+                data-row
+                aria-pressed={allTime.active}
+                onClick={() => {
+                  allTime.onPick();
+                  setAnchor(null);
+                }}
+              >
+                All time
+              </button>
+            )}
             <button type="button" className={styles.menuRow} data-row onClick={() => pick(current)}>
               This month
             </button>
@@ -83,7 +101,7 @@ export function MonthPicker({
                     .map((m) => {
                       const marks = [...(m === current ? (['current'] as MonthMarker[]) : []), ...(markers?.(m) ?? []).filter((x) => x !== 'current')];
                       return (
-                        <button key={m} type="button" className={styles.menuRow} data-row aria-pressed={m === value} onClick={() => pick(m)}>
+                        <button key={m} type="button" className={styles.menuRow} data-row aria-pressed={!allTime?.active && m === value} onClick={() => pick(m)}>
                           {monthName(m, false)}
                           {marks.length > 0 && (
                             <span className={styles.monthMarkers}>

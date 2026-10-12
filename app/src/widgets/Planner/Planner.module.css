@@ -1,0 +1,1182 @@
+/* The money and time plans (Remix/Priorities/priorities-forecasting-brief.md,
+   section 11): the dashboards' tokens and chart kit, container queries on
+   the page's own width ("dash", so the chart kit's phone rules apply), a
+   12-column grid with two cards per row on wide screens and one below
+   900 px, no horizontal page scroll from 320 px. Touch targets 44 px, except
+   the − / + steppers (28 px inside a 44 px row). One lock glyph, muted. */
+
+.root {
+  container-type: inline-size;
+  container-name: dash;
+  min-height: 100%;
+  padding: 20px clamp(12px, 4vw, 32px) 120px;
+  background: var(--color-page);
+  color: var(--color-text-primary);
+}
+
+.root[data-web] {
+  background: none;
+}
+
+.root > * {
+  max-width: 1280px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.root [data-bad] {
+  color: var(--c-bad);
+}
+
+.root [data-good] {
+  color: var(--c-primary-dark);
+}
+
+.intro {
+  margin-bottom: 14px;
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-family-heading);
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.lede {
+  max-width: 760px;
+  margin: 6px 0 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+}
+
+.lede b {
+  color: var(--color-text-primary);
+}
+
+.lock {
+  display: inline-block;
+  flex: none;
+  margin-right: 4px;
+  vertical-align: -1px;
+  color: var(--c-muted);
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.muted {
+  font-size: 12.5px;
+  color: var(--c-muted);
+}
+
+p.muted {
+  margin: 0;
+}
+
+.back {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+/* ---- Controls ---- */
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px 12px;
+  margin-bottom: 18px;
+}
+
+.seg {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 12px;
+  background: var(--color-surface);
+}
+
+.seg button {
+  min-height: 38px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 9px;
+  background: none;
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.seg button[aria-pressed='true'] {
+  background: var(--color-brand);
+  color: #ffffff;
+}
+
+.field {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--c-muted);
+}
+
+.field input,
+.field select {
+  min-height: 40px;
+  width: 140px;
+  padding: 0 10px;
+  border: 1px solid var(--c-border);
+  border-radius: 10px;
+  background: var(--color-background);
+  color: var(--c-text);
+  font: inherit;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.field select {
+  width: auto;
+  min-width: 150px;
+}
+
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.check input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--color-brand);
+}
+
+.button {
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--color-brand);
+  border-radius: 10px;
+  background: var(--color-background);
+  color: var(--color-brand);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.button[data-primary] {
+  background: var(--color-brand);
+  color: #ffffff;
+}
+
+.button:disabled {
+  border-color: var(--c-border);
+  color: var(--c-muted);
+  cursor: default;
+}
+
+.small {
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--c-border);
+  border-radius: 8px;
+  background: var(--color-background);
+  color: var(--c-text);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.small[data-primary] {
+  border-color: var(--color-brand);
+  background: var(--color-brand);
+  color: #ffffff;
+}
+
+.scenario {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.nameForm {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.nameForm input {
+  min-height: 32px;
+  width: 140px;
+  padding: 0 8px;
+  border: 1px solid var(--c-border);
+  border-radius: 8px;
+  font: inherit;
+  font-size: 13px;
+}
+
+/* ---- Layout ---- */
+
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.section {
+  margin: 22px auto 10px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 20px;
+  align-items: start;
+  margin-bottom: 20px;
+}
+
+.grid > * {
+  min-width: 0;
+}
+
+.span12 {
+  grid-column: span 12;
+}
+.span7 {
+  grid-column: span 7;
+}
+.span6 {
+  grid-column: span 6;
+}
+.span5 {
+  grid-column: span 5;
+}
+
+.root > section {
+  margin-bottom: 20px;
+}
+
+/* ---- Forecast and charts ---- */
+
+.xRow {
+  position: relative;
+  height: 18px;
+  margin-top: 6px;
+}
+
+.xRow span {
+  position: absolute;
+  transform: translateX(-50%);
+  font-size: 11px;
+  color: #6b7280;
+  white-space: nowrap;
+}
+
+.divider {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  border-left: 1px dashed var(--c-axis);
+  z-index: 1;
+}
+
+.lowLabel {
+  position: absolute;
+  z-index: 4;
+  margin: 0 0 -22px 8px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--c-card);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--c-bad);
+  white-space: nowrap;
+}
+
+.lowLabel[data-side='left'] {
+  transform: translateX(calc(-100% - 16px));
+}
+
+/* Waterfall step names wrap onto two lines rather than overlap. */
+.fall [class*='xLabels'] span {
+  padding: 0 1px;
+  line-height: 1.25;
+  white-space: normal;
+  overflow: visible;
+}
+
+@container dash (max-width: 760px) {
+  .fall [class*='xLabels'] span {
+    padding: 0;
+    font-size: 9.5px;
+    letter-spacing: -0.15px;
+  }
+}
+
+.fallCol {
+  position: relative;
+  flex: 1 1 0;
+  height: 100%;
+  min-width: 0;
+}
+
+.fallBar {
+  position: absolute;
+  left: 12%;
+  right: 12%;
+  border-radius: 4px;
+}
+
+.fallBar[data-sub] {
+  outline: 1.5px solid var(--c-primary);
+  outline-offset: -1.5px;
+}
+
+.capLine {
+  position: absolute;
+  left: 4%;
+  right: 4%;
+  height: 0;
+  border-top: 2px dashed var(--c-text);
+  z-index: 3;
+}
+
+.cmp {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.cmpRow {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cmpHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.cmpBar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cmpTrack {
+  flex: 1;
+  height: 12px;
+  border-radius: 999px;
+  background: var(--c-grid);
+  overflow: hidden;
+}
+
+.cmpTrack i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+}
+
+.cmpValue {
+  min-width: 52px;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.warn {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--c-primary-light);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.warn p {
+  margin: 0;
+}
+
+.fix {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--c-card);
+}
+
+/* ---- The plan by period ---- */
+
+.periods {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.period {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--c-border);
+  border-radius: 14px;
+}
+
+.period[data-park] {
+  border-style: dashed;
+}
+
+.periodHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+  font-size: 14px;
+}
+
+.flow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+  font-size: 12px;
+  color: var(--c-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.flow b {
+  color: var(--c-text);
+}
+
+.note {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--c-muted);
+}
+
+.group {
+  border-radius: 10px;
+  background: var(--color-surface);
+}
+
+.group summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.groupNums {
+  display: flex;
+  gap: 10px;
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+.groupBody {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 8px 8px;
+}
+
+.lockedRow {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 4px;
+  font-size: 13px;
+  color: var(--c-muted);
+}
+
+.lockedRow b {
+  color: var(--c-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.name {
+  min-width: 0;
+  font-size: 13.5px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.name em,
+.lockedRow em {
+  font-style: normal;
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--c-muted);
+}
+
+.hint {
+  display: block;
+  margin: 2px 0 0;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--c-muted);
+}
+
+.flexRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 6px 8px;
+  border-left: 3px solid var(--c-accent);
+  border-radius: 8px;
+  background: var(--c-card);
+}
+
+.flexRow[data-kind='savings'] {
+  border-left-color: var(--c-primary-mid);
+}
+
+.flexRow[data-skip] .name,
+.flexRow[data-skip] .amount {
+  text-decoration: line-through;
+  color: var(--c-muted);
+}
+
+.amount {
+  font-size: 13.5px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.rowControls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.date {
+  min-height: 32px;
+  padding: 0 6px;
+  border: 1px solid var(--c-border);
+  border-radius: 8px;
+  background: var(--color-background);
+  color: var(--c-text);
+  font: inherit;
+  font-size: 12.5px;
+}
+
+.tag {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--c-grid);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--c-muted);
+  vertical-align: 1px;
+}
+
+.tag[data-p='Must'] {
+  background: var(--c-primary-light);
+  color: var(--c-primary-dark);
+}
+
+.tag[data-p='late'] {
+  color: var(--c-bad);
+}
+
+/* ---- Board ---- */
+
+.board {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(220px, 1fr);
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+}
+
+.boardCol {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--c-border);
+  border-radius: 14px;
+  background: var(--color-surface);
+}
+
+.boardCol[data-park] {
+  border-style: dashed;
+}
+
+.boardCol[data-over] {
+  outline: 2px solid var(--c-primary);
+}
+
+.boardHead {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 14px;
+}
+
+.card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px 8px;
+  padding: 8px;
+  border-left: 3px solid var(--c-accent);
+  border-radius: 10px;
+  background: var(--c-card);
+  font-size: 13px;
+  touch-action: manipulation;
+}
+
+.card[data-kind='savings'] {
+  border-left-color: var(--c-primary-mid);
+}
+
+.card[data-kind='income'] {
+  border-left-color: var(--c-primary);
+}
+
+.card[data-kind='fixed'] {
+  border-left-color: var(--c-primary-dark);
+}
+
+.card[data-locked] {
+  border: 1px dashed var(--c-border);
+  border-left-width: 3px;
+  background: var(--color-surface);
+  color: var(--c-muted);
+}
+
+.card[data-skip] .cardName {
+  text-decoration: line-through;
+}
+
+.card[data-dragging],
+.task[data-dragging],
+.chunk[data-dragging] {
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
+  opacity: 0.92;
+}
+
+.cardName {
+  min-width: 0;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cardMeta {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--c-muted);
+}
+
+.grip {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--c-muted);
+  cursor: grab;
+  touch-action: none;
+}
+
+span.grip {
+  cursor: default;
+}
+
+.moveSelect {
+  min-height: 30px;
+  max-width: 140px;
+  padding: 0 6px;
+  border: 1px solid var(--c-border);
+  border-radius: 8px;
+  background: var(--color-background);
+  font: inherit;
+  font-size: 12px;
+}
+
+/* ---- Goals, priorities, baskets ---- */
+
+.goals {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.goal {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.goalTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.goalBar {
+  position: relative;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--c-grid);
+}
+
+.goalBar i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  border-radius: 999px;
+  background: var(--c-primary);
+}
+
+.goalBar i[data-light] {
+  background: var(--c-primary-mid);
+}
+
+.goalTarget {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 3px;
+  margin-left: -1.5px;
+  border-radius: 2px;
+  background: var(--c-text);
+}
+
+.range {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  font-size: 13px;
+}
+
+.range input {
+  width: 100%;
+  accent-color: var(--color-brand);
+}
+
+.range b {
+  min-width: 96px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.targets {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+}
+
+.targets li {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--color-surface);
+}
+
+.targets b {
+  font-variant-numeric: tabular-nums;
+}
+
+.baskets {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.basket {
+  border: 1px solid var(--c-border);
+  border-radius: 12px;
+}
+
+.basket summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 12px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.basketRow {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 12px;
+  border-top: 1px solid var(--c-grid);
+  font-size: 13px;
+}
+
+.basketRow input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--color-brand);
+}
+
+.basketRow b {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Dialogs ---- */
+
+.dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.changeList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 50vh;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+  font-size: 14px;
+}
+
+.changeList li label,
+.changeList li span {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 36px;
+}
+
+.changeList em {
+  flex-basis: 100%;
+  font-style: normal;
+  font-size: 12px;
+  color: var(--c-muted);
+}
+
+.dialogActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* ---- Time: table, tray, days ---- */
+
+.tableWrap {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  min-width: 560px;
+  border-collapse: collapse;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.table th,
+.table td {
+  padding: 9px 8px;
+  border-bottom: 1px solid var(--c-grid);
+  text-align: left;
+}
+
+.table th {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--c-muted);
+}
+
+.table [data-num] {
+  text-align: right;
+}
+
+.table em {
+  font-style: normal;
+  font-size: 11.5px;
+  color: var(--c-muted);
+}
+
+.tray {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 10px;
+  border: 1px dashed var(--c-border);
+  border-radius: 14px;
+}
+
+.tray[data-over],
+.day[data-over] {
+  outline: 2px solid var(--c-primary);
+}
+
+.trayList {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 8px;
+}
+
+.task,
+.chunk {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px 8px;
+  padding: 6px 8px;
+  border-left: 3px solid var(--c-primary);
+  border-radius: 10px;
+  background: var(--c-card);
+  font-size: 13px;
+}
+
+.chunk {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.chunk .cardName {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.chunk .stepper {
+  grid-column: 2;
+  justify-self: start;
+}
+
+.days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.day {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  min-height: 120px;
+  padding: 8px;
+  border: 1px solid var(--c-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+}
+
+.dayHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  min-height: 44px;
+  font-size: 13px;
+}
+
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.stepper button {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--c-border);
+  border-radius: 8px;
+  background: var(--color-background);
+  color: var(--c-text);
+  cursor: pointer;
+}
+
+.meter {
+  display: flex;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--c-grid);
+}
+
+.meter i {
+  display: block;
+  height: 100%;
+}
+
+.meeting {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 6px;
+  border-radius: 8px;
+  background: #eef0f3;
+  font-size: 12px;
+  color: var(--c-muted);
+}
+
+.meeting[data-booked] {
+  grid-template-columns: minmax(0, 1fr) auto;
+  background: var(--c-card);
+  border: 1px dashed var(--c-border);
+}
+
+.meeting span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Wide days on a two-week plan: two rows of seven. */
+
+@container dash (max-width: 1100px) {
+  .kpis {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .days {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .baskets {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* One card per row below 900 px. */
+@container dash (max-width: 900px) {
+  .span12,
+  .span7,
+  .span6,
+  .span5 {
+    grid-column: 1 / -1;
+  }
+}
+
+@container dash (max-width: 760px) {
+  .title {
+    font-size: 22px;
+  }
+  .kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .grid {
+    gap: 12px;
+  }
+  .controls > * {
+    flex: 1 1 auto;
+  }
+  .seg {
+    width: 100%;
+  }
+  .seg button {
+    flex: 1 1 0;
+    padding: 0 4px;
+  }
+  .flexRow {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .rowControls {
+    grid-column: 1 / -1;
+  }
+  .board {
+    grid-auto-flow: row;
+    grid-auto-columns: auto;
+    overflow: visible;
+  }
+  .days {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .baskets {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .fix {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

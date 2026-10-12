@@ -233,6 +233,7 @@ export function usePlansData() {
     currency,
     data,
     buckets,
+    categories,
     accounts,
     occurrences,
     itemsByBucket,

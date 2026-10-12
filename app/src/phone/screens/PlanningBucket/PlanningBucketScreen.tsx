@@ -13,6 +13,8 @@
 //   - the month's transactions, with See all;
 //   - "Add expense to this basket" at the bottom (the basket chosen, the
 //     amount empty). Notes and adjustments are behind More.
+// The month under the name is a picker that also offers All time: every
+// item in the basket, whatever its months, with what was paid so far.
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -24,6 +26,7 @@ import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { ActionMenu } from '@/src/widgets/ActionMenu/ActionMenu';
 import { Modal } from '@/src/widgets/Modal/Modal';
 import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
+import { BasketAllTime } from '@/src/widgets/BasketAllTime/BasketAllTime';
 import { dayMonth, money, monthTitle } from '@/src/viewmodels/planning';
 import { ITEM_KIND_GROUP, type ItemKind } from '@/src/shared/budget/itemKinds';
 import { occurrenceBuild } from '@/src/shared/budget/cadence';
@@ -41,6 +44,17 @@ type Group = ItemKind | 'income' | 'move';
 const GROUPS: Group[] = ['income', 'payment', 'allowance', 'set_aside', 'move'];
 const GROUP_LABEL: Record<Group, string> = { income: 'Income', ...ITEM_KIND_GROUP, move: 'Moves between wallets' };
 
+/** The picker's months: six ahead to two years back, newest first, always including the one shown. */
+function monthChoices(shown: string): string[] {
+  const now = new Date();
+  const out: string[] = [];
+  for (let i = 6; i >= -24; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+    out.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+  }
+  return out.includes(shown) ? out : [shown, ...out];
+}
+
 export function PlanningBucketScreen({ bucketId }: { bucketId: string }) {
   return <PlanningBucketView bucketId={bucketId} b={useLogic(bucketId)} />;
 }
@@ -54,7 +68,7 @@ export function PlanningBucketView({ bucketId, b }: { bucketId: string; b: Retur
   const card = b.card;
   const view = b.view;
 
-  if (b.loading || !card || !b.bucket || !view) {
+  if (b.loading || !b.bucket || (!b.allTime && (!card || !view))) {
     return (
       <div className={`${p.page} ${p.detail}`}>
         <ScreenHeader
@@ -68,6 +82,13 @@ export function PlanningBucketView({ bucketId, b }: { bucketId: string; b: Retur
           loading={b.loading}
           error={!b.loading ? (b.bucket ? `Nothing planned in this basket for ${monthTitle(b.month)}.` : 'This basket could not be found.') : null}
         />
+        {!b.loading && b.bucket && (
+          <div className={`${m.list} ${m.section}`}>
+            <button type="button" className={m.quiet} onClick={() => b.setAllTime(true)}>
+              See every item, all time
+            </button>
+          </div>
+        )}
       </div>
     );
   }
@@ -104,11 +125,22 @@ export function PlanningBucketView({ bucketId, b }: { bucketId: string; b: Retur
         }
       />
 
-      <h1 className={m.title}>{card.name}</h1>
+      <h1 className={m.title}>{b.bucket.name}</h1>
       <p className={m.subtitle}>
-        {b.cadenceLine} · {monthTitle(b.month)}
+        {b.cadenceLine} ·{' '}
+        <label>
+          <span className={m.srOnly}>Show</span>
+          <select className={m.periodSelect} value={b.allTime ? 'all' : b.month} onChange={(e) => (e.target.value === 'all' ? b.setAllTime(true) : b.setMonth(e.target.value))}>
+            <option value="all">All time</option>
+            {monthChoices(b.month).map((month) => (
+              <option key={month} value={month}>
+                {monthTitle(month)}
+              </option>
+            ))}
+          </select>
+        </label>
       </p>
-      {b.bucket.description && <MoreText title={card.name} text={b.bucket.description} />}
+      {b.bucket.description && <MoreText title={b.bucket.name} text={b.bucket.description} />}
 
       {b.archived && (
         <p className={m.oneLine}>
@@ -127,108 +159,122 @@ export function PlanningBucketView({ bucketId, b }: { bucketId: string; b: Retur
         </p>
       )}
 
-      <div className={`${m.bleed} ${m.section}`}>
-        <div className={m.figures}>
-          <div className={m.figureCell}>
-            <span className={m.figureLabel}>{income ? 'Expected' : 'Planned'}</span>
-            <span className={m.figureValue}>{money(view.planned)}</span>
-          </div>
-          <div className={m.figureCell}>
-            <span className={m.figureLabel}>{income ? 'Received' : 'Used'}</span>
-            <span className={m.figureValue}>{money(view.used)}</span>
-          </div>
-          <div className={m.figureCell}>
-            <span className={m.figureLabel}>{view.left < 0 && !income ? 'Over' : income ? 'To come' : 'Left'}</span>
-            <span className={m.figureValue} data-tone={view.left < -0.5 && !income ? 'problem' : undefined}>
-              {money(Math.abs(view.left))}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Over plan, not covered or left over: in Notifications, not here. */}
-
-      <div className={m.bleed}>
-        {GROUPS.map((kind) => {
-          const list = entries.filter((e) => groupOf(e) === kind);
-          if (!list.length) return null;
-          return (
-            <section key={kind} className={m.section} aria-label={GROUP_LABEL[kind]}>
-              <div className={m.sectionHead}>
-                <span className={m.label}>{GROUP_LABEL[kind]}</span>
-                {kind === 'allowance' && <InfoButton topic="pace" label="About the daily pace" />}
-              </div>
-              <div className={m.list}>
-                {list.map((entry) => (
-                  <ItemRow key={entry.key} entry={entry} b={b} bucketId={bucketId} />
-                ))}
-              </div>
-            </section>
-          );
-        })}
-        <div className={`${m.list} ${m.section}`}>
-          <Link href={`/add-basket-item/${bucketId}`} className={m.quiet}>
-            <Plus size={16} strokeWidth={2.5} aria-hidden />
-            Add item
-          </Link>
-        </div>
-
-        <section className={m.section} aria-label="Transactions">
-          <div className={m.sectionHead}>
-            <span className={m.label}>Transactions</span>
-            <Link href={`/budget?tab=history&month=${b.month}&bucket=${bucketId}`} className={m.textLink}>
-              See all
+      {b.allTime || !view ? (
+        <div className={`${m.bleed} ${m.section}`}>
+          <BasketAllTime view={b.allTimeView} bucketId={bucketId} currency={b.currency} loading={b.allTimeLoading} paidWord={income ? 'Received' : b.bucket.type === 'Savings' ? 'Saved' : 'Paid'} />
+          <div className={`${m.list} ${m.section}`}>
+            <Link href={`/add-basket-item/${bucketId}`} className={m.quiet}>
+              <Plus size={16} strokeWidth={2.5} aria-hidden />
+              Add item
             </Link>
           </div>
-          <div className={m.list}>
-            {b.rows.length === 0 ? (
-              <p className={m.empty}>Nothing recorded this month.</p>
-            ) : (
-              b.rows.slice(0, 5).map((row) => (
-                <Link key={`${row.kind}-${row.id}`} href={row.href} className={m.row}>
-                  {/* The transaction type in a round icon, like Payments. */}
-                  <IconCircle type={row.type} />
-                  <span className={m.main}>
-                    <span className={m.name}>{row.note || row.name}</span>
-                    <span className={m.line}>
-                      {dayMonth(row.date)}
-                      {row.method ? ` · ${row.method}` : ''}
-                    </span>
-                  </span>
-                  <span className={m.side}>
-                    <span className={m.figure}>
-                      {row.kind === 'transaction' ? (row.amount > 0 ? '+' : '-') : ''}
-                      {money(Math.abs(row.amount))}
-                    </span>
-                  </span>
-                </Link>
-              ))
-            )}
-          </div>
-        </section>
-
-        <div className={`${m.list} ${m.section}`}>
-          <button type="button" className={m.row} aria-expanded={more} onClick={() => setMore((x) => !x)}>
-            <span className={m.main}>
-              <span className={m.name}>More</span>
-              <span className={m.line}>Notes and adjustments</span>
-            </span>
-            <ChevronRight size={18} strokeWidth={2} aria-hidden style={{ transform: more ? 'rotate(90deg)' : undefined }} />
-          </button>
         </div>
-      </div>
-
-      {more && (
+      ) : (
         <>
-          {b.bucket.notes ? <MoreText title="Notes" text={b.bucket.notes} /> : <p className={m.oneLine}>No notes.</p>}
-          {b.adjustments.length > 0 ? (
-            <div className={adj.list} style={{ marginTop: 12 }}>
-              {b.adjustments.map((entry) => (
-                <AdjustmentRow key={entry.id} entry={entry} currency={b.currency} onOpen={() => b.setOpenAdjustment(entry.id)} />
-              ))}
+          <div className={`${m.bleed} ${m.section}`}>
+            <div className={m.figures}>
+              <div className={m.figureCell}>
+                <span className={m.figureLabel}>{income ? 'Expected' : 'Planned'}</span>
+                <span className={m.figureValue}>{money(view.planned)}</span>
+              </div>
+              <div className={m.figureCell}>
+                <span className={m.figureLabel}>{income ? 'Received' : 'Used'}</span>
+                <span className={m.figureValue}>{money(view.used)}</span>
+              </div>
+              <div className={m.figureCell}>
+                <span className={m.figureLabel}>{view.left < 0 && !income ? 'Over' : income ? 'To come' : 'Left'}</span>
+                <span className={m.figureValue} data-tone={view.left < -0.5 && !income ? 'problem' : undefined}>
+                  {money(Math.abs(view.left))}
+                </span>
+              </div>
             </div>
-          ) : (
-            <p className={m.oneLine}>No adjustments this month.</p>
+          </div>
+
+          {/* Over plan, not covered or left over: in Notifications, not here. */}
+
+          <div className={m.bleed}>
+            {GROUPS.map((kind) => {
+              const list = entries.filter((e) => groupOf(e) === kind);
+              if (!list.length) return null;
+              return (
+                <section key={kind} className={m.section} aria-label={GROUP_LABEL[kind]}>
+                  <div className={m.sectionHead}>
+                    <span className={m.label}>{GROUP_LABEL[kind]}</span>
+                    {kind === 'allowance' && <InfoButton topic="pace" label="About the daily pace" />}
+                  </div>
+                  <div className={m.list}>
+                    {list.map((entry) => (
+                      <ItemRow key={entry.key} entry={entry} b={b} bucketId={bucketId} />
+                    ))}
+                  </div>
+                </section>
+              );
+            })}
+            <div className={`${m.list} ${m.section}`}>
+              <Link href={`/add-basket-item/${bucketId}`} className={m.quiet}>
+                <Plus size={16} strokeWidth={2.5} aria-hidden />
+                Add item
+              </Link>
+            </div>
+
+            <section className={m.section} aria-label="Transactions">
+              <div className={m.sectionHead}>
+                <span className={m.label}>Transactions</span>
+                <Link href={`/budget?tab=history&month=${b.month}&bucket=${bucketId}`} className={m.textLink}>
+                  See all
+                </Link>
+              </div>
+              <div className={m.list}>
+                {b.rows.length === 0 ? (
+                  <p className={m.empty}>Nothing recorded this month.</p>
+                ) : (
+                  b.rows.slice(0, 5).map((row) => (
+                    <Link key={`${row.kind}-${row.id}`} href={row.href} className={m.row}>
+                      {/* The transaction type in a round icon, like Payments. */}
+                      <IconCircle type={row.type} />
+                      <span className={m.main}>
+                        <span className={m.name}>{row.note || row.name}</span>
+                        <span className={m.line}>
+                          {dayMonth(row.date)}
+                          {row.method ? ` · ${row.method}` : ''}
+                        </span>
+                      </span>
+                      <span className={m.side}>
+                        <span className={m.figure}>
+                          {row.kind === 'transaction' ? (row.amount > 0 ? '+' : '-') : ''}
+                          {money(Math.abs(row.amount))}
+                        </span>
+                      </span>
+                    </Link>
+                  ))
+                )}
+              </div>
+            </section>
+
+            <div className={`${m.list} ${m.section}`}>
+              <button type="button" className={m.row} aria-expanded={more} onClick={() => setMore((x) => !x)}>
+                <span className={m.main}>
+                  <span className={m.name}>More</span>
+                  <span className={m.line}>Notes and adjustments</span>
+                </span>
+                <ChevronRight size={18} strokeWidth={2} aria-hidden style={{ transform: more ? 'rotate(90deg)' : undefined }} />
+              </button>
+            </div>
+          </div>
+
+          {more && (
+            <>
+              {b.bucket.notes ? <MoreText title="Notes" text={b.bucket.notes} /> : <p className={m.oneLine}>No notes.</p>}
+              {b.adjustments.length > 0 ? (
+                <div className={adj.list} style={{ marginTop: 12 }}>
+                  {b.adjustments.map((entry) => (
+                    <AdjustmentRow key={entry.id} entry={entry} currency={b.currency} onOpen={() => b.setOpenAdjustment(entry.id)} />
+                  ))}
+                </div>
+              ) : (
+                <p className={m.oneLine}>No adjustments this month.</p>
+              )}
+            </>
           )}
         </>
       )}

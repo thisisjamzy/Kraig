@@ -4,7 +4,8 @@
 // with their Ready to pay state, the next automated payment, the items
 // mix and the summary status. Pure; tested in test/basketPage.test.ts.
 
-import { addMonths, itemOccurrence, type BudgetItemLike } from '../../shared/budget/monthBudget';
+import { addMonths, itemOccurrence, itemOccurrenceDetail, monthKeyOf, type BudgetItemLike } from '../../shared/budget/monthBudget';
+import { itemSchedule, scheduleLabel, type CadenceBasket } from '../../shared/budget/cadence';
 import type { Coverage } from '@/src/shared/budget/coverage';
 import type { Priority } from '@/src/shared/firestore/types';
 import type { LineRow } from '@/src/logic/budgetMonth/lines';
@@ -131,4 +132,91 @@ export function summaryStatus(planned: number, actual: number, type: LineRow['ty
 export function paymentsDue(lines: LineRow[]): { count: number; total: number } {
   const open = lines.filter((l) => l.type !== 'Income' && !l.closed && l.left > 0.5);
   return { count: open.length, total: r2(open.reduce((s, l) => s + l.left, 0)) };
+}
+
+// ---- All time ----
+
+/** One item of the basket across all time (the page's "All time" view). */
+export interface AllTimeItem {
+  id: string;
+  name: string;
+  /** "Every month", "One-off", "Not scheduled". */
+  schedule: string;
+  /** What one occurrence costs, display currency. */
+  amount: number;
+  /** Everything recorded against it, display currency. */
+  paid: number;
+  payments: number;
+  lastPaid: Date | null;
+  /** The next date it falls on from today (null: none ahead). */
+  next: Date | null;
+  status: 'Open' | 'Done' | 'Dropped' | 'Ended' | 'Not scheduled';
+}
+
+export interface AllTimeView {
+  items: AllTimeItem[];
+  paid: number;
+  payments: number;
+  /** Still open (a one-off not done, or a repeating item with a date ahead). */
+  open: number;
+  firstPaid: Date | null;
+}
+
+type AllTimeSource = BudgetItemLike & { id: string; name: string; completed?: boolean; status?: 'dropped' | null };
+
+/**
+ * Every item in the basket, whatever its months: how it repeats, what it
+ * costs, everything paid against it (from all transactions linked to it),
+ * the last payment and the next date. Open items first, then by next date.
+ */
+export function basketAllTime(
+  items: AllTimeSource[],
+  txs: { itemId: string; amount: number; date: Date }[],
+  bucket: CadenceBasket | null,
+  today: Date,
+  toDisplay: (item: AllTimeSource, amount: number) => number
+): AllTimeView {
+  const byItem = new Map<string, { paid: number; count: number; last: Date | null; first: Date | null }>();
+  for (const t of txs) {
+    const row = byItem.get(t.itemId) ?? { paid: 0, count: 0, last: null, first: null };
+    row.paid += t.amount;
+    row.count += 1;
+    if (!row.last || t.date > row.last) row.last = t.date;
+    if (!row.first || t.date < row.first) row.first = t.date;
+    byItem.set(t.itemId, row);
+  }
+  const current = monthKeyOf(today);
+  const out: AllTimeItem[] = items.map((item) => {
+    const spec = itemSchedule(item, bucket);
+    let next: Date | null = null;
+    for (let i = 0; i < 25 && !next && spec; i++) {
+      const detail = itemOccurrenceDetail(item, addMonths(current, i), bucket);
+      next = detail?.dates.find((d) => dayOf(d) >= dayOf(today)) ?? null;
+    }
+    const pay = byItem.get(item.id);
+    const once = !spec || spec.frequency === 'Once';
+    const status: AllTimeItem['status'] =
+      item.status === 'dropped' ? 'Dropped' : once && item.completed ? 'Done' : !spec ? 'Not scheduled' : next ? 'Open' : once ? 'Open' : 'Ended';
+    return {
+      id: item.id,
+      name: item.name,
+      schedule: scheduleLabel(spec),
+      amount: r2(toDisplay(item, item.amount)),
+      paid: r2(pay?.paid ?? 0),
+      payments: pay?.count ?? 0,
+      lastPaid: pay?.last ?? null,
+      next: status === 'Open' ? next : null,
+      status,
+    };
+  });
+  const order = { Open: 0, 'Not scheduled': 1, Ended: 2, Done: 3, Dropped: 4 } as const;
+  out.sort((a, b) => order[a.status] - order[b.status] || (a.next?.getTime() ?? Infinity) - (b.next?.getTime() ?? Infinity) || a.name.localeCompare(b.name));
+  const firsts = [...byItem.values()].map((r) => r.first).filter((d): d is Date => Boolean(d));
+  return {
+    items: out,
+    paid: r2(out.reduce((s, i) => s + i.paid, 0)),
+    payments: out.reduce((s, i) => s + i.payments, 0),
+    open: out.filter((i) => i.status === 'Open' || i.status === 'Not scheduled').length,
+    firstPaid: firsts.length ? new Date(Math.min(...firsts.map((d) => d.getTime()))) : null,
+  };
 }

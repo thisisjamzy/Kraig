@@ -479,6 +479,8 @@ export interface TaskFieldsPatch {
   type?: TaskType;
   timeMode?: TimeMode;
   notes?: string;
+  /** Hours the task needs (the time plan); null clears it. */
+  estimateHours?: number | null;
   project?: { id: string | null; areaId: string | null; bucketId: string | null };
 }
 
@@ -488,6 +490,7 @@ export async function updateTaskFields(uid: string, taskId: string, patch: TaskF
   if (patch.type !== undefined) fields.type = patch.type;
   if (patch.timeMode !== undefined) fields.timeMode = patch.timeMode;
   if (patch.notes !== undefined) fields.notes = patch.notes;
+  if (patch.estimateHours !== undefined) fields.estimateHours = patch.estimateHours;
   if (patch.project) {
     fields.projectId = patch.project.id;
     fields.areaId = patch.project.id ? patch.project.areaId : null;

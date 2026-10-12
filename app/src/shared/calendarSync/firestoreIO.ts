@@ -8,6 +8,7 @@ import {
   deleteField,
   getDoc,
   getDocs,
+  getDocsFromCache,
   getDocsFromServer,
   query,
   serverTimestamp,
@@ -29,7 +30,7 @@ import {
 import type { FirestoreTask, FirestoreCalendarSyncState } from '../firestore/types';
 import type { GoogleEvent } from '../calendarBridge/types';
 import type { SyncWindow } from './blocks';
-import { planReconcile, type EventFields } from './reconcile';
+import { GOOGLE_FIELDS, planReconcile, type EventFields } from './reconcile';
 import type { SyncCounts, SyncSettings } from './engine';
 import type { TaskSyncRollup } from './results';
 
@@ -105,16 +106,17 @@ function toDoc(fields: EventFields) {
 }
 
 export async function applyPull(uid: string, window: SyncWindow, events: GoogleEvent[], calendarTimeZone: string): Promise<void> {
-  const storedSnap = await getDocs(
-    query(
-      calendarEventsRef(uid),
-      where('startAt', '>=', Timestamp.fromDate(window.from)),
-      where('startAt', '<', Timestamp.fromDate(window.to))
-    )
-  );
+  const inWindow = query(calendarEventsRef(uid), where('startAt', '>=', Timestamp.fromDate(window.from)), where('startAt', '<', Timestamp.fromDate(window.to)));
+  // The device's copy first (free); the server only when there is none yet.
+  // A doc missing from the copy is just written again, never lost.
+  let storedSnap = await getDocsFromCache(inWindow).catch(() => null);
+  if (!storedSnap || storedSnap.empty) storedSnap = await getDocs(inWindow);
   const stored = storedSnap.docs
     .filter((d) => d.data().startAt)
-    .map((d) => ({ id: d.id, startAt: d.data().startAt.toDate() }));
+    .map((d) => {
+      const data = d.data();
+      return { id: d.id, startAt: data.startAt.toDate(), fields: Object.fromEntries(GOOGLE_FIELDS.map((k) => [k, data[k]])) };
+    });
   const plan = planReconcile(stored, events, window, calendarTimeZone);
   const writes: ((batch: ReturnType<typeof writeBatch>) => void)[] = [
     // Merge: only Google's fields — linkedTaskId, linkedProjectId and

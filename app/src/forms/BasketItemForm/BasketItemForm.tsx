@@ -236,6 +236,23 @@ export function BasketItemForm({ goalId, itemId }: { goalId: string; itemId?: st
             )
           )}
 
+          {/* The money plan: expected income can be left out; a fixed cost can come out of a savings goal first. */}
+          {v.isIncomeItem && (
+            <SelectField
+              label="Confidence"
+              value={v.itemConfidence}
+              onChange={(next) => v.setItemConfidence(next as '' | 'Confirmed' | 'Expected')}
+              options={[
+                { value: '', label: 'Automatic (earned income is confirmed)' },
+                { value: 'Confirmed', label: 'Confirmed' },
+                { value: 'Expected', label: 'Expected' },
+              ]}
+            />
+          )}
+          {fixed && !v.isIncomeItem && !transfer && v.savingsGoalOptions.length > 0 && (
+            <SelectField label="Paid from goal" value={v.itemFundedBy} onChange={v.setItemFundedBy} options={[{ value: '', label: 'No, from the wallet' }, ...v.savingsGoalOptions]} />
+          )}
+
           {/* Category and Need each on a row of their own. */}
           {v.hasNeed ? (
             <>

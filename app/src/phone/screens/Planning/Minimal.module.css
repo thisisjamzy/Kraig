@@ -311,6 +311,27 @@
   color: var(--p-muted);
 }
 
+/* The basket's month or All time, inline in its subtitle. */
+.periodSelect {
+  min-height: 36px;
+  padding: 0 4px;
+  border: 0;
+  border-bottom: 1.5px solid currentColor;
+  background: none;
+  color: var(--p-ink, inherit);
+  font: inherit;
+  font-weight: 600;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
 .oneLine {
   display: flex;
   align-items: baseline;

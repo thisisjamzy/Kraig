@@ -341,3 +341,21 @@ test('a Google meeting that blocks time is a conflict; one marked Free is not', 
   const free = checkAvailability(local(2026, 9, 29, 14), local(2026, 9, 29, 15), 'blocked', null, google);
   assert.equal(free.status, 'available');
 });
+
+test('reconcile: an event stored exactly as pulled is not written again (dates stored as Timestamps)', () => {
+  const pulled = [gEvent('same', '2026-10-02T09:00:00+01:00', '2026-10-02T09:30:00+01:00'), gEvent('edited', '2026-10-02T11:00:00+01:00', '2026-10-02T12:00:00+01:00', { title: 'New title' })];
+  const first = planReconcile([], pulled, WINDOW, TZ);
+  const asStored = (id: string, extra: Record<string, unknown> = {}) => {
+    const f = first.upserts.find((u) => u.googleEventId === id)!;
+    // Firestore hands nested keys back in any order and dates as Timestamps.
+    const fields = Object.fromEntries(
+      Object.entries({ ...f, ...extra })
+        .reverse()
+        .map(([k, v]) => [k, v instanceof Date ? Timestamp.fromDate(v) : v])
+    );
+    return { id, startAt: f.startAt, fields };
+  };
+  const plan = planReconcile([asStored('same'), asStored('edited', { title: 'Old title' })], pulled, WINDOW, TZ);
+  assert.deepEqual(plan.upserts.map((u) => u.googleEventId), ['edited']);
+  assert.deepEqual(plan.deletes, []);
+});
