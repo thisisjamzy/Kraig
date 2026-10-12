@@ -85,11 +85,16 @@ test('one formatting module: currency, compact, hours, real minus signs', () => 
 // ---- Layouts ----
 
 test('each period shows the brief’s cards in order', () => {
-  assert.deepEqual(cardsIn(MONEY_LAYOUT.day), ['dayHours', 'plan', 'recLatest', 'dayTx']);
-  assert.deepEqual(cardsIn(MONEY_LAYOUT.week), ['flow', 'plan', 'wf', 'recEach', 'recLatest', 'recLog', 'tree', 'when']);
+  assert.deepEqual(cardsIn(MONEY_LAYOUT.day), ['dayHours', 'plan', 'dayTx', 'recLatest']);
+  assert.deepEqual(cardsIn(MONEY_LAYOUT.week), ['flow', 'plan', 'wf', 'tree', 'when', 'recEach', 'recLatest', 'recLog']);
   const month = cardsIn(MONEY_LAYOUT.month);
   assert.equal(month.indexOf('recLog'), month.indexOf('recRate') + 1, 'Month adds the log after the untracked cards');
   assert.ok(!cardsIn(MONEY_LAYOUT.year).includes('recLog'));
+  // Untracked money (reconciliation) is the last section in every period.
+  for (const kind of DASH_KINDS) {
+    const sections = MONEY_LAYOUT[kind].filter((e) => 'section' in e).map((e) => ('section' in e ? e.section : ''));
+    assert.equal(sections[sections.length - 1], 'Untracked money', kind);
+  }
   const all = cardsIn(MONEY_LAYOUT.all);
   for (const gone of ['plan', 'fc', 'dayHours']) assert.ok(!all.includes(gone), gone);
   assert.ok(all.includes('box'));
