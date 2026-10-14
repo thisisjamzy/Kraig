@@ -7,6 +7,8 @@
 // (one month) and the all-transactions page both render exactly this.
 
 import { useMemo } from 'react';
+import { isSelectable, useRecordSelection } from '@/src/logic/planning/useRecordSelection';
+import { SelectionBar } from '@/src/widgets/Selection/SelectionBar';
 import type { HistoryRow } from '@/src/logic/planning/rows';
 import { groupByDay } from '@/src/logic/planning/rows';
 import { applyQuery, type FieldDef } from '@/src/shared/listQuery/engine';
@@ -29,6 +31,7 @@ export function HistoryView({
   emptyText,
   showYear = false,
   onClear,
+  selectable = true,
 }: {
   rows: HistoryRow[];
   currency: string;
@@ -40,7 +43,13 @@ export function HistoryView({
   showYear?: boolean;
   /** Extra clean-up when the list is cleared (e.g. a bucket in the URL). */
   onClear?: () => void;
+  /** Rows can be selected and deleted together. */
+  selectable?: boolean;
 }) {
+  const selection = useRecordSelection();
+  const picking = selectable && selection.selecting;
+  const select = (row: HistoryRow) =>
+    picking ? { checked: selection.isSelected(row), onToggle: () => selection.toggle(row), disabled: !isSelectable(row) } : undefined;
   const { query } = list;
   // Expanded and large screens: a sortable table instead of the cards.
   const { deviceClass } = useLayout();
@@ -85,6 +94,8 @@ export function HistoryView({
         </div>
       </section>
 
+      {selectable && <SelectionBar selection={selection} rows={shown} />}
+
       {rows.length === 0 ? (
         <p className={`${styles.empty} ${tab.listGap}`}>{emptyText}</p>
       ) : shown.length === 0 ? (
@@ -95,7 +106,7 @@ export function HistoryView({
           }}
         />
       ) : asTable ? (
-        <HistoryTable rows={shown} fields={fields} query={query} setQuery={list.setQuery} currency={currency} />
+        <HistoryTable rows={shown} fields={fields} query={query} setQuery={list.setQuery} currency={currency} selection={picking ? selection : null} />
       ) : groups ? (
         groups.map((g) => (
           <section key={g.key} className={tab.dayGroup}>
@@ -110,7 +121,7 @@ export function HistoryView({
             </header>
             <div className={styles.rows}>
               {g.rows.map((row) => (
-                <HistoryRowView key={`${row.kind}-${row.id}`} row={row} currency={currency} />
+                <HistoryRowView key={`${row.kind}-${row.id}`} row={row} currency={currency} select={select(row)} />
               ))}
             </div>
           </section>
@@ -118,7 +129,7 @@ export function HistoryView({
       ) : (
         <div className={`${styles.rows} ${tab.listGap}`}>
           {shown.map((row) => (
-            <HistoryRowView key={`${row.kind}-${row.id}`} row={row} currency={currency} showDate />
+            <HistoryRowView key={`${row.kind}-${row.id}`} row={row} currency={currency} showDate select={select(row)} />
           ))}
         </div>
       )}

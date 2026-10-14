@@ -6,6 +6,7 @@ import { formatAmount } from '@/src/logic/walletDetail/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
+import { WindowPicker } from '@/src/widgets/WindowPicker/WindowPicker';
 import styles from './ReconciliationScreen.module.css';
 
 export function ReconciliationScreen() {
@@ -19,6 +20,18 @@ export function ReconciliationScreen() {
     explainedLoading,
     reconcileOpen,
     openReconcile,
+    windowPresets,
+    preset,
+    setPreset,
+    customFrom,
+    setCustomFrom,
+    customTo,
+    setCustomTo,
+    window: span,
+    isNow,
+    asOfLoading,
+    asOfError,
+    ledgerOf,
     closeReconcile,
     reportedByAccountId,
     setReportedValue,
@@ -116,13 +129,33 @@ export function ReconciliationScreen() {
               <h2 className={styles.reconcileTitle}>{s.reconcileNowTitle}</h2>
               <p className={styles.reconcileHint}>{s.reconcileNowHint}</p>
 
+              {/* The window the check is for: the real balances are the
+                  ones at its end, compared with the ledger on that date. */}
+              <WindowPicker
+                label="Balances as of"
+                presets={windowPresets}
+                preset={preset}
+                onPreset={setPreset}
+                from={customFrom}
+                to={customTo}
+                onFrom={setCustomFrom}
+                onTo={setCustomTo}
+              />
+              <p className={styles.reconcileHint}>
+                {isNow
+                  ? 'Enter what each wallet holds right now.'
+                  : `Enter what each wallet held at the end of ${shortDate(span.to)}. The difference is applied to today\u2019s balance, and everything recorded after that date still counts.`}
+              </p>
+              {asOfError && <p className={styles.errorText}>{asOfError}</p>}
+              <ScreenState loading={asOfLoading} />
+
               <div className={styles.accountList}>
                 {accounts.map((account) => (
                   <div key={account.id} className={styles.accountRow}>
                     <div className={styles.accountInfo}>
                       <span className={styles.accountName}>{account.name}</span>
                       <span className={styles.accountLedger}>
-                        {s.ledgerPrefix} {formatAmount(account.currentBalance)} {account.currency}
+                        {s.ledgerPrefix} {formatAmount(ledgerOf(account))} {account.currency}
                       </span>
                     </div>
                     <input
@@ -176,7 +209,7 @@ export function ReconciliationScreen() {
                 <button type="button" className={styles.cancelButton} onClick={closeReconcile} disabled={saving}>
                   {strings.common.cancel}
                 </button>
-                <button type="button" className={styles.saveButton} onClick={handleSaveReconciliation} disabled={saving}>
+                <button type="button" className={styles.saveButton} onClick={handleSaveReconciliation} disabled={saving || asOfLoading}>
                   {saving ? s.saving : s.saveReconciliation}
                 </button>
               </div>

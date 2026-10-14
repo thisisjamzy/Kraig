@@ -35,6 +35,7 @@ import {
 } from './aggregation';
 import { round2, type CurrencyContext } from './currency';
 import { adjustmentsFor, auditAccountBalances } from './reconciliation';
+import { balanceAt, endsNow, reconciliationAdjustments, walletFlows, type ReconcileWindow } from '../budget/walletWindow';
 import type { FirestoreAccount, FirestoreTransaction, FirestoreTransfer, FirestoreReconciliation } from './types';
 import type { TRANSFER_CATEGORIES } from '../../viewmodels/categories';
 
@@ -105,55 +106,107 @@ export interface ReconciliationResult {
  * last-write-wins" trust model already accepts the same plain-read-then-write
  * tradeoff everywhere else.
  */
+/**
+ * Every wallet's balance at the end of `at` (src/shared/budget/
+ * walletWindow.ts's balanceAt): the balance now, less whatever is dated,
+ * or was reconciled, after it. Reads only what came after `at`.
+ */
+export async function balancesAsOf(uid: string, at: Date): Promise<Record<string, number>> {
+  const after = Timestamp.fromDate(at);
+  const [accountsSnap, txSnap, trSnap, recSnap] = await Promise.all([
+    getDocs(accountsRef(uid)),
+    getDocs(query(transactionsRef(uid), where('date', '>', after))),
+    getDocs(query(transfersRef(uid), where('date', '>', after))),
+    getDocs(query(reconciliationsRef(uid), where('performedAt', '>', after))),
+  ]);
+  const transactions = txSnap.docs.map((d) => ({ ...d.data(), date: d.data().date.toDate() }));
+  const transfers = trSnap.docs.map((d) => ({ ...d.data(), date: d.data().date.toDate() }));
+  const checks = recSnap.docs.map((d) => ({ ...d.data(), performedAt: d.data().performedAt.toDate() }));
+  const out: Record<string, number> = {};
+  for (const d of accountsSnap.docs) {
+    const flows = walletFlows(d.id, transactions, transfers);
+    out[d.id] = balanceAt(d.data().currentBalance, flows, reconciliationAdjustments(checks, d.id), at);
+  }
+  return out;
+}
+
+export interface ReconcileOptions {
+  /** Reconcile the balances as of the end of this window (default: now). */
+  window?: ReconcileWindow;
+}
+
+/**
+ * Sets each reported wallet's balance so it agrees with what was reported,
+ * and adds the gap to the Unjustified wallet (incremented, never
+ * overwritten: earlier gaps not yet explained stay). Only the wallets in
+ * `reportedBalances` take part, so one wallet can be reconciled alone.
+ *
+ * With a window, the reported figure is the balance at the window's end:
+ * it is compared with the ledger's balance on that date (balancesAsOf),
+ * and the difference is applied to the balance now, so everything dated
+ * after the window keeps counting. Each wallet's change is also kept as
+ * balanceAdjustments (the balance audit agrees with this check rather than
+ * undoing it) and on the check itself (`adjustments`), with the window.
+ */
 export async function performReconciliation(
   uid: string,
-  reportedBalances: Record<string, number>
+  reportedBalances: Record<string, number>,
+  options: ReconcileOptions = {}
 ): Promise<ReconciliationResult> {
+  const now = new Date();
+  const window = options.window && !endsNow(options.window, now) ? options.window : null;
+  const [accountsSnap, unjustifiedSnap, asOf] = await Promise.all([
+    getDocs(accountsRef(uid)),
+    getDoc(unjustifiedWalletRef(uid)),
+    window ? balancesAsOf(uid, window.to) : Promise.resolve(null),
+  ]);
   // What was already unaccounted for before this check: earlier gaps not
   // yet explained. Stored with the check, so each one says where it started.
-  const [accountsSnap, unjustifiedSnap] = await Promise.all([getDocs(accountsRef(uid)), getDoc(unjustifiedWalletRef(uid))]);
   const unaccountedBefore = round2(unjustifiedSnap.data()?.currentBalance ?? 0);
-  const realWallets = accountsSnap.docs
+  const wallets = accountsSnap.docs
     .map((d) => ({ ...d.data(), id: d.id }) as FirestoreAccount)
-    .filter((a) => !a.archived && !a.isSystemWallet);
+    .filter((a) => !a.archived && !a.isSystemWallet && reportedBalances[a.id] !== undefined);
+  if (wallets.length === 0) throw new Error('Enter at least one wallet’s real balance.');
 
   const ledgerBalancesAtTime: Record<string, number> = {};
+  const changes: Record<string, number> = {};
+  const newBalances: Record<string, number> = {};
   let totalLedger = 0;
   let totalReported = 0;
-  for (const wallet of realWallets) {
-    ledgerBalancesAtTime[wallet.id] = round2(wallet.currentBalance);
-    totalLedger += wallet.currentBalance;
-    totalReported += reportedBalances[wallet.id] ?? 0;
+  for (const wallet of wallets) {
+    const ledger = round2(asOf ? asOf[wallet.id] ?? wallet.currentBalance : wallet.currentBalance);
+    const reported = round2(reportedBalances[wallet.id]);
+    ledgerBalancesAtTime[wallet.id] = ledger;
+    changes[wallet.id] = round2(reported - ledger);
+    newBalances[wallet.id] = round2(wallet.currentBalance + changes[wallet.id]);
+    totalLedger += ledger;
+    totalReported += reported;
   }
   const totalGap = round2(totalLedger - totalReported);
-
-  // What each wallet is set to, kept as balanceAdjustments too so the
-  // balance audit agrees with this check rather than undoing it.
-  const newBalances: Record<string, number> = { [UNJUSTIFIED_WALLET_ID]: round2(unaccountedBefore + totalGap) };
-  for (const wallet of realWallets) {
-    const reported = reportedBalances[wallet.id];
-    if (reported !== undefined) newBalances[wallet.id] = round2(reported);
-  }
+  changes[UNJUSTIFIED_WALLET_ID] = totalGap;
+  newBalances[UNJUSTIFIED_WALLET_ID] = round2(unaccountedBefore + totalGap);
   const adjustments = adjustmentsFor(await auditAccountBalances(uid), newBalances);
 
   const batch = writeBatch(getFirebaseFirestore());
-  for (const wallet of realWallets) {
-    const reported = reportedBalances[wallet.id];
-    if (reported === undefined) continue;
-    batch.update(accountRef(uid, wallet.id), { currentBalance: round2(reported), balanceAdjustments: adjustments[wallet.id], updatedAt: serverTimestamp() });
+  for (const wallet of wallets) {
+    batch.update(accountRef(uid, wallet.id), { currentBalance: increment(changes[wallet.id]), balanceAdjustments: adjustments[wallet.id], updatedAt: serverTimestamp() });
   }
   batch.update(unjustifiedWalletRef(uid), {
     currentBalance: increment(totalGap),
     ...(unjustifiedSnap.exists() ? { balanceAdjustments: adjustments[UNJUSTIFIED_WALLET_ID] } : {}),
     updatedAt: serverTimestamp(),
   });
-  const now = new Date();
+  // The month the balances are for: the window's last month.
+  const month = window?.to ?? now;
   batch.set(reconciliationRef(uid, crypto.randomUUID()), {
     uid,
     performedAt: serverTimestamp(),
-    month: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`,
+    month: `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, '0')}`,
     reportedBalances,
     ledgerBalancesAtTime,
+    adjustments: changes,
+    windowFrom: options.window?.from ? Timestamp.fromDate(options.window.from) : null,
+    windowTo: Timestamp.fromDate(window?.to ?? now),
     totalGap,
     unaccountedBefore,
     unaccountedAfter: round2(unaccountedBefore + totalGap),

@@ -36,6 +36,7 @@ export function WalletDetailScreen({ walletId }: { walletId: string }) {
       crumbs={[{ label: 'Money', href: '/home' }, { label: 'Wallets', href: '/wallets' }, { label: name }]}
       menu={[
         { label: 'Edit wallet', href: formLink('wallet', { id: walletId }) },
+        { label: 'Audit this wallet', href: `/wallets/${encodeURIComponent(walletId)}/audit` },
         { label: 'Reconcile', href: '/settings/reconcile' },
       ]}
       properties={[

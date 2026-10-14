@@ -242,3 +242,9 @@
 .figureRow span[data-tone='bad'] {
   color: var(--color-danger);
 }
+
+a.figureRow {
+  text-decoration: none;
+  color: var(--color-text-primary);
+  font-weight: 600;
+}

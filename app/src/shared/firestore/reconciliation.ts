@@ -37,7 +37,7 @@
 // wallet with any charged transfer would show a permanent phantom
 // mismatch.
 
-import { getDocs, writeBatch } from 'firebase/firestore';
+import { getDocs, query, where, writeBatch } from 'firebase/firestore';
 import { getFirebaseFirestore } from '@/src/shared/config/firebaseClient';
 import { accountsRef, accountRef, reconciliationsRef, transactionsRef, transfersRef } from './refs';
 import type { FirestoreAccount, FirestoreTransaction, FirestoreTransfer } from './types';
@@ -122,7 +122,50 @@ export async function auditAccountBalances(uid: string): Promise<BalanceAudit> {
   );
 }
 
-type AuditTransaction = Pick<FirestoreTransaction, 'id' | 'accountId' | 'amount' | 'direction' | 'description'> & { signedAmount?: number; excluded?: boolean };
+export interface WalletRecords {
+  account: FirestoreAccount;
+  transactions: (AuditTransaction & { date: Date })[];
+  transfers: (AuditTransfer & { date: Date })[];
+  checks: { performedAt: Date; reportedBalances: Record<string, number>; ledgerBalancesAtTime: Record<string, number>; adjustments?: Record<string, number> }[];
+  audit: BalanceAudit;
+}
+
+/**
+ * One wallet's audit: only its own transactions and transfers are read
+ * (three queries, not the whole ledger), checked the same way as the full
+ * audit, with everything the wallet page's window statement needs.
+ */
+export async function auditWallet(uid: string, walletId: string): Promise<WalletRecords> {
+  const [accountsSnap, txSnap, outSnap, inSnap, recSnap] = await Promise.all([
+    getDocs(accountsRef(uid)),
+    getDocs(query(transactionsRef(uid), where('accountId', '==', walletId))),
+    getDocs(query(transfersRef(uid), where('fromAccountId', '==', walletId))),
+    getDocs(query(transfersRef(uid), where('toAccountId', '==', walletId))),
+    getDocs(reconciliationsRef(uid)),
+  ]);
+  const accounts = accountsSnap.docs.map((doc) => ({ ...doc.data(), id: doc.id }) as FirestoreAccount);
+  const account = accounts.find((a) => a.id === walletId);
+  if (!account) throw new Error('This wallet no longer exists.');
+  const transactions = txSnap.docs.map((doc) => ({ ...doc.data(), id: doc.id, date: doc.data().date.toDate() }));
+  // A transfer from the wallet to itself would be read twice.
+  const seen = new Set<string>();
+  const transfers = [...outSnap.docs, ...inSnap.docs]
+    .filter((doc) => (seen.has(doc.id) ? false : (seen.add(doc.id), true)))
+    .map((doc) => ({ ...doc.data(), id: doc.id, date: doc.data().date.toDate() }));
+  const checks = recSnap.docs.map((doc) => {
+    const r = doc.data();
+    return { performedAt: r.performedAt.toDate(), reportedBalances: r.reportedBalances ?? {}, ledgerBalancesAtTime: r.ledgerBalancesAtTime ?? {}, adjustments: r.adjustments };
+  });
+  const reconciled = new Set(checks.some((c) => walletId in c.reportedBalances) ? [walletId] : []);
+  const audit = computeAudit([account], transactions, transfers, reconciled, new Set(accounts.map((a) => a.id)));
+  return { account, transactions, transfers, checks, audit };
+}
+
+type AuditTransaction = Pick<FirestoreTransaction, 'id' | 'accountId' | 'amount' | 'direction' | 'description'> & {
+  signedAmount?: number;
+  excluded?: boolean;
+  isFrozenSavings?: boolean;
+};
 type AuditTransfer = Pick<FirestoreTransfer, 'id' | 'fromAccountId' | 'toAccountId' | 'amount' | 'description'> & { charges?: number };
 
 /** The audit itself, on records already read (pure, for the tests). */
@@ -130,10 +173,11 @@ export function computeAudit(
   accountDocs: FirestoreAccount[],
   transactions: AuditTransaction[],
   transfers: AuditTransfer[],
-  reconciled: Set<string>
+  reconciled: Set<string>,
+  /** Every wallet id there is, when auditing only some of them. */
+  knownIds: Set<string> = new Set(accountDocs.map((a) => a.id))
 ): BalanceAudit {
-
-  const knownAccountIds = new Set(accountDocs.map((a) => a.id));
+  const knownAccountIds = knownIds;
   const orphaned: OrphanedEntry[] = [];
 
   const deltas = new Map<string, number>();
@@ -150,6 +194,9 @@ export function computeAudit(
     // An excluded transaction (a debt changed to record only) had its
     // balance effect reversed when it was excluded.
     if (!countsInFigures(t)) return;
+    // Frozen savings only ever set money aside (lockedAmount), they never
+    // changed currentBalance (aggregation.ts's writeTransactionContribution).
+    if (t.isFrozenSavings) return;
     // signedAmount is written alongside every transaction by
     // aggregation.ts, but fall back to deriving it the same way for any
     // doc old enough (or written by a path) to lack it.

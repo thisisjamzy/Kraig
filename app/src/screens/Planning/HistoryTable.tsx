@@ -10,6 +10,7 @@
 import Link from 'next/link';
 import { ArrowDown, ArrowUp } from 'lucide-react';
 import type { HistoryRow } from '@/src/logic/planning/rows';
+import { isSelectable, type RecordSelection } from '@/src/logic/planning/useRecordSelection';
 import type { FieldDef, ListQuery } from '@/src/shared/listQuery/engine';
 import { money } from '@/src/viewmodels/planning';
 import styles from './HistoryTable.module.css';
@@ -34,12 +35,15 @@ export function HistoryTable({
   query,
   setQuery,
   currency,
+  selection,
 }: {
   rows: HistoryRow[];
   fields: FieldDef<HistoryRow>[];
   query: ListQuery;
   setQuery: (next: (q: ListQuery) => ListQuery) => void;
   currency: string;
+  /** While selecting: a tick box column first. */
+  selection?: RecordSelection | null;
 }) {
   const primary = query.sorts[0];
 
@@ -56,6 +60,16 @@ export function HistoryTable({
       <table className={styles.table}>
         <thead>
           <tr>
+            {selection && (
+              <th scope="col" className={styles.pick}>
+                <input
+                  type="checkbox"
+                  aria-label="Select all shown"
+                  checked={rows.some(isSelectable) && rows.filter(isSelectable).every(selection.isSelected)}
+                  onChange={() => selection.toggleAll(rows)}
+                />
+              </th>
+            )}
             {COLUMNS.map((c) => {
               const sorted = primary?.field === c.field ? primary.dir : null;
               const sortable = fields.find((f) => f.id === c.field)?.sortable !== false;
@@ -82,7 +96,12 @@ export function HistoryTable({
         </thead>
         <tbody>
           {rows.map((r) => (
-            <tr key={`${r.kind}-${r.id}`} className={styles.row}>
+            <tr key={`${r.kind}-${r.id}`} className={styles.row} data-selected={selection?.isSelected(r) || undefined}>
+              {selection && (
+                <td className={styles.pick}>
+                  <input type="checkbox" aria-label={`Select ${r.name}`} disabled={!isSelectable(r)} checked={selection.isSelected(r)} onChange={() => selection.toggle(r)} />
+                </td>
+              )}
               <td className={styles.date}>
                 {r.date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
                 {r.timeKnown !== false && (
