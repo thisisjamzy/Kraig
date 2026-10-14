@@ -86,6 +86,19 @@
   cursor: not-allowed;
 }
 
+/* Clear unaccounted balance: the quieter action under Reconcile now. */
+.clearButton {
+  padding: var(--space-md) var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: none;
+  font-family: inherit;
+  font-size: var(--font-size-md);
+  font-weight: 700;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
 .reconcileCard {
   display: flex;
   flex-direction: column;

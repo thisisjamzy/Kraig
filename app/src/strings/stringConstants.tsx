@@ -461,6 +461,7 @@ export const stringConstants = {
 
   walletDetail: {
     periods: ['Week', 'Month', 'Quarter'] as const,
+    transactionsTitle: 'Transactions',
     editWallet: 'Edit wallet',
     editWalletTitle: 'Edit wallet',
     nameLabel: 'Name',
@@ -638,7 +639,7 @@ export const stringConstants = {
     title: 'Audit & reconcile balances',
     introTitle: 'What this checks',
     introBody:
-      "Recomputes every wallet's balance from its starting balance plus every transaction AND transfer that's ever touched it, and compares that against the balance the app currently shows. They should always match, a mismatch usually means an entry landed outside the normal flow (a CSV import, historical data seeded out of order, a direct edit). Nothing changes until you review the results and choose to apply a fix.",
+      "Recomputes every wallet's balance from its starting balance plus every transaction AND transfer that's ever touched it, plus the changes your reconciliations made (and clearing the unaccounted balance), and compares that against the balance the app currently shows. A reconciliation is never undone here, so unaccounted money is never put back into your wallets. They should always match, a mismatch usually means an entry landed outside the normal flow (a CSV import, historical data seeded out of order, a direct edit). Nothing changes until you review the results and choose to apply a fix.",
     runButton: 'Run audit',
     runningLabel: 'Checking every wallet…',
     summaryChecked: 'Wallets checked',

@@ -26,10 +26,10 @@ import type { FirestoreBucket, FirestoreTransaction, FirestoreTransfer } from '@
 
 export const PAGE_SIZE = 300;
 /** A chosen date window loads everything in it, up to this. */
-const WINDOW_CAP = 2000;
+export const WINDOW_CAP = 2000;
 
 /** The date window a query's date filter asks for, to load exactly it. */
-function dateWindow(query: ListQuery): { from: number; to: number } | null {
+export function dateWindow(query: ListQuery): { from: number; to: number } | null {
   const rule = query.filters.find((r) => r.field === 'date' && r.value);
   if (!rule) return null;
   const [start, end] = dateRange(rule.value as DateValue, new Date());

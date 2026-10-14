@@ -8,10 +8,13 @@
 // against what its own transaction history sums to). This module is about
 // comparing the ledger against what the household reports their accounts
 // actually hold in the real world, and closing that gap one historic
-// transaction at a time. The two are easy to conflate by name; they don't
-// share any code or data.
+// transaction at a time. The two are easy to conflate by name. The one
+// link: every balance change made here without an entry (a reconciliation
+// setting wallets to what was reported, clearing the unaccounted balance)
+// is kept on the account as balanceAdjustments, so that audit agrees with
+// it instead of proposing to undo it.
 
-import { getDoc, getDocs, setDoc, writeBatch, query, where, orderBy, limit, serverTimestamp, increment } from 'firebase/firestore';
+import { arrayUnion, getDoc, getDocs, setDoc, writeBatch, query, where, orderBy, limit, serverTimestamp, increment, Timestamp } from 'firebase/firestore';
 import { getFirebaseFirestore } from '@/src/shared/config/firebaseClient';
 import {
   accountsRef,
@@ -31,6 +34,7 @@ import {
   deleteBackfillBatch as deleteBackfillBatchTransactions,
 } from './aggregation';
 import { round2, type CurrencyContext } from './currency';
+import { adjustmentsFor, auditAccountBalances } from './reconciliation';
 import type { FirestoreAccount, FirestoreTransaction, FirestoreTransfer, FirestoreReconciliation } from './types';
 import type { TRANSFER_CATEGORIES } from '../../viewmodels/categories';
 
@@ -123,13 +127,26 @@ export async function performReconciliation(
   }
   const totalGap = round2(totalLedger - totalReported);
 
+  // What each wallet is set to, kept as balanceAdjustments too so the
+  // balance audit agrees with this check rather than undoing it.
+  const newBalances: Record<string, number> = { [UNJUSTIFIED_WALLET_ID]: round2(unaccountedBefore + totalGap) };
+  for (const wallet of realWallets) {
+    const reported = reportedBalances[wallet.id];
+    if (reported !== undefined) newBalances[wallet.id] = round2(reported);
+  }
+  const adjustments = adjustmentsFor(await auditAccountBalances(uid), newBalances);
+
   const batch = writeBatch(getFirebaseFirestore());
   for (const wallet of realWallets) {
     const reported = reportedBalances[wallet.id];
     if (reported === undefined) continue;
-    batch.update(accountRef(uid, wallet.id), { currentBalance: round2(reported), updatedAt: serverTimestamp() });
+    batch.update(accountRef(uid, wallet.id), { currentBalance: round2(reported), balanceAdjustments: adjustments[wallet.id], updatedAt: serverTimestamp() });
   }
-  batch.update(unjustifiedWalletRef(uid), { currentBalance: increment(totalGap), updatedAt: serverTimestamp() });
+  batch.update(unjustifiedWalletRef(uid), {
+    currentBalance: increment(totalGap),
+    ...(unjustifiedSnap.exists() ? { balanceAdjustments: adjustments[UNJUSTIFIED_WALLET_ID] } : {}),
+    updatedAt: serverTimestamp(),
+  });
   const now = new Date();
   batch.set(reconciliationRef(uid, crypto.randomUUID()), {
     uid,
@@ -145,6 +162,29 @@ export async function performReconciliation(
   await batch.commit();
 
   return { totalLedger: round2(totalLedger), totalReported: round2(totalReported), totalGap, unaccountedBefore, unaccountedAfter: round2(unaccountedBefore + totalGap) };
+}
+
+/**
+ * Clears the unaccounted balance: the Unjustified wallet goes back to 0
+ * and the amount is written off, so it stops counting as money the
+ * ledger can't explain. Nothing moves into or out of a real wallet, and
+ * the balance audit agrees (balanceAdjustments). Each clear is kept on
+ * the wallet (unaccountedClears) with the amount it wrote off.
+ */
+export async function clearUnaccountedBalance(uid: string): Promise<number> {
+  const snap = await getDoc(unjustifiedWalletRef(uid));
+  const amount = round2(snap.data()?.currentBalance ?? 0);
+  if (!snap.exists() || amount === 0) return 0;
+  const adjustments = adjustmentsFor(await auditAccountBalances(uid), { [UNJUSTIFIED_WALLET_ID]: 0 });
+  const batch = writeBatch(getFirebaseFirestore());
+  batch.update(unjustifiedWalletRef(uid), {
+    currentBalance: 0,
+    balanceAdjustments: adjustments[UNJUSTIFIED_WALLET_ID],
+    unaccountedClears: arrayUnion({ at: Timestamp.now(), amount }),
+    updatedAt: serverTimestamp(),
+  });
+  await batch.commit();
+  return amount;
 }
 
 export async function listReconciliations(uid: string, take = 50): Promise<FirestoreReconciliation[]> {

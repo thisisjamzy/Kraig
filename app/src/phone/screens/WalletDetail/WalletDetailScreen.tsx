@@ -1,14 +1,17 @@
 'use client';
 
 // A wallet on a phone (BASELINE): balance, committed this month, free after
-// commitments and last reconciled as rows, then its charts, transactions
-// and upcoming payments.
+// commitments and last reconciled as rows, then its charts, upcoming payments
+// and every transaction and transfer on it, with the all-transactions
+// page's filters.
 
 import Link from 'next/link';
 import { ChevronLeft, Settings } from 'lucide-react';
 import { TrendChart } from '@/src/widgets/TrendChart/TrendChart';
 import { DonutChart } from '@/src/widgets/DonutChart/DonutChart';
 import { useLogic, formatAmount } from '@/src/logic/walletDetail/useLogic';
+import { useWalletHistory } from '@/src/logic/walletDetail/useHistory';
+import { HistoryView } from '@/src/phone/screens/Planning/HistoryView';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
@@ -24,9 +27,6 @@ export function WalletDetailScreen({ walletId }: { walletId: string }) {
     lockedAmount,
     availableAmount,
     currency,
-    transactions,
-    period,
-    setPeriod,
     cashflow,
     cashflowMax,
     spendingTrend,
@@ -37,11 +37,11 @@ export function WalletDetailScreen({ walletId }: { walletId: string }) {
     loading,
     error,
     goBack,
-    iconFor,
     committed,
     free,
     lastReconciled,
-  } = useLogic(walletId, strings.walletDetail.periods);
+  } = useLogic(walletId);
+  const h = useWalletHistory(walletId);
 
   return (
     <div className={styles.page}>
@@ -175,38 +175,18 @@ export function WalletDetailScreen({ walletId }: { walletId: string }) {
         </>
       )}
 
-      <div className={styles.periodTabs}>
-        {strings.walletDetail.periods.map((option) => (
-          <button
-            key={option}
-            type="button"
-            className={`${styles.periodTab} ${period === option ? styles.periodTabActive : ''}`}
-            onClick={() => setPeriod(option)}
-          >
-            {option}
-          </button>
-        ))}
-      </div>
-
-      <div className={styles.list}>
-        {transactions.map((transaction, index) => {
-          const Icon = iconFor(index);
-          return (
-            <div key={transaction.id} className={styles.card}>
-              <span className={styles.icon} style={{ background: transaction.iconColor }}>
-                <Icon size={16} strokeWidth={2} color="#ffffff" />
-              </span>
-              <div className={styles.info}>
-                <p className={styles.transactionTitle}>{transaction.title}</p>
-                <p className={styles.date}>{transaction.date}</p>
-              </div>
-              <span className={styles.amount}>
-                {formatAmount(transaction.amount)} {transaction.currency}
-              </span>
-            </div>
-          );
-        })}
-      </div>
+      {!loading && !error && wallet && (
+        <section className={styles.history} aria-label={strings.walletDetail.transactionsTitle}>
+          <p className={styles.chartTitle}>{strings.walletDetail.transactionsTitle}</p>
+          <ScreenState loading={h.loading} error={h.error ? String(h.error) : null} />
+          {!h.loading && !h.error && (
+            <>
+              <HistoryView rows={h.rows} currency={h.currency} fields={h.fields} list={h.list} stickyTop="var(--header-height)" emptyText={`No transactions in ${wallet.name} yet.`} showYear />
+              {h.capped && <p className={styles.emptyText}>Showing the latest transactions. Filter by date to find earlier ones.</p>}
+            </>
+          )}
+        </section>
+      )}
     </div>
   );
 }

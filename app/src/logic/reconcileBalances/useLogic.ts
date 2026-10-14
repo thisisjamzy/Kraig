@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from 'react';
 import {
   auditAccountBalances,
   applyBalanceCorrections,
+  saveBalanceBaselines,
   type AccountAudit,
   type OrphanedEntry,
 } from '@/src/shared/firestore/reconciliation';
@@ -36,6 +37,8 @@ export function useLogic() {
     setError(null);
     try {
       const audit = await auditAccountBalances(uid);
+      // Once per wallet reconciled before adjustments were kept.
+      await saveBalanceBaselines(uid, audit);
       setResults(audit.accounts);
       setOrphaned(audit.orphaned);
       setSelectedIds(new Set(audit.accounts.filter((row) => row.difference !== 0).map((row) => row.accountId)));

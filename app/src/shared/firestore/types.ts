@@ -32,6 +32,15 @@ export interface FirestoreAccount {
   // or an edit that increases either). Optional/0 for a wallet with nothing
   // locked, and absent on accounts written before this field existed.
   lockedAmount?: number;
+  // Everything that changed currentBalance without a transaction or
+  // transfer: each reconciliation setting it to the reported figure, and
+  // clearing the unaccounted balance. The balance audit
+  // (src/shared/firestore/reconciliation.ts) adds it to startingBalance
+  // plus the entries, so it never proposes undoing a reconciliation.
+  // Absent on wallets saved before it existed (the audit sets it once).
+  balanceAdjustments?: number;
+  // The Unjustified wallet only: each time its balance was cleared.
+  unaccountedClears?: { at: Timestamp; amount: number }[];
   // A savings wallet the plan may count on (Plan and forecast's starting
   // balance); savings are left out otherwise.
   usableForPlan?: boolean;
