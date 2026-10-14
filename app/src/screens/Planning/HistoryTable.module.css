@@ -146,3 +146,21 @@
     background: color-mix(in srgb, var(--color-surface) 60%, transparent);
   }
 }
+
+/* The tick box column while selecting; it sits above the row link. */
+.pick {
+  position: relative;
+  z-index: 1;
+  width: 44px;
+}
+
+.pick input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--ink-bg);
+  cursor: pointer;
+}
+
+.row[data-selected] td {
+  background: var(--color-surface);
+}

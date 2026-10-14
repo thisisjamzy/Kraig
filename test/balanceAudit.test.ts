@@ -77,3 +77,8 @@ test('a wallet page lists every transaction and transfer on it with the history 
   assert.match(read('screens/WalletDetail/WalletDetailScreen.tsx'), /<HistoryView/);
   assert.match(read('phone/screens/WalletDetail/WalletDetailScreen.tsx'), /<HistoryView/);
 });
+
+test('frozen savings never changed the balance, so the audit leaves them out', () => {
+  const audit = computeAudit([wallet('bank', 100_000)], [income('i', 'bank', 100_000), { ...expense('f', 'bank', 20_000), isFrozenSavings: true }], [], new Set());
+  assert.equal(diff(audit, 'bank'), 0);
+});

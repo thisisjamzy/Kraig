@@ -3,6 +3,7 @@
 // Small shared pieces of the Planning screens (Planning.module.css).
 
 import Link from 'next/link';
+import { SelectBox } from '@/src/widgets/Selection/SelectionBar';
 import type { ReactNode } from 'react';
 import { ArrowDownLeft, ArrowLeftRight, ArrowRight, ArrowUpRight, PiggyBank, Repeat, ShoppingBag, Tag } from 'lucide-react';
 import { fillOf, money, dayMonth } from '@/src/viewmodels/planning';
@@ -55,11 +56,22 @@ function when(d: Date) {
   return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 }
 
-export function HistoryRowView({ row, currency, showDate = false }: { row: HistoryRow; currency: string; showDate?: boolean }) {
+export function HistoryRowView({
+  row,
+  currency,
+  showDate = false,
+  select,
+}: {
+  row: HistoryRow;
+  currency: string;
+  showDate?: boolean;
+  /** While selecting: the row ticks instead of opening. */
+  select?: { checked: boolean; onToggle: () => void; disabled?: boolean };
+}) {
   const Icon = row.flow === 'in' ? ArrowDownLeft : row.flow === 'out' ? ArrowUpRight : row.flow === 'adjust' ? Repeat : ArrowLeftRight;
   const sign = row.kind !== 'transaction' ? '' : row.amount > 0 ? '+' : '-';
-  return (
-    <Link href={row.href} className={styles.row}>
+  const content = (
+    <>
       <span className={styles.rowIcon} data-flow={row.flow} aria-hidden>
         <Icon size={17} strokeWidth={2.25} />
       </span>
@@ -84,6 +96,19 @@ export function HistoryRowView({ row, currency, showDate = false }: { row: Histo
         </span>
         {row.bucketName && <span className={styles.chip}>{row.bucketName}</span>}
       </span>
+    </>
+  );
+  if (select) {
+    return (
+      <button type="button" role="checkbox" aria-checked={select.checked} disabled={select.disabled} className={`${styles.row} ${styles.rowSelect}`} onClick={select.onToggle}>
+        <SelectBox checked={select.checked} />
+        {content}
+      </button>
+    );
+  }
+  return (
+    <Link href={row.href} className={styles.row}>
+      {content}
     </Link>
   );
 }

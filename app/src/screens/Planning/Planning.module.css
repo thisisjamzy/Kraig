@@ -337,6 +337,25 @@
   text-decoration: none;
 }
 
+/* A row while selecting: a button, the tick box first. */
+.rowSelect {
+  width: 100%;
+  border: none;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.rowSelect > :first-child {
+  align-self: center;
+}
+
+.rowSelect:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
 .row + .row {
   border-top: 1px solid var(--p-divider);
 }

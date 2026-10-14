@@ -946,6 +946,14 @@ export interface FirestoreReconciliation {
   reportedBalances: Record<string, number>; // accountId -> what the person entered
   ledgerBalancesAtTime: Record<string, number>; // accountId -> currentBalance read at the same moment
   totalGap: number; // signed: total ledger minus total reported
+  // What the check changed on each wallet's balance (the Unjustified
+  // wallet included), and the window it was done for: balances as of the
+  // end of `windowTo`, with `windowFrom` its start (null: from the start).
+  // Absent on checks saved before these existed (reported less ledger,
+  // as of the moment it was done).
+  adjustments?: Record<string, number>;
+  windowFrom?: Timestamp | null;
+  windowTo?: Timestamp;
   // yyyy-MM the check was done in, and the Unjustified wallet before and
   // after it (earlier gaps not yet explained, then plus this gap). Absent
   // on checks saved before these existed.

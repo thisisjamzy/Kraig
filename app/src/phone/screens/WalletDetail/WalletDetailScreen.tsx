@@ -6,7 +6,7 @@
 // page's filters.
 
 import Link from 'next/link';
-import { ChevronLeft, Settings } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Settings } from 'lucide-react';
 import { TrendChart } from '@/src/widgets/TrendChart/TrendChart';
 import { DonutChart } from '@/src/widgets/DonutChart/DonutChart';
 import { useLogic, formatAmount } from '@/src/logic/walletDetail/useLogic';
@@ -103,6 +103,10 @@ export function WalletDetailScreen({ walletId }: { walletId: string }) {
             <span>Last reconciled</span>
             <span>{lastReconciled ? lastReconciled.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Never'}</span>
           </div>
+          <Link href={`/wallets/${encodeURIComponent(walletId)}/audit`} className={styles.figureRow}>
+            <span>Audit this wallet</span>
+            <ChevronRight size={16} strokeWidth={2} aria-hidden />
+          </Link>
         </div>
       )}
 

@@ -10,8 +10,10 @@ import {
   performReconciliation,
   listExplainedTransactions,
   clearUnaccountedBalance,
+  balancesAsOf,
 } from '@/src/shared/firestore/unaccountedBalance';
 import { toDisplay } from '@/src/shared/firestore/currency';
+import { dayValue, endsNow, windowFor, WINDOW_PRESETS, type WindowPreset } from '@/src/shared/budget/walletWindow';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import type { FirestoreAccount, FirestoreTransaction } from '@/src/shared/firestore/types';
 import { useGoBack } from '@/src/shared/navigation/useGoBack';
@@ -71,20 +73,60 @@ export function useLogic() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [justSaved, setJustSaved] = useState(false);
 
+  // The window the check is for (src/shared/budget/walletWindow.ts): the
+  // real balances are the ones at its end, and each wallet's ledger figure
+  // is its balance on that date. "This month" ends now: today's balances.
+  const [preset, setPreset] = useState<WindowPreset>('thisMonth');
+  const [customFrom, setCustomFrom] = useState(() => dayValue(new Date(new Date().getFullYear(), new Date().getMonth(), 1)));
+  const [customTo, setCustomTo] = useState(() => dayValue(new Date()));
+  const window = useMemo(() => windowFor(preset, new Date(), { from: customFrom, to: customTo }), [preset, customFrom, customTo]);
+  const isNow = endsNow(window, new Date());
+  const toMs = window.to.getTime();
+  const [asOf, setAsOf] = useState<{ at: number; balances: Record<string, number> } | null>(null);
+  const [asOfError, setAsOfError] = useState<string | null>(null);
+  useEffect(() => {
+    if (!uid || isNow) return;
+    let cancelled = false;
+    balancesAsOf(uid, new Date(toMs))
+      .then((balances) => {
+        if (!cancelled) setAsOf({ at: toMs, balances });
+      })
+      .catch((err) => {
+        if (!cancelled) setAsOfError(err instanceof Error ? err.message : 'Could not work out the balances on that date.');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [uid, isNow, toMs]);
+  const asOfLoading = !isNow && asOf?.at !== toMs && !asOfError;
+  const ledgerOf = (account: FirestoreAccount) => (isNow ? account.currentBalance : (asOf?.at === toMs ? asOf.balances[account.id] : undefined) ?? account.currentBalance);
+
+  function seed() {
+    const next: Record<string, string> = {};
+    for (const account of accounts) next[account.id] = String(round2(ledgerOf(account)));
+    return next;
+  }
+
   function openReconcile() {
-    const seed: Record<string, string> = {};
-    for (const account of accounts) seed[account.id] = String(round2(account.currentBalance));
-    setReportedByAccountId(seed);
+    setReportedByAccountId(seed());
     setSaveError(null);
     setJustSaved(false);
     setReconcileOpen(true);
+  }
+
+  // A new window starts every wallet again from its ledger figure there.
+  const seedKey = `${isNow ? 'now' : toMs}:${asOfLoading ? 'loading' : 'ready'}:${accounts.length}`;
+  const [seededFor, setSeededFor] = useState(seedKey);
+  if (reconcileOpen && seededFor !== seedKey && !asOfLoading) {
+    setSeededFor(seedKey);
+    setReportedByAccountId(seed());
   }
 
   function setReportedValue(accountId: string, value: string) {
     setReportedByAccountId((current) => ({ ...current, [accountId]: value.replace(/[^0-9.-]/g, '') }));
   }
 
-  const totalLedger = accounts.reduce((sum, a) => sum + a.currentBalance, 0);
+  const totalLedger = accounts.reduce((sum, a) => sum + ledgerOf(a), 0);
   const totalReported = accounts.reduce((sum, a) => sum + (Number(reportedByAccountId[a.id]) || 0), 0);
   const liveGap = round2(totalLedger - totalReported);
 
@@ -95,7 +137,7 @@ export function useLogic() {
     try {
       const reportedBalances: Record<string, number> = {};
       for (const account of accounts) reportedBalances[account.id] = Number(reportedByAccountId[account.id]) || 0;
-      await performReconciliation(uid, reportedBalances);
+      await performReconciliation(uid, reportedBalances, { window });
       const rows = await listExplainedTransactions(uid, 10);
       setExplained(rows);
       setJustSaved(true);
@@ -155,6 +197,21 @@ export function useLogic() {
 
     reconcileOpen,
     openReconcile,
+    windowPresets: WINDOW_PRESETS,
+    preset,
+    setPreset: (p: WindowPreset) => {
+      setAsOfError(null);
+      setPreset(p);
+    },
+    customFrom,
+    setCustomFrom,
+    customTo,
+    setCustomTo,
+    window,
+    isNow,
+    asOfLoading,
+    asOfError,
+    ledgerOf,
     closeReconcile: () => setReconcileOpen(false),
     reportedByAccountId,
     setReportedValue,
