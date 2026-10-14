@@ -3,20 +3,19 @@
 // A wallet's page on tablet and web: its name over its type; properties
 // (Balance, Committed this month, Free after commitments, Last
 // reconciled); the balance at each month end; the upcoming payments paid
-// from it this month; its transactions (Week, Month or Quarter). Edit
+// from it this month; all its transactions and transfers, filtered like the
+// all-transactions page. Edit
 // wallet and Reconcile are in the top bar's "..." menu.
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { useLogic } from '@/src/logic/walletDetail/useLogic';
-import { useStrings } from '@/src/strings/useStrings';
+import { useWalletHistory } from '@/src/logic/walletDetail/useHistory';
+import { HistoryView } from '@/src/screens/Planning/HistoryView';
 import { useFormLink } from '@/src/shared/navigation/useFormLink';
 import { useAmountsHidden, HIDDEN_AMOUNT } from '@/src/shared/hooks/usePrivacy';
 import { Block, NotionPage } from '@/src/widgets/Database/NotionPage';
-import { Database } from '@/src/widgets/Database/Database';
 import { formatNumber } from '@/src/widgets/Database/format';
-import type { ColumnDef } from '@/src/widgets/Database/types';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import styles from './WalletDetailScreen.module.css';
 import { styleGuide } from '@/src/styles/tokens/styleGuide';
@@ -24,21 +23,11 @@ import { styleGuide } from '@/src/styles/tokens/styleGuide';
 const day = (d: Date) => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 
 export function WalletDetailScreen({ walletId }: { walletId: string }) {
-  const strings = useStrings();
-  const router = useRouter();
   const formLink = useFormLink();
-  const v = useLogic(walletId, strings.walletDetail.periods);
+  const v = useLogic(walletId);
+  const h = useWalletHistory(walletId);
   const hidden = useAmountsHidden();
   const money = (n: number) => (hidden ? HIDDEN_AMOUNT : `${formatNumber(n)} ${v.currency}`);
-  type Tx = (typeof v.transactions)[number];
-
-  const columns: ColumnDef<Tx>[] = [
-    { id: 'date', label: 'Date', type: 'date', width: 110, value: (r) => r.when, render: (r) => day(r.when) },
-    { id: 'name', label: 'Name', type: 'text', width: 240, value: (r) => r.description },
-    { id: 'category', label: 'Category', type: 'text', width: 180, value: (r) => r.title || null },
-    { id: 'amount', label: 'Amount', type: 'currency', width: 140, value: (r) => r.signed, calc: 'sum', tone: (r) => (r.signed < 0 ? undefined : 'good') },
-  ];
-
   const name = v.wallet?.name ?? 'Wallet';
   return (
     <NotionPage
@@ -93,31 +82,13 @@ export function WalletDetailScreen({ walletId }: { walletId: string }) {
           </Block>
 
           <Block title="Transactions">
-            <Database<Tx>
-              id="wallet.transactions"
-              label={`Transactions in ${name}`}
-              noun={['transaction', 'transactions']}
-              rows={v.transactions}
-              rowKey={(r) => r.id}
-              columns={columns}
-              views={[
-                { id: 'table', name: 'Table', layout: 'table' },
-                { id: 'list', name: 'List', layout: 'list' },
-              ]}
-              defaultGroup="none"
-              card={{ title: (r) => r.description }}
-              onOpen={(r) => router.push(`/transactions/${r.id}`)}
-              tabs={
-                <span className={styles.periods} role="radiogroup" aria-label="Period">
-                  {strings.walletDetail.periods.map((p) => (
-                    <button key={p} type="button" role="radio" aria-checked={v.period === p} onClick={() => v.setPeriod(p)}>
-                      {p}
-                    </button>
-                  ))}
-                </span>
-              }
-              emptyText="No transactions in this period."
-            />
+            <ScreenState loading={h.loading} error={h.error ? String(h.error) : null} />
+            {!h.loading && !h.error && (
+              <>
+                <HistoryView rows={h.rows} currency={h.currency} fields={h.fields} list={h.list} stickyTop="0px" emptyText={`No transactions in ${name} yet.`} showYear />
+                {h.capped && <p className={styles.empty}>Showing the latest transactions. Filter by date to find earlier ones.</p>}
+              </>
+            )}
           </Block>
         </div>
       )}

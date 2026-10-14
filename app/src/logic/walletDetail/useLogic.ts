@@ -1,8 +1,7 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { limit, query, where, orderBy, Timestamp } from 'firebase/firestore';
-import { RefreshCw, ArrowLeftRight, Clock, Download } from 'lucide-react';
 import { useFirestoreCollection, useFirestoreDoc } from '@/src/shared/firestore/hooks';
 import { transactionsRef, transfersRef, plannedPaymentsRef, accountRef, reconciliationsRef } from '@/src/shared/firestore/refs';
 import { useAccounts, useCategories, useCurrencyContext } from '@/src/shared/firestore/queries';
@@ -16,26 +15,11 @@ import { useMonthBudget } from '@/src/shared/hooks/useMonthBudget';
 import { balanceHistory, committedByAccount, freeTone, lastReconciledByAccount } from '@/src/logic/wallets/model';
 import { useGoBack } from '@/src/shared/navigation/useGoBack';
 
-const ICONS = [RefreshCw, ArrowLeftRight, Clock, Download];
 const HISTORY_MONTHS = 6;
 const UPCOMING_HORIZON_DAYS = 30;
 
 export function formatAmount(value: number) {
   return new Intl.NumberFormat('en-US').format(value);
-}
-
-function formatDate(ts: Timestamp) {
-  return ts.toDate().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
-}
-
-/** 'Week' | 'Month' | 'Quarter' -> the Date a transactions query's range should start at. */
-function periodStart(period: string): Date {
-  const now = new Date();
-  if (period === 'Week') now.setDate(now.getDate() - 6);
-  else if (period === 'Quarter') now.setMonth(now.getMonth() - 2, 1);
-  else now.setDate(1); // Month
-  now.setHours(0, 0, 0, 0);
-  return now;
 }
 
 function historyStart(): Date {
@@ -52,8 +36,7 @@ function monthKeyOf(date: Date) {
   return `${date.getFullYear()}-${date.getMonth()}`;
 }
 
-export function useLogic(walletId: string, periods: readonly string[]) {
-  const [period, setPeriod] = useState<string>(periods[0]);
+export function useLogic(walletId: string) {
   const { user, loading: authLoading } = useFirebaseUser();
   const uid = user?.uid;
 
@@ -62,44 +45,6 @@ export function useLogic(walletId: string, periods: readonly string[]) {
   const { data: categories } = useCategories();
   const { data: accounts } = useAccounts();
   const { ctx, loading: ctxLoading } = useCurrencyContext();
-
-  const transactionsQuery = useMemo(
-    () =>
-      uid
-        ? query(
-            transactionsRef(uid),
-            where('accountId', '==', walletId),
-            where('date', '>=', Timestamp.fromDate(periodStart(period))),
-            orderBy('date', 'desc')
-          )
-        : null,
-    [uid, walletId, period]
-  );
-  const {
-    data: transactionDocsAll,
-    loading: transactionsLoading,
-    error: transactionsError,
-  } = useFirestoreCollection<FirestoreTransaction>(transactionsQuery);
-  // Excluded transactions (a debt changed to record only) don't count anywhere.
-  const transactionDocs = useMemo(() => transactionDocsAll.filter(countsInFigures), [transactionDocsAll]);
-
-  const categoryName = useMemo(() => {
-    const map = new Map(categories.map((category) => [category.id, category.name]));
-    return (categoryId: string | null) => (categoryId && map.get(categoryId)) || categoryId || '';
-  }, [categories]);
-
-  const transactions = transactionDocs.map((transaction, index) => ({
-    id: transaction.id,
-    title: categoryName(transaction.categoryId),
-    amount: toDisplay(ctx, transaction.amount, wallet?.currency ?? ctx.base),
-    currency: ctx.display,
-    date: formatDate(transaction.date),
-    iconColor: walletColor(index),
-    // The web page's table.
-    when: transaction.date.toDate(),
-    description: transaction.description || categoryName(transaction.categoryId),
-    signed: toDisplay(ctx, transaction.direction === 'Inflow' ? transaction.amount : -transaction.amount, wallet?.currency ?? ctx.base),
-  }));
 
   // History (last HISTORY_MONTHS, independent of the transaction list's own
   // Week/Month/Quarter tab above) — feeds the cashflow chart and the
@@ -239,10 +184,6 @@ export function useLogic(walletId: string, periods: readonly string[]) {
     navigateBack('/wallets');
   }
 
-  function iconFor(index: number) {
-    return ICONS[index % ICONS.length];
-  }
-
   const availableAmount = wallet ? toDisplay(ctx, wallet.currentBalance - (wallet.lockedAmount ?? 0), wallet.currency) : 0;
   const lockedAmount = wallet ? toDisplay(ctx, wallet.lockedAmount ?? 0, wallet.currency) : 0;
   // ---- The wallet's page on tablet and web ----
@@ -288,9 +229,6 @@ export function useLogic(walletId: string, periods: readonly string[]) {
     lockedAmount,
     availableAmount,
     currency: ctx.display,
-    transactions,
-    period,
-    setPeriod,
     cashflow,
     cashflowMax,
     spendingTrend,
@@ -302,14 +240,12 @@ export function useLogic(walletId: string, periods: readonly string[]) {
     loading:
       authLoading ||
       walletLoading ||
-      transactionsLoading ||
       ctxLoading ||
       historyLoading ||
       transfersOutLoading ||
       transfersInLoading ||
       plannedPaymentsLoading,
-    error: walletError || transactionsError,
+    error: walletError,
     goBack,
-    iconFor,
   };
 }

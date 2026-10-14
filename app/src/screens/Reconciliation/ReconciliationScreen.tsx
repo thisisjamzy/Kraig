@@ -29,10 +29,19 @@ export function ReconciliationScreen() {
     saveError,
     justSaved,
     handleSaveReconciliation,
+    clearOpen,
+    openClear,
+    closeClear,
+    clearing,
+    clearError,
+    clearedAmount,
+    lastClear,
+    handleClearUnaccounted,
     openHistory,
     goBack,
     loading,
   } = useLogic();
+  const shortDate = (d: Date) => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
   return (
     <div className={styles.page}>
@@ -61,6 +70,42 @@ export function ReconciliationScreen() {
           </div>
 
           {justSaved && <p className={styles.savedNotice}>{s.savedNotice}</p>}
+          {clearedAmount !== null && (
+            <p className={styles.savedNotice}>
+              Cleared {formatAmount(clearedAmount)} {currency}. Your wallets are unchanged.
+            </p>
+          )}
+
+          {/* Writing off the unaccounted balance: back to 0, nothing moves
+              into or out of a wallet, and the balance audit agrees. */}
+          {unaccountedBalance !== 0 && !reconcileOpen && !clearOpen && (
+            <button type="button" className={styles.clearButton} onClick={openClear}>
+              Clear unaccounted balance
+            </button>
+          )}
+          {clearOpen && (
+            <div className={styles.reconcileCard}>
+              <h2 className={styles.reconcileTitle}>Clear the unaccounted balance?</h2>
+              <p className={styles.reconcileHint}>
+                {formatAmount(unaccountedBalance)} {currency} is written off and the unaccounted balance goes back to 0. No money moves into or out of
+                your wallets, and checking balances will not try to put it back. Past checks stay in the history.
+              </p>
+              {clearError && <p className={styles.errorText}>{clearError}</p>}
+              <div className={styles.reconcileActions}>
+                <button type="button" className={styles.cancelButton} onClick={closeClear} disabled={clearing}>
+                  {strings.common.cancel}
+                </button>
+                <button type="button" className={styles.saveButton} onClick={handleClearUnaccounted} disabled={clearing}>
+                  {clearing ? 'Clearing…' : 'Clear balance'}
+                </button>
+              </div>
+            </div>
+          )}
+          {lastClear && !clearOpen && (
+            <p className={styles.emptyText}>
+              Last cleared {shortDate(lastClear.at)}: {formatAmount(lastClear.amount)} {currency}
+            </p>
+          )}
 
           {!reconcileOpen ? (
             <button type="button" className={styles.primaryButton} onClick={openReconcile}>

@@ -9,6 +9,7 @@ import {
   ensureUnjustifiedWallet,
   performReconciliation,
   listExplainedTransactions,
+  clearUnaccountedBalance,
 } from '@/src/shared/firestore/unaccountedBalance';
 import { toDisplay } from '@/src/shared/firestore/currency';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
@@ -106,6 +107,34 @@ export function useLogic() {
     }
   }
 
+  // Clearing the unaccounted balance: writes it off, nothing moves into or
+  // out of a real wallet (clearUnaccountedBalance). Asks first, inline.
+  const [clearOpen, setClearOpen] = useState(false);
+  const [clearing, setClearing] = useState(false);
+  const [clearError, setClearError] = useState<string | null>(null);
+  const [clearedAmount, setClearedAmount] = useState<number | null>(null);
+  const lastClear = useMemo(() => {
+    const clears = unjustifiedWallet?.unaccountedClears ?? [];
+    const last = clears[clears.length - 1];
+    return last ? { at: last.at.toDate(), amount: toDisplay(ctx, last.amount, unjustifiedWallet?.currency ?? ctx.base) } : null;
+  }, [unjustifiedWallet, ctx]);
+
+  async function handleClearUnaccounted() {
+    if (!uid || clearing) return;
+    setClearing(true);
+    setClearError(null);
+    try {
+      const amount = await clearUnaccountedBalance(uid);
+      setClearedAmount(toDisplay(ctx, amount, unjustifiedWallet?.currency ?? ctx.base));
+      setJustSaved(false);
+      setClearOpen(false);
+    } catch (err) {
+      setClearError(err instanceof Error ? err.message : 'Could not clear the unaccounted balance.');
+    } finally {
+      setClearing(false);
+    }
+  }
+
   function openHistory() {
     router.push('/settings/reconciliation/history');
   }
@@ -136,6 +165,19 @@ export function useLogic() {
     saveError,
     justSaved,
     handleSaveReconciliation,
+
+    clearOpen,
+    openClear: () => {
+      setClearError(null);
+      setClearedAmount(null);
+      setClearOpen(true);
+    },
+    closeClear: () => setClearOpen(false),
+    clearing,
+    clearError,
+    clearedAmount,
+    lastClear,
+    handleClearUnaccounted,
 
     openHistory,
     goBack,

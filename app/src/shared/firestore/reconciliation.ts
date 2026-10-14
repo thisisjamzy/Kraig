@@ -21,6 +21,14 @@
 // (src/logic/reconcileBalances/useLogic.ts calls applyBalanceCorrections
 // only after the household has reviewed the results).
 //
+// Reconciling (src/shared/firestore/unaccountedBalance.ts) sets each
+// wallet to the balance the household reports and moves the gap into the
+// Unjustified wallet, with no transaction or transfer behind either
+// change; clearing the unaccounted balance zeroes that wallet the same
+// way. Each such change is kept on the account as balanceAdjustments and
+// counted here, so the audit agrees with a reconciliation instead of
+// proposing to put the unaccounted money back into the wallets.
+//
 // Mirrors scripts/lib/recomputeStats.ts's account-balance formula, with one
 // correction: that script's transfer loop only subtracts a transfer's
 // `amount` from fromAccountId, forgetting `charges` (see its own
@@ -31,8 +39,8 @@
 
 import { getDocs, writeBatch } from 'firebase/firestore';
 import { getFirebaseFirestore } from '@/src/shared/config/firebaseClient';
-import { accountsRef, accountRef, transactionsRef, transfersRef } from './refs';
-import type { FirestoreAccount } from './types';
+import { accountsRef, accountRef, reconciliationsRef, transactionsRef, transfersRef } from './refs';
+import type { FirestoreAccount, FirestoreTransaction, FirestoreTransfer } from './types';
 import { countsInFigures } from './types';
 
 export interface AccountAudit {
@@ -41,6 +49,9 @@ export interface AccountAudit {
   currency: string;
   archived: boolean;
   startingBalance: number;
+  // Balance changes made outside any entry (reconciliations, clearing
+  // the unaccounted balance), see FirestoreAccount.balanceAdjustments.
+  adjustments: number;
   storedBalance: number;
   expectedBalance: number;
   // expectedBalance - storedBalance, rounded, zeroed out under EPSILON so
@@ -76,6 +87,10 @@ export interface OrphanedEntry {
 export interface BalanceAudit {
   accounts: AccountAudit[];
   orphaned: OrphanedEntry[];
+  // Reconciled before balanceAdjustments existed: what was reconciled
+  // can't be told apart from a fault any more, so the stored balance is
+  // taken as right (saveBalanceBaselines writes that once).
+  needsBaseline: string[];
 }
 
 const EPSILON = 0.005;
@@ -91,13 +106,34 @@ function round2(value: number): number {
  * resolve to a real account at all. Read-only: never writes anything.
  */
 export async function auditAccountBalances(uid: string): Promise<BalanceAudit> {
-  const [accountsSnap, txSnap, trSnap] = await Promise.all([
+  const [accountsSnap, txSnap, trSnap, recSnap] = await Promise.all([
     getDocs(accountsRef(uid)),
     getDocs(transactionsRef(uid)),
     getDocs(transfersRef(uid)),
+    getDocs(reconciliationsRef(uid)),
   ]);
+  const reconciled = new Set<string>();
+  recSnap.forEach((doc) => Object.keys(doc.data().reportedBalances ?? {}).forEach((id) => reconciled.add(id)));
+  return computeAudit(
+    accountsSnap.docs.map((doc) => ({ ...doc.data(), id: doc.id }) as FirestoreAccount),
+    txSnap.docs.map((doc) => ({ ...doc.data(), id: doc.id })),
+    trSnap.docs.map((doc) => ({ ...doc.data(), id: doc.id })),
+    reconciled
+  );
+}
 
-  const knownAccountIds = new Set(accountsSnap.docs.map((doc) => doc.id));
+type AuditTransaction = Pick<FirestoreTransaction, 'id' | 'accountId' | 'amount' | 'direction' | 'description'> & { signedAmount?: number; excluded?: boolean };
+type AuditTransfer = Pick<FirestoreTransfer, 'id' | 'fromAccountId' | 'toAccountId' | 'amount' | 'description'> & { charges?: number };
+
+/** The audit itself, on records already read (pure, for the tests). */
+export function computeAudit(
+  accountDocs: FirestoreAccount[],
+  transactions: AuditTransaction[],
+  transfers: AuditTransfer[],
+  reconciled: Set<string>
+): BalanceAudit {
+
+  const knownAccountIds = new Set(accountDocs.map((a) => a.id));
   const orphaned: OrphanedEntry[] = [];
 
   const deltas = new Map<string, number>();
@@ -110,8 +146,7 @@ export async function auditAccountBalances(uid: string): Promise<BalanceAudit> {
     counts.set(accountId, entry);
   }
 
-  txSnap.forEach((doc) => {
-    const t = doc.data();
+  transactions.forEach((t) => {
     // An excluded transaction (a debt changed to record only) had its
     // balance effect reversed when it was excluded.
     if (!countsInFigures(t)) return;
@@ -122,7 +157,7 @@ export async function auditAccountBalances(uid: string): Promise<BalanceAudit> {
     if (!knownAccountIds.has(t.accountId)) {
       orphaned.push({
         kind: 'transaction',
-        id: doc.id,
+        id: t.id,
         description: t.description ?? '',
         amount: t.amount,
         accountId: t.accountId,
@@ -132,13 +167,12 @@ export async function auditAccountBalances(uid: string): Promise<BalanceAudit> {
     bump(t.accountId, signedAmount, 'tx');
   });
 
-  trSnap.forEach((doc) => {
-    const t = doc.data();
+  transfers.forEach((t) => {
     const charges = t.charges ?? 0;
     if (!knownAccountIds.has(t.fromAccountId)) {
       orphaned.push({
         kind: 'transfer',
-        id: doc.id,
+        id: t.id,
         description: t.description ?? '',
         amount: t.amount,
         accountId: t.fromAccountId,
@@ -148,7 +182,7 @@ export async function auditAccountBalances(uid: string): Promise<BalanceAudit> {
     if (!knownAccountIds.has(t.toAccountId)) {
       orphaned.push({
         kind: 'transfer',
-        id: doc.id,
+        id: t.id,
         description: t.description ?? '',
         amount: t.amount,
         accountId: t.toAccountId,
@@ -159,11 +193,14 @@ export async function auditAccountBalances(uid: string): Promise<BalanceAudit> {
     bump(t.toAccountId, t.amount, 'tr');
   });
 
-  const accounts = accountsSnap.docs.map((doc) => {
-    const account = { ...doc.data(), id: doc.id } as FirestoreAccount;
+  const needsBaseline: string[] = [];
+  const accounts = accountDocs.map((account) => {
     const delta = deltas.get(account.id) ?? 0;
-    const expectedBalance = round2(account.startingBalance + delta);
     const storedBalance = round2(account.currentBalance);
+    const legacy = account.balanceAdjustments === undefined && (reconciled.has(account.id) || Boolean(account.isSystemWallet));
+    if (legacy) needsBaseline.push(account.id);
+    const adjustments = round2(legacy ? storedBalance - account.startingBalance - delta : (account.balanceAdjustments ?? 0));
+    const expectedBalance = round2(account.startingBalance + delta + adjustments);
     const rawDifference = round2(expectedBalance - storedBalance);
     const entry = counts.get(account.id) ?? { tx: 0, tr: 0 };
     return {
@@ -172,6 +209,7 @@ export async function auditAccountBalances(uid: string): Promise<BalanceAudit> {
       currency: account.currency,
       archived: account.archived,
       startingBalance: account.startingBalance,
+      adjustments,
       storedBalance,
       expectedBalance,
       difference: Math.abs(rawDifference) < EPSILON ? 0 : rawDifference,
@@ -181,7 +219,37 @@ export async function auditAccountBalances(uid: string): Promise<BalanceAudit> {
     };
   });
 
-  return { accounts, orphaned };
+  return { accounts, orphaned, needsBaseline };
+}
+
+/**
+ * The once-only start of balanceAdjustments for wallets reconciled before
+ * it existed (BalanceAudit.needsBaseline): the adjustments that make the
+ * audit agree with the balance stored now.
+ */
+export async function saveBalanceBaselines(uid: string, audit: BalanceAudit): Promise<void> {
+  if (audit.needsBaseline.length === 0) return;
+  const batch = writeBatch(getFirebaseFirestore());
+  for (const row of audit.accounts) {
+    if (audit.needsBaseline.includes(row.accountId)) batch.update(accountRef(uid, row.accountId), { balanceAdjustments: row.adjustments });
+  }
+  await batch.commit();
+}
+
+/**
+ * The balanceAdjustments each wallet needs so the audit agrees with the
+ * balance it is about to be set to (a reconciliation's reported figure,
+ * or 0 when the unaccounted balance is cleared): whatever the entries
+ * don't explain is, from now on, a deliberate change and not a fault.
+ */
+export function adjustmentsFor(audit: BalanceAudit, newBalances: Record<string, number>): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const row of audit.accounts) {
+    const next = newBalances[row.accountId];
+    if (next === undefined) continue;
+    out[row.accountId] = round2(row.adjustments + next - row.expectedBalance);
+  }
+  return out;
 }
 
 /**
