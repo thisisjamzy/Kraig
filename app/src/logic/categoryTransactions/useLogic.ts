@@ -37,6 +37,7 @@ import { useBucketLineItemsByBucket } from '@/src/shared/hooks/useBucketLineItem
 import { categoryAccentColor } from '@/src/viewmodels/categories';
 import type { FirestoreTransaction, FirestoreBucket, FirestoreCategory } from '@/src/shared/firestore/types';
 import { countsInFigures } from '@/src/shared/firestore/types';
+import { categoryContribution, spendSplit } from '@/src/viewmodels/spendSplit';
 
 const TYPE_ICONS: Record<string, LucideIcon> = {
   Expense: ArrowUpRight,
@@ -49,6 +50,7 @@ const TYPE_ICONS: Record<string, LucideIcon> = {
 const CATEGORY_PAGE_SIZE = 300;
 
 export type TimeRange = 'week' | 'month' | 'quarter' | 'year' | 'all';
+export type SpendFilter = 'all' | 'planned' | 'unplanned';
 
 export function formatAmount(value: number) {
   return new Intl.NumberFormat('en-US').format(value);
@@ -161,30 +163,6 @@ export function useLogic(categoryId: string) {
     [timeRange, refYear, refMonthIndex]
   );
 
-  const transactions = categoryDocs
-    .filter((transaction) => {
-      if (rangeStart && rangeEnd) {
-        const d = transaction.date.toDate();
-        if (d < rangeStart || d > rangeEnd) return false;
-      }
-      return true;
-    })
-    .map((transaction) => {
-      const account = accountById.get(transaction.accountId);
-      const title = categoryNameFallback(transaction.categoryId);
-      return {
-        id: transaction.id,
-        title,
-        description: transaction.description,
-        account: account?.name ?? transaction.accountId,
-        amount: toDisplay(ctx, transaction.amount, account?.currency ?? ctx.base),
-        currency: ctx.display,
-        date: formatDate(transaction.date),
-        icon: TYPE_ICONS[transaction.type] ?? ArrowUpRight,
-        iconColor: categoryAccentColor(title),
-      };
-    });
-
   // Section 2.4 — this screen's own header/summary needs the category's real
   // name (and archived state) even if it's since been archived, so it reads
   // the doc directly instead of the archived-excluded useCategories() list
@@ -214,6 +192,52 @@ export function useLogic(categoryId: string) {
     };
   }, [showSummaryCard, monthStr, monthBudget, categoryId]);
 
+  // Every open basket: its items for the chart, its name on planned rows.
+  const bucketsQuery = useMemo(() => (uid ? query(bucketsRef(uid), where('archived', '==', false)) : null), [uid]);
+  const { data: bucketDocs } = useFirestoreCollection<FirestoreBucket>(bucketsQuery);
+  const { itemsByBucket } = useBucketLineItemsByBucket(bucketDocs);
+  const bucketCurrency = useMemo(() => new Map(bucketDocs.map((g) => [g.id, g.currency])), [bucketDocs]);
+
+  // Planned or unplanned: opened for a month, exactly as the Budget screen
+  // counts it (the transactions its items took, src/shared/budget/
+  // monthBudget.ts); otherwise, linked to a basket item or not.
+  const linkedInMonth = useMemo(() => new Set(monthBudget.items.flatMap((item) => item.transactionIds)), [monthBudget]);
+  const isPlanned = (t: FirestoreTransaction) => (showSummaryCard ? linkedInMonth.has(t.id) : Boolean(t.bucketItem));
+  const [spendFilter, setSpendFilter] = useState<SpendFilter>('all');
+
+  const inRange = categoryDocs.filter((transaction) => {
+    if (rangeStart && rangeEnd) {
+      const d = transaction.date.toDate();
+      if (d < rangeStart || d > rangeEnd) return false;
+    }
+    return true;
+  });
+  const split = spendSplit(
+    inRange.map((t) => ({ amount: toDisplay(ctx, categoryContribution(t), accountById.get(t.accountId)?.currency ?? ctx.base), planned: isPlanned(t) }))
+  );
+  const bucketName = new Map(bucketDocs.map((b) => [b.id, b.name]));
+  const transactions = inRange
+    .filter((t) => spendFilter === 'all' || (spendFilter === 'planned') === isPlanned(t))
+    .map((transaction) => {
+      const account = accountById.get(transaction.accountId);
+      const title = categoryNameFallback(transaction.categoryId);
+      const planned = isPlanned(transaction);
+      return {
+        id: transaction.id,
+        title,
+        description: transaction.description,
+        account: account?.name ?? transaction.accountId,
+        amount: toDisplay(ctx, transaction.amount, account?.currency ?? ctx.base),
+        currency: ctx.display,
+        date: formatDate(transaction.date),
+        icon: TYPE_ICONS[transaction.type] ?? ArrowUpRight,
+        iconColor: categoryAccentColor(title),
+        planned,
+        // The basket it was planned in, when known.
+        plannedIn: planned && transaction.bucketItem ? bucketName.get(transaction.bucketItem.bucketId) ?? null : null,
+      };
+    });
+
   // Budget-vs-spend chart — only for the free-ranging Settings entry point
   // (no month in the URL). Opened from a Budget category row, this screen
   // is locked to that one month, so a multi-month trend has no place here.
@@ -222,13 +246,6 @@ export function useLogic(categoryId: string) {
   // Jan through Dec, independent of the time-range filter — the filter only
   // scopes the transaction list. "Budgeted" per month is the planned amount
   // of every bucket item in this category that applies to that month.
-  const bucketsQuery = useMemo(
-    () => (uid && !hasMonth ? query(bucketsRef(uid), where('archived', '==', false)) : null),
-    [uid, hasMonth]
-  );
-  const { data: bucketDocs } = useFirestoreCollection<FirestoreBucket>(bucketsQuery);
-  const { itemsByBucket } = useBucketLineItemsByBucket(bucketDocs);
-  const bucketCurrency = useMemo(() => new Map(bucketDocs.map((g) => [g.id, g.currency])), [bucketDocs]);
 
   const chart = useMemo<ChartMonth[]>(() => {
     if (hasMonth) return [];
@@ -262,7 +279,7 @@ export function useLogic(categoryId: string) {
         spent: round2(spentBase),
       };
     });
-  }, [hasMonth, refYear, itemsByBucket, bucketCurrency, categoryId, categoryDocs, accountCurrency, ctx]);
+  }, [hasMonth, refYear, itemsByBucket, bucketDocs, bucketCurrency, categoryId, categoryDocs, accountCurrency, ctx]);
 
   // Add Transaction — pre-fills this category, and lands in the month this
   // screen was opened for when there is one.
@@ -282,6 +299,9 @@ export function useLogic(categoryId: string) {
 
   return {
     transactions,
+    split,
+    spendFilter,
+    setSpendFilter,
     categoryName,
     categoryArchived: category?.archived ?? false,
     summary,

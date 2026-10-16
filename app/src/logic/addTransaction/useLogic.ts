@@ -370,7 +370,9 @@ export function useLogic() {
   // "completed" away — the old per-item `completed` flag hid rent forever
   // after the first payment. Occurrences from the month before and after
   // the transaction's date are offered too, for a late or early payment,
-  // labelled with their month. A closed Planned item is done for good.
+  // labelled with their month. An item stays offered after its payments
+  // reach what was planned (another payment just goes over); only a
+  // basket closed for that month, or archived, takes its items away.
   const linkableBucketItems = useMemo(() => {
     // A Transfer bucket's items (categoryId = a TRANSFER_CATEGORIES kind)
     // are only offered for a transfer; every other bucket's only for its
@@ -382,9 +384,13 @@ export function useLogic() {
       .flat()
       .filter((item) => (bucketTypeById.get(item.goalId) === 'Transfer') === isTransferType)
       .filter((item) => item.categoryId && fetchedCategoryIds.has(item.categoryId))
-      .filter((item) => bucketKindById.get(item.goalId) === 'Fixed' || !item.completed)
+      // Only archived baskets' items are gone (activeBuckets); a fully
+      // paid item can still take another payment unless its basket is
+      // closed for that month.
+      .filter((item) => bucketById.has(item.goalId))
       .flatMap((item) =>
         months.flatMap((occurrenceMonth) => {
+          if (bucketById.get(item.goalId)?.closedMonths?.[occurrenceMonth]) return [];
           const occurrence = itemOccurrence(item, occurrenceMonth, bucketById.get(item.goalId));
           if (!occurrence) return [];
           const bucketName = bucketNameById.get(item.goalId) ?? 'Basket';
