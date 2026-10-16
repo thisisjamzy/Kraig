@@ -85,12 +85,6 @@
 /* Only rendered when a bucket has actually dedicated some of this month's
    spend in this category — the split of summary.spent between spend a
    bucket accounts for and spend that doesn't. */
-.summaryDedicatedLine {
-  margin: 0;
-  font-size: 0.6875rem;
-  color: var(--color-text-secondary);
-}
-
 .summaryFill {
   height: 100%;
   border-radius: inherit;
@@ -359,4 +353,134 @@
 
 .timeRangeTrigger {
   min-width: 120px;
+}
+
+/* Planned and unplanned: the total, a two-part bar (planned in the
+   primary colour, unplanned in the lime accent as a fill), then each part
+   as a button that filters the list. */
+.splitCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.splitHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.splitTotal {
+  font-size: var(--font-size-lg);
+  font-weight: 800;
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.splitTrack {
+  display: flex;
+  height: 10px;
+  overflow: hidden;
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+}
+
+.splitPlanned {
+  background: var(--color-brand);
+}
+
+.splitUnplanned {
+  background: var(--sg-accent);
+}
+
+.splitParts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-sm);
+}
+
+.splitPart {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  min-height: 44px;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: none;
+  font-family: inherit;
+  text-align: left;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.splitPart[aria-pressed='true'] {
+  border-color: var(--ink-bg);
+  background: var(--color-surface);
+}
+
+.splitDot {
+  width: 10px;
+  height: 10px;
+  margin-top: 4px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--color-brand);
+}
+
+.splitDot[data-part='unplanned'] {
+  background: var(--sg-accent);
+  box-shadow: inset 0 0 0 1px var(--sg-neutral-500);
+}
+
+.splitPartText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  font-size: var(--font-size-sm);
+}
+
+.splitPartText strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.splitPartText small {
+  font-size: 0.6875rem;
+  color: var(--color-text-secondary);
+}
+
+.splitShowAll {
+  align-self: flex-start;
+  min-height: 36px;
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* A row's Planned (with its basket) or Unplanned label. */
+.plannedChip {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: var(--sg-primary-light);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--sg-primary-dark);
+}
+
+.plannedChip[data-part='unplanned'] {
+  background: var(--sg-accent);
+  color: var(--sg-neutral-900);
 }

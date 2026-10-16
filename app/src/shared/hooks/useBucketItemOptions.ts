@@ -51,7 +51,11 @@ export function useBucketItemOptions({
       .filter((item) => item.categoryId === categoryId)
       .flatMap((item) =>
         months
-          .filter((month) => itemOccurrence(item, month, buckets.find((bucket) => bucket.id === item.goalId)))
+          // Fully paid items stay; a basket closed for the month doesn't.
+          .filter((month) => {
+            const bucket = buckets.find((b) => b.id === item.goalId);
+            return !bucket?.closedMonths?.[month] && itemOccurrence(item, month, bucket);
+          })
           .map((month) => ({
             key: `${item.id}@${month}`,
             link: { bucketId: item.goalId, itemId: item.id, month },

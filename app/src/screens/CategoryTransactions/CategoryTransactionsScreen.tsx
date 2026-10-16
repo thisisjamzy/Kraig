@@ -11,11 +11,15 @@ import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import styles from './CategoryTransactionsScreen.module.css';
 
 const TIME_RANGES: TimeRange[] = ['week', 'month', 'quarter', 'year', 'all'];
+const SPENT_IN: Record<TimeRange, string> = { week: 'in the last 7 days', month: 'this month', quarter: 'this quarter', year: 'this year', all: 'in total' };
 
 export function CategoryTransactionsScreen({ categoryId }: { categoryId: string }) {
   const strings = useStrings();
   const {
     transactions,
+    split,
+    spendFilter,
+    setSpendFilter,
     categoryName,
     categoryArchived,
     summary,
@@ -87,13 +91,55 @@ export function CategoryTransactionsScreen({ categoryId }: { categoryId: string 
               style={{ width: `${summary.budgeted > 0 ? Math.min(100, Math.round((summary.spent / summary.budgeted) * 100)) : 0}%` }}
             />
           </div>
-          {summary.dedicated > 0 && (
-            <p className={styles.summaryDedicatedLine}>
-              {strings.transactionHistory.dedicatedLabel} {formatAmount(summary.dedicated)} {currency} ·{' '}
-              {strings.transactionHistory.unplannedLabel} {formatAmount(summary.unplanned)} {currency}
-            </p>
-          )}
         </div>
+      )}
+
+      {/* What was spent in the range, and how much of it was planned (paid
+          against a basket item) or unplanned. Tapping a part lists only it. */}
+      {!loading && !error && (
+        <section className={styles.splitCard} aria-label="Planned and unplanned">
+          <div className={styles.splitHead}>
+            <span className={styles.summaryLabel}>Spent {lockedToMonth ? 'this month' : SPENT_IN[timeRange]}</span>
+            <span className={styles.splitTotal}>
+              {formatAmount(split.total)} {currency}
+            </span>
+          </div>
+          <div className={styles.splitTrack} role="img" aria-label={`${split.plannedPercent}% planned, ${100 - split.plannedPercent}% unplanned`}>
+            {split.total > 0 && (
+              <>
+                <span className={styles.splitPlanned} style={{ width: `${split.plannedPercent}%` }} />
+                <span className={styles.splitUnplanned} style={{ width: `${100 - split.plannedPercent}%` }} />
+              </>
+            )}
+          </div>
+          <div className={styles.splitParts}>
+            {(['planned', 'unplanned'] as const).map((part) => (
+              <button
+                key={part}
+                type="button"
+                className={styles.splitPart}
+                aria-pressed={spendFilter === part}
+                onClick={() => setSpendFilter(spendFilter === part ? 'all' : part)}
+              >
+                <span className={styles.splitDot} data-part={part} aria-hidden />
+                <span className={styles.splitPartText}>
+                  <span>{part === 'planned' ? 'Planned' : 'Unplanned'}</span>
+                  <strong>
+                    {formatAmount(part === 'planned' ? split.planned : split.unplanned)} {currency}
+                  </strong>
+                  <small>
+                    {part === 'planned' ? split.plannedCount : split.unplannedCount} {(part === 'planned' ? split.plannedCount : split.unplannedCount) === 1 ? 'transaction' : 'transactions'}
+                  </small>
+                </span>
+              </button>
+            ))}
+          </div>
+          {spendFilter !== 'all' && (
+            <button type="button" className={styles.splitShowAll} onClick={() => setSpendFilter('all')}>
+              Showing {spendFilter} only · Show all
+            </button>
+          )}
+        </section>
       )}
 
       {!loading && !error && !lockedToMonth && chart.length > 0 && (
@@ -186,6 +232,9 @@ export function CategoryTransactionsScreen({ categoryId }: { categoryId: string 
                 <p className={styles.transactionTitle}>{transaction.title}</p>
                 <p className={styles.description}>{transaction.description}</p>
                 <p className={styles.account}>{transaction.account}</p>
+                <span className={styles.plannedChip} data-part={transaction.planned ? 'planned' : 'unplanned'}>
+                  {transaction.planned ? `Planned${transaction.plannedIn ? ` · ${transaction.plannedIn}` : ''}` : 'Unplanned'}
+                </span>
               </div>
               <div className={styles.amountRow}>
                 <span className={styles.amount}>

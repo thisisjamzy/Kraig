@@ -119,3 +119,16 @@ test('rows swipe right to edit and left to delete; Select is an icon after Searc
   // Wide screens: Edit and Delete at the end of each table row.
   assert.match(read('screens/Planning/HistoryTable.tsx'), /<RowActions/);
 });
+
+test('a fully paid basket item can still take a payment; only a closed basket takes its items away', () => {
+  const add = read('logic/addTransaction/useLogic.ts');
+  assert.doesNotMatch(add, /!item\.completed\)/, 'completed items are no longer filtered out');
+  assert.match(add, /closedMonths\?\.\[occurrenceMonth\]\) return \[\]/);
+  assert.match(read('shared/hooks/useBucketItemOptions.ts'), /!bucket\?\.closedMonths\?\.\[month\]/);
+});
+
+test('an item page shows Health above its summary', () => {
+  for (const p of ['screens/Planning/Planning.module.css', 'phone/screens/Planning/Planning.module.css']) {
+    assert.match(read(p), /\.healthRow \{[^}]*flex-direction: column/, p);
+  }
+});

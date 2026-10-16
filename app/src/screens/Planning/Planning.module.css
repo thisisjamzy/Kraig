@@ -516,10 +516,12 @@
   color: var(--p-blue);
 }
 
+/* The Health label over its summary, which can run to a full sentence. */
 .healthRow {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
   padding: 14px 0;
   border-top: 1px solid var(--p-divider);
 }
