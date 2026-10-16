@@ -35,7 +35,7 @@
 .preset[aria-checked='true'] {
   border-color: var(--ink-bg);
   background: var(--ink-bg);
-  color: var(--color-brand);
+  color: var(--sg-neutral-0);
 }
 
 .dates {

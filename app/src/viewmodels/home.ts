@@ -87,7 +87,11 @@ export function weekBuckets(rows: { date: Date; income: number; expense: number 
 /** "Your account balances are 1,947,623 more than your recorded transactions explain." */
 export function unexplainedText(amount: number, format: (n: number) => string): string | null {
   if (Math.abs(amount) < 1) return null;
-  return `Your account balances are ${format(Math.abs(amount))} ${amount > 0 ? 'more' : 'less'} than your recorded transactions explain.`;
+  // Above zero, money is missing: the balances are lower than the
+  // transactions explain. Below zero, a surplus (src/viewmodels/gap.ts).
+  return amount > 0
+    ? `${format(amount)} is unaccounted for: your account balances are lower than your recorded transactions explain.`
+    : `You have a ${format(-amount)} surplus: your account balances are higher than your recorded transactions explain.`;
 }
 
 /** Home's upcoming payments: unpaid lines that pay out (expenses, savings,

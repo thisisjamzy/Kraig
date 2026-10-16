@@ -680,7 +680,7 @@ export const stringConstants = {
     gapPositiveExplainer:
       "Your ledger says you should have more money than you've reported having. Log a missed expense below to explain part of it, or start a fresh check.",
     gapNegativeExplainer:
-      "Your ledger says you should have less money than you've reported having. Log a missed income below to explain part of it, or start a fresh check.",
+      "Your accounts hold more than your ledger expected: a surplus. Log a missed income below to explain part of it, or start a fresh check.",
     gapZeroExplainer: 'Your ledger matches what you last reported, nothing unaccounted for.',
     savedNotice: 'Reconciliation saved.',
     reconcileNowButton: 'Reconcile now',
@@ -697,7 +697,6 @@ export const stringConstants = {
     viewHistory: 'View reconciliation history',
     historyTitle: 'Reconciliation history',
     noHistory: 'No reconciliation checks yet.',
-    gapAtCheckPrefix: 'Gap:',
     breakdownTitle: 'Per-account breakdown',
     columnAccount: 'Account',
     columnLedger: 'Ledger',

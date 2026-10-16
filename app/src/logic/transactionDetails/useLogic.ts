@@ -21,28 +21,27 @@ import { monthLabel } from '@/src/shared/budget/monthBudget';
 import { useGoBack } from '@/src/shared/navigation/useGoBack';
 import type { BucketItemLink, FirestoreBucket, FirestoreTransaction, FirestoreTransfer } from '@/src/shared/firestore/types';
 
-function flagsFromSearch() {
-  if (typeof window === 'undefined') return { transfer: false, assign: false };
-  const q = new URLSearchParams(window.location.search);
-  return { transfer: q.get('kind') === 'transfer', assign: q.get('assign') === '1' };
-}
-
 function dateValue(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-/** `transfer` says which collection the id is in when it isn't the page's
- * own URL (a side peek); otherwise ?kind=transfer does. */
-export function useLogic(id: string, opts: { transfer?: boolean } = {}) {
-  const { user } = useFirebaseUser();
+/** `transfer`: the link says it's a transfer (a hint, both are looked up);
+ * `assign`: open on the basket picker (?assign=1). */
+export function useLogic(id: string, opts: { transfer?: boolean; assign?: boolean } = {}) {
+  const { user, loading: authLoading } = useFirebaseUser();
   const uid = user?.uid;
-  const [{ transfer: isTransfer, assign }] = useState(() => (opts.transfer !== undefined ? { transfer: opts.transfer, assign: false } : flagsFromSearch()));
+  // An id is looked up as both a transaction and a transfer (two reads):
+  // a link's ?kind=transfer is only a hint, and a link without it (an old
+  // one, or one read before the address bar caught up) used to look in the
+  // wrong place and say "could not be found". Whichever exists is shown.
+  const assign = opts.assign ?? false;
   const { data: transaction, loading: txLoading } = useFirestoreDoc<FirestoreTransaction>(
-    useMemo(() => (uid && !isTransfer ? transactionRef(uid, id) : null), [uid, id, isTransfer])
+    useMemo(() => (uid ? transactionRef(uid, id) : null), [uid, id])
   );
   const { data: transferDoc, loading: trLoading } = useFirestoreDoc<FirestoreTransfer>(
-    useMemo(() => (uid && isTransfer ? transferRef(uid, id) : null), [uid, id, isTransfer])
+    useMemo(() => (uid ? transferRef(uid, id) : null), [uid, id])
   );
+  const isTransfer = !transaction && (Boolean(transferDoc) || (opts.transfer ?? false));
   const { data: accounts } = useAccounts();
   const { data: categories } = useCategories();
   const { ctx } = useCurrencyContext();
@@ -155,7 +154,8 @@ export function useLogic(id: string, opts: { transfer?: boolean } = {}) {
     busy,
     error,
     goBack: () => navigateBack('/transactions'),
-    loading: txLoading || trLoading,
-    missing: !txLoading && !trLoading && !view,
+    // Not "missing" until signed in and both lookups have answered.
+    loading: authLoading || txLoading || trLoading,
+    missing: !authLoading && Boolean(uid) && !txLoading && !trLoading && !view,
   };
 }

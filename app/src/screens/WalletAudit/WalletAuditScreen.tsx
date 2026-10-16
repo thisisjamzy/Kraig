@@ -11,6 +11,7 @@ import { useLogic } from '@/src/logic/walletAudit/useLogic';
 import { formatAmount } from '@/src/logic/walletDetail/useLogic';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
+import { readGap } from '@/src/viewmodels/gap';
 import { WindowPicker } from '@/src/widgets/WindowPicker/WindowPicker';
 import styles from './WalletAuditScreen.module.css';
 
@@ -133,7 +134,7 @@ export function WalletAuditScreen({ walletId }: { walletId: string }) {
               {v.isNow
                 ? `Enter what ${v.name} really holds now.`
                 : `Enter what ${v.name} really held at the end of ${longDate(v.span.to)}. The difference is applied to today’s balance, and everything recorded after that date still counts.`}{' '}
-              Any gap goes to unaccounted.
+              Money missing goes to unaccounted, and more than expected is recorded as a surplus.
             </p>
             <label className={styles.field}>
               <span>Real balance</span>
@@ -141,16 +142,24 @@ export function WalletAuditScreen({ walletId }: { walletId: string }) {
             </label>
             {v.gap !== null && (
               <div className={styles.line}>
-                <span>Gap (ledger less real)</span>
                 <span>
-                  {signed(v.gap)} {c}
+                  {readGap(v.gap).kind === 'none' ? 'Gap' : readGap(v.gap).label}
+                  <small>
+                    {readGap(v.gap).kind === 'surplus' ? 'More than the ledger expected' : readGap(v.gap).kind === 'missing' ? 'Less than the ledger expected' : 'Matches the ledger'}
+                  </small>
+                </span>
+                <span>
+                  {formatAmount(readGap(v.gap).amount)} {c}
                 </span>
               </div>
             )}
             {v.reconcileError && <p className={styles.error}>{v.reconcileError}</p>}
             {v.reconciledGap !== null && (
               <p className={styles.ok}>
-                Saved. {v.reconciledGap === 0 ? 'No gap.' : `${signed(v.reconciledGap)} ${c} added to unaccounted.`}
+                Saved.{' '}
+                {readGap(v.reconciledGap).kind === 'none'
+                  ? 'It matches the ledger.'
+                  : `${formatAmount(readGap(v.reconciledGap).amount)} ${c} ${readGap(v.reconciledGap).kind === 'surplus' ? 'surplus recorded' : 'missing, added to unaccounted'}.`}
               </p>
             )}
             <button type="button" className={styles.primary} onClick={v.reconcile} disabled={v.gap === null || v.reconciling}>

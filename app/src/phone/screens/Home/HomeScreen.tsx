@@ -263,12 +263,10 @@ export function HomeScreen() {
         </div>
 
         <Link href="/settings/reconciliation" className={styles.unjustifiedBlock}>
-          <span className={styles.unjustifiedLabel}>{strings.home.unjustifiedLabel}</span>
+          <span className={styles.unjustifiedLabel}>{balance.unjustified < 0 ? 'Surplus' : strings.home.unjustifiedLabel}</span>
           <div className={styles.balanceCardFooter}>
             <span className={styles.unjustifiedValue}>
-              {balance.unjustified === 0
-                ? UNJUSTIFIED_PLACEHOLDER
-                : `${balance.unjustified > 0 ? '+' : ''}${formatAmount(balance.unjustified)} ${balance.currency}`}
+              {balance.unjustified === 0 ? UNJUSTIFIED_PLACEHOLDER : `${formatAmount(Math.abs(balance.unjustified))} ${balance.currency}`}
             </span>
             <Logo variant="dark" height={16} className={styles.balanceLogo} />
           </div>
@@ -533,10 +531,8 @@ export function HomeScreen() {
                   </button>
                 </div>
                 <Link href="/settings/reconciliation" className={webStyles.statSubLink}>
-                  {strings.home.unjustifiedLabel}:{' '}
-                  {balance.unjustified === 0
-                    ? UNJUSTIFIED_PLACEHOLDER
-                    : `${balance.unjustified > 0 ? '+' : ''}${formatAmount(balance.unjustified)} ${balance.currency}`}
+                  {balance.unjustified < 0 ? 'Surplus' : strings.home.unjustifiedLabel}:{' '}
+                  {balance.unjustified === 0 ? UNJUSTIFIED_PLACEHOLDER : `${formatAmount(Math.abs(balance.unjustified))} ${balance.currency}`}
                 </Link>
               </div>
 

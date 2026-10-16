@@ -37,7 +37,7 @@ function toIso(date: Date) {
 
 export function useLogic(transactionId: string) {
   const finish = useFormFinish();
-  const { user } = useFirebaseUser();
+  const { user, loading: authLoading } = useFirebaseUser();
   const uid = user?.uid;
 
   const { data: original, loading: docLoading, error: docError } = useFirestoreDoc<FirestoreTransaction>(
@@ -204,9 +204,10 @@ export function useLogic(transactionId: string) {
     submitError,
     handleSave,
     goBack,
-    loading: docLoading || accountsLoading || categoriesLoading,
+    loading: authLoading || docLoading || accountsLoading || categoriesLoading,
     error: docError,
-    notFound: !docLoading && !docError && !original,
+    // Not until signed in: before that nothing has been looked up yet.
+    notFound: !authLoading && Boolean(uid) && !docLoading && !docError && !original,
 
     deleteConfirmOpen,
     openDeleteConfirm,
