@@ -336,3 +336,12 @@ export function ListQueryEmpty({ onClear, className }: { onClear: () => void; cl
     </div>
   );
 }
+
+/** One more icon in the toolbar, styled like Filter, Sort and Search (pass it as `trailing`). */
+export function ListQueryTool({ label, active = false, onClick, children }: { label: string; active?: boolean; onClick: () => void; children: ReactNode }) {
+  return (
+    <button type="button" className={styles.tool} data-active={active || undefined} aria-label={label} aria-pressed={active} title={label} onClick={onClick}>
+      {children}
+    </button>
+  );
+}

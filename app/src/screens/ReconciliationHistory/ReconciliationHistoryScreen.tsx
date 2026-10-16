@@ -1,6 +1,7 @@
 'use client';
 
 import { Fragment } from 'react';
+import { gapPhrase, readGap } from '@/src/viewmodels/gap';
 import { ChevronLeft, ChevronDown, ChevronUp } from 'lucide-react';
 import { useLogic } from '@/src/logic/reconciliationHistory/useLogic';
 import { formatAmount } from '@/src/logic/walletDetail/useLogic';
@@ -17,6 +18,8 @@ export function ReconciliationHistoryScreen() {
   const strings = useStrings();
   const s = strings.reconciliation;
   const { currency, rows, loading, error, expandedId, toggleExpanded, accountName, goBack } = useLogic();
+  // Missing or surplus, never a negative gap (src/viewmodels/gap.ts).
+  const phrase = (n: number) => gapPhrase(n, (x) => `${formatAmount(x)} ${currency}`);
 
   return (
     <div className={styles.page}>
@@ -47,20 +50,20 @@ export function ReconciliationHistoryScreen() {
               <Fragment key={row.id}>
               {newMonth && (
                 <h2 className={styles.monthHead}>
-                  {monthTitle(monthKey)} · {inMonth.length} {inMonth.length === 1 ? 'check' : 'checks'} · {formatAmount(recorded)} {currency} recorded as unaccounted
+                  {monthTitle(monthKey)} · {inMonth.length} {inMonth.length === 1 ? 'check' : 'checks'} · {phrase(recorded)}
                 </h2>
               )}
               <div className={styles.card}>
                 <button type="button" className={styles.cardHeader} onClick={() => toggleExpanded(row.id)}>
                   <div className={styles.cardHeaderText}>
                     <span className={styles.cardDate}>{row.performedAt.toDate().toLocaleDateString()}</span>
-                    <span className={row.totalGap === 0 ? styles.cardGapZero : styles.cardGap}>
-                      {s.gapAtCheckPrefix} {row.totalGap > 0 ? '+' : ''}
-                      {formatAmount(row.totalGap)} {currency}
+                    <span className={readGap(row.totalGap).kind === 'missing' ? styles.cardGap : styles.cardGapZero}>
+                      {readGap(row.totalGap).label}: {formatAmount(readGap(row.totalGap).amount)} {currency}
+                      {row.windowTo && ` · balances as of ${row.windowTo.toDate().toLocaleDateString()}`}
                     </span>
                     {row.unaccountedBefore !== undefined && row.unaccountedAfter !== undefined && (
                       <span className={styles.cardGapZero}>
-                        Unaccounted {formatAmount(row.unaccountedBefore)} before, {formatAmount(row.unaccountedAfter)} after
+                        Before: {phrase(row.unaccountedBefore)} · After: {phrase(row.unaccountedAfter)}
                       </span>
                     )}
                   </div>
@@ -87,7 +90,7 @@ export function ReconciliationHistoryScreen() {
                               <td>{accountName(accountId)}</td>
                               <td className={styles.numCol}>{formatAmount(ledger)}</td>
                               <td className={styles.numCol}>{formatAmount(reported)}</td>
-                              <td className={styles.numCol}>{formatAmount(ledger - reported)}</td>
+                              <td className={styles.numCol}>{readGap(ledger - reported).kind === 'none' ? '0' : `${formatAmount(readGap(ledger - reported).amount)} ${readGap(ledger - reported).kind}`}</td>
                             </tr>
                           );
                         })}

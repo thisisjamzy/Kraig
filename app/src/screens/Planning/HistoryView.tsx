@@ -6,14 +6,17 @@
 // primary sort is by date, one flat list otherwise. Planning's History tab
 // (one month) and the all-transactions page both render exactly this.
 
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { isSelectable, useRecordSelection } from '@/src/logic/planning/useRecordSelection';
 import { SelectionBar } from '@/src/widgets/Selection/SelectionBar';
+import { SwipeRow } from '@/src/widgets/SwipeRow/SwipeRow';
+import { useFormLink } from '@/src/shared/navigation/useFormLink';
 import type { HistoryRow } from '@/src/logic/planning/rows';
 import { groupByDay } from '@/src/logic/planning/rows';
 import { applyQuery, type FieldDef } from '@/src/shared/listQuery/engine';
 import type { useListQuery } from '@/src/shared/listQuery/useListQuery';
-import { ListQueryBar, ListQueryEmpty } from '@/src/widgets/ListQuery/ListQueryBar';
+import { ListChecks } from 'lucide-react';
+import { ListQueryBar, ListQueryEmpty, ListQueryTool } from '@/src/widgets/ListQuery/ListQueryBar';
 import { money, signedMoney, weekdayDayMonth } from '@/src/viewmodels/planning';
 import { round2 } from '@/src/shared/firestore/currency';
 import { HistoryRowView } from './PlanningParts';
@@ -48,6 +51,18 @@ export function HistoryView({
 }) {
   const selection = useRecordSelection();
   const picking = selectable && selection.selecting;
+  // Swipe right to edit, left to delete (not while selecting).
+  const formLink = useFormLink();
+  const editHref = (row: HistoryRow) =>
+    row.kind === 'transfer' ? formLink('edit-transfer', { id: row.id }) : row.kind === 'transaction' ? formLink('edit-transaction', { id: row.id }) : null;
+  const swipe = (row: HistoryRow, view: ReactNode) =>
+    picking || !isSelectable(row) ? (
+      view
+    ) : (
+      <SwipeRow key={`${row.kind}-${row.id}`} label={row.name} editHref={editHref(row)} onDelete={() => selection.deleteOne(row)}>
+        {view}
+      </SwipeRow>
+    );
   const select = (row: HistoryRow) =>
     picking ? { checked: selection.isSelected(row), onToggle: () => selection.toggle(row), disabled: !isSelectable(row) } : undefined;
   const { query } = list;
@@ -77,6 +92,14 @@ export function HistoryView({
         count={shown.length}
         noun={['transaction', 'transactions']}
         stickyTop={stickyTop}
+        trailing={
+          // Select, right after Search: tick rows to delete them together.
+          selectable && shown.some(isSelectable) ? (
+            <ListQueryTool label={selection.selecting ? 'Stop selecting' : 'Select transactions'} active={selection.selecting} onClick={selection.selecting ? selection.stop : selection.start}>
+              <ListChecks size={20} strokeWidth={2} />
+            </ListQueryTool>
+          ) : undefined
+        }
       />
 
       <section className={tab.strip3} aria-label="In numbers">
@@ -106,7 +129,7 @@ export function HistoryView({
           }}
         />
       ) : asTable ? (
-        <HistoryTable rows={shown} fields={fields} query={query} setQuery={list.setQuery} currency={currency} selection={picking ? selection : null} />
+        <HistoryTable rows={shown} fields={fields} query={query} setQuery={list.setQuery} currency={currency} selection={picking ? selection : null} editHref={editHref} onDelete={selectable ? selection.deleteOne : undefined} />
       ) : groups ? (
         groups.map((g) => (
           <section key={g.key} className={tab.dayGroup}>
@@ -120,17 +143,13 @@ export function HistoryView({
               </span>
             </header>
             <div className={styles.rows}>
-              {g.rows.map((row) => (
-                <HistoryRowView key={`${row.kind}-${row.id}`} row={row} currency={currency} select={select(row)} />
-              ))}
+              {g.rows.map((row) => swipe(row, <HistoryRowView key={`${row.kind}-${row.id}`} row={row} currency={currency} select={select(row)} />))}
             </div>
           </section>
         ))
       ) : (
         <div className={`${styles.rows} ${tab.listGap}`}>
-          {shown.map((row) => (
-            <HistoryRowView key={`${row.kind}-${row.id}`} row={row} currency={currency} showDate select={select(row)} />
-          ))}
+          {shown.map((row) => swipe(row, <HistoryRowView key={`${row.kind}-${row.id}`} row={row} currency={currency} showDate select={select(row)} />))}
         </div>
       )}
     </>

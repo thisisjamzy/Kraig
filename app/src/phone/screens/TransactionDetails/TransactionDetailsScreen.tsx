@@ -14,8 +14,8 @@ import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import p from '@/src/phone/screens/Planning/Planning.module.css';
 import styles from '@/src/phone/screens/TransactionDetails/TransactionDetailsScreen.module.css';
 
-export function TransactionDetailsScreen({ id }: { id: string }) {
-  const t = useLogic(id);
+export function TransactionDetailsScreen({ id, transfer = false, assign = false }: { id: string; transfer?: boolean; assign?: boolean }) {
+  const t = useLogic(id, { transfer, assign });
   const v = t.view;
   const Icon = v?.flow === 'in' ? ArrowDownLeft : v?.flow === 'out' ? ArrowUpRight : ArrowLeftRight;
   return (

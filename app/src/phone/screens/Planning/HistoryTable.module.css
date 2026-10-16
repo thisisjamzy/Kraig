@@ -166,3 +166,89 @@
 .row[data-selected] td {
   background: var(--color-surface);
 }
+
+/* Edit and Delete at the end of a row: quiet until the row is hovered
+   or focused; always shown on touch screens. Above the row link. */
+.actionsHead {
+  width: 1%;
+}
+
+.actions {
+  position: relative;
+  z-index: 1;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.actionButtons {
+  display: inline-flex;
+  gap: 4px;
+  opacity: 0;
+}
+
+.row:hover .actionButtons,
+.row:focus-within .actionButtons {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .actionButtons {
+    opacity: 1;
+  }
+}
+
+.action {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  background: var(--color-background);
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-size-sm);
+}
+
+.confirmError {
+  max-width: 240px;
+  white-space: normal;
+  color: var(--color-danger);
+}
+
+.actionText,
+.actionDanger {
+  min-height: 32px;
+  padding: 0 10px;
+  border-radius: var(--radius-full);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.actionText {
+  border: 1px solid var(--color-border);
+  background: none;
+  color: var(--color-text-primary);
+}
+
+.actionDanger {
+  border: none;
+  background: var(--color-danger);
+  color: var(--sg-neutral-0);
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}

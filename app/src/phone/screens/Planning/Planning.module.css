@@ -334,6 +334,9 @@
 
 /* ---- History row ---- */
 .rows {
+  --swipe-bg: var(--p-card);
+  /* Clips a swiped row to the rounded corners. */
+  isolation: isolate;
   overflow: hidden;
   border-radius: 20px;
   background: var(--p-card);
@@ -368,7 +371,9 @@
   cursor: default;
 }
 
-.row + .row {
+/* Rows wrapped for swiping (src/widgets/SwipeRow) keep the divider too. */
+.row + .row,
+.rows > * + * {
   border-top: 1px solid var(--p-divider);
 }
 

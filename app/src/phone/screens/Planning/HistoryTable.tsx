@@ -8,7 +8,8 @@
 // a row opens the transaction.
 
 import Link from 'next/link';
-import { ArrowDown, ArrowUp } from 'lucide-react';
+import { useState } from 'react';
+import { ArrowDown, ArrowUp, Pencil, Trash2 } from 'lucide-react';
 import type { HistoryRow } from '@/src/logic/planning/rows';
 import { isSelectable, type RecordSelection } from '@/src/logic/planning/useRecordSelection';
 import type { FieldDef, ListQuery } from '@/src/shared/listQuery/engine';
@@ -36,6 +37,8 @@ export function HistoryTable({
   setQuery,
   currency,
   selection,
+  editHref,
+  onDelete,
 }: {
   rows: HistoryRow[];
   fields: FieldDef<HistoryRow>[];
@@ -44,7 +47,11 @@ export function HistoryTable({
   currency: string;
   /** While selecting: a tick box column first. */
   selection?: RecordSelection | null;
+  /** A last column with Edit and Delete (the card list swipes for these). */
+  editHref?: (row: HistoryRow) => string | null;
+  onDelete?: (row: HistoryRow) => Promise<void>;
 }) {
+  const actions = Boolean(editHref || onDelete) && !selection;
   const primary = query.sorts[0];
 
   function sortBy(field: string) {
@@ -92,6 +99,11 @@ export function HistoryTable({
                 </th>
               );
             })}
+            {actions && (
+              <th scope="col" className={styles.actionsHead}>
+                <span className={styles.srOnly}>Actions</span>
+              </th>
+            )}
           </tr>
         </thead>
         <tbody>
@@ -122,10 +134,64 @@ export function HistoryTable({
                 {r.kind === 'transaction' && r.amount > 0 ? '+' : r.kind === 'transaction' ? '−' : ''}
                 {money(Math.abs(r.amount))} <span className={styles.currency}>{currency}</span>
               </td>
+              {actions && (
+                <td className={styles.actions}>
+                  {isSelectable(r) && <RowActions label={r.name} editHref={editHref?.(r) ?? null} onDelete={onDelete ? () => onDelete(r) : null} />}
+                </td>
+              )}
             </tr>
           ))}
         </tbody>
       </table>
     </div>
+  );
+}
+
+/** A row's Edit and Delete; Delete asks first, in the cell. */
+function RowActions({ label, editHref, onDelete }: { label: string; editHref: string | null; onDelete: (() => Promise<void>) | null }) {
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  if (confirming) {
+    return (
+      <span className={styles.confirm}>
+        {error ? <span className={styles.confirmError}>{error}</span> : <span>Delete?</span>}
+        <button type="button" className={styles.actionText} onClick={() => (setConfirming(false), setError(null))} disabled={busy}>
+          Cancel
+        </button>
+        {!error && (
+          <button
+            type="button"
+            className={styles.actionDanger}
+            disabled={busy}
+            onClick={async () => {
+              setBusy(true);
+              try {
+                await onDelete?.();
+              } catch (err) {
+                setError(err instanceof Error ? err.message : 'Could not delete it.');
+                setBusy(false);
+              }
+            }}
+          >
+            {busy ? 'Deleting…' : 'Delete'}
+          </button>
+        )}
+      </span>
+    );
+  }
+  return (
+    <span className={styles.actionButtons}>
+      {editHref && (
+        <Link href={editHref} className={styles.action} aria-label={`Edit ${label}`} title="Edit">
+          <Pencil size={15} strokeWidth={2} />
+        </Link>
+      )}
+      {onDelete && (
+        <button type="button" className={styles.action} aria-label={`Delete ${label}`} title="Delete" onClick={() => setConfirming(true)}>
+          <Trash2 size={15} strokeWidth={2} />
+        </button>
+      )}
+    </span>
   );
 }

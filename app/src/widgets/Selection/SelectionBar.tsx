@@ -1,7 +1,8 @@
 'use client';
 
-// The History list's selection bar: "Select" until selecting; then how
-// many are selected, select all, Delete and Done; Delete asks first,
+// The History list's selection bar, while selecting (the toolbar's Select
+// icon, src/widgets/ListQuery's ListQueryTool, starts it): how many are
+// selected, select all, Delete and Done; Delete asks first,
 // inline (never a browser dialog), and the outcome stays until dismissed.
 
 import type { HistoryRow } from '@/src/logic/planning/rows';
@@ -15,6 +16,7 @@ export function SelectionBar({ selection: s, rows }: { selection: RecordSelectio
   const count = selectable.filter(s.isSelected).length;
   const all = selectable.length > 0 && count === selectable.length;
 
+  if (!s.selecting && !s.result) return null;
   return (
     <div className={styles.wrap}>
       {s.result && (
@@ -38,13 +40,7 @@ export function SelectionBar({ selection: s, rows }: { selection: RecordSelectio
         </div>
       )}
 
-      {!s.selecting ? (
-        selectable.length > 0 && (
-          <button type="button" className={styles.quiet} onClick={s.start}>
-            Select
-          </button>
-        )
-      ) : s.confirmOpen ? (
+      {!s.selecting ? null : s.confirmOpen ? (
         <div className={styles.confirm} role="alertdialog" aria-label="Delete the selected transactions">
           <p>
             Delete {plural(count)}? Each amount is taken back off its wallet and this month’s figures. This can’t be undone.

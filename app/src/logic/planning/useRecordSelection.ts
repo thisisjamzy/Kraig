@@ -1,7 +1,7 @@
 'use client';
 
 // Selecting transactions and transfers in a History list to delete them
-// together. Each one is deleted the same way as from its own page
+// together, and deleting one from a swipe. Each one is deleted the same way as from its own page
 // (aggregation.ts's deleteTransactionWithAggregation and
 // deleteTransferWithAggregation), so its amount comes back off its wallet
 // and the month's figures; one at a time, so they never contend for the
@@ -61,6 +61,14 @@ export function useRecordSelection() {
     setConfirmOpen(false);
   }
 
+  /** Deletes one row (a swipe's Delete); rejects with the reason it couldn't. */
+  async function deleteOne(row: HistoryRow) {
+    const uid = user?.uid;
+    if (!uid || !isSelectable(row)) return;
+    if (row.kind === 'transfer') await deleteTransferWithAggregation(uid, row.id);
+    else await deleteTransactionWithAggregation(uid, row.id, ctx);
+  }
+
   /** Deletes the selected rows among `rows` (what the list shows). */
   async function deleteSelected(rows: HistoryRow[]) {
     const uid = user?.uid;
@@ -103,6 +111,7 @@ export function useRecordSelection() {
     result,
     dismissResult: () => setResult(null),
     deleteSelected,
+    deleteOne,
   };
 }
 

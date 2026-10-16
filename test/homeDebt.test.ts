@@ -75,7 +75,9 @@ test('cash flow: the last 30 days in weeks, net per week', () => {
 });
 
 test('the unexplained balance reads as a sentence, not "Unaccounted for"', () => {
-  assert.equal(unexplainedText(1_947_623, fmt), 'Your account balances are 1,947,623 more than your recorded transactions explain.');
+  assert.equal(unexplainedText(1_947_623, fmt), '1,947,623 is unaccounted for: your account balances are lower than your recorded transactions explain.');
+  // More money than expected reads as a surplus, never a negative amount.
+  assert.equal(unexplainedText(-20_000, fmt), 'You have a 20,000 surplus: your account balances are higher than your recorded transactions explain.');
   assert.equal(unexplainedText(0.2, fmt), null);
 });
 

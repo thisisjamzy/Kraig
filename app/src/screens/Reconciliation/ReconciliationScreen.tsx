@@ -6,6 +6,7 @@ import { formatAmount } from '@/src/logic/walletDetail/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
+import { gapPhrase, readGap, readUnaccounted } from '@/src/viewmodels/gap';
 import { WindowPicker } from '@/src/widgets/WindowPicker/WindowPicker';
 import styles from './ReconciliationScreen.module.css';
 
@@ -54,6 +55,9 @@ export function ReconciliationScreen() {
     goBack,
     loading,
   } = useLogic();
+  const unaccounted = readUnaccounted(unaccountedBalance);
+  const checkGap = readGap(liveGap);
+  const phrase = (n: number) => gapPhrase(n, (x) => `${formatAmount(x)} ${currency}`);
   const shortDate = (d: Date) => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
   return (
@@ -72,10 +76,9 @@ export function ReconciliationScreen() {
       {!loading && (
         <>
           <div className={styles.gapCard}>
-            <span className={styles.gapLabel}>{s.unaccountedLabel}</span>
-            <span className={unaccountedBalance === 0 ? styles.gapValueZero : styles.gapValue}>
-              {unaccountedBalance > 0 ? '+' : ''}
-              {formatAmount(unaccountedBalance)} {currency}
+            <span className={styles.gapLabel}>{unaccounted.label}</span>
+            <span className={unaccounted.kind === 'missing' ? styles.gapValue : styles.gapValueZero}>
+              {formatAmount(unaccounted.amount)} {currency}
             </span>
             <p className={styles.gapExplainer}>
               {unaccountedBalance > 0 ? s.gapPositiveExplainer : unaccountedBalance < 0 ? s.gapNegativeExplainer : s.gapZeroExplainer}
@@ -85,7 +88,7 @@ export function ReconciliationScreen() {
           {justSaved && <p className={styles.savedNotice}>{s.savedNotice}</p>}
           {clearedAmount !== null && (
             <p className={styles.savedNotice}>
-              Cleared {formatAmount(clearedAmount)} {currency}. Your wallets are unchanged.
+              Cleared {phrase(clearedAmount)}. Your wallets are unchanged.
             </p>
           )}
 
@@ -93,14 +96,14 @@ export function ReconciliationScreen() {
               into or out of a wallet, and the balance audit agrees. */}
           {unaccountedBalance !== 0 && !reconcileOpen && !clearOpen && (
             <button type="button" className={styles.clearButton} onClick={openClear}>
-              Clear unaccounted balance
+              {unaccounted.kind === 'surplus' ? 'Clear surplus' : 'Clear unaccounted balance'}
             </button>
           )}
           {clearOpen && (
             <div className={styles.reconcileCard}>
-              <h2 className={styles.reconcileTitle}>Clear the unaccounted balance?</h2>
+              <h2 className={styles.reconcileTitle}>{unaccounted.kind === 'surplus' ? 'Clear the surplus?' : 'Clear the unaccounted balance?'}</h2>
               <p className={styles.reconcileHint}>
-                {formatAmount(unaccountedBalance)} {currency} is written off and the unaccounted balance goes back to 0. No money moves into or out of
+                {phrase(unaccountedBalance)} is written off and the balance goes back to 0. No money moves into or out of
                 your wallets, and checking balances will not try to put it back. Past checks stay in the history.
               </p>
               {clearError && <p className={styles.errorText}>{clearError}</p>}
@@ -116,7 +119,7 @@ export function ReconciliationScreen() {
           )}
           {lastClear && !clearOpen && (
             <p className={styles.emptyText}>
-              Last cleared {shortDate(lastClear.at)}: {formatAmount(lastClear.amount)} {currency}
+              Last cleared {shortDate(lastClear.at)}: {phrase(lastClear.amount)}
             </p>
           )}
 
@@ -181,26 +184,23 @@ export function ReconciliationScreen() {
                   {formatAmount(totalReported)} {currency}
                 </span>
               </div>
+              {/* More money than the ledger expected reads as a surplus,
+                  never as a negative gap. */}
               <div className={styles.totalsRow}>
-                <span>{s.gapLabel}</span>
-                <span className={liveGap === 0 ? undefined : styles.gapHighlight}>
-                  {liveGap > 0 ? '+' : ''}
-                  {formatAmount(liveGap)} {currency}
+                <span>{checkGap.kind === 'none' ? s.gapLabel : checkGap.label}</span>
+                <span className={checkGap.kind === 'missing' ? styles.gapHighlight : undefined}>
+                  {formatAmount(checkGap.amount)} {currency}
                 </span>
               </div>
-              {/* What was already unaccounted before this check is kept: this
-                  gap is added to it, never in place of it. */}
+              {/* What was already unaccounted for (or surplus) before this
+                  check is kept: this check's gap is added to it. */}
               <div className={styles.totalsRow}>
-                <span>Already unaccounted for</span>
-                <span>
-                  {formatAmount(unaccountedBalance)} {currency}
-                </span>
+                <span>Before this check</span>
+                <span>{phrase(unaccountedBalance)}</span>
               </div>
               <div className={styles.totalsRow}>
-                <span>Unaccounted for after this check</span>
-                <span className={unaccountedBalance + liveGap === 0 ? undefined : styles.gapHighlight}>
-                  {formatAmount(unaccountedBalance + liveGap)} {currency}
-                </span>
+                <span>After this check</span>
+                <span className={readGap(unaccountedBalance + liveGap).kind === 'missing' ? styles.gapHighlight : undefined}>{phrase(unaccountedBalance + liveGap)}</span>
               </div>
 
               {saveError && <p className={styles.errorText}>{saveError}</p>}

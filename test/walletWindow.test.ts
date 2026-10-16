@@ -93,3 +93,29 @@ test('History lists can select transactions and delete them, each through the no
   // Asks first, inline.
   assert.match(read('widgets/Selection/SelectionBar.tsx'), /can’t be undone/);
 });
+
+test('a transfer opens as a transfer from any in-app link, so it can be edited', () => {
+  const page = readFileSync(join(__dirname, '../app/app/(mobile)/transactions/[id]/page.tsx'), 'utf8');
+  assert.match(page, /transfer=\{search\.kind === 'transfer'\}/);
+  const logic = read('logic/transactionDetails/useLogic.ts');
+  assert.doesNotMatch(logic, /URLSearchParams\(window\.location/);
+  // Looked up as both, so a link without the hint still finds a transfer.
+  assert.match(logic, /uid \? transactionRef\(uid, id\) : null/);
+  assert.match(logic, /uid \? transferRef\(uid, id\) : null/);
+  // Never "not found" before sign-in has loaded.
+  assert.match(logic, /missing: !authLoading && Boolean\(uid\)/);
+  for (const p of ['logic/editTransfer/useLogic.ts', 'logic/editTransaction/useLogic.ts']) assert.match(read(p), /notFound: !authLoading && Boolean\(uid\)/, p);
+});
+
+test('rows swipe right to edit and left to delete; Select is an icon after Search', () => {
+  for (const p of ['screens/Planning/HistoryView.tsx', 'phone/screens/Planning/HistoryView.tsx']) {
+    const src = read(p);
+    assert.match(src, /<SwipeRow[^>]*editHref=\{editHref\(row\)\}[^>]*onDelete=/, p);
+    assert.match(src, /formLink\('edit-transfer'/, p);
+    assert.match(src, /trailing=\{[\s\S]*<ListQueryTool[\s\S]*<ListChecks/, p);
+  }
+  const bar = read('widgets/ListQuery/ListQueryBar.tsx');
+  assert.ok(bar.indexOf('aria-label="Search"') < bar.indexOf('{trailing}'), 'trailing tools come after Search');
+  // Wide screens: Edit and Delete at the end of each table row.
+  assert.match(read('screens/Planning/HistoryTable.tsx'), /<RowActions/);
+});
