@@ -211,6 +211,7 @@ export function writeTransactionContribution(
     bucketItem: input.bucketItem ?? null,
     createdBy: input.createdBy,
     createdAt: dateTimestamp,
+    loggedAt: serverTimestamp(),
   });
 
   if (input.isFrozenSavings) {
@@ -689,6 +690,7 @@ export async function recordTransactionExplainingUnjustifiedBalance(
       notes: '',
       createdBy: uid,
       createdAt: dateTimestamp,
+      loggedAt: serverTimestamp(),
     });
     tx.update(unjustifiedWalletRef(uid), { currentBalance: increment(-input.amount) });
     tx.update(accountRef(uid, input.accountId), { currentBalance: increment(input.amount) });
@@ -740,6 +742,7 @@ export async function recordIncomeExplainingUnjustifiedBalance(
       notes: '',
       createdBy: uid,
       createdAt: dateTimestamp,
+      loggedAt: serverTimestamp(),
     });
     tx.update(accountRef(uid, input.accountId), { currentBalance: increment(-input.amount) });
     tx.update(unjustifiedWalletRef(uid), { currentBalance: increment(input.amount) });
@@ -818,6 +821,7 @@ export function writeTransferContribution(
     notes: '',
     createdBy: input.createdBy,
     createdAt: dateTimestamp,
+    loggedAt: serverTimestamp(),
     ...(input.isHistoricBackfill ? { isHistoricBackfill: true, backfillBatchId: input.backfillBatchId ?? null } : {}),
     bucketItem: input.bucketItem ?? null,
   });
@@ -1540,6 +1544,7 @@ export async function recordBucketLineItemPayment(
         bucketItem,
         createdBy: uid,
         createdAt: dateTimestamp,
+        loggedAt: serverTimestamp(),
       });
       tx.update(accountRef(uid, input.accountId), { currentBalance: increment(-(paymentAmount + charges)) });
       tx.update(accountRef(uid, toAccountId), { currentBalance: increment(paymentAmount) });
@@ -1597,6 +1602,7 @@ export async function recordBucketLineItemPayment(
         notes: '',
         createdBy: uid,
         createdAt: at,
+        loggedAt: serverTimestamp(),
       });
       tx.update(unjustifiedWalletRef(uid), { currentBalance: increment(-paymentAmount) });
       tx.update(accountRef(uid, input.accountId), { currentBalance: increment(paymentAmount) });
@@ -1637,6 +1643,7 @@ export async function recordBucketLineItemPayment(
         notes: '',
         createdBy: uid,
         createdAt: at,
+        loggedAt: serverTimestamp(),
       });
       tx.update(accountRef(uid, input.accountId), { currentBalance: increment(-paymentAmount) });
       tx.update(unjustifiedWalletRef(uid), { currentBalance: increment(paymentAmount) });

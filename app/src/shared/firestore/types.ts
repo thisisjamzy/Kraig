@@ -146,6 +146,9 @@ export interface FirestoreTransaction {
   excludedAt?: Timestamp | null;
   createdBy: string;
   createdAt?: Timestamp;
+  // When the entry was actually logged (server time). createdAt is the
+  // entry's own date. Absent on entries logged before this existed.
+  loggedAt?: Timestamp;
   updatedAt?: Timestamp;
 }
 
@@ -171,6 +174,9 @@ export interface FirestoreTransfer {
   notes: string;
   createdBy: string;
   createdAt?: Timestamp;
+  // When the entry was actually logged (server time). createdAt is the
+  // entry's own date. Absent on entries logged before this existed.
+  loggedAt?: Timestamp;
   // Same convention as FirestoreTransaction's own isHistoricBackfill/
   // backfillBatchId — true for every occurrence a backfill spread
   // generated (a recurring Transfer, or a Savings entry backfilled as
