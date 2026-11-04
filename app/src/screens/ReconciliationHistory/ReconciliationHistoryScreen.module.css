@@ -117,3 +117,100 @@
   font-weight: 600;
   color: var(--color-text-secondary);
 }
+
+/* Reverting a check: the button under its table, and the dialog. */
+.revertButton {
+  display: block;
+  margin: var(--space-sm) var(--space-lg) var(--space-md);
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: var(--color-danger);
+  cursor: pointer;
+}
+
+.notice {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.revertBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.revertText {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.revertError {
+  margin: var(--space-sm) 0 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-danger);
+}
+
+.revertList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.75rem;
+  color: var(--color-text-primary);
+}
+
+.revertList li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: 4px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.revertMore {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.revertActions {
+  display: flex;
+  gap: var(--space-sm);
+  margin-top: var(--space-lg);
+}
+
+.keepButton,
+.confirmButton {
+  flex: 1;
+  padding: var(--space-md) var(--space-lg);
+  border-radius: var(--radius-lg);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.keepButton {
+  border: 1px solid var(--color-border);
+  background: none;
+  color: var(--color-text-primary);
+}
+
+.confirmButton {
+  border: none;
+  background: var(--color-danger);
+  color: #ffffff;
+}
+
+.confirmButton:disabled,
+.keepButton:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

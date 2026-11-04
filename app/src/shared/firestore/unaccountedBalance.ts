@@ -14,7 +14,7 @@
 // is kept on the account as balanceAdjustments, so that audit agrees with
 // it instead of proposing to undo it.
 
-import { arrayUnion, getDoc, getDocs, setDoc, writeBatch, query, where, orderBy, limit, serverTimestamp, increment, Timestamp } from 'firebase/firestore';
+import { arrayUnion, getDoc, getDocs, setDoc, writeBatch, query, where, orderBy, limit, serverTimestamp, increment, runTransaction, Timestamp } from 'firebase/firestore';
 import { getFirebaseFirestore } from '@/src/shared/config/firebaseClient';
 import {
   accountsRef,
@@ -32,10 +32,13 @@ import {
   recordIncomeExplainingUnjustifiedBalance,
   createTransferWithAggregation,
   deleteBackfillBatch as deleteBackfillBatchTransactions,
+  deleteTransactionWithAggregation,
+  deleteTransferWithAggregation,
 } from './aggregation';
 import { round2, type CurrencyContext } from './currency';
 import { adjustmentsFor, auditAccountBalances } from './reconciliation';
 import { balanceAt, endsNow, reconciliationAdjustments, walletFlows, type ReconcileWindow } from '../budget/walletWindow';
+import { checkChangesOf, planRevert, type RevertCheck, type RevertPlan } from '../budget/revertPlan';
 import type { FirestoreAccount, FirestoreTransaction, FirestoreTransfer, FirestoreReconciliation } from './types';
 import type { TRANSFER_CATEGORIES } from '../../viewmodels/categories';
 
@@ -243,6 +246,146 @@ export async function clearUnaccountedBalance(uid: string): Promise<number> {
 export async function listReconciliations(uid: string, take = 50): Promise<FirestoreReconciliation[]> {
   const snap = await getDocs(query(reconciliationsRef(uid), orderBy('performedAt', 'desc'), limit(take)));
   return snap.docs.map((d) => ({ ...d.data(), id: d.id }) as FirestoreReconciliation);
+}
+
+// ---------------------------------------------------------------------------
+// Reverting a reconciliation (src/shared/budget/revertPlan.ts): every
+// wallet back to its balance just before the check, by undoing it and
+// every later check and clear, and deleting every transaction and transfer
+// logged after it.
+// ---------------------------------------------------------------------------
+
+const toCheck = (id: string, r: FirestoreReconciliation): RevertCheck => ({
+  id,
+  performedAt: r.performedAt.toDate(),
+  reportedBalances: r.reportedBalances ?? {},
+  ledgerBalancesAtTime: r.ledgerBalancesAtTime ?? {},
+  totalGap: r.totalGap ?? 0,
+  adjustments: r.adjustments,
+});
+
+/** What reverting this check would do. Read-only. */
+export async function previewRevertReconciliation(uid: string, reconciliationId: string): Promise<RevertPlan> {
+  const targetSnap = await getDoc(reconciliationRef(uid, reconciliationId));
+  if (!targetSnap.exists()) throw new Error('This reconciliation no longer exists.');
+  const target = toCheck(targetSnap.id, targetSnap.data() as FirestoreReconciliation);
+  const after = Timestamp.fromDate(target.performedAt);
+  // Logged after: loggedAt, or the date on entries older than loggedAt.
+  // Two queries per collection, merged by id.
+  const [accountsSnap, recSnap, txByDate, txByLog, trByDate, trByLog] = await Promise.all([
+    getDocs(accountsRef(uid)),
+    getDocs(query(reconciliationsRef(uid), where('performedAt', '>=', after))),
+    getDocs(query(transactionsRef(uid), where('date', '>', after))),
+    getDocs(query(transactionsRef(uid), where('loggedAt', '>', after))),
+    getDocs(query(transfersRef(uid), where('date', '>', after))),
+    getDocs(query(transfersRef(uid), where('loggedAt', '>', after))),
+  ]);
+  const merge = <T,>(snaps: { docs: { id: string; data: () => T }[] }[]) => {
+    const out = new Map<string, T & { id: string }>();
+    for (const snap of snaps) for (const d of snap.docs) out.set(d.id, { ...d.data(), id: d.id });
+    return [...out.values()];
+  };
+  const transactions = merge<FirestoreTransaction>([txByDate, txByLog]).map((t) => ({
+    ...t,
+    date: t.date.toDate(),
+    loggedAt: t.loggedAt?.toDate() ?? null,
+  }));
+  const transfers = merge<FirestoreTransfer>([trByDate, trByLog]).map((t) => ({
+    ...t,
+    date: t.date.toDate(),
+    loggedAt: t.loggedAt?.toDate() ?? null,
+  }));
+  const accounts = accountsSnap.docs.map((d) => {
+    const a = d.data();
+    return {
+      id: d.id,
+      name: a.name,
+      currentBalance: a.currentBalance,
+      frozen: a.frozen,
+      unaccountedClears: (a.unaccountedClears ?? []).map((c) => ({ at: c.at.toDate(), amount: c.amount })),
+    };
+  });
+  const checks = recSnap.docs.map((d) => toCheck(d.id, d.data() as FirestoreReconciliation));
+  return planRevert({ target, checks, transactions, transfers, accounts, unjustifiedId: UNJUSTIFIED_WALLET_ID });
+}
+
+export interface RevertResult {
+  deleted: number;
+  checks: number;
+  skipped: number;
+}
+
+/**
+ * Reverts the check. Entries go first, one at a time through the same
+ * deletes as anywhere else (each reverses its own balance and stats
+ * effect). The checks are undone last, in one transaction, so a revert
+ * that stops part way (a locked amount, a network drop) leaves the checks
+ * in place and running it again carries on from where it stopped.
+ */
+export async function revertReconciliation(
+  uid: string,
+  reconciliationId: string,
+  ctx: CurrencyContext,
+  onProgress?: (done: number, total: number) => void
+): Promise<RevertResult> {
+  const plan = await previewRevertReconciliation(uid, reconciliationId);
+  if (plan.frozen.length > 0) {
+    const names = plan.balances.filter((b) => plan.frozen.includes(b.accountId)).map((b) => b.name);
+    throw new Error(`Unfreeze ${names.length > 0 ? names.join(', ') : 'the frozen wallets'} first: entries to delete are on them.`);
+  }
+
+  let done = 0;
+  onProgress?.(0, plan.entries.length);
+  for (const entry of plan.entries) {
+    try {
+      if (entry.kind === 'transfer') await deleteTransferWithAggregation(uid, entry.id);
+      else await deleteTransactionWithAggregation(uid, entry.id, ctx);
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : 'it could not be deleted';
+      throw new Error(
+        `Stopped at “${entry.description || entry.kind}”: ${reason} ${done} of ${plan.entries.length} entries were deleted and the reconciliation is still in place. Fix that and revert again to carry on.`
+      );
+    }
+    done += 1;
+    onProgress?.(done, plan.entries.length);
+  }
+
+  const cutoff = plan.cutoff.getTime();
+  await runTransaction(getFirebaseFirestore(), async (tx) => {
+    const checkSnaps = await Promise.all(plan.checkIds.map((id) => tx.get(reconciliationRef(uid, id))));
+    if (checkSnaps.some((snap) => !snap.exists())) throw new Error('This reconciliation was already reverted.');
+    const changes: Record<string, number> = {};
+    for (const snap of checkSnaps) {
+      for (const [id, change] of Object.entries(checkChangesOf(toCheck(snap.id, snap.data() as FirestoreReconciliation), UNJUSTIFIED_WALLET_ID))) {
+        changes[id] = round2((changes[id] ?? 0) + change);
+      }
+    }
+    const ids = [...new Set([...Object.keys(changes), UNJUSTIFIED_WALLET_ID])];
+    const accountSnaps = await Promise.all(ids.map((id) => tx.get(accountRef(uid, id))));
+
+    accountSnaps.forEach((snap, i) => {
+      if (!snap.exists()) return;
+      const id = ids[i];
+      const data = snap.data();
+      let restore = -(changes[id] ?? 0);
+      const update: Record<string, unknown> = { updatedAt: serverTimestamp() };
+      if (id === UNJUSTIFIED_WALLET_ID) {
+        const all = data.unaccountedClears ?? [];
+        const kept = all.filter((c) => c.at.toMillis() <= cutoff);
+        restore += all.filter((c) => c.at.toMillis() > cutoff).reduce((sum, c) => sum + c.amount, 0);
+        if (kept.length !== all.length) update.unaccountedClears = kept;
+      }
+      restore = round2(restore);
+      if (restore === 0 && !('unaccountedClears' in update)) return;
+      update.currentBalance = increment(restore);
+      // The audit counts these changes (balanceAdjustments), so they come off it too.
+      if (typeof data.balanceAdjustments === 'number') update.balanceAdjustments = increment(restore);
+      tx.update(snap.ref, update);
+    });
+    for (const snap of checkSnaps) tx.delete(snap.ref);
+  });
+
+  return { deleted: done, checks: plan.checkIds.length, skipped: plan.skipped.length };
 }
 
 // ---------------------------------------------------------------------------
