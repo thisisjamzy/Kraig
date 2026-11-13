@@ -9,6 +9,7 @@ import { categoryRef, bucketsRef, transactionTemplateRef, unjustifiedWalletRef }
 import { useAccounts, useCategories, useCurrencyContext } from '@/src/shared/firestore/queries';
 import { itemCurrencyOf, toDisplay } from '@/src/shared/firestore/currency';
 import { useMonthUnaccounted } from '@/src/shared/hooks/useMonthUnaccounted';
+import { useUnaccountedWallet, isUnaccountedWallet } from '@/src/shared/hooks/useUnaccountedWallet';
 import { createBucket, createBucketLineItem, createDebt, createTransferWithAggregation, recordBucketLineItemPayment } from '@/src/shared/firestore/aggregation';
 import { inferIncomeSubtype, type IncomeSubtype } from '@/src/shared/budget/flow';
 import { recordHistoricEntry } from '@/src/shared/firestore/unaccountedBalance';
@@ -264,6 +265,11 @@ export function useLogic() {
   // back out to a spendable wallet), but it can never fund a direct Expense.
   // Used below to keep it out of that one picker specifically.
   const spendableAccounts = accounts.filter((account) => !isSavingsAccount(account));
+  // "Unaccounted money" (the Unjustified wallet) can pay an expense or be
+  // the "from" side of a transfer, never receive income or a transfer.
+  const unaccountedWallet = useUnaccountedWallet();
+  const expenseAccounts = unaccountedWallet ? [...spendableAccounts, unaccountedWallet] : spendableAccounts;
+  const transferFromAccounts = unaccountedWallet ? [...accounts, unaccountedWallet] : accounts;
   const isTransfer = type === 'transfer';
   // "Moved" savings never touches a Savings envelope category — it's a
   // plain wallet-to-wallet move with a hardcoded kind — so it behaves like
@@ -595,10 +601,14 @@ export function useLogic() {
   // Where "plan it" sends them — budgets are built from bucket items now
   // (PRD-BUDGETS-V2.md), so that's Buckets, not the Budget screen.
   const budgetHref = '/baskets';
-  const accountName = (id: string) => accounts.find((account) => account.id === id)?.name ?? '';
+  const accountName = (id: string) => transferFromAccounts.find((account) => account.id === id)?.name ?? '';
 
   function selectType(key: TransactionType) {
     setType(key);
+    // Only an expense or a transfer can take money out of "Unaccounted money".
+    if (key !== 'expense' && key !== 'transfer' && isUnaccountedWallet(fromAccountId)) {
+      setFromAccountId(prefs.defaultAccountId ?? '');
+    }
     setSavingsModeState('moved');
     setCategory(key === 'savings' ? 'Wallet to savings' : '');
     setShowUnplanned(false);
@@ -694,12 +704,13 @@ export function useLogic() {
   // so only an income entry applies. Offering the toggle on the wrong
   // direction would let a well-meaning check make the gap worse instead
   // of closing it.
-  // A basket item's payment can come from it too (not a Transfer item's).
+  // An expense doesn't use the switch: it picks "Unaccounted money" as its
+  // wallet instead (paysFromUnaccounted below).
   const canExplainUnjustifiedBalance =
     !isEffectivelyTransferLike &&
     !linkedBucketItem?.isTransfer &&
     unjustifiedBalance !== 0 &&
-    (unjustifiedBalance > 0 ? type === 'expense' || type === 'savings' : type === 'income');
+    (unjustifiedBalance > 0 ? type === 'savings' : type === 'income');
   // The month the entry is dated in: what its checks recorded as
   // unaccounted. An expense dated before one of those checks most likely
   // is part of the gap it found, so it's suggested as paid from it.
@@ -709,6 +720,12 @@ export function useLogic() {
     canExplainUnjustifiedBalance && monthUnaccountedState.unaccounted > 0 && monthUnaccountedState.lastCheckAt && entryDate <= monthUnaccountedState.lastCheckAt
   );
   const explainsUnjustifiedBalance = explainsChoice ?? suggestExplains;
+  // An expense paid from "Unaccounted money" is spent straight out of the
+  // Unjustified wallet. Any other type can't use it (selectType clears it,
+  // this keeps a stale pick from ever saving).
+  const paysFromUnaccounted = type === 'expense' && isUnaccountedWallet(fromAccountId);
+  const unaccountedMisused = isUnaccountedWallet(fromAccountId) && type !== 'expense' && !isTransfer;
+  const hasSpendingAccount = fromAccountId.length > 0 && !unaccountedMisused;
 
   async function handleConfirm() {
     if (submitting) return;
@@ -785,7 +802,7 @@ export function useLogic() {
             toAccountId: linkedBucketItem.isTransfer ? toAccountId : null,
             charges: linkedBucketItem.isTransfer ? Number(chargesString) || 0 : null,
             incomeSubtype: type === 'income' ? incomeSubtype : null,
-            fromUnaccounted: canExplainUnjustifiedBalance && explainsUnjustifiedBalance,
+            fromUnaccounted: paysFromUnaccounted || (canExplainUnjustifiedBalance && explainsUnjustifiedBalance),
           },
           ctx
         );
@@ -828,7 +845,7 @@ export function useLogic() {
             isFrozenSavings: isSavingsFrozen || undefined,
             incomeSubtype: type === 'income' ? incomeSubtype : null,
           },
-          canExplainUnjustifiedBalance && explainsUnjustifiedBalance,
+          paysFromUnaccounted || (canExplainUnjustifiedBalance && explainsUnjustifiedBalance),
           ctx
         );
       }
@@ -844,7 +861,7 @@ export function useLogic() {
     (step === 'category' && category.length > 0 && description.trim().length > 0) ||
     (step === 'details' &&
       Number(amountString) > 0 &&
-      fromAccountId.length > 0 &&
+      hasSpendingAccount &&
       (!isEffectivelyTransferLike || (toAccountId.length > 0 && toAccountId !== fromAccountId))) ||
     (step === 'review' && !submitting);
 
@@ -859,7 +876,7 @@ export function useLogic() {
     category.length > 0 &&
     description.trim().length > 0 &&
     Number(amountString) > 0 &&
-    fromAccountId.length > 0 &&
+    hasSpendingAccount &&
     (!isEffectivelyTransferLike || (toAccountId.length > 0 && toAccountId !== fromAccountId));
 
   function setAmount(text: string) {
@@ -929,12 +946,18 @@ export function useLogic() {
     budgetHref,
     accounts,
     spendableAccounts,
+    /** Expense wallets, "Unaccounted money" included. */
+    expenseAccounts,
+    /** Transfer "from" wallets, "Unaccounted money" included. */
+    transferFromAccounts,
     accountPickerFor,
     setAccountPickerFor,
     fromAccountId,
     toAccountId,
     canExplainUnjustifiedBalance,
     explainsUnjustifiedBalance,
+    /** Spent straight from unaccounted money: no wallet field. */
+    paysFromUnaccounted,
     setExplainsUnjustifiedBalance: (on: boolean) => setExplainsUnjustifiedBalance(on),
     /** What the entry's month's checks recorded as unaccounted, for the switch's hint. */
     monthUnaccounted: monthUnaccountedState,

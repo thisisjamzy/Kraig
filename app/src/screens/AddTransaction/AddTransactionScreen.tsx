@@ -42,7 +42,7 @@ export function AddTransactionScreen() {
   const strings = useStrings();
   const t = strings.addTransaction;
   const v = useLogic();
-  const accountOptions = (v.type === 'expense' ? v.spendableAccounts : v.accounts).map((a) => ({ value: a.id, label: a.name }));
+  const accountOptions = (v.type === 'expense' ? v.expenseAccounts : v.type === 'transfer' ? v.transferFromAccounts : v.accounts).map((a) => ({ value: a.id, label: a.name }));
   const amount = Number(v.amountString) || 0;
   const day = v.dateValue ? new Date(`${v.dateValue}T00:00:00`) : null;
   const when = day ? ` on ${day.getDate()} ${SHORT[day.getMonth()]}` : '';

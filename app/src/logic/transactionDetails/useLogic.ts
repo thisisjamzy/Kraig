@@ -10,7 +10,7 @@ import { recordedAt } from '@/src/shared/time/recordedAt';
 import { useMemo, useState } from 'react';
 import { query } from 'firebase/firestore';
 import { useFirestoreCollection, useFirestoreDoc } from '@/src/shared/firestore/hooks';
-import { bucketsRef, transactionRef, transferRef } from '@/src/shared/firestore/refs';
+import { bucketsRef, transactionRef, transferRef, UNJUSTIFIED_WALLET_ID } from '@/src/shared/firestore/refs';
 import { useAccounts, useCategories, useCurrencyContext } from '@/src/shared/firestore/queries';
 import { toDisplay } from '@/src/shared/firestore/currency';
 import { assignTransactionToItem } from '@/src/shared/firestore/aggregation';
@@ -111,7 +111,7 @@ export function useLogic(id: string, opts: { transfer?: boolean; assign?: boolea
       type: transaction.type,
       subtype: transaction.type === 'Income' ? INCOME_SUBTYPE_LABEL[incomeSubtypeOfTransaction(transaction)] : null,
       category,
-      method: account.get(transaction.accountId)?.name ?? '',
+      method: transaction.accountId === UNJUSTIFIED_WALLET_ID ? 'Unaccounted money' : account.get(transaction.accountId)?.name ?? '',
       editHref: `/edit-transaction/${transaction.id}`,
       excluded: Boolean(transaction.excluded),
       excludedReason: transaction.excludedReason ?? '',

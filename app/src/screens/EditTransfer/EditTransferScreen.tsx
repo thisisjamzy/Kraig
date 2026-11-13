@@ -28,7 +28,8 @@ export function EditTransferScreen({ transferId }: { transferId: string }) {
     setFromAccountId,
     toAccountId,
     setToAccountId,
-    accounts,
+    fromAccounts,
+    toAccounts,
     dateValue,
     setDateValue,
     sameAccount,
@@ -51,14 +52,15 @@ export function EditTransferScreen({ transferId }: { transferId: string }) {
 
   const ready = !loading && !error && !notFound;
   const amount = Number(amountString) || 0;
-  const fromName = accounts.find((a) => a.id === fromAccountId)?.name;
-  const toName = accounts.find((a) => a.id === toAccountId)?.name;
+  const fromName = fromAccounts.find((a) => a.id === fromAccountId)?.name;
+  const toName = toAccounts.find((a) => a.id === toAccountId)?.name;
   const charges = Number(chargesString) || 0;
   const impact =
     amount > 0 && fromName && toName && !sameAccount
       ? `Moves ${Math.round(amount).toLocaleString('en-US')} from ${fromName} to ${toName}${charges ? `; ${Math.round(charges).toLocaleString('en-US')} in charges counts as an expense` : ''}.`
       : null;
-  const accountOptions = accounts.map((a) => ({ value: a.id, label: a.name }));
+  const fromOptions = fromAccounts.map((a) => ({ value: a.id, label: a.name }));
+  const toOptions = toAccounts.map((a) => ({ value: a.id, label: a.name }));
 
   return (
     <FormFrame
@@ -115,12 +117,12 @@ export function EditTransferScreen({ transferId }: { transferId: string }) {
             </FieldCard>
           </FieldRow>
           <FieldRow>
-            <SelectField label={strings.editTransfer.fromAccountLabel} value={fromAccountId} onChange={setFromAccountId} options={accountOptions} />
+            <SelectField label={strings.editTransfer.fromAccountLabel} value={fromAccountId} onChange={setFromAccountId} options={fromOptions} />
             <SelectField
               label={strings.editTransfer.toAccountLabel}
               value={toAccountId}
               onChange={setToAccountId}
-              options={accountOptions}
+              options={toOptions}
               error={sameAccount ? strings.editTransfer.sameAccountError : null}
             />
           </FieldRow>

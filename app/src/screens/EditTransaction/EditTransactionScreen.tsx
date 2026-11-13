@@ -28,7 +28,7 @@ export function EditTransactionScreen({ transactionId }: { transactionId: string
     accountId,
     setAccountId,
     accounts,
-    spendableAccounts,
+    expenseAccounts,
     dateValue,
     setDateValue,
     canSave,
@@ -49,7 +49,7 @@ export function EditTransactionScreen({ transactionId }: { transactionId: string
   } = useLogic(transactionId);
 
   const ready = !loading && !error && !notFound;
-  const shownAccounts = type === 'Expense' ? spendableAccounts : accounts;
+  const shownAccounts = type === 'Expense' ? expenseAccounts : accounts;
   const accountName = shownAccounts.find((a) => a.id === accountId)?.name;
   const amount = Number(amountString) || 0;
   const day = dateValue ? new Date(`${dateValue}T00:00:00`) : null;
