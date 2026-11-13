@@ -20,6 +20,7 @@ import { transferRef } from '@/src/shared/firestore/refs';
 import { useAccounts } from '@/src/shared/firestore/queries';
 import { updateTransferWithAggregation, deleteTransferWithAggregation } from '@/src/shared/firestore/aggregation';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
+import { useUnaccountedWallet, isUnaccountedWallet } from '@/src/shared/hooks/useUnaccountedWallet';
 import { useBucketItemOptions, bucketItemKey as linkKey } from '@/src/shared/hooks/useBucketItemOptions';
 import { TRANSFER_CATEGORIES } from '@/src/viewmodels/categories';
 import type { FirestoreTransfer } from '@/src/shared/firestore/types';
@@ -57,6 +58,12 @@ export function useLogic(transferId: string) {
   const [kind, setKind] = useState<string>(TRANSFER_CATEGORIES[0]);
   const [amountString, setAmountString] = useState('');
   const [chargesString, setChargesString] = useState('');
+  // "Unaccounted money" can be the "from" side only (a reconciliation's own
+  // transfer into it keeps it as its destination).
+  const unaccountedWallet = useUnaccountedWallet();
+  const fromAccounts = unaccountedWallet ? [...accounts, unaccountedWallet] : accounts;
+  const toAccounts =
+    unaccountedWallet && isUnaccountedWallet(original?.toAccountId) ? [...accounts, unaccountedWallet] : accounts;
   const [fromAccountId, setFromAccountId] = useState('');
   const [toAccountId, setToAccountId] = useState('');
   const [dateValue, setDateValue] = useState('');
@@ -169,7 +176,8 @@ export function useLogic(transferId: string) {
     setFromAccountId,
     toAccountId,
     setToAccountId,
-    accounts,
+    fromAccounts,
+    toAccounts,
     dateValue,
     setDateValue,
     sameAccount: fromAccountId.length > 0 && fromAccountId === toAccountId,

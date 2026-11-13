@@ -157,6 +157,8 @@ export interface CreateTransactionInput {
  * happened before this runs — Firestore transactions require all reads
  * before any writes, and this function only ever writes.
  */
+const UNACCOUNTED_NO_INCOME = 'Income can\'t be recorded into unaccounted money. Use "Explains money found in a reconciliation" with a real wallet instead.';
+
 export function writeTransactionContribution(
   tx: import('firebase/firestore').Transaction,
   uid: string,
@@ -165,6 +167,11 @@ export function writeTransactionContribution(
   ctx: CurrencyContext
 ): number {
   const signedAmount = input.direction === 'Inflow' ? input.amount : -input.amount;
+  if (input.accountId === UNJUSTIFIED_WALLET_ID && input.direction === 'Inflow') {
+    throw new Error(UNACCOUNTED_NO_INCOME);
+  }
+  // Anything spent from "Unaccounted money" explains part of the gap.
+  if (input.accountId === UNJUSTIFIED_WALLET_ID) input = { ...input, isUnjustifiedAdjustment: true };
   if (accountData?.frozen) {
     throw new Error('This wallet is frozen, unfreeze it before recording a transaction against it.');
   }
@@ -365,6 +372,18 @@ export async function updateTransactionWithAggregation(
     // whatever the doc already was, it stays (only amount/date/category/
     // account/description can move here).
     const isFrozenSavings = Boolean(before.isFrozenSavings);
+    if (input.accountId === UNJUSTIFIED_WALLET_ID && input.direction === 'Inflow') {
+      throw new Error(UNACCOUNTED_NO_INCOME);
+    }
+    // Moved onto "Unaccounted money": it now explains part of the gap.
+    // Moved off it: it no longer does (an older entry paired with a
+    // transfer through a real wallet keeps its own flag).
+    const unaccountedFlag =
+      input.accountId === UNJUSTIFIED_WALLET_ID
+        ? { isUnjustifiedAdjustment: true, pairedTransferId: null }
+        : oldAccountId === UNJUSTIFIED_WALLET_ID && !before.pairedTransferId
+          ? { isUnjustifiedAdjustment: false }
+          : {};
 
     const accountIds = Array.from(new Set([oldAccountId, input.accountId]));
     const accountSnaps = new Map(
@@ -385,6 +404,7 @@ export async function updateTransactionWithAggregation(
       signedAmount: newSignedAmount,
       month: newMonth,
       ...(input.bucketItem !== undefined ? { bucketItem: input.bucketItem } : {}),
+      ...unaccountedFlag,
       updatedAt: dateTimestamp,
     });
 
@@ -676,6 +696,13 @@ export async function recordTransactionExplainingUnjustifiedBalance(
     const accountSnap = await tx.get(accountRef(uid, input.accountId));
     const accountData = accountSnap.data();
 
+    // Spent straight from the Unjustified wallet (no real wallet chosen):
+    // the expense itself takes the money out of it, nothing to move first.
+    if (input.accountId === UNJUSTIFIED_WALLET_ID) {
+      writeTransactionContribution(tx, uid, { ...input, isUnjustifiedAdjustment: true }, accountData, ctx);
+      return;
+    }
+
     // 1. Transfer `amount` from the Unjustified wallet into the real one —
     // a credit to the real wallet, so its own locked-amount floor (which
     // only ever blocks an outflow) never applies here.
@@ -845,6 +872,9 @@ export async function createTransferWithAggregation(input: CreateTransferInput) 
   const uid = input.createdBy;
   const db = getFirebaseFirestore();
 
+  if (input.toAccountId === UNJUSTIFIED_WALLET_ID) {
+    throw new Error('Money can only be moved out of unaccounted money, not into it.');
+  }
   await runTransaction(db, async (tx) => {
     const [fromSnap, toSnap] = await Promise.all([
       tx.get(accountRef(uid, input.fromAccountId)),
@@ -895,6 +925,11 @@ export async function updateTransferWithAggregation(uid: string, input: UpdateTr
     const beforeSnap = await tx.get(transferRef(uid, input.id));
     const before = beforeSnap.data();
     if (!before) throw new Error('This transfer no longer exists.');
+    // A reconciliation's own transfer into unaccounted money stays editable;
+    // nothing else can be pointed into it.
+    if (input.toAccountId === UNJUSTIFIED_WALLET_ID && before.toAccountId !== UNJUSTIFIED_WALLET_ID) {
+      throw new Error('Money can only be moved out of unaccounted money, not into it.');
+    }
     oldLink = before.bucketItem ?? null;
     oldKind = before.kind;
     oldMonth = monthKey(before.date.toDate());
@@ -1585,9 +1620,12 @@ export async function recordBucketLineItemPayment(
     ]);
     const closes = fullyPaid && bucketSnap.data()?.kind !== 'Fixed' && !itemRepeats(lineItemSnap.data() ?? {}, bucketSnap.data());
     const unaccounted = Boolean(input.fromUnaccounted);
-    const pairedTransferId = unaccounted ? crypto.randomUUID() : null;
+    // Paid straight from the Unjustified wallet: no real wallet to route
+    // the money through, so no paired transfer.
+    const direct = unaccounted && input.accountId === UNJUSTIFIED_WALLET_ID;
+    const pairedTransferId = unaccounted && !direct ? crypto.randomUUID() : null;
     let accountData = accountSnap.data();
-    if (unaccounted && direction === 'Outflow') {
+    if (unaccounted && !direct && direction === 'Outflow') {
       // Money that came in without being recorded: from the Unjustified
       // wallet into this one first, so the payment out of it is covered.
       const at = Timestamp.fromDate(input.date);
@@ -1628,7 +1666,7 @@ export async function recordBucketLineItemPayment(
       accountData,
       ctx
     );
-    if (unaccounted && direction === 'Inflow') {
+    if (unaccounted && !direct && direction === 'Inflow') {
       // Income that was already counted in a check: out again to the
       // Unjustified wallet, so the wallet nets to no change.
       const at = Timestamp.fromDate(input.date);

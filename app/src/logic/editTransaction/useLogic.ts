@@ -20,6 +20,7 @@ import { useAccounts, useCategories, useCurrencyContext } from '@/src/shared/fir
 import { updateTransactionWithAggregation, deleteTransactionWithAggregation } from '@/src/shared/firestore/aggregation';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { isSavingsAccount } from '@/src/viewmodels/wallets';
+import { useUnaccountedWallet, isUnaccountedWallet } from '@/src/shared/hooks/useUnaccountedWallet';
 import type { FirestoreTransaction } from '@/src/shared/firestore/types';
 import { useGoBack } from '@/src/shared/navigation/useGoBack';
 import { useFormFinish } from '@/src/shared/navigation/formPeekContext';
@@ -57,6 +58,9 @@ export function useLogic(transactionId: string) {
   const spendableAccounts = accounts.filter(
     (account) => !isSavingsAccount(account) || account.id === original?.accountId
   );
+  // "Unaccounted money" can pay an expense, never receive income.
+  const unaccountedWallet = useUnaccountedWallet();
+  const expenseAccounts = unaccountedWallet ? [...spendableAccounts, unaccountedWallet] : spendableAccounts;
 
   const [description, setDescription] = useState('');
   const [type, setTypeState] = useState<EditableTransactionType>('Expense');
@@ -87,6 +91,7 @@ export function useLogic(transactionId: string) {
   function setType(nextType: EditableTransactionType) {
     setTypeState(nextType);
     setCategoryId('');
+    if (nextType !== 'Expense') setAccountId((current) => (isUnaccountedWallet(current) ? '' : current));
     if (nextType === 'Expense') {
       setAccountId((current) => {
         const account = accounts.find((a) => a.id === current);
@@ -177,7 +182,12 @@ export function useLogic(transactionId: string) {
     navigateBack('/transactions');
   }
 
-  const canSave = categoryId.length > 0 && accountId.length > 0 && Number(amountString) > 0 && !submitting;
+  const canSave =
+    categoryId.length > 0 &&
+    accountId.length > 0 &&
+    !(isUnaccountedWallet(accountId) && type !== 'Expense') &&
+    Number(amountString) > 0 &&
+    !submitting;
 
   return {
     description,
@@ -197,6 +207,7 @@ export function useLogic(transactionId: string) {
     setAccountId,
     accounts,
     spendableAccounts,
+    expenseAccounts,
     dateValue,
     setDateValue,
     canSave,
