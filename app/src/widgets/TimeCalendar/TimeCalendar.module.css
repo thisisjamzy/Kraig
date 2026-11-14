@@ -30,6 +30,7 @@
 :is(.block, .allDayItem, .pill, .slotRow, .preview)[data-kind='google'] { --k-fill: var(--sg-neutral-200); --k-accent: var(--sg-neutral-700); }
 :is(.block, .allDayItem, .pill, .slotRow, .preview)[data-kind='project'] { --k-fill: color-mix(in srgb, var(--sg-primary-dark) 12%, var(--sg-neutral-0)); --k-accent: var(--sg-primary-dark); }
 :is(.block, .allDayItem, .pill, .slotRow, .preview)[data-kind='payment'] { --k-fill: var(--sg-accent); --k-accent: var(--sg-neutral-900); }
+:is(.pill, .slotRow)[data-late] { --k-fill: var(--color-status-danger-bg); --k-accent: var(--color-status-danger-fg); }
 .muted {
   margin: 0;
   font-size: 0.875rem;
@@ -529,20 +530,15 @@
   outline-offset: -1px;
 }
 
+/* The full title, wrapped; the time sits above it. */
 .blockTitle {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  display: block;
+  min-width: 0;
   overflow-wrap: anywhere;
+  white-space: normal;
   font-weight: 500;
 }
 
-.block[data-narrow] .blockTitle {
-  display: block;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
 
 .block[data-bar] {
   padding: 0;
@@ -692,8 +688,9 @@
 
 .slotRow {
   display: flex;
-  align-items: baseline;
-  gap: 10px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
   min-height: 36px;
   padding: 6px 8px;
   border: 0;
@@ -791,11 +788,12 @@
 
 .pill {
   display: flex;
-  align-items: center;
-  gap: 4px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 1px;
   min-width: 0;
-  height: 22px;
-  padding: 0 5px;
+  min-height: 22px;
+  padding: 3px 5px;
   border: 0;
   border-left: 3px solid var(--k-accent);
   border-radius: 6px;
@@ -813,6 +811,9 @@
 }
 
 .pillTime {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   flex: none;
   color: var(--tc-muted);
   font-variant-numeric: tabular-nums;
@@ -820,9 +821,8 @@
 
 .pillText {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .monthCompact {

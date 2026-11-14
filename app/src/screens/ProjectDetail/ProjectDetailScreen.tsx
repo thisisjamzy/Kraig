@@ -14,7 +14,6 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { serverTimestamp, updateDoc } from 'firebase/firestore';
-import { Activity } from 'lucide-react';
 import { healthSentence, useProjectsDb, type ProjectRow } from '@/src/logic/projectsDb/useProjectsDb';
 import { taskItem } from '@/src/logic/timeCalendar/useLogic';
 import { useLayout } from '@/src/shared/hooks/useLayout';
@@ -24,26 +23,23 @@ import { actionableTasks } from '@/src/shared/tasks/recurringTasks';
 import { isoDay } from '@/src/viewmodels/calendarItems';
 import type { MilestoneStat } from '@/src/viewmodels/insights/metrics';
 import type { TaskRow } from '@/src/viewmodels/taskRow';
-import type { ProjectStatus } from '@/src/shared/firestore/types';
-import { Block, Callout, NotionPage } from '@/src/widgets/Database/NotionPage';
-import { ColumnBlocks, Column } from '@/src/widgets/Database/ColumnBlocks';
+import { Block, NotionPage } from '@/src/widgets/Database/NotionPage';
+import { TopBarControls } from '@/src/widgets/AppShell/TopBarSlot';
 import { Database } from '@/src/widgets/Database/Database';
 import type { ColumnDef, DefaultView } from '@/src/widgets/Database/types';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { MonthGrid } from '@/src/widgets/TimeCalendar/MonthGrid';
 import { Tag, type TagColor } from '@/src/widgets/TaskDb/Tag';
 import { taskCardSpec, taskColumns, taskGroups, taskListSpec, taskRowActions } from '@/src/widgets/TaskDb/taskDatabase';
-import { HealthTag, ProgressBar, dateRange } from '@/src/widgets/ProjectDb/projectDatabase';
 import styles from './ProjectDetailScreen.module.css';
 import { useFormLink } from '@/src/shared/navigation/useFormLink';
 import { useRouter } from 'next/navigation';
-import { NotificationsLink } from '@/src/widgets/Notifications/NotificationsLink';
 
 const ALL = ['name', 'status', 'importance', 'priority', 'type', 'date', 'time', 'start', 'end', 'project', 'area', 'timeMode', 'recurring', 'overdue', 'sync', 'created', 'completed'];
 const showOnly = (ids: string[]) => ALL.filter((id) => !ids.includes(id));
 const TASK_VIEWS: DefaultView<TaskRow>[] = [
-  { id: 'board', name: 'Board', layout: 'board', group: 'status', hidden: showOnly(['name', 'date', 'importance', 'overdue']) },
   { id: 'list', name: 'List', layout: 'list', group: 'status', hidden: showOnly(['name', 'date', 'time', 'importance', 'overdue']), collapsed: ['Done', 'Cancelled'] },
+  { id: 'board', name: 'Board', layout: 'board', group: 'status', hidden: showOnly(['name', 'date', 'importance', 'overdue']) },
   { id: 'table', name: 'Table', layout: 'table', group: 'none', hidden: showOnly(['name', 'status', 'importance', 'date', 'time', 'timeMode', 'overdue']) },
   { id: 'calendar', name: 'Calendar', layout: 'month', group: 'none' },
 ];
@@ -65,10 +61,11 @@ export function ProjectDetailScreen({ projectId }: { projectId: string }) {
   const formLink = useFormLink();
   const taskPanel = useTaskPanel();
   const { deviceClass } = useLayout();
-  const { db, rows, setDates, setStatus, loading } = useProjectsDb();
+  const { db, rows, loading } = useProjectsDb();
   const row = rows.find((r) => r.id === projectId) ?? null;
   const doc = db.projects.get(projectId);
   const [month, setMonth] = useState(() => isoDay(new Date()));
+  const [nowMs] = useState(() => Date.now());
 
   const tasks = useMemo(() => {
     const now = new Date();
@@ -84,51 +81,10 @@ export function ProjectDetailScreen({ projectId }: { projectId: string }) {
   if (loading) return <ScreenState loading />;
   if (!row || !doc) return <ScreenState error="This project no longer exists." />;
 
-  const next = row.milestones.filter((m) => m.state !== 'done').sort((a, b) => a.milestone.due.getTime() - b.milestone.due.getTime())[0] ?? null;
-  const areaOptions = db.areaDocs.filter((a) => !a.archived).map((a) => ({ value: a.id, label: a.name }));
   const uid = db.uid;
-  const setArea = async (areaId: string | null) => {
-    if (uid) await updateDoc(projectRef(uid, projectId), { areaId, updatedAt: serverTimestamp() });
-  };
-
-  const side = (
-    <>
-      <section className={styles.panel} aria-label="Health">
-        <p className={styles.panelTitle}>Health</p>
-        <HealthTag health={row.health} />
-        <p className={styles.muted}>{healthSentence(row)}</p>
-      </section>
-      <section className={styles.panel} aria-label="Progress">
-        <p className={styles.panelTitle}>Progress</p>
-        <ProgressBar row={row} />
-        <p className={styles.muted}>
-          {row.done} of {row.tasks} tasks done{row.overdue ? `, ${row.overdue} overdue` : ''}
-        </p>
-      </section>
-      <section className={styles.panel} aria-label="Next milestone">
-        <p className={styles.panelTitle}>Next milestone</p>
-        {next ? (
-          <>
-            <p className={styles.strong}>{next.milestone.name}</p>
-            <p className={styles.muted}>
-              Due {longDate(next.milestone.due)} · <Tag color={MILESTONE_COLOR[next.state]}>{sentence(next.state)}</Tag>
-            </p>
-          </>
-        ) : (
-          <p className={styles.muted}>No milestones left</p>
-        )}
-      </section>
-    </>
-  );
 
   const main = (
     <>
-      <Callout icon={<Activity size={18} strokeWidth={2} />} tone={row.health === 'At risk' ? 'bad' : row.health === 'Watch' ? 'watch' : row.health === 'On track' || row.health === 'Done' ? 'good' : undefined}>
-        <p>
-          {healthSentence(row)}
-          <NotificationsLink types={['projects_at_risk', 'milestones_at_risk']} about="projects" />
-        </p>
-      </Callout>
       <Block title="Tasks">
         <Database<TaskRow>
           id="time.project.tasks"
@@ -202,51 +158,30 @@ export function ProjectDetailScreen({ projectId }: { projectId: string }) {
         { label: row.name, href: `/projects/${projectId}` },
       ]}
       menu={[
+        { label: 'Project settings', href: formLink('project', { id: projectId }) },
         { label: 'Open project insights', href: `/projects/insights/${projectId}` },
-        { label: 'Edit project', href: formLink('project', { id: projectId }) },
       ]}
+      sub={[
+        row.areaName ? `Project in ${row.areaName}` : 'Project',
+        `${row.tasks} ${row.tasks === 1 ? 'task' : 'tasks'}, ${row.done} done`,
+        row.end ? `due ${longDate(row.end)}` : null,
+        row.health !== 'Done' ? healthSentence(row).replace(/\.$/, '') : null,
+      ]
+        .filter(Boolean)
+        .join(' · ')}
       properties={[
-        {
-          id: 'status',
-          label: 'Status',
-          edit: {
-            type: 'select',
-            value: row.status,
-            options: ['Active', 'Completed', 'Archived'].map((s) => ({ value: s, label: s })),
-            onSave: (v) => setStatus(row, v as ProjectStatus),
-          },
-        },
-        { id: 'health', label: 'Health', tone: row.health === 'At risk' ? 'bad' : row.health === 'Watch' ? 'watch' : 'good', display: row.health, sub: row.reasons[0] },
-        {
-          id: 'area',
-          label: 'Area',
-          display: row.areaName ? <Link href={`/areas/${row.areaId}`}>{row.areaName}</Link> : undefined,
-          empty: !row.areaName,
-          edit: { type: 'relation', value: row.areaId, options: [{ value: '', label: 'No area' }, ...areaOptions], onSave: (v) => setArea((v as string) || null) },
-        },
-        { id: 'dates', label: 'Dates', display: dateRange(row) ?? undefined, empty: !dateRange(row) },
-        { id: 'deadline', label: 'Deadline', edit: { type: 'date', value: row.end, onSave: (v) => setDates(row, row.start, v instanceof Date ? v : null) } },
-        { id: 'progress', label: 'Progress', progress: row.progress, sub: `${row.done} of ${row.tasks} tasks done` },
-        {
-          id: 'forecast',
-          label: 'Forecast finish',
-          tone: row.end && (!row.forecast || row.forecast > row.end) && row.health !== 'Done' ? 'watch' : 'neutral',
-          display: row.forecast ? longDate(row.forecast) : 'No finish in sight yet',
-          sub: row.end && row.forecast && row.slackDays !== null ? (row.slackDays >= 0 ? `${row.slackDays} days before the deadline` : `${-row.slackDays} days after the deadline`) : undefined,
-        },
-        { id: 'overdue', label: 'Overdue tasks', tone: row.overdue ? 'bad' : 'neutral', display: String(row.overdue) },
+        { id: 'open', label: 'Open tasks', display: String(Math.max(0, row.tasks - row.done)) },
+        { id: 'week', label: 'Due this week', display: String(tasks.filter((t) => !t.done && t.date && t.date.getTime() - nowMs < 7 * 86_400_000 && t.date.getTime() >= nowMs - 86_400_000).length) },
+        { id: 'overdue', label: 'Overdue', tone: row.overdue ? 'bad' : 'neutral', display: String(row.overdue) },
+        { id: 'progress', label: 'Progress', display: `${Math.round((row.progress ?? 0) * 100)}%`, sub: row.forecast ? `Forecast finish ${longDate(row.forecast)}` : undefined },
       ]}
     >
-      {deviceClass === 'large' ? (
-        <ColumnBlocks template="minmax(0, 1fr) 280px">
-          <Column>{main}</Column>
-          <Column sticky label="Project summary">
-            {side}
-          </Column>
-        </ColumnBlocks>
-      ) : (
-        main
-      )}
+      <TopBarControls>
+        <Link href={formLink('project', { id: projectId })} scroll={false} className={styles.headerButton}>
+          Project settings
+        </Link>
+      </TopBarControls>
+      {main}
     </NotionPage>
   );
 }

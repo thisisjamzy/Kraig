@@ -1,0 +1,90 @@
+/* The item side peek's top (Dreda.figcraft `Side peek / Item`): the type
+   chip, the name, "spent of planned" in mono, then the status callout. */
+
+.hero {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.typeChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px;
+  border-radius: 9999px;
+  background: var(--color-money-expense-bg);
+  color: var(--color-text-primary);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.typeChip[data-type='Income'] {
+  background: var(--color-money-income-bg);
+}
+
+.typeChip[data-type='Savings'] {
+  background: var(--color-money-savings-bg);
+}
+
+.typeChip[data-type='Transfer'] {
+  background: var(--color-money-transfer-bg);
+}
+
+.name {
+  margin: 0;
+  font-family: var(--font-family-heading);
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 28px;
+  color: var(--color-text-primary);
+}
+
+.figure {
+  margin: 0;
+  font-family: var(--font-family-mono);
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 32px;
+  letter-spacing: -0.5px;
+  color: var(--color-text-primary);
+}
+
+.callout {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px;
+  border: 1px solid var(--color-status-warning-border);
+  border-radius: 16px;
+  background: var(--color-status-warning-bg);
+}
+
+.callout[data-tone='danger'] {
+  border-color: var(--color-status-danger-border);
+  background: var(--color-status-danger-bg);
+}
+
+.calloutTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--color-status-warning-fg);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.callout[data-tone='danger'] .calloutTitle {
+  color: var(--color-status-danger-fg);
+}
+
+.calloutText {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: 14px;
+  line-height: 20px;
+}

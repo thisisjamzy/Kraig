@@ -6,7 +6,7 @@
 // page's filters.
 
 import Link from 'next/link';
-import { ChevronLeft, ChevronRight, Settings } from 'lucide-react';
+import { ChevronLeft, ChevronRight, History, Settings } from 'lucide-react';
 import { TrendChart } from '@/src/widgets/TrendChart/TrendChart';
 import { DonutChart } from '@/src/widgets/DonutChart/DonutChart';
 import { useLogic, formatAmount } from '@/src/logic/walletDetail/useLogic';
@@ -40,6 +40,10 @@ export function WalletDetailScreen({ walletId }: { walletId: string }) {
     committed,
     free,
     lastReconciled,
+    share,
+    untracked,
+    usage,
+    historyMonths,
   } = useLogic(walletId);
   const h = useWalletHistory(walletId);
 
@@ -85,6 +89,22 @@ export function WalletDetailScreen({ walletId }: { walletId: string }) {
 
       <ScreenState loading={loading} error={error} />
 
+      {!loading && !error && wallet && untracked && (
+        <Link href={`/wallets/${encodeURIComponent(walletId)}/audit`} className={styles.untracked}>
+          <History size={18} strokeWidth={1.75} aria-hidden className={styles.untrackedIcon} />
+          <span>
+            <strong>
+              {formatAmount(untracked.amount)} {currency} left this wallet this year with no record
+            </strong>
+            <span>
+              That is {Math.round(untracked.share * 100)}% of everything untracked this year.
+              {untracked.latestAt && untracked.latestMatched ? ' The last count matched, so the gap sits in the months before it.' : ''}
+            </span>
+          </span>
+          <ChevronRight size={16} strokeWidth={2} aria-hidden />
+        </Link>
+      )}
+
       {!loading && !error && wallet && (
         <div className={styles.figureRows}>
           <div className={styles.figureRow}>
@@ -99,6 +119,14 @@ export function WalletDetailScreen({ walletId }: { walletId: string }) {
               {formatAmount(free)} {currency}
             </span>
           </div>
+          {share && (
+            <div className={styles.figureRow}>
+              <span>Share of your money</span>
+              <span>
+                {Math.round(share.fraction * 100)}% of {share.wallets} {share.wallets === 1 ? 'wallet' : 'wallets'}
+              </span>
+            </div>
+          )}
           <div className={styles.figureRow}>
             <span>Last reconciled</span>
             <span>{lastReconciled ? lastReconciled.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Never'}</span>
@@ -142,6 +170,27 @@ export function WalletDetailScreen({ walletId }: { walletId: string }) {
               </span>
             </div>
           </div>
+
+          {[
+            { title: 'What this wallet pays for', sub: `${formatAmount(usage.out.total)} ${currency} out in the last ${historyMonths} months`, rows: usage.out.rows },
+            { title: 'Where its money comes from', sub: `${formatAmount(usage.into.total)} ${currency} in over the last ${historyMonths} months`, rows: usage.into.rows },
+          ].map((card) => (
+            <div key={card.title} className={styles.chartCard}>
+              <p className={styles.chartTitle}>{card.title}</p>
+              <p className={styles.emptyText}>{card.sub}</p>
+              <ul className={styles.usageRows}>
+                {card.rows.map((r) => (
+                  <li key={r.label}>
+                    <span className={styles.usageLabel}>{r.label}</span>
+                    <span className={styles.usageAmount}>{formatAmount(r.amount)}</span>
+                    <span className={styles.usageTrack} aria-hidden>
+                      <span className={styles.usageFill} data-kind={r.kind} style={{ width: `${Math.max(2, r.share * 100)}%` }} />
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
 
           <div className={styles.chartCard}>
             <p className={styles.chartTitle}>{strings.walletDetail.spendingTrendTitle}</p>

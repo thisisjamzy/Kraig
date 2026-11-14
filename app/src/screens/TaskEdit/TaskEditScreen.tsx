@@ -245,7 +245,7 @@ export function TaskEditScreen({ taskId, onClose }: { taskId: string | null; onC
       error={saveError}
       after={isEditing ? (
         <button type="button" className={styles.deleteLink} onClick={openDeleteConfirm}>
-              Delete task
+              Archive task
             </button>
       ) : null}
       overlays={
@@ -423,10 +423,11 @@ export function TaskEditScreen({ taskId, onClose }: { taskId: string | null; onC
 
           {deleteConfirmOpen && (
             <ConfirmDialog
-              title="Delete this task?"
-              message="It'll be removed from every list, this can't be undone."
-              confirmLabel="Delete"
+              title="Archive this task?"
+              message="It leaves every list and goes to the archive with its subtasks and notes. You can restore it from Library later."
+              confirmLabel="Archive task"
               cancelLabel="Cancel"
+              tone="neutral"
               onConfirm={confirmDelete}
               onCancel={cancelDelete}
             />

@@ -19,7 +19,7 @@ import { Modal } from '@/src/widgets/Modal/Modal';
 import { Database } from '@/src/widgets/Database/Database';
 import { Callout, NotionPage } from '@/src/widgets/Database/NotionPage';
 import { MonthPicker } from '@/src/widgets/Database/MonthPicker';
-import { formatNumber } from '@/src/widgets/Database/format';
+import { formatAmountValue } from '@/src/widgets/Database/format';
 import type { ColumnDef } from '@/src/widgets/Database/types';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { monthLabel, remaining, type Occurrence } from '@/src/viewmodels/plans/model';
@@ -94,9 +94,7 @@ function columns(v: PrioritiesLogic): ColumnDef<PriorityRow>[] {
 
 export function PrioritiesScreen() {
   const v = useLogic();
-  const router = useRouter();
-  const money = (n: number) => `${formatNumber(Math.round(n))} ${v.currency}`;
-  const open = (o: Occurrence) => router.push(itemHref(o));
+  const money = (n: number) => `${formatAmountValue(Math.round(n))} ${v.currency}`;
 
   return (
     <NotionPage
@@ -124,6 +122,20 @@ export function PrioritiesScreen() {
         { id: 'not', label: 'Not covered', display: money(v.totals.notCovered), tone: v.totals.notCovered ? 'bad' : 'neutral' },
       ]}
     >
+      <PrioritiesBody v={v} />
+    </NotionPage>
+  );
+}
+
+/**
+ * The priorities themselves: the callout, the lines to pay and their sheets.
+ * Also shown under the payments calendar on Payments (one Calendar view).
+ */
+export function PrioritiesBody({ v }: { v: PrioritiesLogic }) {
+  const router = useRouter();
+  const open = (o: Occurrence) => router.push(itemHref(o));
+  return (
+    <>
       <Callout tone={v.totals.notCovered ? 'bad' : v.totals.waiting ? 'watch' : undefined}>
         <p>
           {v.summary}
@@ -159,7 +171,7 @@ export function PrioritiesScreen() {
           list={{
             title: (r) => r.o.name,
             secondary: (r) => [r.o.bucketName, r.o.need === 'must' ? 'Must have' : null].filter(Boolean).join(' · '),
-            amount: (r) => formatNumber(r.left),
+            amount: (r) => formatAmountValue(r.left),
             status: (r) => <CoverageCell row={r} />,
           }}
           board={{
@@ -171,7 +183,7 @@ export function PrioritiesScreen() {
               }
               throw new Error('Coverage follows the money received and expected, so it can’t be changed by moving a card. Mark it paid or postpone it instead.');
             },
-            header: (key, rows) => `${formatNumber(rows.reduce((s, r) => s + r.left, 0))} ${v.currency}`,
+            header: (key, rows) => `${formatAmountValue(rows.reduce((s, r) => s + r.left, 0))} ${v.currency}`,
           }}
           rowActions={[
             { id: 'paid', label: 'Mark paid', run: (r) => v.setPaying(r.o) },
@@ -183,7 +195,7 @@ export function PrioritiesScreen() {
       )}
       {v.paying && <PaySheet v={v} item={v.paying} />}
       {v.postponing && <PostponeSheet v={v} item={v.postponing} />}
-    </NotionPage>
+    </>
   );
 }
 
@@ -191,7 +203,7 @@ function itemHref(o: Occurrence) {
   return `/budget/item/${o.bucketId}/${o.itemId}?month=${o.month}`;
 }
 
-function PaySheet({ v, item }: { v: PrioritiesLogic; item: Occurrence }) {
+export function PaySheet({ v, item }: { v: PrioritiesLogic; item: Occurrence }) {
   const wallets = v.walletsFor(item);
   const [amount, setAmount] = useState(String(Math.round(remaining(item))));
   const [account, setAccount] = useState(wallets[0]?.id ?? '');
@@ -228,7 +240,7 @@ function PaySheet({ v, item }: { v: PrioritiesLogic; item: Occurrence }) {
   );
 }
 
-function PostponeSheet({ v, item }: { v: PrioritiesLogic; item: Occurrence }) {
+export function PostponeSheet({ v, item }: { v: PrioritiesLogic; item: Occurrence }) {
   const base = item.due ?? v.today;
   const next = new Date(base.getFullYear(), base.getMonth() + 1, base.getDate());
   const [date, setDate] = useState(`${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-${String(next.getDate()).padStart(2, '0')}`);

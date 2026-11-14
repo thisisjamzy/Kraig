@@ -106,3 +106,137 @@
   font-size: 0.8125rem;
   color: var(--p-red);
 }
+
+/* ==== Dreda.figcraft `Transaction details / Phone` ==== */
+
+.topCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 24px 16px;
+  border-radius: 24px;
+  background: var(--color-bg-surface);
+  text-align: center;
+}
+
+.typeChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 9999px;
+  background: var(--color-bg-sunken);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.typeChip[data-flow='out'] {
+  background: var(--color-money-expense-bg);
+  color: var(--color-money-expense-fg);
+}
+
+.typeChip[data-flow='in'] {
+  background: var(--color-money-income-bg);
+  color: var(--color-money-income-fg);
+}
+
+.topTitle {
+  margin: 4px 0 0;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.topCard .amount {
+  margin: 0;
+  font-family: var(--font-family-mono);
+  font-size: 32px;
+  font-weight: 600;
+  letter-spacing: -0.5px;
+}
+
+.when {
+  margin: 0;
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+}
+
+.rowsCard {
+  margin: 0 0 16px;
+  padding: 4px 16px;
+  list-style: none;
+  border-radius: 20px;
+  background: var(--color-bg-surface);
+}
+
+.infoRow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 68px;
+}
+
+.infoRow + .infoRow {
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.infoIcon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--color-bg-sunken);
+  color: var(--color-text-primary);
+}
+
+.infoText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.infoText span {
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+}
+
+.infoText strong {
+  overflow: hidden;
+  font-size: 16px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.actionsRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.editPill,
+.outlinePill {
+  display: grid;
+  place-items: center;
+  height: 56px;
+  border-radius: 9999px;
+  font-size: 16px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.editPill {
+  background: var(--color-brand-default);
+  color: var(--color-brand-on);
+}
+
+.outlinePill {
+  border: 1px solid var(--color-border-default);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+}

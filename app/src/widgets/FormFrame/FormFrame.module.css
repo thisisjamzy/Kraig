@@ -146,6 +146,43 @@
   cursor: default;
 }
 
+/* Saving and Saved read as states, not as a disabled button. */
+.primary[data-phase='saving'],
+.primary[data-phase='saved'] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  opacity: 1;
+}
+
+.primary[data-phase='saving'] {
+  cursor: progress;
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: formFrameSpin 0.7s linear infinite;
+}
+
+@keyframes formFrameSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+    border-right-color: currentColor;
+    opacity: 0.6;
+  }
+}
+
 @media (min-width: 768px) {
   .primary {
     min-height: 44px;
@@ -468,26 +505,46 @@
 }
 
 /* Plain inputs inside field cards (dates, multi-line text). */
+/* A real control under its label (stacked): 52 high, sunken fill, subtle
+   border, 14px corners, body text. Amounts keep the larger 20px figure. */
 .input {
+  box-sizing: border-box;
   width: 100%;
   min-width: 0;
-  padding: 0;
-  border: none;
-  background: none;
-  color: var(--tf-text);
-  font-family: inherit;
-  font-size: 20px;
-  line-height: 1.25;
+  height: 52px;
+  padding: 0 16px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 14px;
+  background: var(--color-bg-sunken);
+  color: var(--color-text-primary);
+  font-family: var(--font-family-body);
+  font-size: 16px;
+  line-height: 24px;
   outline: none;
 }
 
+.input:focus-visible,
+.input:focus {
+  border-color: var(--color-border-focus);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-brand-default) 18%, transparent);
+}
+
 .input::placeholder {
-  color: var(--tf-placeholder);
+  color: var(--color-text-tertiary);
+}
+
+.input[inputmode='decimal'],
+.input[inputmode='numeric'] {
+  font-family: var(--font-family-mono);
+  font-size: 20px;
 }
 
 textarea.input {
-  font-size: 1rem;
-  line-height: 1.45;
+  height: auto;
+  min-height: 104px;
+  padding: 14px 16px;
+  font-size: 16px;
+  line-height: 24px;
   resize: vertical;
 }
 
@@ -513,5 +570,77 @@ textarea.input {
 
   .chip {
     border-radius: var(--radius-full);
+  }
+}
+
+/* ==== Dreda.figcraft forms (Task / New, Add transaction / Web) ==== */
+
+@media (min-width: 768px) {
+  .wideTitle {
+    font-family: var(--font-family-body);
+    font-size: 18px;
+    font-weight: 600;
+    line-height: 26px;
+  }
+
+  .primary {
+    width: auto;
+    min-width: 160px;
+    min-height: 48px;
+    padding: 0 24px;
+    border-radius: 9999px;
+    background: var(--color-brand-default);
+    color: var(--color-brand-on);
+    font-size: 15px;
+    font-weight: 600;
+    align-self: flex-end;
+  }
+
+  .primary:hover:not(:disabled) {
+    background: var(--color-brand-hover);
+  }
+
+  .primary[data-tone='danger'] {
+    background: var(--color-status-danger-solid);
+  }
+
+  .chip {
+    min-height: 36px;
+    padding: 0 14px;
+    border: 1px dashed var(--color-border-default);
+    color: var(--color-text-secondary);
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  .chip:hover {
+    border-color: var(--color-brand-default);
+    color: var(--color-brand-default);
+  }
+
+  .fieldRow {
+    gap: 12px;
+  }
+}
+
+/* Phone: the design's pill Save button and round header buttons. */
+@media (max-width: 767.98px) {
+  .primary {
+    min-height: 56px;
+    border-radius: 9999px;
+    background: var(--color-brand-default);
+    color: var(--color-brand-on);
+    font-size: 16px;
+    font-weight: 600;
+  }
+
+  .up {
+    border-radius: 50%;
+    background: var(--color-bg-surface);
+  }
+
+  .barTitle {
+    font-size: 17px;
+    font-weight: 600;
   }
 }

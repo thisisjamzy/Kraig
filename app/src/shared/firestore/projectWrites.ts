@@ -10,6 +10,7 @@ import { getDocs, query, serverTimestamp, setDoc, Timestamp, where, writeBatch }
 import { getFirebaseFirestore } from '@/src/shared/config/firebaseClient';
 import { DEFAULT_PRIORITY } from '@/src/viewmodels/projects';
 import { areaRef, projectRef, sectionRef, tasksRef } from './refs';
+import { guardWrite } from './writeGuard';
 
 // Firestore caps a batch at 500 writes.
 const BATCH_LIMIT = 450;
@@ -43,7 +44,7 @@ export async function deleteProject(uid: string, projectId: string, options: { d
 // Section): just a name, the rest as the full forms default it. Their
 // own pages fill in the rest later.
 
-export async function quickCreateProject(uid: string, name: string, color: string): Promise<string> {
+async function quickCreateProjectWrite(uid: string, name: string, color: string): Promise<string> {
   const id = crypto.randomUUID();
   const today = new Date();
   await setDoc(projectRef(uid, id), {
@@ -65,7 +66,7 @@ export async function quickCreateProject(uid: string, name: string, color: strin
   return id;
 }
 
-export async function quickCreateArea(uid: string, name: string, color: string): Promise<string> {
+async function quickCreateAreaWrite(uid: string, name: string, color: string): Promise<string> {
   const id = crypto.randomUUID();
   await setDoc(areaRef(uid, id), {
     name: name.trim(),
@@ -80,7 +81,7 @@ export async function quickCreateArea(uid: string, name: string, color: string):
   return id;
 }
 
-export async function quickCreateSection(uid: string, areaId: string, name: string, color: string): Promise<string> {
+async function quickCreateSectionWrite(uid: string, areaId: string, name: string, color: string): Promise<string> {
   const id = crypto.randomUUID();
   await setDoc(sectionRef(uid, id), {
     name: name.trim(),
@@ -94,3 +95,8 @@ export async function quickCreateSection(uid: string, areaId: string, name: stri
   });
   return id;
 }
+
+// Guarded against double submits (writeGuard.ts).
+export const quickCreateArea = guardWrite('quickCreateArea', quickCreateAreaWrite);
+export const quickCreateProject = guardWrite('quickCreateProject', quickCreateProjectWrite);
+export const quickCreateSection = guardWrite('quickCreateSection', quickCreateSectionWrite);

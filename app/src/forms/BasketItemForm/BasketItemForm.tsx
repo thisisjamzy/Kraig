@@ -17,13 +17,15 @@
 // A transfer basket's item moves money between two accounts instead: From |
 // To in place of Paid from, and Amount | Charges.
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, X } from 'lucide-react';
 import { useLogic, CUSTOM_FREQUENCIES, type ItemRepeat } from '@/src/logic/bucketDetail/useLogic';
 import { NECESSITY_LABEL, NECESSITY_OPTIONS, PRIORITY_LEVELS } from '@/src/viewmodels/projects';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { Modal } from '@/src/widgets/Modal/Modal';
+import { ConfirmDialog } from '@/src/widgets/ConfirmDialog/ConfirmDialog';
+import { showToast } from '@/src/widgets/Toast/Toast';
 import {
   FieldCard,
   FieldRow,
@@ -106,6 +108,42 @@ export function BasketItemForm({ goalId, itemId }: { goalId: string; itemId?: st
     }
   }
 
+  // Delete for good: ask first (with what it touches), then one request.
+  const [deleteAsk, setDeleteAsk] = useState<{ payments: number; budgetMoves: number } | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const deleteLock = useRef(false);
+  const itemLabel = v.itemName.trim() || 'this item';
+
+  async function askDelete() {
+    if (!itemId || deleteLock.current) return;
+    setDeleteError(null);
+    try {
+      setDeleteAsk(await v.lineItemLinks(itemId));
+    } catch (error) {
+      setDeleteError(error instanceof Error ? error.message : 'Could not check this item.');
+    }
+  }
+
+  async function confirmDelete() {
+    if (!itemId || deleteLock.current) return;
+    deleteLock.current = true;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await v.deleteLineItemPermanently(itemId);
+      setDeleteAsk(null);
+      showToast(`${itemLabel} deleted`);
+      if (exits.inPeek) exits.done();
+      else router.replace(basketHref);
+    } catch (error) {
+      setDeleteAsk(null);
+      setDeleteError(error instanceof Error ? error.message : 'Could not delete this item.');
+      deleteLock.current = false;
+      setDeleting(false);
+    }
+  }
+
   const [subName, setSubName] = useState('');
   const [subAmount, setSubAmount] = useState('');
 
@@ -168,10 +206,36 @@ export function BasketItemForm({ goalId, itemId }: { goalId: string; itemId?: st
       phoneHeader="watermark"
       impact={impact}
       primary={seeded ? { label: editing ? 'Save basket item' : 'Add basket item', disabled: !v.canSaveLineItem, busy: v.savingItem } : null}
-      onSubmit={() => void v.handleAddLineItem(exits.inPeek ? exits.done : undefined)}
-      error={v.itemError}
+      onSubmit={() => v.handleAddLineItem(exits.inPeek ? exits.done : undefined)}
+      error={v.itemError ?? deleteError}
+      after={
+        editing && seeded ? (
+          <button type="button" className={styles.deleteForGood} onClick={() => void askDelete()} disabled={deleting}>
+            {deleting ? 'Deleting…' : 'Delete basket item permanently'}
+          </button>
+        ) : undefined
+      }
       overlays={
-        v.recordedAsk ? (
+        deleteAsk ? (
+          <ConfirmDialog
+            title={`Delete ${itemLabel} for good?`}
+            message={[
+              `It goes from ${basketName} in every month, past and future. This can't be undone.`,
+              deleteAsk.payments
+                ? `${deleteAsk.payments} recorded ${deleteAsk.payments === 1 ? 'payment stays' : 'payments stay'} in your transactions, no longer linked to this item.`
+                : null,
+              deleteAsk.budgetMoves
+                ? `Budget was moved into or out of it ${deleteAsk.budgetMoves} ${deleteAsk.budgetMoves === 1 ? 'time' : 'times'}: undo those moves first.`
+                : null,
+            ]
+              .filter(Boolean)
+              .join(' ')}
+            confirmLabel={deleting ? 'Deleting…' : 'Delete permanently'}
+            cancelLabel="Keep it"
+            onConfirm={() => void confirmDelete()}
+            onCancel={() => !deleting && setDeleteAsk(null)}
+          />
+        ) : v.recordedAsk ? (
           <Modal title="Also update this month's recorded payment?" onClose={() => void v.answerRecorded(false)}>
             <p className={ff.hint}>{v.recordedAsk.name} already has a payment recorded this month. It keeps its amount unless you update it.</p>
             <div className={styles.choiceButtons}>

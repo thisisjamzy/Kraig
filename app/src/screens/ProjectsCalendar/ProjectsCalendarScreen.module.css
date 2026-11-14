@@ -84,3 +84,86 @@
   font-size: 0.875rem;
   cursor: pointer;
 }
+
+/* Scheduling links promo, under the calendars (Calendar / Web / Week). */
+.promo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 12px;
+  padding: 14px;
+  border-radius: var(--radius-card);
+  background: var(--color-brand-soft);
+  color: var(--color-text-primary);
+  text-decoration: none;
+}
+
+.promoTitle {
+  color: var(--color-brand-subtle-fg);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.promoText {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  line-height: 16px;
+}
+
+/* ==== Dreda.figcraft Calendar / Web / Week ==== */
+
+.headerButton {
+  display: inline-flex;
+  align-items: center;
+  height: 44px;
+  padding: 0 18px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 9999px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.headerButton:hover {
+  background: var(--color-bg-sunken);
+}
+
+.kindTabs {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  padding: 0 12px;
+  border-radius: 16px;
+  background: var(--color-bg-surface);
+}
+
+.kindTabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.kindTabs button[aria-selected='true'] {
+  border-bottom-color: var(--color-brand-default);
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+.kindTabs button span {
+  color: var(--color-text-tertiary);
+  font-weight: 500;
+}

@@ -16,13 +16,12 @@
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { HandCoins } from 'lucide-react';
 import { useLogic } from '@/src/logic/debtsList/useLogic';
 import { WALLET_EFFECT_LABEL } from '@/src/shared/debt/walletEffect';
 import { useDebtForms } from '@/src/shared/navigation/useDebtForms';
 import { useAmountsHidden, HIDDEN_AMOUNT } from '@/src/shared/hooks/usePrivacy';
 import { debtSentence } from '@/src/viewmodels/debt';
-import { Callout, NotionPage } from '@/src/widgets/Database/NotionPage';
+import { NotionPage } from '@/src/widgets/Database/NotionPage';
 import { ChartBlock } from '@/src/widgets/Database/ChartBlock';
 import { MasonryGrid } from '@/src/widgets/Database/MasonryGrid';
 import { Database } from '@/src/widgets/Database/Database';
@@ -33,7 +32,6 @@ import { Money, formatMoney } from '@/src/widgets/Money/Money';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { Tag, type TagColor } from '@/src/widgets/TaskDb/Tag';
 import styles from './DebtsListScreen.module.css';
-import { NotificationsLink } from '@/src/widgets/Notifications/NotificationsLink';
 import { styleGuide } from '@/src/styles/tokens/styleGuide';
 
 type DebtRow = ReturnType<typeof useLogic>['debts'][number];
@@ -60,7 +58,6 @@ export function DebtsListScreen() {
     [v.debts]
   );
   const nextLate = next ? next.nextPaymentDate! < new Date(today.getFullYear(), today.getMonth(), today.getDate()) : false;
-  const sentence = debtSentence(s.totalDebt, next ? { name: next.name, amount: next.nextPaymentAmount, date: next.nextPaymentDate! } : null, today, fmt);
 
   const columns: ColumnDef<DebtRow>[] = [
     { id: 'name', label: 'Name', type: 'text', width: 200, value: (d) => d.name },
@@ -127,44 +124,57 @@ export function DebtsListScreen() {
   return (
     <NotionPage
       title="Debt"
-      icon={<HandCoins strokeWidth={1.75} />}
+      sub={debtSentence(s.totalDebt, next ? { name: next.name, amount: next.nextPaymentAmount, date: next.nextPaymentDate! } : null, today, fmt)}
       crumbs={[{ label: 'Money', href: '/home' }, { label: 'Debt', href: '/debts' }]}
       menu={[{ label: 'New debt', href: forms.hrefFor('new') }]}
       properties={[
-        { id: 'owed', label: 'Total owed', tone: s.totalDebt > 0 ? 'bad' : 'good', display: <Money value={s.totalDebt} currency={v.currency} /> },
-        { id: 'cash', label: 'Owed (cash debts)', tone: s.byType.cash > 0 ? 'bad' : 'neutral', display: <Money value={s.byType.cash} />, sub: 'Counts in your balances' },
-        { id: 'existing', label: 'Owed (record only)', display: <Money value={s.byType.existing} />, sub: 'Not in your balances' },
-        { id: 'high', label: 'High priority', tone: s.byPriority.high > 0 ? 'watch' : 'neutral', display: <Money value={s.byPriority.high} /> },
+        { id: 'owed', label: `You owe · ${s.debtCount} ${s.debtCount === 1 ? 'debt' : 'debts'}`, tone: s.totalDebt > 0 ? 'bad' : 'good', display: <Money value={s.totalDebt} />, sub: `${fmt(s.byType.cash)} counts in your balances` },
         {
           id: 'next',
           label: 'Next payment',
           tone: nextLate ? 'bad' : 'neutral',
-          display: next ? shortDate(next.nextPaymentDate) : 'No plan set',
-          sub: next ? (
-            <>
-              {next.nextPaymentAmount ? <Money value={next.nextPaymentAmount} /> : null} to {next.name}
-              {nextLate ? ', late' : ''}
-            </>
-          ) : undefined,
+          display: next?.nextPaymentAmount ? <Money value={next.nextPaymentAmount} /> : next ? shortDate(next.nextPaymentDate) : 'No plan set',
+          sub: next ? `${next.name}, ${shortDate(next.nextPaymentDate)}${nextLate ? ', late' : ''}` : 'Add a payment plan to a debt',
         },
-        { id: 'repaidYear', label: 'Repaid this year', tone: 'good', display: <Money value={v.repaidThisYear} /> },
-        { id: 'borrowedYear', label: 'Borrowed this year', tone: 'in', display: <Money value={v.borrowedThisYear} /> },
-        { id: 'count', label: 'Debts', display: String(s.debtCount) },
-        { id: 'borrowedAll', label: 'Borrowed (all time)', display: <Money value={s.totalFinanced} /> },
-        { id: 'repaidAll', label: 'Repaid (all time)', display: <Money value={s.totalRefunded} /> },
+        { id: 'repaidYear', label: 'Repaid this year', display: <Money value={v.repaidThisYear} />, sub: `${fmt(s.totalRefunded)} repaid all time` },
+        { id: 'borrowedYear', label: 'Borrowed this year', display: <Money value={v.borrowedThisYear} />, sub: `${fmt(s.totalFinanced)} borrowed all time` },
       ]}
     >
       {v.loading ? (
         <ScreenState loading />
       ) : (
         <>
-          <Callout tone={nextLate ? 'bad' : s.totalDebt > 0 ? 'watch' : 'good'}>
-            <p>
-              {sentence}
-              <NotificationsLink types={['debt_payment_due', 'debt_payment_late']} about="debts" />
-            </p>
-          </Callout>
 
+          <Database<DebtRow>
+            id="money.debts"
+            label="Debts"
+            noun={['debt', 'debts']}
+            rows={v.debts}
+            rowKey={(d) => d.id}
+            columns={columns}
+            views={[
+              { id: 'table', name: 'Table', layout: 'table' },
+              { id: 'cards', name: 'Cards', layout: 'cards' },
+            ]}
+            groups={[
+              { id: 'priority', label: 'Priority', key: (d) => ({ key: d.priority, label: PRIORITY_LABEL[d.priority] }), order: ['high', 'medium', 'low'] },
+              { id: 'type', label: 'Type', key: (d) => ({ key: d.debtType, label: WALLET_EFFECT_LABEL[d.debtType] }) },
+            ]}
+            defaultGroup="none"
+            subtotalColumn="balance"
+            currency={v.currency}
+            card={{ title: (d) => d.name, progress: (d) => ({ value: d.percent / 100 }) }}
+            rowActions={[
+              { id: 'repay', label: 'Record a repayment', show: (d) => d.balance > 0, run: (d) => forms.open('repay', d.id) },
+              { id: 'plan', label: 'Payment plan', run: (d) => forms.open('plan', d.id) },
+              { id: 'wallet', label: 'Change wallet effect', run: (d) => forms.open('wallet', d.id) },
+              { id: 'archive', label: 'Archive', run: (d) => setArchiving(d) },
+            ]}
+            onOpen={(d) => router.push(`/debts/${d.id}`)}
+            onNew={() => forms.open('new')}
+            newLabel="New debt"
+            emptyText="No debts. Nice."
+          />
           {v.debts.length > 0 && (
             <div className={styles.charts}>
               <MasonryGrid
@@ -229,36 +239,6 @@ export function DebtsListScreen() {
             </div>
           )}
 
-          <Database<DebtRow>
-            id="money.debts"
-            label="Debts"
-            noun={['debt', 'debts']}
-            rows={v.debts}
-            rowKey={(d) => d.id}
-            columns={columns}
-            views={[
-              { id: 'table', name: 'Table', layout: 'table' },
-              { id: 'cards', name: 'Cards', layout: 'cards' },
-            ]}
-            groups={[
-              { id: 'priority', label: 'Priority', key: (d) => ({ key: d.priority, label: PRIORITY_LABEL[d.priority] }), order: ['high', 'medium', 'low'] },
-              { id: 'type', label: 'Type', key: (d) => ({ key: d.debtType, label: WALLET_EFFECT_LABEL[d.debtType] }) },
-            ]}
-            defaultGroup="none"
-            subtotalColumn="balance"
-            currency={v.currency}
-            card={{ title: (d) => d.name, progress: (d) => ({ value: d.percent / 100 }) }}
-            rowActions={[
-              { id: 'repay', label: 'Record a repayment', show: (d) => d.balance > 0, run: (d) => forms.open('repay', d.id) },
-              { id: 'plan', label: 'Payment plan', run: (d) => forms.open('plan', d.id) },
-              { id: 'wallet', label: 'Change wallet effect', run: (d) => forms.open('wallet', d.id) },
-              { id: 'archive', label: 'Archive', run: (d) => setArchiving(d) },
-            ]}
-            onOpen={(d) => router.push(`/debts/${d.id}`)}
-            onNew={() => forms.open('new')}
-            newLabel="New debt"
-            emptyText="No debts. Nice."
-          />
         </>
       )}
       {archiving && (

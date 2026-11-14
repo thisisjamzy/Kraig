@@ -24,6 +24,7 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { ArrowLeft, Check, ChevronDown, Maximize2, X } from 'lucide-react';
 import { useLayout } from '@/src/shared/hooks/useLayout';
+import { useSubmitState } from '@/src/shared/hooks/useSubmitState';
 import { FormPeekContext, useFormPeek, type FormPeekState } from '@/src/shared/navigation/formPeekContext';
 import cf from '@/src/widgets/CardForm/CardForm.module.css';
 import styles from './FormFrame.module.css';
@@ -56,6 +57,8 @@ export interface PrimaryAction {
   disabled?: boolean;
   busy?: boolean;
   busyLabel?: string;
+  /** Shown for a moment once the save is done: "Saved". */
+  doneLabel?: string;
   tone?: 'danger';
 }
 
@@ -81,7 +84,8 @@ export function FormFrame({
   /** The Impact card's body, when money changes. */
   impact?: ReactNode;
   primary: PrimaryAction | null;
-  onSubmit: () => void;
+  /** Return the save's promise: the button stays locked until it settles. */
+  onSubmit: () => unknown;
   /** A save error, shown above the button. */
   error?: string | null;
   /** Under the primary button: secondary actions such as Delete. */
@@ -94,14 +98,44 @@ export function FormFrame({
   const peek = useFormPeek();
   const close = peek ? peek.close : onClose;
 
+  // Idle, saving (locked), saved. A double click or Enter plus a click
+  // starts one save, never two (shared/hooks/useSubmitState.ts).
+  const submitState = useSubmitState();
+  const { reset } = submitState;
+  useEffect(() => {
+    if (error) reset();
+  }, [error, reset]);
+  const phase = error && submitState.phase === 'saved' ? 'idle' : submitState.phase;
+  const saving = phase === 'saving' || Boolean(primary?.busy);
+
   function submit(event: FormEvent) {
     event.preventDefault();
-    if (primary && !primary.disabled && !primary.busy) onSubmit();
+    if (!primary || primary.disabled || saving || phase === 'saved') return;
+    void submitState.run(onSubmit).catch(() => undefined);
   }
 
   const button = primary && (
-    <button type="submit" className={styles.primary} data-tone={primary.tone} disabled={Boolean(primary.disabled || primary.busy)}>
-      {primary.busy ? (primary.busyLabel ?? 'Saving…') : primary.label}
+    <button
+      type="submit"
+      className={styles.primary}
+      data-tone={primary.tone}
+      data-phase={saving ? 'saving' : phase}
+      aria-busy={saving || undefined}
+      disabled={Boolean(primary.disabled || saving || phase === 'saved')}
+    >
+      {saving ? (
+        <>
+          <span className={styles.spinner} aria-hidden />
+          {primary.busyLabel ?? 'Saving…'}
+        </>
+      ) : phase === 'saved' ? (
+        <>
+          <Check size={18} strokeWidth={2.5} aria-hidden />
+          {primary.doneLabel ?? 'Saved'}
+        </>
+      ) : (
+        primary.label
+      )}
     </button>
   );
   const body = (
@@ -352,26 +386,10 @@ export function SelectField({
 export function ListSelectField(props: Parameters<typeof SelectField>[0]) {
   const { isWide } = useLayout();
   const [open, setOpen] = useState(false);
-  useEffect(() => {
-    if (!open) return;
-    const before = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
-    window.addEventListener('keydown', onKey);
-    return () => {
-      document.body.style.overflow = before;
-      window.removeEventListener('keydown', onKey);
-    };
-  }, [open]);
   if (isWide) return <SelectField {...props} />;
   const { label, value, onChange, options = [], groups, placeholder, error } = props;
   const all = [...options, ...(groups ?? []).flatMap((g) => g.options)];
   const chosen = all.find((o) => o.value === value);
-  const sections = [{ label: '', options }, ...(groups ?? [])].filter((g) => g.options.length);
-  const pick = (next: string) => {
-    onChange(next);
-    setOpen(false);
-  };
   return (
     <>
       <button type="button" className={`${cf.card} ${cf.pickerCard} ${styles.listTrigger}`} data-invalid={error ? '' : undefined} onClick={() => setOpen(true)} aria-haspopup="dialog">
@@ -384,32 +402,74 @@ export function ListSelectField(props: Parameters<typeof SelectField>[0]) {
         </span>
         <ChevronDown size={22} strokeWidth={1.5} className={cf.chevron} aria-hidden />
       </button>
-      {open &&
-        createPortal(
-          <div className={styles.listSheet} role="dialog" aria-modal="true" aria-label={label}>
-            <div className={styles.listHead}>
-              <h2 className={styles.listTitle}>{label}</h2>
-              <button type="button" className={styles.listClose} onClick={() => setOpen(false)} aria-label="Close">
-                <X size={20} strokeWidth={2} />
-              </button>
-            </div>
-            <div className={styles.listBody}>
-              {sections.map((section) => (
-                <div key={section.label || 'options'} className={styles.listGroup}>
-                  {section.label && <p className={styles.listGroupLabel}>{section.label}</p>}
-                  {section.options.map((o) => (
-                    <button key={o.value} type="button" className={styles.listOption} aria-pressed={o.value === value} onClick={() => pick(o.value)}>
-                      <span>{o.label}</span>
-                      {o.value === value && <Check size={18} strokeWidth={2.25} aria-hidden />}
-                    </button>
-                  ))}
-                </div>
-              ))}
-            </div>
-          </div>,
-          document.body
-        )}
+      {open && <ListSheet label={label} value={value} options={options} groups={groups} onPick={onChange} onClose={() => setOpen(false)} />}
     </>
+  );
+}
+
+/**
+ * The phone's full-screen list for a long choice (a basket, a basket item):
+ * full width and height, padded past the notch and the home indicator,
+ * scrolling on its own so every option can be reached.
+ */
+export function ListSheet({
+  label,
+  value,
+  options = [],
+  groups,
+  onPick,
+  onClose,
+}: {
+  label: string;
+  value: string;
+  options?: SelectOption[];
+  groups?: { label: string; options: SelectOption[] }[];
+  onPick: (next: string) => void;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const before = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = before;
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [onClose]);
+  const sections = [{ label: '', options }, ...(groups ?? [])].filter((g) => g.options.length);
+  return createPortal(
+    <div className={styles.listSheet} role="dialog" aria-modal="true" aria-label={label}>
+      <div className={styles.listHead}>
+        <h2 className={styles.listTitle}>{label}</h2>
+        <button type="button" className={styles.listClose} onClick={onClose} aria-label="Close">
+          <X size={20} strokeWidth={2} />
+        </button>
+      </div>
+      <div className={styles.listBody}>
+        {sections.map((section) => (
+          <div key={section.label || 'options'} className={styles.listGroup}>
+            {section.label && <p className={styles.listGroupLabel}>{section.label}</p>}
+            {section.options.map((o) => (
+              <button
+                key={o.value}
+                type="button"
+                className={styles.listOption}
+                aria-pressed={o.value === value}
+                onClick={() => {
+                  onPick(o.value);
+                  onClose();
+                }}
+              >
+                <span>{o.label}</span>
+                {o.value === value && <Check size={18} strokeWidth={2.25} aria-hidden />}
+              </button>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>,
+    document.body
   );
 }
 

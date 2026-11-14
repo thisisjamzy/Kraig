@@ -339,3 +339,65 @@
 .menuRow:hover {
   background: color-mix(in srgb, var(--sg-neutral-800) 6%, transparent);
 }
+
+/* ==== Dreda.figcraft Task / Detail panel ==== */
+
+.backdrop {
+  background: color-mix(in srgb, var(--color-text-primary) 30%, transparent);
+}
+
+.peek {
+  width: min(560px, 100vw);
+  border-left: 0;
+  background: var(--color-bg-surface);
+  box-shadow: -12px 0 40px color-mix(in srgb, var(--sg-neutral-900) 12%, transparent);
+}
+
+.peekBar {
+  background: var(--color-bg-surface);
+}
+
+.title {
+  font-family: var(--font-family-body);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.quickActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.markDone {
+  height: 44px;
+  padding: 0 22px;
+  border: 0;
+  border-radius: 9999px;
+  background: var(--color-brand-default);
+  color: var(--color-brand-on);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.markDone:hover {
+  background: var(--color-brand-hover);
+}
+
+.statusChip {
+  padding: 4px 10px;
+  border-radius: 9999px;
+  background: var(--color-status-info-bg);
+  color: var(--color-status-info-fg);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.block {
+  border-radius: 14px;
+}

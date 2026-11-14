@@ -11,6 +11,7 @@
 //   4. Confirm: the summary and "Import".
 // Then progress, and the result with its report and Undo.
 
+import { useSubmitState } from '@/src/shared/hooks/useSubmitState';
 import { useRef, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { FileSpreadsheet, Upload } from 'lucide-react';
@@ -71,17 +72,19 @@ export function ImportProjectsForm({
   );
 }
 
-function Primary({ label, disabled, onSubmit }: { label: string; disabled?: boolean; onSubmit: () => void }) {
+function Primary({ label, disabled, onSubmit }: { label: string; disabled?: boolean; onSubmit: () => unknown }) {
+  // Locked while the step's work runs: a double click imports once.
+  const { phase, run } = useSubmitState();
   return (
     <form
       className={styles.footer}
       onSubmit={(e: FormEvent) => {
         e.preventDefault();
-        if (!disabled) onSubmit();
+        if (!disabled && phase === 'idle') void run(onSubmit).catch(() => undefined);
       }}
     >
-      <button type="submit" className={styles.primary} disabled={disabled}>
-        {label}
+      <button type="submit" className={styles.primary} disabled={disabled || phase !== 'idle'} aria-busy={phase === 'saving' || undefined}>
+        {phase === 'saving' ? 'Working…' : label}
       </button>
     </form>
   );
@@ -493,7 +496,7 @@ function ConfirmStep({ v }: { v: ProjectImport }) {
       <button type="button" className={styles.secondary} onClick={() => v.setStep('review')}>
         Back to the review
       </button>
-      <Primary label="Import" disabled={blocked} onSubmit={() => void v.runImport()} />
+      <Primary label="Import" disabled={blocked} onSubmit={() => v.runImport()} />
     </div>
   );
 }

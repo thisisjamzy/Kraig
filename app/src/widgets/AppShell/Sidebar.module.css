@@ -1,148 +1,124 @@
-/* Sidebar, page tree, search palette (medium screens and up; the page tree
-   and menus are also used by the phone's More sheet). Notion's look: a
-   light neutral panel, 30px rows, 14px muted text, grey hover, a slightly
-   darker grey for the current page. No pills, no radius on the panel. */
+/* Sidebar and page tree (medium screens and up; the page tree and menus are
+   also used by the phone's More sheet), drawn from Dreda.figcraft
+   `Sidebar / Web` and `Sidebar / Time`: a white card with a 20px radius,
+   36px rows with 20px icons, the current page on the selected tint. */
 
 .sidebar,
 .tree,
 .palette,
 .menu {
-  --sb-bg: var(--sg-neutral-100);
-  --sb-line: var(--sg-neutral-200);
-  --sb-text: var(--sg-neutral-800);
-  --sb-muted: var(--sg-neutral-600);
-  --sb-faint: var(--sg-neutral-400);
-  --sb-hover: color-mix(in srgb, var(--sg-neutral-800) 6%, transparent);
-  --sb-active: color-mix(in srgb, var(--sg-neutral-800) 10%, transparent);
+  --sb-bg: var(--color-bg-surface);
+  --sb-line: var(--color-border-subtle);
+  --sb-text: var(--color-text-primary);
+  --sb-muted: var(--color-text-secondary);
+  --sb-faint: var(--color-text-tertiary);
+  --sb-hover: var(--color-bg-sunken);
+  --sb-active: var(--color-bg-selected);
 }
+
 .sidebar {
   position: relative;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  height: 100dvh;
-  padding-top: var(--safe-top);
+  height: calc(100dvh - 32px);
+  margin: 16px 0 16px 16px;
+  padding: 16px 12px 12px;
   background: var(--sb-bg);
-  border-right: 1px solid var(--sb-line);
+  border-radius: 20px;
   color: var(--sb-muted);
   font-family: var(--font-family-body);
   font-size: 14px;
 }
 
 .sidebar[data-variant='floating'] {
-  height: calc(100dvh - 88px);
-  margin-top: 44px;
-  border: 1px solid var(--sb-line);
-  box-shadow: 0 8px 28px color-mix(in srgb, var(--sg-neutral-900) 12%, transparent);
+  box-shadow: 0 8px 28px color-mix(in srgb, var(--color-text-primary) 12%, transparent);
 }
 
 .sidebar[data-variant='overlay'] {
-  box-shadow: 8px 0 28px color-mix(in srgb, var(--sg-neutral-900) 18%, transparent);
+  box-shadow: 8px 0 28px color-mix(in srgb, var(--color-text-primary) 18%, transparent);
 }
 
 .top {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 8px 8px 4px;
+  justify-content: space-between;
+  padding: 0 0 8px;
 }
 
-.switcher {
+.logo {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 1;
-  min-width: 0;
-  height: 32px;
-  padding: 0 8px;
-  border: 0;
-  border-radius: 4px;
-  background: none;
-  color: var(--sb-text);
-  font: inherit;
-  font-weight: 600;
-  cursor: pointer;
+  border-radius: 10px;
 }
 
-.switcherLabel {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.logo img {
+  display: block;
+  width: 113px;
+  height: 48px;
+  object-fit: contain;
+  object-position: left center;
 }
 
 .collapse {
   display: grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border: 0;
-  border-radius: 6px;
-  background: none;
-  color: var(--sb-faint);
-  opacity: 0;
+  border-radius: 8px;
+  background: var(--color-bg-sunken);
+  color: var(--color-text-primary);
   cursor: pointer;
-  transition: opacity 120ms ease;
-}
-
-.sidebar:hover .collapse,
-.collapse:focus-visible,
-.sidebar[data-touch] .collapse {
-  opacity: 1;
 }
 
 .scroll {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 4px 8px 12px;
 }
 
-.quick {
-  display: flex;
-  flex-direction: column;
-  margin-bottom: 12px;
-}
-
-.quickRow,
+/* One nav row: 36px, 12px gap, 20px icon, 14px semibold label. */
+.navRow,
 .row {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   width: 100%;
-  min-height: 30px;
-  padding: 0 8px;
+  box-sizing: border-box;
+  min-height: 36px;
+  padding: 0 10px 0 12px;
   border: 0;
   border-radius: 10px;
   background: none;
   color: var(--sb-muted);
   font: inherit;
   font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
   text-align: left;
   text-decoration: none;
   cursor: pointer;
 }
 
-.row {
-  padding: 0 4px 0 8px;
-}
-
 .row[data-depth='1'] {
-  padding-left: 30px;
+  padding-left: 44px;
+  font-weight: 500;
 }
 
 .rowLink {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   flex: 1;
   min-width: 0;
-  min-height: 30px;
+  min-height: 36px;
   color: inherit;
   text-decoration: none;
 }
 
-.sidebar[data-touch] .quickRow,
+.sidebar[data-touch] .navRow,
 .sidebar[data-touch] .row,
 .sidebar[data-touch] .rowLink,
 .tree[data-touch] .row {
@@ -150,28 +126,22 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .quickRow:hover,
+  .navRow:hover,
   .row:hover,
-  .switcher:hover,
+  .profile:hover,
   .collapse:hover {
     background: var(--sb-hover);
   }
 }
 
-.quickRow[aria-current='page'],
+.navRow[aria-current='page'],
 .row[data-active] {
   background: var(--sb-active);
-  color: var(--sb-text);
-  font-weight: 500;
+  color: var(--color-brand-subtle-fg);
 }
 
 .rowGlyph {
   flex: none;
-  color: var(--sb-faint);
-}
-
-.row[data-active] .rowGlyph,
-.quickRow[aria-current='page'] .rowGlyph {
   color: var(--sb-text);
 }
 
@@ -192,26 +162,26 @@
 .count {
   min-width: 18px;
   padding: 0 6px;
-  border-radius: 9px;
-  background: var(--color-brand);
-  color: #fff;
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 18px;
+  border-radius: 9999px;
+  background: var(--color-status-danger-solid);
+  color: var(--color-status-danger-on);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 20px;
   text-align: center;
 }
 
-/* Expand caret: replaces the icon's place on hover (Notion), always on touch. */
+/* Expand caret: takes the icon's place on hover, always on touch. */
 .caret {
   position: absolute;
-  left: 6px;
+  left: 10px;
   display: grid;
   place-items: center;
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   border: 0;
   border-radius: 6px;
-  background: var(--sb-bg);
+  background: var(--sb-hover);
   color: var(--sb-muted);
   opacity: 0;
   cursor: pointer;
@@ -251,10 +221,10 @@
 .rowIcon {
   display: grid;
   place-items: center;
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   border: 0;
-  border-radius: 4px;
+  border-radius: 6px;
   background: none;
   color: var(--sb-faint);
   cursor: pointer;
@@ -271,25 +241,77 @@
 }
 
 .tree {
-  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 0 4px;
 }
 
 .sectionLabel {
   margin: 0;
-  padding: 6px 8px 4px;
-  font-size: 12px;
+  padding: 0 12px;
+  font-size: 11px;
   font-weight: 600;
+  line-height: 16px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
   color: var(--sb-faint);
+}
+
+/* Top projects: the heading with All on the right, then dot, name, count. */
+.sectionLabelRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.sectionLink {
+  color: var(--color-brand-default);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  text-decoration: none;
+}
+
+.projectDot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin: 0 6px;
+  border-radius: 50%;
+}
+
+.row[data-project] {
+  font-weight: 500;
+}
+
+.projectCount {
+  margin-left: auto;
+  color: var(--sb-faint);
+  font-size: 12px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
 }
 
 .groupLabel {
   margin: 0;
-  padding: 6px 8px 2px 30px;
+  padding: 6px 12px 2px 44px;
   font-size: 12px;
+  font-weight: 500;
   color: var(--sb-faint);
 }
 
 .list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -300,70 +322,160 @@
 }
 
 .emptyChild {
-  padding: 4px 8px 4px 30px;
+  padding: 4px 12px 4px 44px;
   font-size: 13px;
   color: var(--sb-faint);
 }
 
 .renameInput {
-  width: calc(100% - 22px);
-  height: 28px;
-  margin-left: 22px;
+  width: calc(100% - 32px);
+  height: 32px;
+  margin-left: 32px;
   padding: 0 8px;
-  border: 1px solid var(--color-brand);
-  border-radius: 6px;
-  background: var(--color-background);
+  border: 1px solid var(--color-brand-default);
+  border-radius: 8px;
+  background: var(--color-bg-surface);
   color: var(--sb-text);
   font: inherit;
   font-size: 14px;
 }
 
-.bottom {
-  padding: 8px;
-  border-top: 1px solid var(--sb-line);
+/* Money's Ready to pay card. */
+.readyCard {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 10px 10px 10px 12px;
+  border-radius: 12px;
+  background: var(--color-brand-subtle);
+  text-decoration: none;
 }
 
-.sync {
-  margin: 0;
-  padding: 4px 8px 6px;
+.readyIcon {
+  flex: none;
+  color: var(--color-text-primary);
+}
+
+.readyText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.readyTitle {
+  color: var(--color-brand-subtle-fg);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.readySub {
+  color: var(--color-text-secondary);
   font-size: 12px;
-  color: var(--sb-faint);
+  line-height: 16px;
+}
+
+.readyBadge {
+  display: grid;
+  place-items: center;
+  flex: none;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 4px;
+  box-sizing: border-box;
+  border-radius: 9999px;
+  background: var(--color-brand-default);
+  color: var(--color-brand-on);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.bottom {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--sb-line);
 }
 
 .profile {
   display: flex;
   align-items: center;
-  gap: 8px;
-  min-height: 34px;
+  gap: 10px;
+  width: 100%;
+  min-height: 40px;
   padding: 0 8px;
-  border-radius: 6px;
-  color: var(--sb-text);
-  text-decoration: none;
-}
-
-.profile:hover {
-  background: var(--sb-hover);
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
 .avatar {
   display: grid;
   place-items: center;
   flex: none;
-  width: 22px;
-  height: 22px;
-  border-radius: 4px;
-  background: var(--color-brand);
-  color: #fff;
-  font-size: 12px;
+  width: 32px;
+  height: 32px;
+  border-radius: 9999px;
+  background: var(--color-brand-default);
+  color: var(--color-brand-on);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.who {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.whoName {
+  overflow: hidden;
+  color: var(--color-text-primary);
+  font-size: 14px;
   font-weight: 600;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.whoPlan {
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+/* Mode and sync line, under the profile. */
+.sync {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 4px 12px 0;
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.sync svg {
+  flex: none;
+  color: var(--color-text-primary);
 }
 
 .resizer {
   position: absolute;
-  top: 0;
-  right: -3px;
-  bottom: 0;
-  width: 6px;
+  top: 20px;
+  right: -14px;
+  bottom: 20px;
+  width: 8px;
+  border-radius: 4px;
   cursor: col-resize;
   touch-action: none;
   z-index: 2;
@@ -372,7 +484,7 @@
 .resizer:hover,
 .resizer:active,
 .resizer:focus-visible {
-  background: color-mix(in srgb, var(--sg-primary) 35%, transparent);
+  background: color-mix(in srgb, var(--color-brand-default) 35%, transparent);
   outline: none;
 }
 
@@ -407,6 +519,16 @@
 .menuRow:focus-visible {
   background: var(--sb-hover);
   outline: none;
+}
+
+.menuLabel {
+  margin: 0;
+  padding: 6px 8px 2px;
+  color: var(--color-text-tertiary);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
 }
 
 .menuCheck {
@@ -519,8 +641,56 @@
   color: var(--sb-faint);
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .collapse {
-    transition: none;
-  }
+
+
+/* ==== Dreda.figcraft `Search / Web` ==== */
+.paletteLayer {
+  padding-top: max(10vh, 24px);
+}
+
+.paletteBackdrop {
+  background: color-mix(in srgb, var(--color-text-primary) 35%, transparent);
+}
+
+.palette {
+  border: 0;
+  border-radius: 24px;
+  background: var(--color-bg-surface);
+  box-shadow: 0 24px 64px color-mix(in srgb, var(--sg-neutral-900) 22%, transparent);
+}
+
+.paletteInput {
+  padding: 16px 20px;
+  border-bottom-color: var(--color-border-subtle);
+  color: var(--color-text-primary);
+}
+
+.paletteList {
+  padding: 8px;
+}
+
+.paletteRow {
+  min-height: 52px;
+  padding: 0 12px;
+  border-radius: 14px;
+  font-size: 15px;
+}
+
+.paletteRow svg:first-child {
+  box-sizing: content-box;
+  padding: 8px;
+  border-radius: 10px;
+  background: var(--color-bg-sunken);
+  color: var(--color-text-primary);
+}
+
+.paletteRow[aria-selected='true'] {
+  background: var(--color-bg-page);
+}
+
+.paletteGroup {
+  color: var(--color-text-tertiary);
+  font-size: 11px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
 }

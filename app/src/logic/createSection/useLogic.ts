@@ -59,7 +59,7 @@ export function useLogic(areaId: string) {
       });
       router.replace(`/sections/${id}`);
     } catch (error) {
-      setSaveError(error instanceof Error ? error.message : 'Could not create this section.');
+      setSaveError(error instanceof Error ? error.message : 'Could not create this folder.');
       setSaving(false);
     }
   }

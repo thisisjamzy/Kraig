@@ -1,0 +1,23 @@
+/* Scheduling links on a phone. */
+
+.page {
+  padding-bottom: 120px;
+}
+
+.back {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 8px var(--space-md) 0;
+}

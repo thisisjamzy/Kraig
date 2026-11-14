@@ -5,6 +5,9 @@
 
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { WalletCard, type WalletTone } from '@/src/widgets/Money/WalletCard';
+
+const CYCLE: WalletTone[] = ['purple', 'ink', 'lilac'];
 import { useLogic, formatAmount } from '@/src/logic/wallets/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
@@ -17,9 +20,7 @@ export function WalletsScreen() {
   const formLink = useFormLink();
   const strings = useStrings();
   const {
-    wallets,
-    total,
-    archivedWallets,
+      archivedWallets,
     loading,
     archivedLoading,
     error,
@@ -42,7 +43,12 @@ export function WalletsScreen() {
     creating,
     createError,
     handleCreateWallet,
+    rows,
+    totals,
+    currency,
   } = useLogic();
+  const active = rows.filter((r) => r.status === 'Active');
+  const plainIndex = new Map(active.filter((r) => r.group !== 'Savings').map((r, i) => [r.id, i]));
 
   return (
     <div className={styles.page}>
@@ -60,25 +66,48 @@ export function WalletsScreen() {
         }
       />
 
-      <p className={styles.totalCaption}>
-        {formatAmount(total)} <span className={styles.totalCurrency}>{strings.wallets.totalAcrossWalletsSuffix}</span>
-      </p>
-
       <ScreenState loading={loading} error={error} />
 
-      <div className={styles.list}>
-        {wallets.map((wallet) => (
-          <Link key={wallet.id} href={`/wallets/${wallet.id}`} className={styles.row}>
-            <span className={styles.dot} style={{ background: wallet.color }} />
-            <span className={styles.name}>{wallet.name}</span>
-            <span className={styles.amount}>
-              {formatAmount(wallet.amount)} {wallet.currency}
-            </span>
-            <ChevronRight size={16} strokeWidth={2} className={styles.chevron} />
-          </Link>
-        ))}
-      </div>
+      {!loading && (
+        <section className={styles.totalCard} aria-label="Total balance">
+          <span className={styles.totalDecor} aria-hidden />
+          <span className={styles.totalLabel}>Total balance · {active.length} {active.length === 1 ? 'wallet' : 'wallets'}</span>
+          <p className={styles.totalValue}>
+            {formatAmount(totals.total)} <span>{currency}</span>
+          </p>
+          <div className={styles.totalStats}>
+            <div>
+              <span>In savings</span>
+              <strong>{formatAmount(totals.inSavings)}</strong>
+            </div>
+            <div>
+              <span>Free after commitments</span>
+              <strong>{formatAmount(totals.free)}</strong>
+            </div>
+          </div>
+        </section>
+      )}
 
+      {!loading && (
+        <>
+          <p className={styles.sectionTitle}>Your wallets</p>
+          <div className={styles.cardRow}>
+            {active.map((r) => (
+              <Link key={r.id} href={`/wallets/${r.id}`} className={styles.cardLink} aria-label={`${r.name}, ${formatAmount(r.balance)} ${currency}`}>
+                <WalletCard
+                  tone={r.group === 'Savings' ? 'lime' : CYCLE[(plainIndex.get(r.id) ?? 0) % CYCLE.length]}
+                  type={r.type}
+                  name={r.name}
+                  last4={r.id.slice(-4).toUpperCase()}
+                  currency={currency}
+                  available={formatAmount(r.balance)}
+                  required={r.committed > 0.5 ? formatAmount(r.committed) : '*****'}
+                />
+              </Link>
+            ))}
+          </div>
+        </>
+      )}
 
       {!archivedLoading && archivedWallets.length > 0 && (
         <div className={styles.archivedSection}>

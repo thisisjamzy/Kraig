@@ -111,3 +111,31 @@
   color: var(--ink-text);
   cursor: pointer;
 }
+
+/* ==== Dreda.figcraft `Area / Phone`, `Project / Phone` ====
+   Round header buttons, Bricolage section titles, tasks on a white card. */
+.backButton,
+.addIconButton {
+  border: 0;
+  border-radius: 50%;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+}
+
+.sectionTitle {
+  font-family: var(--font-family-heading);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.taskList,
+.list {
+  overflow: hidden;
+  padding: 2px 14px;
+  border-radius: 20px;
+  background: var(--color-bg-surface);
+}
+
+.archiveButton {
+  border-radius: 9999px;
+}

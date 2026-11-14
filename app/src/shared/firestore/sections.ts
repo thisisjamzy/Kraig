@@ -30,7 +30,7 @@ export async function ensureDefaultSection(uid: string, areaId: string, areaColo
       name: 'General',
       emoji: null,
       color: areaColor,
-      description: 'Projects not sorted into a specific section.',
+      description: 'Projects not sorted into a specific folder.',
       areaId,
       archived: false,
       isDefault: true,

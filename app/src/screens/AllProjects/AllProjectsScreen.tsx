@@ -31,7 +31,7 @@ const active = (r: ProjectRow) => r.status === 'Active';
 
 const FILL: Record<string, string> = { red: styleGuide.brand.accent, yellow: styleGuide.neutrals[200], green: styleGuide.brand.primaryLight, gray: styleGuide.neutrals[100] };
 
-const VIEWS: DefaultView<ProjectRow>[] = [
+export const PROJECT_VIEWS: DefaultView<ProjectRow>[] = [
   { id: 'gallery', name: 'Gallery', layout: 'cards', group: 'area', filter: active, hidden: showOnly(['name', 'dates', 'description', 'health', 'tasks', 'overdue', 'area', 'progress']) },
   { id: 'table', name: 'Table', layout: 'table', group: 'none', hidden: showOnly(['name', 'health', 'progress', 'start', 'end', 'tasks', 'overdue', 'area', 'status', 'lastActivity']) },
   { id: 'board', name: 'Board', layout: 'board', group: 'health', filter: active, hidden: showOnly(['name', 'dates', 'health', 'tasks', 'overdue', 'progress']) },
@@ -48,13 +48,8 @@ export function AllProjectsScreen() {
 }
 
 function ProjectsPage() {
-  const formLink = useFormLink();
-  const router = useRouter();
   const openView = useSearchParams().get('view');
-  const { rows, setDates, loading } = useProjectsDb();
-  const columns = useMemo(() => projectColumns(), []);
-  const groups = useMemo(() => projectGroups(), []);
-  const open = (r: ProjectRow) => router.push(`/projects/${r.id}`);
+  const { rows, loading } = useProjectsDb();
 
   const activeRows = rows.filter(active);
   const atRisk = activeRows.filter((r) => r.health === 'At risk').length;
@@ -81,6 +76,22 @@ function ProjectsPage() {
           </p>
         </Callout>
       )}
+      <ProjectsDatabase openView={openView} />
+    </NotionPage>
+  );
+}
+
+/** The Projects database (Gallery, Table, Board, Timeline, At risk). Work's
+ * Table and Timeline views render it with the view fixed. */
+export function ProjectsDatabase({ openView, views = PROJECT_VIEWS, filterRows }: { openView: string | null; views?: DefaultView<ProjectRow>[]; filterRows?: (r: ProjectRow) => boolean }) {
+  const formLink = useFormLink();
+  const router = useRouter();
+  const { rows: allRows, setDates } = useProjectsDb();
+  const rows = filterRows ? allRows.filter(filterRows) : allRows;
+  const columns = useMemo(() => projectColumns(), []);
+  const groups = useMemo(() => projectGroups(), []);
+  const open = (r: ProjectRow) => router.push(`/projects/${r.id}`);
+  return (
       <Database<ProjectRow>
         key={openView ?? 'default'}
         id="time.projects"
@@ -89,7 +100,7 @@ function ProjectsPage() {
         rows={rows}
         rowKey={(r) => r.id}
         columns={columns}
-        views={VIEWS}
+        views={views}
         openView={openView}
         groups={groups}
         defaultGroup="area"
@@ -114,6 +125,5 @@ function ProjectsPage() {
         newLabel="New"
         emptyText="No projects yet."
       />
-    </NotionPage>
   );
 }

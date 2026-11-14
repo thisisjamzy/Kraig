@@ -1,140 +1,117 @@
 'use client';
 
-// Edit transaction, on the form standard (FormFrame): Description, Amount |
-// Date, Type, Category, Basket item, Account; Impact; Delete under the button.
+// Edit transaction, drawn from Dreda.figcraft `Transactions / Web / Edit
+// transaction` (panel `Form panel / Edit transaction`), the same panel as
+// Add transaction (widgets/TransactionPanel):
+//   type selector (Transfer disabled: an expense, income or saving can't
+//   become a transfer here), the amount hero, Details (Description, From
+//   wallet, Category, Budget item), When (Date), the impact, then Delete
+//   (confirmed in a dialog) and Save changes in the footer.
+// Time and Fees are not on this form: an edited transaction keeps its date
+// only and has no charges of its own (useLogic edits neither).
 
+import { CalendarDays, FileText, Tag, Target, Wallet } from 'lucide-react';
 import { useLogic } from '@/src/logic/editTransaction/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
-import { FieldCard, FieldRow, FormFrame, SegmentedField, SelectField, formFrameStyles as ff } from '@/src/widgets/FormFrame/FormFrame';
-import styles from './EditTransactionScreen.module.css';
+import { ConfirmDialog } from '@/src/widgets/ConfirmDialog/ConfirmDialog';
+import { AmountHero, DateRow, ImpactCallout, InputRow, RowGroup, SelectRow, TxPanel, TypeSelector, type TxKind } from '@/src/widgets/TransactionPanel/TransactionPanel';
+
+const KIND_OF = { Expense: 'expense', Income: 'income', Savings: 'savings' } as const;
+const TYPE_OF = { expense: 'Expense', income: 'Income', savings: 'Savings' } as const;
 
 export function EditTransactionScreen({ transactionId }: { transactionId: string }) {
   const strings = useStrings();
-  const {
-    description,
-    setDescription,
-    type,
-    setType,
-    types,
-    categoryId,
-    setCategoryId,
-    categories,
-    bucketItemKey,
-    setBucketItemKey,
-    bucketItemOptions,
-    amountString,
-    setAmountString,
-    accountId,
-    setAccountId,
-    accounts,
-    expenseAccounts,
-    dateValue,
-    setDateValue,
-    canSave,
-    submitting,
-    submitError,
-    handleSave,
-    goBack,
-    loading,
-    error,
-    notFound,
+  const s = strings.editTransaction;
+  const v = useLogic(transactionId);
 
-    deleteConfirmOpen,
-    openDeleteConfirm,
-    cancelDelete,
-    confirmDelete,
-    deleting,
-    deleteError,
-  } = useLogic(transactionId);
-
-  const ready = !loading && !error && !notFound;
-  const shownAccounts = type === 'Expense' ? expenseAccounts : accounts;
-  const accountName = shownAccounts.find((a) => a.id === accountId)?.name;
-  const amount = Number(amountString) || 0;
-  const day = dateValue ? new Date(`${dateValue}T00:00:00`) : null;
+  const ready = !v.loading && !v.error && !v.notFound;
+  const shownAccounts = v.type === 'Expense' ? v.expenseAccounts : v.accounts;
+  const account = shownAccounts.find((a) => a.id === v.accountId);
+  const amount = Number(v.amountString) || 0;
+  const day = v.dateValue ? new Date(`${v.dateValue}T00:00:00`) : null;
   const impact =
-    amount > 0 && accountName
-      ? `${type === 'Income' ? 'Records' : 'Takes'} ${Math.round(amount).toLocaleString('en-US')} ${type === 'Income' ? 'into' : 'from'} ${accountName}${
+    amount > 0 && account
+      ? `${v.type === 'Income' ? 'Records' : 'Takes'} ${Math.round(amount).toLocaleString('en-US')} ${v.type === 'Income' ? 'into' : 'from'} ${account.name}${
           day ? ` on ${day.getDate()} ${day.toLocaleDateString('en-GB', { month: 'short' })}` : ''
         }.`
       : null;
+  const available = account ? Math.max(0, (account.currentBalance ?? 0) - (account.lockedAmount ?? 0)) : null;
 
   return (
-    <FormFrame
-      title={strings.editTransaction.title}
-      onClose={goBack}
-      phoneHeader="bar"
-      impact={ready ? impact : null}
-      primary={ready ? { label: 'Save transaction', disabled: !canSave, busy: submitting } : null}
-      onSubmit={handleSave}
-      error={submitError}
-      after={
-        ready ? (
-      <div className={styles.dangerCard}>
-        <p className={styles.dangerTitle}>{strings.editTransaction.dangerZoneTitle}</p>
-
-        {deleteConfirmOpen ? (
-          <>
-            <p className={styles.deleteConfirmPrompt}>{strings.editTransaction.deleteConfirmPrompt}</p>
-            {deleteError && <p className={styles.errorText}>{deleteError}</p>}
-            <div className={styles.deleteActions}>
-              <button type="button" className={styles.cancelButton} onClick={cancelDelete} disabled={deleting}>
-                {strings.editTransaction.deleteCancel}
-              </button>
-              <button type="button" className={styles.deleteButton} onClick={confirmDelete} disabled={deleting}>
-                {deleting ? strings.editTransaction.deleting : strings.editTransaction.deleteConfirm}
-              </button>
-            </div>
-          </>
-        ) : (
-          <>
-            <p className={styles.sectionCaption}>{strings.editTransaction.deleteHint}</p>
-            <button type="button" className={styles.deleteButton} onClick={openDeleteConfirm}>
-              {strings.editTransaction.deleteButton}
-            </button>
-          </>
-        )}
-      </div>
+    <TxPanel
+      title={s.title}
+      onClose={v.goBack}
+      primary={ready ? { label: 'Save changes', disabled: !v.canSave, busy: v.submitting } : null}
+      onSubmit={v.handleSave}
+      onDelete={ready ? v.openDeleteConfirm : undefined}
+      deleting={v.deleting}
+      error={v.submitError ?? v.deleteError}
+      overlays={
+        v.deleteConfirmOpen ? (
+          <ConfirmDialog
+            title="Delete this transaction?"
+            message={`${s.deleteHint}`}
+            confirmLabel={v.deleting ? s.deleting : s.deleteConfirm}
+            cancelLabel={s.deleteCancel}
+            onConfirm={() => void v.confirmDelete()}
+            onCancel={() => !v.deleting && v.cancelDelete()}
+          />
         ) : null
       }
     >
-      <ScreenState loading={loading} error={error} />
-      {notFound && <p className={styles.errorText}>{strings.editTransaction.notFound}</p>}
+      <ScreenState loading={v.loading} error={v.error} />
+      {v.notFound && <p role="alert">{s.notFound}</p>}
       {ready && (
         <>
-          <FieldCard label={strings.editTransaction.descriptionLabel}>
-            <input className={ff.input} value={description} onChange={(event) => setDescription(event.target.value)} />
-          </FieldCard>
-          <FieldRow>
-            <FieldCard label={strings.editTransaction.amountLabel}>
-              <input className={ff.input} inputMode="decimal" value={amountString} onChange={(event) => setAmountString(event.target.value.replace(/[^0-9.]/g, ''))} />
-            </FieldCard>
-            <FieldCard label={strings.editTransaction.dateLabel}>
-              <input type="date" className={ff.input} value={dateValue} onChange={(event) => setDateValue(event.target.value)} />
-            </FieldCard>
-          </FieldRow>
-          <SegmentedField label={strings.editTransaction.typeLabel} value={type} onChange={setType} options={types.map((t) => ({ value: t, label: t }))} />
-          <SelectField
-            label={strings.editTransaction.categoryLabel}
-            value={categoryId}
-            onChange={setCategoryId}
-            options={categories.map((c) => ({ value: c.id, label: c.name }))}
-            placeholder={strings.editTransaction.categoryPlaceholder}
+          <TypeSelector
+            value={KIND_OF[v.type]}
+            onChange={(k: TxKind) => k !== 'transfer' && v.setType(TYPE_OF[k])}
+            disabled={{ transfer: 'A transfer moves money between two wallets. Delete this and add a transfer instead.' }}
           />
-          {(bucketItemOptions.length > 0 || bucketItemKey) && (
-            <SelectField
-              label={strings.editTransaction.bucketItemLabel}
-              value={bucketItemKey}
-              onChange={setBucketItemKey}
-              options={bucketItemOptions.map((o) => ({ value: o.key, label: o.label }))}
-              placeholder={strings.editTransaction.bucketItemNone}
+          <AmountHero
+            value={v.amountString}
+            onChange={v.setAmountString}
+            currency={account?.currency ?? ''}
+            helper={account && available !== null ? `${account.name} has ${Math.round(available).toLocaleString('en-US')} ${account.currency} available` : undefined}
+          />
+          <RowGroup label="Details">
+            <InputRow icon={<FileText />} label={s.descriptionLabel} value={v.description} onChange={v.setDescription} placeholder="What was it for?" />
+            {/* A Savings Account never funds a direct expense (useLogic's spendableAccounts). */}
+            <SelectRow
+              icon={<Wallet />}
+              label={v.type === 'Income' ? 'Into wallet' : 'From wallet'}
+              value={v.accountId}
+              onChange={v.setAccountId}
+              options={shownAccounts.map((a) => ({ value: a.id, label: a.name }))}
+              placeholder="Choose a wallet"
             />
-          )}
-          {/* A Savings Account never funds a direct expense (useLogic's spendableAccounts). */}
-          <SelectField label={strings.editTransaction.accountLabel} value={accountId} onChange={setAccountId} options={shownAccounts.map((a) => ({ value: a.id, label: a.name }))} />
+            <SelectRow
+              icon={<Tag />}
+              label={s.categoryLabel}
+              value={v.categoryId}
+              onChange={v.setCategoryId}
+              options={v.categories.map((c) => ({ value: c.id, label: c.name }))}
+              placeholder={s.categoryPlaceholder}
+            />
+            {(v.bucketItemOptions.length > 0 || v.bucketItemKey) && (
+              <SelectRow
+                long
+                icon={<Target />}
+                label="Budget item"
+                value={v.bucketItemKey}
+                onChange={v.setBucketItemKey}
+                options={v.bucketItemOptions.map((o) => ({ value: o.key, label: o.label }))}
+                placeholder={s.bucketItemNone}
+              />
+            )}
+          </RowGroup>
+          <RowGroup label="When">
+            <DateRow icon={<CalendarDays />} label={s.dateLabel} value={v.dateValue} onChange={v.setDateValue} />
+          </RowGroup>
+          {impact && <ImpactCallout>{impact}</ImpactCallout>}
         </>
       )}
-    </FormFrame>
+    </TxPanel>
   );
 }

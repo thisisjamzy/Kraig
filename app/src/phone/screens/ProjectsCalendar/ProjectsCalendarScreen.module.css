@@ -332,3 +332,31 @@
     transform: none;
   }
 }
+
+/* ==== Dreda.figcraft `Calendar / Phone` ====
+   A day strip with the chosen day on brand purple, events on one white
+   card. */
+.day[aria-pressed='true'],
+.day[aria-selected='true'],
+.day[aria-current='date'] {
+  background: var(--color-brand-default);
+  color: var(--color-brand-on);
+  border-radius: 12px;
+}
+
+.schedule,
+.card {
+  border: 0;
+  border-radius: 20px;
+  background: var(--color-bg-surface);
+}
+
+.scheduleTitle {
+  font-family: var(--font-family-heading);
+}
+
+.addLink {
+  border-radius: 9999px;
+  background: var(--color-brand-default);
+  color: var(--color-brand-on);
+}

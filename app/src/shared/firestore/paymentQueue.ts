@@ -32,6 +32,7 @@ import { repairPlan, type Occurrence } from '../budget/occurrences';
 import { SAVINGS_ACCOUNT_TYPE } from '../budget/flow';
 import { applyNotificationWrites } from './notificationWrites';
 import { recordScheduledLine, REPAYMENTS_BASKET_ID } from './debtSchedule';
+import { guardWrite } from './writeGuard';
 
 /** The fields kept on an action doc, so a confirmed payment reads on its own. */
 function snapshotOf(entry: QueueDraft, currency: string) {
@@ -70,7 +71,7 @@ export async function skipOccurrence(uid: string, entry: QueueDraft, currency: s
   await setDoc(paymentQueueEntryRef(uid, entry.id), { ...snapshotOf(entry, currency), status: 'skipped', recordIds: [], confirmedAt: null }, { merge: true });
 }
 
-export async function postponeOccurrence(uid: string, entry: QueueDraft, until: string, currency: string): Promise<void> {
+async function postponeOccurrenceWrite(uid: string, entry: QueueDraft, until: string, currency: string): Promise<void> {
   await setDoc(
     paymentQueueEntryRef(uid, entry.id),
     { ...snapshotOf(entry, currency), status: 'postponed', postponedUntil: until, recordIds: [], confirmedAt: null },
@@ -296,3 +297,6 @@ export async function repairQueue(uid: string, occurrences: Occurrence[]): Promi
   }
   return plan.report;
 }
+
+// Guarded against double submits (writeGuard.ts).
+export const postponeOccurrence = guardWrite('postponeOccurrence', postponeOccurrenceWrite);

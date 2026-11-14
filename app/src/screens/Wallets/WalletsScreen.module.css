@@ -112,3 +112,120 @@
 .cardSub[data-tone='good'] {
   color: var(--sg-primary);
 }
+
+/* The total, with the eye that hides or shows every amount. */
+.totalRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.eye {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: none;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.eye[aria-pressed='true'] {
+  background: var(--color-text-primary);
+  color: var(--color-background);
+}
+
+@media (pointer: coarse) {
+  .eye {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+/* ==== Dreda.figcraft Wallets / Web: "Your wallets" ==== */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+  border-radius: 24px;
+  background: var(--color-bg-surface);
+}
+
+.panelHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.panelTitle {
+  margin: 0;
+  font-family: var(--font-family-heading);
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 30px;
+}
+
+.textButton {
+  border: 0;
+  background: none;
+  color: var(--color-brand-default);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.cardLink {
+  border-radius: 22px;
+  text-decoration: none;
+  transition: transform 120ms ease;
+}
+
+.cardLink:hover {
+  transform: translateY(-2px);
+}
+
+.cardLink[data-archived] {
+  opacity: 0.55;
+}
+
+.addWallet {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 64px;
+  height: 360px;
+  border: 1.5px dashed var(--color-border-default);
+  border-radius: 22px;
+  background: none;
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.addWallet:hover {
+  border-color: var(--color-brand-default);
+  color: var(--color-brand-default);
+}
+
+.empty {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+}

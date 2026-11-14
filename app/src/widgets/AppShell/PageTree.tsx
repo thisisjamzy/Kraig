@@ -158,7 +158,7 @@ export function PageTree({ mode, touch, onNavigate }: { mode: AppMode; touch: bo
       <li key={key}>
         <div className={styles.row} data-depth="1" data-active={isActive || undefined}>
           <Link href={href} className={styles.rowLink} aria-current={isActive ? 'page' : undefined} onClick={onNavigate}>
-            <FileText size={16} strokeWidth={1.75} aria-hidden className={styles.rowGlyph} />
+            <FileText size={18} strokeWidth={2} aria-hidden className={styles.rowGlyph} />
             <span className={styles.rowLabel}>{label}</span>
           </Link>
           {rowActions({ href, label, kind }, undefined, rename)}
@@ -167,11 +167,25 @@ export function PageTree({ mode, touch, onNavigate }: { mode: AppMode; touch: bo
     );
   }
 
+  // Time groups its pages under headings (The day, The work); Money is one list.
+  const sections = (() => {
+    const out: { label: string; pages: TreePage[] }[] = [];
+    for (const page of pages) {
+      const label = page.group ?? MODE_LABEL[mode];
+      const at = out.find((x) => x.label === label);
+      if (at) at.pages.push(page);
+      else out.push({ label, pages: [page] });
+    }
+    return out;
+  })();
+
   return (
     <div className={styles.tree}>
-      <p className={styles.sectionLabel}>{MODE_LABEL[mode]}</p>
+      {sections.map((section) => (
+      <div key={section.label} className={styles.section}>
+      <p className={styles.sectionLabel}>{section.label}</p>
       <ul className={styles.list}>
-        {pages.map((page) => {
+        {section.pages.map((page) => {
           const Icon = page.icon;
           const expanded = Boolean(page.children) && open.includes(page.id);
           const isActive = active?.id === page.id && (page.id !== 'buckets' || !search.includes('type=Savings'));
@@ -203,7 +217,7 @@ export function PageTree({ mode, touch, onNavigate }: { mode: AppMode; touch: bo
                   </button>
                 ) : null}
                 <Link href={page.href} className={styles.rowLink} aria-current={isActive ? 'page' : undefined} onClick={onNavigate}>
-                  <Icon size={18} strokeWidth={1.75} aria-hidden className={styles.rowGlyph} data-has-caret={page.children ? true : undefined} />
+                  <Icon size={20} strokeWidth={2} aria-hidden className={styles.rowGlyph} data-has-caret={page.children ? true : undefined} />
                   <span className={styles.rowLabel}>{page.label}</span>
                 </Link>
                 {rowActions({ href: page.href, label: page.label, kind: page.id }, page.create)}
@@ -250,6 +264,9 @@ export function PageTree({ mode, touch, onNavigate }: { mode: AppMode; touch: bo
           );
         })}
       </ul>
+      </div>
+      ))}
+
 
       {menu && (
         <Popover anchor={menu.anchor} label={menu.label} onClose={() => setMenu(null)}>

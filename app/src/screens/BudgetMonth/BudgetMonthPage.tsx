@@ -21,7 +21,7 @@ import { toDisplay } from '@/src/shared/firestore/currency';
 import { useBudgetMonthDoc } from '@/src/shared/hooks/useBudgetMonthState';
 import { isSavingsAccount } from '@/src/viewmodels/wallets';
 import { Database } from '@/src/widgets/Database/Database';
-import { Callout, NotionPage } from '@/src/widgets/Database/NotionPage';
+import { NotionPage } from '@/src/widgets/Database/NotionPage';
 import { MonthPicker } from '@/src/widgets/Database/MonthPicker';
 import { SidePeek, usePeek } from '@/src/widgets/Database/SidePeek';
 import { TypeTabs } from '@/src/widgets/Database/TypeTabs';
@@ -30,11 +30,16 @@ import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { showToast } from '@/src/widgets/Toast/Toast';
 import { BUDGET_TYPES, NotificationsLink } from '@/src/widgets/Notifications/NotificationsLink';
 import { SummaryCards } from './SummaryCards';
+import { AttentionCard, PlanCards, attentionItems } from './PlanCards';
+import { TopBarControls } from '@/src/widgets/AppShell/TopBarSlot';
+import { useReadyToPay } from '@/src/shared/hooks/useReadyToPay';
+import { useUnaccountedWallet } from '@/src/shared/hooks/useUnaccountedWallet';
 import { LinePeekContent } from './LinePeek';
 import { useScopeChooser } from './ScopeChooser';
 import { groupsFor, lineColumns, viewsFor, type ColumnContext } from './columns';
 import styles from './BudgetMonth.module.css';
 import { useFormLink } from '@/src/shared/navigation/useFormLink';
+import { maskAmount } from '@/src/shared/hooks/usePrivacy';
 
 /** The updates the Budget page links to. */
 export const FLOW_ICON: Record<FlowType, typeof Wallet> = {
@@ -73,7 +78,13 @@ export function BudgetMonthPage({ month, data, onMonth }: { month: string; data:
     markPaid: v.markPaid,
     onError: (message) => showToast(message),
   };
-  const money = (n: number) => `${Math.round(n).toLocaleString('en-US')} ${v.currency}`;
+  const ready = useReadyToPay();
+  const unaccountedWallet = useUnaccountedWallet();
+  const unaccounted = unaccountedWallet ? toDisplay(data.ctx, unaccountedWallet.currentBalance, unaccountedWallet.currency) : 0;
+  const monthName = v.title.split(' ')[0];
+  const readyCount = v.isCurrent ? ready.entries.length : 0;
+  const readyTotal = v.isCurrent ? ready.entries.reduce((sum, e) => sum + e.amount, 0) : 0;
+  const attentionList = attentionItems({ month, monthName, expenses: v.rows.Expense, readyCount, readyTotal, reviewed: v.reviewed, past: v.phase !== 'future' });
   const peekLine = peek.row ? (v.rows[peek.row.type].find((r) => r.key === peek.row!.key) ?? peek.row) : null;
   const attention = (r: LineRow) => needsAttention(r, v.coverage.byKey);
 
@@ -91,55 +102,40 @@ export function BudgetMonthPage({ month, data, onMonth }: { month: string; data:
       title="Budget"
       icon={<Wallet strokeWidth={1.75} />}
       crumbs={[{ label: 'Money', href: '/home' }, { label: 'Budget', href: '/budget' }, { label: v.title }]}
+      sub={`${v.title}${v.isCurrent ? ` · ${v.daysLeft} ${v.daysLeft === 1 ? 'day' : 'days'} left` : ''}${v.reviewed ? ' · Reviewed' : ''}`}
       menu={[{ label: 'Add transaction', href: formLink('transaction', { month: String(Number(month.slice(5)) - 1), year: month.slice(0, 4) }) }]}
-      properties={[
-        { id: 'month', label: 'Month', display: <MonthPicker value={month} onChange={onMonth} markers={(m) => (m === month && !monthDoc?.reviewedAt ? ['unreviewed'] : [])} /> },
-        {
-          id: 'status',
-          label: 'Status',
-          display: v.reviewed ? (
-            <span className={styles.chip} data-tone="good">
-              Reviewed
-            </span>
-          ) : (
-            <span className={styles.inlineGroup}>
-              <span className={styles.chip}>Not reviewed</span>
-              <Link href={`/budget/review?month=${month}`} className={styles.inlineAction}>
-                Review
-              </Link>
-            </span>
-          ),
-        },
-        { id: 'left', label: 'Left to plan', display: money(v.totals.leftToPlan), tone: v.totals.leftToPlan < 0 ? 'bad' : 'neutral' },
-        { id: 'available', label: 'Available now', display: money(v.totals.availableNow), tone: v.totals.availableNow > 0 ? 'good' : 'neutral' },
-        { id: 'waiting', label: 'Waiting for income', display: v.coverage.waiting ? money(v.coverage.waiting) : 'Nothing waiting', tone: v.coverage.waiting ? 'watch' : 'neutral' },
-      ]}
     >
+      <TopBarControls>
+        <MonthPicker value={month} onChange={onMonth} markers={(m) => (m === month && !monthDoc?.reviewedAt ? ['unreviewed'] : [])} />
+      </TopBarControls>
       {v.loading ? (
         <ScreenState loading />
       ) : (
         <>
-          <Callout>
-            <p>
-              {v.summary}
-              {v.migrationPending && (
-                <>
-                  {' '}
-                  Your budget now keeps income, expenses, savings and transfers apart:{' '}
-                  <Link href="/budget/migration">see what changed</Link>.
-                </>
-              )}
-              {v.kindReviewPending && (
-                <>
-                  {' '}
-                  Each basket item now has a kind: <Link href="/budget/item-kinds">check your items</Link>.
-                </>
-              )}
-              <NotificationsLink types={BUDGET_TYPES} about="this month" />
-            </p>
-          </Callout>
+          <PlanCards monthName={monthName} totals={v.totals} canPayNow={v.coverage.canPayNow} waiting={v.coverage.waiting} unaccounted={unaccounted} />
 
           <SummaryCards totals={v.totals} currency={v.currency} active={v.tab} onOpen={v.setTab} totalSaved={v.isCurrent ? totalSaved : null} />
+
+          <AttentionCard
+            items={attentionList}
+            extra={
+              v.migrationPending || v.kindReviewPending ? (
+                <span>
+                  {v.migrationPending && (
+                    <>
+                      Your budget now keeps income, expenses, savings and transfers apart: <Link href="/budget/migration">see what changed</Link>.{' '}
+                    </>
+                  )}
+                  {v.kindReviewPending && (
+                    <>
+                      Each basket item now has a kind: <Link href="/budget/item-kinds">check your items</Link>.
+                    </>
+                  )}
+                  <NotificationsLink types={BUDGET_TYPES} about="this month" />
+                </span>
+              ) : null
+            }
+          />
 
           <div role="tabpanel" aria-label={FLOW_LABEL[v.tab]}>
             <Database<LineRow>
@@ -241,7 +237,7 @@ export function BudgetMonthPage({ month, data, onMonth }: { month: string; data:
 function MustHavesCard({ v }: { v: ReturnType<typeof useBudgetMonth> }) {
   const m = v.must;
   if (!m.count) return null;
-  const money = (n: number) => Math.round(n).toLocaleString('en-US');
+  const money = (n: number) => maskAmount(Math.round(n).toLocaleString('en-US'));
   // A sentence, no strip: when they're short or waiting, it's a notification.
   return (
     <div className={styles.mustCard}>
@@ -249,7 +245,7 @@ function MustHavesCard({ v }: { v: ReturnType<typeof useBudgetMonth> }) {
         <strong>Must-haves</strong>: {money(m.due)} {v.currency} still to pay on {m.count} {m.count === 1 ? 'line' : 'lines'}. Available now {money(m.availableNow)} {v.currency}
         {m.status !== 'covered' && <>, estimated by month end {money(m.spareByMonthEnd + m.due)} {v.currency}</>}.
       </p>
-      <Link href="/baskets/items" className={styles.inlineAction}>
+      <Link href="/payments" className={styles.inlineAction}>
         Open priorities
       </Link>
     </div>

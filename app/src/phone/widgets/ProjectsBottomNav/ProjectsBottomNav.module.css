@@ -101,3 +101,39 @@
 .fabButton:active {
   transform: scale(0.96);
 }
+
+/* 
+ /* ==== Dreda.figcraft `Bottom bar` (Dashboard / Phone) ====
+   A dark rounded pill of icons, the current one in a lime circle, and the
+   lime mode button beside it. */
+.pill {
+  flex: 1;
+  justify-content: space-between;
+  padding: 6px;
+  border-radius: 9999px;
+  background: var(--color-card-ink-bg);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--sg-neutral-900) 22%, transparent);
+}
+
+.item {
+  color: var(--color-card-ink-muted);
+}
+
+.item:hover {
+  color: var(--color-card-ink-fg);
+}
+
+.itemActive,
+.itemActive:hover {
+  background: var(--color-accent-default);
+  color: var(--color-card-lime-fg);
+}
+
+.fabButton {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: var(--color-accent-default);
+  color: var(--color-card-lime-fg);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--sg-neutral-900) 18%, transparent);
+}

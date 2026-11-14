@@ -1,0 +1,163 @@
+/* Payments on tablet and web (PaymentsScreen.tsx): one Calendar view, the
+   payments calendar in a card, then the priorities under it. */
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
+  border-radius: 24px;
+  background: var(--color-bg-surface);
+}
+
+/* Plan a payment, in the top bar beside the main action (a 44px pill). */
+.outlineButton {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  box-sizing: border-box;
+  height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 9999px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.outlineButton:hover {
+  background: var(--color-bg-sunken);
+}
+
+.outlineButton:focus-visible {
+  outline: 2px solid var(--color-brand-default);
+  outline-offset: 2px;
+}
+
+.priorities {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 28px;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-family: var(--font-family-heading);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 28px;
+  color: var(--color-text-primary);
+}
+
+/* The type tabs over the calendar (as Dreda.figcraft `Calendar / Web`). */
+.kindTabs {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  padding: 0 12px;
+  border-radius: 16px;
+  background: var(--color-bg-surface);
+}
+
+.kindTabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.kindTabs button[aria-selected='true'] {
+  border-bottom-color: var(--color-brand-default);
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+.kindTabs button span {
+  color: var(--color-text-tertiary);
+  font-weight: 500;
+}
+
+.kindTabs button:focus-visible {
+  outline: 2px solid var(--color-brand-default);
+  outline-offset: -2px;
+}
+
+/* The month grid sits in a white card, like the Time calendar. */
+.calendarCard {
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 16px;
+  background: var(--color-bg-surface);
+}
+
+/* Mark as paid: stacked fields, label above the control. */
+.sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.sheet p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.sheet label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.sheet input,
+.sheet select {
+  box-sizing: border-box;
+  height: 52px;
+  padding: 0 16px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 14px;
+  background: var(--color-bg-sunken);
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 16px;
+}
+
+.primary {
+  height: 52px;
+  border: 0;
+  border-radius: 9999px;
+  background: var(--color-brand-default);
+  color: var(--color-brand-on);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.primary:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.error {
+  color: var(--color-status-danger-fg);
+}

@@ -7,9 +7,9 @@
 //   - All-day row: one line per item, up to 2 a day, then "+N more",
 //     which opens the whole row in place.
 //   - Blocks: a pale fill of their kind's tag color with a 3px left
-//     accent (dashed for free tasks); the title at the top, on one line
-//     when the block is narrower than 80px, else up to 2; the time under
-//     it from 30 minutes; the project too on long blocks. Google events
+//     accent (dashed for free tasks); the time at the top from 30 minutes
+//     (not on blocks narrower than 80px), then the full title, wrapped;
+//     the project too on long blocks. Google events
 //     carry a small "G".
 //   - Overlaps: side by side. Day view: when the columns would be too
 //     narrow, that group scrolls sideways as a strip. Week view: two side
@@ -237,15 +237,15 @@ export function TimeGrid(props: TimeGridProps) {
       >
         {!bar && (
           <>
-            <span className={styles.blockTitle}>
-              {p.item.kind === 'google' && <span className={styles.gBadge}>G</span>}
-              {p.item.title}
-            </span>
             {minutes >= 30 && !narrow && (
               <span className={styles.blockTime}>
                 {hhmm(startMin)} to {hhmm(endMin)}
               </span>
             )}
+            <span className={styles.blockTitle}>
+              {p.item.kind === 'google' && <span className={styles.gBadge}>G</span>}
+              {p.item.title}
+            </span>
             {minutes >= 75 && !narrow && p.item.project && <span className={styles.blockProject}>{p.item.project}</span>}
           </>
         )}

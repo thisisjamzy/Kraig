@@ -5,6 +5,7 @@
 const WIDE_ROUTES = [
   '/projects',
   '/projects/calendar',
+  '/projects/calendar/links',
   '/projects/focus',
   '/projects/all',
   '/projects/insights',
@@ -12,9 +13,9 @@ const WIDE_ROUTES = [
   '/projects/plan',
   '/home',
   '/statistics',
+  '/statistics/breakdown',
   '/baskets',
   '/baskets/items',
-  '/baskets/forecast',
   '/budget',
   '/budget/ready',
   '/budget/review',
@@ -25,6 +26,9 @@ const WIDE_ROUTES = [
   '/wallets',
   '/debts',
   '/areas',
+  '/work',
+  '/people',
+  '/library',
   '/resources',
   '/notifications',
   '/settings/notifications',
@@ -35,6 +39,9 @@ const WIDE_PATTERNS = [
   /^\/projects\/(?!new$|all$|calendar|focus|insights|analytics)[^/]+$/,
   // Time: an area's page and a task's page (its form stays narrow).
   /^\/areas\/(?!new$)[^/]+$/,
+  // Time: a folder's page and a person's page.
+  /^\/sections\/(?!new$)[^/]+$/,
+  /^\/people\/(?!new$)[^/]+$/,
   /^\/tasks\/[^/]+\/edit$/,
   /^\/budget\/basket\/[^/]+$/,
   /^\/baskets\/(?!new$|items$|forecast$|analytics$)[^/]+$/,

@@ -45,10 +45,12 @@ import {
   type TransferDraft,
 } from '@/src/shared/firestore/dataEntities';
 import {
-  createTransactionWithAggregation,
-  createTransferWithAggregation,
-  createBucket,
-  createBucketLineItem,
+  // Unguarded writes: a sheet can hold two identical rows on purpose
+  // (shared/firestore/writeGuard.ts would merge them).
+  createTransactionWithAggregationWrite as createTransactionWithAggregation,
+  createTransferWithAggregationWrite as createTransferWithAggregation,
+  createBucketWrite as createBucket,
+  createBucketLineItemWrite as createBucketLineItem,
   createDebt,
   recordRepayment,
   type RepaymentDebt,

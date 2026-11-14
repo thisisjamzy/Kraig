@@ -989,3 +989,142 @@
   outline: 2px solid var(--p-blue);
   outline-offset: 2px;
 }
+
+/* ==== Dreda.figcraft Budget / Phone, Baskets / Phone, Payments / Phone ====
+   The month card is white with a brand meter and three sunken figure tiles;
+   lists are white cards with a 20px radius inside the 16px gutter; labels
+   are 11px overlines; amounts are mono. */
+
+.moneyCard {
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  box-shadow: none;
+}
+
+.moneyLabel {
+  color: var(--color-text-tertiary);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+.moneyAmount {
+  color: var(--color-text-primary);
+  font-family: var(--font-family-mono);
+  font-size: 34px;
+  font-weight: 600;
+  letter-spacing: -0.5px;
+}
+
+.moneyChip {
+  border: 1px solid var(--color-border-default);
+  color: var(--color-text-primary);
+}
+
+.moneyMeterText {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.moneyTrack {
+  height: 10px;
+  background: var(--color-bg-sunken);
+}
+
+.moneyTrack > span {
+  background: var(--color-brand-default);
+}
+
+.moneyFigures {
+  gap: 8px;
+}
+
+.moneyFigure {
+  padding: 12px;
+  border-radius: 14px;
+  background: var(--color-bg-sunken);
+}
+
+.moneyFigureLabel {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.moneyFigureValue {
+  color: var(--color-text-primary);
+  font-family: var(--font-family-mono);
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.moneyFigureValue[data-tone='problem'] {
+  color: var(--color-status-danger-fg);
+}
+
+.bleed {
+  margin-inline: 0;
+}
+
+.list {
+  overflow: hidden;
+  border: 0;
+  border-radius: 20px;
+  background: var(--color-bg-surface);
+}
+
+.sectionHead {
+  padding: 0 4px 8px;
+}
+
+.label {
+  color: var(--color-text-tertiary);
+  font-size: 11px;
+  letter-spacing: 0.6px;
+}
+
+.row {
+  padding: 14px 16px;
+}
+
+.row + .row,
+.row + .rowWrap,
+.rowWrap + .row,
+.rowWrap + .rowWrap {
+  border-top-color: var(--color-border-subtle);
+}
+
+.icon {
+  border-radius: 10px;
+  background: var(--color-bg-sunken);
+  color: var(--color-text-primary);
+}
+
+.figure {
+  font-family: var(--font-family-mono);
+  font-weight: 500;
+}
+
+.sideBar {
+  border-radius: 9999px;
+  background: var(--color-bg-sunken);
+}
+
+.sideBar > span {
+  background: var(--color-brand-default);
+}
+
+.sideBar > span[data-tone='problem'] {
+  background: var(--color-status-danger-solid);
+}
+
+.title {
+  color: var(--color-text-primary);
+  font-size: 28px;
+}
+
+.primary {
+  border-radius: 9999px;
+  background: var(--color-brand-default);
+  color: var(--color-brand-on);
+}

@@ -16,7 +16,7 @@ import {
 import type { EditScope } from '@/src/shared/firestore/bucketBudget';
 import type { ItemAutomation } from '@/src/shared/firestore/types';
 import type { ColumnDef, DefaultView, GroupDef } from '@/src/widgets/Database/types';
-import { formatNumber } from '@/src/widgets/Database/format';
+import { formatAmountValue } from '@/src/widgets/Database/format';
 import { coverHref, reallocateHref } from '@/src/screens/Planning/PlanningParts';
 import type { LineRow } from '@/src/logic/budgetMonth/lines';
 import styles from './BudgetMonth.module.css';
@@ -74,7 +74,7 @@ export function automationFromValue(value: string, current: ItemAutomation): Ite
 }
 
 function money(n: number) {
-  return formatNumber(n);
+  return formatAmountValue(n);
 }
 
 /** Status chip, with the one inline action the line needs. */

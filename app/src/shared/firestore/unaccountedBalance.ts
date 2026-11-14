@@ -41,6 +41,7 @@ import { balanceAt, endsNow, reconciliationAdjustments, walletFlows, type Reconc
 import { checkChangesOf, planRevert, type RevertCheck, type RevertPlan } from '../budget/revertPlan';
 import type { FirestoreAccount, FirestoreTransaction, FirestoreTransfer, FirestoreReconciliation } from './types';
 import type { TRANSFER_CATEGORIES } from '../../viewmodels/categories';
+import { guardWrite } from './writeGuard';
 
 type TransferKind = (typeof TRANSFER_CATEGORIES)[number];
 
@@ -151,7 +152,7 @@ export interface ReconcileOptions {
  * balanceAdjustments (the balance audit agrees with this check rather than
  * undoing it) and on the check itself (`adjustments`), with the window.
  */
-export async function performReconciliation(
+async function performReconciliationWrite(
   uid: string,
   reportedBalances: Record<string, number>,
   options: ReconcileOptions = {}
@@ -416,7 +417,7 @@ export interface ExplainHistoricEntryInput {
   isFrozenSavings?: boolean;
 }
 
-export async function recordHistoricEntry(
+async function recordHistoricEntryWrite(
   input: ExplainHistoricEntryInput,
   explainsUnjustifiedBalance: boolean,
   ctx: CurrencyContext
@@ -559,7 +560,7 @@ export function previewBackfillSpread(input: BackfillSpreadInput): BackfillOccur
  * applies to the 'transaction' branch, since a transfer never touches the
  * Unjustified wallet.
  */
-export async function commitBackfillSpread(
+async function commitBackfillSpreadWrite(
   input: BackfillSpreadInput,
   fundFromUnjustified: boolean,
   ctx: CurrencyContext
@@ -670,3 +671,8 @@ export async function listExplainedTransactions(uid: string, take = 100): Promis
     .sort((a, b) => b.date.toMillis() - a.date.toMillis())
     .slice(0, take);
 }
+
+// Guarded against double submits (writeGuard.ts).
+export const commitBackfillSpread = guardWrite('commitBackfillSpread', commitBackfillSpreadWrite);
+export const performReconciliation = guardWrite('performReconciliation', performReconciliationWrite);
+export const recordHistoricEntry = guardWrite('recordHistoricEntry', recordHistoricEntryWrite);

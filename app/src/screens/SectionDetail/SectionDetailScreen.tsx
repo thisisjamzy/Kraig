@@ -20,10 +20,10 @@ export function SectionDetailScreen({ bucketId }: { bucketId: string }) {
             <ChevronLeft size={18} strokeWidth={2} />
           </button>
         }
-        title="Section"
+        title="Folder"
         right={
           section && (
-            <button type="button" className={styles.editButton} onClick={openEdit} aria-label="Edit section">
+            <button type="button" className={styles.editButton} onClick={openEdit} aria-label="Edit folder">
               <Pencil size={14} strokeWidth={1.75} />
             </button>
           )
@@ -61,7 +61,7 @@ export function SectionDetailScreen({ bucketId }: { bucketId: string }) {
             </button>
           </div>
           {projects.length === 0 ? (
-            <p className={styles.emptyText}>No projects in this section yet.</p>
+            <p className={styles.emptyText}>No projects in this folder yet.</p>
           ) : (
             <div className={styles.projectCarousel} data-hscroll="true">
               {projects.map((project) => (

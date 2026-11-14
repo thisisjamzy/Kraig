@@ -1,0 +1,114 @@
+/* Dreda.figcraft `Notifications / Web`: the bell's menu. */
+
+.menu {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: min(380px, 90vw);
+  padding: 8px;
+  font-family: var(--font-family-body);
+}
+
+.head,
+.foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 8px 4px;
+}
+
+.title {
+  color: var(--color-text-primary);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.link {
+  border: 0;
+  background: none;
+  color: var(--color-brand-default);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 8px;
+  border-radius: 12px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.row:hover {
+  background: var(--color-bg-page);
+}
+
+.icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--color-bg-sunken);
+  color: var(--color-text-primary);
+}
+
+.text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.small {
+  overflow: hidden;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.body {
+  overflow: hidden;
+  color: var(--color-text-primary);
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.row[data-unread] .body {
+  font-weight: 600;
+}
+
+.chevron {
+  flex: none;
+  color: var(--color-text-tertiary);
+}
+
+.empty {
+  margin: 0;
+  padding: 16px 8px;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+}
+
+.foot span {
+  color: var(--color-text-tertiary);
+  font-size: 11px;
+}

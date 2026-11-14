@@ -734,3 +734,144 @@
     transition: none;
   }
 }
+
+/* ---- Wide screens: Dreda.figcraft `Data toolbar` ----
+   A sunken search field, labelled 36px pill buttons (the active one on the
+   brand tint with a count badge), white filter chips with a hairline and a
+   dashed "Add filter". Phones keep the icon toolbar. */
+
+.searchInline,
+.toolLabel {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .bar {
+    margin: 0;
+    padding: 0;
+    background: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  .toolbar {
+    min-height: 52px;
+  }
+
+  .tools {
+    gap: 8px;
+  }
+
+  .searchToggle {
+    display: none;
+  }
+
+  .searchInline {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 220px;
+    height: 36px;
+    box-sizing: border-box;
+    padding: 0 12px;
+    border-radius: 10px;
+    background: var(--color-bg-sunken);
+    color: var(--color-text-primary);
+  }
+
+  .searchInline:focus-within {
+    box-shadow: 0 0 0 2px var(--color-brand-default);
+  }
+
+  .searchInline input {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    outline: none;
+    background: none;
+    color: var(--color-text-primary);
+    font: inherit;
+    font-size: 14px;
+  }
+
+  .searchInline input::placeholder {
+    color: var(--color-text-tertiary);
+  }
+
+  .tool {
+    display: inline-flex;
+    gap: 6px;
+    width: auto;
+    height: 36px;
+    padding: 0 12px;
+    border: 1px solid var(--color-border-default);
+    border-radius: 10px;
+    background: var(--color-bg-surface);
+    color: var(--color-text-primary);
+    font: inherit;
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  .tool svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .tool:hover {
+    background: var(--color-bg-sunken);
+  }
+
+  .tool[data-active] {
+    border-color: transparent;
+    background: var(--color-brand-subtle);
+    color: var(--color-brand-default);
+    font-weight: 600;
+  }
+
+  .toolLabel {
+    display: inline;
+  }
+
+  .badge {
+    position: static;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    box-sizing: border-box;
+    background: var(--color-brand-default);
+    color: var(--color-brand-on);
+    font-size: 11px;
+  }
+
+  .chips {
+    gap: 8px;
+    margin: 0;
+    padding: 4px 0 12px;
+  }
+
+  .chip {
+    height: 30px;
+    padding: 0 10px 0 12px;
+    border: 1px solid var(--color-border-default);
+    background: var(--color-bg-surface);
+    color: var(--color-text-primary);
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  .chip[data-empty] {
+    border-color: var(--color-border-default);
+    background: var(--color-bg-surface);
+  }
+
+  .chipText {
+    height: 30px;
+    padding: 0 12px;
+    border: 1px dashed var(--color-border-default);
+    border-radius: 9999px;
+    color: var(--color-text-secondary);
+    font-size: 12px;
+    font-weight: 500;
+  }
+}

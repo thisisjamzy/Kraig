@@ -84,3 +84,383 @@
   color: var(--color-text-primary);
   box-shadow: 0 1px 2px color-mix(in srgb, var(--sg-neutral-900) 8%, transparent);
 }
+
+/* ---- The facelift (Dreda.figcraft `Wallet detail / Web`) ---- */
+
+.headRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.headActions {
+  display: flex;
+  gap: 10px;
+}
+
+.primary,
+.secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 20px;
+  border-radius: var(--radius-full);
+  font: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.primary {
+  border: 0;
+  background: var(--color-primary);
+  color: var(--color-brand-on);
+}
+
+.secondary {
+  border: 1px solid var(--color-border);
+  background: var(--color-background);
+  color: var(--color-text-primary);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .primary:hover {
+    background: var(--color-primary-hover);
+  }
+
+  .secondary:hover {
+    background: var(--color-bg-hover);
+  }
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+@media (min-width: 1024px) {
+  .tiles {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 20px;
+  border-radius: 14px;
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  min-width: 0;
+}
+
+.tile[data-tone='brand'] {
+  border-color: var(--color-brand-soft);
+  background: var(--color-brand-soft);
+}
+
+.tileLabel {
+  color: var(--color-text-tertiary);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 16px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+.tile[data-tone='brand'] .tileLabel,
+.tile[data-tone='brand'] .tileValue,
+.tile[data-tone='brand'] .tileSub {
+  color: var(--color-brand-subtle-fg);
+}
+
+.tileValue {
+  overflow-wrap: anywhere;
+  color: var(--color-text-primary);
+  font-family: var(--font-family-mono);
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 32px;
+  letter-spacing: -0.5px;
+}
+
+.tile[data-tone='danger'] .tileValue {
+  color: var(--color-status-danger-fg);
+}
+
+.tileSub {
+  color: var(--color-text-tertiary);
+  font-size: var(--font-size-xs);
+  line-height: 16px;
+}
+
+.alert,
+.clear {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+  border-radius: 14px;
+}
+
+.alert {
+  border: 1px solid var(--color-status-danger-border);
+  background: var(--color-status-danger-bg);
+}
+
+.clear {
+  background: var(--color-surface);
+}
+
+.alertIcon,
+.clearIcon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--color-background);
+  color: var(--color-text-primary);
+}
+
+.clearIcon {
+  background: var(--color-status-success-bg);
+  color: var(--color-status-success-fg);
+}
+
+.alertCopy {
+  flex: 1;
+  min-width: 0;
+}
+
+.alertTitle,
+.clearTitle {
+  margin: 0;
+  font-size: var(--font-size-md);
+  font-weight: 600;
+  line-height: 24px;
+}
+
+.alertTitle {
+  color: var(--color-status-danger-fg);
+}
+
+.clearTitle {
+  color: var(--color-text-primary);
+}
+
+.alertText {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  line-height: 20px;
+}
+
+.blockSub {
+  margin: 0 0 8px;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  line-height: 20px;
+}
+
+.usage {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+
+@media (min-width: 1024px) {
+  .usage {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.usageCard {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 24px;
+  border-radius: var(--radius-card);
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  min-width: 0;
+}
+
+.usageTitle {
+  margin: 0 0 8px;
+  font-family: var(--font-family-heading);
+  font-size: var(--font-size-xl);
+  font-weight: 600;
+  line-height: 30px;
+}
+
+.usageRows {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.usageRows li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px 12px;
+  align-items: baseline;
+}
+
+.usageLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--font-size-sm);
+}
+
+.usageAmount {
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-md);
+  font-weight: 500;
+}
+
+.track {
+  grid-column: 1 / -1;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  overflow: hidden;
+}
+
+.fill {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-full);
+}
+
+.usageNote {
+  margin: 12px 0 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  line-height: 16px;
+}
+
+@media (max-width: 1023.98px) {
+  .alert,
+  .clear {
+    flex-wrap: wrap;
+  }
+}
+
+/* The tabs with "Check the balance" on the same row. */
+/* Balance checks (Dreda.figcraft `Wallet detail / Web`): a white card,
+   16px corners, a subtle border, 24px padding; one row per count, tinted by
+   its result. */
+.checks {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 24px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 16px;
+  background: var(--color-bg-surface);
+}
+
+.checksHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.checksTitle {
+  margin: 0;
+  font-family: var(--font-family-heading);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 28px;
+  color: var(--color-text-primary);
+}
+
+.checksLink {
+  color: var(--color-brand-default);
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.checksLink:hover {
+  text-decoration: underline;
+}
+
+.checksHelp,
+.checksFoot {
+  margin: 0;
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.checksFoot {
+  margin-top: 4px;
+}
+
+.checkList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.check {
+  display: grid;
+  grid-template-columns: 70px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  min-height: 56px;
+  padding: 0 16px;
+  border-radius: 12px;
+}
+
+.check[data-status='success'] {
+  background: var(--color-status-success-bg);
+}
+
+.check[data-status='warning'] {
+  background: var(--color-status-warning-bg);
+}
+
+.checkDate {
+  color: var(--color-text-primary);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.checkText {
+  color: var(--color-text-primary);
+  font-size: 15px;
+  line-height: 22px;
+}
+
+.checkStatus {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.check[data-status='success'] .checkStatus {
+  color: var(--color-status-success-fg);
+}
+
+.check[data-status='warning'] .checkStatus {
+  color: var(--color-status-warning-fg);
+}

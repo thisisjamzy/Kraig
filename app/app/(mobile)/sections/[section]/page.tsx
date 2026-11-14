@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
-import { SectionDetailScreen } from '@/src/screens/SectionDetail/SectionDetailScreen';
+import { SectionDetailScreen } from '@/src/routes/SectionDetail/SectionDetailScreen';
 
 export const metadata: Metadata = {
-  title: 'Section · Dreda',
+  title: 'Folder · Dreda',
 };
 
 export default async function SectionDetailPage({ params }: PageProps<'/sections/[section]'>) {

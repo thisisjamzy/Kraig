@@ -26,6 +26,16 @@ function read(): boolean {
   return hidden;
 }
 
+/** The switch right now, for plain formatters (formatMoney, formatAmount). */
+export function amountsHidden(): boolean {
+  return typeof window !== 'undefined' && read();
+}
+
+/** An amount as text, or "••••••" while amounts are hidden. */
+export function maskAmount(text: string): string {
+  return amountsHidden() ? HIDDEN_AMOUNT : text;
+}
+
 export function setAmountsHidden(next: boolean) {
   hidden = next;
   try {

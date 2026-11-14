@@ -16,8 +16,9 @@ import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { CollapsibleGroup } from '@/src/phone/widgets/CollapsibleGroup/CollapsibleGroup';
 import p from '@/src/phone/screens/Planning/Planning.module.css';
 import styles from '@/src/phone/screens/ReadyToPay/ReadyToPayScreen.module.css';
+import { maskAmount } from '@/src/shared/hooks/usePrivacy';
 
-const money = (n: number) => Math.round(n).toLocaleString('en-US');
+const money = (n: number) => maskAmount(Math.round(n).toLocaleString('en-US'));
 const GROUPS = [
   { flow: 'Expense', title: 'Expenses' },
   { flow: 'Savings', title: 'Savings' },

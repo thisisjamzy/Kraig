@@ -5,7 +5,8 @@
 // note, and "Assign to bucket" for a transaction not tied to one yet.
 
 import Link from 'next/link';
-import { ArrowDownLeft, ArrowLeft, ArrowLeftRight, ArrowRight, ArrowUpRight, Pencil } from 'lucide-react';
+import type { ReactNode } from 'react';
+import { ArrowDownLeft, ArrowLeft, ArrowLeftRight, ArrowRight, ArrowUpRight, CalendarDays, HandCoins, LayoutGrid, ListChecks, Pencil, Tag, Wallet, type LucideIcon } from 'lucide-react';
 import { useLogic } from '@/src/logic/transactionDetails/useLogic';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { money, weekdayDayMonth } from '@/src/viewmodels/planning';
@@ -13,10 +14,10 @@ import { SpecCell, SpecRow } from '@/src/screens/Planning/PlanningParts';
 import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import p from '@/src/screens/Planning/Planning.module.css';
 import styles from './TransactionDetailsScreen.module.css';
-import { useHasTopBar } from '@/src/widgets/AppShell/TopBarSlot';
+import { useFormLink } from '@/src/shared/navigation/useFormLink';
+import { TopBarTitle, useHasTopBar } from '@/src/widgets/AppShell/TopBarSlot';
 import { useBreadcrumb, usePageMenu } from '@/src/widgets/AppShell/breadcrumb';
-import { Block, Callout, NotionPageHeader } from '@/src/widgets/Database/NotionPage';
-import { PropertiesBlock } from '@/src/widgets/Database/PropertiesBlock';
+import { Block, Callout } from '@/src/widgets/Database/NotionPage';
 import bm from '@/src/screens/BudgetMonth/BudgetMonth.module.css';
 
 export function TransactionDetailsScreen({ id, transfer = false, assign = false }: { id: string; transfer?: boolean; assign?: boolean }) {
@@ -152,6 +153,7 @@ type TxLogic = ReturnType<typeof useLogic>;
  * over the Transactions page (no breadcrumb of its own then). */
 export function TransactionPage({ t, inPeek = false }: { t: TxLogic; inPeek?: boolean }) {
   const v = t.view;
+  const formLink = useFormLink();
   useBreadcrumb(inPeek ? null : [{ label: 'Money', href: '/home' }, { label: 'Transactions', href: '/transactions' }, { label: v?.title ?? 'Transaction' }]);
   // As a page, Edit lives in the top bar's "..." menu; a peek keeps its button.
   // An excluded transaction changes through its debt, never directly.
@@ -159,39 +161,61 @@ export function TransactionPage({ t, inPeek = false }: { t: TxLogic; inPeek?: bo
   if (!v) return <ScreenState loading={t.loading} error={t.missing ? 'This transaction could not be found.' : null} />;
   const Icon = v.flow === 'in' ? ArrowDownLeft : v.flow === 'out' ? ArrowUpRight : ArrowLeftRight;
   const sign = v.flow === 'in' ? '+' : v.flow === 'out' ? '-' : '';
+  const when = `${weekdayDayMonth(v.date)} ${v.date.getFullYear()}${v.timeKnown ? `, ${v.date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}` : ''}`;
+  const rows: { id: string; icon: LucideIcon; label: string; value: ReactNode }[] = [
+    { id: 'type', icon: ArrowLeftRight, label: 'Type', value: v.subtype ? `${v.type} · ${v.subtype}` : v.type },
+    { id: 'wallet', icon: Wallet, label: t.isTransfer ? 'From and to' : 'Wallet', value: v.method || null },
+    { id: 'category', icon: Tag, label: t.isTransfer ? 'Kind' : 'Category', value: v.category || null },
+    { id: 'date', icon: CalendarDays, label: 'Date', value: when },
+    { id: 'basket', icon: LayoutGrid, label: 'Basket', value: t.link && t.bucketHref ? <Link href={t.bucketHref} className={styles.rowLink}>{t.linkLabel}</Link> : null },
+    ...(t.linkMonth ? [{ id: 'month', icon: ListChecks, label: 'Counts toward', value: t.linkMonth }] : []),
+    ...(v.debtHref ? [{ id: 'debt', icon: HandCoins, label: 'Debt', value: <Link href={v.debtHref} className={styles.rowLink}>Open the debt</Link> }] : []),
+  ];
   return (
-    <div className={inPeek ? undefined : bm.page}>
-      <NotionPageHeader
-        icon={<Icon size={24} strokeWidth={2} />}
-        title={v.title}
-        kind={`${v.type} · ${sign}${money(v.amount)} ${t.currency}`}
-        actions={
-          inPeek && !v.excluded ? (
-            <Link href={v.editHref} className={bm.ghostButton}>
-              <Pencil size={14} strokeWidth={2.25} aria-hidden /> Edit
+    <div className={inPeek ? styles.sheet : `${bm.page} ${styles.sheet}`}>
+      {!inPeek && (
+        <TopBarTitle>
+          <div>
+            <h1>{v.title}</h1>
+            <p>{when}</p>
+          </div>
+        </TopBarTitle>
+      )}
+      <section className={styles.top}>
+        <span className={styles.typeChip} data-flow={v.flow}>
+          <Icon size={14} strokeWidth={2.25} aria-hidden /> {v.type}
+        </span>
+        {inPeek && <h2 className={styles.topTitle}>{v.title}</h2>}
+        <p className={styles.topAmount} data-flow={v.flow}>
+          {sign}
+          {money(v.amount)} {t.currency}
+        </p>
+        {!v.excluded && (
+          <div className={styles.topActions}>
+            <Link href={v.editHref} className={styles.editButton}>
+              Edit transaction
             </Link>
-          ) : undefined
-        }
-      >
-        <PropertiesBlock
-          properties={[
-            { id: 'amount', label: 'Amount', display: `${sign}${money(v.amount)} ${t.currency}` },
-            { id: 'date', label: 'Date', display: `${weekdayDayMonth(v.date)} ${v.date.getFullYear()}` },
-            { id: 'time', label: 'Time', display: v.timeKnown ? v.date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : null },
-            { id: 'type', label: 'Type', display: v.type },
-            ...(v.subtype ? [{ id: 'subtype', label: 'Income subtype', display: v.subtype }] : []),
-            { id: 'category', label: t.isTransfer ? 'Kind' : 'Category', display: v.category === '' ? null : v.category },
-            { id: 'account', label: t.isTransfer ? 'From and to' : 'Account', display: v.method },
-            {
-              id: 'bucket',
-              label: 'Basket',
-              display: t.link && t.bucketHref ? <Link href={t.bucketHref} className={bm.relation}>{t.linkLabel}</Link> : null,
-            },
-            ...(t.linkMonth ? [{ id: 'month', label: 'Counts toward', display: t.linkMonth }] : []),
-            ...(v.debtHref ? [{ id: 'debt', label: 'Debt', display: <Link href={v.debtHref} className={bm.relation}>Open the debt</Link> }] : []),
-          ]}
-        />
-      </NotionPageHeader>
+            <Link href={formLink('transaction', t.isTransfer ? { duplicateTransfer: t.id } : { duplicate: t.id })} scroll={false} className={styles.outlineButton}>
+              Duplicate
+            </Link>
+          </div>
+        )}
+      </section>
+
+      <dl className={styles.rows}>
+        {rows.map((r) => {
+          const RowIcon = r.icon;
+          return (
+            <div key={r.id} className={styles.row}>
+              <dt>
+                <RowIcon size={16} strokeWidth={2} aria-hidden />
+                {r.label}
+              </dt>
+              <dd>{r.value ?? <span className={styles.none}>None</span>}</dd>
+            </div>
+          );
+        })}
+      </dl>
 
       {v.excluded && (
         <Callout tone="watch">

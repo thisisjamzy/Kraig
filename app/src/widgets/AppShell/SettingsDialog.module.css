@@ -112,3 +112,73 @@
   outline: 2px solid var(--color-brand);
   outline-offset: 2px;
 }
+
+/* ==== Dreda.figcraft Settings / Web ==== */
+
+.backdrop {
+  background: color-mix(in srgb, var(--color-text-primary) 35%, transparent);
+}
+
+.dialog {
+  grid-template-columns: 236px minmax(0, 1fr);
+  border-radius: 28px;
+  background: var(--color-bg-surface);
+  box-shadow: 0 24px 64px color-mix(in srgb, var(--sg-neutral-900) 22%, transparent);
+}
+
+.nav {
+  gap: 10px;
+  padding: 24px 12px;
+  background: var(--color-bg-sunken);
+}
+
+.navTitle {
+  margin: 0 0 4px;
+  padding: 0 12px;
+  color: var(--color-text-primary);
+  font-family: var(--font-family-heading);
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 30px;
+}
+
+.navGroupLabel {
+  padding: 4px 12px;
+  color: var(--color-text-tertiary);
+  font-size: 11px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+.navRow {
+  min-height: 40px;
+  padding: 0 12px;
+  border-radius: 10px;
+  color: var(--color-text-secondary);
+  font-size: 15px;
+}
+
+.navRow:hover {
+  background: color-mix(in srgb, var(--color-text-primary) 5%, transparent);
+}
+
+.navRow[aria-current='page'] {
+  background: var(--color-bg-selected);
+  color: var(--color-brand-subtle-fg);
+  font-weight: 600;
+}
+
+.navRow[data-danger] {
+  color: var(--color-status-danger-fg);
+}
+
+.content {
+  padding: 32px 28px 40px;
+}
+
+.close {
+  top: 24px;
+  right: 24px;
+  border-radius: 9999px;
+  color: var(--color-text-primary);
+}

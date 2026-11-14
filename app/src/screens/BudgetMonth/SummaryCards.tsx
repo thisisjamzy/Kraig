@@ -9,8 +9,9 @@
 import type { FlowType } from '@/src/shared/budget/flow';
 import type { MonthTotals } from '@/src/shared/budget/monthTotals';
 import styles from './BudgetMonth.module.css';
+import { maskAmount } from '@/src/shared/hooks/usePrivacy';
 
-const money = (n: number) => Math.round(n).toLocaleString('en-US');
+const money = (n: number) => maskAmount(Math.round(n).toLocaleString('en-US'));
 
 function Card({
   type,
@@ -39,9 +40,13 @@ function Card({
     <button type="button" className={styles.sumCard} data-type={type} aria-pressed={active} onClick={() => onOpen(type)}>
       <span className={styles.sumHead}>
         <span className={styles.sumTitle}>{title}</span>
-        {chip && (
+        {chip ? (
           <span className={styles.chip} data-tone={chip.tone}>
             {chip.text}
+          </span>
+        ) : (
+          <span className={styles.sumPct} data-over={over || undefined}>
+            {Math.round(Math.max(0, fill) * 100)}%
           </span>
         )}
       </span>

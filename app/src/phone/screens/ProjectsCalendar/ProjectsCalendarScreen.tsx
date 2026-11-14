@@ -11,7 +11,8 @@
 // route (chromeVisibility.ts) — this header replaces it.
 
 import { useRef } from 'react';
-import { ChevronLeft, ChevronRight, CalendarClock, FolderKanban, ListPlus, RefreshCw, Target, Wallet } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { ChevronLeft, ChevronRight, CalendarClock, FolderKanban, Link2, ListPlus, RefreshCw, Target, Wallet } from 'lucide-react';
 import { useLogic, HOUR_HEIGHT } from '@/src/phone/logic/projectsCalendar/useLogic';
 import { ActionMenu } from '@/src/widgets/ActionMenu/ActionMenu';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
@@ -106,6 +107,7 @@ export function ProjectsCalendarView({
   const hasAllDay =
     agenda.projectItems.length > 0 || agenda.paymentItems.length > 0 || allDayTasks.length > 0 || allDayGoogle.length > 0;
   const syncEnabled = isCalendarSyncEnabled();
+  const router = useRouter();
 
   return (
     <div className={`${styles.page} ${isWeb ? webStyles.page : ''}`}>
@@ -145,6 +147,12 @@ export function ProjectsCalendarView({
                   label: 'Add event',
                   icon: <ListPlus size={14} strokeWidth={2} />,
                   onSelect: openAddEvent,
+                },
+                {
+                  key: 'links',
+                  label: 'Scheduling links',
+                  icon: <Link2 size={14} strokeWidth={2} />,
+                  onSelect: () => router.push('/projects/calendar/links'),
                 },
                 ...(syncEnabled
                   ? [

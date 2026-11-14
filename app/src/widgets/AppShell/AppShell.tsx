@@ -10,25 +10,24 @@
 //     as a floating panel and the top bar's "»" docks it again;
 //   medium: collapsed by default, "»" opens it as a 280px overlay over the
 //     content with a dim backdrop (tap it, Escape or swipe left to close).
-// Ctrl/Cmd + K opens search (fine pointers only; the sidebar's Search row
-// works everywhere).
+// Ctrl/Cmd + K or the header's Search pill opens search.
 //
-// Pages draw their own title (useBreadcrumb / useOwnsTitle); a page that
-// doesn't gets one from the page tree here, so every page has exactly one.
-// Page controls (TopBarControls) render in a row under that title, not in
-// the top bar. The page area is full width (the whole content area) or, for
-// pages without a wide layout, the standard 900px column; the top bar's
-// "..." switches it per page.
+// The header (TopBar.tsx, Dreda.figcraft `Top bar`) carries the title, so
+// every page has exactly one: pages hand theirs in with <TopBarTitle>, and a
+// page that doesn't gets its route's name. Page controls (TopBarControls)
+// sit in the header beside Search. The page area is full width or, for
+// pages without a wide layout, the standard 900px column.
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
 import { useLayout } from '@/src/shared/hooks/useLayout';
+import { useAmountsHidden } from '@/src/shared/hooks/usePrivacy';
 import { fallbackTitle } from '@/src/shared/config/pageTree';
 import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
-import { TopBarSlotContext } from './TopBarSlot';
+import { TopBarActionsContext, TopBarPrimaryContext, TopBarSlotContext, TopBarTitleContext } from './TopBarSlot';
 import { SearchPalette } from './SearchPalette';
-import { usePageMeta, usePageWidth } from './breadcrumb';
+import { usePageWidth } from './breadcrumb';
 import { useSidebarCollapsed, useSidebarWidth } from './sidebarState';
 import { isWideLayoutRoute } from './wideRoutes';
 import styles from './AppShell.module.css';
@@ -42,7 +41,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [overlay, setOverlay] = useState(false);
   const [searching, setSearching] = useState(false);
   const [slot, setSlot] = useState<HTMLDivElement | null>(null);
-  const meta = usePageMeta();
+  const [titleSlot, setTitleSlot] = useState<HTMLDivElement | null>(null);
+  const [actionsSlot, setActionsSlot] = useState<HTMLDivElement | null>(null);
+  const [primarySlot, setPrimarySlot] = useState<HTMLDivElement | null>(null);
+  const [amountsHidden] = useAmountsHidden();
   const medium = deviceClass === 'medium';
   const touch = !finePointer;
 
@@ -86,7 +88,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const docked = !medium && !collapsed;
 
   return (
-    <div className={styles.shell} data-device={deviceClass}>
+    <div className={styles.shell} data-device={deviceClass} data-sidebar={docked ? 'docked' : 'hidden'}>
       <a href="#main-content" className={styles.skip}>
         Skip to content
       </a>
@@ -137,15 +139,29 @@ export function AppShell({ children }: { children: ReactNode }) {
       )}
 
       <div className={styles.main}>
-        <TopBar showExpand={!docked} onExpand={() => (medium ? setOverlay(true) : setCollapsed(false))} compactCrumbs={medium} defaultWidth={wide ? 'full' : 'standard'} />
+        <TopBar
+          showExpand={!docked}
+          onExpand={() => (medium ? setOverlay(true) : setCollapsed(false))}
+          onSearch={() => setSearching(true)}
+          fallbackTitle={fallbackTitle(pathname)}
+          setTitleSlot={setTitleSlot}
+          setControlsSlot={setSlot}
+          setActionsSlot={setActionsSlot}
+          setPrimarySlot={setPrimarySlot}
+        />
         <TopBarSlotContext.Provider value={slot}>
-          <main id="main-content" className={styles.content} tabIndex={-1}>
-            <div className={pageWidth === 'full' ? styles.page : styles.column}>
-              {!meta.titled && <h1 className={styles.fallbackTitle}>{fallbackTitle(pathname)}</h1>}
-              <div ref={setSlot} className={styles.controls} />
-              {children}
-            </div>
-          </main>
+          <TopBarTitleContext.Provider value={titleSlot}>
+            <TopBarActionsContext.Provider value={actionsSlot}>
+            <TopBarPrimaryContext.Provider value={primarySlot}>
+            <main id="main-content" className={styles.content} tabIndex={-1}>
+              {/* Hiding amounts redraws the page, so every figure follows the switch. */}
+              <div key={amountsHidden ? 'hidden' : 'shown'} className={pageWidth === 'full' ? styles.page : styles.column}>
+                {children}
+              </div>
+            </main>
+            </TopBarPrimaryContext.Provider>
+            </TopBarActionsContext.Provider>
+          </TopBarTitleContext.Provider>
         </TopBarSlotContext.Provider>
       </div>
 

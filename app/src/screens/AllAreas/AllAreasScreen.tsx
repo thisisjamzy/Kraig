@@ -78,9 +78,10 @@ export function AllAreasScreen() {
       {archiving && (
         <ConfirmDialog
           title={`Archive ${archiving.name}?`}
-          message="Its projects keep their tasks; the area leaves the list."
-          confirmLabel="Archive"
-          cancelLabel="Keep"
+          message="Its folders, projects and tasks go to the archive together and stop showing up in Work. You can restore the area from Library later."
+          confirmLabel="Archive area"
+          cancelLabel="Cancel"
+          tone="neutral"
           onCancel={() => setArchiving(null)}
           onConfirm={() => {
             const a = archiving;

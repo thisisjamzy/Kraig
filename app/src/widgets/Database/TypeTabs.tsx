@@ -13,7 +13,8 @@ export interface TypeTab<K extends string> {
   key: K;
   label: string;
   icon: LucideIcon;
-  count: number;
+  /** Left out: no count shown. */
+  count?: number;
 }
 
 export function TypeTabs<K extends string>({ tabs, value, onChange, label }: { tabs: TypeTab<K>[]; value: K; onChange: (key: K) => void; label: string }) {
@@ -29,7 +30,7 @@ export function TypeTabs<K extends string>({ tabs, value, onChange, label }: { t
           <button key={t.key} type="button" role="tab" aria-selected={t.key === value} className={styles.tab} onClick={() => onChange(t.key)}>
             <Icon size={16} strokeWidth={2} aria-hidden className={styles.icon} />
             <span>{t.label}</span>
-            <span className={styles.count}>{t.count}</span>
+            {t.count !== undefined && <span className={styles.count}>{t.count}</span>}
           </button>
         );
       })}

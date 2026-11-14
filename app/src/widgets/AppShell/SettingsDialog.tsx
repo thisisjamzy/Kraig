@@ -35,6 +35,7 @@ export function SettingsDialog({ section, onSection, onClose }: { section: Setti
     >
       <div className={styles.dialog} role="dialog" aria-modal="true" aria-label="Settings">
         <nav className={styles.nav} aria-label="Settings sections">
+          <p className={styles.navTitle}>Settings</p>
           {SETTINGS_GROUPS.map((group) => (
             <div key={group.label || 'more'} className={styles.navGroup}>
               {group.label && <span className={styles.navGroupLabel}>{group.label}</span>}

@@ -153,7 +153,15 @@ export function TaskPageBody({ taskId, db }: { taskId: string; db: TasksDb }) {
         <TaskCheck row={row} db={db} />
         <TitleInput row={row} db={db} />
       </h1>
-      <PropertiesBlock properties={properties} />
+      <div className={styles.quickActions}>
+        {row.status !== 'Done' && (
+          <button type="button" className={styles.markDone} onClick={() => run(() => db.actions.setStatus(row, 'Done'))}>
+            Mark done
+          </button>
+        )}
+        <span className={styles.statusChip}>{row.status}</span>
+      </div>
+      <PropertiesBlock properties={properties} layout="list" compact />
       {availability && (
         <div className={styles.availability}>
           <AvailabilityRow
@@ -364,9 +372,10 @@ export function TaskPeek({ taskId, onClose, fullHref, formHref }: { taskId: stri
       {confirm && (
         <ConfirmDialog
           title="Archive this task?"
-          message="It leaves every list. A date of a repeating task is removed from the series."
-          confirmLabel="Archive"
-          cancelLabel="Keep"
+          message="It leaves every list and goes to the archive. A date of a repeating task is removed from the series. You can restore it from Library later."
+          confirmLabel="Archive task"
+          cancelLabel="Cancel"
+          tone="neutral"
           onCancel={() => setConfirm(false)}
           onConfirm={() => {
             setConfirm(false);

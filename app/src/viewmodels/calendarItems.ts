@@ -34,6 +34,8 @@ export interface CalItem {
   taskId: string | null;
   /** Where a non-task opens (a Google event's page, a project). */
   href: string | null;
+  /** Past its date and not done (a late payment): drawn in the danger colour. */
+  late?: boolean;
 }
 
 export const DAY_START_HOUR = 7;

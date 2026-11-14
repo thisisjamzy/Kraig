@@ -1,0 +1,333 @@
+/* The landing page's pieces (Dreda.figcraft `Landing / Web`, `Landing /
+   Phone`), on the app's variables. */
+
+.hero {
+  position: relative;
+  overflow: hidden;
+  background: var(--ink-bg);
+  color: var(--ink-text);
+}
+
+.heroInner {
+  position: relative;
+  z-index: 1;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 0 32px 80px;
+}
+
+.blobPurple,
+.blobLime {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.blobPurple {
+  top: -120px;
+  right: -160px;
+  width: 640px;
+  height: 640px;
+  background: var(--color-brand-pressed);
+}
+
+.blobLime {
+  bottom: -260px;
+  left: -200px;
+  width: 540px;
+  height: 540px;
+  background: color-mix(in srgb, var(--color-accent-default) 22%, transparent);
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 56px;
+  padding: 0 28px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  font: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color var(--duration-popover) ease, transform var(--duration-press) var(--ease-out);
+}
+
+.pill:active {
+  transform: scale(0.98);
+}
+
+.pill[data-tone='accent'] {
+  background: var(--color-accent-default);
+  color: var(--color-accent-on);
+}
+
+.pill[data-tone='outline'] {
+  border-color: color-mix(in srgb, var(--ink-text) 60%, transparent);
+  background: transparent;
+  color: var(--ink-text);
+}
+
+.pill[data-tone='ink'] {
+  background: var(--ink-bg);
+  color: var(--ink-text);
+}
+
+.pill[data-tone='brand'] {
+  width: 100%;
+  background: var(--color-primary);
+  color: var(--color-brand-on);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .pill[data-tone='accent']:hover {
+    background: var(--color-accent-hover);
+  }
+
+  .pill[data-tone='outline']:hover {
+    background: color-mix(in srgb, var(--ink-text) 10%, transparent);
+  }
+
+  .pill[data-tone='brand']:hover {
+    background: var(--color-primary-hover);
+  }
+}
+
+.pill:focus-visible {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 3px;
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 16px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+.eyebrow[data-tone='dark'] {
+  border: 1px solid var(--color-accent-default);
+  color: var(--color-accent-default);
+}
+
+.eyebrow[data-tone='light'] {
+  background: var(--color-brand-soft);
+  color: var(--color-brand-subtle-fg);
+}
+
+.eyebrow[data-tone='accent'] {
+  background: var(--color-accent-subtle);
+  color: var(--color-accent-fg);
+}
+
+.accentPanel {
+  border-radius: 28px;
+  background: var(--color-accent-default);
+  color: var(--color-accent-on);
+}
+
+/* ---- Phone mock ---- */
+
+.phone {
+  position: relative;
+  width: 300px;
+  max-width: 100%;
+  padding: 10px;
+  border-radius: 44px;
+  background: var(--ink-bg);
+  box-shadow: var(--shadow-popover);
+}
+
+.phoneScreen {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 540px;
+  padding: 18px 14px;
+  border-radius: 36px;
+  background: var(--color-page);
+  color: var(--color-text-primary);
+}
+
+.phoneTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.phoneAvatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--color-bg-pressed);
+}
+
+.safe {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px;
+  border-radius: 14px;
+  background: var(--color-primary);
+  color: var(--color-brand-on);
+}
+
+.safe span {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+.safe strong {
+  font-family: var(--font-family-mono);
+  font-size: 24px;
+}
+
+.quick {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.quick span {
+  display: grid;
+  place-items: center;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--color-background);
+  border: 1px solid var(--color-border-subtle);
+}
+
+.phoneLabel {
+  color: var(--color-text-tertiary);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+.baskets {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 14px;
+  background: var(--color-background);
+}
+
+.basket {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 6px 4px;
+}
+
+.basketHead {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.basketHead span {
+  display: flex;
+  flex-direction: column;
+}
+
+.basketHead strong {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.basketHead small {
+  color: var(--color-text-tertiary);
+  font-size: 10px;
+}
+
+.basketAmount {
+  align-items: flex-end;
+}
+
+.basketAmount strong {
+  font-family: var(--font-family-mono);
+  font-size: 13px;
+}
+
+.basketBar {
+  height: 4px;
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  overflow: hidden;
+}
+
+.basketBar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-status-warning-solid);
+}
+
+.basketLeft {
+  align-self: flex-end;
+  padding: 1px 8px;
+  border-radius: var(--radius-full);
+  background: var(--color-status-warning-bg);
+  color: var(--color-status-warning-fg);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.float {
+  position: absolute;
+  z-index: 2;
+  padding: 12px 16px;
+  border-radius: 14px;
+  background: var(--color-background);
+  color: var(--color-text-primary);
+  box-shadow: var(--shadow-popover);
+  font-size: 12px;
+}
+
+.float[data-position='top'] {
+  top: 110px;
+  left: -90px;
+}
+
+.float[data-position='bottom'] {
+  right: -90px;
+  bottom: 40px;
+}
+
+@media (max-width: 767.98px) {
+  .heroInner {
+    padding: 0 16px 48px;
+  }
+
+  .blobPurple {
+    width: 360px;
+    height: 360px;
+    right: -180px;
+  }
+
+  .float[data-position='top'] {
+    left: -12px;
+  }
+
+  .float[data-position='bottom'] {
+    right: -12px;
+  }
+
+  .accentPanel {
+    border-radius: 20px;
+  }
+}

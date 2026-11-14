@@ -19,12 +19,14 @@ test('a page inside a feature goes back to that feature’s main page', () => {
     ['/transactions/t1', '/transactions'],
     ['/edit-transaction/t1', '/transactions'],
     ['/debts/d1/repay', '/debts'],
-    ['/projects/p1', '/projects/all'],
-    ['/projects/p1/edit', '/projects/all'],
-    ['/sections/s1', '/projects/all'],
+    ['/projects/p1', '/work'],
+    ['/projects/p1/edit', '/work'],
+    ['/sections/s1', '/work'],
     ['/projects/insights/p1', '/projects/insights'],
     ['/projects/calendar/events/e1', '/projects/calendar'],
-    ['/areas/a1', '/areas'],
+    ['/areas/a1', '/work'],
+    ['/projects/all', '/work'],
+    ['/people/x1', '/people'],
     ['/tasks/t1/edit', '/projects'],
     ['/settings/export', '/settings'],
     ['/notifications/n1', '/notifications'],
@@ -36,9 +38,12 @@ test('a feature’s main page goes back to the mode’s home', () => {
   assert.equal(backTargetFor('/budget', null), '/home');
   assert.equal(backTargetFor('/baskets', '/budget/item/b1/i1'), '/home');
   assert.equal(backTargetFor('/payments', null), '/home');
-  assert.equal(backTargetFor('/baskets/items', null), '/home');
-  assert.equal(backTargetFor('/projects/all', null), '/projects');
-  assert.equal(backTargetFor('/areas', null), '/projects');
+  // Priorities lives on Payments now: its old address goes back there.
+  assert.equal(backTargetFor('/baskets/items', null), '/payments');
+  // Work holds Areas and Projects (Design-System HANDOFF section 21).
+  assert.equal(backTargetFor('/work', null), '/projects');
+  assert.equal(backTargetFor('/people', null), '/projects');
+  assert.equal(backTargetFor('/library', null), '/projects');
   // The home itself: nowhere better, the caller's fallback.
   assert.equal(backTargetFor('/projects', null), null);
 });

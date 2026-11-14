@@ -1,12 +1,9 @@
-import type { Metadata } from 'next';
-import { MoneyPlanScreen } from '@/src/routes/MoneyPlan/MoneyPlanScreen';
+import { redirect } from 'next/navigation';
 
-export const metadata: Metadata = {
-  title: 'Plan and forecast · Dreda',
-};
-
-// The money plan: the locked layer (income and fixed costs) and what you
-// plan on top of it (Remix/Priorities/priorities-forecasting-brief.md).
-export default function MoneyPlanPage() {
-  return <MoneyPlanScreen />;
+// The money plan and forecast page is off until it is redesigned to be
+// actionable; its code stays (src/routes/MoneyPlan, src/logic/moneyPlan).
+// Old links and notifications land on Budget for the same month.
+export default async function MoneyPlanPage({ searchParams }: PageProps<'/baskets/forecast'>) {
+  const month = (await searchParams).month;
+  redirect(typeof month === 'string' ? `/budget?month=${encodeURIComponent(month)}` : '/budget');
 }

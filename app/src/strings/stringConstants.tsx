@@ -1187,8 +1187,8 @@ export const stringConstants = {
   },
 
   signIn: {
-    title: 'Welcome back !',
-    tagline: 'Sign in to keep capturing tasks and spending in two taps.',
+    title: 'Welcome back',
+    tagline: 'Sign in to pick up where you left off.',
     emailLabel: 'Email',
     passwordLabel: 'Password',
     submit: 'Sign in',
@@ -1198,8 +1198,8 @@ export const stringConstants = {
     or: 'or continue with',
     continueWithGoogle: 'Google',
     continueWithApple: 'Apple',
-    footerPrompt: "Don't have an account?",
-    footerLink: 'Create one',
+    footerPrompt: 'Dreda is invite only.',
+    footerLink: 'Request access',
   },
 
   marketing: {
@@ -1220,8 +1220,13 @@ export const stringConstants = {
   },
 
   signUp: {
-    title: 'Welcome !',
-    tagline: 'Join the league of people using Dreda\'s intuitive interface to manage their time and finances for free on the go.',
+    title: 'Create your account',
+    tagline: 'Enter the code from your invite email, then pick a password.',
+    inviteLabel: 'Invite code',
+    invitePlaceholder: 'DRD-7K42-QA',
+    inviteMissing: 'Enter the code from your invite email.',
+    inviteInvalid: 'That code does not look right. It reads like DRD-7K42-QA.',
+    passwordHint: 'At least 8 characters',
     nameLabel: 'Name',
     emailLabel: 'Email',
     passwordLabel: 'Password',
@@ -1281,7 +1286,7 @@ export const stringConstants = {
     namePlaceholder: 'e.g. Repaint the fence',
     areaLabel: 'Area (optional)',
     noAreaOption: 'No area',
-    sectionLabel: 'Section',
+    sectionLabel: 'Folder',
     colorLabel: 'Color',
     plannedEndDateLabel: 'End date (optional)',
     notesLabel: 'Description',

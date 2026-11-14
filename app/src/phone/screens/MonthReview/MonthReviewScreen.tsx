@@ -17,8 +17,9 @@ import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { CollapsibleGroup } from '@/src/phone/widgets/CollapsibleGroup/CollapsibleGroup';
 import p from '@/src/phone/screens/Planning/Planning.module.css';
 import styles from '@/src/phone/screens/MonthReview/MonthReview.module.css';
+import { maskAmount } from '@/src/shared/hooks/usePrivacy';
 
-const money = (n: number) => Math.round(n).toLocaleString('en-US');
+const money = (n: number) => maskAmount(Math.round(n).toLocaleString('en-US'));
 
 export function MonthReviewScreen() {
   const v = useLogic();

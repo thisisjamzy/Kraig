@@ -221,3 +221,24 @@
     transform: none;
   }
 }
+
+/* ==== Dreda.figcraft Today / Phone ==== */
+.hubTitle {
+  font-family: var(--font-family-heading);
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.taskList {
+  overflow: hidden;
+  padding: 4px 14px;
+  border-radius: 20px;
+  background: var(--color-bg-surface);
+}
+
+.iconButtonSoft,
+.viewAllButton {
+  border-radius: 9999px;
+  background: var(--color-bg-sunken);
+  color: var(--color-text-primary);
+}

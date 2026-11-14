@@ -6,7 +6,7 @@
   display: flex;
   width: 100%;
   min-height: 100dvh;
-  background: var(--color-background);
+  background: var(--color-bg-page);
 }
 
 .shell[data-device='expanded'] {
@@ -30,17 +30,27 @@
   display: flex;
   flex: 1;
   flex-direction: column;
+  gap: 24px;
   min-width: 0;
+  /* Dreda.figcraft: 16px from the window, 24px from the sidebar card. */
+  padding: 16px 16px 0 24px;
+  padding-right: max(16px, var(--safe-right));
+}
+
+.drawer + .main,
+.shell[data-device='medium'] .main {
+  padding-left: 24px;
+}
+
+.shell:not(:has(.drawer)) .main {
+  padding-left: 16px;
 }
 
 .content {
   flex: 1;
   box-sizing: border-box;
   width: 100%;
-  padding: var(--content-pad);
-  padding-left: max(var(--content-pad), var(--safe-left));
-  padding-right: max(var(--content-pad), var(--safe-right));
-  padding-bottom: calc(var(--content-pad) + var(--safe-bottom));
+  padding: 0 0 calc(24px + var(--safe-bottom));
   /* Never a horizontal page scroll; wide tables scroll inside themselves. */
   overflow-x: clip;
 }

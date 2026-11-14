@@ -1,0 +1,197 @@
+/* Priorities (PriorityList.tsx), from Dreda.figcraft `Payments / Web /
+   Priorities`: a white card, a brand-tinted banner, overline group labels,
+   58px rows with hairlines. */
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
+  border-radius: 24px;
+  background: var(--color-bg-surface);
+}
+
+.banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--color-brand-subtle);
+  color: var(--color-brand-subtle-fg);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.banner :global(svg) {
+  flex: none;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+}
+
+.groupLabel {
+  margin: 8px 0 0;
+  padding: 0 12px 8px;
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 16px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+.rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 20px 24px minmax(0, 1fr) 130px minmax(140px, 200px) 110px;
+  align-items: center;
+  gap: 12px;
+  min-height: 58px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--color-border-subtle);
+  background: var(--color-bg-surface);
+}
+
+.row[data-dragging] {
+  position: relative;
+  z-index: 2;
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--color-text-primary) 12%, transparent);
+}
+
+.handle {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--color-text-tertiary);
+  cursor: grab;
+  touch-action: none;
+}
+
+.handle:active {
+  cursor: grabbing;
+}
+
+.rank {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 0;
+  padding: 8px 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.name {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--color-text-primary);
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 22px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.main:hover .name {
+  text-decoration: underline;
+}
+
+.meta {
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.coverage {
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.coverage [data-tone='good'] {
+  color: var(--color-status-success-fg);
+}
+
+.coverage [data-tone='watch'] {
+  color: var(--color-status-warning-fg);
+}
+
+.coverage [data-tone='bad'] {
+  color: var(--color-status-danger-fg);
+}
+
+.wallet {
+  overflow: hidden;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: var(--color-bg-sunken);
+  color: var(--color-text-primary);
+  font-size: 14px;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.amount {
+  color: var(--color-text-primary);
+  font-family: var(--font-family-mono);
+  font-size: 14px;
+  line-height: 20px;
+  text-align: right;
+}
+
+.footer,
+.empty {
+  margin: 4px 0 0;
+  padding: 0 12px;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.error {
+  margin: 0;
+  color: var(--color-status-danger-fg);
+  font-size: 13px;
+}
+
+.handle:focus-visible,
+.main:focus-visible {
+  outline: 2px solid var(--color-brand-default);
+  outline-offset: 2px;
+}
+
+/* Medium screens: the wallet column folds away. */
+@media (max-width: 1100px) {
+  .row {
+    grid-template-columns: 20px 24px minmax(0, 1fr) 120px 100px;
+  }
+
+  .wallet {
+    display: none;
+  }
+}

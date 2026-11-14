@@ -1,0 +1,350 @@
+/* Dreda.figcraft `Budget / Web`: Planned card, Available now, Needs your
+   attention. */
+
+.top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 350px);
+  gap: 16px;
+}
+
+@media (max-width: 1100px) {
+  .top {
+    grid-template-columns: 1fr;
+  }
+}
+
+.planned,
+.attention {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+  border-radius: 24px;
+  background: var(--color-bg-surface);
+}
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.title,
+.attentionTitle {
+  margin: 0;
+  font-family: var(--font-family-heading);
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 30px;
+}
+
+.sub {
+  margin: 2px 0 0;
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+}
+
+.link {
+  color: var(--color-brand-default);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.big {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 12px;
+  margin: 0;
+}
+
+.big strong {
+  font-family: var(--font-family-mono);
+  font-size: 36px;
+  font-weight: 600;
+  line-height: 44px;
+  letter-spacing: -0.5px;
+}
+
+.big strong[data-bad] {
+  color: var(--color-status-danger-fg);
+}
+
+.big span {
+  color: var(--color-text-secondary);
+  font-size: 14px;
+}
+
+.stack {
+  display: flex;
+  gap: 3px;
+  height: 12px;
+  overflow: hidden;
+  border-radius: 9999px;
+  background: var(--color-bg-sunken);
+}
+
+.stack span {
+  flex-basis: 0;
+  min-width: 4px;
+}
+
+.stack [data-part='expense'],
+.legend [data-part='expense'] {
+  --part: var(--color-brand-default);
+}
+
+.stack [data-part='savings'],
+.legend [data-part='savings'] {
+  --part: var(--color-data-categorical-2);
+}
+
+.stack [data-part='transfer'],
+.legend [data-part='transfer'] {
+  --part: var(--color-border-default);
+}
+
+.stack [data-part='left'],
+.legend [data-part='left'] {
+  --part: var(--color-accent-default);
+}
+
+.stack [data-bad],
+.legend [data-bad] {
+  --part: var(--color-status-danger-solid);
+}
+
+.stack span {
+  background: var(--part);
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.legend li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-left: 12px;
+  border-left: 3px solid var(--part);
+}
+
+.legend span {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.legend strong {
+  font-family: var(--font-family-mono);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.available {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow: hidden;
+  padding: 20px;
+  border-radius: 24px;
+  background: var(--color-card-purple-bg);
+  color: var(--color-card-purple-fg);
+}
+
+.decor {
+  position: absolute;
+  right: -80px;
+  top: -120px;
+  width: 240px;
+  height: 240px;
+  border-radius: 50%;
+  background: var(--color-card-purple-decor);
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.available > *:not(.decor) {
+  position: relative;
+}
+
+.overline {
+  margin: 0;
+  color: var(--color-card-purple-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+.availableValue {
+  margin: 0;
+  font-family: var(--font-family-mono);
+  font-size: 36px;
+  font-weight: 600;
+  line-height: 44px;
+  letter-spacing: -0.5px;
+}
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+}
+
+.rows div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.rows dt {
+  color: var(--color-card-purple-muted);
+  font-size: 13px;
+}
+
+.rows dd {
+  margin: 0;
+  font-family: var(--font-family-mono);
+  font-size: 13px;
+}
+
+.unaccounted {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: auto;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--color-card-ink-bg);
+  color: var(--color-card-ink-fg);
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.unaccounted strong {
+  margin-left: 4px;
+  font-family: var(--font-family-mono);
+  font-weight: 500;
+}
+
+.unaccounted em {
+  color: var(--color-accent-default);
+  font-style: normal;
+  font-weight: 600;
+}
+
+.attentionTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 20px;
+}
+
+.count {
+  display: grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  box-sizing: border-box;
+  border-radius: 9999px;
+  background: var(--color-brand-default);
+  color: var(--color-brand-on);
+  font-family: var(--font-family-body);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.attentionList {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.attentionList li {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 0;
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.attentionIcon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: var(--color-bg-sunken);
+  color: var(--color-text-primary);
+}
+
+.attentionIcon[data-tone='bad'] {
+  background: var(--color-status-warning-bg);
+  color: var(--color-status-warning-fg);
+}
+
+.attentionIcon[data-tone='good'] {
+  background: color-mix(in srgb, var(--color-accent-default) 45%, var(--color-bg-surface));
+  color: var(--color-card-lime-fg);
+}
+
+.attentionIcon[data-tone='watch'] {
+  background: var(--color-brand-subtle);
+  color: var(--color-brand-default);
+}
+
+.attentionText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.attentionText strong {
+  color: var(--color-text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.attentionText a {
+  color: var(--color-brand-default);
+  font-weight: 600;
+}
+
+.attentionAction {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 9999px;
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.attentionAction:hover {
+  background: var(--color-bg-sunken);
+}

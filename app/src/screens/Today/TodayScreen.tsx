@@ -19,7 +19,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { CalendarDays, Sun, Users } from 'lucide-react';
+import { CalendarDays, Users } from 'lucide-react';
 import { useLogic } from '@/src/logic/timeCalendar/useLogic';
 import { useLayout } from '@/src/shared/hooks/useLayout';
 import { useNowMinute } from '@/src/shared/insights/useNow';
@@ -27,7 +27,8 @@ import { useTaskPanel } from '@/src/shared/navigation/taskPanel';
 import { dayFromIso, shiftDay, type CalItem } from '@/src/viewmodels/calendarItems';
 import { hoursText, type TaskRow } from '@/src/viewmodels/taskRow';
 import { dayFigures, daySentence, progressLine } from '@/src/viewmodels/todaySummary';
-import { Block, Callout, NotionPage } from '@/src/widgets/Database/NotionPage';
+import { Callout, NotionPage } from '@/src/widgets/Database/NotionPage';
+import { TopBarControls } from '@/src/widgets/AppShell/TopBarSlot';
 import { ColumnBlocks, Column } from '@/src/widgets/Database/ColumnBlocks';
 import { Database } from '@/src/widgets/Database/Database';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
@@ -164,32 +165,17 @@ export function TodayScreen() {
   return (
     <NotionPage
       title={longDate(selected)}
-      icon={<Sun strokeWidth={1.75} />}
+      sub={`${figures.pending} ${figures.pending === 1 ? 'task' : 'tasks'}, ${hoursText(figures.blockedMinutes)} blocked, ${figures.meetings} ${figures.meetings === 1 ? 'meeting' : 'meetings'}`}
       crumbs={[{ label: 'Time', href: '/projects' }, { label: 'Today', href: '/projects' }]}
-      properties={[
-        {
-          id: 'date',
-          label: 'Date',
-          display: <DateDropdown label={isToday ? `Today, ${dayFromIso(selected).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })}` : longDate(selected)} selected={selected} today={today} onPick={pick} hasItems={logic.hasItems} />,
-        },
-        { id: 'tasks', label: 'Tasks', display: `${figures.pending} pending`, sub: `${figures.done} done · ${figures.cancelled} cancelled` },
-        { id: 'focus', label: 'Focus time', display: `${hoursText(figures.blockedMinutes)} blocked` },
-        { id: 'meetings', label: 'Meetings', display: String(figures.meetings) },
-        {
-          id: 'overdue',
-          label: 'Overdue',
-          tone: overdue ? 'bad' : 'neutral',
-          display: overdue ? (
-            <Link href="/projects/focus?view=overdue" className={styles.overdueLink}>
-              {overdue}
-            </Link>
-          ) : (
-            '0'
-          ),
-        },
-      ]}
     >
       <ScreenState loading={logic.loading} />
+      <TopBarControls>
+        <DateDropdown label={isToday ? `Today, ${dayFromIso(selected).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })}` : longDate(selected)} selected={selected} today={today} onPick={pick} hasItems={logic.hasItems} />
+        <Link href="/projects/calendar" className={styles.headerButton}>
+          Plan the week
+        </Link>
+      </TopBarControls>
+      {compact && (
       <Callout icon={<CalendarDays size={18} strokeWidth={2} />} tone={overdue > 0 ? 'watch' : undefined}>
         <p>
           {sentence}
@@ -203,6 +189,7 @@ export function TodayScreen() {
         </p>
         {compact && <p className={styles.progressLine}>{progressLine(figures, overdue)}</p>}
       </Callout>
+      )}
 
       {compact ? (
         <>
@@ -218,11 +205,32 @@ export function TodayScreen() {
           </Column>
         </ColumnBlocks>
       ) : (
-        <ColumnBlocks template={deviceClass === 'large' ? '300px minmax(0, 1fr) 380px' : '260px minmax(0, 1fr) 340px'}>
-          <Column label="Month and day summary">{left}</Column>
-          <Column label="Day timeline">{timeline}</Column>
-          <Column label="Tasks for this day">
-            <Block title="Tasks">{tasks}</Block>
+        <ColumnBlocks template={deviceClass === 'large' ? 'minmax(0, 1fr) 420px' : 'minmax(0, 1fr) 380px'}>
+          <Column label="The day">
+            <section className={styles.dayCard} aria-label="The day">
+              <div className={styles.cardHead}>
+                <h2 className={styles.cardTitle}>The day</h2>
+                <span className={styles.cardMeta}>{figures.meetings > 0 ? 'Synced with Google Calendar' : `${figures.total} on this day`}</span>
+              </div>
+              {timeline}
+            </section>
+          </Column>
+          <Column label="Now and tasks">
+            {isToday && <NowCard logic={logic} />}
+            <section className={styles.tasksCard} aria-label="Tasks for this day">
+              <div className={styles.cardHead}>
+                <h2 className={styles.cardTitle}>{isToday ? "Today's tasks" : 'Tasks'}</h2>
+                <span className={styles.cardMeta}>
+                  {figures.done} of {figures.total} done
+                </span>
+              </div>
+              {tasks}
+              {overdue > 0 && (
+                <Link href="/projects/focus?view=overdue" className={styles.overdueLine}>
+                  {overdue} {overdue === 1 ? 'task is' : 'tasks are'} overdue · Show them
+                </Link>
+              )}
+            </section>
           </Column>
         </ColumnBlocks>
       )}
@@ -298,6 +306,42 @@ function NextUp({ logic }: { logic: Logic }) {
           })}
         </ul>
       )}
+    </section>
+  );
+}
+
+/** The block under way now, else the next one today (Dreda.figcraft `Today / Web` Now). */
+function NowCard({ logic }: { logic: Logic }) {
+  const minute = useNowMinute();
+  const taskPanel = useTaskPanel();
+  const now = minute * 60000;
+  const timed = logic
+    .itemsOn(logic.today)
+    .filter((i) => !i.allDay && i.start && !i.done)
+    .sort((a, b) => a.start!.getTime() - b.start!.getTime());
+  const current = timed.find((i) => i.start!.getTime() <= now && (i.end?.getTime() ?? i.start!.getTime()) > now);
+  const item = current ?? timed.find((i) => i.start!.getTime() > now);
+  if (!item) return null;
+  const row = item.taskId ? logic.tasksOn(logic.today).find((r) => r.id === item.taskId) : undefined;
+  const time = (d: Date) => d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  const left = current && item.end ? Math.max(0, Math.round((item.end.getTime() - now) / 60000)) : null;
+  return (
+    <section className={styles.nowCard} aria-label={current ? 'Now' : 'Next'}>
+      <p className={styles.nowLabel}>{current ? 'Now' : 'Next'}</p>
+      <p className={styles.nowTitle}>{item.title}</p>
+      <p className={styles.nowMeta}>
+        {current && item.end ? `Until ${time(item.end)} · ${left} minutes left` : `At ${time(item.start!)}`}
+      </p>
+      <div className={styles.nowActions}>
+        {row ? (
+          <button type="button" className={styles.nowPrimary} onClick={() => void logic.db.actions.setStatus(row, 'Done')}>
+            Mark done
+          </button>
+        ) : null}
+        <button type="button" className={styles.nowSecondary} onClick={() => (item.taskId ? taskPanel.open(item.taskId) : item.href && window.location.assign(item.href))}>
+          Open
+        </button>
+      </div>
     </section>
   );
 }

@@ -1,0 +1,280 @@
+/* Scheduling links: values from Dreda.figcraft `Calendar / Web / Scheduling
+   links` (inspect.code), on the app's variables. */
+
+.sub {
+  margin: -8px 0 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  line-height: 20px;
+}
+
+.columns {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: stretch;
+}
+
+@media (min-width: 1024px) {
+  .columns {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+}
+
+.links {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.linkCard {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 20px;
+  border-radius: var(--radius-card);
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+}
+
+.linkCard[data-paused] {
+  opacity: 0.75;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.name {
+  flex: 1 1 0;
+  min-width: 0;
+  margin: 0;
+  color: var(--color-text-primary);
+  font-family: var(--font-family-heading);
+  font-size: var(--font-size-xl);
+  font-weight: 600;
+  line-height: 30px;
+}
+
+.state {
+  color: var(--color-text-tertiary);
+  font-size: var(--font-size-xs);
+  line-height: 16px;
+}
+
+.iconButton {
+  display: grid;
+  place-items: center;
+  width: var(--tap-target);
+  height: var(--tap-target);
+  margin: -8px -10px -8px 0;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: none;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.meta {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  line-height: 20px;
+}
+
+.url {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 0 6px 0 14px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.urlText {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  line-height: 20px;
+}
+
+.copy {
+  height: 32px;
+  padding: 0 16px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-full);
+  background: var(--color-background);
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.stats {
+  margin: 0;
+  color: var(--color-text-tertiary);
+  font-size: var(--font-size-xs);
+  line-height: 16px;
+}
+
+.newLink {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px;
+  border-radius: var(--radius-card);
+  background: var(--color-background);
+  border: 1px solid var(--color-primary);
+}
+
+@media (min-width: 1024px) {
+  .newLink {
+    flex: 0 0 420px;
+    position: sticky;
+    top: 16px;
+  }
+}
+
+.formTitle {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-family: var(--font-family-heading);
+  font-size: var(--font-size-xl);
+  font-weight: 600;
+  line-height: 30px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.daysField {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.label {
+  padding: 0;
+  color: var(--color-text-tertiary);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 16px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+.days {
+  display: flex;
+  gap: 6px;
+}
+
+.day {
+  flex: 1 1 0;
+  height: 38px;
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: var(--color-background);
+  color: var(--color-text-tertiary);
+  font: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color var(--duration-popover) ease;
+}
+
+.day[data-on] {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: var(--color-brand-on);
+}
+
+.day:focus-visible {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 2px;
+}
+
+.preview {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.previewUrl {
+  overflow-wrap: anywhere;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.primary,
+.secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 0 20px;
+  border-radius: var(--radius-full);
+  font: inherit;
+  font-size: var(--font-size-md);
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color var(--duration-popover) ease;
+}
+
+.primary {
+  border: 0;
+  background: var(--color-primary);
+  color: var(--color-brand-on);
+}
+
+.primary:disabled {
+  background: var(--color-brand-soft);
+  color: var(--color-text-tertiary);
+  cursor: not-allowed;
+}
+
+.secondary {
+  border: 1px solid var(--color-border);
+  background: var(--color-background);
+  color: var(--color-text-primary);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .primary:hover:not(:disabled) {
+    background: var(--color-primary-hover);
+  }
+
+  .secondary:hover,
+  .copy:hover {
+    background: var(--color-bg-hover);
+  }
+}

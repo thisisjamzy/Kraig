@@ -4,6 +4,7 @@ import { type ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
 import { hasAppHeader, hasBottomNav } from '@/src/shared/config/chromeVisibility';
 import { useIsWeb } from '@/src/shared/hooks/useViewportMode';
+import { useAmountsHidden } from '@/src/shared/hooks/usePrivacy';
 import styles from './AppContent.module.css';
 
 // Only reserves top/bottom clearance for the fixed AppHeader/BottomNav when
@@ -20,6 +21,7 @@ import styles from './AppContent.module.css';
 export function AppContent({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const isWeb = useIsWeb();
+  const [amountsHidden] = useAmountsHidden();
 
   const className = [
     styles.content,
@@ -30,5 +32,10 @@ export function AppContent({ children }: { children: ReactNode }) {
     .filter(Boolean)
     .join(' ');
 
-  return <main className={className}>{children}</main>;
+  // Hiding amounts redraws the page, so every figure follows the switch.
+  return (
+    <main key={amountsHidden ? 'hidden' : 'shown'} className={className}>
+      {children}
+    </main>
+  );
 }

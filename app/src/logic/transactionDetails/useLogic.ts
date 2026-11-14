@@ -138,6 +138,8 @@ export function useLogic(id: string, opts: { transfer?: boolean; assign?: boolea
 
   const navigateBack = useGoBack();
   return {
+    /** The transaction or transfer id (for Duplicate). */
+    id,
     view,
     currency: ctx.display,
     isTransfer,

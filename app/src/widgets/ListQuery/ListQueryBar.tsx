@@ -166,6 +166,19 @@ export function ListQueryBar<T>({
               )}
               <div className={styles.tools}>
                 {beforeTools}
+                {/* Wide screens: the search field is always there (Dreda.figcraft `Search field`). */}
+                <label className={styles.searchInline}>
+                  <Search size={18} strokeWidth={2} aria-hidden />
+                  <input
+                    value={query.search}
+                    onChange={(e) => setQuery((q) => ({ ...q, search: e.target.value }))}
+                    placeholder={`Search ${noun[1]}`}
+                    aria-label={`Search ${noun[1]}`}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Escape') setQuery((q) => ({ ...q, search: '' }));
+                    }}
+                  />
+                </label>
                 <button
                   type="button"
                   className={styles.tool}
@@ -175,6 +188,7 @@ export function ListQueryBar<T>({
                   onClick={(e) => setMenu({ kind: 'filterFields', anchor: e.currentTarget })}
                 >
                   <ListFilter size={20} strokeWidth={2} />
+                  <span className={styles.toolLabel}>Filter</span>
                   {nFilters > 0 && <span className={styles.badge}>{nFilters}</span>}
                 </button>
                 {!hideSort && (
@@ -187,10 +201,11 @@ export function ListQueryBar<T>({
                     onClick={(e) => setMenu({ kind: 'sort', anchor: e.currentTarget })}
                   >
                     <ArrowDownUp size={20} strokeWidth={2} />
+                    <span className={styles.toolLabel}>Sort</span>
                     {nSorts > 0 && <span className={styles.badge}>{nSorts}</span>}
                   </button>
                 )}
-                <button type="button" className={styles.tool} aria-label="Search" onClick={() => setSearching(true)}>
+                <button type="button" className={`${styles.tool} ${styles.searchToggle}`} aria-label="Search" onClick={() => setSearching(true)}>
                   <Search size={20} strokeWidth={2} />
                 </button>
                 {trailing}
@@ -236,7 +251,7 @@ export function ListQueryBar<T>({
             )}
             <button type="button" className={styles.chipText} onClick={(e) => setMenu({ kind: 'filterFields', anchor: e.currentTarget })}>
               <Plus size={13} strokeWidth={2.5} aria-hidden />
-              Filter
+              Add filter
             </button>
             <button type="button" className={styles.chipText} onClick={onClear}>
               Clear

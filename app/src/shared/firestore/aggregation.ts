@@ -77,6 +77,7 @@ import type {
   IncomeSubtype,
   ItemAutomation,
 } from './types';
+import { guardWrite } from './writeGuard';
 
 function monthKey(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
@@ -304,7 +305,8 @@ function sameLink(a: BucketItemLink | null | undefined, b: BucketItemLink | null
  * doubles as the uid whose subcollections this writes to — the caller is
  * always the account owner writing their own data (see refs.ts's header).
  */
-export async function createTransactionWithAggregation(input: CreateTransactionInput, ctx: CurrencyContext) {
+/** Unguarded: only for bulk imports, where two identical rows are real. Everything else uses `createTransactionWithAggregation`. */
+export async function createTransactionWithAggregationWrite(input: CreateTransactionInput, ctx: CurrencyContext) {
   const uid = input.createdBy;
   const db = getFirebaseFirestore();
 
@@ -684,7 +686,7 @@ export async function deleteBackfillBatch(uid: string, batchId: string, ctx: Cur
  * (section 2.6), unlike every real wallet's "never below zero unless
  * something is locked" assumption.
  */
-export async function recordTransactionExplainingUnjustifiedBalance(
+async function recordTransactionExplainingUnjustifiedBalanceWrite(
   input: CreateTransactionInput & { transferId: string },
   ctx: CurrencyContext
 ): Promise<void> {
@@ -736,7 +738,7 @@ export async function recordTransactionExplainingUnjustifiedBalance(
  * Unjustified wallet, moving its balance back toward zero from the other
  * direction.
  */
-export async function recordIncomeExplainingUnjustifiedBalance(
+async function recordIncomeExplainingUnjustifiedBalanceWrite(
   input: CreateTransactionInput & { transferId: string },
   ctx: CurrencyContext
 ): Promise<void> {
@@ -868,7 +870,8 @@ export function writeTransferContribution(
   );
 }
 
-export async function createTransferWithAggregation(input: CreateTransferInput) {
+/** Unguarded: only for bulk imports, where two identical rows are real. Everything else uses `createTransferWithAggregation`. */
+export async function createTransferWithAggregationWrite(input: CreateTransferInput) {
   const uid = input.createdBy;
   const db = getFirebaseFirestore();
 
@@ -1106,7 +1109,8 @@ export interface CreateBucketInput extends BasketDefaults {
   type: 'Expense' | 'Income' | 'Savings' | 'Transfer';
 }
 
-export async function createBucket(uid: string, input: CreateBucketInput): Promise<string> {
+/** Unguarded: only for bulk imports, where two identical rows are real. Everything else uses `createBucket`. */
+export async function createBucketWrite(uid: string, input: CreateBucketInput): Promise<string> {
   const id = crypto.randomUUID();
   await setDoc(bucketRef(uid, id), {
     name: input.name,
@@ -1316,7 +1320,8 @@ export interface CreateBucketLineItemInput {
  * payments read it directly off the item, see upcomingPayments.ts) — it no
  * longer drives any budget rule.
  */
-export async function createBucketLineItem(
+/** Unguarded: only for bulk imports, where two identical rows are real. Everything else uses `createBucketLineItem`. */
+export async function createBucketLineItemWrite(
   uid: string,
   goalId: string,
   // Kept for callers; every kind now writes the recurrence the form chose.
@@ -1460,6 +1465,60 @@ export async function deleteBucketLineItem(uid: string, goalId: string, lineItem
   await recalcBucketTotals(uid, goalId);
 }
 
+/** What deleting an item for good will touch (the confirm dialog lists it). */
+export interface BucketLineItemLinks {
+  payments: number;
+  budgetMoves: number;
+}
+
+export async function bucketLineItemLinks(uid: string, lineItemId: string): Promise<BucketLineItemLinks> {
+  const [txSnap, trSnap, fromSnap, toSnap] = await Promise.all([
+    getDocs(query(transactionsRef(uid), where('bucketItem.itemId', '==', lineItemId))),
+    getDocs(query(transfersRef(uid), where('bucketItem.itemId', '==', lineItemId))),
+    getDocs(query(allocationsRef(uid), where('from.itemId', '==', lineItemId))),
+    getDocs(query(allocationsRef(uid), where('to.itemId', '==', lineItemId))),
+  ]);
+  const live = (d: { data: () => { revertedAt?: unknown } }) => !d.data().revertedAt;
+  return {
+    payments: txSnap.size + trSnap.size,
+    budgetMoves: fromSnap.docs.filter(live).length + toSnap.docs.filter(live).length,
+  };
+}
+
+/**
+ * Deletes a basket item for good, every month, repeating or not. Payments
+ * recorded against it stay (money already moved; wallets are untouched)
+ * but are no longer linked to the item. Payment-queue entries stay: they
+ * are the record of what was confirmed or skipped (firestore.rules keeps
+ * them), and nothing derives an occurrence from an item that is gone.
+ * Refused while budget is still moved into or out of it (undo those
+ * moves first: they carry real money between wallets).
+ */
+export async function deleteBucketLineItemPermanently(uid: string, goalId: string, lineItemId: string): Promise<void> {
+  const db = getFirebaseFirestore();
+  const [txSnap, trSnap, fromSnap, toSnap] = await Promise.all([
+    getDocs(query(transactionsRef(uid), where('bucketItem.itemId', '==', lineItemId))),
+    getDocs(query(transfersRef(uid), where('bucketItem.itemId', '==', lineItemId))),
+    getDocs(query(allocationsRef(uid), where('from.itemId', '==', lineItemId))),
+    getDocs(query(allocationsRef(uid), where('to.itemId', '==', lineItemId))),
+  ]);
+  if ([...fromSnap.docs, ...toSnap.docs].some((d) => !d.data().revertedAt)) {
+    throw new Error('Budget was moved into or out of this item. Undo those moves first, then delete it.');
+  }
+  // A batch holds 500 writes: unlink in chunks, the item last.
+  const writes: Array<(b: ReturnType<typeof writeBatch>) => void> = [
+    ...txSnap.docs.map((d) => (b: ReturnType<typeof writeBatch>) => b.update(d.ref, { bucketItem: null, updatedAt: serverTimestamp() })),
+    ...trSnap.docs.map((d) => (b: ReturnType<typeof writeBatch>) => b.update(d.ref, { bucketItem: null, updatedAt: serverTimestamp() })),
+  ];
+  for (let i = 0; i < writes.length; i += 450) {
+    const batch = writeBatch(db);
+    writes.slice(i, i + 450).forEach((w) => w(batch));
+    await batch.commit();
+  }
+  await deleteDoc(bucketLineItemRef(uid, goalId, lineItemId));
+  await recalcBucketTotals(uid, goalId);
+}
+
 export interface MarkBucketLineItemCompleteInput {
   accountId: string;
   categoryId: string | null;
@@ -1517,7 +1576,7 @@ export interface MarkBucketLineItemCompleteInput {
  * transaction so a payment can't end up recorded without the transfer
  * existing either.
  */
-export async function recordBucketLineItemPayment(
+async function recordBucketLineItemPaymentWrite(
   uid: string,
   goalId: string,
   lineItemId: string,
@@ -1736,7 +1795,7 @@ export interface CreateDebtInput {
   credit?: { transactionId?: string; categoryId?: string | null; description?: string; bucketItem?: BucketItemLink | null } | null;
 }
 
-export async function createDebt(uid: string, input: CreateDebtInput, ctx: CurrencyContext): Promise<string> {
+async function createDebtWrite(uid: string, input: CreateDebtInput, ctx: CurrencyContext): Promise<string> {
   const id = crypto.randomUUID();
   const paymentPlan: FirestoreDebtPaymentPlan = input.recurring
     ? {
@@ -1863,7 +1922,7 @@ export interface RepaymentDebt {
  * debt's totalRepaid/currentBalance recomputed from every repayment, the
  * plan's next payment moved on, and an activity entry.
  */
-export async function recordRepayment(
+async function recordRepaymentWrite(
   uid: string,
   debt: RepaymentDebt,
   input: RecordRepaymentInput,
@@ -2003,3 +2062,14 @@ export async function assignTransactionToItem(
     ctx
   );
 }
+
+// Guarded against double submits (writeGuard.ts).
+export const createBucket = guardWrite('createBucket', createBucketWrite);
+export const createBucketLineItem = guardWrite('createBucketLineItem', createBucketLineItemWrite);
+export const createDebt = guardWrite('createDebt', createDebtWrite);
+export const recordBucketLineItemPayment = guardWrite('recordBucketLineItemPayment', recordBucketLineItemPaymentWrite);
+export const recordRepayment = guardWrite('recordRepayment', recordRepaymentWrite);
+export const createTransactionWithAggregation = guardWrite('createTransactionWithAggregation', createTransactionWithAggregationWrite);
+export const createTransferWithAggregation = guardWrite('createTransferWithAggregation', createTransferWithAggregationWrite);
+export const recordTransactionExplainingUnjustifiedBalance = guardWrite('recordTransactionExplainingUnjustifiedBalance', recordTransactionExplainingUnjustifiedBalanceWrite);
+export const recordIncomeExplainingUnjustifiedBalance = guardWrite('recordIncomeExplainingUnjustifiedBalance', recordIncomeExplainingUnjustifiedBalanceWrite);

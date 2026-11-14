@@ -12,15 +12,15 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { LayoutGrid } from 'lucide-react';
 import { useLogic, type BucketRow } from '@/src/logic/buckets/useLogic';
 import { useSwipeModeSwitch } from '@/src/shared/hooks/useSwipeModeSwitch';
 import { FLOW_LABEL, FLOW_NOUN, FLOW_TYPES, type FlowType } from '@/src/shared/budget/flow';
 import { Database } from '@/src/widgets/Database/Database';
-import { Callout, NotionPage } from '@/src/widgets/Database/NotionPage';
+import { NotionPage } from '@/src/widgets/Database/NotionPage';
+import { TopBarControls } from '@/src/widgets/AppShell/TopBarSlot';
 import { MonthPicker } from '@/src/widgets/Database/MonthPicker';
 import { TypeTabs } from '@/src/widgets/Database/TypeTabs';
-import { formatNumber } from '@/src/widgets/Database/format';
+import { formatAmountValue } from '@/src/widgets/Database/format';
 import type { ColumnDef } from '@/src/widgets/Database/types';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { FLOW_ICON } from '@/src/screens/BudgetMonth/BudgetMonthPage';
@@ -45,12 +45,25 @@ function bucketColumns(type: FlowType, month: string): ColumnDef<BucketRow>[] {
       type: 'text',
       width: 260,
       value: (r) => r.name,
-      render: (r) => (
-        <Link className={bm.relation} href={`/budget/basket/${r.id}?month=${month}`}>
-          {r.name}
-          {r.archived ? ' (archived)' : ''}
-        </Link>
-      ),
+      render: (r) => {
+        const Icon = FLOW_ICON[r.type as FlowType];
+        return (
+          <Link className={styles.nameCell} href={`/budget/basket/${r.id}?month=${month}`}>
+            <span className={styles.nameIcon} aria-hidden>
+              {Icon ? <Icon size={18} strokeWidth={2} /> : null}
+            </span>
+            <span className={styles.nameText}>
+              <span className={styles.nameTitle}>
+                {r.name}
+                {r.archived ? ' (archived)' : ''}
+              </span>
+              <span className={styles.nameSub}>
+                {r.itemCount} {r.itemCount === 1 ? 'item' : 'items'}
+              </span>
+            </span>
+          </Link>
+        );
+      },
     },
     { id: 'items', label: 'Items', type: 'number', width: 80, value: (r) => r.itemCount, calc: 'sum', onCard: true },
     ...(need
@@ -76,10 +89,10 @@ function bucketColumns(type: FlowType, month: string): ColumnDef<BucketRow>[] {
       width: 200,
       onCard: true,
       noQuery: true,
-      value: (r) => `${formatNumber(r.actual)} of ${formatNumber(r.planned)}`,
+      value: (r) => `${formatAmountValue(r.actual)} of ${formatAmountValue(r.planned)}`,
       render: (r) => (
         <span className={styles.figure}>
-          {formatNumber(r.actual)} <span>of {formatNumber(r.planned)}</span>
+          {formatAmountValue(r.actual)} <span>of {formatAmountValue(r.planned)}</span>
         </span>
       ),
     },
@@ -140,24 +153,23 @@ export function BucketsScreen() {
     <div ref={swipeRef}>
       <NotionPage
         title="Baskets"
-        icon={<LayoutGrid strokeWidth={1.75} />}
+        sub="Every envelope you plan with, all time"
         crumbs={[{ label: 'Money', href: '/home' }, { label: 'Baskets' }]}
         properties={[
-          { id: 'month', label: 'Month', display: <MonthPicker value={v.month} onChange={v.setMonth} /> },
-          { id: 'count', label: 'Baskets', display: counts },
-          { id: 'left', label: 'Left to plan', display: `${formatNumber(v.totals.leftToPlan)} ${v.currency}`, tone: v.totals.leftToPlan < 0 ? 'bad' : 'neutral' },
-          { id: 'available', label: 'Available now', display: `${formatNumber(v.totals.availableNow)} ${v.currency}`, tone: v.totals.availableNow > 0 ? 'good' : v.totals.availableNow < 0 ? 'bad' : 'neutral' },
+          { id: 'count', label: 'Active baskets', display: String(FLOW_TYPES.reduce((n, t) => n + v.byType[t].filter((r) => !r.archived).length, 0)), sub: counts },
+          {
+            id: 'planned',
+            label: 'Planned this month',
+            display: formatAmountValue(FLOW_TYPES.filter((t) => t !== 'Income').reduce((n, t) => n + v.byType[t].reduce((s2, r) => s2 + r.planned, 0), 0)),
+            sub: 'across expense, savings and transfer baskets',
+          },
+          { id: 'left', label: 'Left to plan', display: `${formatAmountValue(v.totals.leftToPlan)} ${v.currency}`, tone: v.totals.leftToPlan < 0 ? 'bad' : 'neutral' },
+          { id: 'available', label: 'Available now', display: `${formatAmountValue(v.totals.availableNow)} ${v.currency}`, tone: v.totals.availableNow > 0 ? 'good' : v.totals.availableNow < 0 ? 'bad' : 'neutral' },
         ]}
       >
-        <Callout>
-          <p>
-            Left to plan {formatNumber(v.totals.leftToPlan)} {v.currency} and available now {formatNumber(v.totals.availableNow)} {v.currency}.{' '}
-            <Link href={`/budget?month=${v.month}`} className={bm.relation}>
-              See the month on the Budget page
-            </Link>
-            .
-          </p>
-        </Callout>
+        <TopBarControls>
+          <MonthPicker value={v.month} onChange={v.setMonth} />
+        </TopBarControls>
         {v.loading ? (
           <ScreenState loading />
         ) : (
@@ -172,8 +184,8 @@ export function BucketsScreen() {
               rowKey={(r) => r.id}
               columns={bucketColumns(v.flow, v.month)}
               views={[
-                { id: 'cards', name: 'Cards', layout: 'cards' },
                 { id: 'table', name: 'Table', layout: 'table' },
+                { id: 'cards', name: 'Cards', layout: 'cards' },
                 { id: 'attention', name: 'Needs attention', layout: 'cards', filter: (r) => r.statusTone === 'bad' || r.statusTone === 'watch' },
               ]}
               groups={[{ id: 'status', label: 'Status', key: (r) => ({ key: r.status, label: r.status }), order: STATUSES }]}
@@ -186,7 +198,7 @@ export function BucketsScreen() {
               }}
               // What a bucket needs is its status chip; the action is in its "..." menu.
               rowActions={[
-                { id: 'paid', label: 'Mark overdue paid', show: (r) => Boolean(r.summary?.overdue.length) && (r.type === 'Expense' || r.type === 'Savings'), run: () => router.push('/baskets/items') },
+                { id: 'paid', label: 'Mark overdue paid', show: (r) => Boolean(r.summary?.overdue.length) && (r.type === 'Expense' || r.type === 'Savings'), run: () => router.push('/payments') },
                 { id: 'cover', label: 'Cover or justify', show: (r) => r.card.prompt?.kind === 'over' || r.card.prompt?.kind === 'uncovered', run: (r) => router.push(coverHref(v.month, r.id)) },
                 { id: 'reallocate', label: 'Reallocate', show: (r) => r.card.prompt?.kind === 'leftover', run: (r) => router.push(reallocateHref(v.month, r.id)) },
                 { id: 'print', label: 'Print basket', run: (r) => setReceiptFor(r.id) },

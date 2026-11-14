@@ -376,3 +376,77 @@
   color: rgba(255, 255, 255, 0.85);
   cursor: not-allowed;
 }
+
+/* ==== Dreda.figcraft `Settings / Phone` ====
+   A profile card, then rows on white cards: a 36px sunken icon tile, a small
+   label over the value, a chevron. */
+
+.page {
+  background: var(--color-bg-page);
+}
+
+.profileCard,
+.section {
+  border: 0;
+  border-radius: 20px;
+  background: var(--color-bg-surface);
+}
+
+.avatar {
+  width: 52px;
+  height: 52px;
+  background: var(--color-brand-default);
+  color: var(--color-brand-on);
+}
+
+.profileName {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.profileEmail {
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+}
+
+.actionRow {
+  min-height: 60px;
+  border-radius: 0;
+  background: var(--color-bg-surface);
+}
+
+.actionRow + .actionRow {
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.actionRowIcon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--color-bg-sunken);
+  color: var(--color-text-primary);
+}
+
+.actionRowLabel {
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.actionRowMeta {
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+}
+
+.sectionTitle {
+  font-family: var(--font-family-heading);
+}
+
+.formInput {
+  border-color: var(--color-border-subtle);
+  border-radius: 14px;
+  background: var(--color-bg-sunken);
+}
+
+.addButton {
+  border-radius: 9999px;
+}

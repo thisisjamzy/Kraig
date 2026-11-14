@@ -14,7 +14,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { SIGNED_IN_KEY } from '@/src/shared/config/appEntry';
 
-const AUTH_PATHS = new Set(['/sign-in', '/sign-up']);
+const AUTH_PATHS = new Set(['/sign-in', '/sign-up', '/forgot-password']);
 const OPEN_PATHS = new Set(['/', '/~offline']);
 
 export default function proxy(request: NextRequest) {

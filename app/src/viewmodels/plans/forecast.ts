@@ -279,7 +279,7 @@ export function plansGuidance(f: PlansForecast, occurrences: Occurrence[], today
     const rest = Math.max(0, gap - freed);
     const parts = [picks.length ? `Postpone ${picks.length} nice-to-${picks.length === 1 ? 'have' : 'haves'} (${m(freed)})` : ''];
     if (rest > 0) parts.push(`${parts[0] ? 'and set' : 'Set'} aside ${m(Math.ceil(rest / monthsTo / 1000) * 1000)} a month`);
-    tips.push({ text: `${name(short.month)} is ${m(gap)} short. ${parts.filter(Boolean).join(' ')}.`, action: 'Review in Priorities', href: '/baskets/items' });
+    tips.push({ text: `${name(short.month)} is ${m(gap)} short. ${parts.filter(Boolean).join(' ')}.`, action: 'Review in Payments', href: '/payments' });
   }
   const idle = f.months.find((x) => !x.current && x.planPayments === 0 && x.free > 0 && x.balance > 0);
   if (idle) tips.push({ text: `You'll have ${m(idle.free)} free in ${name(idle.month)} with nothing planned.`, action: 'Plan in baskets', href: '/baskets' });

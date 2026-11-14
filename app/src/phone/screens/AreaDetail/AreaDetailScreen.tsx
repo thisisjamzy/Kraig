@@ -67,8 +67,8 @@ export function AreaDetailScreen({ areaId }: { areaId: string }) {
               type="button"
               className={styles.addIconButton}
               onClick={openNewBucket}
-              aria-label="New section"
-              title="New section"
+              aria-label="New folder"
+              title="New folder"
             >
               <Plus size={16} strokeWidth={2.5} />
             </button>

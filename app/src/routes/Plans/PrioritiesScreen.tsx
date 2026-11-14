@@ -3,12 +3,21 @@
 // Two UI lines for this screen (docs/UI-LINES.md): the phone version under
 // 768px, the web version from 768px up, loaded only on wide screens.
 
-import dynamic from 'next/dynamic';
-import { DeviceSplit } from '@/src/shared/device/DeviceSplit';
-import { PrioritiesScreen as PhonePrioritiesScreen } from '@/src/phone/screens/Plans/PrioritiesScreen';
+// Priorities lives on Payments on every screen size (its one Calendar view
+// shows the payments calendar and the priorities): this address moves
+// there, keeping ?month=.
 
-const WebPrioritiesScreen = dynamic(() => import('@/src/screens/Plans/PrioritiesScreen').then((m) => m.PrioritiesScreen), { ssr: false });
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+
+function ToPayments() {
+  const router = useRouter();
+  useEffect(() => {
+    router.replace(`/payments${window.location.search}`);
+  }, [router]);
+  return null;
+}
 
 export function PrioritiesScreen() {
-  return <DeviceSplit phone={<PhonePrioritiesScreen />} web={<WebPrioritiesScreen />} />;
+  return <ToPayments />;
 }

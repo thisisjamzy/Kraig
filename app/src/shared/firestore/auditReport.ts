@@ -58,6 +58,7 @@ import type {
   FirestoreTransfer,
 } from './types';
 import { countsInFigures } from './types';
+import { guardWrite } from './writeGuard';
 
 // ---------------------------------------------------------------------------
 // Public types — the full shape of one generated report.
@@ -1046,7 +1047,7 @@ export async function generateAuditReport(uid: string, selection: AuditReportSel
 // immutable snapshot document, never overwrites a previous one.
 // ---------------------------------------------------------------------------
 
-export async function saveAuditReport(uid: string, selection: AuditReportSelection, data: AuditReportData): Promise<string> {
+async function saveAuditReportWrite(uid: string, selection: AuditReportSelection, data: AuditReportData): Promise<string> {
   const id = crypto.randomUUID();
   await setDoc(auditReportRef(uid, id), {
     period: selection.period,
@@ -1071,3 +1072,6 @@ export async function getAuditReport(uid: string, reportId: string): Promise<Fir
 export async function deleteAuditReport(uid: string, reportId: string): Promise<void> {
   await deleteDoc(auditReportRef(uid, reportId));
 }
+
+// Guarded against double submits (writeGuard.ts).
+export const saveAuditReport = guardWrite('saveAuditReport', saveAuditReportWrite);

@@ -18,7 +18,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ChevronLeft, Lightbulb, MoreHorizontal } from 'lucide-react';
 import { hasAppHeader } from '@/src/shared/config/chromeVisibility';
-import { useHasTopBar } from '@/src/widgets/AppShell/TopBarSlot';
+import { TopBarActions, TopBarTitle, useHasTopBar } from '@/src/widgets/AppShell/TopBarSlot';
 import { useBreadcrumb, usePageExport, usePageMenu, type Crumb, type PageMenuItem } from '@/src/widgets/AppShell/breadcrumb';
 import { PageMenuRows } from '@/src/widgets/AppShell/PageMenuRows';
 import { Popover } from '@/src/widgets/ListQuery/Popover';
@@ -32,6 +32,7 @@ import { useWebOnly } from '@/src/shared/device/useWebOnly';
 export function NotionPageHeader({
   title,
   kind,
+  sub,
   actions,
   children,
 }: {
@@ -40,20 +41,27 @@ export function NotionPageHeader({
   title: ReactNode;
   /** "Expense bucket" */
   kind?: string;
+  /** The subtitle under the title, in the header with it. */
+  sub?: ReactNode;
   actions?: ReactNode;
   children?: ReactNode;
 }) {
   useWebOnly('NotionPage');
+  const wide = useHasTopBar();
   return (
     <header className={styles.pageHeader}>
       <div className={styles.pageTitleRow}>
         <div className={styles.pageTitleWrap}>
-          <div>
-            <h1 className={styles.pageTitle}>{title}</h1>
-            {kind && <p className={styles.pageKind}>{kind}</p>}
-          </div>
+          <TopBarTitle>
+            <div>
+              <h1 className={styles.pageTitle}>{title}</h1>
+              {kind && <p className={styles.pageKind}>{kind}</p>}
+              {sub && <p className={frame.sub}>{sub}</p>}
+            </div>
+          </TopBarTitle>
         </div>
-        {actions && <div className={styles.pageActions}>{actions}</div>}
+        {/* With a top bar, the actions sit on its row beside the main action: one toolbar, never two. */}
+        {actions && (wide ? <TopBarActions>{actions}</TopBarActions> : <div className={styles.pageActions}>{actions}</div>)}
       </div>
       {children}
     </header>
@@ -178,8 +186,7 @@ export function NotionPage({
   return (
     <div className={frame.page} data-wide={wide || undefined}>
       {showCompactHeader && <CompactHeader parent={parent} />}
-      <NotionPageHeader icon={icon} title={title} kind={kind}>
-        {sub && <p className={frame.sub}>{sub}</p>}
+      <NotionPageHeader icon={icon} title={title} kind={kind} sub={sub}>
         {properties && properties.length > 0 && <PropertiesGrid properties={properties} />}
       </NotionPageHeader>
       {children}

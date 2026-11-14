@@ -2,8 +2,9 @@
 
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { User, Bell } from 'lucide-react';
-import { hasAppHeader } from '@/src/shared/config/chromeVisibility';
+import { User, Bell, Eye, EyeOff } from 'lucide-react';
+import { useAmountsHidden } from '@/src/shared/hooks/usePrivacy';
+import { hasAppHeader, navMode } from '@/src/shared/config/chromeVisibility';
 import { useCurrentAppBarAction } from '@/src/shared/appBar/appBarAction';
 import { useUnreadCount } from '@/src/shared/hooks/useNotifications';
 import { Logo } from '@/src/widgets/Logo/Logo';
@@ -23,6 +24,7 @@ export function AppHeader() {
   // A page's own action (Planning's per-tab one), shown before the bell.
   const action = useCurrentAppBarAction();
   const { unread, urgent } = useUnreadCount();
+  const [hidden, setHidden] = useAmountsHidden();
 
   if (!hasAppHeader(pathname)) {
     return null;
@@ -42,6 +44,11 @@ export function AppHeader() {
               <action.icon size={18} strokeWidth={1.75} />
             </button>
           ))}
+        {navMode(pathname) === 'money' && (
+          <button type="button" className={styles.iconButton} aria-pressed={hidden} aria-label={hidden ? 'Show amounts' : 'Hide amounts'} onClick={() => setHidden(!hidden)}>
+            {hidden ? <EyeOff size={18} strokeWidth={1.75} /> : <Eye size={18} strokeWidth={1.75} />}
+          </button>
+        )}
         <Link href="/notifications" className={styles.iconButton} aria-label={unread ? `Notifications, ${unread} unread` : 'Notifications'}>
           <Bell size={18} strokeWidth={1.75} />
           {unread > 0 && (

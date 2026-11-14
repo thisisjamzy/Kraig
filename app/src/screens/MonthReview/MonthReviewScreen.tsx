@@ -12,8 +12,9 @@ import { FLOW_LABEL, FLOW_TYPES } from '@/src/shared/budget/flow';
 import { ResponsivePage } from '@/src/widgets/Layout/ResponsivePage';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import styles from './MonthReview.module.css';
+import { maskAmount } from '@/src/shared/hooks/usePrivacy';
 
-const money = (n: number) => Math.round(n).toLocaleString('en-US');
+const money = (n: number) => maskAmount(Math.round(n).toLocaleString('en-US'));
 
 export function MonthReviewScreen() {
   const v = useLogic();

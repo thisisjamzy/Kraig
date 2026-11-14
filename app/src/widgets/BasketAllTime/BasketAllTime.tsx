@@ -9,13 +9,14 @@
 import Link from 'next/link';
 import type { AllTimeView } from '@/src/logic/planningBucket/basketPage';
 import s from './BasketAllTime.module.css';
+import { maskAmount } from '@/src/shared/hooks/usePrivacy';
 
 const day = (d: Date) => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 const monthOf = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 
 export function BasketAllTime({ view, bucketId, currency, loading, paidWord = 'Paid' }: { view: AllTimeView | null; bucketId: string; currency: string; loading: boolean; paidWord?: string }) {
   if (!view || loading) return <p className={s.muted}>Loading every item…</p>;
-  const money = (n: number) => `${currency} ${Math.round(n).toLocaleString('en-US')}`;
+  const money = (n: number) => `${currency} ${maskAmount(Math.round(n).toLocaleString('en-US'))}`;
   return (
     <section className={s.root} aria-label="All time">
       <div className={s.summary}>

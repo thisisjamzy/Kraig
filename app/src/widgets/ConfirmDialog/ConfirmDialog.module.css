@@ -1,36 +1,96 @@
+/* Confirmations (Dreda.figcraft `Confirmations / Web`). */
+
 .message {
+  margin: 0 0 var(--space-lg);
+  font-size: var(--font-size-sm);
+  line-height: 20px;
+  color: var(--color-text-secondary);
+}
+
+.typeField {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   margin: 0 0 var(--space-lg);
   font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
 }
 
+.typeField strong {
+  color: var(--color-text-primary);
+}
+
+.typeInput {
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-background);
+  color: var(--color-text-primary);
+  font: inherit;
+  outline: none;
+}
+
+.typeInput:focus {
+  border-color: var(--color-border-focus);
+}
+
 .actions {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-sm);
 }
 
-.cancelButton {
+.cancelButton,
+.confirmButton {
   flex: 1;
-  padding: var(--space-md) var(--space-lg);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  background: none;
+  min-height: 48px;
+  padding: 0 var(--space-lg);
+  border-radius: var(--radius-full);
   font-family: inherit;
   font-size: var(--font-size-sm);
-  font-weight: 700;
-  color: var(--color-text-primary);
+  font-weight: 600;
+  white-space: nowrap;
   cursor: pointer;
 }
 
+.cancelButton {
+  border: 1px solid var(--color-border);
+  background: var(--color-background);
+  color: var(--color-text-primary);
+}
+
 .confirmButton {
-  flex: 1;
-  padding: var(--space-md) var(--space-lg);
   border: none;
-  border-radius: var(--radius-lg);
-  background: var(--color-danger);
-  font-family: inherit;
-  font-size: var(--font-size-sm);
-  font-weight: 700;
-  color: #ffffff;
-  cursor: pointer;
+  background: var(--color-status-danger-solid);
+  color: var(--color-status-danger-on);
+}
+
+.confirmButton[data-tone='neutral'] {
+  background: var(--color-brand-default);
+  color: var(--color-brand-on);
+}
+
+.confirmButton:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Buttons sit on the right, as in Dreda.figcraft `Confirmations / Web`. */
+@media (min-width: 768px) {
+  .actions {
+    justify-content: flex-end;
+  }
+
+  .actions > button {
+    flex: none;
+    min-width: 0;
+    padding: 0 20px;
+  }
+}
+
+.typeInput {
+  border-color: var(--color-border-subtle);
+  border-radius: 14px;
+  background: var(--color-bg-sunken);
 }

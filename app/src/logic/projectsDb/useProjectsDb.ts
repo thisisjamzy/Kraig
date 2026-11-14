@@ -45,6 +45,7 @@ export function useProjectsDb() {
         description: p.description ?? '',
         areaId: p.areaId ?? null,
         areaName: p.areaId ? (db.areas.get(p.areaId)?.name ?? null) : null,
+        folderId: p.bucketId ?? null,
         status: p.status,
         start: p.startDate ? p.startDate.toDate() : null,
         end: p.endDate ? p.endDate.toDate() : null,
