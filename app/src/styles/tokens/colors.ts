@@ -3,8 +3,8 @@ import { styleGuide } from './styleGuide';
 // Single source of truth for color values.
 // Do not import this file directly in components. Use the useColorTheme hook instead.
 
-// The style guide (styleGuide.ts) has no dark theme: both schemes are the
-// guide's light values, so anything reading either looks the same.
+// The facelift (styleGuide.ts) ships light only: both schemes are its light
+// values, so anything reading either looks the same.
 const guide = {
   page: styleGuide.neutrals[50],
   background: styleGuide.neutrals[0],
@@ -12,14 +12,13 @@ const guide = {
   textPrimary: styleGuide.neutrals[900],
   textSecondary: styleGuide.neutrals[600],
   primary: styleGuide.brand.primary,
-  primaryHover: styleGuide.brand.primaryDark,
-  accent: styleGuide.brand.primary,
+  primaryHover: styleGuide.brand.primaryHover,
+  accent: styleGuide.brand.accent,
   secondary: styleGuide.brand.primaryLight,
   border: styleGuide.neutrals[200],
-  // No status colours: success is the brand, warning its dark shade, danger the guide's red.
-  success: styleGuide.brand.primary,
-  warning: styleGuide.brand.primaryDark,
-  danger: styleGuide.destructive,
+  success: styleGuide.status.success.solid,
+  warning: styleGuide.status.warning.solid,
+  danger: styleGuide.status.danger.solid,
 };
 
 export const colors = {

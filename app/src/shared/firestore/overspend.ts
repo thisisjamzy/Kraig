@@ -22,6 +22,7 @@ import type {
   OverspendItemShare,
   OverspendReason,
 } from './types';
+import { guardWrite } from './writeGuard';
 
 export interface SettleOverspendInput {
   month: string;
@@ -41,7 +42,7 @@ export interface SettleOverspendInput {
 }
 
 /** Records a settlement and its moves. Returns the settlement's id. */
-export async function settleOverspend(uid: string, input: SettleOverspendInput, ctx: CurrencyContext): Promise<string> {
+async function settleOverspendWrite(uid: string, input: SettleOverspendInput, ctx: CurrencyContext): Promise<string> {
   const id = crypto.randomUUID();
   const note = input.note.trim();
   const adjustmentIds: string[] = [];
@@ -171,3 +172,6 @@ export async function revertJustification(uid: string, id: string): Promise<void
     updatedAt: serverTimestamp(),
   });
 }
+
+// Guarded against double submits (writeGuard.ts).
+export const settleOverspend = guardWrite('settleOverspend', settleOverspendWrite);

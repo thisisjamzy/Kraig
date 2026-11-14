@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, PieChart, SlidersHorizontal, Clock } from 'lucide-react';
+import { Home, PieChart, Plus, SlidersHorizontal, Clock } from 'lucide-react';
+import { useFormLink } from '@/src/shared/navigation/useFormLink';
 import { navMode } from '@/src/shared/config/chromeVisibility';
 import styles from '@/src/phone/widgets/BottomNav/BottomNav.module.css';
 
@@ -28,10 +29,11 @@ export const NAV_ITEMS = [
 // job, folded in here) — same spot the swipe gesture
 // (useSwipeModeSwitch) already lands on. Its icon is the mode it jumps
 // TO, not the one you're in, same convention ProjectsBottomNav's own
-// switch button uses. Adding a transaction is still reachable from Home's
-// own Quick Actions.
+// switch button uses. Add transaction is back in the bar as the pill's
+// last tile (brand fill), so it's one tap from every Money hub page.
 export function BottomNav() {
   const pathname = usePathname();
+  const formLink = useFormLink();
 
   if (navMode(pathname) !== 'money') {
     return null;
@@ -54,6 +56,9 @@ export function BottomNav() {
             </Link>
           );
         })}
+        <Link href={formLink('transaction')} className={`${styles.item} ${styles.addItem}`} aria-label="Add transaction" title="Add transaction">
+          <Plus size={22} strokeWidth={2.5} />
+        </Link>
       </div>
       <Link href="/projects" className={styles.fabButton} aria-label="Switch to Time mode">
         <Clock size={22} strokeWidth={2.25} />

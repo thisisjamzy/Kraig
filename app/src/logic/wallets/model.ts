@@ -56,6 +56,35 @@ export function lastReconciledByAccount(reconciliations: { performedAt: Date; re
   return latestByAccount(reconciliations.map((r) => ({ accountIds: Object.keys(r.reportedBalances ?? {}), date: r.performedAt })));
 }
 
+export interface BalanceCheck {
+  id: string;
+  at: Date;
+  counted: number;
+  /** Counted less what Dreda had: negative when the wallet held less. */
+  gap: number;
+  status: 'matched' | 'explained' | 'short' | 'over';
+}
+
+/**
+ * A wallet's balance checks, newest first: what was counted against what
+ * Dreda had at the time. A gap the check moved to unaccounted money is
+ * explained; one it left alone is short (or over).
+ */
+export function balanceChecksFor(
+  walletId: string,
+  reconciliations: { id: string; performedAt: Date; reportedBalances: Record<string, number>; ledgerBalancesAtTime: Record<string, number>; adjustments?: Record<string, number> }[]
+): BalanceCheck[] {
+  return reconciliations
+    .filter((r) => walletId in (r.reportedBalances ?? {}))
+    .map((r) => {
+      const counted = r.reportedBalances[walletId];
+      const gap = r2(counted - (r.ledgerBalancesAtTime?.[walletId] ?? counted));
+      const status: BalanceCheck['status'] = Math.abs(gap) < 0.5 ? 'matched' : r.adjustments && walletId in r.adjustments ? 'explained' : gap < 0 ? 'short' : 'over';
+      return { id: r.id, at: r.performedAt, counted, gap, status };
+    })
+    .sort((a, b) => b.at.getTime() - a.at.getTime());
+}
+
 /**
  * A wallet's balance at the end of each month (oldest first), working back
  * from today's balance through the money that moved since: each month

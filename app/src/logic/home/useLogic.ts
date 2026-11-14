@@ -38,6 +38,8 @@ export interface HomeTx {
   name: string;
   when: Date;
   amount: number;
+  /** "Food and groceries · MTN MoMo" (Dreda.figcraft Recent activity). */
+  sub: string;
   href: string;
 }
 
@@ -97,7 +99,8 @@ export function useLogic() {
     planned: t.expenses.planned,
     last: prev.totals.expenses.spent,
     change: prev.totals.expenses.spent > 0 ? (t.expenses.spent - prev.totals.expenses.spent) / prev.totals.expenses.spent : null,
-    top: expenseCats.slice(0, 4).map((c) => ({ id: c.categoryId, name: c.name, amount: c.actual })),
+    top: expenseCats.slice(0, 5).map((c) => ({ id: c.categoryId, name: c.name, amount: c.actual })),
+    others: round2(expenseCats.slice(5).reduce((sum, c) => sum + c.actual, 0)),
     insight: categoryInsight(
       expenseCats.map((c) => ({ name: c.name, now: c.actual, before: prevCats.get(c.categoryId) ?? 0 })),
       t.expenses.spent,
@@ -142,6 +145,7 @@ export function useLogic() {
         name: x.description || categoryName.get(x.categoryId ?? '') || (kind === 'income' ? 'Income' : 'Expense'),
         when: x.date.toDate(),
         amount: kind === 'income' || (kind === 'expense' && x.direction === 'Inflow') ? amount : -amount,
+        sub: [categoryName.get(x.categoryId ?? '') ?? (kind === 'income' ? 'Income' : kind === 'savings' ? 'Savings' : 'Expense'), accountName.get(x.accountId ?? '')].filter(Boolean).join(' · '),
         href: `/transactions/${x.id}`,
       };
     }),
@@ -152,6 +156,7 @@ export function useLogic() {
         name: `${accountName.get(x.fromAccountId) ?? 'Account'} to ${x.toAccountId ? (accountName.get(x.toAccountId) ?? 'account') : 'outside'}`,
         when: x.date.toDate(),
         amount: display(x.amount, x.fromAccountId),
+        sub: `Transfer · ${accountName.get(x.fromAccountId) ?? 'Account'} to ${x.toAccountId ? (accountName.get(x.toAccountId) ?? 'account') : 'outside'}`,
         href: `/edit-transfer/${x.id}`,
       })
     ),
@@ -187,7 +192,16 @@ export function useLogic() {
     committed.set(i.accountId, (committed.get(i.accountId) ?? 0) + Math.max(0, i.available - i.actual));
   }
   const accountRows = accounts
-    .map((a) => ({ id: a.id, name: a.name, color: walletColor(cur.accounts.indexOf(a)), balance: round2(balanceOf(a)), committed: round2(committed.get(a.id) ?? 0) }))
+    .map((a) => ({
+      id: a.id,
+      name: a.name,
+      type: a.type,
+      savings: isSavingsAccount(a),
+      code: a.id.slice(-4).toUpperCase(),
+      color: walletColor(cur.accounts.indexOf(a)),
+      balance: round2(balanceOf(a)),
+      committed: round2(committed.get(a.id) ?? 0),
+    }))
     .sort((a, b) => b.balance - a.balance);
 
   // ---- Cash flow: last 30 days by week, or the last 6 months ----
@@ -216,6 +230,29 @@ export function useLogic() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [flowTx, flowView, todayMs, ctx, accountCurrency]
   );
+
+  // ---- This month's budget by expense category (Dreda.figcraft budget card) ----
+  const budgetLines = cur.budget.categories
+    .filter((c) => c.type === 'Expense' && c.available > 0.5)
+    .sort((a, b) => b.available - a.available)
+    .slice(0, 5)
+    .map((c) => ({ id: c.categoryId, name: c.name, spent: round2(c.actual), planned: round2(c.available) }));
+
+  // ---- Sparklines: the loaded cash-flow range in eight equal slices ----
+  const sparks = (() => {
+    const from = flowFrom.getTime();
+    const span = Math.max(1, todayMs + DAY - from);
+    const empty = () => Array.from({ length: 8 }, () => 0);
+    const out = { income: empty(), expense: empty(), savings: empty() };
+    for (const x of flowTx) {
+      const at = Math.min(7, Math.max(0, Math.floor(((x.date.toDate().getTime() - from) / span) * 8)));
+      const amount = display(x.amount, x.accountId);
+      if (x.type === 'Income' && x.direction === 'Inflow') out.income[at] += amount;
+      else if (x.type === 'Expense' && x.direction === 'Outflow') out.expense[at] += amount;
+      else if (x.type === 'Savings') out.savings[at] += amount;
+    }
+    return out;
+  })();
 
   // ---- Plan ----
   const plan = [
@@ -267,6 +304,10 @@ export function useLogic() {
     flowView,
     setFlowView,
     plan,
+    budgetLines,
+    sparks,
+    transfers: { moved: t.transfers.moved, planned: t.transfers.planned },
+    saved: { amount: t.savings.saved, planned: t.savings.planned },
     debt: { total: debts.debtSummary.totalDebt, count: debts.debtSummary.debtCount, next: nextDebt },
     currencyOptions,
     switchCurrency,

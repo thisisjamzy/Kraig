@@ -1,0 +1,287 @@
+/* Dreda.figcraft `Login / Web` and `Login / Phone`. Phone first. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  background: var(--color-card-purple-bg);
+  font-family: var(--font-family-body);
+}
+
+/* ---- Brand panel ---- */
+
+.panel {
+  position: relative;
+  order: -1;
+  flex: none;
+  height: 388px;
+  overflow: hidden;
+  background: var(--color-card-purple-bg);
+}
+
+.decorA,
+.decorB {
+  position: absolute;
+  border-radius: 50%;
+  background: var(--color-card-purple-decor);
+}
+
+.decorA {
+  left: 170px;
+  top: -120px;
+  width: 360px;
+  height: 360px;
+  opacity: 0.45;
+}
+
+.decorB {
+  display: none;
+}
+
+.phoneLogo {
+  position: absolute;
+  left: 24px;
+  top: calc(60px + var(--safe-top));
+  z-index: 2;
+}
+
+.copy,
+.safeChip,
+.cardLilac {
+  display: none;
+}
+
+.card {
+  position: absolute;
+  transform-origin: top left;
+}
+
+.cardInk {
+  left: 176px;
+  top: 150px;
+  transform: rotate(-14deg);
+}
+
+.cardLime {
+  left: 92px;
+  top: 208px;
+  transform: rotate(6deg);
+}
+
+/* ---- Form column: a white sheet on the phone ---- */
+
+.formColumn {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  border-radius: 28px 28px 0 0;
+  background: var(--color-bg-surface);
+}
+
+.top,
+.legal {
+  display: none;
+}
+
+.sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 32px 24px calc(44px + var(--safe-bottom));
+}
+
+/* ---- Web: form column beside the panel ---- */
+
+@media (min-width: 768px) {
+  .page {
+    flex-direction: row;
+    gap: 16px;
+    padding: 16px;
+    background: var(--color-bg-surface);
+  }
+
+  .formColumn {
+    flex: 1 1 50%;
+    justify-content: space-between;
+    align-items: center;
+    margin: 0;
+    padding: 8px 16px 8px;
+    border-radius: 0;
+  }
+
+  .top {
+    display: flex;
+    align-self: stretch;
+    padding: 8px 16px;
+  }
+
+  .sheet {
+    gap: 18px;
+    max-width: 400px;
+    padding: 24px 0;
+  }
+
+  .legal {
+    display: block;
+    margin: 0;
+    padding: 8px 0;
+    color: var(--color-text-tertiary);
+    font-size: 12px;
+    line-height: 16px;
+    white-space: pre;
+  }
+
+  .panel {
+    order: 0;
+    flex: 1 1 50%;
+    height: auto;
+    min-height: calc(100dvh - 32px);
+    border-radius: 32px;
+  }
+
+  .phoneLogo {
+    display: none;
+  }
+
+  .decorA {
+    left: auto;
+    right: -200px;
+    top: -160px;
+    width: 520px;
+    height: 520px;
+  }
+
+  .decorB {
+    display: block;
+    left: -120px;
+    bottom: -52px;
+    width: 360px;
+    height: 360px;
+    opacity: 0.3;
+  }
+
+  .copy {
+    position: absolute;
+    left: 56px;
+    right: 56px;
+    top: 56px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    max-width: 520px;
+  }
+
+  .eyebrow {
+    margin: 0;
+    color: var(--color-accent-default);
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 16px;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+  }
+
+  .headline {
+    margin: 0;
+    color: var(--color-card-purple-fg);
+    font-family: var(--font-family-heading);
+    font-size: 48px;
+    font-weight: 700;
+    line-height: 56px;
+    letter-spacing: -1px;
+  }
+
+  .body {
+    margin: 0;
+    color: var(--color-card-purple-muted);
+    font-size: 18px;
+    line-height: 28px;
+  }
+
+  /* Cards anchored to the panel's bottom, as in the 868px-tall frame. */
+  .cardLilac {
+    display: flex;
+    left: 330px;
+    top: calc(100% - 348px);
+    transform: rotate(-16deg);
+  }
+
+  .cardInk {
+    left: 270px;
+    top: calc(100% - 298px);
+    transform: rotate(-6deg);
+  }
+
+  .cardLime {
+    left: 110px;
+    top: calc(100% - 238px);
+    transform: rotate(6deg);
+  }
+
+  .safeChip {
+    position: absolute;
+    left: 450px;
+    top: calc(100% - 418px);
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 12px 16px;
+    border-radius: 18px;
+    background: var(--color-bg-surface);
+    box-shadow: 0 4px 12px -2px color-mix(in srgb, var(--sg-neutral-900) 10%, transparent), 0 2px 4px -1px color-mix(in srgb, var(--sg-neutral-900) 6%, transparent);
+  }
+
+  .safeLabel {
+    color: var(--color-text-secondary);
+    font-size: 12px;
+    line-height: 16px;
+  }
+
+  .safeValue {
+    color: var(--color-money-income-fg);
+    font-family: var(--font-family-mono);
+    font-size: 24px;
+    font-weight: 600;
+    line-height: 32px;
+    letter-spacing: -0.5px;
+  }
+}
+
+/* Short laptop screens: the copy and the cards would meet. */
+@media (min-width: 768px) and (max-height: 760px) {
+  .headline {
+    font-size: 40px;
+    line-height: 48px;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1100px) {
+  .copy {
+    left: 40px;
+    right: 40px;
+    top: 40px;
+  }
+
+  .headline {
+    font-size: 36px;
+    line-height: 44px;
+  }
+
+  .cardLilac,
+  .safeChip {
+    display: none;
+  }
+
+  .cardInk {
+    left: 45%;
+  }
+
+  .cardLime {
+    left: 12%;
+  }
+}

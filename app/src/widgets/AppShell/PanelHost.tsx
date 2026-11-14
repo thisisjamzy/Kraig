@@ -137,7 +137,8 @@ function FormPeekHost() {
   if (!kind || !Form || !isWide) return null;
   const close = () => router.replace(withoutFormPeek(pathname, search.toString()), { scroll: false });
   return (
-    <WebFormPanel onClose={close}>
+    // The transaction panel is 440 wide (Dreda.figcraft `Form panel / Edit transaction`).
+    <WebFormPanel onClose={close} width={kind === 'transaction' || kind === 'edit-transaction' ? 440 : undefined}>
       <FormPeekContext.Provider value={{ peek: true, close, fullPageHref: pageHref }}>
         <Form key={search.toString()} params={params} />
       </FormPeekContext.Provider>

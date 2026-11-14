@@ -23,6 +23,7 @@ export function MoneyDashboardScreen() {
       layout={v.layout}
       renderCard={(id) => <MoneyCardView key={`${id}-${v.kind}`} card={v.dash.cards[id as keyof typeof v.dash.cards]} loading={v.loading} />}
       loading={v.loading}
+      breakdown={{ back: '/statistics', title: 'The full breakdown' }}
     />
   );
 }

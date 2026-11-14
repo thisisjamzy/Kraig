@@ -40,9 +40,9 @@ export function CreateSectionScreen({ areaId }: { areaId: string }) {
 
   const content = (
     <FormFrame
-      title="New section"
+      title="New folder"
       onClose={goBack}
-      primary={{ label: 'Add section', disabled: !isValid, busy: saving }}
+      primary={{ label: 'Add folder', disabled: !isValid, busy: saving }}
       onSubmit={handleSave}
       error={saveError}
       overlays={
@@ -69,7 +69,7 @@ export function CreateSectionScreen({ areaId }: { areaId: string }) {
             />
           </FieldCard>
 
-          <FieldCard label="What goes in this section?">
+          <FieldCard label="What goes in this folder?">
             <textarea
               className={styles.notesInput}
               value={description}
@@ -92,7 +92,7 @@ export function CreateSectionScreen({ areaId }: { areaId: string }) {
             </PickerCard>
             <div className={`${styles.card} ${styles.emojiCard}`}>
               <span className={styles.label}>Emoji</span>
-              <EmojiPicker value={emoji} onChange={setEmoji} label="Section emoji" noneLabel="No emoji" />
+              <EmojiPicker value={emoji} onChange={setEmoji} label="Folder emoji" noneLabel="No emoji" />
             </div>
           </div>
         </>

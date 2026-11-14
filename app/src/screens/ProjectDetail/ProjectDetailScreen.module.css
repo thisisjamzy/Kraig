@@ -125,3 +125,23 @@
   font-style: normal;
   color: var(--sg-neutral-500);
 }
+
+/* Dreda.figcraft Project / Web: the header's Project settings pill. */
+.headerButton {
+  display: inline-flex;
+  align-items: center;
+  height: 44px;
+  padding: 0 18px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 9999px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.headerButton:hover {
+  background: var(--color-bg-sunken);
+}

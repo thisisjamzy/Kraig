@@ -30,7 +30,7 @@ export function BasketForm({ basketId = null }: { basketId?: string | null }) {
         </ImpactCard>
       }
       primary={v.loading ? null : { label: v.editing ? 'Save basket' : 'Create basket', disabled: !v.canSave, busy: v.saving }}
-      onSubmit={() => void v.save()}
+      onSubmit={() => v.save()}
       error={v.saveError}
       after={
         !v.editing && !v.loading ? (

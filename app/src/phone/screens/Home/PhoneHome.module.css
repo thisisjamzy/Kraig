@@ -1,0 +1,60 @@
+/* Dreda.figcraft `Dashboard / Phone`: 16px gutters, 20px between blocks,
+   room at the bottom for the bar. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: calc(16px + var(--safe-top, 0px)) 16px calc(120px + var(--safe-bottom, 0px));
+  background: var(--color-bg-page);
+  font-family: var(--font-family-body);
+  color: var(--color-text-primary);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.avatar {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--color-accent-default);
+  color: var(--color-card-lime-fg);
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.hello {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.hello span {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.hello strong {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.bell {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 50%;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+}

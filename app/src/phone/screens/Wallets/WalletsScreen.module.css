@@ -152,3 +152,101 @@
   color: rgba(255, 255, 255, 0.85);
   cursor: not-allowed;
 }
+
+/* ==== Dreda.figcraft Wallets / Phone ==== */
+
+.totalCard {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0 16px;
+  padding: 20px;
+  overflow: hidden;
+  border-radius: 28px;
+  background: var(--color-card-purple-bg);
+  color: var(--color-card-purple-fg);
+}
+
+.totalDecor {
+  position: absolute;
+  right: -70px;
+  top: -90px;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background: var(--color-card-purple-decor);
+  opacity: 0.5;
+}
+
+.totalCard > *:not(.totalDecor) {
+  position: relative;
+}
+
+.totalLabel {
+  color: var(--color-card-purple-muted);
+  font-size: 14px;
+}
+
+.totalValue {
+  margin: 0;
+  font-family: var(--font-family-mono);
+  font-size: 34px;
+  font-weight: 600;
+  letter-spacing: -0.5px;
+}
+
+.totalValue span {
+  color: var(--color-card-purple-muted);
+  font-family: var(--font-family-body);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.totalStats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.totalStats div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px;
+  border-radius: 16px;
+  background: var(--color-card-purple-decor);
+}
+
+.totalStats span {
+  color: var(--color-card-purple-muted);
+  font-size: 12px;
+}
+
+.totalStats strong {
+  font-family: var(--font-family-mono);
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.sectionTitle {
+  margin: 20px 16px 0;
+  font-family: var(--font-family-heading);
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.cardRow {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 0 16px 8px;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+
+.cardLink {
+  flex: none;
+  border-radius: 22px;
+  scroll-snap-align: start;
+}

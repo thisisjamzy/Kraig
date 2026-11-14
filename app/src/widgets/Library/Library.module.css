@@ -1,0 +1,112 @@
+/* Library (Dreda.figcraft `Library / Web`). */
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.overline {
+  margin: 0;
+  color: var(--color-text-tertiary);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 16px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+.card {
+  overflow: hidden;
+  border-radius: var(--radius-card);
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+}
+
+.head {
+  padding: 14px 20px;
+  background: var(--color-surface);
+}
+
+.emptyRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px 20px;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.emptyRow p {
+  margin: 0;
+}
+
+.emptyRow a {
+  color: var(--color-link);
+}
+
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 24px;
+  padding: 14px 20px;
+}
+
+.row + .row {
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.who {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.name {
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+}
+
+.meta {
+  color: var(--color-text-tertiary);
+  font-size: var(--font-size-xs);
+}
+
+.restore,
+.delete {
+  padding: 8px 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.restore {
+  color: var(--color-link);
+}
+
+.delete {
+  color: var(--color-status-danger-fg);
+}
+
+.emptyText {
+  margin: 0;
+  padding: 16px 20px;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+@media (max-width: 767.98px) {
+  .row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 4px 16px;
+  }
+
+  .delete {
+    grid-column: 2;
+  }
+}

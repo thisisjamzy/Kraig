@@ -1,3 +1,4 @@
+import { maskAmount } from '@/src/shared/hooks/usePrivacy';
 // Cell formatting and footer calculations for databases. Pure.
 
 import type { FieldOption, FieldType, FieldValue } from '@/src/shared/listQuery/engine';
@@ -84,4 +85,9 @@ export function fieldTypeOf(type: CellType): FieldType {
   if (type === 'progress') return 'number';
   if (type === 'relation') return 'select';
   return type;
+}
+
+/** An amount ("1,013,381"), or "••••••" while amounts are hidden. */
+export function formatAmountValue(value: number): string {
+  return maskAmount(formatNumber(value));
 }

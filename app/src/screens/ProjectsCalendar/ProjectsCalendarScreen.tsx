@@ -17,6 +17,7 @@
 //   list below); no Week.
 
 import { useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { CalendarDays } from 'lucide-react';
 import { ALL_SOURCES, useLogic, type CalendarSources } from '@/src/logic/timeCalendar/useLogic';
@@ -24,6 +25,7 @@ import { useLayout } from '@/src/shared/hooks/useLayout';
 import { useTaskPanel } from '@/src/shared/navigation/taskPanel';
 import { dayFromIso, isoDay, mondayOf, shiftDay, weekRangeLabel, type CalItem } from '@/src/viewmodels/calendarItems';
 import { NotionPage } from '@/src/widgets/Database/NotionPage';
+import { TopBarControls } from '@/src/widgets/AppShell/TopBarSlot';
 import { ColumnBlocks, Column } from '@/src/widgets/Database/ColumnBlocks';
 import { Database } from '@/src/widgets/Database/Database';
 import type { ColumnDef, DefaultView, Layout } from '@/src/widgets/Database/types';
@@ -38,6 +40,22 @@ import styles from './ProjectsCalendarScreen.module.css';
 import { styleGuide } from '@/src/styles/tokens/styleGuide';
 
 type Source = 'Dreda tasks' | 'Google' | 'Project dates';
+
+// Dreda.figcraft `Calendar / Web / Week`: the type tabs over the calendar.
+type KindTab = 'all' | 'meetings' | 'events' | 'blocks' | 'reminders';
+const KIND_TABS: { key: KindTab; label: string }[] = [
+  { key: 'all', label: 'Everything' },
+  { key: 'meetings', label: 'Meetings' },
+  { key: 'events', label: 'Events' },
+  { key: 'blocks', label: 'Task blocks' },
+  { key: 'reminders', label: 'Reminders' },
+];
+function kindOf(item: CalItem): Exclude<KindTab, 'all'> {
+  if (item.meeting || item.kind === 'meeting') return 'meetings';
+  if (item.kind === 'event' || item.kind === 'google') return 'events';
+  if (item.kind === 'todo') return 'blocks';
+  return 'reminders';
+}
 
 interface CalRow extends CalItem {
   rowKey: string;
@@ -105,6 +123,13 @@ export function ProjectsCalendarScreen() {
     }
     return out;
   }, [logic, range, areaOf]);
+  const [kindTab, setKindTab] = useState<KindTab>('all');
+  const kindCounts = useMemo(() => {
+    const c: Record<KindTab, number> = { all: rows.length, meetings: 0, events: 0, blocks: 0, reminders: 0 };
+    for (const r of rows) c[kindOf(r)]++;
+    return c;
+  }, [rows]);
+  const shownRows = useMemo(() => (kindTab === 'all' ? rows : rows.filter((r) => kindOf(r) === kindTab)), [rows, kindTab]);
 
   function open(item: CalItem) {
     if (item.taskId) taskPanel.open(item.taskId);
@@ -153,7 +178,7 @@ export function ProjectsCalendarScreen() {
       id="time.calendar"
       label="Calendar"
       noun={['item', 'items']}
-      rows={rows}
+      rows={shownRows}
       rowKey={(r) => r.rowKey}
       columns={COLUMNS}
       views={VIEWS}
@@ -179,9 +204,10 @@ export function ProjectsCalendarScreen() {
 
   return (
     <NotionPage
-      title="Calendar"
-      icon={<CalendarDays strokeWidth={1.75} />}
+      title={rangeLabel('week')}
+      sub={`${kindCounts.meetings} ${kindCounts.meetings === 1 ? 'meeting' : 'meetings'} · ${kindCounts.events} ${kindCounts.events === 1 ? 'event' : 'events'} · ${kindCounts.blocks} ${kindCounts.blocks === 1 ? 'block' : 'blocks'}`}
       crumbs={[{ label: 'Time', href: '/projects' }, { label: 'Calendar', href: '/projects/calendar' }]}
+      menu={[{ label: 'Scheduling links', href: '/projects/calendar/links' }]}
       properties={[
         { id: 'calendar', label: 'Calendar', display: logic.syncEnabled ? `Google: ${logic.calendarName ?? 'Primary calendar'}` : 'Google Calendar not connected' },
         ...(logic.syncEnabled ? [{ id: 'sync', label: 'Sync', display: <CalendarSyncStatus range={range} /> }] : []),
@@ -189,6 +215,19 @@ export function ProjectsCalendarScreen() {
       ]}
     >
       <ScreenState loading={logic.loading} />
+      <TopBarControls>
+        <Link href="/projects/calendar/links" className={styles.headerButton}>
+          Scheduling links
+        </Link>
+      </TopBarControls>
+      <div className={styles.kindTabs} role="tablist" aria-label="What to show">
+        {KIND_TABS.map((t) => (
+          <button key={t.key} type="button" role="tab" aria-selected={kindTab === t.key} onClick={() => setKindTab(t.key)}>
+            <CalendarDays size={16} strokeWidth={2} aria-hidden />
+            {t.label} <span>{kindCounts[t.key]}</span>
+          </button>
+        ))}
+      </div>
       {deviceClass === 'large' ? (
         <ColumnBlocks template="260px minmax(0, 1fr)">
           <Column label="Month and calendars">
@@ -212,6 +251,10 @@ export function ProjectsCalendarScreen() {
                 Free tasks
               </label>
             </section>
+            <Link href="/projects/calendar/links" className={styles.promo}>
+              <span className={styles.promoTitle}>Scheduling links</span>
+              <span className={styles.promoText}>Send a link, they pick a slot, it lands here.</span>
+            </Link>
           </Column>
           <Column label="Calendar">{database}</Column>
         </ColumnBlocks>

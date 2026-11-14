@@ -184,7 +184,7 @@ export function ProjectFormScreen({ projectId }: { projectId?: string }) {
           )}
 
           {sheet === 'section' && (
-            <Modal title="Section" onClose={() => setSheet(null)}>
+            <Modal title="Folder" onClose={() => setSheet(null)}>
               <div className={styles.sheetList}>
                 {sections.map((section) => (
                   <button
@@ -203,7 +203,7 @@ export function ProjectFormScreen({ projectId }: { projectId?: string }) {
                 ))}
                 {sections.length === 0 && <p className={styles.sheetEmpty}>This area has no sections yet.</p>}
                 <SheetCreate
-                  noun="section"
+                  noun="folder"
                   onCreate={async (newName) => {
                     await createSection(newName);
                     setSheet(null);
@@ -322,7 +322,7 @@ export function ProjectFormScreen({ projectId }: { projectId?: string }) {
           </PickerCard>
 
           {areaId && (
-            <PickerCard label="Section" onClick={() => setSheet('section')}>
+            <PickerCard label="Folder" onClick={() => setSheet('section')}>
               {selectedSection ? selectedSection.name : <span className={styles.muted}>Choose a section</span>}
             </PickerCard>
           )}

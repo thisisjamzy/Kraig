@@ -1,0 +1,113 @@
+/* Payments on a phone (PaymentsScreen.tsx): one Calendar view. */
+
+/* Dreda.figcraft `Payments / Phone / *`. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: calc(12px + var(--safe-top, 0px)) 16px calc(120px + var(--safe-bottom, 0px));
+  background: var(--color-bg-page);
+  font-family: var(--font-family-body);
+  color: var(--color-text-primary);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.round {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.title {
+  flex: 1;
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  text-align: center;
+}
+
+/* The priorities under the payments calendar. */
+.priorities {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 12px;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 26px;
+  color: var(--color-text-primary);
+}
+
+/* Mark as paid: stacked fields, label above the control. */
+.sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.sheet p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.sheet label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.sheet input,
+.sheet select {
+  box-sizing: border-box;
+  height: 52px;
+  padding: 0 16px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 14px;
+  background: var(--color-bg-sunken);
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 16px;
+}
+
+.primary {
+  height: 52px;
+  border: 0;
+  border-radius: 9999px;
+  background: var(--color-brand-default);
+  color: var(--color-brand-on);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.primary:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.error {
+  color: var(--color-status-danger-fg);
+}

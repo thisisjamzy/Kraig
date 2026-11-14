@@ -2,7 +2,11 @@
    column from 768px (side blocks first), two from 1024px: the main column
    and a sticky side column (28%, 300 to 400px) that can be hidden. */
 
-.layout {
+/* `.layout.layout`: the element also carries BudgetMonth's `.page` (a flex
+   column). Same weight, so whichever stylesheet loaded last won: opening a
+   basket from Budget put the side column under the main one until a
+   refresh. The doubled class always wins, in any load order. */
+.layout.layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   align-items: start;
@@ -10,12 +14,12 @@
 }
 
 @media (min-width: 1024px) {
-  .layout {
+  .layout.layout {
     grid-template-columns: minmax(0, 1fr) clamp(300px, 28%, 400px);
     gap: 32px;
   }
   /* The side column hidden: the main column takes the whole width. */
-  .layout[data-side='hidden'] {
+  .layout.layout[data-side='hidden'] {
     grid-template-columns: minmax(0, 1fr);
   }
   .side {
@@ -340,4 +344,84 @@
   font: inherit;
   text-align: left;
   cursor: pointer;
+}
+
+/* ==== Dreda.figcraft Basket / Web: the month strip ==== */
+
+.strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px 28px;
+  padding: 16px 20px;
+  border-radius: 20px;
+  background: var(--color-bg-surface);
+}
+
+.stripFigure {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.stripFigure span {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.stripFigure strong {
+  font-family: var(--font-family-mono);
+  font-size: 22px;
+  font-weight: 500;
+  line-height: 30px;
+}
+
+.stripFigure[data-tone='bad'] span,
+.stripFigure[data-tone='bad'] strong {
+  color: var(--color-status-danger-fg);
+}
+
+.stripProgress {
+  display: flex;
+  flex: 1 1 240px;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+}
+
+.stripBar {
+  display: block;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 9999px;
+  background: var(--color-bg-sunken);
+}
+
+.stripBar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-brand-default);
+}
+
+.stripBar > span[data-over] {
+  background: var(--color-status-danger-solid);
+}
+
+.stripButton {
+  height: 40px;
+  padding: 0 16px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 9999px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.stripButton:hover {
+  background: var(--color-bg-sunken);
 }

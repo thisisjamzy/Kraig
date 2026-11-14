@@ -68,3 +68,111 @@
   color: var(--color-text-secondary);
   text-decoration: line-through;
 }
+
+/* ==== Dreda.figcraft Transactions / Web row ==== */
+
+.nameCell {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.badge {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 9999px;
+  background: var(--color-bg-sunken);
+  color: var(--color-text-primary);
+}
+
+.badge[data-flow='Expense'] {
+  background: var(--color-money-expense-bg);
+  color: var(--color-money-expense-fg);
+}
+
+.badge[data-flow='Income'],
+.badge[data-flow='Savings'] {
+  background: var(--color-money-income-bg);
+  color: var(--color-money-income-fg);
+}
+
+.nameText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.nameTitle,
+.nameSub {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nameTitle {
+  color: var(--color-text-primary);
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 22px;
+}
+
+.nameSub {
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 9999px;
+  background: var(--color-brand-subtle);
+  color: var(--color-brand-subtle-fg);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.tag::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-brand-default);
+}
+
+.tag[data-empty] {
+  background: var(--color-bg-sunken);
+  color: var(--color-text-secondary);
+}
+
+.tag[data-empty]::before {
+  background: var(--color-text-tertiary);
+}
+
+.amount {
+  font-family: var(--font-family-mono);
+  font-weight: 400;
+}
+
+.amount[data-flow='Income'],
+.amount[data-flow='Savings'] {
+  color: var(--color-money-income-fg);
+}
+
+.amount[data-flow='Transfer'] {
+  color: var(--color-text-primary);
+}
+
+.amount[data-negative][data-flow='Savings'] {
+  color: var(--color-money-expense-fg);
+}

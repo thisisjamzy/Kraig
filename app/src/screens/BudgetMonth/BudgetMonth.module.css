@@ -411,3 +411,99 @@
   flex-wrap: wrap;
   gap: 8px;
 }
+
+/* ==== Dreda.figcraft Budget / Web: the four flow tiles ==== */
+
+.sumRow {
+  gap: 16px;
+}
+
+.sumCard {
+  gap: 10px;
+  padding: 18px 20px;
+  border: 0;
+  border-radius: 20px;
+  background: var(--color-bg-surface);
+}
+
+.sumCard[aria-pressed='true'] {
+  box-shadow: inset 0 0 0 2px var(--color-brand-default);
+}
+
+.sumTitle {
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.sumPct {
+  color: var(--color-brand-default);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.sumCard[data-type='Savings'] .sumPct {
+  color: var(--color-status-success-fg);
+}
+
+.sumPct[data-over] {
+  color: var(--color-status-danger-fg);
+}
+
+.sumHeadline {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-family: var(--font-family-mono);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.5px;
+}
+
+.sumOf {
+  display: inline;
+  font-family: var(--font-family-body);
+  font-size: 13px;
+  letter-spacing: 0;
+  color: var(--color-text-tertiary);
+}
+
+.sumBar {
+  height: 6px;
+  border-radius: 9999px;
+  background: var(--color-bg-sunken);
+}
+
+.sumBar > span {
+  border-radius: 9999px;
+  background: var(--color-brand-default);
+}
+
+.sumCard[data-type='Expense'] .sumBar > span {
+  background: var(--color-card-lilac-decor);
+}
+
+.sumCard[data-type='Savings'] .sumBar > span {
+  background: var(--color-data-categorical-2);
+}
+
+.sumCard[data-type='Transfer'] .sumBar > span {
+  background: var(--color-border-strong, var(--color-text-tertiary));
+}
+
+.sumBar > span[data-over] {
+  background: var(--color-status-danger-solid);
+}
+
+.sumSub {
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+}
+
+@media (min-width: 768px) {
+  .sumLine {
+    display: none;
+  }
+}

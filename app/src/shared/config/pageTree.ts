@@ -6,20 +6,15 @@
 import type { FormKind } from '@/src/shared/navigation/formPeek';
 import {
   ArrowLeftRight,
-  BookOpen,
-  CalendarCheck,
+  AtSign,
   CalendarDays,
-  CalendarRange,
-  ChartNoAxesCombined,
-  FolderKanban,
+  FileText,
   HandCoins,
+  House,
+  Layers,
   LayoutGrid,
-  ListOrdered,
-  Map as MapIcon,
   PieChart,
   Sun,
-  Target,
-  TrendingUp,
   Wallet,
   WalletCards,
   type LucideIcon,
@@ -38,12 +33,19 @@ export interface TreePage {
   create?: { label: string; href: string; peek?: FormKind };
   /** Other paths that light this page up. */
   also?: string[];
+  /** The heading it sits under (Time: The day, The work). */
+  group?: string;
 }
 
 export const PAGE_TREE: Record<AppMode, TreePage[]> = {
+  // Money (Dreda.figcraft `Sidebar / Web`): Tracking, then Budgeting.
   money: [
-    { id: 'wallets', href: '/wallets', label: 'Wallets', icon: WalletCards },
-    { id: 'budget', href: '/budget', label: 'Budget', icon: Wallet, also: ['/budget/item', '/budget/review', '/budget/migration', '/budget/item-kinds', '/budget/cover', '/budget/reallocate'] },
+    { id: 'home', href: '/home', label: 'Dashboard', icon: House, group: 'Tracking' },
+    { id: 'transactions', href: '/transactions', label: 'Transactions', icon: ArrowLeftRight, also: ['/edit-transaction', '/edit-transfer'], group: 'Tracking' },
+    { id: 'wallets', href: '/wallets', label: 'Wallets', icon: WalletCards, group: 'Tracking' },
+    { id: 'insights', href: '/statistics', label: 'Insights', icon: PieChart, group: 'Tracking' },
+    { id: 'debt', href: '/debts', label: 'Debt', icon: HandCoins, group: 'Tracking' },
+    { id: 'budget', href: '/budget', label: 'Budget', icon: Wallet, also: ['/budget/item', '/budget/review', '/budget/migration', '/budget/item-kinds', '/budget/cover', '/budget/reallocate'], group: 'Budgeting' },
     {
       id: 'buckets',
       href: '/baskets',
@@ -52,31 +54,31 @@ export const PAGE_TREE: Record<AppMode, TreePage[]> = {
       children: 'buckets',
       create: { label: 'New basket', href: '/baskets/new', peek: 'basket' },
       also: ['/budget/basket', '/add-basket-item', '/edit-basket-item'],
+      group: 'Budgeting',
     },
-    { id: 'priorities', href: '/baskets/items', label: 'Priorities', icon: ListOrdered },
-    { id: 'payments', href: '/payments', label: 'Payments', icon: CalendarDays },
-    { id: 'transactions', href: '/transactions', label: 'Transactions', icon: ArrowLeftRight, also: ['/edit-transaction', '/edit-transfer'] },
-    { id: 'insights', href: '/statistics', label: 'Insights', icon: PieChart },
-    { id: 'plan', href: '/baskets/forecast', label: 'Plan and forecast', icon: TrendingUp },
-    { id: 'debt', href: '/debts', label: 'Debt', icon: HandCoins },
+    // Priorities lives on Payments (its one view, Calendar, shows both); the
+    // forecast page is off until it is redesigned to be actionable.
+    { id: 'payments', href: '/payments', label: 'Payments', icon: CalendarDays, also: ['/baskets/items'], group: 'Budgeting' },
   ],
+  // Time (Design-System HANDOFF section 21). Focus and Plan your time are no
+  // longer destinations: Focus's matrix and filters live on Today and Work,
+  // the week board in Calendar. Their routes still open. Areas and Projects
+  // are one page, Work; Resources and the archive are one page, Library.
   time: [
-    { id: 'today', href: '/projects', label: 'Today', icon: Sun, also: ['/tasks'] },
-    { id: 'focus', href: '/projects/focus', label: 'Focus', icon: Target },
-    { id: 'calendar', href: '/projects/calendar', label: 'Calendar', icon: CalendarCheck },
+    { id: 'today', href: '/projects', label: 'Today', icon: Sun, also: ['/tasks', '/projects/focus'], group: 'The day' },
+    { id: 'calendar', href: '/projects/calendar', label: 'Calendar', icon: CalendarDays, also: ['/projects/plan'], group: 'The day' },
+    { id: 'people', href: '/people', label: 'People', icon: AtSign, group: 'The day', create: { label: 'Add someone', href: '/people/new' } },
     {
-      id: 'projects',
-      href: '/projects/all',
-      label: 'Projects',
-      icon: FolderKanban,
-      children: 'projects',
+      id: 'work',
+      href: '/work',
+      label: 'Work',
+      icon: Layers,
+      also: ['/projects/all', '/areas', '/sections'],
+      group: 'The work',
       create: { label: 'New project', href: '/projects/new' },
-      also: ['/sections'],
     },
-    { id: 'areas', href: '/areas', label: 'Areas', icon: MapIcon },
-    { id: 'resources', href: '/resources', label: 'Resources', icon: BookOpen },
-    { id: 'insights', href: '/projects/insights', label: 'Insights', icon: ChartNoAxesCombined, also: ['/projects/analytics'] },
-    { id: 'plan', href: '/projects/plan', label: 'Plan your time', icon: CalendarRange },
+    { id: 'library', href: '/library', label: 'Library', icon: FileText, also: ['/resources'], group: 'The work' },
+    { id: 'insights', href: '/projects/insights', label: 'Insights', icon: PieChart, also: ['/projects/analytics'], group: 'The work' },
   ],
 };
 
@@ -86,7 +88,7 @@ export const MODE_HOME: Record<AppMode, string> = { time: '/projects', money: '/
 /** The mode a path belongs to, or null when it's shared (settings, notifications). */
 export function modeOfPath(pathname: string | null): AppMode | null {
   if (!pathname) return null;
-  if (/^\/(projects|tasks|areas|sections|resources)(\/|$)/.test(pathname)) return 'time';
+  if (/^\/(projects|tasks|areas|sections|resources|work|people|library)(\/|$)/.test(pathname)) return 'time';
   if (
     /^\/(home|buckets|budget|payments|transactions|statistics|wallets|debts|categories|add-transaction|edit-transaction|edit-transfer|add-bucket-item|edit-bucket-item|create-category|transaction-templates)(\/|$)/.test(
       pathname
@@ -144,9 +146,10 @@ export function featurePageOf(pathname: string): string | null {
   const shared = /^\/(settings|notifications)(\/|$)/.exec(pathname);
   if (shared) return `/${shared[1]}`;
   // A project (and a new one) belongs to Projects, not Today's /projects.
-  if (/^\/projects\/(?!all$|focus|calendar|insights|analytics)[^/]+/.test(pathname)) return '/projects/all';
+  if (/^\/projects\/(?!all$|focus|calendar|insights|analytics|plan)[^/]+/.test(pathname)) return '/work';
   const page = pageForPath(pathname);
-  return page ? pathOf(page.href) : null;
+  // The Dashboard row in the sidebar is Money's home, not a feature.
+  return page && page.id !== 'home' ? pathOf(page.href) : null;
 }
 
 /**

@@ -60,9 +60,10 @@ export function AreaFormScreen({ areaId }: { areaId?: string }) {
           {confirmArchive && (
             <ConfirmDialog
               title="Archive this area?"
-              message="Hides it from your Areas tab and the area picker. Its projects and tasks stay intact, and you can unarchive it later."
+              message="Its folders, projects and tasks go to the archive together and stop showing up in Work. You can restore the area from Library later."
               confirmLabel="Archive area"
-              cancelLabel="Keep it"
+              cancelLabel="Cancel"
+              tone="neutral"
               onCancel={() => setConfirmArchive(false)}
               onConfirm={() => {
                 archiveArea();

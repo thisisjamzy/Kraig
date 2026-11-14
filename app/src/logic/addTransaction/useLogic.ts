@@ -5,7 +5,7 @@ import { query, where } from 'firebase/firestore';
 import { getFirebaseAuth } from '@/src/shared/config/firebaseClient';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { useFirestoreCollection, useFirestoreDoc } from '@/src/shared/firestore/hooks';
-import { categoryRef, bucketsRef, transactionTemplateRef, unjustifiedWalletRef } from '@/src/shared/firestore/refs';
+import { categoryRef, bucketsRef, transactionRef, transactionTemplateRef, transferRef, unjustifiedWalletRef } from '@/src/shared/firestore/refs';
 import { useAccounts, useCategories, useCurrencyContext } from '@/src/shared/firestore/queries';
 import { itemCurrencyOf, toDisplay } from '@/src/shared/firestore/currency';
 import { useMonthUnaccounted } from '@/src/shared/hooks/useMonthUnaccounted';
@@ -19,13 +19,7 @@ import { basketItemFormFields, recordHint } from '@/src/shared/budget/itemKinds'
 import { addMonths, itemOccurrence, monthLabel } from '@/src/shared/budget/monthBudget';
 import { TRANSFER_CATEGORIES } from '@/src/viewmodels/categories';
 import { isSavingsAccount } from '@/src/viewmodels/wallets';
-import type {
-  FirestoreCategory,
-  FirestoreAccount,
-  BudgetLineType,
-  FirestoreBucket,
-  FirestoreTransactionTemplate,
-} from '@/src/shared/firestore/types';
+import type { FirestoreCategory, FirestoreAccount, BudgetLineType, FirestoreBucket, FirestoreTransactionTemplate, FirestoreTransaction, FirestoreTransfer } from '@/src/shared/firestore/types';
 import { useGoBack } from '@/src/shared/navigation/useGoBack';
 import { useFormFinish } from '@/src/shared/navigation/formPeekContext';
 import { peekAwareParams } from '@/src/shared/navigation/formPeek';
@@ -157,6 +151,18 @@ function bucketItemFromSearch(): { bucketId: string; itemId: string; month: stri
   return { bucketId, itemId, month };
 }
 
+// A transaction's or transfer's "Duplicate" (?duplicate=id or
+// ?duplicateTransfer=id): every field is copied in, the date set to today,
+// and the form opens on its details so the copy is checked before saving.
+function duplicateFromSearch(): { id: string; transfer: boolean } | null {
+  if (typeof window === 'undefined') return null;
+  const params = peekAwareParams(window.location.search);
+  const tx = params.get('duplicate');
+  if (tx) return { id: tx, transfer: false };
+  const tr = params.get('duplicateTransfer');
+  return tr ? { id: tr, transfer: true } : null;
+}
+
 export function useLogic() {
   const finish = useFormFinish();
   const { user } = useFirebaseUser();
@@ -166,7 +172,8 @@ export function useLogic() {
   const [prefillTemplateId] = useState(templateIdFromSearch);
   const [prefillBucketItem] = useState(bucketItemFromSearch);
   const [prefillAmount] = useState(amountFromSearch);
-  const [step, setStep] = useState<Step>(() => (prefillCategoryId || prefillTemplateId ? 'details' : 'type'));
+  const [duplicateOf] = useState(duplicateFromSearch);
+  const [step, setStep] = useState<Step>(() => (prefillCategoryId || prefillTemplateId || duplicateOf ? 'details' : 'type'));
   const [type, setType] = useState<TransactionType>(typeFromSearch);
   const [savingsMode, setSavingsModeState] = useState<SavingsMode>('moved');
   // Income: earned, other, or borrowed (debt financing). Suggested from the
@@ -254,6 +261,35 @@ export function useLogic() {
     if (prefillTemplate.charges != null) setChargesString(String(prefillTemplate.charges));
     setTemplateApplied(true);
   }, [prefillTemplateId, templateApplied, prefillTemplate]);
+
+  // Duplicate: the original transaction or transfer, copied in once.
+  const { data: duplicateTx } = useFirestoreDoc<FirestoreTransaction>(
+    useMemo(() => (uid && duplicateOf && !duplicateOf.transfer ? transactionRef(uid, duplicateOf.id) : null), [uid, duplicateOf])
+  );
+  const { data: duplicateTransfer } = useFirestoreDoc<FirestoreTransfer>(
+    useMemo(() => (uid && duplicateOf?.transfer ? transferRef(uid, duplicateOf.id) : null), [uid, duplicateOf])
+  );
+  const [duplicateApplied, setDuplicateApplied] = useState(false);
+  // Adjusted during render (as the default wallet above), once the original loads.
+  if (!duplicateApplied && duplicateTx) {
+    const t = duplicateTx.type === 'Income' ? 'income' : duplicateTx.type === 'Savings' ? 'savings' : 'expense';
+    setDuplicateApplied(true);
+    setType(t);
+    if (t === 'savings') setSavingsModeState('frozen');
+    setCategory(duplicateTx.categoryId ?? '');
+    setDescription(duplicateTx.description ?? '');
+    setAmountString(String(duplicateTx.amount));
+    if (duplicateTx.accountId) setFromAccountId(duplicateTx.accountId);
+  } else if (!duplicateApplied && duplicateTransfer) {
+    setDuplicateApplied(true);
+    setType('transfer');
+    setCategory(duplicateTransfer.kind ?? '');
+    setDescription(duplicateTransfer.description ?? '');
+    setAmountString(String(duplicateTransfer.amount));
+    setFromAccountId(duplicateTransfer.fromAccountId);
+    if (duplicateTransfer.toAccountId) setToAccountId(duplicateTransfer.toAccountId);
+    if (duplicateTransfer.charges) setChargesString(String(duplicateTransfer.charges));
+  }
 
   const { data: allAccounts, loading: accountsLoading, error: accountsError } = useAccounts();
   // Frozen wallets can't be a source or destination for anything until

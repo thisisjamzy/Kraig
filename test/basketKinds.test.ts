@@ -539,8 +539,11 @@ test('9. Payments tab: a week strip by default, grouped list, blue "Pay"', () =>
 
 test('the basket and item pickers open full screen on a phone, clear of the notch', () => {
   const form = read('screens/AddTransaction/AddTransactionScreen.tsx');
-  assert.match(form, /<ListSelectField\s+label="Basket"/);
-  assert.match(form, /<ListSelectField\s+label="Item"/);
+  // The transaction panel's rows (widgets/TransactionPanel): `long` lists
+  // open the full-screen ListSheet on a phone.
+  assert.match(form, /<SelectRow\s+long\s+icon=\{<ShoppingBasket \/>\}\s+label="Basket"/);
+  assert.match(form, /<SelectRow\s+long\s+icon=\{<Target \/>\}\s+label="Budget item"/);
+  assert.match(read('widgets/TransactionPanel/TransactionPanel.tsx'), /long && !isWide[\s\S]*?<ListSheet/);
   const css = read('widgets/FormFrame/FormFrame.module.css');
   const sheet = css.slice(css.indexOf('.listSheet {'), css.indexOf('}', css.indexOf('.listSheet {')));
   assert.match(sheet, /inset: 0/);

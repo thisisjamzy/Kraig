@@ -176,3 +176,134 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* ==== Dreda.figcraft Today / Web ==== */
+
+.headerButton {
+  display: inline-flex;
+  align-items: center;
+  height: 44px;
+  padding: 0 18px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 9999px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.headerButton:hover {
+  background: var(--color-bg-sunken);
+}
+
+.dayCard,
+.tasksCard {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 20px;
+  background: var(--color-bg-surface);
+}
+
+.cardHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cardTitle {
+  margin: 0;
+  font-family: var(--font-family-heading);
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 30px;
+}
+
+.cardMeta {
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+}
+
+.tasksCard :global([class*='database']) {
+  padding: 0;
+  background: none;
+}
+
+.overdueLine {
+  color: var(--color-status-danger-fg);
+  font-size: 14px;
+  text-decoration: none;
+}
+
+.overdueLine:hover {
+  text-decoration: underline;
+}
+
+.nowCard {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+  padding: 20px;
+  border-radius: 20px;
+  background: var(--color-card-ink-bg);
+  color: var(--color-card-ink-fg);
+}
+
+.nowLabel {
+  margin: 0;
+  color: var(--color-card-ink-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+.nowTitle {
+  margin: 0;
+  font-family: var(--font-family-heading);
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 30px;
+}
+
+.nowMeta {
+  margin: 0;
+  color: var(--color-card-ink-muted);
+  font-size: 14px;
+}
+
+.nowActions {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.nowPrimary,
+.nowSecondary {
+  height: 44px;
+  border-radius: 12px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.nowPrimary {
+  border: 0;
+  background: var(--color-accent-default);
+  color: var(--color-card-lime-fg);
+}
+
+.nowSecondary {
+  border: 1px solid var(--color-card-ink-muted);
+  background: none;
+  color: var(--color-card-ink-fg);
+}

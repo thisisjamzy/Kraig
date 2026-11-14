@@ -126,3 +126,27 @@
   background: transparent;
   color: var(--color-text-primary);
 }
+
+/* Under the save button when editing: deletes the item for good. */
+.deleteForGood {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid var(--sg-destructive);
+  border-radius: 6px;
+  background: none;
+  color: var(--sg-destructive);
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.deleteForGood:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.deleteForGood:focus-visible {
+  outline: 2px solid var(--sg-destructive);
+  outline-offset: 2px;
+}

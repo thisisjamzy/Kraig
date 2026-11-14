@@ -16,6 +16,7 @@ import { taskRef } from './refs';
 import type { TaskException, TaskType, Priority, TaskStatus, Quadrant, TimeMode, TaskSubtask } from './types';
 import { parseOccurrenceId } from '@/src/shared/tasks/recurringTasks';
 import { isPushableNow, touchesGoogleCopy } from '@/src/shared/calendarSync/pending';
+import { guardWrite } from './writeGuard';
 
 // Google Calendar sync (src/shared/calendarSync): a write that creates a
 // pushable task, or changes its time, title or mode, also sets
@@ -120,7 +121,7 @@ export interface CreateTaskInput {
   exceptions?: Record<string, TaskException>;
 }
 
-export async function createTask(uid: string, input: CreateTaskInput): Promise<string> {
+async function createTaskWrite(uid: string, input: CreateTaskInput): Promise<string> {
   const id = crypto.randomUUID();
   await setDoc(taskRef(uid, id), {
     title: input.title,
@@ -515,3 +516,6 @@ export async function updateTaskSubtasks(uid: string, taskId: string, subtasks: 
   const occurrence = parseOccurrenceId(taskId);
   await updateDoc(taskRef(uid, occurrence ? occurrence.seriesId : taskId), { subtasks, updatedAt: serverTimestamp() });
 }
+
+// Guarded against double submits (writeGuard.ts).
+export const createTask = guardWrite('createTask', createTaskWrite);

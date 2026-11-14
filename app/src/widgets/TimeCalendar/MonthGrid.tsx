@@ -83,7 +83,7 @@ export function MonthGrid({
             <p className={styles.muted}>Nothing scheduled.</p>
           ) : (
             list.map((i) => (
-              <button key={i.key} type="button" className={styles.slotRow} data-kind={i.kind} onClick={() => onOpen(i)}>
+              <button key={i.key} type="button" className={styles.slotRow} data-kind={i.kind} data-late={i.late || undefined} onClick={() => onOpen(i)}>
                 <span className={styles.blockTime}>{i.allDay ? 'All day' : clock(i.start)}</span>
                 <span className={styles.slotTitle}>
                   {i.kind === 'google' && <span className={styles.gBadge}>G</span>}
@@ -112,9 +112,13 @@ export function MonthGrid({
               <span className={styles.monthNum}>{dayFromIso(iso).getDate()}</span>
             </button>
             {items.slice(0, 3).map((i) => (
-              <button key={i.key} type="button" className={styles.pill} data-kind={i.kind} data-done={i.done || undefined} title={i.title} onClick={() => onOpen(i)}>
-                {i.kind === 'google' && <span className={styles.gBadge}>G</span>}
-                {!i.allDay && i.start && <span className={styles.pillTime}>{clock(i.start)}</span>}
+              <button key={i.key} type="button" className={styles.pill} data-kind={i.kind} data-done={i.done || undefined} data-late={i.late || undefined} title={i.title} onClick={() => onOpen(i)}>
+                {(i.kind === 'google' || (!i.allDay && i.start)) && (
+                  <span className={styles.pillTime}>
+                    {i.kind === 'google' && <span className={styles.gBadge}>G</span>}
+                    {!i.allDay && i.start && clock(i.start)}
+                  </span>
+                )}
                 <span className={styles.pillText}>{i.title}</span>
               </button>
             ))}

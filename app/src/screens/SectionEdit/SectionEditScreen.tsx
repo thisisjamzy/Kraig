@@ -19,24 +19,24 @@ export function SectionEditScreen({ bucketId }: { bucketId: string }) {
 
   return (
     <FormFrame
-      title="Edit section"
+      title="Edit folder"
       context={v.area ? `In ${v.area.name}` : undefined}
       onClose={v.goBack}
       phoneHeader="bar"
-      primary={ready ? { label: 'Save section', disabled: !v.name.trim() || !v.description.trim(), busy: v.saving } : null}
+      primary={ready ? { label: 'Save folder', disabled: !v.name.trim() || !v.description.trim(), busy: v.saving } : null}
       onSubmit={v.handleSave}
       error={v.saveError}
       after={
         ready && v.section ? (
           v.section.isDefault ? (
-            <p className={cf.muted}>This is the area&apos;s default section: projects without one of their own live in it, so it can&apos;t be archived.</p>
+            <p className={cf.muted}>This is the area&apos;s default folder: projects without one of their own live in it, so it can&apos;t be archived.</p>
           ) : v.section.archived ? (
             <button type="button" className={cf.deleteLink} onClick={v.unarchiveBucket}>
-              Unarchive section
+              Unarchive folder
             </button>
           ) : (
             <button type="button" className={cf.deleteLink} onClick={() => setConfirmArchive(true)}>
-              Archive section
+              Archive folder
             </button>
           )
         ) : null
@@ -45,10 +45,11 @@ export function SectionEditScreen({ bucketId }: { bucketId: string }) {
         <>
           {confirmArchive && (
             <ConfirmDialog
-              title="Archive this section?"
-              message="Hides it from its area and the section picker. Its projects and tasks stay intact, and you can unarchive it later."
-              confirmLabel="Archive section"
+              title="Archive this folder?"
+              message="Its projects and tasks go to the archive together and stop showing up in Work. You can restore the whole folder from Library later."
+              confirmLabel="Archive folder"
               cancelLabel="Cancel"
+              tone="neutral"
               onCancel={() => setConfirmArchive(false)}
               onConfirm={() => {
                 v.archiveBucket();
@@ -69,7 +70,7 @@ export function SectionEditScreen({ bucketId }: { bucketId: string }) {
             </FieldCard>
           )}
           <FieldCard label="Name">
-            <input className={ff.input} value={v.name} onChange={(event) => v.setName(event.target.value)} placeholder="Section name" />
+            <input className={ff.input} value={v.name} onChange={(event) => v.setName(event.target.value)} placeholder="Folder name" />
           </FieldCard>
           <FieldRow>
             <PickerField label="Color" onClick={() => setColorOpen(true)}>
@@ -77,11 +78,11 @@ export function SectionEditScreen({ bucketId }: { bucketId: string }) {
             </PickerField>
             <div className={`${cf.card} ${cf.emojiCard}`}>
               <span className={cf.label}>Emoji</span>
-              <EmojiPicker value={v.emoji} onChange={v.setEmoji} label="Section emoji" noneLabel="No emoji" />
+              <EmojiPicker value={v.emoji} onChange={v.setEmoji} label="Folder emoji" noneLabel="No emoji" />
             </div>
           </FieldRow>
           <FieldCard label="Description">
-            <textarea className={ff.input} rows={3} value={v.description} onChange={(event) => v.setDescription(event.target.value)} placeholder="What this section holds" />
+            <textarea className={ff.input} rows={3} value={v.description} onChange={(event) => v.setDescription(event.target.value)} placeholder="What this folder holds" />
           </FieldCard>
         </>
       )}

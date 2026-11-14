@@ -16,8 +16,9 @@ import { CheckCircle2, Clock, X } from 'lucide-react';
 import { useReadyToPay, type ReadyEntry } from '@/src/shared/hooks/useReadyToPay';
 import { useDismissedCard } from '@/src/shared/hooks/useDismissedCard';
 import styles from './ReadyToPayCard.module.css';
+import { maskAmount } from '@/src/shared/hooks/usePrivacy';
 
-const money = (n: number) => Math.round(n).toLocaleString('en-US');
+const money = (n: number) => maskAmount(Math.round(n).toLocaleString('en-US'));
 const FLOW_LABEL = { Expense: 'Expense', Savings: 'Savings', Transfer: 'Transfer' } as const;
 
 export function ReadyToPayCard({ page = false }: { page?: boolean }) {

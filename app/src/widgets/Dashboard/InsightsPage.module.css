@@ -1,0 +1,112 @@
+/* Insights level one: the stack of verdict, action cards, chart and the
+   way down (Dreda.figcraft `Insights / Web`). */
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.overline {
+  margin: 0;
+  color: var(--color-text-tertiary);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 16px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+.worth {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.cards[data-count='1'] {
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 520px;
+}
+
+.cards[data-count='2'] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.more {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 20px;
+  border-radius: 14px;
+  background: var(--color-surface);
+}
+
+.moreCopy {
+  min-width: 0;
+}
+
+.moreTitle {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-md);
+  font-weight: 600;
+  line-height: 24px;
+}
+
+.moreText {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  line-height: 20px;
+}
+
+.moreButton {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  min-height: 56px;
+  padding: 0 24px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: var(--color-background);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .moreButton:hover {
+    background: var(--color-bg-hover);
+  }
+}
+
+@container dash (max-width: 1000px) {
+  .cards,
+  .cards[data-count='2'] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@container dash (max-width: 760px) {
+  .body {
+    gap: 20px;
+  }
+
+  .more {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .moreButton {
+    justify-content: center;
+    min-height: 48px;
+  }
+}

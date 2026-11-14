@@ -16,6 +16,8 @@ export interface ProjectRow {
   description: string;
   areaId: string | null;
   areaName: string | null;
+  /** The folder (stored as a section) it is filed in, if any. */
+  folderId: string | null;
   status: FirestoreProject['status'];
   start: Date | null;
   end: Date | null;

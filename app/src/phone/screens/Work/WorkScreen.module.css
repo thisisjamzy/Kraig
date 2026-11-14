@@ -1,0 +1,117 @@
+/* Work on a phone (Dreda.figcraft `Work / Phone`). */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-bottom: 120px;
+}
+
+.round {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+}
+
+.summary {
+  margin: 0;
+  padding: 0 var(--space-lg);
+  font-family: var(--font-family-heading);
+  font-size: 1.375rem;
+  font-weight: 700;
+}
+
+.empty {
+  margin: 0;
+  padding: 0 var(--space-lg);
+  color: var(--color-text-secondary);
+}
+
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 0 var(--space-md);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  background: var(--color-background);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.swatch {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  color: var(--color-brand-on);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.name {
+  flex: 1;
+  font-weight: 600;
+}
+
+.pct,
+.meta {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+}
+
+.track {
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--color-surface);
+}
+
+.track span {
+  display: block;
+  height: 100%;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  color: var(--color-text-primary);
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.open {
+  color: var(--color-link);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-decoration: none;
+}

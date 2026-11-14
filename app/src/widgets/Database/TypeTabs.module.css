@@ -57,3 +57,27 @@
     display: none;
   }
 }
+
+/* Dreda.figcraft `View tab`: 14px, the selected tab in the text colour
+   with a 2px brand underline. */
+.tab {
+  min-height: 44px;
+  padding: 0 12px;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+}
+
+.tab[aria-selected='true'] {
+  border-bottom-color: var(--color-brand-default);
+}
+
+.count {
+  min-width: 18px;
+  padding: 1px 6px;
+  border-radius: 9999px;
+  background: var(--color-bg-sunken);
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
+}

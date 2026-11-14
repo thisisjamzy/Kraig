@@ -9,9 +9,10 @@
 // one line; the time shows only when one was recorded. A row opens the
 // transaction in a side peek (its own page on a phone).
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeftRight } from 'lucide-react';
+import { ArrowDownLeft, ArrowDownToLine, ArrowLeftRight, ArrowUpRight } from 'lucide-react';
+import { TopBarControls } from '@/src/widgets/AppShell/TopBarSlot';
 import { useLogic, type TxRow } from '@/src/logic/transactions/useLogic';
 import { FLOW_LABEL, FLOW_TYPES, type FlowType } from '@/src/shared/budget/flow';
 import { useLayout } from '@/src/shared/hooks/useLayout';
@@ -20,7 +21,7 @@ import { Callout, NotionPage } from '@/src/widgets/Database/NotionPage';
 import { MonthPicker } from '@/src/widgets/Database/MonthPicker';
 import { SidePeek, usePeek } from '@/src/widgets/Database/SidePeek';
 import { TypeTabs } from '@/src/widgets/Database/TypeTabs';
-import { formatNumber } from '@/src/widgets/Database/format';
+import { formatAmountValue } from '@/src/widgets/Database/format';
 import type { ColumnDef } from '@/src/widgets/Database/types';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { FLOW_ICON } from '@/src/screens/BudgetMonth/BudgetMonthPage';
@@ -40,14 +41,39 @@ function Amount({ row }: { row: TxRow }) {
   return (
     <span className={styles.amount} data-flow={row.flow} data-negative={row.amount < 0 || undefined} data-excluded={row.excluded || undefined}>
       {sign}
-      {formatNumber(Math.abs(row.amount))}
+      {formatAmountValue(Math.abs(row.amount))}
     </span>
   );
 }
 
-/** The name; an excluded transaction greyed with its reason. */
+const BADGE: Record<FlowType, ReactNode> = {
+  Expense: <ArrowUpRight size={16} strokeWidth={2} />,
+  Income: <ArrowDownLeft size={16} strokeWidth={2} />,
+  Transfer: <ArrowLeftRight size={16} strokeWidth={2} />,
+  Savings: <ArrowDownToLine size={16} strokeWidth={2} />,
+};
+
+/** "Expense · Weekly shop basket" under the name (Dreda.figcraft Table/Row). */
+function subtitle(row: TxRow) {
+  const kind = FLOW_LABEL[row.flow].replace(/s$/, '');
+  const where = row.flow === 'Transfer' || row.flow === 'Savings' ? [row.from, row.to].filter(Boolean).join(' to ') : row.bucketName || row.source || row.subtype;
+  return [kind, where].filter(Boolean).join(' · ');
+}
+
+/** The name with its type badge and subtitle; an excluded one greyed with its reason. */
 function TxName({ row }: { row: TxRow }) {
-  if (!row.excluded) return <>{row.name}</>;
+  if (!row.excluded)
+    return (
+      <span className={styles.nameCell}>
+        <span className={styles.badge} data-flow={row.flow} aria-hidden>
+          {BADGE[row.flow]}
+        </span>
+        <span className={styles.nameText}>
+          <span className={styles.nameTitle}>{row.name}</span>
+          <span className={styles.nameSub}>{subtitle(row)}</span>
+        </span>
+      </span>
+    );
   return (
     <span className={styles.excluded} title={row.excludedReason}>
       {row.name}
@@ -66,11 +92,20 @@ function dateColumn(): ColumnDef<TxRow> {
     render: (r) => (
       <span className={styles.date}>
         {r.date.getDate()} {MONTH[r.date.getMonth()]}
-        {r.timeKnown && <span className={styles.time}>{r.date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>}
+        {r.timeKnown && `, ${r.date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`}
       </span>
     ),
   };
 }
+
+const tag = (id: keyof TxRow & string, label: string, width = 160): ColumnDef<TxRow> => ({
+  id,
+  label,
+  type: 'text',
+  width,
+  value: (r) => (r[id] as string) || null,
+  render: (r) => (r[id] ? <span className={styles.tag}>{r[id] as string}</span> : <span className={styles.tag} data-empty>None</span>),
+});
 
 const text = (id: keyof TxRow & string, label: string, width = 160, hidden = false): ColumnDef<TxRow> => ({
   id,
@@ -82,21 +117,21 @@ const text = (id: keyof TxRow & string, label: string, width = 160, hidden = fal
 });
 
 function columnsFor(type: FlowType): ColumnDef<TxRow>[] {
-  const name: ColumnDef<TxRow> = { id: 'name', label: 'Name', type: 'text', width: 240, value: (r) => r.name, render: (r) => <TxName row={r} /> };
+  const name: ColumnDef<TxRow> = { id: 'name', label: 'Name', type: 'text', width: 340, value: (r) => r.name, render: (r) => <TxName row={r} /> };
   const amount: ColumnDef<TxRow> = { id: 'amount', label: 'Amount', type: 'currency', width: 140, value: (r) => r.amount, render: (r) => <Amount row={r} />, calc: 'sum' };
   // Date first (the frozen column), then Name, as the columns read.
-  if (type === 'Income') return [dateColumn(), name, text('note', 'Note'), text('source', 'Source', 150), text('subtype', 'Subtype', 140), text('account', 'Account', 150), amount];
-  if (type === 'Savings') return [dateColumn(), name, text('bucketName', 'Basket', 170), text('from', 'From account', 150), text('to', 'To wallet', 150), amount];
+  if (type === 'Income') return [name, dateColumn(), text('note', 'Note'), text('source', 'Source', 150), text('subtype', 'Subtype', 140), text('account', 'Account', 150), amount];
+  if (type === 'Savings') return [name, dateColumn(), text('bucketName', 'Basket', 170), text('from', 'From account', 150), text('to', 'To wallet', 150), amount];
   if (type === 'Transfer')
     return [
-      dateColumn(),
       name,
+      dateColumn(),
       text('from', 'From', 150),
       text('to', 'To', 150),
-      { id: 'fee', label: 'Fee', type: 'currency', width: 110, value: (r) => r.fee || null, render: (r) => (r.fee ? formatNumber(r.fee) : null), calc: 'sum' },
+      { id: 'fee', label: 'Fee', type: 'currency', width: 110, value: (r) => r.fee || null, render: (r) => (r.fee ? formatAmountValue(r.fee) : null), calc: 'sum' },
       amount,
     ];
-  return [dateColumn(), name, text('note', 'Note', 160, true), text('bucketName', 'Basket', 170), text('itemName', 'Item', 170), text('category', 'Category', 150), text('account', 'Account', 150), amount];
+  return [name, tag('category', 'Category', 170), text('account', 'Wallet', 150), dateColumn(), text('note', 'Note', 160, true), text('bucketName', 'Basket', 170, true), text('itemName', 'Item', 170, true), amount];
 }
 
 export function TransactionsScreen() {
@@ -106,7 +141,6 @@ export function TransactionsScreen() {
   const compact = useLayout().deviceClass === 'compact';
   const [peekRow, setPeekRow] = useState<TxRow | null>(null);
   const peek = usePeek<TxRow>((r) => r.href);
-  const money = (n: number) => `${formatNumber(Math.round(n))} ${v.currency}`;
 
   const tabs = (
     <TypeTabs
@@ -117,18 +151,26 @@ export function TransactionsScreen() {
     />
   );
 
+  const transfers = v.byType.Transfer.filter((r) => !r.excluded);
+  const moved = transfers.reduce((sum, r) => sum + Math.abs(r.amount), 0);
+  const fees = transfers.reduce((sum, r) => sum + r.fee, 0);
+  const saved = v.byType.Savings.filter((r) => !r.excluded).reduce((sum, r) => sum + r.amount, 0);
+
   return (
     <NotionPage
       title="Transactions"
-      icon={<ArrowLeftRight strokeWidth={1.75} />}
+      sub="Every expense, income, transfer and saving in one place."
       crumbs={[{ label: 'Money', href: '/home' }, { label: 'Transactions', href: '/transactions' }, { label: v.title }]}
       properties={[
-        { id: 'month', label: 'Month', display: <MonthPicker value={v.month} onChange={v.setMonth} /> },
-        { id: 'in', label: 'Money in', display: money(v.moneyIn), tone: 'in' },
-        { id: 'out', label: 'Money out', display: money(v.moneyOut), tone: 'out' },
-        { id: 'count', label: 'Count', display: String(v.count) },
+        { id: 'in', label: 'Money in', display: formatAmountValue(Math.round(v.moneyIn)), tone: 'in' },
+        { id: 'out', label: 'Money out', display: formatAmountValue(Math.round(v.moneyOut)), tone: 'out' },
+        { id: 'transfers', label: fees > 0 ? `Transfers (charges ${formatAmountValue(Math.round(fees))})` : 'Transfers', display: formatAmountValue(Math.round(moved)) },
+        { id: 'saved', label: 'Saved', display: formatAmountValue(Math.round(saved)) },
       ]}
     >
+      <TopBarControls>
+        <MonthPicker value={v.month} onChange={v.setMonth} />
+      </TopBarControls>
       {v.filteredBy && (
         <Callout>
           <p>Showing transactions for {v.filteredBy}.</p>

@@ -3,10 +3,11 @@
 // An amount, formatted ("1,013,381", "+250,000 XAF"), or "••••••" while
 // amounts are hidden (src/shared/hooks/usePrivacy.ts). Never truncated.
 
-import { useAmountsHidden, HIDDEN_AMOUNT } from '@/src/shared/hooks/usePrivacy';
+import { useAmountsHidden, HIDDEN_AMOUNT, maskAmount } from '@/src/shared/hooks/usePrivacy';
 
+/** "1,013,381", or "••••••" while amounts are hidden. */
 export function formatMoney(value: number): string {
-  return Math.round(value).toLocaleString('en-US');
+  return maskAmount(Math.round(value).toLocaleString('en-US'));
 }
 
 export function Money({
@@ -27,7 +28,7 @@ export function Money({
   return (
     <span className={className} style={{ whiteSpace: 'nowrap' }}>
       {prefix}
-      {formatMoney(Math.abs(value))}
+      {Math.round(Math.abs(value)).toLocaleString('en-US')}
       {currency ? ` ${currency}` : ''}
     </span>
   );

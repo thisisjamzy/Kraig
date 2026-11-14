@@ -26,6 +26,7 @@ import { accountRef, allocationRef, bucketLineItemRef, bucketRef } from './refs'
 import { convert, round2, type CurrencyContext } from './currency';
 import { writeTransferContribution } from './aggregation';
 import type { AllocationEndpoint, AllocationReason, JustificationReason } from './types';
+import { guardWrite } from './writeGuard';
 
 export async function skipItemMonth(uid: string, bucketId: string, itemId: string, month: string) {
   await updateDoc(bucketLineItemRef(uid, bucketId, itemId), {
@@ -99,7 +100,7 @@ function monthsTouched(input: CreateAllocationInput): string[] {
   return [...months];
 }
 
-export async function createAllocation(uid: string, input: CreateAllocationInput, ctx: CurrencyContext): Promise<string> {
+async function createAllocationWrite(uid: string, input: CreateAllocationInput, ctx: CurrencyContext): Promise<string> {
   if (!(input.amount > 0)) throw new Error('Enter an amount greater than zero.');
   const id = crypto.randomUUID();
   const doc = {
@@ -301,3 +302,6 @@ export async function updateItemFields(uid: string, bucketId: string, itemId: st
 export async function updateBucketFields(uid: string, bucketId: string, patch: Record<string, unknown>) {
   await updateDoc(bucketRef(uid, bucketId), { ...patch, updatedAt: serverTimestamp() });
 }
+
+// Guarded against double submits (writeGuard.ts).
+export const createAllocation = guardWrite('createAllocation', createAllocationWrite);

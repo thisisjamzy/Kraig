@@ -25,6 +25,7 @@ import type { CurrencyContext } from './currency';
 import { repaymentSchedule, type ScheduledLike } from '../../viewmodels/debtSchedule';
 import type { PlanLike } from '../../viewmodels/debt';
 import type { DebtPaidFrom, DebtPriority, FirestoreDebt, FirestoreScheduledRepayment, ItemAutomation, Priority } from './types';
+import { guardWrite } from './writeGuard';
 
 export const REPAYMENTS_BASKET_ID = 'debt-repayments';
 export const REPAYMENTS_CATEGORY_ID = 'debt-repayments';
@@ -190,7 +191,7 @@ export interface ScheduledInput {
 }
 
 /** Plans (or changes) one scheduled repayment and rewrites the debt's budget lines. */
-export async function saveScheduledRepayment(uid: string, debtId: string, input: ScheduledInput, format: (n: number) => string): Promise<string> {
+async function saveScheduledRepaymentWrite(uid: string, debtId: string, input: ScheduledInput, format: (n: number) => string): Promise<string> {
   const id = input.id ?? crypto.randomUUID().slice(0, 12);
   await runTransaction(getFirebaseFirestore(), async (tx) => {
     const snap = await tx.get(debtRef(uid, debtId));
@@ -272,7 +273,7 @@ export async function syncScheduledLines(uid: string, debtId: string): Promise<v
  * the line. Returns the expense's id (null for a record-only debt paid
  * from no account).
  */
-export async function recordScheduledLine(
+async function recordScheduledLineWrite(
   uid: string,
   line: { bucketId: string; itemId: string; month: string },
   payment: { amount: number; accountId: string | null; date: Date },
@@ -302,3 +303,7 @@ export async function recordScheduledLine(
   await syncScheduledLines(uid, item.debtId);
   return { repaymentId, transactionId };
 }
+
+// Guarded against double submits (writeGuard.ts).
+export const saveScheduledRepayment = guardWrite('saveScheduledRepayment', saveScheduledRepaymentWrite);
+export const recordScheduledLine = guardWrite('recordScheduledLine', recordScheduledLineWrite);

@@ -93,3 +93,31 @@
     transition: none;
   }
 }
+
+/* ==== Dreda.figcraft Today / Phone: the dark progress card ==== */
+.card {
+  border: 0;
+  border-radius: 20px;
+  background: var(--color-card-ink-bg);
+  color: var(--color-card-ink-fg);
+}
+
+.label,
+.count {
+  color: var(--color-card-ink-fg);
+  font-weight: 600;
+}
+
+.percent,
+.percent[data-complete] {
+  color: var(--color-accent-default);
+  font-family: var(--font-family-mono);
+}
+
+.dot {
+  background: color-mix(in srgb, var(--color-card-ink-fg) 22%, transparent);
+}
+
+.dot[data-done] {
+  background: var(--color-accent-default);
+}

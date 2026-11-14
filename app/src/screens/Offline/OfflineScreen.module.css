@@ -46,7 +46,7 @@
   padding: var(--space-md) var(--space-xl);
   border: none;
   border-radius: var(--radius-lg);
-  background: var(--color-accent);
+  background: var(--color-primary);
   color: #fff;
   font-weight: 700;
   font-size: var(--font-size-md);

@@ -1,0 +1,250 @@
+/* The sign-in and sign-up form (Dreda.figcraft `Login / Web` Form): 52px
+   sunken fields with a 14px radius and a leading icon, a 56px brand pill,
+   36px Bricolage title. On the phone the title drops to 28px. */
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: inherit;
+  width: 100%;
+}
+
+.heading {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.title {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-family: var(--font-family-heading);
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 36px;
+  letter-spacing: -0.5px;
+}
+
+.subtitle {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 15px;
+  line-height: 22px;
+}
+
+@media (min-width: 768px) {
+  .title {
+    font-size: 36px;
+    line-height: 44px;
+  }
+
+  .subtitle {
+    font-size: 16px;
+    line-height: 24px;
+  }
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.labelRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.label {
+  color: var(--color-text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-text-link, var(--color-brand-default));
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+.hint {
+  color: var(--color-text-tertiary);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.input {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-sizing: border-box;
+  height: 52px;
+  padding: 0 6px 0 16px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 14px;
+  background: var(--color-bg-sunken);
+}
+
+.input:focus-within {
+  border-color: var(--color-brand-default);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-brand-default) 20%, transparent);
+}
+
+.input[data-invalid] {
+  border-color: var(--color-status-danger-solid);
+}
+
+.icon {
+  flex: none;
+  color: var(--color-text-primary);
+}
+
+.input input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0 10px 0 0;
+  border: 0;
+  background: none;
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 16px;
+  line-height: 24px;
+  outline: none;
+}
+
+.input input::placeholder {
+  color: var(--color-text-tertiary);
+}
+
+.toggle {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 9999px;
+  background: none;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.toggle:hover {
+  background: color-mix(in srgb, var(--color-text-primary) 6%, transparent);
+}
+
+.error {
+  margin: 0;
+  color: var(--color-status-danger-fg);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.notice {
+  margin: 0;
+  color: var(--color-status-success-fg);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 56px;
+  padding: 0 24px;
+  border: 0;
+  border-radius: 9999px;
+  background: var(--color-brand-default);
+  color: var(--color-brand-on);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 24px;
+  cursor: pointer;
+}
+
+.primary:hover:not(:disabled) {
+  background: var(--color-brand-hover);
+}
+
+.primary:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.spin {
+  animation: spin 900ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.footer {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  line-height: 20px;
+  text-align: center;
+}
+
+.footer a {
+  margin-left: 6px;
+  color: var(--color-text-link, var(--color-brand-default));
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.footer a:hover {
+  text-decoration: underline;
+}
+
+/* "Check your email": the tinted hint box, and quiet text. */
+.infoBox {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--color-brand-subtle);
+  color: var(--color-brand-subtle-fg);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.infoBox svg {
+  flex: none;
+  margin-top: 1px;
+}
+
+a.primary {
+  text-decoration: none;
+}
+
+.muted {
+  color: var(--color-text-tertiary);
+}
+
+.footer .link {
+  margin-left: 6px;
+}

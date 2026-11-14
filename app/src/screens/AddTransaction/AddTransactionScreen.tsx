@@ -1,34 +1,40 @@
 'use client';
 
-// Add transaction (and Record income), on the form standard (FormFrame): one
-// page instead of the old four steps and keypad.
-//   Type; the savings mode or the income type when it applies
-//   Amount | Date
-//   Basket, then Item (never fills in the amount; a Payment offers its
-//   full due amount as a chip), Category (this month's budgeted ones,
-//   or every one when recording unplanned)
-//   Account, or From | To with Charges for a transfer
-//   Description
-//   More options: "explains the unaccounted-for balance" for a past date
-// then the Impact card and "Add expense" (income, transfer, savings).
+// Add transaction (and Record income), drawn from Dreda.figcraft
+// `Transactions / Web / Add transaction`, the same panel as Edit
+// transaction (widgets/TransactionPanel), top to bottom:
+//   the type selector (Expense, Income, Transfer, Savings);
+//   the amount hero ("How much?", the wallet's available money);
+//   Details: the wallet (From and To for a transfer), the savings mode or
+//     income type when it applies, Basket then Budget item (a Payment
+//     offers its full due amount as a chip), Category (this month's
+//     budgeted ones, or every one when recording unplanned);
+//   When: Date;
+//   More: Note, Fees (transfers), "This explains part of my unaccounted
+//     balance" for a past date;
+// then the impact and "Save expense" (income, transfer, savings).
+// There is no Time row: a transaction is recorded on a date (useLogic).
 
 import Link from 'next/link';
+import { CalendarDays, FileText, FolderPlus, PiggyBank, Receipt, ShoppingBasket, Tag, Target, Wallet } from 'lucide-react';
 import { useLogic, formatMoney, type TransactionType } from '@/src/logic/addTransaction/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import {
-  FieldCard,
-  FieldRow,
-  FormFrame,
-  ListSelectField,
-  SegmentedField,
-  SelectField,
-  SwitchField,
-  formFrameStyles as ff,
-} from '@/src/widgets/FormFrame/FormFrame';
+  AmountHero,
+  DateRow,
+  ImpactCallout,
+  InputRow,
+  RowChip,
+  RowGroup,
+  RowNote,
+  SelectRow,
+  ToggleRow,
+  TxPanel,
+  TypeSelector,
+} from '@/src/widgets/TransactionPanel/TransactionPanel';
 import type { IncomeSubtype } from '@/src/shared/budget/flow';
 
-const TYPES: TransactionType[] = ['expense', 'income', 'transfer', 'savings'];
 const INCOME_SUBTYPES: { value: IncomeSubtype; label: string }[] = [
   { value: 'earned', label: 'Earned' },
   { value: 'other', label: 'Other' },
@@ -42,7 +48,10 @@ export function AddTransactionScreen() {
   const strings = useStrings();
   const t = strings.addTransaction;
   const v = useLogic();
-  const accountOptions = (v.type === 'expense' ? v.expenseAccounts : v.type === 'transfer' ? v.transferFromAccounts : v.accounts).map((a) => ({ value: a.id, label: a.name }));
+  const walletList = v.type === 'expense' ? v.expenseAccounts : v.type === 'transfer' ? v.transferFromAccounts : v.accounts;
+  const accountOptions = walletList.map((a) => ({ value: a.id, label: a.name }));
+  const wallet = v.accounts.find((a) => a.id === v.fromAccountId);
+  const available = wallet ? Math.max(0, (wallet.currentBalance ?? 0) - (wallet.lockedAmount ?? 0)) : null;
   const amount = Number(v.amountString) || 0;
   const day = v.dateValue ? new Date(`${v.dateValue}T00:00:00`) : null;
   const when = day ? ` on ${day.getDate()} ${SHORT[day.getMonth()]}` : '';
@@ -60,169 +69,179 @@ export function AddTransactionScreen() {
   // A basket item says what the money does to it: "Hangouts will have 12,000 left."
   const impactText = [impact, v.itemImpact].filter(Boolean).join(' ') || null;
   const showCategory = v.categoriesForType.length > 0 || !v.hasBudgetedCategories;
+  const showBasket = v.basketOptions.length > 0 || Boolean(v.linkedBucketItem) || v.canCreateBasket;
 
   return (
-    <FormFrame
-      title={t.title}
+    <TxPanel
+      title="New transaction"
       onClose={v.close}
-      phoneHeader="bar"
-      impact={impactText}
-      primary={v.loading ? null : { label: `Add ${t.types[v.type].label.toLowerCase()}`, disabled: !v.canSave, busy: v.submitting, busyLabel: t.saving }}
-      onSubmit={() => void v.handleConfirm()}
+      primary={v.loading ? null : { label: `Save ${t.types[v.type].label.toLowerCase()}`, disabled: !v.canSave, busy: v.submitting, busyLabel: t.saving }}
+      onSubmit={() => v.handleConfirm()}
       error={v.submitError}
     >
       <ScreenState loading={v.loading} error={v.error} />
       {!v.loading && !v.error && (
         <>
-          <SegmentedField label="Type" value={v.type} onChange={v.selectType} options={TYPES.map((key) => ({ value: key, label: t.types[key].label }))} />
-          {v.type === 'savings' && (
-            <SegmentedField
-              label="Savings"
-              value={v.savingsMode}
-              onChange={v.chooseSavingsMode}
-              options={[
-                { value: 'moved', label: 'Move to savings' },
-                { value: 'frozen', label: 'Freeze in wallet' },
-              ]}
-            />
-          )}
-          {v.type === 'income' && <SegmentedField label="Income type" value={v.incomeSubtype} onChange={v.setIncomeSubtype} options={INCOME_SUBTYPES} />}
+          <TypeSelector value={v.type} onChange={(k) => v.selectType(k as TransactionType)} />
 
-          <FieldRow>
-            <FieldCard label="Amount">
-              <input className={ff.input} inputMode="decimal" value={v.amountString} onChange={(e) => v.setAmount(e.target.value)} placeholder="0" autoFocus />
-            </FieldCard>
-            <FieldCard label="Date">
-              <input type="date" className={ff.input} value={v.dateValue} onChange={(e) => e.target.value && v.chooseDate(e.target.value)} />
-            </FieldCard>
-          </FieldRow>
+          <AmountHero
+            value={v.amountString}
+            onChange={v.setAmount}
+            currency={wallet?.currency ?? ''}
+            autoFocus
+            helper={wallet && available !== null ? `${wallet.name} has ${Math.round(available).toLocaleString('en-US')} ${wallet.currency} available` : undefined}
+          />
 
-          {(v.basketOptions.length > 0 || v.linkedBucketItem || v.canCreateBasket) && (
-            <>
-              <ListSelectField
-                label="Basket"
-                value={v.basketChoice}
-                onChange={v.chooseBasket}
-                options={[...v.basketOptions, ...(v.canCreateBasket ? [{ value: 'new', label: '+ New basket' }] : []), { value: 'unsure', label: 'Not sure yet' }]}
-                placeholder="Choose a basket"
-              />
-              {v.basketChoice === 'new' && (
-                <>
-                  <FieldCard label="New basket name">
-                    <input className={ff.input} value={v.newBasketName} onChange={(e) => v.setNewBasketName(e.target.value)} placeholder="Car repairs" autoFocus />
-                  </FieldCard>
-                  {v.newBasketCategories.length > 0 && (
-                    <SelectField
-                      label={v.isTransferLike ? 'Transfer type' : 'Category'}
-                      value={v.newBasketCategory}
-                      onChange={v.setNewBasketCategory}
-                      options={v.newBasketCategories.map((c) => ({ value: c.id, label: c.name }))}
-                      placeholder="Choose one"
-                    />
-                  )}
-                  <p className={ff.hint}>
-                    {Number(v.amountString) > 0
-                      ? `Adds this ${formatMoney(v.amountString)} as the basket's first item, on this date, then links it.`
-                      : 'Enter the amount first. It becomes the basket\'s first item.'}
-                  </p>
-                  {v.newBasketError && <p className={ff.fieldError}>{v.newBasketError}</p>}
-                  <button type="button" className={ff.chip} onClick={v.createBasketHere} disabled={!v.newBasketReady}>
-                    {v.creatingBasket || v.linkingNewBasket ? 'Creating basket…' : 'Create basket'}
-                  </button>
-                </>
-              )}
-              {v.basketChoice && v.basketChoice !== 'unsure' && v.basketChoice !== 'new' && (
-                <ListSelectField
-                  label="Item"
-                  value={v.linkedBucketItem?.id ?? ''}
-                  onChange={(id) => (id ? v.selectLinkedBucketItem(id) : v.clearLinkedBucketItem())}
-                  options={v.itemOptions}
-                  placeholder="Choose an item"
-                />
-              )}
-              {v.itemHelper && <p className={ff.hint}>{v.itemHelper}</p>}
-              {v.payFull !== null && Number(v.amountString) !== v.payFull && (
-                <button type="button" className={ff.chip} onClick={v.usePayFull}>
-                  Pay the full {formatMoney(String(v.payFull))} due
-                </button>
-              )}
-            </>
-          )}
-
-          {showCategory && !v.linkedBucketItem && (
-            <>
-              {v.categoriesForType.length > 0 && (
-                <SelectField
-                  label={v.isTransferLike ? 'Transfer type' : 'Category'}
-                  value={v.category}
-                  onChange={v.setCategory}
-                  options={v.categoriesForType.map((c) => ({ value: c.id, label: c.name }))}
-                  placeholder="Choose one"
-                />
-              )}
-              {v.hasBudgetedCategories ? (
-                <SwitchField
-                  label={t.recordUnplannedCta}
-                  description={v.recordingUnplanned ? t.unplannedNotice : t.unplannedOffHint}
-                  checked={v.recordingUnplanned}
-                  onChange={v.setShowUnplanned}
-                />
-              ) : (
-                <p className={ff.hint}>
-                  {t.noBudgetTitle} {t.noBudgetBody} <Link href={v.budgetHref}>{t.addBudgetCta}</Link>
-                </p>
-              )}
-            </>
-          )}
-
-          {v.isTransferLike ? (
-            <>
-              <FieldRow>
-                <SelectField label={t.fromAccount} value={v.fromAccountId} onChange={v.setFromAccountId} options={accountOptions} placeholder={t.chooseAccount} />
-                <SelectField
+          <RowGroup label="Details">
+            {v.isTransferLike ? (
+              <>
+                <SelectRow icon={<Wallet />} label={t.fromAccount} value={v.fromAccountId} onChange={v.setFromAccountId} options={accountOptions} placeholder={t.chooseAccount} />
+                <SelectRow
+                  icon={<Wallet />}
                   label={t.toAccount}
                   value={v.toAccountId}
                   onChange={v.setToAccountId}
                   options={v.accounts.filter((a) => a.id !== v.fromAccountId).map((a) => ({ value: a.id, label: a.name }))}
                   placeholder={t.chooseAccount}
                 />
-              </FieldRow>
-              <FieldCard label={t.chargesLabel}>
-                <input className={ff.input} inputMode="decimal" value={v.chargesString} onChange={(e) => v.setChargesString(e.target.value.replace(/[^0-9.]/g, ''))} placeholder="0" />
-                <span className={ff.hint}>{t.chargesHint}</span>
-              </FieldCard>
+              </>
+            ) : (
+              <SelectRow
+                icon={<Wallet />}
+                label={v.type === 'income' ? 'Into wallet' : 'From wallet'}
+                value={v.fromAccountId}
+                onChange={v.setFromAccountId}
+                options={accountOptions}
+                placeholder={t.chooseAccount}
+              />
+            )}
+            {v.type === 'savings' && (
+              <SelectRow
+                icon={<PiggyBank />}
+                label="Savings"
+                value={v.savingsMode}
+                onChange={(m) => m && v.chooseSavingsMode(m as typeof v.savingsMode)}
+                options={[
+                  { value: 'moved', label: 'Move to savings' },
+                  { value: 'frozen', label: 'Freeze in wallet' },
+                ]}
+              />
+            )}
+            {v.type === 'income' && (
+              <SelectRow icon={<Tag />} label="Income type" value={v.incomeSubtype} onChange={(x) => x && v.setIncomeSubtype(x as IncomeSubtype)} options={INCOME_SUBTYPES} />
+            )}
+            {showBasket && (
+              <SelectRow
+                long
+                icon={<ShoppingBasket />}
+                label="Basket"
+                value={v.basketChoice}
+                onChange={v.chooseBasket}
+                options={[...v.basketOptions, ...(v.canCreateBasket ? [{ value: 'new', label: '+ New basket' }] : []), { value: 'unsure', label: 'Not sure yet' }]}
+                placeholder="Choose a basket"
+              />
+            )}
+            {showBasket && v.basketChoice && v.basketChoice !== 'unsure' && v.basketChoice !== 'new' && (
+              <SelectRow
+                long
+                icon={<Target />}
+                label="Budget item"
+                value={v.linkedBucketItem?.id ?? ''}
+                onChange={(id) => (id ? v.selectLinkedBucketItem(id) : v.clearLinkedBucketItem())}
+                options={v.itemOptions}
+                placeholder="Choose an item"
+              />
+            )}
+            {showCategory && !v.linkedBucketItem && v.categoriesForType.length > 0 && (
+              <SelectRow
+                icon={<Tag />}
+                label={v.isTransferLike ? 'Transfer type' : 'Category'}
+                value={v.category}
+                onChange={v.setCategory}
+                options={v.categoriesForType.map((c) => ({ value: c.id, label: c.name }))}
+                placeholder="Choose one"
+              />
+            )}
+            {showCategory && !v.linkedBucketItem && v.hasBudgetedCategories && (
+              <ToggleRow
+                label={t.recordUnplannedCta}
+                description={v.recordingUnplanned ? t.unplannedNotice : t.unplannedOffHint}
+                checked={v.recordingUnplanned}
+                onChange={v.setShowUnplanned}
+              />
+            )}
+          </RowGroup>
+          {v.itemHelper && <RowNote>{v.itemHelper}</RowNote>}
+          {v.payFull !== null && Number(v.amountString) !== v.payFull && <RowChip onClick={v.usePayFull}>Pay the full {formatMoney(String(v.payFull))} due</RowChip>}
+          {showCategory && !v.linkedBucketItem && !v.hasBudgetedCategories && (
+            <RowNote>
+              {t.noBudgetTitle} {t.noBudgetBody} <Link href={v.budgetHref}>{t.addBudgetCta}</Link>
+            </RowNote>
+          )}
+
+          {v.basketChoice === 'new' && (
+            <>
+              <RowGroup label="New basket">
+                <InputRow icon={<FolderPlus />} label="New basket name" value={v.newBasketName} onChange={v.setNewBasketName} placeholder="Car repairs" />
+                {v.newBasketCategories.length > 0 && (
+                  <SelectRow
+                    icon={<Tag />}
+                    label={v.isTransferLike ? 'Transfer type' : 'Category'}
+                    value={v.newBasketCategory}
+                    onChange={v.setNewBasketCategory}
+                    options={v.newBasketCategories.map((c) => ({ value: c.id, label: c.name }))}
+                    placeholder="Choose one"
+                  />
+                )}
+              </RowGroup>
+              <RowNote>
+                {Number(v.amountString) > 0
+                  ? `Adds this ${formatMoney(v.amountString)} as the basket's first item, on this date, then links it.`
+                  : "Enter the amount first. It becomes the basket's first item."}
+              </RowNote>
+              {v.newBasketError && <RowNote tone="error">{v.newBasketError}</RowNote>}
+              <RowChip onClick={v.createBasketHere} disabled={!v.newBasketReady}>
+                {v.creatingBasket || v.linkingNewBasket ? 'Creating basket…' : 'Create basket'}
+              </RowChip>
             </>
-          ) : (
-            <SelectField
-              label={v.type === 'income' ? t.incomeAccount : t.expenseAccount}
-              value={v.fromAccountId}
-              onChange={v.setFromAccountId}
-              options={accountOptions}
-              placeholder={t.chooseAccount}
-            />
           )}
 
-          <FieldCard label={t.descriptionLabel}>
-            <input className={ff.input} value={v.description} onChange={(e) => v.setDescription(e.target.value)} placeholder={t.descriptionPlaceholder} />
-          </FieldCard>
+          <RowGroup label="When">
+            <DateRow icon={<CalendarDays />} label="Date" value={v.dateValue} onChange={v.chooseDate} />
+          </RowGroup>
 
-          {/* A past entry can come out of the money reconciliations found
-              missing ("unaccounted for"): suggested when it's dated before a
-              check done in its own month. */}
-          {v.canExplainUnjustifiedBalance && (
-            <SwitchField
-              label={v.type === 'income' ? t.explainUnjustifiedIncomeLabel : t.explainUnjustifiedLabel}
-              description={
-                v.monthUnaccounted.checks > 0
-                  ? `${monthWord(v.dateValue)}: ${formatMoney(String(v.monthUnaccounted.unaccounted))} still unaccounted for after ${v.monthUnaccounted.checks} ${v.monthUnaccounted.checks === 1 ? 'check' : 'checks'}. ${t.explainUnjustifiedHint} ${formatMoney(String(Math.abs(v.unjustifiedBalance)))}.`
-                  : `${t.explainUnjustifiedHint} ${formatMoney(String(Math.abs(v.unjustifiedBalance)))}.`
-              }
-              checked={v.explainsUnjustifiedBalance}
-              onChange={v.setExplainsUnjustifiedBalance}
-            />
-          )}
+          <RowGroup label="More">
+            <InputRow icon={<FileText />} label="Note" value={v.description} onChange={v.setDescription} placeholder={t.descriptionPlaceholder} />
+            {v.isTransferLike && (
+              <InputRow
+                icon={<Receipt />}
+                label="Fees (MoMo or bank charges)"
+                value={v.chargesString}
+                onChange={(x) => v.setChargesString(x.replace(/[^0-9.]/g, ''))}
+                placeholder="None"
+                inputMode="decimal"
+              />
+            )}
+            {/* A past entry can come out of the money reconciliations found
+                missing ("unaccounted for"): suggested when it's dated before a
+                check done in its own month. */}
+            {v.canExplainUnjustifiedBalance && (
+              <ToggleRow
+                label={v.type === 'income' ? t.explainUnjustifiedIncomeLabel : t.explainUnjustifiedLabel}
+                description={
+                  v.monthUnaccounted.checks > 0
+                    ? `${monthWord(v.dateValue)}: ${formatMoney(String(v.monthUnaccounted.unaccounted))} still unaccounted for after ${v.monthUnaccounted.checks} ${v.monthUnaccounted.checks === 1 ? 'check' : 'checks'}. ${t.explainUnjustifiedHint} ${formatMoney(String(Math.abs(v.unjustifiedBalance)))}.`
+                    : `${t.explainUnjustifiedHint} ${formatMoney(String(Math.abs(v.unjustifiedBalance)))}.`
+                }
+                checked={v.explainsUnjustifiedBalance}
+                onChange={v.setExplainsUnjustifiedBalance}
+              />
+            )}
+          </RowGroup>
+
+          {impactText && <ImpactCallout>{impactText}</ImpactCallout>}
         </>
       )}
-    </FormFrame>
+    </TxPanel>
   );
 }

@@ -16,6 +16,7 @@ import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { usePeriod } from '@/src/shared/dashboard/usePeriod';
 import { cardsIn, MONEY_LAYOUT } from '@/src/shared/dashboard/layouts';
 import { moneyDashboard, type MoneyInput } from '@/src/viewmodels/dashboard/money';
+import { moneyVerdict } from '@/src/viewmodels/dashboard/verdict';
 import type { FirestoreDebt, FirestoreReconciliation } from '@/src/shared/firestore/types';
 
 const MONTHLY: Record<string, number> = { weekly: 52 / 12, biweekly: 26 / 12, monthly: 1, yearly: 1 / 12 };
@@ -76,5 +77,8 @@ export function useMoneyDashboard() {
 
   const dash = useMemo(() => moneyDashboard(input, p.period, cardsIn(layout)), [input, p.period, layout]);
 
-  return { ...p, layout, dash, loading: fin.loading || debts.loading || checks.loading };
+  // Insights level one: the verdict, the action cards and one chart.
+  const verdict = useMemo(() => moneyVerdict(input, p.period), [input, p.period]);
+
+  return { ...p, layout, dash, verdict, currency: fin.currency, loading: fin.loading || debts.loading || checks.loading };
 }

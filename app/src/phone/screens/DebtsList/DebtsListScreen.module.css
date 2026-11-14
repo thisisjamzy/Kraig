@@ -323,3 +323,91 @@
   color: var(--color-text-primary);
   cursor: pointer;
 }
+
+/* ==== Dreda.figcraft `Debt / Phone` ====
+   A white summary card (overline, mono total, sunken figure tiles) and the
+   debts as rows on white cards. */
+
+.heroCard {
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  border-radius: 20px;
+}
+
+.heroLogo {
+  display: none;
+}
+
+.heroLabel,
+.heroInfoLabel {
+  color: var(--color-text-tertiary);
+}
+
+.heroLabel {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+.heroAmount,
+.heroInfoValue {
+  color: var(--color-text-primary);
+  font-family: var(--font-family-mono);
+}
+
+.heroAmount {
+  font-size: 34px;
+  font-weight: 600;
+  letter-spacing: -0.5px;
+}
+
+.heroInfoRow {
+  gap: 8px;
+  border-top: 0;
+}
+
+.heroInfoCol {
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--color-bg-sunken);
+}
+
+.heroAddButton {
+  background: var(--color-brand-default);
+  color: var(--color-brand-on);
+  border-color: var(--color-bg-page);
+}
+
+.list {
+  gap: 0;
+  overflow: hidden;
+  border-radius: 20px;
+  background: var(--color-bg-surface);
+}
+
+.card {
+  border: 0;
+  border-radius: 0;
+  background: none;
+}
+
+.card + .card {
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.cardName {
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.statCard,
+.chartCard {
+  border: 0;
+  border-radius: 20px;
+  background: var(--color-bg-surface);
+}
+
+.statValue {
+  font-family: var(--font-family-mono);
+}

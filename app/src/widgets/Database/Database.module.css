@@ -1932,3 +1932,257 @@
     transition: none;
   }
 }
+
+/* ==== Dreda.figcraft Data kit (Table/*, Data toolbar, View tab) ====
+   Later rules win: the design's tokens, a white card around the database
+   on wide screens, a sunken header, 52px rows with hairlines and no column
+   rules, group headers on the page tint with a count chip and a mono sum. */
+
+.database,
+.properties,
+.pageHeader,
+.block,
+.peek,
+.callout,
+.menu {
+  --db-line: var(--color-border-subtle);
+  --db-hover: var(--color-bg-sunken);
+  --db-muted: var(--color-text-secondary);
+  --db-light: var(--color-text-tertiary);
+  --db-red: var(--color-status-danger-fg);
+  --db-red-tint: var(--color-status-danger-bg);
+  --db-blue: var(--color-brand-default);
+  --db-blue-tint: var(--color-brand-subtle);
+  --db-chip: var(--color-brand-subtle);
+  --db-bg: var(--color-bg-surface);
+  --db-text: var(--color-text-primary);
+}
+
+@media (min-width: 768px) {
+  .database:not([data-compact]) {
+    gap: 0;
+    padding: 4px 16px 16px;
+    border-radius: 20px;
+    background: var(--color-bg-surface);
+  }
+
+  .tabsRow {
+    background: var(--color-bg-surface);
+  }
+
+  .database .toolbar {
+    border-bottom: 1px solid var(--color-border-subtle);
+  }
+}
+
+.scroll {
+  border-top: 0;
+}
+
+.table {
+  font-size: 13px;
+}
+
+.table thead th {
+  height: 36px;
+  background: var(--color-bg-sunken);
+  border-bottom: 0;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.table thead th:first-child {
+  border-radius: 10px 0 0 10px;
+}
+
+.table thead th:last-child {
+  border-radius: 0 10px 10px 0;
+}
+
+.table[data-frozen] th[data-first] {
+  background: var(--color-bg-sunken);
+  box-shadow: none;
+}
+
+.table[data-frozen] td[data-first] {
+  box-shadow: none;
+}
+
+.headButton {
+  height: 36px;
+  padding: 0 12px;
+}
+
+.table thead th + th,
+.table td + td {
+  border-left: 0;
+}
+
+.table td {
+  height: 52px;
+  padding: 4px 12px;
+  border-bottom: 1px solid var(--color-border-subtle);
+  color: var(--color-text-secondary);
+}
+
+.table td[data-first] {
+  color: var(--color-text-primary);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.table td[data-align='right'] {
+  color: var(--color-text-primary);
+  font-family: var(--font-family-mono);
+  font-size: 13px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .row:hover > td {
+    background: var(--color-bg-page);
+  }
+}
+
+.row[data-selected] > td {
+  background: var(--color-brand-subtle);
+}
+
+.groupRow > td {
+  height: 44px;
+  padding: 0 4px;
+  background: var(--color-bg-page);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.groupButton,
+.cardGroupHead,
+.listGroupHead {
+  min-height: 36px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.groupLabel {
+  font-weight: 500;
+}
+
+.groupCount {
+  min-width: 20px;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  background: var(--color-bg-sunken);
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.groupTotal {
+  color: var(--color-text-primary);
+  font-family: var(--font-family-mono);
+  font-size: 13px;
+}
+
+.table tfoot td {
+  height: 40px;
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+  box-shadow: inset 0 1px 0 var(--color-border-default);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 9999px;
+  background: var(--color-brand-subtle);
+  color: var(--color-brand-subtle-fg);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.chip::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.85;
+}
+
+.chip[data-tone='good'] {
+  background: var(--color-status-success-bg);
+  color: var(--color-status-success-fg);
+}
+
+.chip[data-tone='bad'] {
+  background: var(--color-status-danger-bg);
+  color: var(--color-status-danger-fg);
+}
+
+.chip[data-tone='watch'] {
+  background: var(--color-status-warning-bg);
+  color: var(--color-status-warning-fg);
+}
+
+.chip[data-tone='blue'] {
+  background: var(--color-status-info-bg);
+  color: var(--color-status-info-fg);
+}
+
+.checkbox,
+.checkCell input {
+  accent-color: var(--color-brand-default);
+}
+
+.newButton,
+.newArrow {
+  min-height: 36px;
+  background: var(--color-brand-default);
+  color: var(--color-brand-on);
+}
+
+.newButton {
+  padding: 0 16px;
+  border-radius: 9999px;
+}
+
+.newSplit .newButton:not(:only-child) {
+  border-radius: 9999px 0 0 9999px;
+}
+
+.newArrow {
+  width: 32px;
+  border-radius: 0 9999px 9999px 0;
+}
+
+.viewButton {
+  min-height: 36px;
+  border-radius: 10px;
+  color: var(--color-text-secondary);
+}
+
+.toolIcon {
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 10px;
+  color: var(--color-text-primary);
+}
+
+.progressTrack > span {
+  background: var(--color-brand-default);
+}
+
+.progressTrack > span[data-over] {
+  background: var(--color-status-danger-solid);
+}
+
+.callout {
+  border: 0;
+  border-radius: 16px;
+  background: var(--color-brand-subtle);
+}

@@ -18,6 +18,8 @@ import {
   createBucketLineItem,
   updateBucketLineItem,
   deleteBucketLineItem,
+  deleteBucketLineItemPermanently,
+  bucketLineItemLinks,
   recordBucketLineItemPayment,
   archiveBucket as archiveBucketWrite,
   restoreBucket as restoreBucketWrite,
@@ -598,6 +600,18 @@ export function useLogic(goalId: string) {
     }
   }
 
+  /** What a permanent delete will touch, for the confirm dialog. */
+  async function lineItemLinks(lineItemId: string) {
+    if (!uid) return { payments: 0, budgetMoves: 0 };
+    return bucketLineItemLinks(uid, lineItemId);
+  }
+
+  /** Deletes the item for good, every month (aggregation.ts). Throws on refusal. */
+  async function deleteLineItemPermanently(lineItemId: string) {
+    if (!uid) return;
+    await deleteBucketLineItemPermanently(uid, goalId, lineItemId);
+  }
+
   // This month's view of every item (planned vs spent, moves in/out) —
   // the same derived budget the Budget screen shows, so a recurring item's
   // status is per month rather than the cumulative `completed`/payments
@@ -870,6 +884,8 @@ export function useLogic(goalId: string) {
     itemError,
     handleAddLineItem,
     handleDeleteLineItem,
+    lineItemLinks,
+    deleteLineItemPermanently,
     addingToBudgetId,
     itemActionError,
     handleAddToBudget,

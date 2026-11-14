@@ -1,5 +1,6 @@
 'use client';
 
+import { maskAmount } from '@/src/shared/hooks/usePrivacy';
 import { useMemo, useState } from 'react';
 import { query, where, orderBy, limit, updateDoc, Timestamp } from 'firebase/firestore';
 import { ArrowUpRight, ArrowDownLeft, PiggyBank, type LucideIcon } from 'lucide-react';
@@ -44,7 +45,7 @@ const TYPE_ICONS: Record<string, LucideIcon> = {
 };
 
 export function formatAmount(value: number) {
-  return new Intl.NumberFormat('en-US').format(value);
+  return maskAmount(new Intl.NumberFormat('en-US').format(value));
 }
 
 export function formatCompact(value: number) {

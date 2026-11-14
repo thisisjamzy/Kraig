@@ -1,13 +1,15 @@
 'use client';
 
-// One budget line opened in the side peek (or as its own item page): the
-// title, its kind, the properties block (each editable in place) and the
-// actions it needs. Amounts and dates of a recurring line ask "This month
-// only" or "This and future months".
+// One budget line opened in the side peek (Dreda.figcraft `Basket / Web /
+// Item panel`, `Side peek / Item`) or as its own item page, top to bottom:
+// the type chip, the item's name, "spent of planned" in mono, the status
+// callout, the actions, then the properties as rows (each editable in
+// place). Amounts and dates of a recurring line ask "This month only" or
+// "This and future months".
 
 import Link from 'next/link';
 import { useState } from 'react';
-import { CalendarX, Check, Pencil } from 'lucide-react';
+import { ArrowDownLeft, ArrowDownToLine, ArrowLeftRight, ArrowUpRight, Calendar, CalendarX, Check, CircleDot, LayoutGrid, ListChecks, Pencil, Receipt, Repeat, Tag, Wallet, Zap } from 'lucide-react';
 import {
   EXPENSE_KIND_LABEL,
   FLOW_NOUN,
@@ -18,10 +20,11 @@ import {
 import type { LineRow } from '@/src/logic/budgetMonth/lines';
 import { PropertiesBlock, type Property } from '@/src/widgets/Database/PropertiesBlock';
 import { NotionPageHeader } from '@/src/widgets/Database/NotionPage';
-import { formatNumber } from '@/src/widgets/Database/format';
+import { formatAmountValue } from '@/src/widgets/Database/format';
 import { automationFromValue, automationOptions, automationValue, type ColumnContext } from './columns';
 import { monthTitle } from '@/src/viewmodels/planning';
 import styles from './BudgetMonth.module.css';
+import peek from './LinePeek.module.css';
 import { useFormLink } from '@/src/shared/navigation/useFormLink';
 
 export function LinePeekContent({
@@ -39,7 +42,7 @@ export function LinePeekContent({
 }) {
   const formLink = useFormLink();
   const [busy, setBusy] = useState(false);
-  const money = (n: number) => `${formatNumber(n)} ${currency}`;
+  const money = (n: number) => `${formatAmountValue(n)} ${currency}`;
   const accounts = ctx.accounts.map((a) => ({ value: a.id, label: a.name }));
   const actualLabel = line.type === 'Income' ? 'Received' : line.type === 'Savings' ? 'Saved' : line.type === 'Transfer' ? 'Moved' : 'Spent';
 
@@ -54,14 +57,14 @@ export function LinePeekContent({
   }
 
   const properties: Property[] = [
-    { id: 'type', label: 'Type', display: FLOW_NOUN[line.type] },
-    { id: 'bucket', label: line.type === 'Savings' ? 'Savings basket' : 'Basket', display: <Link className={styles.relation} href={`/budget/basket/${line.bucketId}?month=${line.month}`}>{line.bucketName}</Link> },
-    { id: 'month', label: 'Month', display: monthTitle(line.month) },
-    { id: 'repeats', label: 'Repeats', display: line.recurring ? 'Every month' : 'Once' },
+        { id: 'bucket', icon: <LayoutGrid />, label: line.type === 'Savings' ? 'Savings basket' : 'Basket', display: <Link className={styles.relation} href={`/budget/basket/${line.bucketId}?month=${line.month}`}>{line.bucketName}</Link> },
+    { id: 'month', icon: <Calendar />, label: 'Month', display: monthTitle(line.month) },
+    { id: 'repeats', icon: <Repeat />, label: 'Repeats', display: line.recurring ? 'Every month' : 'Once' },
   ];
   if (line.type === 'Income') {
     properties.push({
       id: 'subtype',
+      icon: <Tag />,
       label: 'Subtype',
       edit: {
         type: 'select',
@@ -74,6 +77,7 @@ export function LinePeekContent({
   if (line.type === 'Expense') {
     properties.push({
       id: 'kind',
+      icon: <ArrowLeftRight />,
       label: 'Kind',
       edit: {
         type: 'select',
@@ -86,6 +90,7 @@ export function LinePeekContent({
   if (line.type === 'Savings') {
     properties.push({
       id: 'mode',
+      icon: <Tag />,
       label: 'Absolute or flexible',
       edit: {
         type: 'select',
@@ -99,6 +104,7 @@ export function LinePeekContent({
     properties.push(
       {
         id: 'need',
+        icon: <CircleDot />,
         label: 'Need',
         edit: {
           type: 'select',
@@ -112,6 +118,7 @@ export function LinePeekContent({
       },
       {
         id: 'priority',
+        icon: <ListChecks />,
         label: 'Priority',
         edit: {
           type: 'select',
@@ -123,26 +130,27 @@ export function LinePeekContent({
     );
   }
   properties.push(
-    { id: 'due', label: line.type === 'Income' ? 'Expected date' : line.type === 'Transfer' ? 'Date' : 'Due date', edit: { type: 'date', value: line.due, onSave: editDate } },
-    { id: 'planned', label: line.type === 'Income' ? 'Expected' : 'Planned', display: money(line.planned), edit: { type: 'currency', value: line.planned, onSave: editAmount } },
-    { id: 'actual', label: actualLabel, display: money(line.actual) },
+    { id: 'due', icon: <Calendar />, label: line.type === 'Income' ? 'Expected date' : line.type === 'Transfer' ? 'Date' : 'Due date', edit: { type: 'date', value: line.due, onSave: editDate } },
+    { id: 'planned', icon: <Receipt />, label: line.type === 'Income' ? 'Expected' : 'Planned', display: money(line.planned), edit: { type: 'currency', value: line.planned, onSave: editAmount } },
+    { id: 'actual', icon: <ListChecks />, label: actualLabel, display: money(line.actual) },
   );
   if (line.type === 'Income' && line.borrowed) properties.push({ id: 'borrowed', label: 'Of which borrowed', display: money(line.borrowed) });
   if (line.type === 'Savings' && line.withdrawn) properties.push({ id: 'withdrawn', label: 'Withdrawn', display: money(line.withdrawn) });
-  if (line.type !== 'Income') properties.push({ id: 'left', label: 'Left', display: <span data-tone={line.left < 0 ? 'bad' : undefined} className={styles.toneText}>{money(line.left)}</span> });
-  properties.push({ id: 'status', label: 'Status', display: <span className={styles.chip} data-tone={line.stateTone}>{line.state}</span> });
+  if (line.type !== 'Income') properties.push({ id: 'left', icon: <Receipt />, label: 'Left', display: <span data-tone={line.left < 0 ? 'bad' : undefined} className={styles.toneText}>{money(line.left)}</span> });
+  properties.push({ id: 'status', icon: <CircleDot />, label: 'Status', display: <span className={styles.chip} data-tone={line.stateTone}>{line.state}</span> });
   if (line.type === 'Transfer') {
     properties.push(
-      { id: 'from', label: 'From account', edit: { type: 'select', value: line.accountId, options: accounts, onSave: (next) => ctx.setField(line, { accountId: next }) } },
-      { id: 'to', label: 'To account', edit: { type: 'select', value: line.toAccountId, options: accounts, onSave: (next) => ctx.setField(line, { toAccountId: next }) } },
-      { id: 'fee', label: 'Fee', display: line.fee ? money(line.fee) : null }
+      { id: 'from', icon: <Wallet />, label: 'From account', edit: { type: 'select', value: line.accountId, options: accounts, onSave: (next) => ctx.setField(line, { accountId: next }) } },
+      { id: 'to', icon: <Wallet />, label: 'To account', edit: { type: 'select', value: line.toAccountId, options: accounts, onSave: (next) => ctx.setField(line, { toAccountId: next }) } },
+      { id: 'fee', icon: <Receipt />, label: 'Fee', display: line.fee ? money(line.fee) : null }
     );
   } else {
-    properties.push({ id: 'account', label: 'Account', edit: { type: 'select', value: line.accountId, options: accounts, onSave: (next) => ctx.setField(line, { accountId: next }) } });
+    properties.push({ id: 'account', icon: <Wallet />, label: 'Wallet', edit: { type: 'select', value: line.accountId, options: accounts, onSave: (next) => ctx.setField(line, { accountId: next }) } });
   }
   if (line.type !== 'Income') {
     properties.push({
       id: 'automation',
+      icon: <Zap />,
       label: 'Automation',
       edit: {
         type: 'select',
@@ -170,20 +178,42 @@ export function LinePeekContent({
 
   const canPay = line.left > 0 && !line.closed && line.state !== 'Received';
 
+  const TypeIcon = TYPE_ICON[line.type];
+  const kindLabel = line.type === 'Expense' && line.expenseKind ? `${EXPENSE_KIND_LABEL[line.expenseKind as keyof typeof EXPENSE_KIND_LABEL] ?? FLOW_NOUN[line.type]}` : FLOW_NOUN[line.type];
+  const callout =
+    line.stateTone === 'watch' || line.stateTone === 'bad'
+      ? {
+          tone: line.stateTone === 'bad' ? 'danger' : 'warning',
+          title: line.left < 0 ? `${money(-line.left)} over plan` : line.left > 0 && line.state !== 'Received' ? `${money(line.left)} left` : line.state,
+          text: `${line.name} is ${line.state.toLowerCase()} for ${monthTitle(line.month)}.`,
+        }
+      : null;
+
   return (
     <>
-      <NotionPageHeader
-        title={line.name}
-        kind={`${FLOW_NOUN[line.type]} line · ${monthTitle(line.month)}`}
-        actions={
-          compactTitle ? null : (
-            <Link href={formLink('basket-item', { basket: line.bucketId, item: line.itemId })} className={styles.ghostButton}>
-              <Pencil size={14} strokeWidth={2.25} aria-hidden /> Edit template
-            </Link>
-          )
-        }
-      />
-      <PropertiesBlock properties={properties} />
+      {compactTitle ? (
+        <header className={peek.hero}>
+          <span className={peek.typeChip} data-type={line.type}>
+            <TypeIcon size={14} strokeWidth={2.25} aria-hidden />
+            {kindLabel}
+          </span>
+          <h2 className={peek.name}>{line.name}</h2>
+          <p className={peek.figure}>
+            {formatAmountValue(line.actual)} of {formatAmountValue(line.planned)}
+          </p>
+        </header>
+      ) : (
+        <NotionPageHeader title={line.name} kind={`${FLOW_NOUN[line.type]} line · ${monthTitle(line.month)}`} />
+      )}
+      {callout && (
+        <aside className={peek.callout} data-tone={callout.tone}>
+          <p className={peek.calloutTitle}>
+            <Zap size={16} strokeWidth={2.25} aria-hidden />
+            {callout.title}
+          </p>
+          <p className={peek.calloutText}>{callout.text}</p>
+        </aside>
+      )}
       <div className={styles.peekActions}>
         {canPay && (
           <button
@@ -205,11 +235,9 @@ export function LinePeekContent({
             {line.type === 'Income' ? 'Mark received' : line.type === 'Savings' ? 'Mark saved' : line.type === 'Transfer' ? 'Mark moved' : 'Mark paid'} ({money(line.left)})
           </button>
         )}
-        {compactTitle && (
-          <Link href={formLink('basket-item', { basket: line.bucketId, item: line.itemId })} className={styles.ghostButton}>
-            <Pencil size={14} strokeWidth={2.25} aria-hidden /> Edit template
-          </Link>
-        )}
+        <Link href={formLink('basket-item', { basket: line.bucketId, item: line.itemId })} className={styles.ghostButton}>
+          <Pencil size={14} strokeWidth={2.25} aria-hidden /> Edit item
+        </Link>
         <button
           type="button"
           className={styles.ghostButton}
@@ -227,6 +255,10 @@ export function LinePeekContent({
           <CalendarX size={14} strokeWidth={2.25} aria-hidden /> Remove from {monthTitle(line.month)}
         </button>
       </div>
+      {/* A side peek is narrow: the block reads as rows (container query). */}
+      <PropertiesBlock properties={properties} columns={compactTitle ? 1 : undefined} />
     </>
   );
 }
+
+const TYPE_ICON = { Expense: ArrowUpRight, Income: ArrowDownLeft, Savings: ArrowDownToLine, Transfer: ArrowLeftRight } as const;

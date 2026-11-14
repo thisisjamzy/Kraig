@@ -48,10 +48,45 @@ type PhonePriorities = ReturnType<typeof useLogic> & ReturnType<typeof usePriori
 const REASONS = ['No money', 'Not urgent', 'Waiting on someone', 'Price changed'];
 
 export function PrioritiesScreen() {
+  const [howOpen, setHowOpen] = useState(false);
+  return (
+    <div className={planning.page}>
+      <ScreenHeader
+        left={
+          <Link href="/baskets" className={planning.roundButton} aria-label="Back to Baskets">
+            <ArrowLeft size={20} strokeWidth={2} />
+          </Link>
+        }
+        title="Priorities"
+        right={
+          <button type="button" className={planning.roundButton} aria-label="How is this ordered?" onClick={() => setHowOpen(true)}>
+            <Info size={18} strokeWidth={2} />
+          </button>
+        }
+      />
+      {howOpen && <HowOrdered onClose={() => setHowOpen(false)} />}
+      <PrioritiesBody />
+    </div>
+  );
+}
+
+export function HowOrdered({ onClose }: { onClose: () => void }) {
+  return (
+    <Sheet title="How this is ordered" onClose={onClose}>
+      <p className={m.sheetText}>Grouped by when it&apos;s due. Recommended puts overdue first, then must haves, higher priority, a penalty if late, and smaller amounts.</p>
+      <p className={m.sheetText}>The line shows where your money runs out, going down the list.</p>
+    </Sheet>
+  );
+}
+
+/**
+ * The priorities themselves, from the money card to the list and its
+ * sheets. Also shown under the payments calendar on Payments.
+ */
+export function PrioritiesBody() {
   const base = useLogic();
   const v = { ...base, ...usePriorityWalk(base) };
   const router = useRouter();
-  const [howOpen, setHowOpen] = useState(false);
   const w = v.walk;
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
   const must = w.rows.filter((r) => r.item.need === 'must').reduce((s, r) => s + r.remaining, 0);
@@ -91,27 +126,7 @@ export function PrioritiesScreen() {
   }
 
   return (
-    <div className={planning.page}>
-      <ScreenHeader
-        left={
-          <Link href="/baskets" className={planning.roundButton} aria-label="Back to Baskets">
-            <ArrowLeft size={20} strokeWidth={2} />
-          </Link>
-        }
-        title="Priorities"
-        right={
-          <button type="button" className={planning.roundButton} aria-label="How is this ordered?" onClick={() => setHowOpen(true)}>
-            <Info size={18} strokeWidth={2} />
-          </button>
-        }
-      />
-      {howOpen && (
-        <Sheet title="How this is ordered" onClose={() => setHowOpen(false)}>
-          <p className={m.sheetText}>Grouped by when it&apos;s due. Recommended puts overdue first, then must haves, higher priority, a penalty if late, and smaller amounts.</p>
-          <p className={m.sheetText}>The line shows where your money runs out, going down the list.</p>
-        </Sheet>
-      )}
-
+    <>
       <ScreenState loading={v.loading} />
 
       {!v.loading && (
@@ -212,7 +227,7 @@ export function PrioritiesScreen() {
 
       {v.paying && <PaySheet v={v} item={v.paying} />}
       {v.postponing && <PostponeSheet v={v} item={v.postponing} />}
-    </div>
+    </>
   );
 }
 

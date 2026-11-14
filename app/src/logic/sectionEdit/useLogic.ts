@@ -55,7 +55,7 @@ export function useLogic(bucketId: string) {
       });
       finish(`/sections/${bucketId}`);
     } catch (error) {
-      setSaveError(error instanceof Error ? error.message : 'Could not update this section.');
+      setSaveError(error instanceof Error ? error.message : 'Could not update this folder.');
       setSaving(false);
     }
   }

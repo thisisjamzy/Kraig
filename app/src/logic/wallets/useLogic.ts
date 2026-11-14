@@ -1,5 +1,6 @@
 'use client';
 
+import { maskAmount } from '@/src/shared/hooks/usePrivacy';
 import { useMemo, useState } from 'react';
 import { limit, orderBy, query, setDoc, where } from 'firebase/firestore';
 import { useAccounts, useCurrencyContext, useExchangeRates } from '@/src/shared/firestore/queries';
@@ -34,7 +35,7 @@ export interface WalletRow {
 import { useGoBack } from '@/src/shared/navigation/useGoBack';
 
 export function formatAmount(value: number) {
-  return new Intl.NumberFormat('en-US').format(value);
+  return maskAmount(new Intl.NumberFormat('en-US').format(value));
 }
 
 export function useLogic() {

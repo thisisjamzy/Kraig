@@ -8,13 +8,14 @@
 // Select and status values come in as chips inside a neutral tile. A
 // progress value is a compact bar (at most 200px) with its percentage.
 //
-// 4 columns on large screens, 3 on expanded, 2 on medium and phones; the
-// first 8 tiles show, the rest behind "Show N more properties". Clicking an
+// The column count comes from the space the block has, not the screen
+// (a container query): one column of label and value rows under 560px (a
+// side peek always), then 2, 3 and 4 tiles as it widens. `columns` fixes
+// it. Values wrap at spaces, never mid-word. The first 8 show, the rest behind "Show N more properties". Clicking an
 // editable tile opens its editor (a popover, a bottom sheet on phones).
 
-import { useState, type ReactNode } from 'react';
+import { isValidElement, useState, type ReactNode } from 'react';
 import { AlertTriangle, CircleAlert } from 'lucide-react';
-import { useLayout } from '@/src/shared/hooks/useLayout';
 import type { FieldOption, FieldValue } from '@/src/shared/listQuery/engine';
 import { CellEditor } from './CellEditor';
 import { formatValue } from './format';
@@ -63,13 +64,37 @@ export function CompactProgress({ value, tone }: { value: number; tone?: Propert
   );
 }
 
-export function PropertiesGrid({ properties, label = 'Properties', visible = VISIBLE }: { properties: Property[]; label?: string; /** Tiles shown before "Show more properties". */ visible?: number }) {
+/** A figure, shown in the mono KPI style; anything else stays in the body font. */
+function isFigure(display: ReactNode): boolean {
+  if (typeof display === 'number') return true;
+  if (isValidElement(display) && typeof (display.props as { value?: unknown }).value === 'number') return true;
+  if (typeof display === 'string') return /^[\s+\-−]*[\d][\d,.\s]*(%|h|m|[A-Z]{3})?(\s.*)?$/.test(display) && !/[a-z]{4,}/.test(display);
+  return false;
+}
+
+export function PropertiesGrid({
+  properties,
+  label = 'Properties',
+  visible = VISIBLE,
+  layout = 'tiles',
+  columns,
+  compact,
+}: {
+  properties: Property[];
+  label?: string;
+  /** Tiles shown before "Show more properties". */
+  visible?: number;
+  /** tiles: KPI cards (pages); list: label and value rows (side panels). */
+  layout?: 'tiles' | 'list';
+  /** A fixed column count; by default it follows the block's own width. */
+  columns?: number;
+  /** The task panel's tighter rows (Dreda.figcraft `Task / Detail panel`). */
+  compact?: boolean;
+}) {
   useWebOnly('PropertiesGrid');
   const [editing, setEditing] = useState<{ id: string; anchor: HTMLElement } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [all, setAll] = useState(false);
-  const { deviceClass } = useLayout();
-  const columns = deviceClass === 'large' ? 4 : deviceClass === 'expanded' ? 3 : 2;
   const shown = all ? properties : properties.slice(0, visible);
 
   async function save(property: Property, next: FieldValue) {
@@ -84,8 +109,8 @@ export function PropertiesGrid({ properties, label = 'Properties', visible = VIS
   }
 
   return (
-    <div className={styles.wrap}>
-      <dl className={styles.grid} style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }} aria-label={label}>
+    <div className={styles.wrap} data-layout={layout === 'list' || columns === 1 ? 'list' : 'tiles'} data-compact={compact || undefined}>
+      <dl className={styles.grid} style={columns && columns > 1 ? { gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` } : undefined} aria-label={label}>
         {shown.map((property) => {
           const isEditing = editing?.id === property.id;
           const text =
@@ -132,7 +157,7 @@ export function PropertiesGrid({ properties, label = 'Properties', visible = VIS
             </>
           );
           return (
-            <div key={property.id} className={styles.tile} data-tone={property.tone ?? 'neutral'} title={property.title}>
+            <div key={property.id} className={styles.tile} data-tone={property.tone ?? 'neutral'} data-figure={isFigure(property.display) || undefined} title={property.title}>
               {property.edit && !inline ? (
                 <button
                   type="button"
@@ -175,6 +200,21 @@ export function PropertiesGrid({ properties, label = 'Properties', visible = VIS
 }
 
 /** The same grid; kept under its older name for existing pages. */
-export function PropertiesBlock({ properties, label, visible }: { properties: Property[]; onAdd?: () => void; label?: string; visible?: number }) {
-  return <PropertiesGrid properties={properties} label={label} visible={visible} />;
+export function PropertiesBlock({
+  properties,
+  label,
+  visible,
+  layout,
+  columns,
+  compact,
+}: {
+  properties: Property[];
+  onAdd?: () => void;
+  label?: string;
+  visible?: number;
+  layout?: 'tiles' | 'list';
+  columns?: number;
+  compact?: boolean;
+}) {
+  return <PropertiesGrid properties={properties} label={label} visible={visible} layout={layout} columns={columns} compact={compact} />;
 }

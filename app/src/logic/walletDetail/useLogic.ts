@@ -12,7 +12,7 @@ import { walletColor } from '@/src/viewmodels/wallets';
 import type { FirestoreAccount, FirestoreTransaction, FirestoreTransfer, FirestorePlannedPayment, FirestoreReconciliation } from '@/src/shared/firestore/types';
 import { countsInFigures } from '@/src/shared/firestore/types';
 import { useMonthBudget } from '@/src/shared/hooks/useMonthBudget';
-import { balanceHistory, committedByAccount, freeTone, lastReconciledByAccount } from '@/src/logic/wallets/model';
+import { balanceChecksFor, balanceHistory, committedByAccount, freeTone, lastReconciledByAccount } from '@/src/logic/wallets/model';
 import { useGoBack } from '@/src/shared/navigation/useGoBack';
 
 const HISTORY_MONTHS = 6;
@@ -203,6 +203,14 @@ export function useLogic(walletId: string) {
   );
   const lastReconciled =
     lastReconciledByAccount(reconciliations.map((r) => ({ performedAt: r.performedAt.toDate(), reportedBalances: r.reportedBalances }))).get(walletId) ?? null;
+  const checks = useMemo(
+    () =>
+      balanceChecksFor(
+        walletId,
+        reconciliations.map((r) => ({ id: r.id, performedAt: r.performedAt.toDate(), reportedBalances: r.reportedBalances, ledgerBalancesAtTime: r.ledgerBalancesAtTime, adjustments: r.adjustments }))
+      ),
+    [reconciliations, walletId]
+  );
   const balanceByMonth = useMemo(() => {
     const flows = [
       ...historyTransactions.map((t) => ({ date: t.date.toDate(), signed: toDisplay(ctx, t.direction === 'Inflow' ? t.amount : -t.amount, nativeCurrency) })),
@@ -217,12 +225,81 @@ export function useLogic(walletId: string) {
 
   const upcomingShortfall = round2(Math.max(0, upcomingTotal - availableAmount));
 
+  // ---- The facelift's additions (Dreda.figcraft `Wallet detail / Web`) ----
+  // Share of total money: this wallet against every real wallet, in the
+  // display currency.
+  const realWallets = accounts.filter((a) => !a.archived && !a.isSystemWallet);
+  const totalMoney = round2(realWallets.reduce((sum, a) => sum + toDisplay(ctx, a.currentBalance, a.currency), 0));
+  const share = totalMoney > 0 ? { fraction: balanceNow / totalMoney, total: totalMoney, wallets: realWallets.length } : null;
+
+  // Untracked: what the checks this year found missing from this wallet
+  // (recorded minus counted), against what they found missing in every
+  // wallet, and whether the latest check of this wallet matched.
+  const untracked = useMemo(() => {
+    const yearStart = new Date(new Date().getFullYear(), 0, 1);
+    const thisYear = reconciliations.filter((r) => r.performedAt.toDate() >= yearStart);
+    const currencyOf = new Map(accounts.map((a) => [a.id, a.currency]));
+    const missingIn = (r: FirestoreReconciliation, id: string) => {
+      if (!(id in (r.reportedBalances ?? {}))) return 0;
+      const gap = (r.ledgerBalancesAtTime?.[id] ?? 0) - r.reportedBalances[id];
+      return gap > 0 ? toDisplay(ctx, gap, currencyOf.get(id) ?? ctx.base) : 0;
+    };
+    const mine = thisYear.reduce((sum, r) => sum + missingIn(r, walletId), 0);
+    const all = thisYear.reduce((sum, r) => sum + Object.keys(r.reportedBalances ?? {}).reduce((s2, id) => s2 + missingIn(r, id), 0), 0);
+    const latest = reconciliations.find((r) => walletId in (r.reportedBalances ?? {})) ?? null;
+    const latestMatched = latest ? Math.abs((latest.ledgerBalancesAtTime?.[walletId] ?? 0) - latest.reportedBalances[walletId]) < 1 : null;
+    if (mine < 0.5) return null;
+    return { amount: round2(mine), share: all > 0 ? mine / all : 1, latestAt: latest?.performedAt.toDate() ?? null, latestMatched };
+  }, [reconciliations, accounts, ctx, walletId]);
+
+  // How the wallet is used, over the history window: where money leaving it
+  // goes (spending by category, transfers by destination) and where money
+  // reaching it comes from (income by category, transfers in). Four rows
+  // each: the three largest, then everything else.
+  const usage = useMemo(() => {
+    const categoryName = new Map(categories.map((c) => [c.id, c.name]));
+    const accountName = new Map(accounts.map((a) => [a.id, a.name]));
+    const out = new Map<string, { amount: number; kind: 'transfer' | 'expense' }>();
+    const into = new Map<string, { amount: number; kind: 'transfer' | 'income' }>();
+    const add = <K extends string>(m: Map<string, { amount: number; kind: K }>, label: string, amount: number, kind: K) => {
+      const cur = m.get(label) ?? { amount: 0, kind };
+      cur.amount += amount;
+      m.set(label, cur);
+    };
+    for (const t of historyTransactions) {
+      const amount = toDisplay(ctx, t.amount, nativeCurrency);
+      const label = (t.categoryId && categoryName.get(t.categoryId)) || t.description || 'Uncategorised';
+      if (t.direction === 'Inflow') add(into, label, amount, 'income');
+      else add(out, label, amount, 'expense');
+    }
+    for (const t of transfersOut) add(out, `Moved to ${accountName.get(t.toAccountId) ?? 'another wallet'}`, toDisplay(ctx, t.amount + (t.charges ?? 0), nativeCurrency), 'transfer');
+    for (const t of transfersIn) add(into, 'Moved in from other wallets', toDisplay(ctx, t.amount, nativeCurrency), 'transfer');
+    const rows = <K extends string>(m: Map<string, { amount: number; kind: K }>) => {
+      const sorted = [...m.entries()].map(([label, v]) => ({ label, amount: round2(v.amount), kind: v.kind as K | 'other' })).sort((a, b) => b.amount - a.amount);
+      const total = round2(sorted.reduce((sum, r) => sum + r.amount, 0));
+      const top = sorted.length > 4 ? [...sorted.slice(0, 3), { label: 'Everything else', amount: round2(sorted.slice(3).reduce((sum, r) => sum + r.amount, 0)), kind: 'other' as const }] : sorted;
+      return { total, rows: top.map((r) => ({ ...r, share: total > 0 ? r.amount / total : 0 })) };
+    };
+    return { out: rows(out), into: rows(into) };
+  }, [historyTransactions, transfersIn, transfersOut, categories, accounts, ctx, nativeCurrency]);
+
+  // The next item due from this wallet (for the "nothing left" state).
+  const nextDue = upcomingForAccount.length
+    ? { name: upcomingForAccount[0].title, due: new Date(`${upcomingForAccount[0].dueDate}T00:00:00`), amount: upcomingForAccount[0].amount }
+    : null;
+
   return {
     wallet,
+    share,
+    untracked,
+    usage,
+    nextDue,
+    historyMonths: HISTORY_MONTHS,
     committed,
     free,
     freeTone: freeTone(free, balanceNow),
     lastReconciled,
+    checks,
     balanceByMonth,
     upcomingLines,
     balance: wallet ? toDisplay(ctx, wallet.currentBalance, wallet.currency) : 0,

@@ -18,14 +18,16 @@ import styles from './WalletAuditScreen.module.css';
 const longDate = (d: Date) => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 const signed = (n: number) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${formatAmount(Math.abs(n))}`;
 
-export function WalletAuditScreen({ walletId }: { walletId: string }) {
+/** `embedded`: inside the wallet page's Audit tab, without its own header. */
+export function WalletAuditScreen({ walletId, embedded = false }: { walletId: string; embedded?: boolean }) {
   const v = useLogic(walletId);
   const c = v.currency;
   const st = v.statement;
   const b = v.breakdown;
 
   return (
-    <div className={styles.page}>
+    <div className={styles.page} data-embedded={embedded || undefined}>
+      {!embedded && (
       <ScreenHeader
         left={
           <button type="button" className={styles.roundButton} onClick={v.goBack} aria-label="Back">
@@ -39,6 +41,7 @@ export function WalletAuditScreen({ walletId }: { walletId: string }) {
           </button>
         }
       />
+      )}
 
       <ScreenState loading={v.loading} error={v.error} />
 

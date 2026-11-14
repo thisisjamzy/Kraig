@@ -50,24 +50,32 @@
   --duration-morph: 250ms;
 }
 
-/* The Dreda style guide (Remix/Dreda Remix.free), at every width: mirrored
-   in src/styles/tokens/styleGuide.ts (change both together). Only the
-   guide's own values: four brand colours, the fixed neutrals, the one red
-   it uses (Delete), its fonts, type scale, corners and spacing. No status
-   colours and no dark theme (the guide has neither), so the app stays
-   light whatever the appearance setting. The app's existing variables are
-   pointed at guide values here, so every screen that reads them follows
-   (docs/STYLE-MIGRATION.md). */
+/* The Dreda design system (Design-System/Dreda.figcraft, generated into
+   Design-System/tokens.css), at every width: mirrored in
+   src/styles/tokens/styleGuide.ts (change both together). Three layers:
+   `--sg-*` primitives, the design's semantic roles, then the app's own
+   variables pointed at those roles (BUILD-KIT section 3). Screens read the
+   app variables (--color-*, --ink-*, --money-*) and the status, money and
+   data sets; they never read `--sg-*`. Light only. */
 :root,
 [data-theme='light'],
 [data-theme='dark'] {
   color-scheme: light;
 
-  /* Guide tokens */
+  /* Primitives */
   --sg-primary: #553199;
+  --sg-primary-hover: #45277d;
   --sg-primary-dark: #342066;
+  --sg-primary-light: #f4f0fb;
+  --sg-primary-muted: #d3c4ef;
+  --sg-primary-tint: #e9e1f7;
+  --sg-primary-ink: #170e30;
+  --sg-focus: #7049ba;
   --sg-accent: #d3fc72;
-  --sg-primary-light: #e6eef8;
+  --sg-accent-hover: #bdef45;
+  --sg-accent-subtle: #f4fed3;
+  --sg-accent-fg: #4a6717;
+  --sg-accent-on: #203008;
   --sg-neutral-0: #ffffff;
   --sg-neutral-50: #f9fafb;
   --sg-neutral-100: #f3f4f6;
@@ -79,65 +87,199 @@
   --sg-neutral-700: #374151;
   --sg-neutral-800: #1f2937;
   --sg-neutral-900: #111827;
+  --sg-neutral-950: #0b0f19;
   --sg-destructive: #c62828;
+  --sg-success-fg: #047857;
+  --sg-success-bg: #ecfdf5;
+  --sg-success-border: #a7f3d0;
+  --sg-warning-fg: #b45309;
+  --sg-warning-bg: #fffbeb;
+  --sg-warning-border: #fde68a;
+  --sg-warning-solid: #f59e0b;
+  --sg-danger-fg: #a11f1f;
+  --sg-danger-bg: #fef2f2;
+  --sg-danger-border: #fecaca;
+  --sg-info-fg: #1d4ed8;
+  --sg-info-bg: #eff6ff;
+  --sg-info-border: #bfdbfe;
+  --sg-info-solid: #2563eb;
+  --sg-expense-fg: #be123c;
+  --sg-expense-bg: #fff1f2;
+  --sg-savings-fg: #0f766e;
+  --sg-savings-bg: #f0fdfa;
+  --sg-debt-fg: #c2410c;
+  --sg-debt-bg: #fff7ed;
+  --sg-data-1: #553199;
+  --sg-data-2: #0d9488;
+  --sg-data-3: #ea580c;
+  --sg-data-4: #3b82f6;
+  --sg-data-5: #f43f5e;
+  --sg-data-6: #5d8215;
+  --sg-data-7: #9070d0;
+  --sg-data-forecast: #b49be2;
+  --sg-data-positive: #10b981;
   --font-family-mono: var(--font-plex-mono), 'IBM Plex Mono', ui-monospace, monospace;
   --sg-button-sm: 36px;
-  --sg-button-md: 48px;
+  --sg-button-md: 44px;
   --sg-button-lg: 56px;
   --space-12: 12px;
 
-  /* Type: Bricolage Grotesque headings, Figtree body, the guide's scale
-     (small 14, body 16, body-large 18, h3 22, h2 28, display 48). */
+  /* Type: Bricolage Grotesque headings, Figtree body, the Web scale
+     (small 14, body 16, body-large 18, h3 22, h2 28, h1 36, display 48). */
   --font-family-body: var(--font-figtree), 'Figtree', system-ui, sans-serif;
   --font-family-heading: var(--font-bricolage), 'Bricolage Grotesque', system-ui, sans-serif;
+  --font-size-xs: 0.75rem;
   --font-size-sm: 0.875rem;
   --font-size-md: 1rem;
   --font-size-lg: 1.125rem;
   --font-size-xl: 1.375rem;
   --font-size-2xl: 1.75rem;
+  --font-size-3xl: 2.25rem;
   --font-size-display: 3rem;
 
-  /* Corners: 5, 10, 20 and pills. */
+  /* Corners: 5, 10, 20 and pills (the app's scale; the design's matches
+     within a step). Cards in the design use 14 and 16. */
   --radius-sm: 5px;
   --radius-md: 10px;
+  --radius-card: 16px;
   --radius-lg: 20px;
   --radius-full: 9999px;
+  --shadow-hairline: 0 1px 2px rgba(17, 24, 39, 0.06), 0 1px 3px rgba(17, 24, 39, 0.04);
+  --shadow-raised: 0 1px 2px rgba(17, 24, 39, 0.06), 0 8px 24px rgba(17, 24, 39, 0.06);
+  --shadow-popover: 0 12px 40px rgba(17, 24, 39, 0.16);
 
-  /* Theme colours */
-  --color-page: var(--sg-neutral-50);
-  --color-background: var(--sg-neutral-0);
-  --color-surface: var(--sg-neutral-100);
+  /* Semantic roles (the design's names) */
+  --color-bg-page: var(--sg-neutral-50);
+  --color-bg-surface: var(--sg-neutral-0);
+  --color-bg-sunken: var(--sg-neutral-100);
+  --color-bg-hover: var(--sg-neutral-100);
+  --color-bg-pressed: var(--sg-neutral-200);
+  --color-bg-selected: var(--sg-primary-light);
+  --color-bg-inverse: var(--sg-neutral-900);
+  --color-bg-overlay: rgba(17, 24, 39, 0.48);
+  --color-text-tertiary: var(--sg-neutral-500);
+  --color-text-disabled: var(--sg-neutral-400);
+  --color-text-inverse: var(--sg-neutral-0);
+  --color-border-subtle: var(--sg-neutral-100);
+  --color-border-default: var(--sg-neutral-200);
+  --color-border-strong: var(--sg-neutral-300);
+  --color-border-focus: var(--sg-focus);
+  --color-brand-default: var(--sg-primary);
+  --color-brand-hover: var(--sg-primary-hover);
+  --color-brand-pressed: var(--sg-primary-dark);
+  --color-brand-subtle: var(--sg-primary-light);
+  --color-brand-subtle-fg: var(--sg-primary-hover);
+  --color-brand-on: var(--sg-neutral-0);
+  --color-accent-default: var(--sg-accent);
+  --color-accent-hover: var(--sg-accent-hover);
+  --color-accent-subtle: var(--sg-accent-subtle);
+  --color-accent-fg: var(--sg-accent-fg);
+  --color-accent-on: var(--sg-accent-on);
+
+  /* Status */
+  --color-status-success-fg: var(--sg-success-fg);
+  --color-status-success-bg: var(--sg-success-bg);
+  --color-status-success-border: var(--sg-success-border);
+  --color-status-success-solid: var(--sg-success-fg);
+  --color-status-success-on: var(--sg-neutral-0);
+  --color-status-warning-fg: var(--sg-warning-fg);
+  --color-status-warning-bg: var(--sg-warning-bg);
+  --color-status-warning-border: var(--sg-warning-border);
+  --color-status-warning-solid: var(--sg-warning-solid);
+  --color-status-warning-on: var(--sg-neutral-950);
+  --color-status-danger-fg: var(--sg-danger-fg);
+  --color-status-danger-bg: var(--sg-danger-bg);
+  --color-status-danger-border: var(--sg-danger-border);
+  --color-status-danger-solid: var(--sg-destructive);
+  --color-status-danger-on: var(--sg-neutral-0);
+  --color-status-info-fg: var(--sg-info-fg);
+  --color-status-info-bg: var(--sg-info-bg);
+  --color-status-info-border: var(--sg-info-border);
+  --color-status-info-solid: var(--sg-info-solid);
+  --color-status-info-on: var(--sg-neutral-0);
+
+  /* Money, one pair per flow type */
+  --color-money-income-fg: var(--sg-success-fg);
+
+  /* Wallet card tones (Dreda.figcraft `Wallet card`, Card collection). */
+  --color-card-purple-bg: var(--sg-primary-dark);
+  --color-card-purple-decor: var(--sg-primary);
+  --color-card-purple-fg: var(--sg-neutral-0);
+  --color-card-purple-muted: var(--sg-primary-muted);
+  --color-card-lilac-bg: var(--sg-primary-tint);
+  --color-card-lilac-decor: var(--sg-primary-muted);
+  --color-card-lilac-fg: var(--sg-primary-ink);
+  --color-card-lilac-muted: var(--sg-primary-hover);
+  --color-card-ink-bg: var(--sg-neutral-800);
+  --color-card-ink-decor: var(--sg-neutral-600);
+  --color-card-ink-fg: var(--sg-neutral-0);
+  --color-card-ink-muted: var(--sg-neutral-300);
+  --color-card-lime-bg: var(--sg-accent);
+  --color-card-lime-decor: var(--sg-accent-hover);
+  --color-card-lime-fg: var(--sg-accent-on);
+  --color-card-lime-muted: var(--sg-accent-fg);
+  --color-money-income-bg: var(--sg-success-bg);
+  --color-money-expense-fg: var(--sg-expense-fg);
+  --color-money-expense-bg: var(--sg-expense-bg);
+  --color-money-savings-fg: var(--sg-savings-fg);
+  --color-money-savings-bg: var(--sg-savings-bg);
+  --color-money-debt-fg: var(--sg-debt-fg);
+  --color-money-debt-bg: var(--sg-debt-bg);
+  --color-money-transfer-fg: var(--sg-neutral-600);
+  --color-money-transfer-bg: var(--sg-neutral-100);
+
+  /* Data */
+  --color-data-categorical-1: var(--sg-data-1);
+  --color-data-categorical-2: var(--sg-data-2);
+  --color-data-categorical-3: var(--sg-data-3);
+  --color-data-categorical-4: var(--sg-data-4);
+  --color-data-categorical-5: var(--sg-data-5);
+  --color-data-categorical-6: var(--sg-data-6);
+  --color-data-categorical-7: var(--sg-data-7);
+  --color-data-categorical-8: var(--sg-neutral-500);
+  --color-data-actual: var(--sg-primary);
+  --color-data-plan: var(--sg-neutral-300);
+  --color-data-forecast: var(--sg-data-forecast);
+  --color-data-positive: var(--sg-data-positive);
+  --color-data-negative: var(--sg-data-5);
+  --color-data-grid: var(--sg-neutral-100);
+  --color-data-axis: var(--sg-neutral-500);
+  --color-data-reference: var(--sg-neutral-900);
+
+  /* The app's variables, pointed at the roles above */
+  --color-page: var(--color-bg-page);
+  --color-background: var(--color-bg-surface);
+  --color-surface: var(--color-bg-sunken);
   --color-text-primary: var(--sg-neutral-900);
   --color-text-secondary: var(--sg-neutral-600);
-  --color-primary: var(--sg-primary);
-  --color-link: var(--sg-primary);
-  --color-primary-hover: var(--sg-primary-dark);
-  --color-accent: var(--sg-primary);
-  --color-border: var(--sg-neutral-200);
-  /* No status colours: success reads as the brand, danger is the
-     guide's Delete red. */
-  --color-success: var(--sg-primary);
-  --color-danger: var(--sg-destructive);
+  --color-primary: var(--color-brand-default);
+  --color-link: var(--color-brand-default);
+  --color-primary-hover: var(--color-brand-hover);
+  --color-accent: var(--color-accent-default);
+  --color-border: var(--color-border-default);
+  --color-success: var(--color-status-success-solid);
+  --color-danger: var(--color-status-danger-solid);
+  --color-warning: var(--color-status-warning-solid);
 
-  --color-brand: var(--sg-primary);
-  --color-brand-strong: var(--sg-primary-dark);
-  --color-brand-soft: var(--sg-primary-light);
-  --color-brand-tint: var(--sg-primary-light);
+  --color-brand: var(--color-brand-default);
+  --color-brand-strong: var(--color-brand-hover);
+  --color-brand-soft: var(--color-brand-subtle);
+  --color-brand-tint: var(--color-brand-subtle);
 
-  /* Dark surfaces (hero and total cards, the nav pill): primary dark. */
-  --ink-bg: var(--sg-primary-dark);
-  --ink-surface: var(--sg-primary);
-  --ink-border: var(--sg-primary);
-  --ink-text: var(--sg-neutral-0);
-  --ink-text-secondary: var(--sg-primary-light);
+  /* Dark surfaces (hero and total cards, the nav pill): the inverse. */
+  --ink-bg: var(--color-bg-inverse);
+  --ink-surface: var(--sg-neutral-800);
+  --ink-border: var(--sg-neutral-700);
+  --ink-text: var(--color-text-inverse);
+  --ink-text-secondary: var(--sg-neutral-300);
 
-  --money-blue: var(--sg-primary);
-  --money-blue-soft: var(--sg-primary-light);
-  --money-red: var(--sg-destructive);
-  --money-lime: var(--sg-accent);
-  --money-tint-blue: var(--sg-primary-light);
-  --money-tint-yellow: var(--sg-neutral-50);
-  --money-ink: var(--sg-neutral-900);
+  --money-blue: var(--color-money-transfer-fg);
+  --money-blue-soft: var(--color-brand-subtle);
+  --money-red: var(--color-money-expense-fg);
+  --money-lime: var(--color-accent-default);
+  --money-tint-blue: var(--color-brand-subtle);
+  --money-tint-yellow: var(--color-accent-subtle);
+  --money-ink: var(--color-text-primary);
 }
 
 * {

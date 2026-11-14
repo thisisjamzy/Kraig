@@ -44,3 +44,14 @@
     transform: translateX(0);
   }
 }
+
+/* Dreda.figcraft: a dimmed page and a white sheet with a soft shadow. */
+.backdrop {
+  background: color-mix(in srgb, var(--color-text-primary) 35%, transparent);
+}
+
+.panel {
+  background: var(--color-bg-surface);
+  border-radius: 24px 0 0 24px;
+  box-shadow: -12px 0 40px color-mix(in srgb, var(--sg-neutral-900) 14%, transparent);
+}

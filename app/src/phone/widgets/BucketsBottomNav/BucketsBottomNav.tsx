@@ -3,7 +3,8 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, ListOrdered, Plus, FolderPlus, ListPlus, HandCoins, CalendarPlus } from 'lucide-react';
+import { Home, CalendarDays, Plus, FolderPlus, ListPlus, HandCoins, CalendarPlus, ArrowLeftRight } from 'lucide-react';
+import { useFormLink } from '@/src/shared/navigation/useFormLink';
 import { query, where } from 'firebase/firestore';
 import { navMode } from '@/src/shared/config/chromeVisibility';
 import { useFirestoreCollection } from '@/src/shared/firestore/hooks';
@@ -17,7 +18,8 @@ import styles from '@/src/phone/widgets/BucketsBottomNav/BucketsBottomNav.module
 // mobile and web can never drift apart on what Buckets mode contains.
 export const NAV_ITEMS = [
   { href: '/baskets', label: 'Home', icon: Home },
-  { href: '/baskets/items', label: 'Priorities', icon: ListOrdered },
+  // Priorities lives on Payments now (its one Calendar view).
+  { href: '/payments', label: 'Payments', icon: CalendarDays },
 ];
 
 type Create = 'item' | 'income' | 'payment';
@@ -28,6 +30,7 @@ type Create = 'item' | 'income' | 'payment';
 // a bucket, or an item, an income source or a planned payment in one.
 export function BucketsBottomNav() {
   const pathname = usePathname();
+  const formLink = useFormLink();
   const { user } = useFirebaseUser();
   const uid = user?.uid;
   const [open, setOpen] = useState(false);
@@ -81,6 +84,9 @@ export function BucketsBottomNav() {
           <div className={styles.sheet}>
             {!picking ? (
               <>
+                <Link href={formLink('transaction')} className={styles.sheetOption} onClick={close}>
+                  <ArrowLeftRight size={18} strokeWidth={2} aria-hidden /> Add transaction
+                </Link>
                 <Link href="/baskets/new" className={styles.sheetOption} onClick={close}>
                   <FolderPlus size={18} strokeWidth={2} aria-hidden /> New basket
                 </Link>

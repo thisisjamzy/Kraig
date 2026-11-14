@@ -38,11 +38,12 @@ import { monthTitle } from '@/src/viewmodels/planning';
 import { useBreadcrumb, usePageMenu } from '@/src/widgets/AppShell/breadcrumb';
 import { Database } from '@/src/widgets/Database/Database';
 import { Block, NotionPageHeader } from '@/src/widgets/Database/NotionPage';
+import { TopBarControls } from '@/src/widgets/AppShell/TopBarSlot';
 import { MonthPicker } from '@/src/widgets/Database/MonthPicker';
 import { BasketAllTime } from '@/src/widgets/BasketAllTime/BasketAllTime';
 import { PropertiesBlock } from '@/src/widgets/Database/PropertiesBlock';
 import { SidePeek, usePeek } from '@/src/widgets/Database/SidePeek';
-import { formatNumber } from '@/src/widgets/Database/format';
+import { formatAmountValue } from '@/src/widgets/Database/format';
 import type { ColumnDef } from '@/src/widgets/Database/types';
 import { Modal } from '@/src/widgets/Modal/Modal';
 import { showToast } from '@/src/widgets/Toast/Toast';
@@ -154,7 +155,7 @@ export function BucketPage({ bucketId, b }: { bucketId: string; b: BucketLogic }
   const planned = lines.reduce((s, l) => s + l.available, 0);
   const actual = lines.reduce((s, l) => s + l.actual, 0);
   const left = planned - actual;
-  const money = (n: number) => `${formatNumber(n)} ${b.currency}`;
+  const money = (n: number) => `${formatAmountValue(n)} ${b.currency}`;
   const actualLabel = type === 'Income' ? 'Received' : type === 'Savings' ? 'Saved' : type === 'Transfer' ? 'Moved' : 'Spent';
   const automated = lines.filter((l) => l.automation.mode !== 'off');
   const next = nextAutomated(lines, b.templates, b.month, today);
@@ -203,7 +204,7 @@ export function BucketPage({ bucketId, b }: { bucketId: string; b: BucketLogic }
       <div className={styles.main}>
         <NotionPageHeader
           title={bucket.name}
-          kind={`${FLOW_NOUN[type]} basket`}
+          sub={`${FLOW_NOUN[type]} basket · Budget › ${monthTitle(b.month).split(' ')[0]}`}
           actions={
             <button
               type="button"
@@ -220,7 +221,6 @@ export function BucketPage({ bucketId, b }: { bucketId: string; b: BucketLogic }
           <PropertiesBlock
             visible={4}
             properties={[
-              { id: 'month', label: 'Month', display: <MonthPicker value={b.month} onChange={b.setMonth} allTime={{ active: b.allTime, onPick: () => b.setAllTime(true) }} /> },
               {
                 id: 'repeats',
                 label: 'Repeats',
@@ -250,6 +250,44 @@ export function BucketPage({ bucketId, b }: { bucketId: string; b: BucketLogic }
             ]}
           />
         </NotionPageHeader>
+        <TopBarControls>
+          <MonthPicker value={b.month} onChange={b.setMonth} allTime={{ active: b.allTime, onPick: () => b.setAllTime(true) }} />
+        </TopBarControls>
+
+        {!b.allTime && (
+          <section className={styles.strip} aria-label="This month">
+            <div className={styles.stripFigure}>
+              <span>{type === 'Income' ? 'Expected' : 'Planned'}</span>
+              <strong>{formatAmountValue(planned)}</strong>
+            </div>
+            <div className={styles.stripFigure}>
+              <span>{actualLabel}</span>
+              <strong>{formatAmountValue(actual)}</strong>
+            </div>
+            <div className={styles.stripFigure} data-tone={over ? 'bad' : undefined}>
+              <span>{over ? 'Over by' : type === 'Income' ? 'To come' : 'Left'}</span>
+              <strong>{formatAmountValue(Math.abs(left))}</strong>
+            </div>
+            <div className={styles.stripProgress}>
+              <span>
+                {lines.filter((l) => l.actual >= l.available - 0.5 && l.available > 0).length} of {lines.length} {lines.length === 1 ? 'item' : 'items'} {type === 'Income' ? 'received' : 'paid'}
+                {b.closed ? ' · closed for the month' : ' · basket closes at month end'}
+              </span>
+              <span className={styles.stripBar}>
+                <span data-over={over || undefined} style={{ width: `${Math.round(Math.min(1, planned > 0 ? actual / planned : 0) * 100)}%` }} />
+              </span>
+            </div>
+            {b.closed ? (
+              <button type="button" className={styles.stripButton} onClick={() => void b.reopenBucket()}>
+                Reopen basket
+              </button>
+            ) : (
+              <button type="button" className={styles.stripButton} onClick={() => setClosing(true)}>
+                Close for {monthTitle(b.month).split(' ')[0]}
+              </button>
+            )}
+          </section>
+        )}
 
         {bucket.managed && <p className={styles.managed}>Dreda keeps this basket up to date from your debts&apos; scheduled repayments. Change them on each debt&apos;s page.</p>}
 
@@ -434,7 +472,7 @@ export function BucketPage({ bucketId, b }: { bucketId: string; b: BucketLogic }
                   ? `${due.count} ${due.count === 1 ? 'payment' : 'payments'} still to pay in ${monthTitle(b.month).split(' ')[0]}: ${money(due.total)}.`
                   : `Nothing left to pay in ${monthTitle(b.month).split(' ')[0]}.`}
               </p>
-              <Link href="/baskets/items" className={bm.inlineAction}>
+              <Link href="/payments" className={bm.inlineAction}>
                 Open priorities
               </Link>
             </section>

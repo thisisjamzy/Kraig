@@ -865,3 +865,60 @@
   font-weight: 600;
   text-decoration: none;
 }
+
+/* ==== Dreda.figcraft money phone screens (Basket / Phone, Reconcile /
+   Phone, Budget / Phone): the design's tokens, status colours back,
+   hairline dividers, white cards without borders, round header buttons. */
+.tokens {
+  --p-bg: var(--color-bg-page);
+  --p-card: var(--color-bg-surface);
+  --p-navy: var(--color-text-primary);
+  --p-muted: var(--color-text-secondary);
+  --p-light: var(--color-text-tertiary);
+  --p-red: var(--color-status-danger-fg);
+  --p-red-tint: var(--color-status-danger-bg);
+  --p-green: var(--color-status-success-fg);
+  --p-green-tint: var(--color-status-success-bg);
+  --p-pink-tint: var(--color-money-expense-bg);
+  --p-item: var(--color-bg-sunken);
+  --p-track: var(--color-bg-sunken);
+  --p-divider: var(--color-border-subtle);
+  --p-btn: var(--color-brand-default);
+  --p-btn-text: var(--color-brand-on);
+  --p-shadow: none;
+  --p-black: var(--color-card-ink-bg);
+  --p-black-muted: var(--color-card-ink-muted);
+  --p-black-track: var(--color-card-ink-decor);
+}
+
+.card,
+.rows,
+.spec {
+  border-radius: 20px;
+}
+
+.roundButton {
+  border: 0;
+  border-radius: 50%;
+  background: var(--color-bg-surface);
+}
+
+.rowAmount,
+.specValue,
+.stickyValue {
+  font-family: var(--font-family-mono);
+}
+
+.title,
+.heroTitle {
+  font-family: var(--font-family-heading);
+}
+
+.fillButton,
+.bigButton {
+  border-radius: 9999px;
+}
+
+.outlineButton {
+  border-radius: 9999px;
+}

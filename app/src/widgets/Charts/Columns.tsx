@@ -253,12 +253,15 @@ export function DivergingColumnChart({
   format,
   tick,
   ariaLabel,
+  colors = { up: 'var(--c-primary)', down: 'var(--c-accent)' },
 }: {
   /** Signed: below zero is missing (accent), above is found (primary). null: still to come. */
   data: { label: string; value: number | null }[];
   format: (n: number) => string;
   tick: (n: number) => string;
   ariaLabel: string;
+  /** Bar fills above and below zero (Insights: the data positive and negative tokens). */
+  colors?: { up: string; down: string };
 }) {
   const values = data.map((d) => d.value ?? 0);
   const scale = makeScale([...values, 0], 'linear', true);
@@ -286,7 +289,7 @@ export function DivergingColumnChart({
                   style={{
                     bottom: `${bottom}%`,
                     height: `${top - bottom}%`,
-                    background: missing ? 'var(--c-accent)' : 'var(--c-primary)',
+                    background: missing ? colors.down : colors.up,
                     borderRadius: missing ? '0 0 5px 5px' : '5px 5px 0 0',
                   }}
                 >

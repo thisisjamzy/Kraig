@@ -1,0 +1,576 @@
+/* The transaction panel (TransactionPanel.tsx), from Dreda.figcraft
+   `Form panel / Edit transaction`: page background, 20px gaps, 24px sides;
+   rows 70 high in white 20px cards; the footer pinned with a hairline. */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  background: var(--color-bg-page);
+  color: var(--color-text-primary);
+  font-family: var(--font-family-body);
+}
+
+/* A phone: the whole screen, past the notch. */
+.panel:not([data-peek]) {
+  min-height: 100dvh;
+  padding-top: var(--safe-top, 0px);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 24px 0;
+}
+
+.round,
+.roundSpacer {
+  flex: none;
+  width: 44px;
+  height: 44px;
+}
+
+.round {
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  padding: 0;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 9999px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.round:hover {
+  background: var(--color-bg-sunken);
+}
+
+.title {
+  flex: 1;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 24px;
+  text-align: center;
+}
+
+.body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 20px;
+  padding: 20px 24px 24px;
+}
+
+/* ---- Type selector ---- */
+
+.types {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  border-radius: 9999px;
+  background: var(--color-bg-sunken);
+}
+
+.type {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  height: 40px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 9999px;
+  background: none;
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
+  cursor: pointer;
+}
+
+.typeIcon {
+  flex: none;
+  color: var(--color-text-tertiary);
+}
+
+.type[aria-checked='true'] {
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  box-shadow:
+    0 1px 2px color-mix(in srgb, var(--color-text-primary) 8%, transparent),
+    0 1px 3px color-mix(in srgb, var(--color-text-primary) 6%, transparent);
+}
+
+.type[aria-checked='true'][data-kind='expense'] .typeIcon {
+  color: var(--color-money-expense-fg);
+}
+.type[aria-checked='true'][data-kind='income'] .typeIcon {
+  color: var(--color-money-income-fg);
+}
+.type[aria-checked='true'][data-kind='transfer'] .typeIcon {
+  color: var(--color-money-transfer-fg);
+}
+.type[aria-checked='true'][data-kind='savings'] .typeIcon {
+  color: var(--color-money-savings-fg);
+}
+
+.type:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.type:focus-visible {
+  outline: 2px solid var(--color-brand-default);
+  outline-offset: 2px;
+}
+
+/* ---- Amount hero ---- */
+
+.amount {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 24px 16px 20px;
+  border-radius: 24px;
+  background: var(--color-bg-surface);
+}
+
+.caption,
+.overline {
+  color: var(--color-text-tertiary);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 16px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+.valueRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  max-width: 100%;
+}
+
+.amountInput {
+  min-width: 1ch;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: none;
+  color: var(--color-text-primary);
+  font-family: var(--font-family-mono);
+  font-size: 48px;
+  font-weight: 600;
+  line-height: 56px;
+  letter-spacing: -1px;
+  text-align: center;
+  field-sizing: content;
+}
+
+.amountInput::placeholder {
+  color: var(--color-text-disabled);
+}
+
+.currency {
+  flex: none;
+  padding: 6px 12px;
+  border-radius: 9999px;
+  background: var(--color-bg-sunken);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.helper {
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+  line-height: 16px;
+  text-align: center;
+}
+
+/* ---- Rows ---- */
+
+.group {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 20px;
+  background: var(--color-bg-surface);
+}
+
+/* Groups sit 16px apart (the body's 20px gap less the 4px between them). */
+.group + .group {
+  margin-top: -4px;
+}
+
+.rowLabel {
+  display: block;
+  cursor: text;
+}
+
+.rowButton {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+.group > .rowButton:not(:last-child) .row {
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 70px;
+  box-sizing: border-box;
+  padding: 14px 16px;
+  background: var(--color-bg-surface);
+}
+
+.group > :not(:last-child) .row,
+.group > .row:not(:last-child),
+.group > .toggleRow:not(:last-child) {
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.pickRow {
+  cursor: pointer;
+}
+
+.pickRow:hover,
+.rowLabel:hover .row {
+  background: color-mix(in srgb, var(--color-bg-sunken) 50%, var(--color-bg-surface));
+}
+
+.tile {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--color-bg-sunken);
+  color: var(--color-text-primary);
+}
+
+.tile :global(svg) {
+  width: 18px;
+  height: 18px;
+}
+
+.text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.label {
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.value,
+.valueInput {
+  overflow: hidden;
+  color: var(--color-text-primary);
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 24px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.value[data-placeholder] {
+  color: var(--color-text-tertiary);
+  font-weight: 400;
+}
+
+.valueInput {
+  width: 100%;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: none;
+  font-family: inherit;
+}
+
+.valueInput::placeholder {
+  color: var(--color-text-tertiary);
+  font-weight: 400;
+}
+
+.chevron {
+  flex: none;
+  color: var(--color-text-tertiary);
+}
+
+/* The picker itself covers the row: a tap anywhere opens it. */
+.overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.row:has(.overlay:focus-visible),
+.row:has(.valueInput:focus-visible) {
+  box-shadow: inset 0 0 0 2px var(--color-brand-default);
+}
+
+.toggleRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  box-sizing: border-box;
+  padding: 14px 16px;
+  cursor: pointer;
+}
+
+.toggleText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.toggleHint {
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.switch {
+  position: relative;
+  flex: none;
+  width: 48px;
+  height: 28px;
+  margin: 0;
+  border-radius: 9999px;
+  background: var(--color-border-default);
+  appearance: none;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.switch::after {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--color-bg-surface);
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--color-text-primary) 20%, transparent);
+  content: '';
+  transition: transform 0.15s ease;
+}
+
+.switch:checked {
+  background: var(--color-brand-default);
+}
+
+.switch:checked::after {
+  transform: translateX(20px);
+}
+
+.switch:focus-visible {
+  outline: 2px solid var(--color-brand-default);
+  outline-offset: 2px;
+}
+
+.note {
+  margin: -8px 4px 0;
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.note[data-tone='error'],
+.error {
+  color: var(--color-status-danger-fg);
+}
+
+.error {
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.chip {
+  align-self: flex-start;
+  margin-top: -8px;
+  padding: 8px 14px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 9999px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  cursor: pointer;
+}
+
+.chip:hover:not(:disabled) {
+  background: var(--color-bg-sunken);
+}
+
+.chip:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* ---- Impact ---- */
+
+.impact {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px;
+  border-left: 3px solid var(--color-brand-default);
+  border-radius: 14px;
+  background: var(--color-bg-sunken);
+}
+
+.impactBody {
+  margin: 0;
+  font-size: 16px;
+  line-height: 24px;
+}
+
+/* ---- Footer ---- */
+
+.footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  gap: 12px;
+  margin-top: auto;
+  padding: 12px 16px calc(16px + var(--safe-bottom, 0px));
+  border-top: 1px solid var(--color-border-subtle);
+  background: var(--color-bg-surface);
+}
+
+.delete,
+.primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 56px;
+  border-radius: 9999px;
+  font: inherit;
+  font-size: 16px;
+  line-height: 24px;
+  cursor: pointer;
+}
+
+.delete {
+  flex: none;
+  padding: 0 22px;
+  border: 1px solid var(--color-border-default);
+  background: var(--color-bg-surface);
+  color: var(--color-status-danger-fg);
+  font-weight: 500;
+}
+
+.delete:hover {
+  background: var(--color-status-danger-bg);
+}
+
+.primary {
+  flex: 1;
+  padding: 0 24px;
+  border: 0;
+  background: var(--color-brand-default);
+  color: var(--color-brand-on);
+  font-weight: 600;
+}
+
+.primary:hover:not(:disabled) {
+  background: var(--color-brand-hover);
+}
+
+.primary:disabled,
+.delete:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.primary[data-phase='saving'],
+.primary[data-phase='saved'] {
+  opacity: 1;
+}
+
+.primary[data-phase='saving'] {
+  cursor: progress;
+}
+
+.delete:focus-visible,
+.primary:focus-visible,
+.round:focus-visible {
+  outline: 2px solid var(--color-brand-default);
+  outline-offset: 2px;
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: txSpin 0.7s linear infinite;
+}
+
+@keyframes txSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+    opacity: 0.6;
+  }
+}
+
+/* A phone: 16px sides like every phone screen. */
+@media (max-width: 767px) {
+  .head {
+    padding: 12px 16px 0;
+  }
+
+  .body {
+    padding: 16px 16px 24px;
+  }
+}

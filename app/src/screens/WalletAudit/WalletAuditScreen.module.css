@@ -145,3 +145,8 @@
   color: var(--sg-neutral-0);
   cursor: not-allowed;
 }
+
+/* Inside the wallet page's Audit tab: no own padding, the page has it. */
+.page[data-embedded] {
+  padding: 0;
+}

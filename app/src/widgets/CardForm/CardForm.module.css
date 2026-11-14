@@ -18,7 +18,7 @@
   --tf-track: var(--color-surface);
   --tf-accent: var(--color-brand);
   --tf-accent-muted: color-mix(in srgb, var(--color-brand) 38%, var(--color-surface));
-  --tf-orange: var(--sg-accent);
+  --tf-orange: var(--color-status-danger-fg);
   --tf-watermark: color-mix(in srgb, var(--color-text-primary) 8%, var(--color-surface));
   min-height: 100%;
   padding: calc(8px + var(--safe-top)) 12px 40px;
@@ -956,5 +956,77 @@ input:focus-visible + .switch {
     --tf-accent-muted: var(--sg-primary-light);
     --tf-orange: var(--sg-destructive);
     --tf-watermark: var(--sg-neutral-100);
+  }
+}
+
+/* ==== Dreda.figcraft form fields on tablet and web ====
+   A small label over a sunken 14px-radius field. */
+@media (min-width: 768px) {
+  .cards {
+    gap: 12px;
+  }
+
+  .card,
+  .pickerCard {
+    gap: 4px;
+    padding: 10px 14px;
+    border: 1px solid var(--color-border-subtle);
+    border-radius: 14px;
+    background: var(--color-bg-sunken);
+  }
+
+  .card:focus-within,
+  .pickerCard:focus-within {
+    border-color: var(--color-brand-default);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-brand-default) 18%, transparent);
+  }
+
+  .label {
+    color: var(--color-text-primary);
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .value,
+  .valueInput {
+    font-size: 15px;
+    line-height: 22px;
+  }
+
+  .card[data-invalid] {
+    border-color: var(--color-status-danger-solid);
+    box-shadow: none;
+  }
+}
+
+/* ==== Dreda.figcraft `Add transaction / Phone` ====
+   White field cards on the grey page, a small tertiary label over a 16px
+   value, 16px corners; the watermark stays faint. */
+@media (max-width: 767.98px) {
+  .page {
+    --tf-bg: var(--color-bg-page);
+    --tf-card: var(--color-bg-surface);
+    --tf-label: var(--color-text-tertiary);
+    --tf-accent: var(--color-brand-default);
+  }
+
+  .cards {
+    gap: 10px;
+  }
+
+  .card,
+  .pickerCard {
+    padding: 14px 16px;
+    border-radius: 18px;
+  }
+
+  .label {
+    font-size: 12px;
+  }
+
+  .value,
+  .valueInput {
+    font-size: 16px;
+    font-weight: 500;
   }
 }

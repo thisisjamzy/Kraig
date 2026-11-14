@@ -9,11 +9,12 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { ArrowRight, CircleAlert, CircleCheck, CircleDot } from 'lucide-react';
 import styles from './Plans.module.css';
+import { maskAmount } from '@/src/shared/hooks/usePrivacy';
 
 export type Tone = 'good' | 'watch' | 'bad' | 'neutral';
 
 export function full(n: number, currency?: string) {
-  const v = Math.round(n).toLocaleString('en-US');
+  const v = maskAmount(Math.round(n).toLocaleString('en-US'));
   return currency ? `${v} ${currency}` : v;
 }
 

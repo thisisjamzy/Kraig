@@ -1,15 +1,28 @@
 'use client';
 
 import { useState, type FormEvent } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { getFirebaseAuth } from '@/src/shared/config/firebaseClient';
 import { markSignedIn } from '@/src/shared/config/authSession';
 import { firebaseErrorMessage } from '@/src/shared/config/firebaseErrors';
 import { ensureUserDoc } from '@/src/shared/firestore/ensureUserDoc';
 
+// Invite codes read DRD-XXXX-XX. Only the shape is checked here: there is no
+// invite store yet, so a spent code cannot be told apart from a fresh one.
+const INVITE_SHAPE = /^DRD-[A-Z0-9]{4}-[A-Z0-9]{2}$/;
+
+export type InviteError = 'missing' | 'invalid' | null;
+
+export function normaliseInvite(raw: string) {
+  return raw.toUpperCase().replace(/\s+/g, '');
+}
+
 export function useLogic() {
   const router = useRouter();
+  const params = useSearchParams();
+  const [invite, setInviteRaw] = useState(() => normaliseInvite(params.get('code') ?? ''));
+  const [inviteError, setInviteError] = useState<InviteError>(null);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -20,6 +33,10 @@ export function useLogic() {
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     if (submitting) return;
+    const code = normaliseInvite(invite);
+    const codeError: InviteError = !code ? 'missing' : INVITE_SHAPE.test(code) ? null : 'invalid';
+    setInviteError(codeError);
+    if (codeError) return;
     setSubmitting(true);
     setError(null);
 
@@ -42,6 +59,12 @@ export function useLogic() {
   }
 
   return {
+    invite,
+    setInvite: (value: string) => {
+      setInviteRaw(normaliseInvite(value));
+      setInviteError(null);
+    },
+    inviteError,
     name,
     setName,
     email,

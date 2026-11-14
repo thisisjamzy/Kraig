@@ -1,0 +1,155 @@
+/* Dreda.figcraft `Wallet card`. */
+
+.card {
+  --wc-bg: var(--color-card-purple-bg);
+  --wc-decor: var(--color-card-purple-decor);
+  --wc-fg: var(--color-card-purple-fg);
+  --wc-muted: var(--color-card-purple-muted);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-sizing: border-box;
+  width: 232px;
+  height: 360px;
+  padding: 22px;
+  overflow: hidden;
+  border-radius: 22px;
+  background: var(--wc-bg);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--sg-neutral-900) 6%, transparent), 0 1px 3px color-mix(in srgb, var(--sg-neutral-900) 4%, transparent);
+  color: var(--wc-fg);
+  font-family: var(--font-family-body);
+}
+
+.card[data-tone='lilac'] {
+  --wc-bg: var(--color-card-lilac-bg);
+  --wc-decor: var(--color-card-lilac-decor);
+  --wc-fg: var(--color-card-lilac-fg);
+  --wc-muted: var(--color-card-lilac-muted);
+}
+
+.card[data-tone='ink'] {
+  --wc-bg: var(--color-card-ink-bg);
+  --wc-decor: var(--color-card-ink-decor);
+  --wc-fg: var(--color-card-ink-fg);
+  --wc-muted: var(--color-card-ink-muted);
+}
+
+.card[data-tone='lime'] {
+  --wc-bg: var(--color-card-lime-bg);
+  --wc-decor: var(--color-card-lime-decor);
+  --wc-fg: var(--color-card-lime-fg);
+  --wc-muted: var(--color-card-lime-muted);
+}
+
+.decor1,
+.decor2 {
+  position: absolute;
+  border-radius: 50%;
+  background: var(--wc-decor);
+  pointer-events: none;
+}
+
+.decor1 {
+  left: 96px;
+  top: -96px;
+  width: 240px;
+  height: 240px;
+  opacity: 0.55;
+}
+
+.decor2 {
+  left: 60px;
+  top: 230px;
+  width: 220px;
+  height: 220px;
+  opacity: 0.35;
+}
+
+.top,
+.number,
+.bottom {
+  position: relative;
+}
+
+.top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.identity,
+.number,
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.number {
+  gap: 6px;
+}
+
+.type {
+  color: var(--wc-muted);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 16px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+.name {
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 26px;
+}
+
+.nfc {
+  flex: none;
+  color: var(--wc-fg);
+}
+
+.numberValue {
+  font-family: var(--font-family-mono);
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 24px;
+  white-space: pre;
+}
+
+.bottom {
+  display: flex;
+  align-items: flex-end;
+  gap: 24px;
+}
+
+.stats {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.label {
+  color: var(--wc-muted);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.amount {
+  overflow: hidden;
+  font-family: var(--font-family-mono);
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 32px;
+  letter-spacing: -0.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.logo {
+  flex: none;
+  border-radius: 6px;
+}

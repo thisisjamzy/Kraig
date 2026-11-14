@@ -96,7 +96,7 @@
 
 .tabActive {
   background: var(--color-background);
-  border-color: var(--color-accent);
+  border-color: var(--color-primary);
   color: var(--color-text-primary);
   box-shadow: 0 1px 2px color-mix(in srgb, var(--sg-neutral-900) 8%, transparent);
 }
@@ -124,7 +124,7 @@
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: var(--color-accent);
+  background: var(--color-primary);
   color: #fff;
   font-weight: 700;
   font-size: var(--font-size-sm);
