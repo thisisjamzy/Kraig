@@ -8,8 +8,9 @@
 //     Budgeting, or The day and The work (no project list: the user found
 //     it unhelpful, 15 Nov 2026);
 //   - Money only: the Ready to pay card, with this month's ready count;
-//   - footer: Settings, the profile row (its menu holds Account, the
-//     Money / Time switch and Log out), then the mode and sync line.
+//   - footer (Dreda v1.0 `Nav/Drawer Time`): the sync line, then the
+//     profile card. Its menu (`Menu/Account`) holds the Time / Money
+//     switch, Account, Settings and Sign out.
 // Search, notifications and the page's main action live in the header
 // (TopBar). The right edge drags to resize between 200 and 400px.
 
@@ -17,7 +18,7 @@ import { useRef, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { BadgeCheck, Check, ChevronsLeft, ChevronsUpDown, LogOut, RefreshCw, Settings, Sun, User, Wallet } from 'lucide-react';
+import { BadgeCheck, CalendarDays, Check, ChevronsLeft, ChevronsUpDown, LogOut, PieChart, RefreshCw, Settings, User } from 'lucide-react';
 import { signOut } from 'firebase/auth';
 import logoFull from '@/public/brand/dreda-full.png';
 import { MODE_HOME, MODE_LABEL, modeOfPath, type AppMode } from '@/src/shared/config/pageTree';
@@ -34,6 +35,7 @@ import { useWebOnly } from '@/src/shared/device/useWebOnly';
 import { useSettingsLink } from '@/src/shared/navigation/useSettingsLink';
 import { usePathname } from 'next/navigation';
 import { maskAmount } from '@/src/shared/hooks/usePrivacy';
+import { avatarSrc, PROFILE_AVATAR_ID } from '@/src/viewmodels/people';
 
 const MODE_KEY = 'dreda.mode';
 
@@ -63,6 +65,15 @@ export function useAppMode(): AppMode {
     }
   }
   return routeMode ?? stored;
+}
+
+/** The person's Notionist face on a lime disc (Dreda v1.0 Avatar/Person). */
+export function ProfileFace({ size = 32 }: { size?: number }) {
+  return (
+    <span className={styles.avatar} style={{ width: size, height: size }} aria-hidden>
+      <Image src={avatarSrc(PROFILE_AVATAR_ID)} alt="" width={size} height={size} unoptimized />
+    </span>
+  );
 }
 
 const amount = (n: number) => maskAmount(Math.round(n).toLocaleString('en-US'));
@@ -137,25 +148,18 @@ export function Sidebar({
       </div>
 
       <div className={styles.bottom}>
-        <Link href={settingsLink('preferences')} scroll={false} className={styles.navRow} onClick={onNavigate}>
-          <Settings size={20} strokeWidth={2} aria-hidden className={styles.rowGlyph} />
-          <span className={styles.rowLabel}>Settings</span>
-        </Link>
-        <button type="button" className={styles.profile} onClick={(e) => setProfileMenu(e.currentTarget)} aria-haspopup="menu">
-          <span className={styles.avatar} aria-hidden>
-            {name.charAt(0).toUpperCase()}
-          </span>
+        <p className={styles.sync} aria-live="polite">
+          <RefreshCw size={14} strokeWidth={2} aria-hidden />
+          {sync}
+        </p>
+        <button type="button" className={styles.profile} onClick={(e) => setProfileMenu(e.currentTarget)} aria-haspopup="menu" aria-label={`${name}, account menu`}>
+          <ProfileFace />
           <span className={styles.who}>
             <span className={styles.whoName}>{name}</span>
             <span className={styles.whoPlan}>Personal</span>
           </span>
           <ChevronsUpDown size={20} strokeWidth={2} aria-hidden className={styles.rowGlyph} />
         </button>
-
-        <p className={styles.sync} aria-live="polite">
-          <RefreshCw size={14} strokeWidth={2} aria-hidden />
-          {MODE_LABEL[mode]} mode · {sync}
-        </p>
       </div>
 
       {variant === 'docked' && onResize && (
@@ -188,12 +192,16 @@ export function Sidebar({
       {profileMenu && (
         <Popover anchor={profileMenu} label="Account" onClose={() => setProfileMenu(null)}>
           <div className={styles.menu} role="menu">
-            <Link href={settingsLink('profile')} scroll={false} role="menuitem" className={styles.menuRow} data-row onClick={() => setProfileMenu(null)}>
-              <User size={15} strokeWidth={2} aria-hidden /> Account
-            </Link>
+            <div className={styles.menuWho}>
+              <ProfileFace size={40} />
+              <span className={styles.who}>
+                <span className={styles.whoName}>{name}</span>
+                <span className={styles.whoPlan}>Personal account</span>
+              </span>
+            </div>
             <hr className={styles.menuDivider} />
             <p className={styles.menuLabel}>Module</p>
-            {(['money', 'time'] as AppMode[]).map((m) => (
+            {(['time', 'money'] as AppMode[]).map((m) => (
               <Link
                 key={m}
                 href={MODE_HOME[m]}
@@ -201,19 +209,29 @@ export function Sidebar({
                 aria-checked={m === mode}
                 className={styles.menuRow}
                 data-row
+                data-mode={m}
+                data-current={m === mode || undefined}
                 onClick={() => {
                   setProfileMenu(null);
                   onNavigate?.();
                 }}
               >
-                {m === 'money' ? <Wallet size={15} strokeWidth={2} aria-hidden /> : <Sun size={15} strokeWidth={2} aria-hidden />}
+                <span className={styles.modeTile} data-mode={m} aria-hidden>
+                  {m === 'money' ? <PieChart size={16} strokeWidth={2} /> : <CalendarDays size={16} strokeWidth={2} />}
+                </span>
                 {MODE_LABEL[m]}
-                {m === mode && <Check size={15} strokeWidth={2.5} aria-hidden className={styles.menuCheck} />}
+                {m === mode && <Check size={18} strokeWidth={2.25} aria-hidden className={styles.menuCheck} />}
               </Link>
             ))}
             <hr className={styles.menuDivider} />
+            <Link href={settingsLink('profile')} scroll={false} role="menuitem" className={styles.menuRow} data-row onClick={() => setProfileMenu(null)}>
+              <User size={20} strokeWidth={2} aria-hidden /> Account
+            </Link>
+            <Link href={settingsLink('preferences')} scroll={false} role="menuitem" className={styles.menuRow} data-row onClick={() => setProfileMenu(null)}>
+              <Settings size={20} strokeWidth={2} aria-hidden /> Settings
+            </Link>
             <button type="button" role="menuitem" className={styles.menuRow} data-row onClick={logOut}>
-              <LogOut size={15} strokeWidth={2} aria-hidden /> Log out
+              <LogOut size={20} strokeWidth={2} aria-hidden /> Sign out
             </button>
           </div>
         </Popover>

@@ -14,7 +14,7 @@ import { query } from 'firebase/firestore';
 import { useFirestoreCollection } from '@/src/shared/firestore/hooks';
 import { useSections } from '@/src/shared/firestore/queries';
 import { areasRef, projectsRef } from '@/src/shared/firestore/refs';
-import { rescheduleTask, toDateOnly } from '@/src/shared/firestore/taskWrites';
+import { rescheduleTask, toDateOnly, updateTaskDone } from '@/src/shared/firestore/taskWrites';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { useAllTasks } from '@/src/shared/hooks/useAllTasks';
 import { useGoBack } from '@/src/shared/navigation/useGoBack';
@@ -23,12 +23,42 @@ import { useListQuery } from '@/src/shared/listQuery/useListQuery';
 import { applyQuery, type FieldDef, type ListQuery } from '@/src/shared/listQuery/engine';
 import { DEFAULT_PRIORITY, TASK_TYPES, taskTypeLabel } from '@/src/viewmodels/projects';
 import { QUADRANTS, isQuadrant, taskQuadrant } from '@/src/viewmodels/eisenhower';
-import { effectiveTimeMode } from '@/src/viewmodels/scheduling';
-import type { FirestoreArea, FirestoreProject, Quadrant, TaskType, TimeMode } from '@/src/shared/firestore/types';
-import type { TaskCheckRowTask } from '@/src/widgets/TaskCheckRow/TaskCheckRow';
+import type { FirestoreArea, FirestoreProject, Quadrant } from '@/src/shared/firestore/types';
+import { dayText } from '@/src/viewmodels/todayPlan';
+import { toListItem, type TaskListItem } from '@/src/viewmodels/taskListItem';
 import { styleGuide } from '@/src/styles/tokens/styleGuide';
 
 export type TaskListFilter = 'today' | 'week' | 'overdue' | 'all';
+
+/** Time v1.0's view bar (Tasks / Web 53712): Today (Overdue, then today),
+ * Upcoming (by day), Inbox (no date, no project) and All tasks. */
+export type TaskTab = 'today' | 'upcoming' | 'inbox' | 'all';
+export const TASK_TABS: { id: TaskTab; label: string }[] = [
+  { id: 'today', label: 'Today' },
+  { id: 'upcoming', label: 'Upcoming' },
+  { id: 'inbox', label: 'Inbox' },
+  { id: 'all', label: 'All tasks' },
+];
+
+export interface TaskGroup {
+  id: string;
+  label: string;
+  /** Overdue reads red, today green. */
+  tone: 'danger' | 'positive' | null;
+  tasks: TaskListItem[];
+}
+
+function tabFromSearch(): TaskTab {
+  if (typeof window === 'undefined') return 'today';
+  const raw = new URLSearchParams(window.location.search).get('view');
+  return raw === 'upcoming' || raw === 'inbox' || raw === 'all' ? raw : 'today';
+}
+
+function hasScopeParams(): boolean {
+  if (typeof window === 'undefined') return false;
+  const p = new URLSearchParams(window.location.search);
+  return p.has('filter') || p.has('date') || p.has('from');
+}
 
 const FILTER_TITLES: Record<TaskListFilter, string> = {
   today: 'Due today',
@@ -37,18 +67,7 @@ const FILTER_TITLES: Record<TaskListFilter, string> = {
   all: 'All tasks',
 };
 
-/** A task as the list shows it (TaskCheckRow) plus what it filters on. */
-export interface TaskListItem extends TaskCheckRowTask {
-  status: 'pending' | 'done' | 'cancelled';
-  quadrant: Quadrant;
-  type: TaskType;
-  projectId: string | null;
-  anchor: Date | null;
-  startMinutes: number | null;
-  mode: TimeMode;
-  createdAt: Date | null;
-  completedAt: Date | null;
-}
+export type { TaskListItem } from '@/src/viewmodels/taskListItem';
 
 function filterFromSearch(): TaskListFilter {
   if (typeof window === 'undefined') return 'all';
@@ -108,6 +127,18 @@ export const TASK_DEFAULTS: ListQuery = {
   advanced: null,
   sorts: [
     { id: 'default-importance', field: 'importance', dir: 'asc' },
+    { id: 'default-date', field: 'date', dir: 'asc' },
+    { id: 'default-start', field: 'start', dir: 'asc' },
+  ],
+  search: '',
+};
+
+/** The v1.0 view bar's list: every status (each tab picks its own), by
+ * date, then start time. */
+export const TASK_V1_DEFAULTS: ListQuery = {
+  filters: [],
+  advanced: null,
+  sorts: [
     { id: 'default-date', field: 'date', dir: 'asc' },
     { id: 'default-start', field: 'start', dir: 'asc' },
   ],
@@ -179,6 +210,7 @@ export function useLogic() {
   const projectsQuery = useMemo(() => (uid ? query(projectsRef(uid)) : null), [uid]);
   const { data: projectDocs } = useFirestoreCollection<FirestoreProject>(projectsQuery);
   const projectName = useMemo(() => new Map(projectDocs.map((p) => [p.id, p.name])), [projectDocs]);
+  const projectDoc = useMemo(() => new Map(projectDocs.map((p) => [p.id, p])), [projectDocs]);
 
   const areasQuery = useMemo(() => (uid ? query(areasRef(uid)) : null), [uid]);
   const { data: areaDocs } = useFirestoreCollection<FirestoreArea>(areasQuery);
@@ -189,6 +221,10 @@ export function useLogic() {
 
   const [filter] = useState(filterFromSearch);
   const [drill] = useState<DrillDown | null>(drillFromSearch);
+  // A link with a scope (?filter=, Insights' drill-downs) keeps the plain
+  // list; otherwise the v1.0 view bar.
+  const [scoped] = useState(hasScopeParams);
+  const [tab, setTab] = useState<TaskTab>(tabFromSearch);
 
   // The scope: which tasks this link is about (before the toolbar).
   const items = useMemo<TaskListItem[]>(() => {
@@ -200,7 +236,7 @@ export function useLogic() {
       ? expandTasks(taskDocs, drill.from, drill.to)
       : filter === 'today' || filter === 'week'
         ? expandTasks(taskDocs, today, new Date(weekEnd.getTime() - 1))
-        : actionableTasks(taskDocs, now, { includeUpcoming: filter === 'all' });
+        : actionableTasks(taskDocs, now, { includeUpcoming: filter === 'all' || !scoped });
     return base
       .filter((task) => {
         const due = (task.dueDate ?? task.startTime)?.toDate() ?? null;
@@ -224,54 +260,67 @@ export function useLogic() {
           }
           return true;
         }
-        if (filter === 'all') return true;
+        if (filter === 'all' || !scoped) return task.status !== 'Cancelled';
         if (!task.dueDate) return false;
         const d = task.dueDate.toDate();
         if (filter === 'today') return d >= today && d < tomorrow;
         if (filter === 'week') return d >= today && d < weekEnd;
         return d < now; // overdue
       })
-      .map((task): TaskListItem => {
-        const startTime = task.startTime ? task.startTime.toDate() : null;
-        const dueDate = task.dueDate ? task.dueDate.toDate() : null;
-        const end = dueDate ?? startTime;
-        const priority = task.priority ?? DEFAULT_PRIORITY;
-        const context = [
-          task.projectId ? projectName.get(task.projectId) : null,
-          task.bucketId ? bucketName.get(task.bucketId) : null,
-          task.areaId ? areaName.get(task.areaId) : null,
-        ].filter(Boolean);
-        return {
-          id: task.id,
-          title: task.title,
-          priority,
-          done: task.done,
-          startTime,
-          dueDate,
-          allDay: Boolean(task.allDay),
-          timeMode: effectiveTimeMode(task),
-          recurring: Boolean(task.seriesId),
-          overdue: !task.done && task.status !== 'Cancelled' && end !== null && end < now,
-          context: context.length > 0 ? context.join(' · ') : null,
-          status: task.done ? 'done' : task.status === 'Cancelled' ? 'cancelled' : 'pending',
-          quadrant: taskQuadrant({ quadrant: task.quadrant, priority, dueDate, startTime }, now),
-          type: task.type ?? 'ToDo',
-          projectId: task.projectId ?? null,
-          anchor: startTime ?? dueDate,
-          startMinutes: startTime && !task.allDay ? startTime.getHours() * 60 + startTime.getMinutes() : null,
-          mode: effectiveTimeMode(task),
-          createdAt: task.createdAt ? task.createdAt.toDate() : null,
-          completedAt: task.completedAt ? task.completedAt.toDate() : null,
-        };
-      });
-  }, [taskDocs, filter, drill, projectName, bucketName, areaName]);
+      .map((task) => toListItem(task, { projects: projectDoc, projectName, bucketName, areaName }, now));
+  }, [taskDocs, filter, drill, scoped, projectDoc, projectName, bucketName, areaName]);
 
   const fields = useMemo(
     () => taskFields(projectDocs.filter((p) => p.status !== 'Archived').map((p) => ({ id: p.id, name: p.name }))),
     [projectDocs]
   );
-  const list = useListQuery<TaskListItem>({ listId: 'tasks', fields, defaults: TASK_DEFAULTS });
-  const tasks = useMemo(() => applyQuery(items, list.query, fields, new Date()), [items, list.query, fields]);
+  const list = useListQuery<TaskListItem>({ listId: scoped ? 'tasks' : 'tasks-v1', fields, defaults: scoped ? TASK_DEFAULTS : TASK_V1_DEFAULTS });
+  const queried = useMemo(() => applyQuery(items, list.query, fields, new Date()), [items, list.query, fields]);
+
+  // ---- The v1.0 view bar: each tab's tasks, in groups ----
+  const views = useMemo(() => {
+    const now = new Date();
+    const today = startOfDay(now);
+    const tomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+    const pending = (t: TaskListItem) => t.status === 'pending';
+    const on = (t: TaskListItem) => t.anchor ?? t.dueDate;
+    const overdue = queried.filter((t) => pending(t) && t.late);
+    const dueToday = queried.filter((t) => {
+      const d = on(t);
+      return d !== null && d >= today && d < tomorrow && t.status !== 'cancelled';
+    });
+    const upcoming = queried.filter((t) => pending(t) && on(t) !== null && on(t)! >= tomorrow);
+    const inbox = queried.filter((t) => pending(t) && !on(t) && !t.projectId);
+    const todayLabel = `Today, ${today.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}`;
+    const byDay = new Map<string, TaskListItem[]>();
+    for (const t of upcoming) {
+      const label = dayText(on(t)!, now);
+      byDay.set(label, [...(byDay.get(label) ?? []), t]);
+    }
+    const groups: Record<TaskTab, TaskGroup[]> = {
+      today: [
+        { id: 'overdue', label: 'Overdue', tone: 'danger' as const, tasks: overdue },
+        { id: 'today', label: todayLabel, tone: 'positive' as const, tasks: dueToday },
+      ].filter((g) => g.tasks.length > 0),
+      upcoming: [...byDay.entries()].map(([label, tasks]) => ({ id: label, label, tone: null, tasks })),
+      inbox: inbox.length ? [{ id: 'inbox', label: 'No date, no project', tone: null, tasks: inbox }] : [],
+      all: [
+        { id: 'pending', label: 'Open', tone: null, tasks: queried.filter(pending) },
+        { id: 'done', label: 'Done', tone: null, tasks: queried.filter((t) => t.status === 'done') },
+      ].filter((g) => g.tasks.length > 0),
+    };
+    return {
+      groups,
+      counts: { today: overdue.length + dueToday.filter(pending).length, upcoming: upcoming.length, inbox: inbox.length, all: queried.filter(pending).length } as Record<TaskTab, number>,
+      open: items.filter(pending).length,
+      overdue: items.filter((t) => pending(t) && t.late).length,
+      dueToday: items.filter((t) => {
+        const d = on(t);
+        return pending(t) && d !== null && d >= today && d < tomorrow;
+      }).length,
+    };
+  }, [queried, items]);
+  const tasks = scoped ? queried : views.groups[tab].flatMap((g) => g.tasks);
 
   // The evening nudge's "reschedule leftovers": today's unfinished tasks
   // move to tomorrow, same times of day.
@@ -301,5 +350,21 @@ export function useLogic() {
     moveLeftoversToTomorrow,
     goBack: () => navigateBack('/projects'),
     loading,
+    /** True for a scoped link (?filter=, a drill-down): the plain list. */
+    scoped,
+    tab,
+    setTab: (next: TaskTab) => {
+      setTab(next);
+      const url = new URL(window.location.href);
+      if (next === 'today') url.searchParams.delete('view');
+      else url.searchParams.set('view', next);
+      window.history.replaceState(window.history.state, '', url);
+    },
+    groups: views.groups[tab],
+    counts: views.counts,
+    openCount: views.open,
+    overdueCount: views.overdue,
+    todayCount: views.dueToday,
+    setDone: (task: TaskListItem, done: boolean) => (uid ? updateTaskDone(uid, task.id, done) : Promise.resolve()),
   };
 }

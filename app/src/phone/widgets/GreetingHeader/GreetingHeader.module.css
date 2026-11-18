@@ -1,0 +1,162 @@
+.header {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+
+.avatar {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 50%;
+  background: var(--label-lime-bg);
+  cursor: pointer;
+}
+
+.avatar img {
+  width: 100%;
+  height: 100%;
+}
+
+.hello {
+  display: flex;
+  flex: 1;
+  margin-left: 2px;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.hello span {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.hello strong {
+  overflow: hidden;
+  color: var(--color-text-primary);
+  font-size: 17px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.round {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 50%;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.round {
+  position: relative;
+}
+
+.badge {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  width: 9px;
+  height: 9px;
+  border: 2px solid var(--color-bg-surface);
+  border-radius: 50%;
+  background: var(--color-status-danger-fg);
+}
+
+.moreBox {
+  position: relative;
+  flex: none;
+}
+
+.menu {
+  position: absolute;
+  top: 52px;
+  right: 0;
+  z-index: 110;
+  display: flex;
+  flex-direction: column;
+  min-width: 220px;
+  padding: 6px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 16px;
+  background: var(--color-bg-surface);
+  box-shadow: 0 16px 40px color-mix(in srgb, var(--color-text-primary) 16%, transparent);
+}
+
+.menuRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 10px;
+  color: var(--color-text-primary);
+  font-size: 15px;
+  text-decoration: none;
+}
+
+.menuRow:active {
+  background: var(--color-bg-sunken);
+}
+
+.menuRow span:first-of-type {
+  flex: 1;
+}
+
+.count {
+  padding: 1px 8px;
+  border-radius: 9999px;
+  background: var(--color-status-danger-fg);
+  color: var(--color-brand-on);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* More: nine dots on their own, no circle. */
+.more {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 40px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.more .badge,
+.round .badge {
+  top: 8px;
+  right: 4px;
+}
+
+/* Back: first on the left of every page but the Homes. */
+.back {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 44px;
+  margin-right: -6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}

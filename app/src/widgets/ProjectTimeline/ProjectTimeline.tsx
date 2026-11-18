@@ -1,8 +1,10 @@
 'use client';
 
-// The Projects database's Timeline view: one bar per project from its
-// start to its end date, across weeks or months, colored by health, with
-// today marked. With a mouse, drag either end of a bar to change that date
+// The Projects database's Timeline view (Dreda v1.0 `Projects timeline`
+// 59140): one bar per project from its start to its end date, across weeks
+// or months, grouped under "Area › Folder", each bar its project's label
+// hue filled to its progress, an overdue pill after it, and today on a
+// lime line. With a mouse, drag either end of a bar to change that date
 // (whole days). Projects without both dates are listed under the chart.
 
 import { useRef, useState } from 'react';
@@ -20,6 +22,16 @@ export interface TimelineRow {
   accent: string;
   fill: string;
   label?: string;
+  /** "Work › Dreda app": rows with the same group sit under one heading. */
+  group?: string;
+  /** 0 to 1: the bar fills this much in the accent. */
+  progress?: number;
+  /** The dot before the name. */
+  dot?: string;
+  /** Text colour on the bar. */
+  ink?: string;
+  /** "1 overdue", after the bar in red. */
+  late?: string | null;
 }
 
 function startOfDay(d: Date) {
@@ -62,6 +74,15 @@ export function ProjectTimeline({
   else for (let d = from; d < to; d = new Date(d.getFullYear(), d.getMonth() + 1, 1)) ticks.push({ at: d, label: d.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' }) });
 
   const trackRef = useRef<HTMLDivElement>(null);
+  // Group headings, in the rows' own order.
+  const lines: ({ kind: 'group'; label: string } | { kind: 'row'; row: TimelineRow & { start: Date; end: Date } })[] = [];
+  let lastGroup: string | undefined;
+  for (const r of dated) {
+    if (r.group && r.group !== lastGroup) lines.push({ kind: 'group', label: r.group });
+    lastGroup = r.group;
+    lines.push({ kind: 'row', row: r });
+  }
+  const todayLabel = `Today, ${today.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`;
 
   function startDrag(e: React.PointerEvent, row: TimelineRow & { start: Date; end: Date }, edge: 'start' | 'end') {
     if (!finePointer || !onChange || e.button !== 0) return;
@@ -112,11 +133,18 @@ export function ProjectTimeline({
       <div className={styles.chart}>
         <div className={styles.names}>
           <div className={styles.axisSpacer} />
-          {dated.map((r) => (
-            <button key={r.id} type="button" className={styles.name} onClick={() => onOpen(r.id)} title={r.name}>
-              {r.name}
-            </button>
-          ))}
+          {lines.map((l) =>
+            l.kind === 'group' ? (
+              <div key={`g-${l.label}`} className={styles.groupName}>
+                {l.label}
+              </div>
+            ) : (
+              <button key={l.row.id} type="button" className={styles.name} onClick={() => onOpen(l.row.id)} title={l.row.name}>
+                {l.row.dot && <span className={styles.nameDot} style={{ background: l.row.dot }} aria-hidden />}
+                {l.row.name}
+              </button>
+            )
+          )}
         </div>
         <div className={styles.scroll}>
           <div ref={trackRef} className={styles.track} style={{ width }}>
@@ -130,8 +158,13 @@ export function ProjectTimeline({
             {ticks.map((t) => (
               <span key={`l${t.at.getTime()}`} className={styles.gridLine} style={{ left: x(t.at) }} aria-hidden />
             ))}
-            <span className={styles.today} style={{ left: x(today) }} aria-label="Today" role="img" />
-            {dated.map((r) => {
+            <span className={styles.today} style={{ left: x(today) }} aria-label={todayLabel} role="img" />
+            <span className={styles.todayChip} style={{ left: x(today) }}>
+              {todayLabel}
+            </span>
+            {lines.map((l) => {
+              if (l.kind === 'group') return <div key={`g-${l.label}`} className={styles.groupRow} aria-hidden />;
+              const r = l.row;
               const live = drag?.id === r.id ? drag : r;
               const left = x(live.start);
               const w = Math.max(pxDay, (days(live.start, live.end) + 1) * pxDay);
@@ -139,7 +172,14 @@ export function ProjectTimeline({
                 <div key={r.id} className={styles.row}>
                   <div
                     className={styles.bar}
-                    style={{ left, width: w, background: r.fill, borderLeftColor: r.accent }}
+                    style={{
+                      left,
+                      width: w,
+                      background: r.progress !== undefined ? `linear-gradient(to right, ${r.accent} ${Math.round(r.progress * 100)}%, ${r.fill} ${Math.round(r.progress * 100)}%)` : r.fill,
+                      borderLeftColor: r.accent,
+                      borderColor: r.progress !== undefined ? r.accent : undefined,
+                      color: r.ink,
+                    }}
                     role="button"
                     tabIndex={0}
                     onClick={() => onOpen(r.id)}
@@ -152,6 +192,12 @@ export function ProjectTimeline({
                     <span className={styles.barText}>{r.label ?? r.name}</span>
                     {finePointer && onChange && <span className={styles.handle} data-edge="end" onPointerDown={(e) => startDrag(e, r, 'end')} onClick={(e) => e.stopPropagation()} aria-hidden />}
                   </div>
+                  {r.late && (
+                    <span className={styles.late} style={{ left: left + w + 8 }}>
+                      <span className={styles.lateDot} aria-hidden />
+                      {r.late}
+                    </span>
+                  )}
                 </div>
               );
             })}

@@ -1,0 +1,74 @@
+.strip,
+.month {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 2px;
+}
+
+.month {
+  row-gap: 4px;
+  padding: 12px 8px;
+}
+
+.month > .name {
+  text-align: center;
+}
+
+.day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 8px 2px;
+  border: 0;
+  border-radius: 14px;
+  background: none;
+  color: var(--color-text-primary);
+  font: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.day[aria-pressed='true'] {
+  background: var(--color-accent-default);
+}
+
+.day[data-outside] {
+  opacity: 0.4;
+}
+
+.name {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
+.day[aria-pressed='true'] .name {
+  color: var(--color-text-primary);
+}
+
+.num {
+  font-size: 18px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.month .num {
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.day[data-today] .num {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+}
+
+.dot[data-on] {
+  background: var(--color-primary);
+}

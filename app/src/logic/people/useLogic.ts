@@ -4,7 +4,7 @@
 // (./store.ts) until a `people` collection exists; nothing is sent anywhere.
 
 import { useMemo, useState } from 'react';
-import { DEFAULT_CATEGORIES, filterPeople, groupPeople, type Channel, type PeopleFilter, type PeopleSort, type Person, type PersonPriority } from '@/src/viewmodels/people';
+import { contactHref, DEFAULT_CATEGORIES, filterPeople, goingCold, groupPeople, waitingOnYouRows, youWaitRows, type WaitRow, type Channel, type PeopleFilter, type PeopleSort, type Person, type PersonPriority } from '@/src/viewmodels/people';
 import { peopleStore, usePeople } from './store';
 
 export interface PersonDraft {
@@ -83,5 +83,47 @@ export function usePerson(id: string) {
     person,
     archive: () => person && peopleStore.update(person.id, { archived: true }),
     restore: () => person && peopleStore.update(person.id, { archived: false }),
+  };
+}
+
+/** Time v1.0 People (Dreda v1.0 `People` 56563, phone 69981): who waits on
+ * you, who you wait on, who is going cold, and everyone by last in touch.
+ * Nudge and Reply open a message on their channel and count as being in
+ * touch today. */
+export function usePeopleBoard() {
+  const people = usePeople();
+  const now = useMemo(() => new Date(), []);
+  const live = useMemo(() => people.filter((p) => !p.archived), [people]);
+  const waitingOnYou = useMemo(() => waitingOnYouRows(people, now), [people, now]);
+  const youWait = useMemo(() => youWaitRows(people, now), [people, now]);
+  const cold = useMemo(() => goingCold(people, now), [people, now]);
+  const everyone = useMemo(() => [...live].sort((a, b) => (b.lastSpoke?.getTime() ?? 0) - (a.lastSpoke?.getTime() ?? 0)), [live]);
+  const seenThisWeek = live.filter((p) => p.lastSpoke && now.getTime() - p.lastSpoke.getTime() < 7 * 86_400_000).length;
+  const seenProjects = new Set(live.filter((p) => p.lastSpoke && now.getTime() - p.lastSpoke.getTime() < 7 * 86_400_000).flatMap((p) => p.projects ?? [])).size;
+
+  function contact(person: Person, subject: string) {
+    const href = contactHref(person, subject);
+    peopleStore.update(person.id, { lastSpoke: new Date() });
+    if (href) window.open(href, '_blank', 'noopener');
+  }
+
+  return {
+    now,
+    everyone,
+    waitingOnYou,
+    youWait,
+    cold,
+    seenThisWeek,
+    seenProjects,
+    reply: (row: WaitRow) => contact(row.person, row.item.why || row.item.title),
+    nudge: (row: WaitRow) => contact(row.person, `Checking in: ${row.item.why || row.item.title}`),
+    /** One email to everyone you wait on, each in Bcc. */
+    nudgeAll: () => {
+      const emails = [...new Set(youWait.map((r) => r.person.email).filter(Boolean))];
+      youWait.forEach((row) => peopleStore.update(row.person.id, { lastSpoke: new Date() }));
+      if (emails.length) window.open(`mailto:?bcc=${encodeURIComponent(emails.join(','))}&subject=${encodeURIComponent('Checking in')}`, '_blank', 'noopener');
+    },
+    message: (person: Person) => contact(person, 'Hello'),
+    hasContact: (person: Person) => contactHref(person, '') !== null,
   };
 }

@@ -253,6 +253,7 @@ export function TaskEditScreen({ taskId, onClose }: { taskId: string | null; onC
           {sheet === 'date' && (
             <Modal title="Date" onClose={() => setSheet(null)}>
               <HeroCalendar.Root
+                className={styles.calendarRoot}
                 focusedValue={parseDate(toDateOnly(dateMonthCursor))}
                 onFocusChange={(next) => setDateMonthCursor(new Date(next.year, next.month - 1, next.day))}
                 value={date ? parseDate(date) : undefined}

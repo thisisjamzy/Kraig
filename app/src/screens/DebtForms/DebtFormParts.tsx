@@ -203,6 +203,7 @@ export function DateSheet({ title, value, onChange, onClose }: { title: string; 
   return (
     <Modal title={title} onClose={onClose}>
       <HeroCalendar.Root
+                className={cf.calendarRoot}
         defaultFocusedValue={parseDate(value)}
         value={parseDate(value)}
         onChange={(next) => {

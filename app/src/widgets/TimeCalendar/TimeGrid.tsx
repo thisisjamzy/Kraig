@@ -2,23 +2,24 @@
 
 // A day or week time grid (Today's day timeline, the Calendar's Day and
 // Week views).
-//   - Hours from 07:00 (or the first item) to 20:00 (or the last item);
+//   - Hours from 06:00 (or the first item) to 22:00 (or the last item);
 //     "Show full day" shows 00:00 to 24:00.
 //   - All-day row: one line per item, up to 2 a day, then "+N more",
 //     which opens the whole row in place.
-//   - Blocks: a pale fill of their kind's tag color with a 3px left
-//     accent (dashed for free tasks); the time at the top from 30 minutes
-//     (not on blocks narrower than 80px), then the full title, wrapped;
-//     the project too on long blocks. Google events
-//     carry a small "G".
+//   - Blocks (Dreda v1.0): the tinted body of their label hue (the
+//     project's, else the type's) with a 3px bar of the hue on the top
+//     edge (dashed for free tasks); the full title, wrapped, then the time
+//     from 30 minutes (not on blocks narrower than 80px); the project too
+//     on long blocks. Google events carry a small "G".
 //   - Overlaps: side by side. Day view: when the columns would be too
 //     narrow, that group scrolls sideways as a strip. Week view: two side
 //     by side, then a "+N" chip listing the slot.
 //   - Mouse: hover shows a preview card; drag a task to move it, drag its
 //     bottom edge to resize (15-minute steps). A task dragged in from a
 //     list drops onto the time under the pointer. Touch: tap opens.
-//   - Today: a red line with a dot at the current time; the grid scrolls
-//     to it when it opens.
+//   - Today: an ink line at the current time, across the days up to
+//     today, with the time on a lime chip in the hour gutter (lime means
+//     now); the grid scrolls to it when it opens.
 
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { useLayout } from '@/src/shared/hooks/useLayout';
@@ -43,7 +44,7 @@ const DAY_MIN_COLUMN = 140;
 const WEEK_MAX_COLUMNS = 2;
 
 function hhmm(min: number) {
-  return `${String(Math.floor(min / 60) % 24).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
+  return `${Math.floor(min / 60) % 24}:${String(min % 60).padStart(2, '0')}`;
 }
 
 export interface TimeGridProps {
@@ -214,6 +215,7 @@ export function TimeGrid(props: TimeGridProps) {
         tabIndex={0}
         className={styles.block}
         data-kind={p.item.kind}
+        data-hue={p.item.hue}
         data-free={p.item.free || undefined}
         data-done={p.item.done || undefined}
         data-narrow={narrow || undefined}
@@ -237,15 +239,15 @@ export function TimeGrid(props: TimeGridProps) {
       >
         {!bar && (
           <>
+            <span className={styles.blockTitle}>
+              {p.item.kind === 'google' && <span className={styles.gBadge}>G</span>}
+              {p.item.title}
+            </span>
             {minutes >= 30 && !narrow && (
               <span className={styles.blockTime}>
                 {hhmm(startMin)} to {hhmm(endMin)}
               </span>
             )}
-            <span className={styles.blockTitle}>
-              {p.item.kind === 'google' && <span className={styles.gBadge}>G</span>}
-              {p.item.title}
-            </span>
             {minutes >= 75 && !narrow && p.item.project && <span className={styles.blockProject}>{p.item.project}</span>}
           </>
         )}
@@ -344,11 +346,6 @@ export function TimeGrid(props: TimeGridProps) {
           );
         })}
         {incoming && block(incoming, iso, { left: 2, right: 4 }, width - 6)}
-        {showNow && iso === today && (
-          <div className={styles.nowLine} style={{ top: px(nowMin) }} role="img" aria-label={`Now, ${hhmm(nowMin)}`}>
-            <span className={styles.nowDot} />
-          </div>
-        )}
       </div>
     );
   }
@@ -378,8 +375,10 @@ export function TimeGrid(props: TimeGridProps) {
                 data-today={iso === today || undefined}
                 onClick={() => props.onPickDay?.(iso)}
               >
-                <span>{d.toLocaleDateString('en-GB', { weekday: 'short' })}</span>
-                <span className={styles.weekHeadNum}>{d.getDate()}</span>
+                <span className={styles.weekHeadPill}>
+                  <span>{d.toLocaleDateString('en-GB', { weekday: 'short' })}</span>
+                  <span className={styles.weekHeadNum}>{d.getDate()}</span>
+                </span>
               </button>
             );
           })}
@@ -398,6 +397,7 @@ export function TimeGrid(props: TimeGridProps) {
                     type="button"
                     className={styles.allDayItem}
                     data-kind={i.kind}
+                    data-hue={i.hue}
                     data-done={i.done || undefined}
                     title={i.title}
                     onClick={() => props.onOpen(i)}
@@ -431,9 +431,22 @@ export function TimeGrid(props: TimeGridProps) {
                 {hhmm(h * 60)}
               </span>
             ))}
+            {showNow && (
+              <span className={styles.nowChip} style={{ top: px(nowMin) }}>
+                {hhmm(nowMin)}
+              </span>
+            )}
           </div>
           <div ref={bodyRef} className={styles.columns} style={{ gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))` }}>
             {perDay.map(({ iso, items }) => dayColumn(iso, items))}
+            {showNow && (
+              <div
+                className={styles.nowLine}
+                style={{ top: px(nowMin), width: `${((todayIndex + 1) / days.length) * 100}%` }}
+                role="img"
+                aria-label={`Now, ${hhmm(nowMin)}`}
+              />
+            )}
           </div>
         </div>
       </div>

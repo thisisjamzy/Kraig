@@ -110,6 +110,7 @@ export function ProjectFormScreen({ projectId }: { projectId?: string }) {
           {sheet === 'timeline' && (
             <Modal title="Timeline" onClose={() => setSheet(null)}>
               <HeroRangeCalendar.Root
+                className={styles.calendarRoot}
                 focusedValue={parseDate(toDateOnly(dateMonthCursor))}
                 onFocusChange={(next) => setDateMonthCursor(new Date(next.year, next.month - 1, next.day))}
                 value={startDate && endDate ? { start: parseDate(startDate), end: parseDate(endDate) } : null}

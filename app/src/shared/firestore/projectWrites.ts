@@ -6,10 +6,10 @@
 // either deleted too, or kept as standalone tasks: projectId, and the
 // areaId/bucketId mirrored from the project, cleared.
 
-import { getDocs, query, serverTimestamp, setDoc, Timestamp, where, writeBatch } from 'firebase/firestore';
+import { getDocs, query, serverTimestamp, setDoc, Timestamp, where, writeBatch, type DocumentReference } from 'firebase/firestore';
 import { getFirebaseFirestore } from '@/src/shared/config/firebaseClient';
 import { DEFAULT_PRIORITY } from '@/src/viewmodels/projects';
-import { areaRef, projectRef, sectionRef, tasksRef } from './refs';
+import { areaRef, projectRef, projectsRef, sectionRef, sectionsRef, tasksRef } from './refs';
 import { guardWrite } from './writeGuard';
 
 // Firestore caps a batch at 500 writes.
@@ -100,3 +100,49 @@ async function quickCreateSectionWrite(uid: string, areaId: string, name: string
 export const quickCreateArea = guardWrite('quickCreateArea', quickCreateAreaWrite);
 export const quickCreateProject = guardWrite('quickCreateProject', quickCreateProjectWrite);
 export const quickCreateSection = guardWrite('quickCreateSection', quickCreateSectionWrite);
+
+// ---- Deleting a folder or an area for good (from the Archive). What was
+// inside is kept, never deleted with it: a folder's projects and tasks
+// move to its area's default folder; an area's folders go, and its
+// projects and tasks become unfiled (no area, no folder).
+
+async function updateAll(refs: { ref: DocumentReference }[], patch: Record<string, unknown>) {
+  const db = getFirebaseFirestore();
+  for (let i = 0; i < refs.length; i += BATCH_LIMIT) {
+    const batch = writeBatch(db);
+    for (const d of refs.slice(i, i + BATCH_LIMIT)) batch.update(d.ref, patch);
+    await batch.commit();
+  }
+}
+
+async function deleteSectionWrite(uid: string, sectionId: string, areaId: string): Promise<void> {
+  const home = `default-${areaId}`;
+  const [projects, tasks] = await Promise.all([getDocs(query(projectsRef(uid), where('bucketId', '==', sectionId))), getDocs(query(tasksRef(uid), where('bucketId', '==', sectionId)))]);
+  await updateAll(projects.docs, { bucketId: home, updatedAt: serverTimestamp() });
+  await updateAll(tasks.docs, { bucketId: home });
+  const last = writeBatch(getFirebaseFirestore());
+  last.delete(sectionRef(uid, sectionId));
+  await last.commit();
+}
+
+async function deleteAreaWrite(uid: string, areaId: string): Promise<void> {
+  const [sections, projects, tasks] = await Promise.all([
+    getDocs(query(sectionsRef(uid), where('areaId', '==', areaId))),
+    getDocs(query(projectsRef(uid), where('areaId', '==', areaId))),
+    getDocs(query(tasksRef(uid), where('areaId', '==', areaId))),
+  ]);
+  await updateAll(projects.docs, { areaId: null, bucketId: null, updatedAt: serverTimestamp() });
+  await updateAll(tasks.docs, { areaId: null, bucketId: null });
+  const db = getFirebaseFirestore();
+  for (let i = 0; i < sections.docs.length; i += BATCH_LIMIT) {
+    const batch = writeBatch(db);
+    for (const s of sections.docs.slice(i, i + BATCH_LIMIT)) batch.delete(s.ref);
+    await batch.commit();
+  }
+  const last = writeBatch(db);
+  last.delete(areaRef(uid, areaId));
+  await last.commit();
+}
+
+export const deleteSectionForGood = guardWrite('deleteSectionForGood', deleteSectionWrite);
+export const deleteAreaForGood = guardWrite('deleteAreaForGood', deleteAreaWrite);

@@ -175,3 +175,91 @@
   text-decoration: underline;
   cursor: pointer;
 }
+
+/* ==== Dreda v1.0 `Projects timeline` (59140) ==== */
+.name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 44px;
+  padding: 0 20px;
+  border-bottom-color: var(--color-border-default);
+  font-size: 14px;
+}
+
+.nameDot {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: 50%;
+}
+
+.groupName,
+.groupRow {
+  height: 32px;
+  border-bottom: 1px solid var(--color-border-default);
+  background: var(--color-background);
+}
+
+.groupName {
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  color: var(--color-text-primary);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.row {
+  height: 44px;
+  border-bottom-color: var(--color-border-default);
+}
+
+.bar {
+  top: 8px;
+  height: 28px;
+  border: 1px solid;
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+.today {
+  border-left: 2px solid var(--color-accent-default);
+}
+
+.todayChip {
+  position: absolute;
+  top: 4px;
+  z-index: 3;
+  transform: translateX(-50%);
+  padding: 2px 8px;
+  border-radius: 9999px;
+  background: var(--color-accent-default);
+  color: var(--color-text-primary);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.late {
+  position: absolute;
+  top: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: 9999px;
+  background: var(--label-rose-bg);
+  color: var(--color-status-danger-fg);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.lateDot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--color-status-danger-fg);
+}

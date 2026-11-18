@@ -7,12 +7,15 @@ import type { FormKind } from '@/src/shared/navigation/formPeek';
 import {
   ArrowLeftRight,
   AtSign,
+  BadgeCheck,
   CalendarDays,
   FileText,
+  Folder,
   HandCoins,
   House,
   Layers,
   LayoutGrid,
+  Link2,
   PieChart,
   Sun,
   Wallet,
@@ -33,8 +36,10 @@ export interface TreePage {
   create?: { label: string; href: string; peek?: FormKind };
   /** Other paths that light this page up. */
   also?: string[];
-  /** The heading it sits under (Time: The day, The work). */
+  /** The heading it sits under (Time: Plan, Organise, Review). */
   group?: string;
+  /** A red count beside the label: Tasks shows the overdue count. */
+  badge?: 'overdue';
 }
 
 export const PAGE_TREE: Record<AppMode, TreePage[]> = {
@@ -60,35 +65,33 @@ export const PAGE_TREE: Record<AppMode, TreePage[]> = {
     // forecast page is off until it is redesigned to be actionable.
     { id: 'payments', href: '/payments', label: 'Payments', icon: CalendarDays, also: ['/baskets/items'], group: 'Budgeting' },
   ],
-  // Time (Design-System HANDOFF section 21). Focus and Plan your time are no
-  // longer destinations: Focus's matrix and filters live on Today and Work,
-  // the week board in Calendar. Their routes still open. Areas and Projects
-  // are one page, Work; Resources and the archive are one page, Library.
+  // Time (Dreda v1.0 `Nav/Drawer Time`, BUILD-KIT v1.0 section 5.1): Plan,
+  // Organise, Review. The drawer never lists individual projects. Work
+  // (/work) is no longer a destination; its route still opens. Planning
+  // settings is reached from Settings.
   time: [
-    { id: 'today', href: '/projects', label: 'Today', icon: Sun, also: ['/tasks', '/projects/focus'], group: 'The day' },
-    { id: 'calendar', href: '/projects/calendar', label: 'Calendar', icon: CalendarDays, also: ['/projects/plan'], group: 'The day' },
-    { id: 'people', href: '/people', label: 'People', icon: AtSign, group: 'The day', create: { label: 'Add someone', href: '/people/new' } },
-    {
-      id: 'work',
-      href: '/work',
-      label: 'Work',
-      icon: Layers,
-      also: ['/projects/all', '/areas', '/sections'],
-      group: 'The work',
-      create: { label: 'New project', href: '/projects/new' },
-    },
-    { id: 'library', href: '/library', label: 'Library', icon: FileText, also: ['/resources'], group: 'The work' },
-    { id: 'insights', href: '/projects/insights', label: 'Insights', icon: PieChart, also: ['/projects/analytics'], group: 'The work' },
+    { id: 'time-home', href: '/projects/insights', label: 'Home', icon: House, group: 'Plan' },
+    { id: 'today', href: '/projects', label: 'Today', icon: Sun, also: ['/projects/focus'], group: 'Plan' },
+    { id: 'calendar', href: '/projects/calendar', label: 'Calendar', icon: CalendarDays, also: ['/projects/plan'], group: 'Plan' },
+    { id: 'scheduling', href: '/projects/calendar/links', label: 'Scheduling', icon: Link2, group: 'Plan' },
+    { id: 'tasks', href: '/tasks', label: 'Tasks', icon: BadgeCheck, badge: 'overdue', group: 'Plan' },
+    { id: 'areas', href: '/areas', label: 'Areas', icon: LayoutGrid, group: 'Organise', create: { label: 'New area', href: '/areas/new' } },
+    { id: 'folders', href: '/sections', label: 'Folders', icon: Folder, group: 'Organise', create: { label: 'New folder', href: '/sections/new' } },
+    { id: 'projects', href: '/projects/all', label: 'Projects', icon: Layers, also: ['/work'], group: 'Organise', create: { label: 'New project', href: '/projects/new' } },
+    { id: 'people', href: '/people', label: 'People', icon: AtSign, group: 'Organise', create: { label: 'Add someone', href: '/people/new' } },
+    { id: 'library', href: '/library', label: 'Library', icon: FileText, also: ['/resources'], group: 'Organise' },
+    { id: 'insights', href: '/projects/analytics', label: 'Insights', icon: PieChart, group: 'Review' },
   ],
 };
 
 export const MODE_LABEL: Record<AppMode, string> = { money: 'Money', time: 'Time' };
-export const MODE_HOME: Record<AppMode, string> = { time: '/projects', money: '/home' };
+// Time's home is its Home page (the dashboard), since Today left the phone bar (18 Nov 2026).
+export const MODE_HOME: Record<AppMode, string> = { time: '/projects/insights', money: '/home' };
 
 /** The mode a path belongs to, or null when it's shared (settings, notifications). */
 export function modeOfPath(pathname: string | null): AppMode | null {
   if (!pathname) return null;
-  if (/^\/(projects|tasks|areas|sections|resources|work|people|library)(\/|$)/.test(pathname)) return 'time';
+  if (/^\/(projects|tasks|areas|sections|resources|work|people|library)(\/|$)/.test(pathname) || pathname === '/settings/planning') return 'time';
   if (
     /^\/(home|buckets|budget|payments|transactions|statistics|wallets|debts|categories|add-transaction|edit-transaction|edit-transfer|add-bucket-item|edit-bucket-item|create-category|transaction-templates)(\/|$)/.test(
       pathname
@@ -101,9 +104,14 @@ export function modeOfPath(pathname: string | null): AppMode | null {
 
 const pathOf = (href: string) => href.split('?')[0];
 
+/** A project's own page (or a new one): under /projects but not one of Time's pages. */
+const PROJECT_PAGE = /^\/projects\/(?!all$|focus|calendar|insights|analytics|plan)[^/]+/;
+
 /** The tree page a path belongs to (the longest matching href wins). */
 export function pageForPath(pathname: string | null): TreePage | null {
   if (!pathname) return null;
+  // A project (and a new one) lights up Projects, not Today's /projects.
+  if (PROJECT_PAGE.test(pathname)) return PAGE_TREE.time.find((p) => p.id === 'projects') ?? null;
   let best: TreePage | null = null;
   let score = -1;
   for (const page of [...PAGE_TREE.money, ...PAGE_TREE.time]) {
@@ -146,7 +154,7 @@ export function featurePageOf(pathname: string): string | null {
   const shared = /^\/(settings|notifications)(\/|$)/.exec(pathname);
   if (shared) return `/${shared[1]}`;
   // A project (and a new one) belongs to Projects, not Today's /projects.
-  if (/^\/projects\/(?!all$|focus|calendar|insights|analytics|plan)[^/]+/.test(pathname)) return '/work';
+  if (PROJECT_PAGE.test(pathname)) return '/projects/all';
   const page = pageForPath(pathname);
   // The Dashboard row in the sidebar is Money's home, not a feature.
   return page && page.id !== 'home' ? pathOf(page.href) : null;
@@ -165,7 +173,10 @@ export function backTargetFor(url: string, from: string | null): string | null {
   const feature = featurePageOf(path);
   if (feature && feature !== path) return feature;
   if (feature) {
-    const home = MODE_HOME[modeOfPath(path) ?? 'money'];
+    // Settings and Notifications belong to no module: back goes to the
+    // home of the module you came from (Time, from Planning or a Time page).
+    const mode = modeOfPath(path) ?? (from ? modeOfPath(pathOf(from)) : null) ?? 'money';
+    const home = MODE_HOME[mode];
     return home === path ? null : home;
   }
   if (!from) return null;

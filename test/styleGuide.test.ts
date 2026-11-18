@@ -22,6 +22,8 @@ const guideColours = new Set(
     ...Object.values(styleGuide.money).flatMap((s) => Object.values(s)),
     ...Object.values(styleGuide.data),
     ...styleGuide.chart,
+    ...Object.values(styleGuide.label).flatMap((s) => Object.values(s)),
+    ...Object.values(styleGuide.tonal),
     styleGuide.destructive,
   ].map((c) => c.toLowerCase())
 );
@@ -57,6 +59,19 @@ test('the guide block holds the same values as styleGuide.ts', () => {
     assert.equal(value(`sg-${flow}-bg`), styleGuide.money[flow].bg.toLowerCase());
   }
   styleGuide.chart.slice(0, 7).forEach((hex, i) => assert.equal(value(`sg-data-${i + 1}`), hex.toLowerCase(), `data-${i + 1}`));
+  for (const [hue, set] of Object.entries(styleGuide.label))
+    for (const [part, hex] of Object.entries(set)) assert.equal(value(`sg-label-${hue}-${part}`), hex.toLowerCase(), `label-${hue}-${part}`);
+  assert.equal(value('sg-tonal'), styleGuide.tonal.bg.toLowerCase());
+  assert.equal(value('sg-tonal-hover'), styleGuide.tonal.hover.toLowerCase());
+});
+
+test('the Time v1.0 variables exist: labels, tonal and the phone tab bar', () => {
+  for (const hue of Object.keys(styleGuide.label))
+    for (const part of ['bg', 'fg', 'border', 'solid']) assert.match(phone, new RegExp(`--label-${hue}-${part}: var\\(--sg-label-${hue}-${part}\\);`), `${hue}-${part}`);
+  assert.match(phone, /--color-tonal: var\(--sg-tonal\);/);
+  assert.match(phone, /--color-on-tonal: var\(--color-brand-default\);/);
+  assert.match(phone, /--nav-bar-bg: var\(--sg-neutral-900\);/);
+  assert.match(phone, /--nav-tab-bg: var\(--sg-neutral-700\);/);
 });
 
 test('the app variables point at the design semantic roles (BUILD-KIT section 3)', () => {

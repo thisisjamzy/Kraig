@@ -2,12 +2,11 @@
 
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { User, Bell, Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
+import { GreetingButton, GreetingHeader } from '@/src/phone/widgets/GreetingHeader/GreetingHeader';
 import { useAmountsHidden } from '@/src/shared/hooks/usePrivacy';
 import { hasAppHeader, navMode } from '@/src/shared/config/chromeVisibility';
 import { useCurrentAppBarAction } from '@/src/shared/appBar/appBarAction';
-import { useUnreadCount } from '@/src/shared/hooks/useNotifications';
-import { Logo } from '@/src/widgets/Logo/Logo';
 import styles from '@/src/phone/widgets/AppHeader/AppHeader.module.css';
 
 // Shared top toolbar for every hub route in both modes — rendered once at
@@ -23,44 +22,38 @@ export function AppHeader() {
   const pathname = usePathname();
   // A page's own action (Planning's per-tab one), shown before the bell.
   const action = useCurrentAppBarAction();
-  const { unread, urgent } = useUnreadCount();
   const [hidden, setHidden] = useAmountsHidden();
 
   if (!hasAppHeader(pathname)) {
     return null;
   }
 
+  const isMoney = navMode(pathname) === 'money';
   return (
     <header className={styles.header}>
-      <Logo className={styles.logo} />
-      <div className={styles.actions}>
-        {action &&
-          (action.href ? (
-            <Link href={action.href} className={styles.iconButton} aria-label={action.label} title={action.label}>
-              <action.icon size={18} strokeWidth={1.75} />
-            </Link>
-          ) : (
-            <button type="button" className={styles.iconButton} onClick={action.onClick} aria-label={action.label} title={action.label}>
-              <action.icon size={18} strokeWidth={1.75} />
-            </button>
-          ))}
-        {navMode(pathname) === 'money' && (
-          <button type="button" className={styles.iconButton} aria-pressed={hidden} aria-label={hidden ? 'Show amounts' : 'Hide amounts'} onClick={() => setHidden(!hidden)}>
-            {hidden ? <EyeOff size={18} strokeWidth={1.75} /> : <Eye size={18} strokeWidth={1.75} />}
-          </button>
-        )}
-        <Link href="/notifications" className={styles.iconButton} aria-label={unread ? `Notifications, ${unread} unread` : 'Notifications'}>
-          <Bell size={18} strokeWidth={1.75} />
-          {unread > 0 && (
-            <span className={styles.badge} data-urgent={urgent > 0 || undefined} aria-hidden>
-              {unread > 9 ? '9+' : unread}
-            </span>
-          )}
-        </Link>
-        <Link href="/settings" className={styles.iconButton} aria-label="Settings">
-          <User size={18} strokeWidth={1.75} />
-        </Link>
-      </div>
+      <GreetingHeader
+        module={isMoney ? 'money' : 'time'}
+        back={isMoney ? '/home' : '/projects/insights'}
+        actions={
+          <>
+            {action &&
+              (action.href ? (
+                <Link href={action.href} className={styles.iconButton} aria-label={action.label} title={action.label}>
+                  <action.icon size={18} strokeWidth={1.75} />
+                </Link>
+              ) : (
+                <button type="button" className={styles.iconButton} onClick={action.onClick} aria-label={action.label} title={action.label}>
+                  <action.icon size={18} strokeWidth={1.75} />
+                </button>
+              ))}
+            {isMoney && (
+              <GreetingButton label={hidden ? 'Show amounts' : 'Hide amounts'} pressed={hidden} onClick={() => setHidden(!hidden)}>
+                {hidden ? <EyeOff size={20} strokeWidth={2} /> : <Eye size={20} strokeWidth={2} />}
+              </GreetingButton>
+            )}
+          </>
+        }
+      />
     </header>
   );
 }

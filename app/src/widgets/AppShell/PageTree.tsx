@@ -20,6 +20,9 @@ import { areasRef, bucketsRef, projectRef, projectsRef } from '@/src/shared/fire
 import { updateBucketFields } from '@/src/shared/firestore/bucketBudget';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { useFavorites, type Favorite } from '@/src/shared/hooks/useFavorites';
+import { useAllTasks } from '@/src/shared/hooks/useAllTasks';
+import { overdueTasks } from '@/src/shared/firestore/taskInsights';
+import { actionableTasks } from '@/src/shared/tasks/recurringTasks';
 import { FLOW_LABEL, FLOW_TYPES } from '@/src/shared/budget/flow';
 import { useLocationSearch } from '@/src/shared/navigation/locationSearch';
 import { Popover } from '@/src/widgets/ListQuery/Popover';
@@ -108,6 +111,9 @@ export function PageTree({ mode, touch, onNavigate }: { mode: AppMode; touch: bo
   }, [mode, order]);
 
   const active = pageForPath(pathname);
+  // Tasks' red count (Dreda v1.0 Nav/Item Badge): overdue, recurring tasks by their own dates.
+  const { data: taskDocs } = useAllTasks();
+  const overdue = useMemo(() => (mode === 'time' ? overdueTasks(actionableTasks(taskDocs)).length : 0), [mode, taskDocs]);
 
   function toggleOpen(id: string) {
     const next = open.includes(id) ? open.filter((x) => x !== id) : [...open, id];
@@ -167,7 +173,7 @@ export function PageTree({ mode, touch, onNavigate }: { mode: AppMode; touch: bo
     );
   }
 
-  // Time groups its pages under headings (The day, The work); Money is one list.
+  // Time groups its pages under headings (Plan, Organise, Review); Money is one list.
   const sections = (() => {
     const out: { label: string; pages: TreePage[] }[] = [];
     for (const page of pages) {
@@ -219,6 +225,11 @@ export function PageTree({ mode, touch, onNavigate }: { mode: AppMode; touch: bo
                 <Link href={page.href} className={styles.rowLink} aria-current={isActive ? 'page' : undefined} onClick={onNavigate}>
                   <Icon size={20} strokeWidth={2} aria-hidden className={styles.rowGlyph} data-has-caret={page.children ? true : undefined} />
                   <span className={styles.rowLabel}>{page.label}</span>
+                  {page.badge === 'overdue' && overdue > 0 && (
+                    <span className={styles.countBadge} aria-label={`${overdue} overdue`}>
+                      {overdue > 99 ? '99+' : overdue}
+                    </span>
+                  )}
                 </Link>
                 {rowActions({ href: page.href, label: page.label, kind: page.id }, page.create)}
               </div>

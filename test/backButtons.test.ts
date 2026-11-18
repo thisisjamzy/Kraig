@@ -19,15 +19,16 @@ test('a page inside a feature goes back to that feature’s main page', () => {
     ['/transactions/t1', '/transactions'],
     ['/edit-transaction/t1', '/transactions'],
     ['/debts/d1/repay', '/debts'],
-    ['/projects/p1', '/work'],
-    ['/projects/p1/edit', '/work'],
-    ['/sections/s1', '/work'],
+    ['/projects/p1', '/projects/all'],
+    ['/projects/p1/edit', '/projects/all'],
+    ['/sections/s1', '/sections'],
     ['/projects/insights/p1', '/projects/insights'],
     ['/projects/calendar/events/e1', '/projects/calendar'],
-    ['/areas/a1', '/work'],
-    ['/projects/all', '/work'],
+    ['/areas/a1', '/areas'],
+    ['/projects/all', '/projects/insights'],
+    ['/work', '/projects/all'],
     ['/people/x1', '/people'],
-    ['/tasks/t1/edit', '/projects'],
+    ['/tasks/t1/edit', '/tasks'],
     ['/settings/export', '/settings'],
     ['/notifications/n1', '/notifications'],
   ];
@@ -40,12 +41,20 @@ test('a feature’s main page goes back to the mode’s home', () => {
   assert.equal(backTargetFor('/payments', null), '/home');
   // Priorities lives on Payments now: its old address goes back there.
   assert.equal(backTargetFor('/baskets/items', null), '/payments');
-  // Work holds Areas and Projects (Design-System HANDOFF section 21).
-  assert.equal(backTargetFor('/work', null), '/projects');
-  assert.equal(backTargetFor('/people', null), '/projects');
-  assert.equal(backTargetFor('/library', null), '/projects');
+  // Time v1.0: Time pages go back to Time's Home (the dashboard).
+  assert.equal(backTargetFor('/areas', null), '/projects/insights');
+  assert.equal(backTargetFor('/sections', null), '/projects/insights');
+  assert.equal(backTargetFor('/tasks', null), '/projects/insights');
+  assert.equal(backTargetFor('/people', null), '/projects/insights');
+  assert.equal(backTargetFor('/library', null), '/projects/insights');
+  assert.equal(backTargetFor('/projects', null), '/projects/insights');
   // The home itself: nowhere better, the caller's fallback.
-  assert.equal(backTargetFor('/projects', null), null);
+  assert.equal(backTargetFor('/projects/insights', null), null);
+  // Settings goes back to the module it was opened from.
+  assert.equal(backTargetFor('/settings', '/settings/planning'), '/projects/insights');
+  assert.equal(backTargetFor('/settings', '/areas'), '/projects/insights');
+  assert.equal(backTargetFor('/settings', '/budget'), '/home');
+  assert.equal(backTargetFor('/settings', null), '/home');
 });
 
 test('a form outside any feature goes to the main page of where it was opened', () => {

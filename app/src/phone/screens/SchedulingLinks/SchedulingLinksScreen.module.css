@@ -1,23 +1,294 @@
-/* Scheduling links on a phone. */
-
+/* Scheduling / Phone (Dreda v1.0 70131) and New link (70256). */
 .page {
-  padding-bottom: 120px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 100%;
+  padding: 0 16px calc(var(--bottom-bar-pad) + 96px);
+  background: var(--color-background);
 }
 
-.back {
+.segmented {
   display: grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px;
+  padding: 4px;
+  border-radius: 14px;
+  background: var(--color-bg-sunken);
+}
+
+.segmented button {
+  height: 34px;
   border: 0;
-  border-radius: 50%;
-  background: var(--color-surface);
+  border-radius: 10px;
+  background: none;
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.segmented button[aria-selected='true'] {
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  font-weight: 500;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 20px;
+  background: var(--color-bg-surface);
+}
+
+.linkHead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.bar {
+  align-self: stretch;
+  width: 4px;
+  flex: none;
+  border-radius: 9999px;
+}
+
+.linkText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.name {
+  color: var(--color-text-primary);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.meta {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
+.linkFoot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border-default);
+}
+
+.linkFoot .meta {
+  flex: 1;
+}
+
+.link {
+  flex: none;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-primary);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.count {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.booking {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 0;
+}
+
+.booking + .booking {
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border-default);
+}
+
+/* New link. */
+.formPage {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 100%;
+  padding: 0 16px calc(var(--safe-bottom) + 110px);
+  background: var(--color-background);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 20px;
+  background: var(--color-bg-surface);
+}
+
+.sectionTitle {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  color: var(--color-text-primary);
+  font-size: 13px;
+}
+
+.pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 14px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 12px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 16px;
+}
+
+textarea.input {
+  resize: vertical;
+}
+
+.dayRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+}
+
+.dayRow + .dayRow {
+  border-top: 1px solid var(--color-border-default);
+}
+
+.dayName {
+  width: 44px;
+  color: var(--color-text-primary);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.dayRow[data-off] .dayName {
+  color: var(--color-text-secondary);
+  font-weight: 400;
+}
+
+.dayRanges {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.range {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: var(--color-bg-sunken);
+  font-size: 13px;
+}
+
+.range input {
+  width: 62px;
+  border: 0;
+  background: none;
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 13px;
+}
+
+.unavailable {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.footer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  max-width: var(--app-max-width);
+  margin-inline: auto;
+  padding: 12px 16px calc(var(--safe-bottom) + 12px);
+  border-top: 1px solid var(--color-border-default);
+  background: var(--color-bg-surface);
+}
+
+.cancel,
+.create {
+  height: 48px;
+  border-radius: 9999px;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cancel {
+  border: 1px solid var(--color-border-default);
+  background: var(--color-bg-surface);
   color: var(--color-text-primary);
 }
 
-.body {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  padding: 8px var(--space-md) 0;
+.create {
+  border: 0;
+  background: var(--color-primary);
+  color: var(--color-brand-on);
+}
+
+.create:disabled {
+  opacity: 0.5;
+}
+
+.hint {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 12px;
 }

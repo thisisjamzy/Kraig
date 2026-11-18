@@ -3,13 +3,14 @@
 // as one item shape, and the pure layout rules. Tested in
 // test/timePages.test.ts.
 //
-//   Hours shown: from 07:00 (or the first item's hour, if earlier) to
-//   20:00 (or the last item's end, if later); "Show full day" shows 00:00
+//   Hours shown: from 06:00 (or the first item's hour, if earlier) to
+//   22:00 (or the last item's end, if later): the 16-hour working day. "Show full day" shows 00:00
 //   to 24:00.
 //   An item is at least MIN_MINUTES tall, so a 5-minute task is still
 //   tappable; overlapping items share columns (viewmodels/dayLayout.ts).
 
 import { layoutDay, type OverlapGroup } from './dayLayout';
+import type { LabelHue } from './projects';
 
 export type CalKind = 'todo' | 'meeting' | 'event' | 'google' | 'project' | 'payment';
 
@@ -36,10 +37,16 @@ export interface CalItem {
   href: string | null;
   /** Past its date and not done (a late payment): drawn in the danger colour. */
   late?: boolean;
+  /** Dreda v1.0 label hue: the project's, else the type's (TimeGrid). */
+  hue?: LabelHue;
+  /** A booking made on a scheduling link: opens the booking request. */
+  bookingId?: string;
+  /** Waiting for the host to confirm. */
+  toConfirm?: boolean;
 }
 
-export const DAY_START_HOUR = 7;
-export const DAY_END_HOUR = 20;
+export const DAY_START_HOUR = 6;
+export const DAY_END_HOUR = 22;
 export const MIN_MINUTES = 15;
 /** Below this width a block's title stays on one line. */
 export const NARROW_BLOCK_PX = 80;

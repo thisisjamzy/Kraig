@@ -7,6 +7,7 @@
 // it. The sections themselves are shared with the phone (src/settings).
 
 import { useEffect } from 'react';
+import Link from 'next/link';
 import { LogOut, X } from 'lucide-react';
 import { useLogic, SETTINGS_GROUPS, type SettingsSection } from '@/src/logic/settingsCenter/useLogic';
 import { SettingsFrame, SettingsSectionView } from '@/src/settings/SettingsSections';
@@ -44,6 +45,12 @@ export function SettingsDialog({ section, onSection, onClose }: { section: Setti
                   {s.label}
                 </button>
               ))}
+              {/* Planning is a full page (Dreda v1.0 Planning settings 65750). */}
+              {group.label === 'Time' && (
+                <Link href="/settings/planning" className={styles.navRow} onClick={onClose}>
+                  Planning
+                </Link>
+              )}
             </div>
           ))}
           <button type="button" className={styles.navRow} data-danger onClick={v.signOut}>

@@ -1,0 +1,232 @@
+/* The To plan peek: white, rounded top, a grabber, sitting on the tab bar. */
+.peek {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--bottom-bar-pad) + 68px);
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  max-width: var(--app-max-width);
+  margin-inline: auto;
+  padding: 8px 20px 28px;
+  border: 0;
+  border-radius: 20px 20px 0 0;
+  background: var(--color-bg-surface);
+  box-shadow: 0 -6px 24px color-mix(in srgb, var(--color-text-primary) 8%, transparent);
+  color: var(--color-text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.grabber {
+  align-self: center;
+  width: 36px;
+  height: 4px;
+  border-radius: 9999px;
+  background: var(--color-border-strong);
+}
+
+.peekRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.peekTitle {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 9999px;
+  background: var(--label-grey-bg);
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.lateCount {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 9999px;
+  background: var(--label-rose-bg);
+  color: var(--color-status-danger-fg);
+  font-size: 12px;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-status-danger-fg);
+}
+
+.peekMeta {
+  margin-left: auto;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tonal,
+.primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  border: 0;
+  border-radius: 9999px;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tonal {
+  background: var(--color-tonal);
+  color: var(--color-on-tonal);
+}
+
+.primary {
+  background: var(--color-primary);
+  color: var(--color-brand-on);
+}
+
+.primary:disabled {
+  opacity: 0.6;
+}
+
+.ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 44px;
+  border: 0;
+  background: none;
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.note,
+.error {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
+.error {
+  color: var(--color-status-danger-fg);
+}
+
+/* Block time (Calendar / Phone / Block time sheet 67918). The sheet's own
+   title is for screen readers; this head is what shows. */
+.blockHead {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: -8px;
+}
+
+.kicker {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.blockTitle {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-family: var(--font-family-heading);
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.blockMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 2px 0 0;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
+.slotsLabel {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: 14px;
+}
+
+.slots {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.slot {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 68px;
+  padding: 12px 16px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 12px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.slot[aria-checked='true'] {
+  border: 2px solid var(--color-primary);
+  background: var(--color-tonal);
+}
+
+.radio {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border: 1.5px solid var(--color-border-strong);
+  border-radius: 50%;
+}
+
+.slot[aria-checked='true'] .radio {
+  border: 2px solid var(--color-primary);
+  background: radial-gradient(circle, var(--color-primary) 0 4px, transparent 5px);
+}
+
+.slotTime {
+  display: block;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.slotNote {
+  display: block;
+  margin-top: 2px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}

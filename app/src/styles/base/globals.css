@@ -118,6 +118,47 @@
   --sg-data-7: #9070d0;
   --sg-data-forecast: #b49be2;
   --sg-data-positive: #10b981;
+
+  /* Label hues (Dreda v1.0 `color/label/*`, Light): project and area
+     colour, tags, calendar blocks, type pills, avatars, tinted cards. */
+  --sg-label-purple-bg: #e9e1f7;
+  --sg-label-purple-border: #b49be2;
+  --sg-label-purple-fg: #342066;
+  --sg-label-purple-solid: #553199;
+  --sg-label-blue-bg: #dbeafe;
+  --sg-label-blue-border: #93c5fd;
+  --sg-label-blue-fg: #1e40af;
+  --sg-label-blue-solid: #2563eb;
+  --sg-label-teal-bg: #ccfbf1;
+  --sg-label-teal-border: #5eead4;
+  --sg-label-teal-fg: #115e59;
+  --sg-label-teal-solid: #0f766e;
+  --sg-label-green-bg: #d1fae5;
+  --sg-label-green-border: #6ee7b7;
+  --sg-label-green-fg: #065f46;
+  --sg-label-green-solid: #047857;
+  --sg-label-lime-bg: #f4fed3;
+  --sg-label-lime-border: #d3fc72;
+  --sg-label-lime-fg: #4a6717;
+  --sg-label-lime-solid: #5d8215;
+  --sg-label-amber-bg: #fef3c7;
+  --sg-label-amber-border: #fcd34d;
+  --sg-label-amber-fg: #92400e;
+  --sg-label-amber-solid: #b45309;
+  --sg-label-orange-bg: #ffedd5;
+  --sg-label-orange-border: #fdba74;
+  --sg-label-orange-fg: #9a3412;
+  --sg-label-orange-solid: #c2410c;
+  --sg-label-rose-bg: #ffe4e6;
+  --sg-label-rose-border: #fda4af;
+  --sg-label-rose-fg: #9f1239;
+  --sg-label-rose-solid: #e11d48;
+  --sg-label-grey-bg: #f3f4f6;
+  --sg-label-grey-border: #d1d5db;
+  --sg-label-grey-fg: #1f2937;
+  --sg-label-grey-solid: #4b5563;
+  --sg-tonal: #eeeaf5;
+  --sg-tonal-hover: #e0daed;
   --font-family-mono: var(--font-plex-mono), 'IBM Plex Mono', ui-monospace, monospace;
   --sg-button-sm: 36px;
   --sg-button-md: 44px;
@@ -280,6 +321,55 @@
   --money-tint-blue: var(--color-brand-subtle);
   --money-tint-yellow: var(--color-accent-subtle);
   --money-ink: var(--color-text-primary);
+
+  /* Labels (BUILD-KIT v1.0 section 3): tinted bg with same-hue fg, the
+     border, and the solid for bars, dots and block edges. */
+  --label-purple-bg: var(--sg-label-purple-bg);
+  --label-purple-border: var(--sg-label-purple-border);
+  --label-purple-fg: var(--sg-label-purple-fg);
+  --label-purple-solid: var(--sg-label-purple-solid);
+  --label-blue-bg: var(--sg-label-blue-bg);
+  --label-blue-border: var(--sg-label-blue-border);
+  --label-blue-fg: var(--sg-label-blue-fg);
+  --label-blue-solid: var(--sg-label-blue-solid);
+  --label-teal-bg: var(--sg-label-teal-bg);
+  --label-teal-border: var(--sg-label-teal-border);
+  --label-teal-fg: var(--sg-label-teal-fg);
+  --label-teal-solid: var(--sg-label-teal-solid);
+  --label-green-bg: var(--sg-label-green-bg);
+  --label-green-border: var(--sg-label-green-border);
+  --label-green-fg: var(--sg-label-green-fg);
+  --label-green-solid: var(--sg-label-green-solid);
+  --label-lime-bg: var(--sg-label-lime-bg);
+  --label-lime-border: var(--sg-label-lime-border);
+  --label-lime-fg: var(--sg-label-lime-fg);
+  --label-lime-solid: var(--sg-label-lime-solid);
+  --label-amber-bg: var(--sg-label-amber-bg);
+  --label-amber-border: var(--sg-label-amber-border);
+  --label-amber-fg: var(--sg-label-amber-fg);
+  --label-amber-solid: var(--sg-label-amber-solid);
+  --label-orange-bg: var(--sg-label-orange-bg);
+  --label-orange-border: var(--sg-label-orange-border);
+  --label-orange-fg: var(--sg-label-orange-fg);
+  --label-orange-solid: var(--sg-label-orange-solid);
+  --label-rose-bg: var(--sg-label-rose-bg);
+  --label-rose-border: var(--sg-label-rose-border);
+  --label-rose-fg: var(--sg-label-rose-fg);
+  --label-rose-solid: var(--sg-label-rose-solid);
+  --label-grey-bg: var(--sg-label-grey-bg);
+  --label-grey-border: var(--sg-label-grey-border);
+  --label-grey-fg: var(--sg-label-grey-fg);
+  --label-grey-solid: var(--sg-label-grey-solid);
+
+  /* Tonal buttons (Plan my day, Block time, Nudge all). */
+  --color-tonal: var(--sg-tonal);
+  --color-tonal-hover: var(--sg-tonal-hover);
+  --color-on-tonal: var(--color-brand-default);
+
+  /* Phone tab bar (Dreda v1.0 Nav/Tab bar): the dark floating bar and its
+     inactive round tabs. */
+  --nav-bar-bg: var(--sg-neutral-900);
+  --nav-tab-bg: var(--sg-neutral-700);
 }
 
 * {

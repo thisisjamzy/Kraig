@@ -3,7 +3,7 @@
 .avatar {
   flex: none;
   border-radius: 50%;
-  background: var(--color-brand-pressed);
+  background: var(--label-lime-bg);
 }
 
 .overline,

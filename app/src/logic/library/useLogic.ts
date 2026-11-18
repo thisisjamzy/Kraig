@@ -5,14 +5,16 @@
 // place; nothing is deleted by archiving. Restore puts it back. Delete for
 // good is offered only where a delete already exists (projects, and people
 // while they are in memory), always behind a type-the-name confirmation.
-// Resources are not stored yet.
+// Resources are not stored yet. Delete for good: a project goes with its
+// tasks; a folder's projects move to its area's default folder; an area's
+// folders go and its projects become unfiled (projectWrites.ts).
 
 import { useMemo } from 'react';
 import { query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
 import { useProjectsDb } from '@/src/logic/projectsDb/useProjectsDb';
 import { peopleStore, usePeople } from '@/src/logic/people/store';
 import { useFirestoreCollection } from '@/src/shared/firestore/hooks';
-import { deleteProject } from '@/src/shared/firestore/projectWrites';
+import { deleteAreaForGood, deleteProject, deleteSectionForGood } from '@/src/shared/firestore/projectWrites';
 import { areaRef, sectionRef, sectionsRef, taskRef } from '@/src/shared/firestore/refs';
 import type { FirestoreSection } from '@/src/shared/firestore/types';
 
@@ -57,10 +59,18 @@ export function useLogic() {
         name: s.name,
         meta: areaName(s.areaId) ?? '',
         restore: () => updateDoc(sectionRef(uid, s.id), { archived: false, updatedAt: serverTimestamp() }),
+        remove: () => deleteSectionForGood(uid, s.id, s.areaId),
       })),
       ...db.areaDocs
         .filter((a) => a.archived)
-        .map((a) => ({ key: `a-${a.id}`, kind: 'Area' as const, name: a.name, meta: a.description ?? '', restore: () => updateDoc(areaRef(uid, a.id), { archived: false, updatedAt: serverTimestamp() }) })),
+        .map((a) => ({
+          key: `a-${a.id}`,
+          kind: 'Area' as const,
+          name: a.name,
+          meta: a.description ?? '',
+          restore: () => updateDoc(areaRef(uid, a.id), { archived: false, updatedAt: serverTimestamp() }),
+          remove: () => deleteAreaForGood(uid, a.id),
+        })),
       ...db.taskDocs
         .filter((t) => t.archived)
         .map((t) => ({

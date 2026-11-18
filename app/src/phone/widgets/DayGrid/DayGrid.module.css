@@ -1,0 +1,147 @@
+/* The phone hour grid (Dreda v1.0 67699). */
+.grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.allDay {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 12px 0 56px;
+}
+
+.allDayItem {
+  max-width: 100%;
+  padding: 4px 10px;
+  border: 0;
+  border-radius: 9999px;
+  background: var(--b-bg);
+  color: var(--b-fg);
+  font: inherit;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.body {
+  position: relative;
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  margin: 8px 0;
+}
+
+.gutter {
+  position: relative;
+}
+
+.hour {
+  position: absolute;
+  left: 10px;
+  transform: translateY(-50%);
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.hour:first-child {
+  transform: none;
+}
+
+.nowChip {
+  position: absolute;
+  left: 4px;
+  z-index: 3;
+  transform: translateY(-50%);
+  padding: 2px 6px;
+  border-radius: 9999px;
+  background: var(--color-accent-default);
+  color: var(--color-text-primary);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.columns {
+  position: relative;
+  display: grid;
+  margin-right: 8px;
+}
+
+.column {
+  position: relative;
+  min-width: 0;
+}
+
+.grid[data-week] .column + .column {
+  border-left: 1px solid var(--color-border-default);
+}
+
+.line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px solid var(--color-border-default);
+  pointer-events: none;
+}
+
+.block {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  overflow: hidden;
+  padding: 4px 10px;
+  border: 0;
+  border-top: 3px solid var(--b-solid);
+  border-radius: 8px;
+  background: var(--b-bg);
+  color: var(--b-fg);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.grid[data-week] .block {
+  padding: 3px 4px;
+}
+
+.block[data-free] {
+  border-top-style: dashed;
+}
+
+.title {
+  font-size: 13px;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.grid[data-week] .title {
+  font-size: 11px;
+}
+
+.time {
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nowLine {
+  position: absolute;
+  left: 0;
+  z-index: 2;
+  border-top: 1.5px solid var(--color-text-primary);
+  pointer-events: none;
+}
+:is(.block, .allDayItem)[data-hue='purple'] { --b-bg: var(--label-purple-bg); --b-fg: var(--label-purple-fg); --b-solid: var(--label-purple-solid); }
+:is(.block, .allDayItem)[data-hue='blue'] { --b-bg: var(--label-blue-bg); --b-fg: var(--label-blue-fg); --b-solid: var(--label-blue-solid); }
+:is(.block, .allDayItem)[data-hue='teal'] { --b-bg: var(--label-teal-bg); --b-fg: var(--label-teal-fg); --b-solid: var(--label-teal-solid); }
+:is(.block, .allDayItem)[data-hue='green'] { --b-bg: var(--label-green-bg); --b-fg: var(--label-green-fg); --b-solid: var(--label-green-solid); }
+:is(.block, .allDayItem)[data-hue='lime'] { --b-bg: var(--label-lime-bg); --b-fg: var(--label-lime-fg); --b-solid: var(--label-lime-solid); }
+:is(.block, .allDayItem)[data-hue='amber'] { --b-bg: var(--label-amber-bg); --b-fg: var(--label-amber-fg); --b-solid: var(--label-amber-solid); }
+:is(.block, .allDayItem)[data-hue='orange'] { --b-bg: var(--label-orange-bg); --b-fg: var(--label-orange-fg); --b-solid: var(--label-orange-solid); }
+:is(.block, .allDayItem)[data-hue='rose'] { --b-bg: var(--label-rose-bg); --b-fg: var(--label-rose-fg); --b-solid: var(--label-rose-solid); }
+:is(.block, .allDayItem)[data-hue='grey'] { --b-bg: var(--label-grey-bg); --b-fg: var(--label-grey-fg); --b-solid: var(--label-grey-solid); }

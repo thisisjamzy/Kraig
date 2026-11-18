@@ -182,3 +182,7 @@
   border-radius: 9999px;
   color: var(--color-text-primary);
 }
+
+a.navRow {
+  text-decoration: none;
+}

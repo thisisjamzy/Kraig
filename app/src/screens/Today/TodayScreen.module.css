@@ -1,309 +1,280 @@
-/* Today: Notion blocks with square corners and 1px light borders. */
+/* Today / Web (Dreda v1.0 54460). */
 
-.timeline {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-width: 0;
-}
-
-.panel {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px;
-  border: 1px solid var(--sg-neutral-200);
-  background: var(--color-background);
-}
-.panelTitle {
-  margin: 0;
-  font-size: 0.875rem;
-  font-weight: 600;
-}
-
-.muted {
-  margin: 0;
-  font-size: 0.875rem;
-  color: var(--sg-neutral-500);
-}
-
-.bar {
-  display: block;
-  height: 4px;
-  background: color-mix(in srgb, var(--sg-neutral-800) 9%, transparent);
-}
-
-.bar span {
-  display: block;
-  height: 100%;
-  background: var(--color-brand);
-}
-
-.dots {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-
-.dots span {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  border: 1.5px solid var(--sg-neutral-400);
-}
-
-.dots span[data-done] {
-  border-color: var(--color-brand);
-  background: var(--color-brand);
-}
-
-/* Three figures that never wrap. */
-.figures {
+.columns {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 6px;
-  padding-top: 8px;
-  border-top: 1px solid var(--sg-neutral-200);
-  font-size: 0.8125rem;
-  color: var(--sg-neutral-500);
+  grid-template-columns: minmax(0, 1fr) 440px;
+  gap: 20px;
+  align-items: start;
 }
 
-.figures span {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.figures strong {
-  color: var(--color-text-primary);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-
-.figures span[data-alert] strong {
-  color: var(--sg-destructive);
-}
-
-.nextList {
+.side,
+.stack {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.nextList li {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  gap: 16px;
   min-width: 0;
-  font-size: 0.875rem;
 }
-
-.nextTime {
-  flex: none;
-  width: 42px;
-  color: var(--sg-neutral-500);
-  font-variant-numeric: tabular-nums;
-}
-
-.nextIcon {
-  flex: none;
-  display: inline-grid;
-  color: var(--sg-neutral-500);
-}
-
-.nextTitle {
-  min-width: 0;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.nextTitle:hover {
-  text-decoration: underline;
-}
-
-.segmented {
-  display: flex;
-  padding: 2px;
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--sg-neutral-800) 6%, transparent);
-}
-
-.segmented button {
-  flex: 1;
-  min-height: 32px;
-  border: 0;
-  border-radius: 6px;
-  background: none;
-  color: var(--sg-neutral-500);
-  font: inherit;
-  font-size: 0.875rem;
-  cursor: pointer;
-}
-
-.segmented button[aria-selected='true'] {
-  background: var(--color-background);
-  color: var(--color-text-primary);
-  font-weight: 500;
-}
-
-@media (pointer: coarse) {
-  .segmented button {
-    min-height: 40px;
-  }
-}
-
-.overdueLink {
-  color: var(--sg-destructive);
-  font-weight: 500;
-}
-
-.progressLine {
-  margin: 4px 0 0;
-  font-size: 0.8125rem;
-  color: var(--sg-neutral-500);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* ==== Dreda.figcraft Today / Web ==== */
 
 .headerButton {
   display: inline-flex;
   align-items: center;
-  height: 44px;
-  padding: 0 18px;
+  height: 48px;
+  padding: 0 24px;
   border: 1px solid var(--color-border-default);
   border-radius: 9999px;
   background: var(--color-bg-surface);
   color: var(--color-text-primary);
-  font-size: 14px;
-  font-weight: 500;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
   text-decoration: none;
   white-space: nowrap;
+  cursor: pointer;
 }
 
 .headerButton:hover {
   background: var(--color-bg-sunken);
 }
 
-.dayCard,
-.tasksCard {
+/* The day: a white card, its title row over the hour grid. */
+.dayCard {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 20px;
+  min-width: 0;
+  overflow: hidden;
   border: 1px solid var(--color-border-default);
   border-radius: 20px;
   background: var(--color-bg-surface);
 }
 
-.cardHead {
+.dayHead {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
+  padding: 14px 16px 14px 64px;
+  border-bottom: 1px solid var(--color-border-default);
 }
 
-.cardTitle {
+.dayTitle {
   margin: 0;
-  font-family: var(--font-family-heading);
-  font-size: 22px;
-  font-weight: 600;
-  line-height: 30px;
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-weight: 500;
 }
 
-.cardMeta {
-  color: var(--color-text-tertiary);
+.dayMeta {
+  color: var(--color-text-secondary);
   font-size: 12px;
 }
 
-.tasksCard :global([class*='database']) {
-  padding: 0;
-  background: none;
-}
-
-.overdueLine {
-  color: var(--color-status-danger-fg);
-  font-size: 14px;
-  text-decoration: none;
-}
-
-.overdueLine:hover {
-  text-decoration: underline;
-}
-
+/* Now: dark ink, the label in lime (lime means now). */
 .nowCard {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  margin-bottom: 16px;
-  padding: 20px;
+  gap: 10px;
+  padding: 24px;
   border-radius: 20px;
-  background: var(--color-card-ink-bg);
-  color: var(--color-card-ink-fg);
+  background: var(--color-text-primary);
+  color: #fff;
 }
 
 .nowLabel {
   margin: 0;
-  color: var(--color-card-ink-muted);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.6px;
+  color: var(--color-accent-default);
+  font-size: 13px;
+  font-weight: 500;
   text-transform: uppercase;
+  letter-spacing: 0.02em;
 }
 
 .nowTitle {
   margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #fff;
   font-family: var(--font-family-heading);
   font-size: 22px;
-  font-weight: 600;
-  line-height: 30px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: left;
+  cursor: pointer;
 }
 
 .nowMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
   margin: 0;
-  color: var(--color-card-ink-muted);
+  color: color-mix(in srgb, #fff 85%, transparent);
   font-size: 14px;
 }
 
 .nowActions {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: 1fr;
-  gap: 10px;
-  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
 }
 
-.nowPrimary,
-.nowSecondary {
-  height: 44px;
-  border-radius: 12px;
+.nowDone,
+.nowMore {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 9999px;
   font: inherit;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
 }
 
-.nowPrimary {
-  border: 0;
+.nowDone {
   background: var(--color-accent-default);
-  color: var(--color-card-lime-fg);
+  color: var(--color-text-primary);
 }
 
-.nowSecondary {
-  border: 1px solid var(--color-card-ink-muted);
+.nowMore {
+  background: var(--color-tonal);
+  color: var(--color-on-tonal);
+}
+
+.nowDone:hover {
+  filter: brightness(0.96);
+}
+
+.nowMore:hover {
+  background: var(--color-tonal-hover);
+}
+
+.nowNext {
+  margin-left: auto;
+  color: color-mix(in srgb, #fff 85%, transparent);
+  font-size: 13px;
+}
+
+.nowError {
+  margin: 0;
+  color: var(--color-accent-default);
+  font-size: 13px;
+}
+
+/* Overdue and To plan, in one white card. */
+.listsCard {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 20px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 20px;
+  background: var(--color-bg-surface);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.listHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.listTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.listTitle[data-tone='danger'] {
+  color: var(--color-status-danger-fg);
+}
+
+.count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 9999px;
+  background: var(--label-grey-bg);
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.listTitle[data-tone='danger'] .count {
+  background: var(--label-rose-bg);
+  color: var(--color-status-danger-fg);
+}
+
+.textButton {
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 9999px;
   background: none;
-  color: var(--color-card-ink-fg);
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.textButton:hover {
+  background: var(--color-bg-sunken);
+}
+
+.tonal {
+  height: 32px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 9999px;
+  background: var(--color-tonal);
+  color: var(--color-on-tonal);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tonal:hover {
+  background: var(--color-tonal-hover);
+}
+
+.textButton:disabled,
+.tonal:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.moreLink {
+  align-self: flex-start;
+  color: var(--color-primary);
+  font-size: 12px;
+  text-decoration: none;
+}
+
+.moreLink:hover {
+  text-decoration: underline;
+}
+
+.note,
+.empty {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 13px;
 }

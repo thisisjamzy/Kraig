@@ -51,6 +51,16 @@ export function SettingsScreen() {
                 <ChevronRight size={16} strokeWidth={2} className={styles.actionRowChevron} />
               </Link>
             ))}
+          {group.label === 'Time' && (
+            <Link href="/settings/planning" className={styles.actionRow}>
+              <span className={styles.actionRowIcon} style={{ background: iconTint(index++) }} aria-hidden />
+              <span className={styles.actionRowText}>
+                <span className={styles.actionRowLabel}>Planning</span>
+                <span className={styles.actionRowMeta}>Task types and their time blocks, deep work limits, scheduling rules.</span>
+              </span>
+              <ChevronRight size={16} strokeWidth={2} className={styles.actionRowChevron} />
+            </Link>
+          )}
         </section>
       ))}
 

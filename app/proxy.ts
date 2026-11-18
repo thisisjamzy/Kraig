@@ -22,7 +22,8 @@ export default function proxy(request: NextRequest) {
   const signedIn = Boolean(request.cookies.get(SIGNED_IN_KEY));
 
   // Development-only preview pages (app/dev), with sample data.
-  if (OPEN_PATHS.has(pathname) || (process.env.NODE_ENV === 'development' && pathname.startsWith('/dev/'))) {
+  // Public booking pages (/book/[slug]): the booker has no account.
+  if (OPEN_PATHS.has(pathname) || pathname.startsWith('/book/') || (process.env.NODE_ENV === 'development' && pathname.startsWith('/dev/'))) {
     return NextResponse.next();
   }
 

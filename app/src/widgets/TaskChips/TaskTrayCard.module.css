@@ -1,0 +1,112 @@
+/* Dreda v1.0 `Task card` (52501): white, a 1px border, 14px corners. */
+.card {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 14px 12px 12px 14px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 14px;
+  background: var(--color-bg-surface);
+  cursor: grab;
+}
+
+.card:hover {
+  border-color: var(--color-border-strong, var(--color-border-default));
+  box-shadow: var(--shadow-raised);
+}
+
+.card[data-faded] {
+  opacity: 0.45;
+}
+
+.card:active {
+  cursor: grabbing;
+}
+
+.grip {
+  flex: none;
+  margin: 2px 6px 0 0;
+  color: var(--color-text-tertiary, var(--color-text-secondary));
+}
+
+.body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.body:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 4px;
+  border-radius: 6px;
+}
+
+.title {
+  color: var(--color-text-primary);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.length {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.right {
+  margin-left: auto;
+  flex: none;
+}
+
+/* Overdue: red text and a red dot on a pale red pill, never a red block. */
+.late {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 9999px;
+  background: var(--label-rose-bg);
+  color: var(--color-status-danger-fg);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.lateDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-status-danger-fg);
+}
+
+.day {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 9999px;
+  background: var(--label-grey-bg);
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  white-space: nowrap;
+}

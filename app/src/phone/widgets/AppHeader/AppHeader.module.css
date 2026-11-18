@@ -75,3 +75,15 @@
 .badge[data-urgent] {
   background: var(--sg-destructive);
 }
+
+/* Profile: your face (the Notionist avatar) on lime. */
+.face {
+  overflow: hidden;
+  padding: 0;
+  background: var(--label-lime-bg);
+}
+
+.face img {
+  width: 100%;
+  height: 100%;
+}

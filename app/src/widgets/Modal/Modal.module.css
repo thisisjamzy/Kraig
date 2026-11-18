@@ -81,3 +81,61 @@
     background: var(--color-bg-sunken);
   }
 }
+
+/* ==== Dreda v1.0 `Sheet` (53388, 53525) ==== */
+.sheetBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-top: calc(var(--safe-top) + 24px);
+  background: color-mix(in srgb, var(--sg-neutral-900) 40%, transparent);
+}
+
+.bottomSheet {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  max-width: var(--app-max-width);
+  max-height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 8px 20px calc(20px + var(--safe-bottom));
+  border-radius: 24px 24px 0 0;
+  background: var(--color-bg-surface);
+  animation: sheetUp var(--duration-morph, 240ms) var(--ease-out, ease-out);
+}
+
+.grabber {
+  align-self: center;
+  flex: none;
+  width: 36px;
+  height: 4px;
+  margin-bottom: 4px;
+  border-radius: 9999px;
+  background: var(--color-border-strong);
+}
+
+.sheetTitle {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-family: var(--font-family-heading);
+  font-size: 22px;
+  font-weight: 700;
+}
+
+@keyframes sheetUp {
+  from {
+    transform: translateY(24px);
+    opacity: 0.6;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bottomSheet {
+    animation: none;
+  }
+}

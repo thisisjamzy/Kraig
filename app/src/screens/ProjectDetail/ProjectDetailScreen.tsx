@@ -1,52 +1,44 @@
 'use client';
 
-// A project as a Notion page.
-//   Title with its color dot (or emoji). Properties: Status, Health, Area,
-//   Dates, Deadline, Progress, Forecast finish. A callout says why its
-//   health is what it is ("Nothing done in 9 days; at this pace it won't
-//   finish by 10 Oct.").
-//   Its tasks: a linked view of the Tasks database filtered to this
-//   project (Board by Status, List, Table, Calendar). Then milestones (a
-//   small table) and notes (free text).
-//   Large screens: a sticky right column with Health, Progress and the
-//   next milestone. Medium and phones: one column.
+// A project (Dreda v1.0 `Project detail` 64838).
+//   Crumb: its folder (else its area). Title and its brief. Add note opens
+//   Notes; New task adds a task to it.
+//   Four stat cards: progress (health), open tasks, due, time blocked this
+//   week. A view bar: Tasks (the table: time block, type, due, status),
+//   Board (by status), Notes. Milestones show under the tasks when it has
+//   any. About on the right (brief, folder, area, started), then Notes,
+//   written in place.
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { serverTimestamp, updateDoc } from 'firebase/firestore';
-import { healthSentence, useProjectsDb, type ProjectRow } from '@/src/logic/projectsDb/useProjectsDb';
-import { taskItem } from '@/src/logic/timeCalendar/useLogic';
-import { useLayout } from '@/src/shared/hooks/useLayout';
+import { CalendarDays, Check, FileText, Layers, Sun } from 'lucide-react';
+import { useLogic } from '@/src/logic/projectDetail/useLogic';
+import { healthSentence } from '@/src/logic/projectsDb/useProjectsDb';
 import { useTaskPanel } from '@/src/shared/navigation/taskPanel';
-import { projectRef } from '@/src/shared/firestore/refs';
+import { useFormLink } from '@/src/shared/navigation/useFormLink';
 import { actionableTasks } from '@/src/shared/tasks/recurringTasks';
-import { isoDay } from '@/src/viewmodels/calendarItems';
 import type { MilestoneStat } from '@/src/viewmodels/insights/metrics';
+import { plural } from '@/src/viewmodels/organise';
+import { durationText } from '@/src/viewmodels/todayPlan';
 import type { TaskRow } from '@/src/viewmodels/taskRow';
-import { Block, NotionPage } from '@/src/widgets/Database/NotionPage';
-import { TopBarControls } from '@/src/widgets/AppShell/TopBarSlot';
+import { NotionPage } from '@/src/widgets/Database/NotionPage';
+import { ConfirmDialog } from '@/src/widgets/ConfirmDialog/ConfirmDialog';
 import { Database } from '@/src/widgets/Database/Database';
-import type { ColumnDef, DefaultView } from '@/src/widgets/Database/types';
+import type { ColumnDef } from '@/src/widgets/Database/types';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
-import { MonthGrid } from '@/src/widgets/TimeCalendar/MonthGrid';
+import { StatCards } from '@/src/widgets/Dashboard/StatCard';
+import { TaskTable } from '@/src/widgets/TaskDb/TaskTable';
 import { Tag, type TagColor } from '@/src/widgets/TaskDb/Tag';
 import { taskCardSpec, taskColumns, taskGroups, taskListSpec, taskRowActions } from '@/src/widgets/TaskDb/taskDatabase';
+import { HEALTH_HUE } from '@/src/widgets/ProjectDb/projectDatabase';
+import { AboutCard, HeaderActions, longDate, SectionHead, TopBarActionsButton, ViewTabs } from '@/src/screens/Organise/parts';
+import org from '@/src/screens/Organise/Organise.module.css';
 import styles from './ProjectDetailScreen.module.css';
-import { useFormLink } from '@/src/shared/navigation/useFormLink';
-import { useRouter } from 'next/navigation';
 
-const ALL = ['name', 'status', 'importance', 'priority', 'type', 'date', 'time', 'start', 'end', 'project', 'area', 'timeMode', 'recurring', 'overdue', 'sync', 'created', 'completed'];
-const showOnly = (ids: string[]) => ALL.filter((id) => !ids.includes(id));
-const TASK_VIEWS: DefaultView<TaskRow>[] = [
-  { id: 'list', name: 'List', layout: 'list', group: 'status', hidden: showOnly(['name', 'date', 'time', 'importance', 'overdue']), collapsed: ['Done', 'Cancelled'] },
-  { id: 'board', name: 'Board', layout: 'board', group: 'status', hidden: showOnly(['name', 'date', 'importance', 'overdue']) },
-  { id: 'table', name: 'Table', layout: 'table', group: 'none', hidden: showOnly(['name', 'status', 'importance', 'date', 'time', 'timeMode', 'overdue']) },
-  { id: 'calendar', name: 'Calendar', layout: 'month', group: 'none' },
-];
+type View = 'tasks' | 'board' | 'notes';
 
 const MILESTONE_COLOR: Record<MilestoneStat['state'], TagColor> = { done: 'green', 'on track': 'blue', 'at risk': 'yellow', missed: 'red' };
 const sentence = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
-const longDate = (d: Date | null) => (d ? d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : undefined);
 
 const MILESTONE_COLUMNS: ColumnDef<MilestoneStat>[] = [
   { id: 'name', label: 'Milestone', type: 'text', width: 240, value: (m) => m.milestone.name },
@@ -57,17 +49,15 @@ const MILESTONE_COLUMNS: ColumnDef<MilestoneStat>[] = [
 ];
 
 export function ProjectDetailScreen({ projectId }: { projectId: string }) {
-  const router = useRouter();
   const formLink = useFormLink();
   const taskPanel = useTaskPanel();
-  const { deviceClass } = useLayout();
-  const { db, rows, loading } = useProjectsDb();
-  const row = rows.find((r) => r.id === projectId) ?? null;
-  const doc = db.projects.get(projectId);
-  const [month, setMonth] = useState(() => isoDay(new Date()));
-  const [nowMs] = useState(() => Date.now());
-
-  const tasks = useMemo(() => {
+  const v = useLogic(projectId);
+  const { o } = v;
+  const { db } = o;
+  const [view, setView] = useState<View>('tasks');
+  const [archiving, setArchiving] = useState(false);
+  const { row, stat, doc, tasks: listItems } = v;
+  const boardRows = useMemo(() => {
     const now = new Date();
     return actionableTasks(
       db.taskDocs.filter((t) => t.projectId === projectId),
@@ -78,115 +68,159 @@ export function ProjectDetailScreen({ projectId }: { projectId: string }) {
   const columns = useMemo(() => taskColumns(db).filter((c) => c.id !== 'project'), [db]);
   const groups = useMemo(() => taskGroups().filter((g) => g.id !== 'project'), []);
 
-  if (loading) return <ScreenState loading />;
-  if (!row || !doc) return <ScreenState error="This project no longer exists." />;
+  if (o.loading) return <ScreenState loading />;
+  if (!row || !doc || !stat) return <ScreenState error="This project no longer exists." />;
 
-  const uid = db.uid;
-
-  const main = (
-    <>
-      <Block title="Tasks">
-        <Database<TaskRow>
-          id="time.project.tasks"
-          label={`Tasks in ${row.name}`}
-          noun={['task', 'tasks']}
-          rows={tasks}
-          rowKey={(r) => r.id}
-          columns={columns}
-          views={TASK_VIEWS}
-          groups={groups}
-          defaultGroup="status"
-          card={taskCardSpec(db)}
-          list={taskListSpec(db, { withDate: true })}
-          board={{ group: 'status', onMove: (r, to) => db.actions.setStatus(r, to as TaskRow['status']), actions: taskRowActions(db) }}
-          rowActions={taskRowActions(db)}
-          extraLayouts={['month']}
-          renderLayout={(_, shown) => {
-            const byDay = new Map<string, ReturnType<typeof taskItem>[]>();
-            for (const r of shown) if (r.date) byDay.set(isoDay(r.date), [...(byDay.get(isoDay(r.date)) ?? []), taskItem(r)]);
-            return (
-              <MonthGrid
-                selected={month}
-                today={isoDay(new Date())}
-                itemsOn={(iso) => byDay.get(iso) ?? []}
-                onOpen={(i) => i.taskId && taskPanel.open(i.taskId)}
-                onDay={setMonth}
-                compact={deviceClass === 'compact'}
-              />
-            );
-          }}
-          onOpen={(r) => taskPanel.open(r.id)}
-          onNew={() => taskPanel.open('new', { projectId })}
-          newTemplates={[{ id: 'import', label: 'Import tasks', onSelect: () => router.push(formLink('import', { project: projectId })) }]}
-          emptyText="No tasks yet."
-        />
-      </Block>
-      <Block title="Project insights">
-        <ProjectInsightsBlock tasks={tasks} row={row} />
-        <Link href={`/projects/insights/${projectId}`} className={styles.more}>
-          Open project insights
-        </Link>
-      </Block>
-      {row.milestones.length > 0 && (
-        <Block title="Milestones">
-          <Database<MilestoneStat>
-            id="time.project.milestones"
-            label="Milestones"
-            noun={['milestone', 'milestones']}
-            rows={row.milestones}
-            rowKey={(m) => m.milestone.id}
-            columns={MILESTONE_COLUMNS}
-            views={[{ id: 'table', name: 'Table', layout: 'table' }]}
-            card={{ title: (m) => m.milestone.name }}
-            emptyText="No milestones."
-          />
-        </Block>
-      )}
-      <Block title="Notes">
-        <ProjectNotes key={projectId} value={doc.notes ?? ''} onSave={(notes) => uid && updateDoc(projectRef(uid, projectId), { notes, updatedAt: serverTimestamp() })} />
-      </Block>
-    </>
-  );
+  const now = new Date();
+  const daysLeft = row.end ? Math.ceil((row.end.getTime() - now.getTime()) / 86_400_000) : null;
+  const crumbs = stat.folderId && stat.folderName ? [{ label: stat.folderName, href: `/sections/${stat.folderId}` }, { label: row.name }] : stat.areaId ? [{ label: stat.areaName ?? 'Area', href: `/areas/${stat.areaId}` }, { label: row.name }] : [{ label: 'Projects', href: '/projects/all' }, { label: row.name }];
+  const { notes, saveNotes } = v;
 
   return (
     <NotionPage
       title={row.name}
-      icon={doc.emoji ? <span>{doc.emoji}</span> : <span className={styles.iconDot} style={{ background: row.color }} aria-hidden />}
-      crumbs={[
-        { label: 'Time', href: '/projects' },
-        { label: 'Projects', href: '/projects/all' },
-        { label: row.name, href: `/projects/${projectId}` },
-      ]}
+      sub={row.description || healthSentence(row)}
+      crumbs={crumbs}
       menu={[
         { label: 'Project settings', href: formLink('project', { id: projectId }) },
         { label: 'Open project insights', href: `/projects/insights/${projectId}` },
-      ]}
-      sub={[
-        row.areaName ? `Project in ${row.areaName}` : 'Project',
-        `${row.tasks} ${row.tasks === 1 ? 'task' : 'tasks'}, ${row.done} done`,
-        row.end ? `due ${longDate(row.end)}` : null,
-        row.health !== 'Done' ? healthSentence(row).replace(/\.$/, '') : null,
-      ]
-        .filter(Boolean)
-        .join(' · ')}
-      properties={[
-        { id: 'open', label: 'Open tasks', display: String(Math.max(0, row.tasks - row.done)) },
-        { id: 'week', label: 'Due this week', display: String(tasks.filter((t) => !t.done && t.date && t.date.getTime() - nowMs < 7 * 86_400_000 && t.date.getTime() >= nowMs - 86_400_000).length) },
-        { id: 'overdue', label: 'Overdue', tone: row.overdue ? 'bad' : 'neutral', display: String(row.overdue) },
-        { id: 'progress', label: 'Progress', display: `${Math.round((row.progress ?? 0) * 100)}%`, sub: row.forecast ? `Forecast finish ${longDate(row.forecast)}` : undefined },
+        { label: 'Archive project', onSelect: () => setArchiving(true) },
       ]}
     >
-      <TopBarControls>
-        <Link href={formLink('project', { id: projectId })} scroll={false} className={styles.headerButton}>
-          Project settings
-        </Link>
-      </TopBarControls>
-      {main}
+      <TopBarSecondaryNote onClick={() => setView('notes')} hasNotes={notes.trim() !== ''} />
+      <HeaderActions primary={{ label: 'New task', href: taskPanel.hrefFor('new', { projectId }) }} />
+      <StatCards
+        stats={[
+          { label: 'Progress', icon: <Check size={18} />, value: `${Math.round(stat.progress * 100)}%`, chip: { text: row.health, hue: HEALTH_HUE[row.health] }, caption: `${stat.done} of ${stat.total} done`, href: `/projects/insights/${projectId}` },
+          { label: 'Open tasks', icon: <Layers size={18} />, value: String(stat.open), chip: stat.overdue ? { text: `${stat.overdue} overdue`, hue: 'rose' } : null, caption: `${stat.dueWeek} due this week` },
+          {
+            label: 'Due',
+            icon: <CalendarDays size={18} />,
+            value: row.end ? row.end.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'No date',
+            chip: row.end ? { text: row.end.toLocaleDateString('en-GB', { weekday: 'short' }), hue: 'grey' } : null,
+            caption: daysLeft === null ? 'set one in settings' : daysLeft >= 0 ? `${plural(daysLeft, 'day')} left` : `${plural(-daysLeft, 'day')} late`,
+          },
+          { label: 'Time blocked', icon: <Sun size={18} />, value: durationText(stat.weekMinutes), caption: 'this week', href: '/projects/calendar' },
+        ]}
+      />
+      <div className={org.viewBar}>
+        <ViewTabs<View>
+          tabs={[
+            { id: 'tasks', label: 'Tasks', icon: <Check size={16} aria-hidden /> },
+            { id: 'board', label: 'Board', icon: <Layers size={16} aria-hidden /> },
+            { id: 'notes', label: 'Notes', icon: <FileText size={16} aria-hidden /> },
+          ]}
+          value={view}
+          onChange={setView}
+        />
+      </div>
+      <div className={org.split}>
+        <div className={org.main}>
+          {view === 'tasks' && (
+            <>
+              <SectionHead title="Tasks" meta={`Sorted by due date · ${stat.open} open`} />
+              {listItems.length === 0 ? (
+                <p className={org.empty}>
+                  No tasks yet. <Link href={taskPanel.hrefFor('new', { projectId })} scroll={false}>Add the first one</Link>.
+                </p>
+              ) : (
+                <TaskTable groups={[{ id: 'tasks', label: 'Tasks', tone: null, tasks: listItems }]} grouped={false} columns={['block', 'type', 'due', 'status']} onDone={o.setDone} />
+              )}
+              {row.milestones.length > 0 && (
+                <>
+                  <SectionHead title="Milestones" meta={plural(row.milestones.length, 'milestone')} />
+                  <Database<MilestoneStat>
+                    id="time.project.milestones"
+                    label="Milestones"
+                    noun={['milestone', 'milestones']}
+                    rows={row.milestones}
+                    rowKey={(m) => m.milestone.id}
+                    columns={MILESTONE_COLUMNS}
+                    views={[{ id: 'table', name: 'Table', layout: 'table' }]}
+                    card={{ title: (m) => m.milestone.name }}
+                    emptyText="No milestones."
+                  />
+                </>
+              )}
+            </>
+          )}
+          {view === 'board' && (
+            <Database<TaskRow>
+              id="time.project.board"
+              label={`Tasks in ${row.name}`}
+              noun={['task', 'tasks']}
+              rows={boardRows}
+              rowKey={(r) => r.id}
+              columns={columns}
+              views={[{ id: 'board', name: 'Board', layout: 'board', group: 'status' }]}
+              groups={groups}
+              defaultGroup="status"
+              card={taskCardSpec(db)}
+              list={taskListSpec(db, { withDate: true })}
+              board={{ group: 'status', onMove: (r, to) => db.actions.setStatus(r, to as TaskRow['status']), actions: taskRowActions(db) }}
+              rowActions={taskRowActions(db)}
+              onOpen={(r) => taskPanel.open(r.id)}
+              onNew={() => taskPanel.open('new', { projectId })}
+              emptyText="No tasks yet."
+            />
+          )}
+          {view === 'notes' && (
+            <section className={org.sideCard} aria-label="Notes">
+              <h2 className={org.sideTitle}>Notes</h2>
+              <ProjectNotes key={projectId} value={notes} onSave={saveNotes} rows={14} />
+            </section>
+          )}
+        </div>
+        <div className={org.side}>
+          <AboutCard
+            text={row.description}
+            editHref={formLink('project', { id: projectId })}
+            rows={[
+              ...(stat.folderName ? ([['Folder', <Link key="f" href={`/sections/${stat.folderId}`}>{stat.folderName}</Link>]] as [string, React.ReactNode][]) : []),
+              ...(stat.areaName ? ([['Area', <Link key="a" href={`/areas/${stat.areaId}`}>{stat.areaName}</Link>]] as [string, React.ReactNode][]) : []),
+              ['Priority', stat.priorityText.replace(' priority', '')],
+              ...(row.start ? ([['Started', longDate(row.start)]] as [string, React.ReactNode][]) : []),
+            ]}
+          />
+          {view !== 'notes' && (
+            <section className={org.sideCard} aria-label="Notes">
+              <div className={org.sideHead}>
+                <h2 className={org.sideTitle}>Notes</h2>
+                <button type="button" className={org.textButton} onClick={() => setView('notes')}>
+                  {notes.trim() ? 'Open' : 'Add note'}
+                </button>
+              </div>
+              {notes.trim() ? <p className={styles.notePreview}>{notes}</p> : <p className={org.empty}>Nothing written yet.</p>}
+            </section>
+          )}
+        </div>
+      </div>
+      {archiving && (
+        <ConfirmDialog
+          tone="neutral"
+          title={`Archive ${row.name}?`}
+          message="It moves to the Archive in Library with all its tasks. Restore it from there any time, or delete it for good."
+          confirmLabel="Archive"
+          cancelLabel="Cancel"
+          onCancel={() => setArchiving(false)}
+          onConfirm={() => void v.archive()}
+        />
+      )}
     </NotionPage>
   );
 }
 
-function ProjectNotes({ value, onSave }: { value: string; onSave: (notes: string) => unknown }) {
+/** Add note, beside New task: opens Notes. */
+function TopBarSecondaryNote({ onClick, hasNotes }: { onClick: () => void; hasNotes: boolean }) {
+  return (
+    <TopBarActionsButton onClick={onClick}>
+      <FileText size={20} strokeWidth={2} aria-hidden />
+      {hasNotes ? 'Notes' : 'Add note'}
+    </TopBarActionsButton>
+  );
+}
+
+function ProjectNotes({ value, onSave, rows = 4 }: { value: string; onSave: (notes: string) => unknown; rows?: number }) {
   const [text, setText] = useState(value);
   return (
     <textarea
@@ -195,50 +229,7 @@ function ProjectNotes({ value, onSave }: { value: string; onSave: (notes: string
       placeholder="Write anything about this project"
       onChange={(e) => setText(e.target.value)}
       onBlur={() => text !== value && void onSave(text)}
-      rows={4}
+      rows={rows}
     />
-  );
-}
-
-/** A small summary after the tasks: completion this week, the overdue
- * trend and the forecast against the deadline. */
-function ProjectInsightsBlock({ tasks, row }: { tasks: TaskRow[]; row: ProjectRow }) {
-  const now = new Date();
-  const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7));
-  const lastMonday = new Date(monday.getTime() - 7 * 86_400_000);
-  const doneThisWeek = tasks.filter((t) => t.completed && t.completed >= monday).length;
-  const doneLastWeek = tasks.filter((t) => t.completed && t.completed >= lastMonday && t.completed < monday).length;
-  const weekAgo = new Date(now.getTime() - 7 * 86_400_000);
-  const overdueNow = tasks.filter((t) => t.overdue).length;
-  const overdueThen = tasks.filter((t) => {
-    const end = t.end ?? t.start;
-    if (!end || end >= weekAgo || t.status === 'Cancelled') return false;
-    return t.status === 'Pending' || (t.completed !== null && t.completed > weekAgo);
-  }).length;
-  const forecast = !row.end
-    ? 'No deadline set'
-    : !row.forecast
-      ? "Nothing done lately, so it won't finish on time at this pace"
-      : row.slackDays !== null && row.slackDays >= 0
-        ? `Finishes around ${longDate(row.forecast)}, ${row.slackDays} days early`
-        : `Finishes around ${longDate(row.forecast)}, ${-(row.slackDays ?? 0)} days late`;
-  return (
-    <ul className={styles.insights}>
-      <li>
-        <span>Completed this week</span>
-        <strong>{doneThisWeek}</strong>
-        <em>{doneLastWeek ? `${doneLastWeek} last week` : 'None last week'}</em>
-      </li>
-      <li data-tone={overdueNow > overdueThen ? 'bad' : overdueNow < overdueThen ? 'good' : undefined}>
-        <span>Overdue</span>
-        <strong>{overdueNow}</strong>
-        <em>{overdueNow === overdueThen ? 'Same as a week ago' : `${overdueThen} a week ago`}</em>
-      </li>
-      <li data-tone={row.end && row.forecast && (row.slackDays ?? 0) >= 0 ? 'good' : row.end ? 'watch' : undefined}>
-        <span>Forecast vs deadline</span>
-        <strong>{row.end ? longDate(row.end) : 'None'}</strong>
-        <em>{forecast}</em>
-      </li>
-    </ul>
   );
 }

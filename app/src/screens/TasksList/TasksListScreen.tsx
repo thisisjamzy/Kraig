@@ -1,79 +1,74 @@
 'use client';
 
-// The tasks list — its scope comes from the link (today, this week,
-// overdue, all, or an Insights drill-down); the Notion-style toolbar under
-// the header filters, sorts and searches within it.
+// Tasks (Dreda v1.0 `Tasks / Web / Today` 53712).
+//   Title "Tasks"; under it "21 open · 3 overdue · 5 due today".
+//   One view bar: Today, Upcoming, Inbox, All tasks on the left; Filter,
+//   Sort and Search on the right (ListQueryBar).
+//   One table, grouped (Today: Overdue, then today): task, project, type,
+//   time block, due, done at, status. Names wrap; times stay on one line.
+// A link with a scope (?filter=, Insights' drill-downs) shows that scope
+// as one table under its own title, without the view bar.
 
-import { useRouter } from 'next/navigation';
-import { ChevronLeft, Plus } from 'lucide-react';
-import { useLogic } from '@/src/logic/tasksList/useLogic';
+import { useLogic, TASK_TABS, type TaskGroup } from '@/src/logic/tasksList/useLogic';
+import { NotionPage } from '@/src/widgets/Database/NotionPage';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
-import { TaskCheckRow } from '@/src/widgets/TaskCheckRow/TaskCheckRow';
 import { ListQueryBar, ListQueryEmpty } from '@/src/widgets/ListQuery/ListQueryBar';
-import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
+import { TaskTable } from '@/src/widgets/TaskDb/TaskTable';
 import styles from './TasksListScreen.module.css';
 
-// Pinned under this screen's own sticky header.
-const STICKY_TOP = 'var(--header-height)';
-
 export function TasksListScreen() {
-  const { title, tasks, total, fields, list, goBack, loading, leftoverCount, movingLeftovers, moveLeftoversToTomorrow } =
-    useLogic();
-  const router = useRouter();
+  const logic = useLogic();
+  const { list, fields, loading } = logic;
+  const title = logic.scoped ? logic.title : 'Tasks';
+  const sub = logic.scoped
+    ? `${logic.tasks.length} ${logic.tasks.length === 1 ? 'task' : 'tasks'}`
+    : [`${logic.openCount} open`, `${logic.overdueCount} overdue`, `${logic.todayCount} due today`].join(' · ');
+  const groups: TaskGroup[] = logic.scoped ? [{ id: 'scope', label: title, tone: null, tasks: logic.tasks }] : logic.groups;
+
+  const tabs = logic.scoped ? undefined : (
+    <div className={styles.tabs} role="tablist" aria-label="View">
+      {TASK_TABS.map((t) => (
+        <button key={t.id} type="button" role="tab" aria-selected={logic.tab === t.id} onClick={() => logic.setTab(t.id)}>
+          {t.label}
+          {t.id !== 'all' && logic.counts[t.id] > 0 && <span className={styles.tabCount}>{logic.counts[t.id]}</span>}
+        </button>
+      ))}
+    </div>
+  );
 
   return (
-    <div className={styles.page}>
-      <ScreenHeader
-        left={
-          <button type="button" className={styles.backButton} onClick={goBack} aria-label="Back">
-            <ChevronLeft size={18} strokeWidth={2} />
-          </button>
-        }
-        title={title}
-        right={
-          <button
-            type="button"
-            className={styles.addIconButton}
-            onClick={() => router.push('/tasks/new')}
-            aria-label="New task"
-            title="New task"
-          >
-            <Plus size={16} strokeWidth={2.5} />
-          </button>
-        }
-      />
-
+    <NotionPage title={title} sub={sub} crumbs={[{ label: 'Tasks', href: '/tasks' }]}>
       <ListQueryBar
-        className={styles.toolbarSlot}
+        className={styles.viewBar}
         fields={fields}
         query={list.query}
         setQuery={list.setQuery}
         onClear={list.clear}
-        count={tasks.length}
+        count={logic.tasks.length}
         noun={['task', 'tasks']}
-        stickyTop={STICKY_TOP}
+        stickyTop="0px"
+        leading={tabs}
       />
-
       <ScreenState loading={loading} />
 
-      {!loading && leftoverCount > 0 && (
-        <button type="button" className={styles.leftovers} onClick={moveLeftoversToTomorrow} disabled={movingLeftovers}>
-          {movingLeftovers ? 'Moving…' : `Move ${leftoverCount} unfinished ${leftoverCount === 1 ? 'task' : 'tasks'} to tomorrow`}
+      {!loading && logic.scoped && logic.leftoverCount > 0 && (
+        <button type="button" className={styles.leftovers} onClick={logic.moveLeftoversToTomorrow} disabled={logic.movingLeftovers}>
+          {logic.movingLeftovers ? 'Moving…' : `Move ${logic.leftoverCount} unfinished ${logic.leftoverCount === 1 ? 'task' : 'tasks'} to tomorrow`}
         </button>
       )}
 
       {!loading &&
-        (total === 0 ? (
-          <p className={styles.emptyText}>Nothing here.</p>
-        ) : tasks.length === 0 ? (
-          <ListQueryEmpty onClear={list.clearFilters} />
+        (logic.total === 0 ? (
+          <p className={styles.empty}>Nothing here.</p>
+        ) : groups.length === 0 ? (
+          list.query.filters.length > 0 || list.query.search ? (
+            <ListQueryEmpty onClear={list.clearFilters} />
+          ) : (
+            <p className={styles.empty}>{logic.tab === 'inbox' ? 'The inbox is empty.' : logic.tab === 'upcoming' ? 'Nothing coming up.' : 'Nothing due today.'}</p>
+          )
         ) : (
-          <div className={styles.list}>
-            {tasks.map((task) => (
-              <TaskCheckRow key={task.id} task={task} />
-            ))}
-          </div>
+          <TaskTable groups={groups} grouped={!logic.scoped} onDone={logic.setDone} />
         ))}
-    </div>
+    </NotionPage>
   );
 }

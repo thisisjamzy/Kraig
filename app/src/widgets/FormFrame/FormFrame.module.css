@@ -146,6 +146,33 @@
   cursor: default;
 }
 
+.tonal {
+  width: 100%;
+  min-height: 52px;
+  border: none;
+  border-radius: 9999px;
+  background: var(--color-tonal);
+  color: var(--color-on-tonal);
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.tonal:hover:not(:disabled) {
+  background: var(--color-tonal-hover);
+}
+
+.tonal:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.tonal:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+}
+
 /* Saving and Saved read as states, not as a disabled button. */
 .primary[data-phase='saving'],
 .primary[data-phase='saved'] {

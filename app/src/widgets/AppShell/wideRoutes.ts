@@ -26,6 +26,10 @@ const WIDE_ROUTES = [
   '/wallets',
   '/debts',
   '/areas',
+  '/sections',
+  '/tasks',
+  '/settings/planning',
+  '/projects/calendar/links/new',
   '/work',
   '/people',
   '/library',
@@ -52,6 +56,14 @@ const WIDE_PATTERNS = [
   // A debt's page (its forms stay narrow, or open as a side peek).
   /^\/debts\/(?!new$)[^/]+$/,
 ];
+
+// Time v1.0 pages are drawn full width (Dreda v1.0 Time page): they ignore
+// a saved "standard width" choice. Their forms stay narrow.
+const TIME_FULL = /^\/(projects|tasks|areas|sections|people)(\/(?!new$)[^/]+)*$|^\/settings\/planning$/;
+
+export function isAlwaysFullRoute(pathname: string | null): boolean {
+  return Boolean(pathname) && isWideLayoutRoute(pathname) && TIME_FULL.test(pathname!) && !/\/(new|edit)$/.test(pathname!);
+}
 
 export function isWideLayoutRoute(pathname: string | null): boolean {
   if (!pathname) return false;

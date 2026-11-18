@@ -1,244 +1,179 @@
+/* Today / Phone (Dreda v1.0 67470). */
 .page {
   display: flex;
   flex-direction: column;
+  gap: 16px;
   min-height: 100%;
-  /* Under AppHeader, which already clears the safe area. */
-  padding: var(--space-lg);
-  gap: var(--space-lg);
+  padding: 0 16px calc(var(--bottom-bar-pad) + 170px);
+  background: var(--color-background);
 }
 
-/* "See all" — a round 45°-arrow button next to a section header, same
-   affordance/style Home's own viewAllButton uses (HomeScreen.module.css),
-   linking to that section's own full list page instead of a create flow. */
-.viewAllButton {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: var(--ink-bg);
-  color: #ffffff;
-  text-decoration: none;
-  flex-shrink: 0;
-  border: none;
-  cursor: pointer;
-  transition: transform var(--duration-press) var(--ease-out);
-}
-
-.emptyText {
-  margin: 0;
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
-}
-
-/* Today's priorities — the picked-task list reuses TaskCard as-is, so this
-   is just spacing/hint text around it; the picker itself (inside the
-   Modal) is a plain checkbox list. */
-
-.priorityHint {
-  margin: calc(-1 * var(--space-sm)) 0 0;
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
-}
-
-.pickerList {
+/* Now: lime means now. */
+.now {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  max-height: 50vh;
-  overflow-y: auto;
-  margin-bottom: var(--space-md);
-}
-
-.pickerRow {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  padding: var(--space-sm) 0;
-  border-bottom: 1px solid var(--color-border);
-  cursor: pointer;
-}
-
-.pickerRow:last-child {
-  border-bottom: none;
-}
-
-.pickerCheckbox {
-  flex-shrink: 0;
-  width: 18px;
-  height: 18px;
-}
-
-.pickerRowText {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.pickerRowTitle {
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  color: var(--color-text-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.pickerRowMeta {
-  font-size: 0.75rem;
-  color: var(--color-text-secondary);
-}
-
-.modalSaveButton {
-  width: 100%;
-  padding: var(--space-md) var(--space-lg);
-  border: none;
-  border-radius: var(--radius-lg);
-  background: var(--ink-bg);
-  color: var(--color-brand);
-  font-family: inherit;
-  font-size: var(--font-size-md);
-  font-weight: 700;
-  cursor: pointer;
-}
-
-/* ---- Time hub (projects strip + today's checklist) ---- */
-.hubSection {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  min-width: 0;
-}
-
-.hubHeader {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: var(--space-sm);
-}
-
-.hubHeading {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.hubTitle {
-  margin: 0;
-  font-family: var(--font-family-heading);
-  font-size: var(--font-size-xl);
-  font-weight: 800;
-  color: var(--color-text-primary);
-}
-
-.hubSubtitle {
-  margin: 0;
-  font-size: 0.8125rem;
-  font-weight: 500;
-  color: var(--color-text-secondary);
-  font-variant-numeric: tabular-nums;
-}
-
-.hubActions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  flex-shrink: 0;
-}
-
-.iconButtonSoft {
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  flex-shrink: 0;
-  border: none;
-  border-radius: 50%;
-  background: var(--color-surface);
-  color: var(--color-text-primary);
-  cursor: pointer;
-  transition: transform var(--duration-press) var(--ease-out);
-}
-
-.iconButtonSoft:active,
-.viewAllButton:active {
-  transform: scale(0.92);
-}
-
-.iconButtonSoft:focus-visible,
-.viewAllButton:focus-visible {
-  outline: 2px solid var(--color-brand);
-  outline-offset: 2px;
-}
-
-/* Full-bleed horizontal strip: cards start flush with the page's own
-   left padding and scroll out past the right edge. The vertical padding
-   keeps the cards' shadows from being clipped by overflow-x. */
-.projectStrip {
-  display: flex;
-  gap: 12px;
-  margin: 0 calc(-1 * var(--space-lg));
-  padding: 4px var(--space-lg) 14px;
-  overflow-x: auto;
-  scroll-snap-type: x mandatory;
-  scroll-padding-inline: var(--space-lg);
-  -webkit-overflow-scrolling: touch;
-}
-
-.taskList {
-  display: flex;
-  flex-direction: column;
+  align-items: stretch;
   gap: 10px;
+  padding: 16px;
+  border: 0;
+  border-radius: 20px;
+  background: var(--label-lime-bg);
+  color: var(--label-lime-fg);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
-.todayEmpty {
+.nowTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.nowChip {
+  padding: 4px 10px;
+  border-radius: 9999px;
+  background: var(--color-accent-default);
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.nowTitle {
+  font-family: var(--font-family-heading);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.nowMeta {
+  font-size: 13px;
+}
+
+.nowBar {
+  display: block;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 9999px;
+  background: var(--color-bg-surface);
+}
+
+.nowBar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--label-lime-solid);
+}
+
+.card {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: var(--space-lg) var(--space-md);
-  border: 1px dashed var(--color-border);
-  border-radius: var(--radius-lg);
-  text-align: center;
-}
-
-.todayEmptyTitle {
-  margin: 0;
-  font-size: var(--font-size-sm);
-  font-weight: 700;
-  color: var(--color-text-primary);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .iconButtonSoft {
-    transition: none;
-  }
-
-  .iconButtonSoft:active,
-  .viewAllButton:active {
-    transform: none;
-  }
-}
-
-/* ==== Dreda.figcraft Today / Phone ==== */
-.hubTitle {
-  font-family: var(--font-family-heading);
-  font-size: 22px;
-  font-weight: 600;
-}
-
-.taskList {
-  overflow: hidden;
-  padding: 4px 14px;
+  padding: 16px;
+  border: 1px solid var(--color-border-default);
   border-radius: 20px;
   background: var(--color-bg-surface);
 }
 
-.iconButtonSoft,
-.viewAllButton {
-  border-radius: 9999px;
-  background: var(--color-bg-sunken);
-  color: var(--color-text-primary);
+.cardHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
 }
+
+.cardTitle {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.cardCount,
+.cardMeta {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.link {
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  color: var(--color-primary);
+  font: inherit;
+  font-size: 13px;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.link:disabled {
+  opacity: 0.5;
+}
+
+.empty {
+  margin: 4px 0;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
+.plan {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.planRow {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  align-items: start;
+  gap: 4px;
+}
+
+.planTime {
+  padding-top: 8px;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px 10px;
+  border: 0;
+  border-top: 3px solid var(--b-solid);
+  border-radius: 10px;
+  background: var(--b-bg);
+  color: var(--b-fg);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.blockTitle {
+  font-size: 13px;
+}
+
+.blockTime {
+  font-size: 13px;
+  opacity: 0.9;
+}
+.block[data-hue='purple'] { --b-bg: var(--label-purple-bg); --b-fg: var(--label-purple-fg); --b-solid: var(--label-purple-solid); }
+.block[data-hue='blue'] { --b-bg: var(--label-blue-bg); --b-fg: var(--label-blue-fg); --b-solid: var(--label-blue-solid); }
+.block[data-hue='teal'] { --b-bg: var(--label-teal-bg); --b-fg: var(--label-teal-fg); --b-solid: var(--label-teal-solid); }
+.block[data-hue='green'] { --b-bg: var(--label-green-bg); --b-fg: var(--label-green-fg); --b-solid: var(--label-green-solid); }
+.block[data-hue='lime'] { --b-bg: var(--label-lime-bg); --b-fg: var(--label-lime-fg); --b-solid: var(--label-lime-solid); }
+.block[data-hue='amber'] { --b-bg: var(--label-amber-bg); --b-fg: var(--label-amber-fg); --b-solid: var(--label-amber-solid); }
+.block[data-hue='orange'] { --b-bg: var(--label-orange-bg); --b-fg: var(--label-orange-fg); --b-solid: var(--label-orange-solid); }
+.block[data-hue='rose'] { --b-bg: var(--label-rose-bg); --b-fg: var(--label-rose-fg); --b-solid: var(--label-rose-solid); }
+.block[data-hue='grey'] { --b-bg: var(--label-grey-bg); --b-fg: var(--label-grey-fg); --b-solid: var(--label-grey-solid); }

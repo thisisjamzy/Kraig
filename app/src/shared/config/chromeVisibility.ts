@@ -1,3 +1,5 @@
+import { modeOfPath } from '@/src/shared/config/pageTree';
+
 // Single source of truth for which routes show the fixed app chrome
 // (AppHeader at the top, a bottom nav) and which bottom nav — used by
 // AppHeader, layout.tsx (to pick BottomNav vs ProjectsBottomNav), and the
@@ -39,7 +41,8 @@ export function navMode(pathname: string | null): NavMode {
 // The Projects calendar and Focus page are hubs too, but draw their own
 // headers (src/screens/ProjectsCalendar, src/screens/Focus), so the
 // generic AppHeader stays off there to avoid two stacked headers.
-const OWN_HEADER_ROUTES = ['/home', '/projects/calendar', '/projects/focus', '/projects/insights'];
+// Time v1.0's Today draws its own header too (phone/widgets/TimeHeader).
+const OWN_HEADER_ROUTES = ['/home', '/projects', '/projects/calendar', '/projects/focus', '/projects/insights'];
 
 export function hasAppHeader(pathname: string | null): boolean {
   if (pathname && OWN_HEADER_ROUTES.includes(pathname)) return false;
@@ -48,5 +51,24 @@ export function hasAppHeader(pathname: string | null): boolean {
 }
 
 export function hasBottomNav(pathname: string | null): boolean {
-  return navMode(pathname) !== 'none';
+  return navMode(pathname) !== 'none' || timeTab(pathname) !== null;
+}
+
+// Time's tab bar (Dreda v1.0 `Phone tab bar`, BUILD-KIT v1.0 section 5.2):
+// on every Time page but its forms. Home, Scheduling, Calendar and Tasks have tabs;
+// every other Time page was opened from Profile, so Profile stays lit.
+export type TimeTab = 'home' | 'today' | 'scheduling' | 'calendar' | 'tasks' | 'profile';
+
+const TIME_FORM = /\/(new|edit)(\/|$)/;
+
+export function timeTab(pathname: string | null): TimeTab | null {
+  // Planning settings is a Time page reached from Profile.
+  if (pathname === '/settings/planning') return 'profile';
+  if (!pathname || modeOfPath(pathname) !== 'time' || TIME_FORM.test(pathname)) return null;
+  if (pathname === '/projects/insights') return 'home';
+  if (pathname.startsWith('/projects/calendar/links')) return 'scheduling';
+  if (pathname === '/projects' || pathname.startsWith('/projects/focus')) return 'today';
+  if (pathname === '/projects/plan' || pathname === '/projects/calendar' || pathname.startsWith('/projects/calendar/events')) return 'calendar';
+  if (pathname === '/tasks' || pathname.startsWith('/tasks/')) return 'tasks';
+  return 'profile';
 }

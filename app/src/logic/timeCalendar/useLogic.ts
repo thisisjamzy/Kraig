@@ -21,6 +21,11 @@ import { useTasksDb } from '@/src/logic/tasksDb/useTasksDb';
 import { dayFromIso, isoDay, type CalItem } from '@/src/viewmodels/calendarItems';
 import type { TaskRow } from '@/src/viewmodels/taskRow';
 import { checkAvailability, type ScheduledTask } from '@/src/viewmodels/scheduling';
+import { busySpans, DEFAULT_TASK_MINUTES, freeMinutes, isBlocked, isToPlan, planDay, slotOptions, type SlotOption } from '@/src/viewmodels/todayPlan';
+import { labelHue, PRIORITY_RANK } from '@/src/viewmodels/projects';
+import { typeLook } from '@/src/viewmodels/taskTypes';
+import { schedulingStore, useScheduling } from '@/src/logic/schedulingLinks/store';
+import { bookingWhen, type Booking, type SchedLink } from '@/src/viewmodels/scheduling-links';
 import type { FirestoreCalendarEvent, FirestoreCalendarSyncState, FirestorePlannedPayment } from '@/src/shared/firestore/types';
 
 const PAYMENT_HORIZON_DAYS = 400;
@@ -57,6 +62,7 @@ export function taskItem(row: TaskRow): CalItem {
     meeting: row.type === 'Meeting',
     taskId: row.id,
     href: null,
+    hue: row.done ? 'grey' : row.projectColor ? labelHue(row.projectColor) : typeLook(row.typeName).hue,
   };
 }
 
@@ -76,6 +82,7 @@ function googleItem(e: FirestoreCalendarEvent, iso: string): CalItem {
     meeting: e.kind === 'meeting',
     taskId: null,
     href: `/projects/calendar/events/${encodeURIComponent(e.id)}`,
+    hue: 'blue',
   };
 }
 
@@ -139,15 +146,48 @@ export function useLogic({ sources = ALL_SOURCES }: { sources?: CalendarSources 
       if (p.status === 'Archived') continue;
       const start = p.startDate?.toDate();
       const end = p.endDate?.toDate();
-      const base = { kind: 'project' as const, start: null, end: null, allDay: true, free: false, done: false, project: null, attendees: [], meeting: false, taskId: null, href: `/projects/${p.id}` };
+      const base = { hue: 'purple' as const, kind: 'project' as const, start: null, end: null, allDay: true, free: false, done: false, project: null, attendees: [], meeting: false, taskId: null, href: `/projects/${p.id}` };
       if (start) add(isoDay(start), { ...base, key: `project:${p.id}:start`, title: `${p.name} starts`, day: isoDay(start) });
       if (end) add(isoDay(end), { ...base, key: `project:${p.id}:end`, title: `${p.name} ends`, day: isoDay(end) });
     }
     for (const pay of payments) {
-      add(pay.dueDate, { key: `payment:${pay.id}`, title: pay.title, kind: 'payment', start: null, end: null, allDay: true, day: pay.dueDate, free: false, done: false, project: null, attendees: [], meeting: false, taskId: null, href: '/payments' });
+      add(pay.dueDate, { key: `payment:${pay.id}`, title: pay.title, hue: 'amber', kind: 'payment', start: null, end: null, allDay: true, day: pay.dueDate, free: false, done: false, project: null, attendees: [], meeting: false, taskId: null, href: '/payments' });
     }
     return map;
   }, [db.projectDocs, payments]);
+
+  // Bookings made on scheduling links (kept in the scheduling store until
+  // BUILD-KIT section 7.7): requested and confirmed ones are on the grid.
+  const scheduling = useScheduling();
+  const bookingItems = useCallback(
+    (iso: string): CalItem[] =>
+      scheduling.bookings
+        .filter((b) => b.status !== 'declined' && isoDay(b.at) === iso)
+        .map((b) => {
+          const link = scheduling.links.find((l) => l.id === b.linkId);
+          const minutes = link?.minutes ?? 30;
+          return {
+            key: `booking:${b.id}`,
+            title: `${b.name.split(/\s+/)[0]}, ${(link?.name ?? 'booking').toLowerCase()}`,
+            kind: 'meeting' as const,
+            start: b.at,
+            end: new Date(b.at.getTime() + minutes * 60000),
+            allDay: false,
+            day: iso,
+            free: false,
+            done: false,
+            project: null,
+            attendees: [b.name],
+            meeting: true,
+            taskId: null,
+            href: null,
+            hue: link?.hue ?? 'blue',
+            bookingId: b.id,
+            toConfirm: b.status === 'requested',
+          };
+        }),
+    [scheduling]
+  );
 
   /** Tasks on a day (Pending, Done and Cancelled). */
   const tasksOn = useCallback((iso: string) => rowsByDay.get(iso) ?? [], [rowsByDay]);
@@ -158,8 +198,9 @@ export function useLogic({ sources = ALL_SOURCES }: { sources?: CalendarSources 
       ...(s.tasks ? tasksOn(iso).filter((r) => r.status !== 'Cancelled' && (s.freeTasks || r.allDay || r.timeMode !== 'free')).map(taskItem) : []),
       ...(s.google ? googleDocs.filter((e) => eventOn(e, iso)).map((e) => googleItem(e, iso)) : []),
       ...(s.projectDates ? (projectDates.get(iso) ?? []) : []),
+      ...(s.google ? bookingItems(iso) : []),
     ],
-    [sources, tasksOn, googleDocs, projectDates]
+    [sources, tasksOn, googleDocs, projectDates, bookingItems]
   );
 
   /** Puts a task at a time on a day (dropped from a list, or moved or
@@ -167,9 +208,9 @@ export function useLogic({ sources = ALL_SOURCES }: { sources?: CalendarSources 
    * can't overlap other blocked time; free tasks can share. */
   const scheduleAt = useCallback(
     async (taskId: string, iso: string, startMin: number, endMin?: number) => {
-      const row = rows.find((r) => r.id === taskId);
+      const row = rows.find((r) => r.id === taskId) ?? db.actionable.find((r) => r.id === taskId);
       if (!row) throw new Error('That task is outside the dates shown.');
-      const length = endMin !== undefined ? endMin - startMin : row.minutes || 60;
+      const length = endMin !== undefined ? endMin - startMin : row.minutes || DEFAULT_TASK_MINUTES;
       const day = dayFromIso(iso);
       const start = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 0, startMin);
       const end = new Date(start.getTime() + length * 60000);
@@ -190,7 +231,122 @@ export function useLogic({ sources = ALL_SOURCES }: { sources?: CalendarSources 
       }
       await db.actions.setTimes(row, start, end, false);
     },
-    [rows, tasksOn, googleDocs, db.actions]
+    [rows, db.actionable, tasksOn, googleDocs, db.actions]
+  );
+
+  // ---- Time v1.0: overdue, to plan, free time (viewmodels/todayPlan.ts) ----
+
+  /** Pending tasks from before today, oldest first. */
+  const overdue = useMemo(() => [...db.overdueEarlier].sort((a, b) => (a.date?.getTime() ?? 0) - (b.date?.getTime() ?? 0)), [db.overdueEarlier]);
+  const overdueIds = useMemo(() => new Set(overdue.map((r) => r.id)), [overdue]);
+  /** Pending tasks with no time block, not overdue: dated first, by date and
+   * priority, then undated. */
+  const toPlan = useMemo(
+    () =>
+      db.actionable
+        .filter((r) => isToPlan(r) && !overdueIds.has(r.id))
+        .sort((a, b) => (a.date?.getTime() ?? Infinity) - (b.date?.getTime() ?? Infinity) || PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority]),
+    [db.actionable, overdueIds]
+  );
+  /** Busy time on a day: timed items that block it. */
+  const busyOn = useCallback((iso: string) => busySpans(itemsOn(iso, ALL_SOURCES), dayFromIso(iso)), [itemsOn]);
+  const freeOn = useCallback((iso: string) => freeMinutes(busyOn(iso)), [busyOn]);
+
+  /** Moves tasks to today, same times of day. */
+  const moveToToday = useCallback(
+    async (list: TaskRow[]) => {
+      for (const r of list) await db.actions.setDate(r, dayFromIso(today));
+    },
+    [db.actions, today]
+  );
+
+  /** Plan my day: overdue tasks with no time block, then to-plan tasks due
+   * today, go into today's free time from now, in order, each its own
+   * length or an hour. Undated tasks stay in the tray. Returns how many
+   * were placed. */
+  const planMyDay = useCallback(async () => {
+    const now = new Date();
+    const todayStart = dayFromIso(today);
+    const candidates = [...overdue.filter((r) => !isBlocked(r)), ...toPlan.filter((r) => r.date !== null && r.date <= todayStart)];
+    const placed = planDay(
+      candidates.map((r) => ({ id: r.id, minutes: r.minutes })),
+      busyOn(today),
+      now.getHours() * 60 + now.getMinutes()
+    );
+    const byId = new Map(candidates.map((r) => [r.id, r]));
+    for (const p of placed) {
+      const row = byId.get(p.id)!;
+      await db.actions.setTimes(row, new Date(todayStart.getTime() + p.startMin * 60000), new Date(todayStart.getTime() + p.endMin * 60000), false);
+    }
+    return placed.length;
+  }, [overdue, toPlan, busyOn, today, db.actions]);
+
+  /** Adds minutes to the end of a task's block (with the availability check). */
+  const extend = useCallback(
+    async (taskId: string, minutes: number) => {
+      const row = rows.find((r) => r.id === taskId);
+      if (!row?.start || !row.end || !row.date) return;
+      const iso = isoDay(row.date);
+      const from = row.date.getTime();
+      await scheduleAt(taskId, iso, Math.round((row.start.getTime() - from) / 60000), Math.round((row.end.getTime() - from) / 60000) + minutes);
+    },
+    [rows, scheduleAt]
+  );
+
+  /** Free slots a task fits, today and the next six days. */
+  const slotsFor = useCallback(
+    (row: TaskRow, count = 3): SlotOption[] => {
+      const now = new Date();
+      const length = row.minutes || DEFAULT_TASK_MINUTES;
+      const days = Array.from({ length: 7 }, (_, i) => {
+        const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
+        const iso = isoDay(date);
+        const items = itemsOn(iso, ALL_SOURCES).filter((it) => !it.allDay && it.start);
+        return {
+          iso,
+          date,
+          busy: busySpans(items, date),
+          from: i === 0 ? now.getHours() * 60 + now.getMinutes() : 0,
+          after: (min: number) => {
+            const before = items.filter((it) => it.end && Math.round((it.end.getTime() - date.getTime()) / 60000) === min)[0];
+            return before ? `after ${before.title}` : null;
+          },
+        };
+      });
+      return slotOptions(length, days, now, count);
+    },
+    [itemsOn]
+  );
+
+  /** A booking and its link, for the booking request. */
+  const bookingOf = useCallback(
+    (id: string): { booking: Booking; link: SchedLink | null } | null => {
+      const booking = scheduling.bookings.find((b) => b.id === id);
+      return booking ? { booking, link: scheduling.links.find((l) => l.id === booking.linkId) ?? null } : null;
+    },
+    [scheduling]
+  );
+
+  /** Confirm, decline or ask for a new time: sets the booking's status and
+   * opens an email to the booker (sending it from Dreda waits on BUILD-KIT
+   * section 7.8). */
+  const answerBooking = useCallback(
+    (id: string, answer: 'confirm' | 'decline' | 'newTime') => {
+      const found = bookingOf(id);
+      if (!found) return;
+      const { booking, link } = found;
+      const what = `${link?.name ?? 'Your booking'}, ${bookingWhen(booking.at)}`;
+      if (answer !== 'newTime') schedulingStore.setBooking(id, answer === 'confirm' ? 'confirmed' : 'declined');
+      const subject = answer === 'confirm' ? `Confirmed: ${what}` : answer === 'decline' ? `Sorry, I can't make ${what}` : `A new time for ${what}`;
+      const body =
+        answer === 'confirm'
+          ? `Hi ${booking.name.split(/\s+/)[0]},\n\nYou're booked: ${what}.`
+          : answer === 'decline'
+            ? `Hi ${booking.name.split(/\s+/)[0]},\n\nI can't make ${what}. Sorry about that.`
+            : `Hi ${booking.name.split(/\s+/)[0]},\n\nCould we find another time than ${what}?`;
+      if (booking.email) window.open(`mailto:${booking.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, '_blank', 'noopener');
+    },
+    [bookingOf]
   );
 
   const countOn = useCallback((iso: string) => itemsOn(iso, ALL_SOURCES).length, [itemsOn]);
@@ -209,6 +365,16 @@ export function useLogic({ sources = ALL_SOURCES }: { sources?: CalendarSources 
     countOn,
     hasItems,
     scheduleAt,
+    overdue,
+    toPlan,
+    busyOn,
+    freeOn,
+    moveToToday,
+    planMyDay,
+    extend,
+    slotsFor,
+    bookingOf,
+    answerBooking,
     googleCount: googleDocs.length,
     syncEnabled: isCalendarSyncEnabled(),
     calendarName: syncState?.calendarName ?? null,

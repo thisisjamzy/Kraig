@@ -23,7 +23,7 @@ import { CardsView, type CardSpec } from './CardsView';
 import { TableView, type TableGroup } from './TableView';
 import { ListView } from './ListView';
 import { BoardView } from './BoardView';
-import { ViewSelector, ViewSettings } from './ViewMenus';
+import { LAYOUT_ICON, ViewSelector, ViewSettings } from './ViewMenus';
 import { fieldTypeOf, formatNumber, formatValue } from './format';
 import { useDatabaseState } from './useDatabaseState';
 import type { BoardSpec, BulkAction, ColumnDef, DefaultView, GroupDef, Layout, ListSpec, NewTemplate, RowAction, ViewConfig } from './types';
@@ -61,6 +61,9 @@ export interface DatabaseProps<T> {
   board?: BoardSpec<T>;
   /** The page's type tabs (or a date range), on the toolbar row's left. */
   tabs?: ReactNode | ((view: ViewConfig) => ReactNode);
+  /** Time v1.0 view bar: the views as tabs on the left (no view menu, no
+   * New button; the page's top bar has it), and no card around the rows. */
+  viewTabs?: boolean;
   onOpen?: (row: T) => void;
   onNew?: (groupKey: string | null) => void;
   onCreate?: (values: Record<string, FieldValue>, groupKey: string | null) => Promise<unknown>;
@@ -215,7 +218,7 @@ export function Database<T>(props: DatabaseProps<T>) {
   const selector = <ViewSelector db={db} compact={compact} onSettings={setSettings} layouts={layouts} />;
 
   return (
-    <section className={styles.database} aria-label={label} data-compact={compact || undefined}>
+    <section className={styles.database} aria-label={label} data-compact={compact || undefined} data-plain={(props.viewTabs && !compact) || undefined}>
       {compact && props.tabs && <div className={styles.tabsRow}>{tabsFor(view)}</div>}
       <ListQueryBar
         fields={fields}
@@ -225,8 +228,26 @@ export function Database<T>(props: DatabaseProps<T>) {
         count={shown.length}
         noun={noun}
         className={styles.toolbar}
-        leading={compact ? selector : (tabsFor(view) ?? <span />)}
-        beforeTools={compact ? undefined : selector}
+        leading={
+          compact ? (
+            selector
+          ) : props.viewTabs ? (
+            <span className={styles.viewTabs} role="tablist" aria-label="Views">
+              {db.views.map((v) => {
+                const VIcon = LAYOUT_ICON[v.layout];
+                return (
+                  <button key={v.id} type="button" role="tab" aria-selected={v.id === view.id} onClick={() => db.select(v.id)}>
+                    <VIcon size={16} strokeWidth={2} aria-hidden />
+                    {v.name}
+                  </button>
+                );
+              })}
+            </span>
+          ) : (
+            (tabsFor(view) ?? <span />)
+          )
+        }
+        beforeTools={compact || props.viewTabs ? undefined : selector}
         sortPresets={props.sortPresets?.map((p) => ({ id: p.id, label: p.label }))}
         sortPreset={view.sortPreset}
         onSortPreset={(sortPreset) => db.patchView({ sortPreset })}
@@ -236,7 +257,7 @@ export function Database<T>(props: DatabaseProps<T>) {
               <button type="button" className={styles.toolIcon} aria-label="View settings" title="View settings" onClick={(e) => setSettings(e.currentTarget)}>
                 <SlidersHorizontal size={18} strokeWidth={2} />
               </button>
-              {newButton}
+              {!props.viewTabs && newButton}
             </>
           )
         }

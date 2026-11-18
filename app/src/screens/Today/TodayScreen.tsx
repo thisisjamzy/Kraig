@@ -1,55 +1,36 @@
 'use client';
 
-// Today: a Notion page about one selected date, on every screen size.
-//   Title: the date written out ("Saturday, 3 October"). Properties: Date
-//   (a dropdown with Today, Tomorrow and Yesterday), Tasks, Focus time,
-//   Meetings, Overdue (links to Focus's Overdue view). A callout says the
-//   day in a sentence or two.
-//   Large and expanded: three columns. Left: mini month, progress, next
-//   up. Center: a 7-day strip over the day timeline. Right: the day's
-//   tasks, a linked view of the Tasks database (List, Table, Board by
-//   Status), grouped by status with Done and Cancelled collapsed and the
-//   day's date-only to-dos under "Anytime".
-//   Medium: two columns; the right one switches between Tasks and Timeline.
-//   Phones: one column; the progress block is one line under the callout,
-//   the strip scrolls sideways, Tasks or Timeline below it.
-// Dragging a task from the list onto the timeline schedules it (with the
-// availability check); hovering a row rings its block and back. Keys (with
-// a mouse): left and right change day, T today, N new task.
+// Today (Dreda v1.0 `Today / Web` 54460): the day at a glance.
+//   Title: the date written out; under it "4 blocks, 5 h free, 3 tasks
+//   overdue". Top bar: Plan the week (the Calendar) beside New task.
+//   Left: The day, an hour grid of today's blocks with the now line.
+//   Right: Now (the block under way, on dark ink with lime: Mark done,
+//   Add 15 min, what is next), Overdue (red text and a red dot, never a red
+//   block; Move to today) and To plan (tasks with no time block; Plan my
+//   day puts them into today's free time). Cards drag onto the grid.
+//   Medium screens: one column, Now and the lists above the day.
+// Keys (with a mouse): left and right change day, T today, N new task.
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { CalendarDays, Users } from 'lucide-react';
-import { useLogic } from '@/src/logic/timeCalendar/useLogic';
+import { Check } from 'lucide-react';
+import { useLogic, type TimeCalendarLogic } from '@/src/logic/timeCalendar/useLogic';
 import { useLayout } from '@/src/shared/hooks/useLayout';
 import { useNowMinute } from '@/src/shared/insights/useNow';
 import { useTaskPanel } from '@/src/shared/navigation/taskPanel';
 import { dayFromIso, shiftDay, type CalItem } from '@/src/viewmodels/calendarItems';
-import { hoursText, type TaskRow } from '@/src/viewmodels/taskRow';
-import { dayFigures, daySentence, progressLine } from '@/src/viewmodels/todaySummary';
-import { Callout, NotionPage } from '@/src/widgets/Database/NotionPage';
+import { labelHue } from '@/src/viewmodels/projects';
+import { dayText, durationText, lateText, minuteText, rangeText } from '@/src/viewmodels/todayPlan';
+import { NotionPage } from '@/src/widgets/Database/NotionPage';
 import { TopBarControls } from '@/src/widgets/AppShell/TopBarSlot';
-import { ColumnBlocks, Column } from '@/src/widgets/Database/ColumnBlocks';
-import { Database } from '@/src/widgets/Database/Database';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
-import { DateDropdown } from '@/src/widgets/TimeCalendar/DateDropdown';
-import { DayStrip } from '@/src/widgets/TimeCalendar/DayStrip';
-import { MiniCalendar } from '@/src/widgets/TimeCalendar/MiniCalendar';
-import { TASK_DRAG_TYPE, TimeGrid } from '@/src/widgets/TimeCalendar/TimeGrid';
-import { taskCardSpec, taskColumns, taskGroups, taskListSpec, taskRowActions, ModeGlyph } from '@/src/widgets/TaskDb/taskDatabase';
-import type { DefaultView } from '@/src/widgets/Database/types';
+import { TimeGrid } from '@/src/widgets/TimeCalendar/TimeGrid';
+import { DayChip, LatePill, TaskTrayCard } from '@/src/widgets/TaskChips/TaskTrayCard';
+import { HueTag } from '@/src/widgets/TaskChips/TypePill';
+import { BookingRequest } from '@/src/widgets/SchedulingLinks/BookingRequest';
 import styles from './TodayScreen.module.css';
-import { NotificationsLink } from '@/src/widgets/Notifications/NotificationsLink';
 
-type Logic = ReturnType<typeof useLogic>;
-
-const LIST_HIDDEN = ['status', 'priority', 'type', 'date', 'start', 'end', 'area', 'timeMode', 'recurring', 'overdue', 'sync', 'created', 'completed'];
-const TABLE_HIDDEN = ['priority', 'type', 'date', 'start', 'end', 'area', 'recurring', 'sync', 'created', 'completed'];
-const VIEWS: DefaultView<TaskRow>[] = [
-  { id: 'list', name: 'List', layout: 'list', group: 'status', hidden: LIST_HIDDEN, collapsed: ['Done', 'Cancelled'] },
-  { id: 'table', name: 'Table', layout: 'table', group: 'status', hidden: TABLE_HIDDEN, collapsed: ['Done', 'Cancelled'] },
-  { id: 'board', name: 'Board', layout: 'board', group: 'status', hidden: LIST_HIDDEN },
-];
+const SHOWN = 2;
 
 function longDate(iso: string) {
   const d = dayFromIso(iso);
@@ -60,18 +41,18 @@ export function TodayScreen() {
   const logic = useLogic();
   const { deviceClass, finePointer } = useLayout();
   const taskPanel = useTaskPanel();
-  const [highlight, setHighlight] = useState<string | null>(null);
-  const [pane, setPane] = useState<'tasks' | 'timeline'>('tasks');
-  const { selected, today, pick, db } = logic;
-  const compact = deviceClass === 'compact';
-  const medium = deviceClass === 'medium';
+  const { selected, today, pick } = logic;
   const isToday = selected === today;
+  const wide = deviceClass === 'large' || deviceClass === 'expanded';
 
-  // The day's tasks; date-only to-dos of the day sit under Anytime.
-  const dayRows = logic.tasksOn(selected);
-  const figures = dayFigures(dayRows, logic.itemsOn(selected).filter((i) => i.kind === 'google' && i.meeting).length);
-  const overdue = db.overdueEarlier.length;
-  const sentence = daySentence({ figures, isToday, dayLabel: longDate(selected), overdue });
+  const timed = logic.itemsOn(selected).filter((i) => !i.allDay && (i.start || i.end));
+  const free = logic.freeOn(selected);
+  const overdue = logic.overdue.length;
+  const sub = [
+    `${timed.length} ${timed.length === 1 ? 'block' : 'blocks'}`,
+    `${durationText(free)} free`,
+    ...(overdue > 0 ? [`${overdue} ${overdue === 1 ? 'task' : 'tasks'} overdue`] : []),
+  ].join(', ');
 
   // Keyboard: left and right change day, T today, N new task.
   useEffect(() => {
@@ -91,17 +72,23 @@ export function TodayScreen() {
     return () => document.removeEventListener('keydown', onKey);
   }, [finePointer, selected, today, pick, taskPanel]);
 
-  const columns = useMemo(() => taskColumns(db), [db]);
-  const groups = useMemo(() => taskGroups({ anytime: true }), []);
+  const [bookingId, setBookingId] = useState<string | null>(null);
+  const opened = bookingId ? logic.bookingOf(bookingId) : null;
 
   function open(item: CalItem) {
-    if (item.taskId) taskPanel.open(item.taskId);
+    if (item.bookingId) setBookingId(item.bookingId);
+    else if (item.taskId) taskPanel.open(item.taskId);
     else if (item.href) window.location.assign(item.href);
   }
 
-  const timeline = (
-    <div className={styles.timeline}>
-      <DayStrip selected={selected} today={today} onPick={pick} countOf={logic.countOn} scrollable={compact} />
+  const day = (
+    <section className={styles.dayCard} aria-label="The day">
+      <div className={styles.dayHead}>
+        <h2 className={styles.dayTitle}>{isToday ? 'The day' : longDate(selected)}</h2>
+        <span className={styles.dayMeta}>
+          {timed.length} {timed.length === 1 ? 'block' : 'blocks'}, {durationText(free)} free
+        </span>
+      </div>
       <TimeGrid
         mode="day"
         days={[selected]}
@@ -111,237 +98,212 @@ export function TodayScreen() {
         onEmpty={(iso, minute) => taskPanel.open('new', { date: iso, start: `${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}` })}
         onMove={(item, iso, startMin, endMin) => (item.taskId ? logic.scheduleAt(item.taskId, iso, startMin, endMin) : undefined)}
         onDropTask={(id, iso, minute) => logic.scheduleAt(id, iso, minute)}
-        highlight={highlight}
-        onHover={setHighlight}
-        maxHeight={compact ? undefined : 'calc(100dvh - 330px)'}
+        hourHeight={70}
+        maxHeight={wide ? 'calc(100dvh - 250px)' : undefined}
       />
-    </div>
+    </section>
   );
 
-  const tasks = (
-    <Database<TaskRow>
-      id="time.today.tasks"
-      label={`Tasks on ${longDate(selected)}`}
-      noun={['task', 'tasks']}
-      rows={dayRows}
-      rowKey={(r) => r.id}
-      columns={columns}
-      views={VIEWS}
-      groups={groups}
-      defaultGroup="status"
-      card={taskCardSpec(db)}
-      list={{
-        ...taskListSpec(db, { highlight }),
-        onHover: (r) => setHighlight(r?.id ?? null),
-        drag: { type: TASK_DRAG_TYPE, data: (r) => r.id },
-      }}
-      board={{ group: 'status', onMove: (r, to) => (to === 'Anytime' ? undefined : db.actions.setStatus(r, to as TaskRow['status'])) }}
-      rowActions={taskRowActions(db)}
-      onOpen={(r) => taskPanel.open(r.id)}
-      onNew={() => taskPanel.open('new', { date: selected })}
-      newLabel="New"
-      emptyText={isToday ? 'Nothing planned today.' : 'Nothing planned on this day.'}
-    />
-  );
-
-  const left = (
+  const side = (
     <>
-      <MiniCalendar selected={selected} today={today} onPick={pick} hasItems={logic.hasItems} />
-      <Progress figures={figures} overdue={overdue} rows={dayRows} />
-      <NextUp logic={logic} />
+      {isToday && <NowCard logic={logic} />}
+      <PlanLists logic={logic} />
     </>
   );
 
-  const segmented = (
-    <div className={styles.segmented} role="tablist" aria-label="Show">
-      {(['tasks', 'timeline'] as const).map((p) => (
-        <button key={p} type="button" role="tab" aria-selected={pane === p} onClick={() => setPane(p)}>
-          {p === 'tasks' ? 'Tasks' : 'Timeline'}
-        </button>
-      ))}
-    </div>
-  );
-
   return (
-    <NotionPage
-      title={longDate(selected)}
-      sub={`${figures.pending} ${figures.pending === 1 ? 'task' : 'tasks'}, ${hoursText(figures.blockedMinutes)} blocked, ${figures.meetings} ${figures.meetings === 1 ? 'meeting' : 'meetings'}`}
-      crumbs={[{ label: 'Time', href: '/projects' }, { label: 'Today', href: '/projects' }]}
-    >
+    <NotionPage title={longDate(selected)} sub={sub} crumbs={[{ label: 'Today', href: '/projects' }]}>
       <ScreenState loading={logic.loading} />
       <TopBarControls>
-        <DateDropdown label={isToday ? `Today, ${dayFromIso(selected).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })}` : longDate(selected)} selected={selected} today={today} onPick={pick} hasItems={logic.hasItems} />
+        {!isToday && (
+          <button type="button" className={styles.headerButton} onClick={logic.goToday}>
+            Today
+          </button>
+        )}
         <Link href="/projects/calendar" className={styles.headerButton}>
           Plan the week
         </Link>
       </TopBarControls>
-      {compact && (
-      <Callout icon={<CalendarDays size={18} strokeWidth={2} />} tone={overdue > 0 ? 'watch' : undefined}>
-        <p>
-          {sentence}
-          {overdue > 0 && (
-            <>
-              {' '}
-              <Link href="/projects/focus?view=overdue">Review overdue</Link>
-            </>
-          )}
-          <NotificationsLink module="time" about="your time" />
-        </p>
-        {compact && <p className={styles.progressLine}>{progressLine(figures, overdue)}</p>}
-      </Callout>
-      )}
-
-      {compact ? (
-        <>
-          {segmented}
-          {pane === 'tasks' ? tasks : timeline}
-        </>
-      ) : medium ? (
-        <ColumnBlocks template="minmax(260px, 300px) minmax(0, 1fr)">
-          <Column label="Month and day summary">{left}</Column>
-          <Column label="Tasks and timeline">
-            {segmented}
-            {pane === 'tasks' ? tasks : timeline}
-          </Column>
-        </ColumnBlocks>
+      {wide ? (
+        <div className={styles.columns}>
+          {day}
+          <div className={styles.side}>{side}</div>
+        </div>
       ) : (
-        <ColumnBlocks template={deviceClass === 'large' ? 'minmax(0, 1fr) 420px' : 'minmax(0, 1fr) 380px'}>
-          <Column label="The day">
-            <section className={styles.dayCard} aria-label="The day">
-              <div className={styles.cardHead}>
-                <h2 className={styles.cardTitle}>The day</h2>
-                <span className={styles.cardMeta}>{figures.meetings > 0 ? 'Synced with Google Calendar' : `${figures.total} on this day`}</span>
-              </div>
-              {timeline}
-            </section>
-          </Column>
-          <Column label="Now and tasks">
-            {isToday && <NowCard logic={logic} />}
-            <section className={styles.tasksCard} aria-label="Tasks for this day">
-              <div className={styles.cardHead}>
-                <h2 className={styles.cardTitle}>{isToday ? "Today's tasks" : 'Tasks'}</h2>
-                <span className={styles.cardMeta}>
-                  {figures.done} of {figures.total} done
-                </span>
-              </div>
-              {tasks}
-              {overdue > 0 && (
-                <Link href="/projects/focus?view=overdue" className={styles.overdueLine}>
-                  {overdue} {overdue === 1 ? 'task is' : 'tasks are'} overdue · Show them
-                </Link>
-              )}
-            </section>
-          </Column>
-        </ColumnBlocks>
+        <div className={styles.stack}>
+          {side}
+          {day}
+        </div>
       )}
+      {opened && <BookingRequest booking={opened.booking} link={opened.link} onAnswer={(a) => logic.answerBooking(opened.booking.id, a)} onClose={() => setBookingId(null)} />}
     </NotionPage>
   );
 }
 
-function Progress({ figures, overdue, rows }: { figures: ReturnType<typeof dayFigures>; overdue: number; rows: TaskRow[] }) {
-  const live = rows.filter((r) => r.status !== 'Cancelled');
-  const share = figures.total ? figures.done / figures.total : 0;
-  return (
-    <section className={styles.panel} aria-label="Progress">
-      <p className={styles.panelTitle}>
-        {figures.done} of {figures.total} done
-      </p>
-      <span className={styles.bar} aria-hidden>
-        <span style={{ width: `${share * 100}%` }} />
-      </span>
-      {live.length > 0 && (
-        <span className={styles.dots} aria-hidden>
-          {live.map((r) => (
-            <span key={r.id} data-done={r.done || undefined} />
-          ))}
-        </span>
-      )}
-      <div className={styles.figures}>
-        <span>
-          <strong>{hoursText(figures.blockedMinutes)}</strong> blocked
-        </span>
-        <span>
-          <strong>{figures.meetings}</strong> {figures.meetings === 1 ? 'meeting' : 'meetings'}
-        </span>
-        <span data-alert={overdue > 0 || undefined}>
-          <strong>{overdue}</strong> overdue
-        </span>
-      </div>
-    </section>
-  );
-}
-
-function NextUp({ logic }: { logic: Logic }) {
+/** The block under way now, else the next one today, on dark ink. */
+function NowCard({ logic }: { logic: TimeCalendarLogic }) {
   const minute = useNowMinute();
   const taskPanel = useTaskPanel();
-  const isToday = logic.selected === logic.today;
+  const [error, setError] = useState<string | null>(null);
   const now = minute * 60000;
-  const items = logic
-    .itemsOn(logic.selected)
-    .filter((i) => !i.allDay && i.start && !i.done && (!isToday || i.start.getTime() >= now - 5 * 60000))
-    .sort((a, b) => a.start!.getTime() - b.start!.getTime())
-    .slice(0, 3);
-  const rows = new Map(logic.tasksOn(logic.selected).map((r) => [r.id, r]));
-  return (
-    <section className={styles.panel} aria-label="Next up">
-      <p className={styles.panelTitle}>Next up</p>
-      {items.length === 0 ? (
-        <p className={styles.muted}>{isToday ? 'Nothing else scheduled today' : 'Nothing scheduled'}</p>
-      ) : (
-        <ul className={styles.nextList}>
-          {items.map((i) => {
-            const row = i.taskId ? rows.get(i.taskId) : undefined;
-            return (
-              <li key={i.key}>
-                <span className={styles.nextTime}>{i.start!.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
-                <span className={styles.nextIcon} data-kind={i.kind} aria-hidden>
-                  {i.meeting ? <Users size={13} strokeWidth={2} /> : <CalendarDays size={13} strokeWidth={2} />}
-                </span>
-                <button type="button" className={styles.nextTitle} onClick={() => (i.taskId ? taskPanel.open(i.taskId) : i.href && window.location.assign(i.href))}>
-                  {i.title}
-                </button>
-                {row && !row.allDay && <ModeGlyph mode={row.timeMode} />}
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </section>
-  );
-}
-
-/** The block under way now, else the next one today (Dreda.figcraft `Today / Web` Now). */
-function NowCard({ logic }: { logic: Logic }) {
-  const minute = useNowMinute();
-  const taskPanel = useTaskPanel();
-  const now = minute * 60000;
+  const nowDate = new Date(now);
   const timed = logic
     .itemsOn(logic.today)
     .filter((i) => !i.allDay && i.start && !i.done)
     .sort((a, b) => a.start!.getTime() - b.start!.getTime());
   const current = timed.find((i) => i.start!.getTime() <= now && (i.end?.getTime() ?? i.start!.getTime()) > now);
-  const item = current ?? timed.find((i) => i.start!.getTime() > now);
+  const later = timed.filter((i) => i.start!.getTime() > now);
+  const item = current ?? later[0];
   if (!item) return null;
+  const next = current ? later[0] : later[1];
   const row = item.taskId ? logic.tasksOn(logic.today).find((r) => r.id === item.taskId) : undefined;
-  const time = (d: Date) => d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
   const left = current && item.end ? Math.max(0, Math.round((item.end.getTime() - now) / 60000)) : null;
+  const nowMin = nowDate.getHours() * 60 + nowDate.getMinutes();
+
+  async function run(action: () => Promise<unknown>) {
+    setError(null);
+    try {
+      await action();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not save that.');
+    }
+  }
+
   return (
     <section className={styles.nowCard} aria-label={current ? 'Now' : 'Next'}>
-      <p className={styles.nowLabel}>{current ? 'Now' : 'Next'}</p>
-      <p className={styles.nowTitle}>{item.title}</p>
+      <p className={styles.nowLabel}>
+        {current ? 'Now' : 'Next'} · {current ? minuteText(nowMin) : minuteText(item.start!.getHours() * 60 + item.start!.getMinutes())}
+      </p>
+      <button type="button" className={styles.nowTitle} onClick={() => (item.taskId ? taskPanel.open(item.taskId) : item.href && window.location.assign(item.href))}>
+        {item.title}
+      </button>
       <p className={styles.nowMeta}>
-        {current && item.end ? `Until ${time(item.end)} · ${left} minutes left` : `At ${time(item.start!)}`}
+        {row?.projectName && <HueTag hue={labelHue(row.projectColor)}>{row.projectName}</HueTag>}
+        <span>{rangeText(item.start!, item.end)}</span>
+        {left !== null && (
+          <>
+            <span aria-hidden>·</span>
+            <span>{durationText(left)} left</span>
+          </>
+        )}
       </p>
       <div className={styles.nowActions}>
-        {row ? (
-          <button type="button" className={styles.nowPrimary} onClick={() => void logic.db.actions.setStatus(row, 'Done')}>
+        {row && (
+          <button type="button" className={styles.nowDone} onClick={() => void run(() => logic.db.actions.setStatus(row, 'Done'))}>
+            <Check size={18} strokeWidth={2.5} aria-hidden />
             Mark done
           </button>
-        ) : null}
-        <button type="button" className={styles.nowSecondary} onClick={() => (item.taskId ? taskPanel.open(item.taskId) : item.href && window.location.assign(item.href))}>
-          Open
-        </button>
+        )}
+        {row && current && (
+          <button type="button" className={styles.nowMore} onClick={() => void run(() => logic.extend(row.id, 15))}>
+            Add 15 min
+          </button>
+        )}
+        {next && (
+          <span className={styles.nowNext}>
+            Next: {next.title}, {minuteText(next.start!.getHours() * 60 + next.start!.getMinutes())}
+          </span>
+        )}
       </div>
+      {error && (
+        <p className={styles.nowError} role="alert">
+          {error}
+        </p>
+      )}
+    </section>
+  );
+}
+
+/** Overdue, then To plan: cards that drag onto the day. */
+function PlanLists({ logic }: { logic: TimeCalendarLogic }) {
+  const taskPanel = useTaskPanel();
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+  const now = new Date();
+  const { overdue, toPlan } = logic;
+
+  async function run(action: () => Promise<string | null>) {
+    setBusy(true);
+    setNote(null);
+    try {
+      setNote(await action());
+    } catch (e) {
+      setNote(e instanceof Error ? e.message : 'Could not save that.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (overdue.length === 0 && toPlan.length === 0) {
+    return (
+      <section className={styles.listsCard} aria-label="To plan">
+        <p className={styles.empty}>Nothing overdue and nothing left to plan.</p>
+      </section>
+    );
+  }
+
+  return (
+    <section className={styles.listsCard} aria-label="Overdue and to plan">
+      {overdue.length > 0 && (
+        <div className={styles.list}>
+          <div className={styles.listHead}>
+            <h2 className={styles.listTitle} data-tone="danger">
+              Overdue <span className={styles.count}>{overdue.length}</span>
+            </h2>
+            <button
+              type="button"
+              className={styles.textButton}
+              disabled={busy}
+              onClick={() => void run(async () => (await logic.moveToToday(overdue), `Moved ${overdue.length} to today.`))}
+            >
+              Move to today
+            </button>
+          </div>
+          {overdue.slice(0, SHOWN).map((r) => (
+            <TaskTrayCard key={r.id} row={r} onOpen={() => taskPanel.open(r.id)} right={<LatePill>{lateText(r.date, now) ?? 'Late'}</LatePill>} />
+          ))}
+          {overdue.length > SHOWN && (
+            <Link href="/tasks" className={styles.moreLink}>
+              {overdue.length - SHOWN} more in Tasks
+            </Link>
+          )}
+        </div>
+      )}
+      {toPlan.length > 0 && (
+        <div className={styles.list}>
+          <div className={styles.listHead}>
+            <h2 className={styles.listTitle}>
+              To plan <span className={styles.count}>{toPlan.length}</span>
+            </h2>
+            <button
+              type="button"
+              className={styles.tonal}
+              disabled={busy}
+              onClick={() =>
+                void run(async () => {
+                  const placed = await logic.planMyDay();
+                  return placed === 0 ? 'No free time left today for these.' : `Planned ${placed} ${placed === 1 ? 'task' : 'tasks'} into today.`;
+                })
+              }
+            >
+              Plan my day
+            </button>
+          </div>
+          {toPlan.slice(0, SHOWN).map((r) => (
+            <TaskTrayCard key={r.id} row={r} onOpen={() => taskPanel.open(r.id)} right={r.date ? <DayChip>{dayText(r.date, now)}</DayChip> : undefined} />
+          ))}
+          {toPlan.length > SHOWN && (
+            <Link href="/projects/calendar" className={styles.moreLink}>
+              {toPlan.length - SHOWN} more in the tray
+            </Link>
+          )}
+        </div>
+      )}
+      {note && (
+        <p className={styles.note} role="status">
+          {note}
+        </p>
+      )}
     </section>
   );
 }

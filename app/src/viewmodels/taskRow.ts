@@ -24,6 +24,8 @@ export interface TaskRow {
   importance: Quadrant;
   priority: Priority;
   type: TaskRowType;
+  /** The stored type name, custom types included ("Deep work"); TypePill reads it. */
+  typeName: string;
   projectId: string | null;
   projectName: string | null;
   projectColor: string | null;
@@ -87,6 +89,7 @@ export function toTaskRow(t: TaskItem, ctx: TaskRowContext): TaskRow {
     importance: taskQuadrant({ quadrant: t.quadrant, priority, dueDate: end, startTime: start }, ctx.now),
     priority,
     type,
+    typeName: t.type || 'ToDo',
     projectId: t.projectId,
     projectName: project?.name ?? null,
     projectColor: project?.color ?? null,

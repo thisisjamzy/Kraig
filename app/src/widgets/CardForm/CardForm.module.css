@@ -393,6 +393,43 @@ input:focus-visible + .switch {
   outline-offset: 3px;
 }
 
+/* The soft purple button (Plan my day, Block time): brand text on the tonal fill. */
+.tonal {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 64px;
+  margin-top: 8px;
+  border: none;
+  border-radius: 9999px;
+  background: var(--color-tonal);
+  color: var(--color-on-tonal);
+  font-family: inherit;
+  font-size: 18px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tonal:hover:not(:disabled) {
+  background: var(--color-tonal-hover);
+}
+
+.tonal:active:not(:disabled) {
+  transform: scale(0.985);
+}
+
+.tonal:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.tonal:focus-visible {
+  outline: 2px solid var(--tf-text);
+  outline-offset: 3px;
+}
+
 .formError {
   margin: 0 0 0 10px;
   font-size: 13px;
@@ -624,6 +661,52 @@ input:focus-visible + .switch {
 }
 
 /* ---- Date sheet calendar ---- */
+/* The calendar fills its dialog (the library's own root is a fixed narrow
+   width), and carries the form's colours: the dialog renders outside the
+   form, so the form's --tf-* values don't reach it. */
+.calendarRoot {
+  --tf-accent: var(--color-primary);
+  --tf-text: var(--color-text-primary);
+  --tf-label: var(--color-text-secondary);
+  --tf-track: var(--color-bg-sunken);
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: none;
+}
+
+.calendarRoot .calendarGrid {
+  width: 100%;
+  table-layout: fixed;
+}
+
+.calendarRoot .dayCellInner {
+  width: 44px;
+  height: 44px;
+}
+
+/* The library's own cell paint (a blue square, forced 1:1) gives way to
+   the circle inside it. */
+.calendarRoot .dayCell,
+.calendarRoot .dayCell:hover,
+.calendarRoot .dayCell[data-selected],
+.calendarRoot .dayCell[data-hovered] {
+  height: auto;
+  aspect-ratio: auto;
+  background: none;
+  box-shadow: none;
+}
+
+.calendarRoot .dayCell:hover .dayCellInner {
+  background: var(--color-bg-sunken);
+}
+
+/* A single date (not a range): the picked day is a solid purple circle. */
+.calendarRoot.calendarRoot:not(:has([data-selection-start])) .dayCell[data-selected] .dayCellInner {
+  border-radius: 50%;
+  background: var(--tf-accent);
+  color: #fff;
+}
 .calendarHeader {
   display: flex;
   align-items: center;

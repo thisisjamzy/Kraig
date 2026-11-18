@@ -52,7 +52,7 @@ export function useSwipeModeSwitch(currentMode: 'money' | 'projects') {
       const deltaY = touch.clientY - startY;
       if (Math.abs(deltaY) > SWIPE_MAX_Y) return;
       if (Math.abs(deltaX) < SWIPE_THRESHOLD_X) return;
-      router.push(currentMode === 'money' ? '/projects' : '/home');
+      router.push(currentMode === 'money' ? '/projects/insights' : '/home');
     }
 
     el.addEventListener('touchstart', onTouchStart, { passive: true });

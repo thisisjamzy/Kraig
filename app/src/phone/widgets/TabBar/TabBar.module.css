@@ -1,0 +1,113 @@
+/* The phone bottom bar (Money and Time): floating 16px from the sides, a
+   neutral 900 pill of 44px round tabs, the current one a purple pill with
+   its label, and the lime mode button beside it. */
+.bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 95;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: var(--app-max-width);
+  margin-inline: auto;
+  padding: 10px max(16px, var(--safe-right)) var(--bottom-bar-pad) max(16px, var(--safe-left));
+  pointer-events: none;
+}
+
+.pill {
+  pointer-events: auto;
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0;
+  padding: 6px;
+  border-radius: 9999px;
+  background: var(--nav-bar-bg);
+  box-shadow: var(--shadow-raised);
+}
+
+.item {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  flex: none;
+  height: 44px;
+  min-width: 44px;
+  padding: 12px;
+  border-radius: 9999px;
+  background: var(--nav-tab-bg);
+  color: color-mix(in srgb, var(--sg-neutral-50) 70%, transparent);
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background-color var(--duration-morph) var(--ease-out),
+    color var(--duration-morph) var(--ease-out),
+    padding var(--duration-morph) var(--ease-out),
+    gap var(--duration-morph) var(--ease-out);
+}
+
+.item svg {
+  flex: none;
+}
+
+.label {
+  max-width: 0;
+  overflow: hidden;
+  opacity: 0;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 20px;
+  white-space: nowrap;
+  transition:
+    max-width var(--duration-morph) var(--ease-out),
+    opacity var(--duration-morph) var(--ease-out);
+}
+
+.item[data-active] {
+  gap: 6px;
+  padding: 12px 16px 12px 14px;
+  background: var(--color-primary);
+  color: var(--color-brand-on);
+}
+
+.item[data-active] .label {
+  max-width: 110px;
+  opacity: 1;
+}
+
+.item:focus-visible,
+.fab:focus-visible {
+  outline: 2px solid var(--color-accent-default);
+  outline-offset: 2px;
+}
+
+.fab {
+  pointer-events: auto;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--color-accent-default);
+  color: var(--color-text-primary);
+  box-shadow: var(--shadow-raised);
+  text-decoration: none;
+  transition: transform 0.15s ease;
+}
+
+.fab:active {
+  transform: scale(0.96);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .item,
+  .label,
+  .fab {
+    transition: none;
+  }
+}

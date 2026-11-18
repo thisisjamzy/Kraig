@@ -1,157 +1,195 @@
 'use client';
 
-// Areas: a Notion page, full width. Properties: Areas, Active projects,
-// Open tasks, At risk projects. The areas database (Gallery and Table)
-// with "New area". Gallery cards: the area's emoji or color tile, name,
-// description (two lines) and "15 projects · 42 open tasks · 3 at risk".
+// Areas (Dreda v1.0 `Areas / Web` 62644).
+//   Title "Areas"; under it "3 areas, 5 folders, 11 projects. Click an area
+//   to open it." New area in the top bar.
+//   Four stat cards: areas (the busiest), folders, open tasks, overdue.
+//   Table: each area with its folders nested under it (folders, projects,
+//   open tasks, overdue, booked this week, progress); Cards: one card per
+//   area with its folders listed.
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Map as MapIcon, MoreHorizontal } from 'lucide-react';
-import { useLogic, type AreaRow } from '@/src/logic/allAreas/useLogic';
+import { AlertCircle, Check, Folder, LayoutGrid, Table2 } from 'lucide-react';
+import { useOrganise } from '@/src/logic/organise/useOrganise';
+import { plural } from '@/src/viewmodels/organise';
 import { NotionPage } from '@/src/widgets/Database/NotionPage';
-import { Database } from '@/src/widgets/Database/Database';
-import type { ColumnDef } from '@/src/widgets/Database/types';
-import { ConfirmDialog } from '@/src/widgets/ConfirmDialog/ConfirmDialog';
-import { Popover } from '@/src/widgets/ListQuery/Popover';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
-import { areaFigures } from '@/src/viewmodels/home';
-import styles from './AllAreasScreen.module.css';
+import { StatCards } from '@/src/widgets/Dashboard/StatCard';
 import { useFormLink } from '@/src/shared/navigation/useFormLink';
+import { CardGrid, ContainerCard, HeaderActions, HueBar, HueTile, ViewTabs, weekText } from '@/src/screens/Organise/parts';
+import styles from '@/src/screens/Organise/Organise.module.css';
 
-const figures = areaFigures;
-
-const COLUMNS: ColumnDef<AreaRow>[] = [
-  { id: 'name', label: 'Name', type: 'text', width: 220, value: (a) => a.name, render: (a) => <span>{a.emoji ? `${a.emoji} ` : ''}{a.name}</span> },
-  { id: 'projects', label: 'Projects', type: 'number', width: 100, value: (a) => a.projects, calc: 'sum', onCard: true },
-  { id: 'openTasks', label: 'Open tasks', type: 'number', width: 110, value: (a) => a.openTasks, calc: 'sum', onCard: true },
-  { id: 'overdue', label: 'Overdue', type: 'number', width: 100, value: (a) => a.overdue, tone: (a) => (a.overdue ? 'bad' : undefined), calc: 'sum' },
-  { id: 'atRisk', label: 'At risk', type: 'number', width: 100, value: (a) => a.atRisk, tone: (a) => (a.atRisk ? 'bad' : undefined), calc: 'sum', onCard: true },
-  { id: 'lastActivity', label: 'Last activity', type: 'date', width: 130, value: (a) => a.lastActivity },
-  { id: 'description', label: 'Description', type: 'text', width: 260, hidden: true, value: (a) => a.description || null, onCard: true },
-];
+type View = 'table' | 'cards';
 
 export function AllAreasScreen() {
   const formLink = useFormLink();
-  const v = useLogic();
   const router = useRouter();
-  const [archiving, setArchiving] = useState<AreaRow | null>(null);
-  const open = (a: AreaRow) => router.push(`/areas/${a.id}`);
+  const o = useOrganise();
+  const [view, setView] = useState<View>('table');
+  const folders = o.folders;
+  const projects = o.projects.filter((p) => p.status === 'Active');
+  const open = o.areas.reduce((s, a) => s + a.open, 0);
+  const week = o.areas.reduce((s, a) => s + a.dueWeek, 0);
+  const overdue = o.areas.reduce((s, a) => s + a.overdue, 0);
+  const lateAreas = o.areas.filter((a) => a.overdue > 0).map((a) => a.name);
+  const busiest = [...o.areas].sort((a, b) => b.open - a.open)[0];
 
   return (
     <NotionPage
       title="Areas"
-      icon={<MapIcon strokeWidth={1.75} />}
-      crumbs={[{ label: 'Time', href: '/projects' }, { label: 'Areas', href: '/areas' }]}
-      menu={[{ label: 'New area', href: formLink('area') }]}
-      properties={[
-        { id: 'areas', label: 'Areas', display: String(v.areas.length) },
-        { id: 'projects', label: 'Active projects', display: String(v.activeProjects) },
-        { id: 'tasks', label: 'Open tasks', display: String(v.openTasks) },
-        { id: 'risk', label: 'At risk projects', tone: v.atRiskProjects ? 'bad' : 'good', display: String(v.atRiskProjects) },
-      ]}
+      sub={`${plural(o.areas.length, 'area')}, ${plural(folders.length, 'folder')}, ${plural(projects.length, 'project')}. Click an area to open it.`}
+      crumbs={[{ label: 'Areas', href: '/areas' }]}
     >
-      {v.loading ? (
-        <ScreenState loading />
-      ) : (
-        <Database<AreaRow>
-          id="time.areas"
-          label="Areas"
-          noun={['area', 'areas']}
-          rows={v.areas}
-          rowKey={(a) => a.id}
-          columns={COLUMNS}
-          views={[
-            { id: 'gallery', name: 'Gallery', layout: 'cards' },
-            { id: 'table', name: 'Table', layout: 'table', hidden: ['description'] },
+      <HeaderActions primary={{ label: 'New area', href: formLink('area') }} />
+      <ScreenState loading={o.loading} />
+      <StatCards
+        stats={[
+          {
+            label: 'Areas',
+            icon: <LayoutGrid size={18} />,
+            value: String(o.areas.length),
+            chip: busiest ? { text: `${busiest.name} busiest`, hue: 'grey' } : null,
+            caption: 'all active',
+          },
+          {
+            label: 'Folders',
+            icon: <Folder size={18} />,
+            value: String(folders.length),
+            caption: `in ${plural(o.areas.length, 'area')}`,
+            href: '/sections',
+          },
+          {
+            label: 'Open tasks',
+            icon: <Check size={18} />,
+            value: String(open),
+            chip: { text: `${week} this week`, hue: 'grey' },
+            caption: `across ${plural(projects.length, 'project')}`,
+            href: '/tasks?view=all',
+          },
+          {
+            label: 'Overdue',
+            icon: <AlertCircle size={18} />,
+            value: String(overdue),
+            chip: overdue ? { text: `${overdue}`, hue: 'rose' } : null,
+            caption: overdue ? `in ${lateAreas.join(' and ')}` : 'nothing late',
+            href: '/tasks',
+          },
+        ]}
+      />
+      <div className={styles.viewBar}>
+        <ViewTabs<View>
+          tabs={[
+            {
+              id: 'table',
+              label: 'Table',
+              icon: <Table2 size={16} aria-hidden />,
+            },
+            {
+              id: 'cards',
+              label: 'Cards',
+              icon: <LayoutGrid size={16} aria-hidden />,
+            },
           ]}
-          defaultGroup="none"
-          card={{ title: (a) => a.name, render: (a) => <AreaCard area={a} onOpen={() => open(a)} onArchive={() => setArchiving(a)} /> }}
-          list={{ title: (a) => a.name, secondary: (a) => figures(a), ownsProperties: true }}
-          rowActions={[{ id: 'archive', label: 'Archive', run: (a) => setArchiving(a) }]}
-          onOpen={open}
-          onNew={() => router.push(formLink('area'))}
-          newLabel="New area"
-          emptyText="No areas yet. Areas group your projects (Work, Home, Health)."
+          value={view}
+          onChange={setView}
         />
-      )}
-      {archiving && (
-        <ConfirmDialog
-          title={`Archive ${archiving.name}?`}
-          message="Its folders, projects and tasks go to the archive together and stop showing up in Work. You can restore the area from Library later."
-          confirmLabel="Archive area"
-          cancelLabel="Cancel"
-          tone="neutral"
-          onCancel={() => setArchiving(null)}
-          onConfirm={() => {
-            const a = archiving;
-            setArchiving(null);
-            void v.archiveArea(a.id);
-          }}
-        />
+      </div>
+      {!o.loading && o.areas.length === 0 ? (
+        <p className={styles.empty}>
+          No areas yet. <Link href={formLink('area')}>Add the first one</Link>.
+        </p>
+      ) : view === 'table' ? (
+        <div className={styles.tableCard}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>Area</th>
+                <th>Folders</th>
+                <th>Projects</th>
+                <th>Open tasks</th>
+                <th>Overdue</th>
+                <th>This week</th>
+                <th>Progress</th>
+              </tr>
+            </thead>
+            <tbody>
+              {o.areas.flatMap((a) => [
+                <tr key={a.id} data-href onClick={() => router.push(`/areas/${a.id}`)}>
+                  <td>
+                    <span className={styles.nameCell}>
+                      <HueTile hue={a.hue}>
+                        <LayoutGrid size={18} />
+                      </HueTile>
+                      <span>
+                        <Link href={`/areas/${a.id}`} className={styles.name} onClick={(e) => e.stopPropagation()}>
+                          {a.name}
+                        </Link>
+                        {a.description && <span className={styles.desc}>{a.description}</span>}
+                      </span>
+                    </span>
+                  </td>
+                  <td>{a.folders.length}</td>
+                  <td>{a.projects.length}</td>
+                  <td>{a.open}</td>
+                  <td className={a.overdue ? styles.late : undefined}>{a.overdue}</td>
+                  <td>{weekText(a.weekMinutes)}</td>
+                  <td>
+                    <span className={styles.progressCell}>
+                      <HueBar hue={a.hue} value={a.progress} />
+                      <span className={styles.pct}>{Math.round(a.progress * 100)}%</span>
+                    </span>
+                  </td>
+                </tr>,
+                ...a.folders.map((f, i, list) => (
+                  <tr key={f.id} data-href data-level="1" data-last={i === list.length - 1 || undefined} onClick={() => router.push(`/sections/${f.id}`)}>
+                    <td>
+                      <span className={styles.nameCell}>
+                        <HueTile hue="grey" size={32}>
+                          <Folder size={16} />
+                        </HueTile>
+                        <span>
+                          <Link href={`/sections/${f.id}`} className={styles.name} onClick={(e) => e.stopPropagation()}>
+                            {f.name}
+                          </Link>
+                          {f.description && <span className={styles.desc}>{f.description}</span>}
+                        </span>
+                      </span>
+                    </td>
+                    <td className={styles.muted}>–</td>
+                    <td>{f.projects.length}</td>
+                    <td>{f.open}</td>
+                    <td className={f.overdue ? styles.late : undefined}>{f.overdue}</td>
+                    <td>{weekText(f.weekMinutes)}</td>
+                    <td>
+                      <span className={styles.progressCell}>
+                        <HueBar hue={f.hue} value={f.progress} />
+                        <span className={styles.pct}>{Math.round(f.progress * 100)}%</span>
+                      </span>
+                    </td>
+                  </tr>
+                )),
+              ])}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <CardGrid>
+          {o.areas.map((a) => (
+            <ContainerCard
+              key={a.id}
+              href={`/areas/${a.id}`}
+              hue={a.hue}
+              icon={<LayoutGrid size={20} />}
+              name={a.name}
+              description={a.description}
+              meta={[plural(a.folders.length, 'folder'), plural(a.projects.length, 'project'), `${a.open} open`, a.overdue ? `${a.overdue} overdue` : null].filter(Boolean).join(' · ')}
+              progress={a.progress}
+            />
+          ))}
+        </CardGrid>
       )}
     </NotionPage>
-  );
-}
-
-function AreaCard({ area, onOpen, onArchive }: { area: AreaRow; onOpen: () => void; onArchive: () => void }) {
-  const formLink = useFormLink();
-  const router = useRouter();
-  const [menu, setMenu] = useState<HTMLElement | null>(null);
-  return (
-    <article className={styles.card} onClick={onOpen}>
-      <div className={styles.cardTop}>
-        <span className={styles.tile} style={{ background: area.emoji ? undefined : area.color }} aria-hidden>
-          {area.emoji ?? ''}
-        </span>
-        <button
-          type="button"
-          className={styles.more}
-          aria-label={`Options for ${area.name}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            setMenu(e.currentTarget);
-          }}
-        >
-          <MoreHorizontal size={16} strokeWidth={2} />
-        </button>
-      </div>
-      <h3 className={styles.name}>
-        <button type="button" onClick={onOpen}>
-          {area.name}
-        </button>
-      </h3>
-      {area.description && <p className={styles.description}>{area.description}</p>}
-      <p className={styles.figures} data-risk={area.atRisk > 0 || undefined}>
-        {figures(area)}
-      </p>
-      {menu && (
-        <Popover anchor={menu} label={area.name} onClose={() => setMenu(null)}>
-          <div className={styles.menu} onClick={(e) => e.stopPropagation()}>
-            <button type="button" onClick={onOpen}>
-              Open
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setMenu(null);
-                router.push(formLink('area', { id: area.id }));
-              }}
-            >
-              Edit
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setMenu(null);
-                onArchive();
-              }}
-            >
-              Archive
-            </button>
-          </div>
-        </Popover>
-      )}
-    </article>
   );
 }

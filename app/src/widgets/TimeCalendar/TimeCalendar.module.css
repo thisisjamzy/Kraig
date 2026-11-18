@@ -30,6 +30,16 @@
 :is(.block, .allDayItem, .pill, .slotRow, .preview)[data-kind='google'] { --k-fill: var(--sg-neutral-200); --k-accent: var(--sg-neutral-700); }
 :is(.block, .allDayItem, .pill, .slotRow, .preview)[data-kind='project'] { --k-fill: color-mix(in srgb, var(--sg-primary-dark) 12%, var(--sg-neutral-0)); --k-accent: var(--sg-primary-dark); }
 :is(.block, .allDayItem, .pill, .slotRow, .preview)[data-kind='payment'] { --k-fill: var(--sg-accent); --k-accent: var(--sg-neutral-900); }
+/* Dreda v1.0: the label hue of the item's project, else its type. */
+:is(.block, .allDayItem, .pill, .slotRow, .preview)[data-hue='purple'] { --k-fill: var(--label-purple-bg); --k-accent: var(--label-purple-solid); --k-text: var(--label-purple-fg); }
+:is(.block, .allDayItem, .pill, .slotRow, .preview)[data-hue='blue'] { --k-fill: var(--label-blue-bg); --k-accent: var(--label-blue-solid); --k-text: var(--label-blue-fg); }
+:is(.block, .allDayItem, .pill, .slotRow, .preview)[data-hue='teal'] { --k-fill: var(--label-teal-bg); --k-accent: var(--label-teal-solid); --k-text: var(--label-teal-fg); }
+:is(.block, .allDayItem, .pill, .slotRow, .preview)[data-hue='green'] { --k-fill: var(--label-green-bg); --k-accent: var(--label-green-solid); --k-text: var(--label-green-fg); }
+:is(.block, .allDayItem, .pill, .slotRow, .preview)[data-hue='lime'] { --k-fill: var(--label-lime-bg); --k-accent: var(--label-lime-solid); --k-text: var(--label-lime-fg); }
+:is(.block, .allDayItem, .pill, .slotRow, .preview)[data-hue='amber'] { --k-fill: var(--label-amber-bg); --k-accent: var(--label-amber-solid); --k-text: var(--label-amber-fg); }
+:is(.block, .allDayItem, .pill, .slotRow, .preview)[data-hue='orange'] { --k-fill: var(--label-orange-bg); --k-accent: var(--label-orange-solid); --k-text: var(--label-orange-fg); }
+:is(.block, .allDayItem, .pill, .slotRow, .preview)[data-hue='rose'] { --k-fill: var(--label-rose-bg); --k-accent: var(--label-rose-solid); --k-text: var(--label-rose-fg); }
+:is(.block, .allDayItem, .pill, .slotRow, .preview)[data-hue='grey'] { --k-fill: var(--label-grey-bg); --k-accent: var(--label-grey-solid); --k-text: var(--label-grey-fg); }
 :is(.pill, .slotRow)[data-late] { --k-fill: var(--color-status-danger-bg); --k-accent: var(--color-status-danger-fg); }
 .muted {
   margin: 0;
@@ -948,3 +958,89 @@
     min-height: 44px;
   }
 }
+
+/* ==== Dreda v1.0 calendar blocks (Calendar / Web / Week 54090) ====
+   A tinted body in the label hue, a 3px bar of the hue on the top edge,
+   same-hue text, 8px corners. */
+.block {
+  gap: 2px;
+  padding: 6px 8px;
+  border-left: 0;
+  border-top: 3px solid var(--k-accent);
+  border-radius: 8px;
+  color: var(--k-text, var(--tc-text));
+}
+
+.block[data-free] {
+  border-left-style: none;
+  border-top-style: dashed;
+}
+
+.block .blockTitle {
+  font-weight: 400;
+}
+
+.block .blockTime,
+.block .blockProject {
+  color: var(--k-text, var(--tc-muted));
+}
+
+.allDayItem[data-hue] {
+  color: var(--k-text, var(--tc-text));
+}
+
+/* Now: an ink line across the days up to today, the time on a lime chip
+   in the gutter. */
+.nowLine {
+  left: 0;
+  right: auto;
+  border-top: 1.5px solid var(--color-text-primary);
+}
+
+.nowChip {
+  position: absolute;
+  right: 2px;
+  z-index: 5;
+  transform: translateY(-50%);
+  padding: 2px 6px;
+  border-radius: 9999px;
+  background: var(--color-accent-default);
+  color: var(--color-text-primary);
+  font-size: 0.75rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.3;
+}
+
+/* Today's date in the week head: a lime pill. */
+.weekHeadPill {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 2px 10px;
+  border-radius: 9999px;
+}
+
+.weekHeadDay .weekHeadNum {
+  display: inline;
+  min-width: 0;
+  height: auto;
+  background: none;
+  color: inherit;
+  font-weight: inherit;
+}
+
+.weekHeadDay[data-today] .weekHeadNum {
+  background: none;
+  color: inherit;
+}
+
+.weekHeadDay[data-today] {
+  color: var(--color-text-primary);
+}
+
+.weekHeadDay[data-today] .weekHeadPill {
+  background: var(--color-accent-default);
+  font-weight: 500;
+}
+

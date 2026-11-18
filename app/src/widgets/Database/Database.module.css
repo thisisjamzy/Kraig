@@ -2186,3 +2186,66 @@
   border-radius: 16px;
   background: var(--color-brand-subtle);
 }
+
+/* With a top bar the title moves up into it; a header holding nothing
+   else takes no room (it would add an empty gap above the page). */
+.pageHeader:not(:has(h1, > :not(.pageTitleRow))) {
+  margin-bottom: -24px;
+}
+
+/* Time v1.0 view bar (Dreda v1.0 `View bar` 61818): the views as tabs on
+   the left, tools on the right, and the rows straight on the page. */
+.database[data-plain] {
+  gap: 20px;
+  padding: 0;
+  border-radius: 0;
+  background: none;
+}
+
+.database[data-plain] .toolbar {
+  border-bottom: 1px solid var(--color-border-default);
+}
+
+.viewTabs {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.viewTabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 40px;
+  padding: 0 10px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: 13px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.viewTabs button[aria-selected='true'] {
+  border-bottom-color: var(--color-text-primary);
+  color: var(--color-text-primary);
+  font-weight: 500;
+}
+
+/* A card that draws itself (the project card) fills the board column:
+   no second frame around it. */
+.database[data-plain] .boardCard {
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+.database[data-plain] .boardColumn {
+  border: 0;
+  border-radius: 20px;
+  background: var(--color-bg-sunken);
+}

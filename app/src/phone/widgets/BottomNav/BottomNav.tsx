@@ -1,11 +1,10 @@
 'use client';
 
-import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Home, PieChart, Plus, SlidersHorizontal, Clock } from 'lucide-react';
 import { useFormLink } from '@/src/shared/navigation/useFormLink';
 import { navMode } from '@/src/shared/config/chromeVisibility';
-import styles from '@/src/phone/widgets/BottomNav/BottomNav.module.css';
+import { TabBar } from '@/src/phone/widgets/TabBar/TabBar';
 
 // Buckets dropped from here — reachable from Home's own Quick Actions instead
 // (src/screens/Home/HomeScreen.tsx) — /baskets stays a MONEY_HUB_ROUTE
@@ -24,45 +23,21 @@ export const NAV_ITEMS = [
 // equivalent, rendered instead of this one on that mode's own hub routes
 // (see chromeVisibility.ts's navMode).
 //
-// The end button used to be an "Add transaction" FAB; it's now the
-// Money<->Time mode switch instead (the old AppHeader ModeSwitch pill's
-// job, folded in here) — same spot the swipe gesture
-// (useSwipeModeSwitch) already lands on. Its icon is the mode it jumps
-// TO, not the one you're in, same convention ProjectsBottomNav's own
-// switch button uses. Add transaction is back in the bar as the pill's
-// last tile (brand fill), so it's one tap from every Money hub page.
+// The same bar as Time's (TabBar, owner 18 Nov 2026): the tabs, Add
+// transaction as the pill's last circle, and the lime mode button beside
+// it, whose icon is the mode it jumps TO.
 export function BottomNav() {
   const pathname = usePathname();
   const formLink = useFormLink();
-
-  if (navMode(pathname) !== 'money') {
-    return null;
-  }
-
+  if (navMode(pathname) !== 'money') return null;
+  const active = NAV_ITEMS.find(({ href }) => pathname === href || pathname?.startsWith(`${href}/`))?.href ?? null;
   return (
-    <nav className={styles.bar} aria-label="Primary">
-      <div className={styles.pill}>
-        {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
-          const isActive = pathname === href || pathname?.startsWith(`${href}/`);
-          return (
-            <Link
-              key={href}
-              href={href}
-              className={`${styles.item} ${isActive ? styles.itemActive : ''}`}
-              aria-current={isActive ? 'page' : undefined}
-            >
-              <Icon size={20} strokeWidth={2} />
-              <span className={styles.srLabel}>{label}</span>
-            </Link>
-          );
-        })}
-        <Link href={formLink('transaction')} className={`${styles.item} ${styles.addItem}`} aria-label="Add transaction" title="Add transaction">
-          <Plus size={22} strokeWidth={2.5} />
-        </Link>
-      </div>
-      <Link href="/projects" className={styles.fabButton} aria-label="Switch to Time mode">
-        <Clock size={22} strokeWidth={2.25} />
-      </Link>
-    </nav>
+    <TabBar
+      label="Money"
+      tabs={NAV_ITEMS.map((n) => ({ id: n.href, href: n.href, label: n.label, icon: n.icon }))}
+      active={active}
+      action={{ href: formLink('transaction'), label: 'Add transaction', icon: Plus }}
+      fab={{ href: '/projects/insights', label: 'Switch to Time', icon: Clock }}
+    />
   );
 }

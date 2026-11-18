@@ -66,6 +66,21 @@ export const styleGuide = {
     debt: { fg: '#C2410C', bg: '#FFF7ED' },
     transfer: { fg: '#4B5563', bg: '#F3F4F6' },
   },
+  // Labels (Dreda v1.0 `color/label/*`, Light): bg (tint), border, fg (text
+  // on the tint), solid (bars, dots, block edges).
+  label: {
+    purple: { bg: '#E9E1F7', border: '#B49BE2', fg: '#342066', solid: '#553199' },
+    blue: { bg: '#DBEAFE', border: '#93C5FD', fg: '#1E40AF', solid: '#2563EB' },
+    teal: { bg: '#CCFBF1', border: '#5EEAD4', fg: '#115E59', solid: '#0F766E' },
+    green: { bg: '#D1FAE5', border: '#6EE7B7', fg: '#065F46', solid: '#047857' },
+    lime: { bg: '#F4FED3', border: '#D3FC72', fg: '#4A6717', solid: '#5D8215' },
+    amber: { bg: '#FEF3C7', border: '#FCD34D', fg: '#92400E', solid: '#B45309' },
+    orange: { bg: '#FFEDD5', border: '#FDBA74', fg: '#9A3412', solid: '#C2410C' },
+    rose: { bg: '#FFE4E6', border: '#FDA4AF', fg: '#9F1239', solid: '#E11D48' },
+    grey: { bg: '#F3F4F6', border: '#D1D5DB', fg: '#1F2937', solid: '#4B5563' },
+  },
+  // Tonal buttons: the soft purple fill; the text is brand primary.
+  tonal: { bg: '#EEEAF5', hover: '#E0DAED' },
   // Destructive actions (Delete): the danger solid.
   destructive: '#C62828',
   fonts: {

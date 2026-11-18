@@ -1,42 +1,44 @@
 'use client';
 
-// Projects: a Notion page over the Projects database.
-//   Properties: Active, At risk, Overdue tasks. A callout when projects
-//   are at risk, with "Show at risk".
-//   Views: Gallery (cards grouped by area, the default), Table, Board (by
-//   health), Timeline (bars from start to end, drag the ends to change
-//   dates; not on phones) and At risk. Gallery, Board and Timeline show
-//   active projects; Table shows every project (filter by Status).
-//   Cards: 4 across on large screens, 3 expanded, 2 medium, 1 on phones.
+// Projects (Dreda v1.0 `Projects` 57627, `Projects board` 58404, `Projects
+// timeline` 59140).
+//   Title "Projects"; under it "3 areas, 5 folders, 11 projects, 4 at risk".
+//   Top bar: New folder, then New project.
+//   Four stat cards: active projects, overdue tasks, due this week, time
+//   blocked this week.
+//   One view bar over the Projects database: All projects (cards grouped by
+//   folder), Board (by stage: Planned, In progress, At risk, Done),
+//   Timeline (bars grouped by area and folder, drag the ends to change
+//   dates) and Table; Filter, Sort, Search and View settings on the right.
 
 import { Suspense, useMemo } from 'react';
-import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { FolderKanban } from 'lucide-react';
-import { atRiskSentence, useProjectsDb, type ProjectRow } from '@/src/logic/projectsDb/useProjectsDb';
-import { Callout, NotionPage } from '@/src/widgets/Database/NotionPage';
+import { AlertCircle, CalendarDays, Layers, Sun } from 'lucide-react';
+import { useOrganise } from '@/src/logic/organise/useOrganise';
+import { usePeople } from '@/src/logic/people/store';
+import { peopleOn } from '@/src/viewmodels/people';
+import { crumbOf, plural } from '@/src/viewmodels/organise';
+import { hueVars } from '@/src/viewmodels/projects';
+import { durationText } from '@/src/viewmodels/todayPlan';
+import { NotionPage } from '@/src/widgets/Database/NotionPage';
 import { Database } from '@/src/widgets/Database/Database';
 import type { DefaultView } from '@/src/widgets/Database/types';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
+import { StatCards } from '@/src/widgets/Dashboard/StatCard';
 import { ProjectTimeline } from '@/src/widgets/ProjectTimeline/ProjectTimeline';
-import { TAG_ACCENT } from '@/src/widgets/TaskDb/Tag';
-import { HEALTH_COLOR, healthAccent, projectCardSpec, projectColumns, projectGroups, projectListSpec } from '@/src/widgets/ProjectDb/projectDatabase';
+import { projectCardSpec, projectColumns, projectGroups, projectListSpec, STAGE_HUE, type ProjectCardRow } from '@/src/widgets/ProjectDb/projectDatabase';
 import { useFormLink } from '@/src/shared/navigation/useFormLink';
-import { NotificationsLink } from '@/src/widgets/Notifications/NotificationsLink';
-import { styleGuide } from '@/src/styles/tokens/styleGuide';
+import { HeaderActions } from '@/src/screens/Organise/parts';
 
-const ALL = ['name', 'health', 'progress', 'dates', 'start', 'end', 'tasks', 'overdue', 'area', 'status', 'description', 'lastActivity'];
+const ALL = ['name', 'health', 'stage', 'priority', 'progress', 'dates', 'start', 'end', 'tasks', 'overdue', 'blocked', 'area', 'folder', 'status', 'description', 'next', 'people', 'block', 'lastActivity'];
 const showOnly = (ids: string[]) => ALL.filter((id) => !ids.includes(id));
-const active = (r: ProjectRow) => r.status === 'Active';
+const active = (r: ProjectCardRow) => r.status === 'Active';
 
-const FILL: Record<string, string> = { red: styleGuide.brand.accent, yellow: styleGuide.neutrals[200], green: styleGuide.brand.primaryLight, gray: styleGuide.neutrals[100] };
-
-export const PROJECT_VIEWS: DefaultView<ProjectRow>[] = [
-  { id: 'gallery', name: 'Gallery', layout: 'cards', group: 'area', filter: active, hidden: showOnly(['name', 'dates', 'description', 'health', 'tasks', 'overdue', 'area', 'progress']) },
-  { id: 'table', name: 'Table', layout: 'table', group: 'none', hidden: showOnly(['name', 'health', 'progress', 'start', 'end', 'tasks', 'overdue', 'area', 'status', 'lastActivity']) },
-  { id: 'board', name: 'Board', layout: 'board', group: 'health', filter: active, hidden: showOnly(['name', 'dates', 'health', 'tasks', 'overdue', 'progress']) },
+export const PROJECT_VIEWS: DefaultView<ProjectCardRow>[] = [
+  { id: 'gallery', name: 'All projects', layout: 'cards', group: 'folder', filter: active, hidden: showOnly(['name', 'health', 'priority', 'end', 'description', 'progress', 'tasks', 'next', 'people', 'block']) },
+  { id: 'board', name: 'Board', layout: 'board', group: 'stage', filter: (r) => r.status !== 'Archived', hidden: showOnly(['name', 'description', 'progress', 'end', 'people']) },
   { id: 'timeline', name: 'Timeline', layout: 'timeline', group: 'none', filter: active },
-  { id: 'risk', name: 'At risk', layout: 'cards', group: 'area', filter: (r) => active(r) && r.health === 'At risk', hidden: showOnly(['name', 'dates', 'description', 'health', 'tasks', 'overdue', 'area', 'progress']) },
+  { id: 'table', name: 'Table', layout: 'table', group: 'none', hidden: showOnly(['name', 'stage', 'health', 'progress', 'end', 'tasks', 'overdue', 'blocked', 'area', 'folder']) },
 ];
 
 export function AllProjectsScreen() {
@@ -49,81 +51,103 @@ export function AllProjectsScreen() {
 
 function ProjectsPage() {
   const openView = useSearchParams().get('view');
-  const { rows, loading } = useProjectsDb();
-
-  const activeRows = rows.filter(active);
-  const atRisk = activeRows.filter((r) => r.health === 'At risk').length;
-  const overdueTasks = activeRows.reduce((s, r) => s + r.overdue, 0);
-  const sentence = atRiskSentence(rows);
+  const formLink = useFormLink();
+  const o = useOrganise();
+  const live = o.projects.filter((p) => p.status === 'Active');
+  const atRisk = live.filter((p) => p.health === 'At risk').length;
+  const overdue = live.reduce((s, p) => s + p.overdue, 0);
+  const overdueIn = live.filter((p) => p.overdue > 0).length;
+  const dueWeek = live.reduce((s, p) => s + p.dueWeek, 0);
+  const dueToday = live.reduce((s, p) => s + p.dueToday, 0);
+  const dueIn = live.filter((p) => p.dueWeek > 0).length;
+  const blocked = live.reduce((s, p) => s + p.weekMinutes, 0);
+  const folders = o.folders.length;
+  const sub = `${plural(o.areas.length, 'area')}, ${plural(folders, 'folder')}, ${plural(live.length, 'project')}${atRisk ? `, ${atRisk} at risk` : ''}`;
 
   return (
-    <NotionPage
-      title="Projects"
-      icon={<FolderKanban strokeWidth={1.75} />}
-      crumbs={[{ label: 'Time', href: '/projects' }, { label: 'Projects', href: '/projects/all' }]}
-      properties={[
-        { id: 'active', label: 'Active', display: String(activeRows.length) },
-        { id: 'risk', label: 'At risk', tone: atRisk ? 'bad' : 'good', display: atRisk ? <Link href="/projects/all?view=risk">{atRisk}</Link> : '0' },
-        { id: 'overdue', label: 'Overdue tasks', tone: overdueTasks ? 'bad' : 'neutral', display: overdueTasks ? <Link href="/projects/focus?view=overdue">{overdueTasks}</Link> : '0' },
-      ]}
-    >
-      <ScreenState loading={loading} />
-      {sentence && (
-        <Callout>
-          <p>
-            {sentence} <Link href="/projects/all?view=risk">Show at risk</Link>
-            <NotificationsLink types={['projects_at_risk', 'milestones_at_risk']} about="projects" />
-          </p>
-        </Callout>
-      )}
+    <NotionPage title="Projects" sub={sub} crumbs={[{ label: 'Projects', href: '/projects/all' }]}>
+      <HeaderActions secondary={{ label: 'New folder', href: formLink('section') }} primary={{ label: 'New project', href: formLink('project') }} />
+      <ScreenState loading={o.loading} />
+      <StatCards
+        stats={[
+          { label: 'Active projects', icon: <Layers size={18} />, value: String(live.length), chip: atRisk ? { text: `${atRisk} at risk`, hue: 'orange' } : null, caption: atRisk ? 'needs a look' : 'all on course', href: '/projects/all?view=board' },
+          { label: 'Overdue tasks', icon: <AlertCircle size={18} />, value: String(overdue), chip: overdue ? { text: `${overdue}`, hue: 'rose' } : null, caption: overdue ? `in ${plural(overdueIn, 'project')}` : 'nothing late', href: '/tasks' },
+          { label: 'Due this week', icon: <CalendarDays size={18} />, value: String(dueWeek), chip: { text: `${dueToday} today`, hue: 'grey' }, caption: `across ${plural(dueIn, 'project')}`, href: '/tasks?view=upcoming' },
+          { label: 'Time blocked', icon: <Sun size={18} />, value: durationText(blocked), caption: 'this week', href: '/projects/calendar' },
+        ]}
+      />
       <ProjectsDatabase openView={openView} />
     </NotionPage>
   );
 }
 
-/** The Projects database (Gallery, Table, Board, Timeline, At risk). Work's
- * Table and Timeline views render it with the view fixed. */
-export function ProjectsDatabase({ openView, views = PROJECT_VIEWS, filterRows }: { openView: string | null; views?: DefaultView<ProjectRow>[]; filterRows?: (r: ProjectRow) => boolean }) {
+/** The Projects database (All projects, Board, Timeline, Table). Work's
+ * views render it with the view fixed. */
+export function ProjectsDatabase({ openView, views = PROJECT_VIEWS, filterRows }: { openView: string | null; views?: DefaultView<ProjectCardRow>[]; filterRows?: (r: ProjectCardRow) => boolean }) {
   const formLink = useFormLink();
   const router = useRouter();
-  const { rows: allRows, setDates } = useProjectsDb();
-  const rows = filterRows ? allRows.filter(filterRows) : allRows;
+  const o = useOrganise();
+  const people = usePeople();
+  const rows = useMemo(() => {
+    const stats = new Map(o.projects.map((p) => [p.id, p]));
+    const all = o.rows.filter((r) => stats.has(r.id)).map((r) => ({ ...r, ...stats.get(r.id)! }));
+    return filterRows ? all.filter(filterRows) : all;
+  }, [o.rows, o.projects, filterRows]);
   const columns = useMemo(() => projectColumns(), []);
   const groups = useMemo(() => projectGroups(), []);
-  const open = (r: ProjectRow) => router.push(`/projects/${r.id}`);
+  const open = (r: ProjectCardRow) => router.push(`/projects/${r.id}`);
   return (
-      <Database<ProjectRow>
-        key={openView ?? 'default'}
-        id="time.projects"
-        label="Projects"
-        noun={['project', 'projects']}
-        rows={rows}
-        rowKey={(r) => r.id}
-        columns={columns}
-        views={views}
-        openView={openView}
-        groups={groups}
-        defaultGroup="area"
-        card={projectCardSpec(open)}
-        list={projectListSpec}
-        board={{ group: 'health', dot: (key) => (key in HEALTH_COLOR ? TAG_ACCENT[HEALTH_COLOR[key as ProjectRow['health']]] : null) }}
-        extraLayouts={['timeline']}
-        phoneLayouts={[]}
-        renderLayout={(_, shown) => (
-          <ProjectTimeline
-            rows={shown.map((r) => ({ id: r.id, name: r.name, start: r.start, end: r.end, accent: healthAccent(r.health), fill: FILL[HEALTH_COLOR[r.health]] ?? styleGuide.neutrals[200], label: `${r.name} · ${Math.round(r.progress * 100)}%` }))}
-            onOpen={(id) => router.push(`/projects/${id}`)}
-            onChange={(id, start, end) => {
-              const row = rows.find((r) => r.id === id);
-              return row ? setDates(row, start, end) : undefined;
-            }}
-          />
-        )}
-        onOpen={open}
-        onNew={() => router.push(formLink('project'))}
-        newTemplates={[{ id: 'import', label: 'Import from spreadsheet', onSelect: () => router.push(formLink('import')) }]}
-        newLabel="New"
-        emptyText="No projects yet."
-      />
+    <Database<ProjectCardRow>
+      key={openView ?? 'default'}
+      viewTabs
+      id="time.projects.v1"
+      label="Projects"
+      noun={['project', 'projects']}
+      rows={rows}
+      rowKey={(r) => r.id}
+      columns={columns}
+      views={views}
+      openView={openView}
+      groups={groups}
+      defaultGroup="folder"
+      card={projectCardSpec(open, (r) => peopleOn(people, r.name))}
+      list={projectListSpec}
+      board={{ group: 'stage', fill: true, dot: (key) => (key in STAGE_HUE ? hueVars(STAGE_HUE[key as ProjectCardRow['stage']]).solid : null) }}
+      extraLayouts={['timeline']}
+      phoneLayouts={[]}
+      renderLayout={(_, shown) => (
+        <ProjectTimeline
+          rows={[...shown]
+            .sort((a, b) => crumbOf(a).localeCompare(crumbOf(b)))
+            .map((r) => {
+              const v = hueVars(r.hue);
+              return {
+                id: r.id,
+                name: r.name,
+                start: r.start,
+                end: r.end,
+                accent: v.border,
+                fill: v.bg,
+                ink: v.fg,
+                dot: v.solid,
+                progress: r.progress,
+                group: crumbOf(r) || 'No area',
+                late: r.overdue ? `${r.overdue} overdue` : null,
+                label: `${r.name} · ${r.stage === 'Done' ? 'Done' : `${r.done}/${r.total}`}`,
+              };
+            })}
+          onOpen={(id) => router.push(`/projects/${id}`)}
+          onChange={(id, start, end) => {
+            const row = rows.find((r) => r.id === id);
+            return row ? o.setDates(row, start, end) : undefined;
+          }}
+        />
+      )}
+      onOpen={open}
+      onNew={() => router.push(formLink('project'))}
+      newTemplates={[{ id: 'import', label: 'Import from spreadsheet', onSelect: () => router.push(formLink('import')) }]}
+      newLabel="New"
+      emptyText="No projects yet."
+    />
   );
 }

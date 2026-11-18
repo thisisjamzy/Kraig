@@ -29,7 +29,7 @@ import { TopBarActionsContext, TopBarPrimaryContext, TopBarSlotContext, TopBarTi
 import { SearchPalette } from './SearchPalette';
 import { usePageWidth } from './breadcrumb';
 import { useSidebarCollapsed, useSidebarWidth } from './sidebarState';
-import { isWideLayoutRoute } from './wideRoutes';
+import { isAlwaysFullRoute, isWideLayoutRoute } from './wideRoutes';
 import styles from './AppShell.module.css';
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -49,7 +49,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const touch = !finePointer;
 
   const wide = isWideLayoutRoute(pathname);
-  const pageWidth = usePageWidth(pathname, wide ? 'full' : 'standard');
+  const savedWidth = usePageWidth(pathname, wide ? 'full' : 'standard');
+  const pageWidth = isAlwaysFullRoute(pathname) ? 'full' : savedWidth;
 
   // Close the overlay and the hover peek on navigation — "adjust state
   // during render".

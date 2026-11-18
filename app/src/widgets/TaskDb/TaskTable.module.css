@@ -1,0 +1,149 @@
+/* Time v1.0's task table (Dreda v1.0 53712). */
+
+.tableCard {
+  overflow-x: auto;
+  border: 1px solid var(--color-border-default);
+  border-radius: 20px;
+  background: var(--color-bg-surface);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.table thead th {
+  height: 38px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--color-border-default);
+  background: var(--color-background);
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 400;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.table td {
+  padding: 14px 12px;
+  border-bottom: 1px solid var(--color-border-default);
+  color: var(--color-text-primary);
+  vertical-align: middle;
+}
+
+.table tbody:last-child tr:last-child td {
+  border-bottom: 0;
+}
+
+.checkCell {
+  width: 48px;
+  padding-left: 20px !important;
+}
+
+.check {
+  display: block;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1.5px solid var(--color-border-strong);
+  border-radius: 50%;
+  background: none;
+  cursor: pointer;
+}
+
+.check:hover {
+  border-color: var(--color-primary);
+}
+
+.check[data-done] {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+}
+
+.title {
+  display: block;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.35;
+  text-align: left;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.title:hover {
+  text-decoration: underline;
+}
+
+.row[data-done] .title {
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+.sub {
+  display: block;
+  margin-top: 4px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+.nowrap[data-late] {
+  color: var(--color-status-danger-fg);
+}
+
+.groupRow th {
+  padding: 18px 12px 6px 20px;
+  text-align: left;
+}
+
+.groupToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.chevron {
+  transition: transform var(--duration-fast, 150ms) var(--ease-out, ease-out);
+}
+
+.groupToggle[aria-expanded='false'] .chevron {
+  transform: rotate(-90deg);
+}
+
+.groupDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-text-tertiary);
+}
+
+.groupDot[data-tone='danger'] {
+  background: var(--color-status-danger-fg);
+}
+
+.groupDot[data-tone='positive'] {
+  background: var(--label-lime-solid);
+}
+
+.groupCount {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 400;
+}

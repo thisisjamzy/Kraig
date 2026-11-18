@@ -1,266 +1,224 @@
 'use client';
 
-// Calendar: a Notion page with a Calendar-layout database of everything
-// dated: the Tasks database's tasks, Google Calendar events, project start
-// and end dates and planned payments.
-//   Properties: Calendar (the Google calendar's name), Sync (shown only
-//   here), Showing (the sources on).
-//   Toolbar: on the left a date range dropdown ("28 Sep to 4 Oct 2026")
-//   and "Today"; on the right the view selector (Day, Week, Month as
-//   views), filter (Source, Free tasks, Project, Area, Type), search, view
-//   settings and New.
-//   Large: a 260px left column with the mini calendar and a "Calendars"
-//   checklist (Dreda tasks, Google, Project dates). Smaller screens keep
-//   these in the date dropdown and the filter.
-//   Medium: Day view by default (with a 7-day strip), Week with narrow
-//   bars. Phones: Day (with the strip) or Month (dots, the tapped day's
-//   list below); no Week.
+// Calendar (Dreda v1.0 `Calendar / Web / Week` 54090).
+//   Title "Calendar"; under it "Week 47 · 16 to 22 November · 17 h blocked,
+//   4 tasks to place". Top bar: Today, back and forward, Day, Week and
+//   Month, beside New task.
+//   The grid: tasks, Google events, project dates and payments, each block
+//   on its project's (else its type's) label hue with the bar on its top
+//   edge; today's date on lime and the now line with its lime chip.
+//   Beside it the To plan tray: Unscheduled, Overdue and This week. Cards
+//   drag onto the grid to block their time; Plan my day fills today's free
+//   time. Hide folds the tray away.
+//   Medium screens open on Day.
 
 import { useMemo, useState } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { CalendarDays } from 'lucide-react';
-import { ALL_SOURCES, useLogic, type CalendarSources } from '@/src/logic/timeCalendar/useLogic';
+import { ChevronLeft, ChevronRight, PanelRight, Zap } from 'lucide-react';
+import { useLogic, type TimeCalendarLogic } from '@/src/logic/timeCalendar/useLogic';
 import { useLayout } from '@/src/shared/hooks/useLayout';
 import { useTaskPanel } from '@/src/shared/navigation/taskPanel';
-import { dayFromIso, isoDay, mondayOf, shiftDay, weekRangeLabel, type CalItem } from '@/src/viewmodels/calendarItems';
+import { dayFromIso, isoDay, mondayOf, shiftDay, type CalItem } from '@/src/viewmodels/calendarItems';
+import { dayText, durationText, isToPlan, lateText, weekNumber } from '@/src/viewmodels/todayPlan';
+import type { TaskRow } from '@/src/viewmodels/taskRow';
 import { NotionPage } from '@/src/widgets/Database/NotionPage';
 import { TopBarControls } from '@/src/widgets/AppShell/TopBarSlot';
-import { ColumnBlocks, Column } from '@/src/widgets/Database/ColumnBlocks';
-import { Database } from '@/src/widgets/Database/Database';
-import type { ColumnDef, DefaultView, Layout } from '@/src/widgets/Database/types';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
-import { CalendarSyncStatus } from '@/src/widgets/CalendarSyncStatus/CalendarSyncStatus';
-import { DateDropdown } from '@/src/widgets/TimeCalendar/DateDropdown';
-import { DayStrip } from '@/src/widgets/TimeCalendar/DayStrip';
-import { MiniCalendar } from '@/src/widgets/TimeCalendar/MiniCalendar';
 import { MonthGrid } from '@/src/widgets/TimeCalendar/MonthGrid';
 import { TimeGrid } from '@/src/widgets/TimeCalendar/TimeGrid';
+import { DayChip, LatePill, TaskTrayCard } from '@/src/widgets/TaskChips/TaskTrayCard';
+import { BookingRequest } from '@/src/widgets/SchedulingLinks/BookingRequest';
 import styles from './ProjectsCalendarScreen.module.css';
-import { styleGuide } from '@/src/styles/tokens/styleGuide';
 
-type Source = 'Dreda tasks' | 'Google' | 'Project dates';
+type View = 'day' | 'week' | 'month';
+type TrayTab = 'unscheduled' | 'overdue' | 'week';
 
-// Dreda.figcraft `Calendar / Web / Week`: the type tabs over the calendar.
-type KindTab = 'all' | 'meetings' | 'events' | 'blocks' | 'reminders';
-const KIND_TABS: { key: KindTab; label: string }[] = [
-  { key: 'all', label: 'Everything' },
-  { key: 'meetings', label: 'Meetings' },
-  { key: 'events', label: 'Events' },
-  { key: 'blocks', label: 'Task blocks' },
-  { key: 'reminders', label: 'Reminders' },
-];
-function kindOf(item: CalItem): Exclude<KindTab, 'all'> {
-  if (item.meeting || item.kind === 'meeting') return 'meetings';
-  if (item.kind === 'event' || item.kind === 'google') return 'events';
-  if (item.kind === 'todo') return 'blocks';
-  return 'reminders';
+function monthShift(iso: string, by: number) {
+  const d = dayFromIso(iso);
+  return isoDay(new Date(d.getFullYear(), d.getMonth() + by, 1));
 }
 
-interface CalRow extends CalItem {
-  rowKey: string;
-  iso: string;
-  source: Source;
-  area: string | null;
-  type: string;
+/** "16 to 22 November", "28 September to 4 October". */
+function weekSpan(iso: string) {
+  const mon = dayFromIso(mondayOf(iso));
+  const sun = dayFromIso(shiftDay(mondayOf(iso), 6));
+  const month = (d: Date) => d.toLocaleDateString('en-GB', { month: 'long' });
+  return mon.getMonth() === sun.getMonth() ? `${mon.getDate()} to ${sun.getDate()} ${month(sun)}` : `${mon.getDate()} ${month(mon)} to ${sun.getDate()} ${month(sun)}`;
 }
-
-const VIEWS: DefaultView<CalRow>[] = [
-  { id: 'week', name: 'Week', layout: 'week' },
-  { id: 'day', name: 'Day', layout: 'day' },
-  { id: 'month', name: 'Month', layout: 'month' },
-];
-
-const TYPE_OF: Record<CalItem['kind'], string> = { todo: 'Todo', meeting: 'Meeting', event: 'Event', google: 'Google event', project: 'Project date', payment: 'Payment' };
-
-const COLUMNS: ColumnDef<CalRow>[] = [
-  { id: 'title', label: 'Name', type: 'text', value: (r) => r.title },
-  {
-    id: 'source',
-    label: 'Source',
-    type: 'select',
-    value: (r) => r.source,
-    options: (['Dreda tasks', 'Google', 'Project dates'] as Source[]).map((s) => ({ value: s, label: s })),
-  },
-  { id: 'free', label: 'Free task', type: 'checkbox', value: (r) => r.source === 'Dreda tasks' && r.free },
-  { id: 'project', label: 'Project', type: 'text', value: (r) => r.project },
-  { id: 'area', label: 'Area', type: 'text', value: (r) => r.area },
-  {
-    id: 'type',
-    label: 'Type',
-    type: 'select',
-    value: (r) => r.type,
-    options: Object.values(TYPE_OF).map((t) => ({ value: t, label: t })),
-  },
-  { id: 'date', label: 'Date', type: 'date', value: (r) => dayFromIso(r.iso) },
-];
 
 export function ProjectsCalendarScreen() {
-  const [sources, setSources] = useState<CalendarSources>(ALL_SOURCES);
-  const logic = useLogic({ sources });
+  const logic = useLogic();
   const router = useRouter();
   const taskPanel = useTaskPanel();
   const { deviceClass } = useLayout();
-  const compact = deviceClass === 'compact';
-  const { selected, today, pick, range } = logic;
+  const [view, setView] = useState<View>(() => (deviceClass === 'medium' ? 'day' : 'week'));
+  const [trayOpen, setTrayOpen] = useState(deviceClass !== 'medium');
+  const { selected, today, pick } = logic;
 
-  // Every item in the loaded range, one row per day it's on.
-  const areaOf = useMemo(() => new Map(logic.rows.map((r) => [r.id, r.areaName])), [logic.rows]);
-  const rows = useMemo(() => {
-    const out: CalRow[] = [];
-    for (let d = new Date(range.from); d < range.to; d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1)) {
-      const iso = isoDay(d);
-      for (const item of logic.itemsOn(iso)) {
-        out.push({
-          ...item,
-          rowKey: `${iso}|${item.key}`,
-          iso,
-          source: item.taskId ? 'Dreda tasks' : item.kind === 'google' ? 'Google' : 'Project dates',
-          area: item.taskId ? (areaOf.get(item.taskId) ?? null) : null,
-          type: TYPE_OF[item.kind],
-        });
-      }
-    }
-    return out;
-  }, [logic, range, areaOf]);
-  const [kindTab, setKindTab] = useState<KindTab>('all');
-  const kindCounts = useMemo(() => {
-    const c: Record<KindTab, number> = { all: rows.length, meetings: 0, events: 0, blocks: 0, reminders: 0 };
-    for (const r of rows) c[kindOf(r)]++;
-    return c;
-  }, [rows]);
-  const shownRows = useMemo(() => (kindTab === 'all' ? rows : rows.filter((r) => kindOf(r) === kindTab)), [rows, kindTab]);
+  const week = useMemo(() => Array.from({ length: 7 }, (_, i) => shiftDay(mondayOf(selected), i)), [selected]);
+  const blocked = week.reduce((sum, iso) => sum + logic.busyOn(iso).reduce((s, b) => s + b.endMin - b.startMin, 0), 0);
+  const toPlace = logic.toPlan.length + logic.overdue.filter((r) => isToPlan(r)).length;
+  const sub = [`Week ${weekNumber(dayFromIso(selected))}`, weekSpan(selected), `${durationText(blocked)} blocked, ${toPlace} ${toPlace === 1 ? 'task' : 'tasks'} to place`].join(' · ');
+
+  const [bookingId, setBookingId] = useState<string | null>(null);
+  const opened = bookingId ? logic.bookingOf(bookingId) : null;
 
   function open(item: CalItem) {
-    if (item.taskId) taskPanel.open(item.taskId);
+    if (item.bookingId) setBookingId(item.bookingId);
+    else if (item.taskId) taskPanel.open(item.taskId);
     else if (item.href) router.push(item.href);
   }
   const newAt = (iso: string, minute?: number) =>
     taskPanel.open('new', minute === undefined ? { date: iso } : { date: iso, start: `${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}` });
+  const step = (by: number) => pick(view === 'month' ? monthShift(selected, by) : shiftDay(selected, view === 'week' ? by * 7 : by));
 
-  function rangeLabel(layout: Layout) {
-    const d = dayFromIso(selected);
-    if (layout === 'day') return d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-    if (layout === 'month') return d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
-    return weekRangeLabel(selected);
-  }
-
-  function render(layout: Layout, shown: CalRow[]) {
-    const byDay = new Map<string, CalRow[]>();
-    for (const r of shown) byDay.set(r.iso, [...(byDay.get(r.iso) ?? []), r]);
-    const itemsOn = (iso: string) => byDay.get(iso) ?? [];
-    if (layout === 'month') return <MonthGrid selected={selected} today={today} itemsOn={itemsOn} onOpen={open} onDay={(iso) => pick(iso)} compact={compact} />;
-    const common = {
-      itemsOn,
-      today,
-      onOpen: open,
-      onEmpty: newAt,
-      onMove: (item: CalItem, iso: string, startMin: number, endMin: number) => (item.taskId ? logic.scheduleAt(item.taskId, iso, startMin, endMin) : undefined),
-      onDropTask: (id: string, iso: string, minute: number) => logic.scheduleAt(id, iso, minute),
-      maxHeight: compact ? undefined : 'calc(100dvh - 300px)',
-    };
-    if (layout === 'week') {
-      const monday = mondayOf(selected);
-      return <TimeGrid mode="week" days={Array.from({ length: 7 }, (_, i) => shiftDay(monday, i))} selected={selected} onPickDay={pick} barsBelow={deviceClass === 'medium' ? 90 : undefined} {...common} />;
-    }
-    return (
-      <div className={styles.day}>
-        {deviceClass !== 'large' && <DayStrip selected={selected} today={today} onPick={pick} countOf={(iso) => itemsOn(iso).length} scrollable={compact} />}
-        <TimeGrid mode="day" days={[selected]} {...common} />
-      </div>
-    );
-  }
-
-  const showing = [sources.tasks && 'Tasks', sources.google && 'Google events', sources.projectDates && 'Project dates'].filter(Boolean).join(', ') || 'Nothing';
-
-  const database = (
-    <Database<CalRow>
-      id="time.calendar"
-      label="Calendar"
-      noun={['item', 'items']}
-      rows={shownRows}
-      rowKey={(r) => r.rowKey}
-      columns={COLUMNS}
-      views={VIEWS}
-      card={{ title: (r) => r.title }}
-      extraLayouts={['day', 'week', 'month']}
-      phoneLayouts={['day', 'month']}
-      openView={deviceClass === 'medium' ? 'day' : null}
-      renderLayout={(layout, shown) => render(layout, shown)}
-      tabs={(view) => (
-        <span className={styles.range}>
-          <DateDropdown label={rangeLabel(view.layout)} selected={selected} today={today} onPick={pick} hasItems={logic.hasItems} className={styles.rangeButton} />
-          {selected !== today && (
-            <button type="button" className={styles.todayButton} onClick={logic.goToday}>
-              Today
-            </button>
-          )}
-        </span>
-      )}
-      onNew={() => newAt(selected)}
-      emptyText="Nothing scheduled."
-    />
-  );
+  const common = {
+    itemsOn: (iso: string) => logic.itemsOn(iso),
+    today,
+    onOpen: open,
+    onEmpty: newAt,
+    onMove: (item: CalItem, iso: string, startMin: number, endMin: number) => (item.taskId ? logic.scheduleAt(item.taskId, iso, startMin, endMin) : undefined),
+    onDropTask: (id: string, iso: string, minute: number) => logic.scheduleAt(id, iso, minute),
+    maxHeight: 'calc(100dvh - 230px)',
+  };
 
   return (
-    <NotionPage
-      title={rangeLabel('week')}
-      sub={`${kindCounts.meetings} ${kindCounts.meetings === 1 ? 'meeting' : 'meetings'} · ${kindCounts.events} ${kindCounts.events === 1 ? 'event' : 'events'} · ${kindCounts.blocks} ${kindCounts.blocks === 1 ? 'block' : 'blocks'}`}
-      crumbs={[{ label: 'Time', href: '/projects' }, { label: 'Calendar', href: '/projects/calendar' }]}
-      menu={[{ label: 'Scheduling links', href: '/projects/calendar/links' }]}
-      properties={[
-        { id: 'calendar', label: 'Calendar', display: logic.syncEnabled ? `Google: ${logic.calendarName ?? 'Primary calendar'}` : 'Google Calendar not connected' },
-        ...(logic.syncEnabled ? [{ id: 'sync', label: 'Sync', display: <CalendarSyncStatus range={range} /> }] : []),
-        { id: 'showing', label: 'Showing', display: showing },
-      ]}
-    >
+    <NotionPage title="Calendar" sub={sub} crumbs={[{ label: 'Calendar', href: '/projects/calendar' }]} menu={[{ label: 'Scheduling links', href: '/projects/calendar/links' }]}>
       <ScreenState loading={logic.loading} />
       <TopBarControls>
-        <Link href="/projects/calendar/links" className={styles.headerButton}>
-          Scheduling links
-        </Link>
+        <button type="button" className={styles.pill} onClick={logic.goToday} disabled={selected === today && view !== 'month'}>
+          Today
+        </button>
+        <button type="button" className={styles.round} onClick={() => step(-1)} aria-label={`Previous ${view}`}>
+          <ChevronLeft size={20} strokeWidth={2} />
+        </button>
+        <button type="button" className={styles.round} onClick={() => step(1)} aria-label={`Next ${view}`}>
+          <ChevronRight size={20} strokeWidth={2} />
+        </button>
+        <div className={styles.segmented} role="tablist" aria-label="View">
+          {(['day', 'week', 'month'] as View[]).map((v) => (
+            <button key={v} type="button" role="tab" aria-selected={view === v} onClick={() => setView(v)}>
+              {v === 'day' ? 'Day' : v === 'week' ? 'Week' : 'Month'}
+            </button>
+          ))}
+        </div>
       </TopBarControls>
-      <div className={styles.kindTabs} role="tablist" aria-label="What to show">
-        {KIND_TABS.map((t) => (
-          <button key={t.key} type="button" role="tab" aria-selected={kindTab === t.key} onClick={() => setKindTab(t.key)}>
-            <CalendarDays size={16} strokeWidth={2} aria-hidden />
-            {t.label} <span>{kindCounts[t.key]}</span>
+
+      <div className={styles.frame} data-tray={trayOpen || undefined}>
+        <div className={styles.grid}>
+          {view === 'month' ? (
+            <MonthGrid selected={selected} today={today} itemsOn={common.itemsOn} onOpen={open} onDay={(iso) => (pick(iso), setView('day'))} compact={false} />
+          ) : view === 'week' ? (
+            <TimeGrid mode="week" days={week} selected={selected} onPickDay={pick} barsBelow={deviceClass === 'medium' ? 90 : undefined} {...common} />
+          ) : (
+            <TimeGrid mode="day" days={[selected]} {...common} />
+          )}
+        </div>
+        {trayOpen ? (
+          <Tray logic={logic} week={week} onHide={() => setTrayOpen(false)} />
+        ) : (
+          <button type="button" className={styles.showTray} onClick={() => setTrayOpen(true)}>
+            <PanelRight size={18} strokeWidth={2} aria-hidden />
+            To plan <span className={styles.count}>{toPlace}</span>
+          </button>
+        )}
+      </div>
+      {opened && (
+        <BookingRequest
+          booking={opened.booking}
+          link={opened.link}
+          onAnswer={(a) => logic.answerBooking(opened.booking.id, a)}
+          onClose={() => setBookingId(null)}
+        />
+      )}
+    </NotionPage>
+  );
+}
+
+/** The To plan tray (Dreda v1.0 `Task tray`). */
+function Tray({ logic, week, onHide }: { logic: TimeCalendarLogic; week: string[]; onHide: () => void }) {
+  const taskPanel = useTaskPanel();
+  const [tab, setTab] = useState<TrayTab>('unscheduled');
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+  const now = new Date();
+
+  const lists = useMemo(() => {
+    const from = dayFromIso(week[0]);
+    const to = dayFromIso(shiftDay(week[6], 1));
+    const lateUnblocked = logic.overdue.filter((r) => isToPlan(r));
+    return {
+      unscheduled: [...lateUnblocked, ...logic.toPlan],
+      overdue: logic.overdue,
+      week: logic.toPlan.filter((r) => r.date && r.date >= from && r.date < to),
+    } satisfies Record<TrayTab, TaskRow[]>;
+  }, [logic.overdue, logic.toPlan, week]);
+  const rows = lists[tab];
+
+  async function plan() {
+    setBusy(true);
+    setNote(null);
+    try {
+      const placed = await logic.planMyDay();
+      setNote(placed === 0 ? 'No free time left today for these.' : `Planned ${placed} ${placed === 1 ? 'task' : 'tasks'} into today.`);
+    } catch (e) {
+      setNote(e instanceof Error ? e.message : 'Could not plan the day.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <aside className={styles.tray} aria-label="To plan">
+      <div className={styles.trayHead}>
+        <h2 className={styles.trayTitle}>To plan</h2>
+        <span className={styles.trayMeta}>
+          {lists.unscheduled.length} to place
+        </span>
+        <button type="button" className={styles.hide} onClick={onHide}>
+          <PanelRight size={18} strokeWidth={2} aria-hidden />
+          Hide
+        </button>
+      </div>
+      <div className={styles.trayTabs} role="tablist" aria-label="Which tasks">
+        {(
+          [
+            ['unscheduled', 'Unscheduled'],
+            ['overdue', 'Overdue'],
+            ['week', 'This week'],
+          ] as [TrayTab, string][]
+        ).map(([key, label]) => (
+          <button key={key} type="button" role="tab" aria-selected={tab === key} onClick={() => setTab(key)}>
+            {label} {lists[key].length}
           </button>
         ))}
       </div>
-      {deviceClass === 'large' ? (
-        <ColumnBlocks template="260px minmax(0, 1fr)">
-          <Column label="Month and calendars">
-            <MiniCalendar selected={selected} today={today} onPick={pick} hasItems={logic.hasItems} />
-            <section className={styles.calendars} aria-label="Calendars">
-              <p className={styles.calendarsTitle}>Calendars</p>
-              {(
-                [
-                  ['tasks', 'Dreda tasks', styleGuide.brand.primary],
-                  ['google', 'Google', styleGuide.neutrals[700]],
-                  ['projectDates', 'Project dates', styleGuide.brand.primaryDark],
-                ] as [keyof CalendarSources, string, string][]
-              ).map(([key, label, color]) => (
-                <label key={key} className={styles.calendarRow}>
-                  <input type="checkbox" checked={sources[key]} onChange={(e) => setSources((s) => ({ ...s, [key]: e.target.checked }))} style={{ accentColor: color }} />
-                  {label}
-                </label>
-              ))}
-              <label className={styles.calendarRow}>
-                <input type="checkbox" checked={sources.freeTasks} disabled={!sources.tasks} onChange={(e) => setSources((s) => ({ ...s, freeTasks: e.target.checked }))} />
-                Free tasks
-              </label>
-            </section>
-            <Link href="/projects/calendar/links" className={styles.promo}>
-              <span className={styles.promoTitle}>Scheduling links</span>
-              <span className={styles.promoText}>Send a link, they pick a slot, it lands here.</span>
-            </Link>
-          </Column>
-          <Column label="Calendar">{database}</Column>
-        </ColumnBlocks>
-      ) : (
-        database
+      <div className={styles.trayList}>
+        {rows.length === 0 ? (
+          <p className={styles.trayEmpty}>{tab === 'overdue' ? 'Nothing overdue.' : 'Nothing left to place.'}</p>
+        ) : (
+          rows.map((r) => {
+            const late = r.overdue ? lateText(r.date, now) : null;
+            return (
+              <TaskTrayCard
+                key={r.id}
+                row={r}
+                onOpen={() => taskPanel.open(r.id)}
+                right={late ? <LatePill>{late}</LatePill> : r.date ? <DayChip>{dayText(r.date, now)}</DayChip> : undefined}
+              />
+            );
+          })
+        )}
+      </div>
+      <button type="button" className={styles.planDay} onClick={() => void plan()} disabled={busy}>
+        <Zap size={18} strokeWidth={2} aria-hidden />
+        Plan my day
+      </button>
+      {note && (
+        <p className={styles.trayNote} role="status">
+          {note}
+        </p>
       )}
-    </NotionPage>
+    </aside>
   );
 }

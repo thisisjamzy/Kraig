@@ -1,80 +1,61 @@
-.page {
-  display: flex;
-  flex-direction: column;
-  min-height: 100%;
-  padding: var(--space-lg);
-  padding-top: 0;
-  gap: var(--space-lg);
+/* Tasks / Web / Today (Dreda v1.0 53712). */
+
+.viewBar {
+  border-bottom: 1px solid var(--color-border-default);
 }
 
-
-.backButton {
+.tabs {
   display: flex;
+  align-items: stretch;
+  gap: 4px;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.tabs button {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  flex-shrink: 0;
-  border-radius: 50%;
-  border: 1px solid var(--color-border);
+  gap: 6px;
+  height: 40px;
+  padding: 0 10px;
+  border: 0;
+  border-bottom: 2px solid transparent;
   background: none;
-  color: var(--color-text-primary);
-  cursor: pointer;
-}
-
-
-.addIconButton {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 28px;
-  height: 28px;
-  border: none;
-  border-radius: 6px;
-  background: var(--ink-bg);
-  color: var(--ink-text);
-  cursor: pointer;
-}
-
-.emptyText {
-  margin: 0;
-  font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
+  font: inherit;
+  font-size: 13px;
+  white-space: nowrap;
+  cursor: pointer;
 }
 
-.list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
+.tabs button[aria-selected='true'] {
+  border-bottom-color: var(--color-text-primary);
+  color: var(--color-text-primary);
+  font-weight: 500;
 }
 
-/* Today's unfinished tasks → tomorrow (the evening nudge's action). */
+.tabCount {
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+}
+
+.empty {
+  margin: 24px 0;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+}
+
 .leftovers {
-  width: 100%;
-  min-height: 44px;
-  margin-bottom: var(--space-sm);
-  border: none;
-  border-radius: 6px;
-  background: var(--color-brand-tint);
-  color: var(--color-brand);
-  font-family: inherit;
-  font-size: 0.875rem;
+  align-self: flex-start;
+  margin-bottom: 16px;
+  height: 36px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 9999px;
+  background: var(--color-tonal);
+  color: var(--color-on-tonal);
+  font: inherit;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-}
-
-.leftovers:disabled {
-  opacity: 0.6;
-  cursor: progress;
-}
-
-.leftovers:focus-visible {
-  outline: 2px solid var(--color-brand);
-  outline-offset: 2px;
-}
-/* The filter / sort toolbar sits right under the header; the page's own
-   flex gap would push it away. */
-.toolbarSlot {
-  margin-top: calc(-1 * var(--space-lg));
 }

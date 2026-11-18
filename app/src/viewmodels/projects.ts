@@ -19,6 +19,58 @@ export const PROJECT_COLORS = [
   '#e91e63',
 ] as const;
 
+// Dreda v1.0 label hues (BUILD-KIT section 3). A project or area keeps its
+// stored swatch, but every coloured surface (chip, block, bar, dot) renders
+// from the hue's --label-<hue>-bg / -fg / -border / -solid, never the raw
+// swatch behind text. Lime is kept for "now", so no swatch maps to it.
+export const LABEL_HUES = ['purple', 'blue', 'teal', 'green', 'lime', 'amber', 'orange', 'rose', 'grey'] as const;
+export type LabelHue = (typeof LABEL_HUES)[number];
+
+const SWATCH_HUE: Record<(typeof PROJECT_COLORS)[number], LabelHue> = {
+  '#7b7ef3': 'purple',
+  '#f88686': 'rose',
+  '#ff9800': 'orange',
+  '#3a81f8': 'blue',
+  '#0097a7': 'teal',
+  '#fac021': 'amber',
+  '#8bc34a': 'green',
+  '#e91e63': 'rose',
+};
+
+/** The label hue for a stored project or area colour: the swatch's own hue,
+ *  or for an older stored hex, the hue of the nearest swatch. */
+export function labelHue(color: string | null | undefined): LabelHue {
+  const hex = (color ?? '').trim().toLowerCase();
+  if (hex in SWATCH_HUE) return SWATCH_HUE[hex as keyof typeof SWATCH_HUE];
+  const rgb = /^#([0-9a-f]{6})$/.exec(hex);
+  if (!rgb) return 'grey';
+  const n = parseInt(rgb[1], 16);
+  const [r, g, b] = [n >> 16, (n >> 8) & 255, n & 255];
+  let best: LabelHue = 'grey';
+  let bestDistance = Infinity;
+  for (const swatch of PROJECT_COLORS) {
+    const m = parseInt(swatch.slice(1), 16);
+    const d = (r - (m >> 16)) ** 2 + (g - ((m >> 8) & 255)) ** 2 + (b - (m & 255)) ** 2;
+    if (d < bestDistance) [best, bestDistance] = [SWATCH_HUE[swatch], d];
+  }
+  return best;
+}
+
+/** CSS variables for a label hue, for inline `style` on chips, blocks and dots. */
+export function labelVars(color: string | null | undefined): { bg: string; fg: string; border: string; solid: string } {
+  return hueVars(labelHue(color));
+}
+
+/** The app variables of one label hue. */
+export function hueVars(hue: LabelHue): { bg: string; fg: string; border: string; solid: string } {
+  return {
+    bg: `var(--label-${hue}-bg)`,
+    fg: `var(--label-${hue}-fg)`,
+    border: `var(--label-${hue}-border)`,
+    solid: `var(--label-${hue}-solid)`,
+  };
+}
+
 function hashString(id: string): number {
   let hash = 0;
   for (let i = 0; i < id.length; i++) {

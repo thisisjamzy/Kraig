@@ -136,8 +136,8 @@
 
 .navRow[aria-current='page'],
 .row[data-active] {
-  background: var(--sb-active);
-  color: var(--color-brand-subtle-fg);
+  background: var(--color-tonal);
+  color: var(--color-on-tonal);
 }
 
 .rowGlyph {
@@ -238,6 +238,21 @@
 .rowIcon:hover {
   background: var(--sb-active);
   color: var(--sb-text);
+}
+
+/* Nav/Item Badge: the red count (Tasks' overdue). */
+.countBadge {
+  flex: none;
+  min-width: 22px;
+  padding: 2px 7px;
+  border-radius: 9999px;
+  background: var(--color-status-danger-solid);
+  color: var(--color-status-danger-on);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 13px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
 }
 
 .tree {
@@ -396,9 +411,8 @@
 .bottom {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   padding-top: 12px;
-  border-top: 1px solid var(--sb-line);
 }
 
 .profile {
@@ -406,27 +420,28 @@
   align-items: center;
   gap: 10px;
   width: 100%;
-  min-height: 40px;
-  padding: 0 8px;
+  min-height: 52px;
+  padding: 0 10px 0 8px;
   border: 0;
-  border-radius: 10px;
-  background: none;
+  border-radius: 12px;
+  background: var(--color-bg-sunken);
   font: inherit;
   text-align: left;
   cursor: pointer;
 }
 
 .avatar {
-  display: grid;
-  place-items: center;
+  display: block;
   flex: none;
-  width: 32px;
-  height: 32px;
+  overflow: hidden;
   border-radius: 9999px;
-  background: var(--color-brand-default);
-  color: var(--color-brand-on);
-  font-size: 14px;
-  font-weight: 700;
+  background: var(--color-accent-subtle);
+}
+
+.avatar img {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
 .who {
@@ -447,7 +462,7 @@
 }
 
 .whoPlan {
-  color: var(--color-text-tertiary);
+  color: var(--color-text-secondary);
   font-size: 12px;
   line-height: 16px;
 }
@@ -458,8 +473,8 @@
   align-items: center;
   gap: 6px;
   margin: 0;
-  padding: 4px 12px 0;
-  color: var(--color-text-tertiary);
+  padding: 0 12px;
+  color: var(--color-text-secondary);
   font-size: 12px;
   line-height: 16px;
 }
@@ -493,17 +508,25 @@
 .menu {
   display: flex;
   flex-direction: column;
-  min-width: 220px;
-  padding: 4px;
+  min-width: 258px;
+  padding: 8px;
   color: var(--sb-text);
   font-size: 14px;
+}
+
+/* Menu/Account header: face, name and "Personal account". */
+.menuWho {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 8px 6px;
 }
 
 .menuRow {
   display: flex;
   align-items: center;
   gap: 10px;
-  min-height: 32px;
+  min-height: 38px;
   padding: 0 8px;
   border: 0;
   border-radius: 10px;
@@ -533,6 +556,29 @@
 
 .menuCheck {
   margin-left: auto;
+}
+
+.menuRow[data-current] {
+  background: var(--color-tonal);
+  color: var(--color-on-tonal);
+  font-weight: 600;
+}
+
+/* The module tiles: Time on lime, Money on the tonal purple. */
+.modeTile {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--color-tonal);
+  color: var(--color-text-primary);
+}
+
+.modeTile[data-mode='time'] {
+  background: var(--color-accent-default);
+  color: var(--color-accent-on);
 }
 
 .menuDivider {

@@ -1,0 +1,134 @@
+/* Planning settings / Phone (Dreda v1.0 70572). */
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 100%;
+  padding: 0 16px calc(var(--bottom-bar-pad) + 96px);
+  background: var(--color-background);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  padding: 16px 16px 8px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 20px;
+  background: var(--color-bg-surface);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0 0 6px;
+  color: var(--color-text-primary);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.note {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-primary);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.typeRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+}
+
+.typeRow + .typeRow {
+  border-top: 1px solid var(--color-border-default);
+}
+
+.typeBody {
+  display: flex;
+  flex: 1;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.icon {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+}
+
+.typeName {
+  display: block;
+  color: var(--color-text-primary);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.typeLine {
+  display: block;
+  color: var(--color-text-primary);
+  font-size: 13px;
+}
+
+.typeMeta {
+  display: block;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.foot {
+  margin: 4px 0 8px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 48px;
+  color: var(--color-text-primary);
+  font-size: 14px;
+}
+
+.row + .row {
+  border-top: 1px solid var(--color-border-default);
+}
+
+.chip {
+  min-height: 32px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--color-bg-sunken);
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 13px;
+}
