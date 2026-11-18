@@ -560,7 +560,7 @@
 .breakdownBarExpense {
   width: 7px;
   border-radius: 2px;
-  transition: height 0.2s ease;
+  transition: height var(--duration-morph) var(--ease-in-out);
 }
 
 .breakdownBarIncome {
