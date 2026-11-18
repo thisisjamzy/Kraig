@@ -15,11 +15,17 @@ import type { NextRequest } from 'next/server';
 import { SIGNED_IN_KEY } from '@/src/shared/config/appEntry';
 
 const AUTH_PATHS = new Set(['/sign-in', '/sign-up', '/forgot-password']);
-const OPEN_PATHS = new Set(['/', '/~offline']);
+const OPEN_PATHS = new Set(['/~offline']);
 
 export default function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const signedIn = Boolean(request.cookies.get(SIGNED_IN_KEY));
+
+  // The front door is sign-in: a signed-out visitor never sees anything
+  // before it (the marketing site and splash are archived).
+  if (pathname === '/') {
+    return signedIn ? NextResponse.next() : NextResponse.redirect(new URL('/sign-in', request.url));
+  }
 
   // Development-only preview pages (app/dev), with sample data.
   // Public booking pages (/book/[slug]): the booker has no account.

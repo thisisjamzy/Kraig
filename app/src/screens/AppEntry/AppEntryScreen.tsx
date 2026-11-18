@@ -1,25 +1,18 @@
 'use client';
 
-import { SplashScreen } from '@/src/screens/Splash/SplashScreen';
-import { MarketingHomeScreen } from '@/src/screens/Marketing/MarketingHomeScreen';
-import { LoadingScreen } from '@/src/screens/Loading/LoadingScreen';
+// / for a visitor who looks signed in: the logo while useLogic moves on to
+// /loading (or back to /sign-in on a home-screen launch). Signed-out
+// visitors never see this; proxy.ts sends them to /sign-in first.
+
 import { useLogic } from '@/src/logic/appEntry/useLogic';
+import { Logo } from '@/src/widgets/Logo/Logo';
+import styles from './AppEntryScreen.module.css';
 
 export function AppEntryScreen() {
-  const { mode } = useLogic();
-
-  if (mode === 'splash') {
-    return <SplashScreen />;
-  }
-
-  if (mode === 'marketing') {
-    return <MarketingHomeScreen />;
-  }
-
-  // 'checking': this is what SSR itself sends down (isStandalonePwa() can
-  // only run client-side, so the initial render always lands here) — show
-  // the logo-centered loading screen instead of a blank page while the
-  // effect above decides splash vs. forced sign-out and straight to
-  // /sign-in.
-  return <LoadingScreen />;
+  useLogic();
+  return (
+    <div className={styles.page} role="status" aria-label="Opening Dreda">
+      <Logo height={72} />
+    </div>
+  );
 }

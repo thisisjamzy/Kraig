@@ -1,0 +1,6 @@
+.page {
+  display: grid;
+  place-items: center;
+  min-height: 100dvh;
+  background: var(--color-bg-page);
+}

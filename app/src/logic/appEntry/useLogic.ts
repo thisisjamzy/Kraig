@@ -1,44 +1,31 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { signOut } from 'firebase/auth';
 import { getFirebaseAuth } from '@/src/shared/config/firebaseClient';
-import { isStandalonePwa, SIGNED_IN_KEY } from '@/src/shared/config/appEntry';
+import { isStandalonePwa } from '@/src/shared/config/appEntry';
 import { clearSignedIn } from '@/src/shared/config/authSession';
 
-export type AppEntryMode = 'checking' | 'marketing' | 'splash';
-
+// The app's front door is sign-in (16 Nov 2026: the marketing site and the
+// splash screen are archived in /archive/pre-login). proxy.ts already sends
+// a signed-out visitor from / to /sign-in; this only runs for one who looks
+// signed in:
+//   - a home-screen launch of the installed app never trusts a carried-over
+//     session: sign out and sign in again, every time (deliberate);
+//   - anywhere else, on to /loading, which picks the home.
 export function useLogic() {
   const router = useRouter();
-  const [mode, setMode] = useState<AppEntryMode>('checking');
 
   useEffect(() => {
     if (!isStandalonePwa()) {
-      // Opened as a regular web page (not installed): always the marketing site.
-      setMode('marketing');
+      router.replace('/loading');
       return;
     }
-
-    if (window.localStorage.getItem(SIGNED_IN_KEY) !== '1') {
-      // Installed but never signed in before: the app's own splash screen,
-      // which leads to sign-up/sign-in from a standing start.
-      setMode('splash');
-      return;
-    }
-
-    // Installed and signed in before: never trust that carried-over session
-    // on a fresh home-screen launch — sign out of Firebase and clear the
-    // local flag, then send the device through a real sign-in every time.
-    // This is deliberate (not a bug to self-heal): the whole point is that
-    // a home-screen launch always requires re-entering credentials, however
-    // durable Firebase's own session storage is under the hood.
     (async () => {
       await signOut(getFirebaseAuth()).catch(() => {});
       clearSignedIn();
       router.replace('/sign-in');
     })();
   }, [router]);
-
-  return { mode };
 }

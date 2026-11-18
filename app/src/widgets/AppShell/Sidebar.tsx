@@ -128,7 +128,7 @@ export function Sidebar({
   async function logOut() {
     await signOut(getFirebaseAuth()).catch(() => {});
     clearSignedIn();
-    router.push('/');
+    router.push('/sign-in');
   }
 
   return (
