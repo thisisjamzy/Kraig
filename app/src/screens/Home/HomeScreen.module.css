@@ -56,6 +56,11 @@
   color: #ffffff;
   cursor: pointer;
   flex-shrink: 0;
+  transition: transform var(--duration-press) var(--ease-out);
+}
+
+.currencyChip:active {
+  transform: scale(0.97);
 }
 
 /* Anchored right next to the currency chip — a context menu, not a
@@ -274,6 +279,11 @@
   color: #ffffff;
   text-decoration: none;
   flex-shrink: 0;
+  transition: transform var(--duration-press) var(--ease-out);
+}
+
+.viewAllButton:active {
+  transform: scale(0.97);
 }
 
 /* Wallet cards — Design/card design.jpg's layout (type+name top, a
