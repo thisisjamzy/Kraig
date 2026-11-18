@@ -710,3 +710,20 @@
   background: rgba(255, 255, 255, 0.92);
   color: var(--money-ink);
 }
+
+/* Reduced motion — no press scaling. */
+@media (prefers-reduced-motion: reduce) {
+  .statCurrencyChip,
+  .statEyeToggle,
+  .textButton,
+  .highlightButton {
+    transition: none;
+  }
+
+  .statCurrencyChip:active,
+  .statEyeToggle:active,
+  .textButton:active,
+  .highlightButton:active {
+    transform: none;
+  }
+}
