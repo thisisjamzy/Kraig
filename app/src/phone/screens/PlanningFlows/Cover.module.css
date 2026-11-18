@@ -647,3 +647,10 @@
     animation: none;
   }
 }
+
+/* Figures never wrap (owner, 18 Nov 2026): one line, never split. */
+.figureValue {
+  overflow-wrap: normal;
+  word-break: normal;
+  white-space: nowrap;
+}

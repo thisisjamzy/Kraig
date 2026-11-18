@@ -1128,3 +1128,40 @@
   background: var(--color-brand-default);
   color: var(--color-brand-on);
 }
+
+/* A figure never wraps (owner, 18 Nov 2026): it stays on one line and its
+   size follows the tile's width, down to 11px. */
+.moneyFigure {
+  container-type: inline-size;
+}
+
+.moneyFigureValue {
+  overflow: hidden;
+  font-size: clamp(11px, 16cqi, 15px);
+  overflow-wrap: normal;
+  white-space: nowrap;
+  text-overflow: clip;
+}
+
+/* Figures never wrap (owner, 18 Nov 2026): one line, never split. */
+.figureValue,
+.moneyAmount {
+  overflow-wrap: normal;
+  word-break: normal;
+  white-space: nowrap;
+}
+
+/* The Baskets card stays dark ("reversed on dark"): its own text is light,
+   so the big figure reads. Its figure tiles keep their light fill. */
+.moneyCard[data-tone='teal'] {
+  color: #fff;
+}
+
+.moneyCard[data-tone='teal'] .moneyAmount {
+  color: #fff;
+}
+
+.moneyCard[data-tone='teal'] .moneyLabel,
+.moneyCard[data-tone='teal'] .moneyMeterText {
+  color: color-mix(in srgb, #fff 72%, transparent);
+}

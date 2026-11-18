@@ -6,7 +6,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeftRight, CheckSquare, FileText, LayoutGrid, Search } from 'lucide-react';
+import { ArrowLeftRight, CheckSquare, FileText, Search, ShoppingBasket } from 'lucide-react';
 import { limit, orderBy, query, where } from 'firebase/firestore';
 import { PAGE_TREE, MODE_LABEL } from '@/src/shared/config/pageTree';
 import { useFirestoreCollection } from '@/src/shared/firestore/hooks';
@@ -50,7 +50,7 @@ export function SearchPalette({ onClose }: { onClose: () => void }) {
     const bucketHits: Result[] = buckets
       .filter((b) => match(b.name))
       .slice(0, 8)
-      .map((b) => ({ id: `bucket-${b.id}`, group: 'Baskets', label: b.name, hint: `${b.type ?? 'Expense'} basket`, href: `/budget/basket/${b.id}`, icon: LayoutGrid }));
+      .map((b) => ({ id: `bucket-${b.id}`, group: 'Baskets', label: b.name, hint: `${b.type ?? 'Expense'} basket`, href: `/budget/basket/${b.id}`, icon: ShoppingBasket }));
     const txHits: Result[] = transactions
       .filter((t) => match(t.description ?? ''))
       .slice(0, 8)

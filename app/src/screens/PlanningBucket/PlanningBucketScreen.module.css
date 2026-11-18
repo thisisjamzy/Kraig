@@ -427,3 +427,10 @@ a.lineRow:focus-visible {
 .closedText span {
   overflow-wrap: anywhere;
 }
+
+/* Figures never wrap (owner, 18 Nov 2026): one line, never split. */
+.itemLeft {
+  overflow-wrap: normal;
+  word-break: normal;
+  white-space: nowrap;
+}

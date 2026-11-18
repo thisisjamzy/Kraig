@@ -5,7 +5,7 @@
 import Link from 'next/link';
 import { SelectBox } from '@/src/widgets/Selection/SelectionBar';
 import type { ReactNode } from 'react';
-import { AlertCircle, ArrowDownLeft, ArrowLeftRight, ArrowRight, ArrowUpRight, Check, PiggyBank, Repeat, ShoppingBag, Sparkles, Tag } from 'lucide-react';
+import { AlertCircle, ArrowDownLeft, ArrowLeftRight, ArrowRight, ArrowUpRight, Check, PiggyBank, Repeat, Sparkles, Tag, ShoppingBasket } from 'lucide-react';
 import { fillOf, money, type Prompt, dayMonth } from '@/src/viewmodels/planning';
 import type { HistoryRow } from '@/src/logic/planning/rows';
 import styles from '@/src/phone/screens/Planning/Planning.module.css';
@@ -32,10 +32,10 @@ export function Bar({ spent, planned, over }: { spent: number; planned: number; 
   );
 }
 
-const TYPE_ICON = { Expense: ShoppingBag, Income: ArrowDownLeft, Savings: PiggyBank, Transfer: ArrowLeftRight } as const;
+const TYPE_ICON = { Expense: ShoppingBasket, Income: ArrowDownLeft, Savings: PiggyBank, Transfer: ArrowLeftRight } as const;
 
 export function IconCircle({ type, category }: { type?: string; category?: boolean }) {
-  const Icon = category ? Tag : (TYPE_ICON[(type ?? 'Expense') as keyof typeof TYPE_ICON] ?? ShoppingBag);
+  const Icon = category ? Tag : (TYPE_ICON[(type ?? 'Expense') as keyof typeof TYPE_ICON] ?? ShoppingBasket);
   return (
     <span className={styles.iconCircle} aria-hidden>
       <Icon size={17} strokeWidth={2} />

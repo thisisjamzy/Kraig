@@ -21,10 +21,12 @@ import { modeOfPath } from '@/src/shared/config/pageTree';
 // back-arrow header) — only Buckets, Buckets analytics (the phone line's
 // Insights tab; the web line sends it to /statistics) and Priorities count
 // as the hub.
-const MONEY_HUB_ROUTES = ['/home', '/statistics', '/budget'];
+// Baskets and Payments joined Money's bar (owner, 18 Nov 2026): Baskets no
+// longer has a bar of its own.
+const MONEY_HUB_ROUTES = ['/home', '/statistics', '/budget', '/payments', '/baskets', '/baskets/items'];
 const PROJECTS_HUB_ROUTES = ['/projects', '/projects/calendar', '/projects/focus', '/projects/insights', '/projects/analytics'];
 // /payments joined when Priorities moved onto it (its one Calendar view).
-const BUCKETS_HUB_ROUTES = ['/baskets', '/baskets/items', '/payments'];
+const BUCKETS_HUB_ROUTES: string[] = [];
 
 export type NavMode = 'money' | 'projects' | 'buckets' | 'none';
 
@@ -42,7 +44,7 @@ export function navMode(pathname: string | null): NavMode {
 // headers (src/screens/ProjectsCalendar, src/screens/Focus), so the
 // generic AppHeader stays off there to avoid two stacked headers.
 // Time v1.0's Today draws its own header too (phone/widgets/TimeHeader).
-const OWN_HEADER_ROUTES = ['/home', '/projects', '/projects/calendar', '/projects/focus', '/projects/insights'];
+const OWN_HEADER_ROUTES = ['/home', '/projects', '/projects/calendar', '/projects/focus', '/projects/insights', '/payments', '/baskets', '/baskets/items'];
 
 export function hasAppHeader(pathname: string | null): boolean {
   if (pathname && OWN_HEADER_ROUTES.includes(pathname)) return false;

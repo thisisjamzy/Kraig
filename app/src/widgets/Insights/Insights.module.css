@@ -173,3 +173,10 @@
     min-height: 48px;
   }
 }
+
+/* Figures never wrap (owner, 18 Nov 2026): one line, never split. */
+.value {
+  overflow-wrap: normal;
+  word-break: normal;
+  white-space: nowrap;
+}

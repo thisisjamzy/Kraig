@@ -1550,3 +1550,12 @@
 .coverage[data-tone='bad'] {
   color: var(--sg-destructive);
 }
+
+/* Figures never wrap (owner, 18 Nov 2026): one line, never split. */
+.figure strong,
+.bigFigure strong,
+.rowAmount {
+  overflow-wrap: normal;
+  word-break: normal;
+  white-space: nowrap;
+}

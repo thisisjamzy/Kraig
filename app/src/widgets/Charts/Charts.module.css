@@ -1348,3 +1348,10 @@
   pointer-events: none;
   transform: translate(-50%, -110%);
 }
+
+/* Figures never wrap (owner, 18 Nov 2026): one line, never split. */
+.kpiValue {
+  overflow-wrap: normal;
+  word-break: normal;
+  white-space: nowrap;
+}

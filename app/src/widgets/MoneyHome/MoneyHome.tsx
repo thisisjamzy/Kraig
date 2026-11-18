@@ -16,7 +16,7 @@ import {
   ArrowUpRight,
   ChevronDown,
   History,
-  LayoutGrid,
+  ShoppingBasket,
   HandCoins,
   Clock,
   PiggyBank,
@@ -553,7 +553,7 @@ export function QuickActions() {
   const items = [
     { href: formLink('transaction'), label: 'Add', icon: <Plus size={22} strokeWidth={2} /> },
     { href: '/transactions', label: 'History', icon: <History size={22} strokeWidth={2} /> },
-    { href: '/baskets', label: 'Baskets', icon: <LayoutGrid size={22} strokeWidth={2} /> },
+    { href: '/baskets', label: 'Baskets', icon: <ShoppingBasket size={22} strokeWidth={2} /> },
     { href: '/debts', label: 'Debts', icon: <HandCoins size={22} strokeWidth={2} /> },
   ];
   return (

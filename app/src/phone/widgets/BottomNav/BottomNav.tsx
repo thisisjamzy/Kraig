@@ -1,7 +1,7 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import { Home, PieChart, Plus, SlidersHorizontal, Clock } from 'lucide-react';
+import { CalendarDays, Clock, Home, PieChart, Plus, SlidersHorizontal } from 'lucide-react';
 import { useFormLink } from '@/src/shared/navigation/useFormLink';
 import { navMode } from '@/src/shared/config/chromeVisibility';
 import { TabBar } from '@/src/phone/widgets/TabBar/TabBar';
@@ -17,6 +17,7 @@ export const NAV_ITEMS = [
   { href: '/home', label: 'Home', icon: Home },
   { href: '/statistics', label: 'Insights', icon: PieChart },
   { href: '/budget', label: 'Budget', icon: SlidersHorizontal },
+  { href: '/payments', label: 'Payments', icon: CalendarDays },
 ];
 
 // Money mode's own bottom nav — ProjectsBottomNav is Projects mode's

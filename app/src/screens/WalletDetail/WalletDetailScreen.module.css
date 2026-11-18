@@ -464,3 +464,10 @@
 .check[data-status='warning'] .checkStatus {
   color: var(--color-status-warning-fg);
 }
+
+/* Figures never wrap (owner, 18 Nov 2026): one line, never split. */
+.tileValue {
+  overflow-wrap: normal;
+  word-break: normal;
+  white-space: nowrap;
+}
