@@ -93,7 +93,7 @@ export function useLogic() {
     // the Firebase client session and the local UX flag directly.
     await signOut(getFirebaseAuth()).catch(() => {});
     clearSignedIn();
-    router.push('/');
+    router.push('/sign-in');
   }
 
   // Back to the page the user came from (skipping forms); '/home' only
