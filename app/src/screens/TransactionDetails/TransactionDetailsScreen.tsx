@@ -10,6 +10,7 @@ import { ArrowDownLeft, ArrowLeft, ArrowLeftRight, ArrowRight, ArrowUpRight, Cal
 import { useLogic } from '@/src/logic/transactionDetails/useLogic';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { money, weekdayDayMonth } from '@/src/viewmodels/planning';
+import { timeWords } from '@/src/viewmodels/transactionTime';
 import { SpecCell, SpecRow } from '@/src/screens/Planning/PlanningParts';
 import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import p from '@/src/screens/Planning/Planning.module.css';
@@ -65,7 +66,7 @@ export function TransactionDetailsScreen({ id, transfer = false, assign = false 
           <section className={p.spec}>
             <SpecRow>
               <SpecCell label="Date" value={`${weekdayDayMonth(v.date)} ${v.date.getFullYear()}`} />
-              <SpecCell label="Time" value={v.timeKnown ? v.date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : 'Not recorded'} />
+              <SpecCell label="Time" value={v.date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} />
             </SpecRow>
             <SpecRow>
               <SpecCell label="Type" value={v.type} />
@@ -161,7 +162,7 @@ export function TransactionPage({ t, inPeek = false }: { t: TxLogic; inPeek?: bo
   if (!v) return <ScreenState loading={t.loading} error={t.missing ? 'This transaction could not be found.' : null} />;
   const Icon = v.flow === 'in' ? ArrowDownLeft : v.flow === 'out' ? ArrowUpRight : ArrowLeftRight;
   const sign = v.flow === 'in' ? '+' : v.flow === 'out' ? '-' : '';
-  const when = `${weekdayDayMonth(v.date)} ${v.date.getFullYear()}${v.timeKnown ? `, ${v.date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}` : ''}`;
+  const when = timeWords(v.date, Intl.DateTimeFormat().resolvedOptions().timeZone).long;
   const rows: { id: string; icon: LucideIcon; label: string; value: ReactNode }[] = [
     { id: 'type', icon: ArrowLeftRight, label: 'Type', value: v.subtype ? `${v.type} · ${v.subtype}` : v.type },
     { id: 'wallet', icon: Wallet, label: t.isTransfer ? 'From and to' : 'Wallet', value: v.method || null },

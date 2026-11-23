@@ -397,6 +397,9 @@ export async function revertReconciliation(
 
 export interface ExplainHistoricEntryInput {
   date: Date;
+  // The time it happened (viewmodels/transactionTime.ts); left out: the save time.
+  occurredAt?: Date;
+  timeSource?: 'user' | 'recorded';
   type: string;
   // Income only — see FirestoreTransaction.incomeSubtype.
   incomeSubtype?: import('./types').IncomeSubtype | null;

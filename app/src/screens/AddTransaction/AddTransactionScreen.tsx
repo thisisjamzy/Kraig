@@ -21,7 +21,7 @@ import { Modal } from '@/src/widgets/Modal/Modal';
 import { TemplatePicker } from '@/src/widgets/TemplatePicker/TemplatePicker';
 import tp from '@/src/widgets/TemplatePicker/TemplateForm.module.css';
 import Link from 'next/link';
-import { CalendarDays, FileText, FolderPlus, PiggyBank, Receipt, ShoppingBasket, Tag, Target, Wallet } from 'lucide-react';
+import { CalendarDays, Clock, FileText, FolderPlus, PiggyBank, Receipt, ShoppingBasket, Tag, Target, Wallet } from 'lucide-react';
 import { useLogic, formatMoney, type TransactionType } from '@/src/logic/addTransaction/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
@@ -30,6 +30,8 @@ import {
   DateRow,
   ImpactCallout,
   InputRow,
+  DateTimeRows,
+  TimeRow,
   RowChip,
   RowGroup,
   RowNote,
@@ -261,7 +263,10 @@ export function AddTransactionScreen() {
           )}
 
           <RowGroup label="When">
-            <DateRow icon={<CalendarDays />} label="Date" value={v.dateValue} onChange={v.chooseDate} />
+            <DateTimeRows>
+              <DateRow icon={<CalendarDays />} label="Date" value={v.dateValue} onChange={v.chooseDate} />
+              <TimeRow icon={<Clock />} value={v.timeValue} onChange={v.setTimeValue} />
+            </DateTimeRows>
           </RowGroup>
 
           <RowGroup label="More">

@@ -3,6 +3,7 @@
 // Edit transfer, on the form standard (FormFrame): Description, Amount |
 // Date, From | To, Kind; More options: charges, basket item; Delete below.
 
+import { TimeField } from '@/src/shared/ui/TimePicker/TimePicker';
 import { useLogic } from '@/src/logic/editTransfer/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
@@ -31,6 +32,8 @@ export function EditTransferScreen({ transferId }: { transferId: string }) {
     fromAccounts,
     toAccounts,
     dateValue,
+    timeValue,
+    setTimeValue,
     setDateValue,
     sameAccount,
     canSave,
@@ -116,6 +119,9 @@ export function EditTransferScreen({ transferId }: { transferId: string }) {
               <input type="date" className={ff.input} value={dateValue} onChange={(event) => setDateValue(event.target.value)} />
             </FieldCard>
           </FieldRow>
+          <FieldCard label="Time">
+            <TimeField value={timeValue} onChange={setTimeValue} fieldClassName={ff.input} />
+          </FieldCard>
           <FieldRow>
             <SelectField label={strings.editTransfer.fromAccountLabel} value={fromAccountId} onChange={setFromAccountId} options={fromOptions} />
             <SelectField

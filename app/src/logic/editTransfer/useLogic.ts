@@ -14,6 +14,8 @@
 // here — transfers only ever move an account's own native-currency amount
 // (see createTransferWithAggregation's own header).
 
+import { editedTransactionTime, transactionClock } from '@/src/viewmodels/transactionTime';
+import { useTimeZone } from '@/src/shared/hooks/useAccountability';
 import { useEffect, useMemo, useState } from 'react';
 import { useFirestoreDoc } from '@/src/shared/firestore/hooks';
 import { transferRef } from '@/src/shared/firestore/refs';
@@ -67,6 +69,10 @@ export function useLogic(transferId: string) {
   const [fromAccountId, setFromAccountId] = useState('');
   const [toAccountId, setToAccountId] = useState('');
   const [dateValue, setDateValue] = useState('');
+  // Time (owner, 23 Nov 2026): minutes, or null once cleared (back to the recorded time).
+  const [timeValue, setTimeValue] = useState<number | null>(null);
+  const [seededWhen, setSeededWhen] = useState<{ day: string; time: number } | null>(null);
+  const timeZone = useTimeZone();
   // PRD-BUDGETS-V2.md section 6.4 — the Transfer bucket item occurrence
   // this transfer settles, as `${itemId}@${yyyy-MM}`; '' = not linked.
   const [bucketItemKey, setBucketItemKey] = useState('');
@@ -87,9 +93,13 @@ export function useLogic(transferId: string) {
     setFromAccountId(original.fromAccountId);
     setToAccountId(original.toAccountId);
     setDateValue(toIso(original.date.toDate()));
+    // The time shown is the one it has (picked, or recorded for older entries).
+    const clock = transactionClock(original, timeZone);
+    setTimeValue(clock);
+    setSeededWhen({ day: toIso(original.date.toDate()), time: clock });
     setBucketItemKey(linkKey(original.bucketItem));
     setSeededFor(transferId);
-  }, [original, seededFor, transferId]);
+  }, [original, seededFor, transferId, timeZone]);
 
   // A Transfer bucket's items use the transfer kind as their category.
   const bucketItemOptions = useBucketItemOptions({ categoryId: kind, dateValue, current: original?.bucketItem });
@@ -103,6 +113,10 @@ export function useLogic(transferId: string) {
       await updateTransferWithAggregation(uid, {
         id: transferId,
         date: new Date(`${dateValue}T00:00:00`),
+          // Only a change of date or time touches the stored time; any other edit leaves it.
+          ...(original && seededWhen && (dateValue !== seededWhen.day || timeValue !== seededWhen.time)
+            ? (({ occurredAt, timeSource }) => ({ occurredAt, timeSource }))(editedTransactionTime(original, dateValue, timeValue, timeZone))
+            : {}),
         description,
         fromAccountId,
         toAccountId,
@@ -180,6 +194,8 @@ export function useLogic(transferId: string) {
     toAccounts,
     dateValue,
     setDateValue,
+    timeValue,
+    setTimeValue,
     sameAccount: fromAccountId.length > 0 && fromAccountId === toAccountId,
     canSave,
     submitting,

@@ -12,6 +12,8 @@
 // have left them. Delete goes through deleteTransactionWithAggregation, the
 // same reversal half without a new contribution applied after.
 
+import { editedTransactionTime, transactionClock } from '@/src/viewmodels/transactionTime';
+import { useTimeZone } from '@/src/shared/hooks/useAccountability';
 import { useEffect, useMemo, useState } from 'react';
 import { useFirestoreDoc } from '@/src/shared/firestore/hooks';
 import { useBucketItemOptions, bucketItemKey as linkKey } from '@/src/shared/hooks/useBucketItemOptions';
@@ -68,6 +70,10 @@ export function useLogic(transactionId: string) {
   const [amountString, setAmountString] = useState('');
   const [accountId, setAccountId] = useState('');
   const [dateValue, setDateValue] = useState('');
+  // Time (owner, 23 Nov 2026): minutes, or null once cleared (back to the recorded time).
+  const [timeValue, setTimeValue] = useState<number | null>(null);
+  const [seededWhen, setSeededWhen] = useState<{ day: string; time: number } | null>(null);
+  const timeZone = useTimeZone();
   // PRD-BUDGETS-V2.md section 6.4 — which bucket item occurrence this pays
   // for, as `${itemId}@${yyyy-MM}`; '' = not linked (unplanned spend).
   const [bucketItemKey, setBucketItemKey] = useState('');
@@ -115,9 +121,13 @@ export function useLogic(transactionId: string) {
     setAmountString(String(original.amount));
     setAccountId(original.accountId);
     setDateValue(toIso(original.date.toDate()));
+    // The time shown is the one it has (picked, or recorded for older entries).
+    const clock = transactionClock(original, timeZone);
+    setTimeValue(clock);
+    setSeededWhen({ day: toIso(original.date.toDate()), time: clock });
     setBucketItemKey(linkKey(original.bucketItem));
     setSeededFor(transactionId);
-  }, [original, seededFor, transactionId]);
+  }, [original, seededFor, transactionId, timeZone]);
 
   const bucketItemOptions = useBucketItemOptions({ categoryId, dateValue, current: original?.bucketItem });
 
@@ -132,6 +142,10 @@ export function useLogic(transactionId: string) {
         {
           id: transactionId,
           date: new Date(`${dateValue}T00:00:00`),
+          // Only a change of date or time touches the stored time; any other edit leaves it.
+          ...(original && seededWhen && (dateValue !== seededWhen.day || timeValue !== seededWhen.time)
+            ? (({ occurredAt, timeSource }) => ({ occurredAt, timeSource }))(editedTransactionTime(original, dateValue, timeValue, timeZone))
+            : {}),
           type,
           description,
           accountId,
@@ -210,6 +224,8 @@ export function useLogic(transactionId: string) {
     expenseAccounts,
     dateValue,
     setDateValue,
+    timeValue,
+    setTimeValue,
     canSave,
     submitting,
     submitError,

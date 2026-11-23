@@ -12,6 +12,7 @@
 // spreadsheet using these definitions; src/logic/importData/useLogic.ts
 // resolves references and performs the writes.
 
+import { parseTimeText } from '@/src/viewmodels/transactionTime';
 import type {
   Priority,
   DebtPriority,
@@ -128,6 +129,13 @@ function parseDateCell(row: Record<string, unknown>, header: string): Date | nul
   const withTime = str.length <= 10 ? `${str}T00:00:00` : str;
   const date = new Date(withTime);
   return Number.isNaN(date.getTime()) ? null : date;
+}
+
+/** The optional Time and Time source columns (exports carry both; a hand-filled file may give only a time). */
+function timeOf(row: Record<string, unknown>): { time: number | null; timeSource: 'user' | 'recorded' | null } {
+  const time = parseTimeText(cell(row, 'Time'));
+  const source = cell(row, 'Time source').toLowerCase();
+  return { time, timeSource: time === null ? null : source === 'recorded' ? 'recorded' : 'user' };
 }
 
 function isoDate(date: Date): string {
@@ -266,6 +274,9 @@ export interface TransactionDraft {
   categoryName: string | null;
   amount: number;
   description: string;
+  /** Time column, in minutes; null when blank (the import time is used). */
+  time: number | null;
+  timeSource: 'user' | 'recorded' | null;
 }
 
 export interface TransferDraft {
@@ -276,6 +287,8 @@ export interface TransferDraft {
   charges: number;
   kind: string;
   notes: string;
+  time: number | null;
+  timeSource: 'user' | 'recorded' | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -668,10 +681,10 @@ export const TRANSACTION_ENTITY: EntityDef<TransactionDraft> = {
   key: 'transactions',
   label: 'Transactions',
   sheetName: 'Transactions',
-  columns: ['Date', 'Type', 'Account', 'Category', 'Amount', 'Description'],
+  columns: ['Date', 'Type', 'Account', 'Category', 'Amount', 'Description', 'Time', 'Time source'],
   templateRows: [
-    ['2026-01-15', 'Expense', 'Cash Wallet', 'Groceries', '15000', 'Weekly groceries'],
-    ['2026-01-20', 'Income', 'Bank Account', 'Salary', '400000', 'January salary'],
+    ['2026-01-15', 'Expense', 'Cash Wallet', 'Groceries', '15000', 'Weekly groceries', '18:30', ''],
+    ['2026-01-20', 'Income', 'Bank Account', 'Salary', '400000', 'January salary', '', ''],
   ],
   parseRow(row, rowNumber) {
     if (isRowBlank(row, this.columns)) return { rowNumber, draft: null, refs: [], errors: [] };
@@ -684,6 +697,7 @@ export const TRANSACTION_ENTITY: EntityDef<TransactionDraft> = {
     if (!accountName) errors.push('Account is required.');
     const amount = parseNumber(cell(row, 'Amount'));
     if (amount === null || amount <= 0) errors.push('Amount must be a positive number.');
+    if (cell(row, 'Time') && timeOf(row).time === null) errors.push('Time must be like 14:30.');
     if (errors.length) return { rowNumber, draft: null, refs: [], errors };
     const categoryName = optionalCell(row, 'Category');
     const draft: TransactionDraft = {
@@ -693,6 +707,7 @@ export const TRANSACTION_ENTITY: EntityDef<TransactionDraft> = {
       categoryName,
       amount: amount!,
       description: cell(row, 'Description'),
+      ...timeOf(row),
     };
     const refs: RefNeed[] = [{ field: 'accountId', entityKey: 'accounts', name: accountName, mode: 'hardRequired' }];
     if (categoryName) {
@@ -706,8 +721,8 @@ export const TRANSFER_ENTITY: EntityDef<TransferDraft> = {
   key: 'transfers',
   label: 'Transfers',
   sheetName: 'Transfers',
-  columns: ['Date', 'From Account', 'To Account', 'Amount', 'Charges', 'Kind', 'Notes'],
-  templateRows: [['2026-01-18', 'Bank Account', 'Cash Wallet', '20000', '0', 'Wallet to wallet', '']],
+  columns: ['Date', 'From Account', 'To Account', 'Amount', 'Charges', 'Kind', 'Notes', 'Time', 'Time source'],
+  templateRows: [['2026-01-18', 'Bank Account', 'Cash Wallet', '20000', '0', 'Wallet to wallet', '', '09:00', '']],
   parseRow(row, rowNumber) {
     if (isRowBlank(row, this.columns)) return { rowNumber, draft: null, refs: [], errors: [] };
     const fromAccountName = cell(row, 'From Account');
@@ -728,6 +743,7 @@ export const TRANSFER_ENTITY: EntityDef<TransferDraft> = {
       charges: parseNumber(cell(row, 'Charges')) ?? 0,
       kind: cell(row, 'Kind') || 'Wallet to wallet',
       notes: cell(row, 'Notes'),
+      ...timeOf(row),
     };
     return {
       rowNumber,

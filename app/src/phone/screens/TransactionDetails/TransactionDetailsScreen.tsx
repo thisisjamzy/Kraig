@@ -4,11 +4,12 @@
 // a spec grid (when, what, which wallet, which bucket item and month), the
 // note, and "Assign to bucket" for a transaction not tied to one yet.
 
+import { timeWords } from '@/src/viewmodels/transactionTime';
 import Link from 'next/link';
 import { ArrowDownLeft, ArrowLeft, ArrowLeftRight, ArrowRight, ArrowUpRight, LayoutGrid, ListChecks, Pencil, Tag, Wallet } from 'lucide-react';
 import { useLogic } from '@/src/logic/transactionDetails/useLogic';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
-import { money, weekdayDayMonth } from '@/src/viewmodels/planning';
+import { money } from '@/src/viewmodels/planning';
 import { SpecCell, SpecRow } from '@/src/phone/screens/Planning/PlanningParts';
 import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import p from '@/src/phone/screens/Planning/Planning.module.css';
@@ -51,8 +52,7 @@ export function TransactionDetailsScreen({ id, transfer = false, assign = false 
               {money(v.amount)} {t.currency}
             </p>
             <p className={styles.when}>
-              {weekdayDayMonth(v.date)}
-              {v.timeKnown ? `, ${v.date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}` : ''}
+              {timeWords(v.date, Intl.DateTimeFormat().resolvedOptions().timeZone).long}
             </p>
           </div>
 

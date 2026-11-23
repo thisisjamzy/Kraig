@@ -127,7 +127,7 @@ export function HistoryRowView({
           {money(Math.abs(row.amount))} {currency}
         </span>
         <span className={styles.rowWhen}>
-          {showDate ? dayMonth(row.date) : row.timeKnown === false ? '' : when(row.date)}
+          {showDate ? `${dayMonth(row.date)}, ${when(row.date)}` : when(row.date)}
         </span>
         {row.bucketName && <span className={styles.chip}>{row.bucketName}</span>}
       </span>

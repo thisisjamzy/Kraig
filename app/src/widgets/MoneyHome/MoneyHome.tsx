@@ -477,8 +477,8 @@ function whenText(d: Date, now: Date) {
   const day = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
   const diff = Math.round((day(now) - day(d)) / 86_400_000);
   if (diff === 0) return `Today, ${TIME.format(d)}`;
-  if (diff === 1) return 'Yesterday';
-  return DAY_MONTH.format(d);
+  if (diff === 1) return `Yesterday, ${TIME.format(d)}`;
+  return `${DAY_MONTH.format(d)}, ${TIME.format(d)}`;
 }
 
 export function Recent({ items }: { items: HomeTx[] }) {

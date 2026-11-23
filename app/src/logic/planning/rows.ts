@@ -76,7 +76,7 @@ export function buildRows(
       method: account.get(t.accountId)?.name ?? '',
       amount: t.direction === 'Inflow' ? value : -value,
       ...(() => {
-        const at = recordedAt(t.date, t.createdAt);
+        const at = recordedAt(t);
         return { date: at.date, timeKnown: at.timeKnown };
       })(),
       bucketId,
@@ -100,7 +100,7 @@ export function buildRows(
       method: `${account.get(t.fromAccountId)?.name ?? ''} → ${account.get(t.toAccountId)?.name ?? ''}`,
       amount: toDisplay(ctx, t.amount, currency),
       ...(() => {
-        const at = recordedAt(t.date, t.createdAt);
+        const at = recordedAt(t);
         return { date: at.date, timeKnown: at.timeKnown };
       })(),
       bucketId,

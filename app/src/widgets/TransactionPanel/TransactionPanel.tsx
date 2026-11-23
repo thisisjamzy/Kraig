@@ -23,6 +23,8 @@ import { ArrowDownLeft, ArrowDownToLine, ArrowLeftRight, ArrowUpRight, Check, Ch
 import { ListSheet, useFormPeek } from '@/src/widgets/FormFrame/FormFrame';
 import { useLayout } from '@/src/shared/hooks/useLayout';
 import { useSubmitState } from '@/src/shared/hooks/useSubmitState';
+import { TimePicker } from '@/src/shared/ui/TimePicker/TimePicker';
+import { hhmm } from '@/src/viewmodels/transactionTime';
 import styles from './TransactionPanel.module.css';
 
 // ---------------------------------------------------------------------------
@@ -383,6 +385,37 @@ export function DateRow({ icon, label, value, onChange }: { icon: ReactNode; lab
       />
     </RowShell>
   );
+}
+
+/**
+ * The Time row, made like the Date row (owner, 23 Nov 2026): "Now" in
+ * muted text with "Uses the time you save" under it until a time is set,
+ * then "14:30" with a clear button back to Now. Opens TimePicker.
+ */
+export function TimeRow({ icon, label = 'Time', value, onChange }: { icon: ReactNode; label?: string; value: number | null; onChange: (minutes: number | null) => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className={styles.timeRow}>
+      <RowShell icon={icon} label={label} className={styles.pickRow} chevron={value === null}>
+        <button type="button" className={styles.overlayButton} onClick={() => setOpen(true)} aria-label={value === null ? `${label}: now, the time you save` : `${label}: ${hhmm(value)}`} />
+        <span className={styles.value} data-placeholder={value === null ? '' : undefined}>
+          {value === null ? 'Now' : hhmm(value)}
+        </span>
+        {value === null && <span className={styles.rowNote}>Uses the time you save</span>}
+      </RowShell>
+      {value !== null && (
+        <button type="button" className={styles.clearTime} onClick={() => onChange(null)} aria-label="Clear the time, use the time you save">
+          <X size={16} strokeWidth={2} />
+        </button>
+      )}
+      {open && <TimePicker value={value} onChange={onChange} onClose={() => setOpen(false)} title={label} />}
+    </div>
+  );
+}
+
+/** Date and Time together: one row each on a phone; side by side, Date wider, on web. */
+export function DateTimeRows({ children }: { children: ReactNode }) {
+  return <div className={styles.dateTime}>{children}</div>;
 }
 
 /** A row that only shows a value. */

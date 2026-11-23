@@ -9,6 +9,7 @@
 // transfers), never income. Spending categories are expense categories
 // only (a refund is money in, not a category to spend on).
 
+import { recordedAt } from '@/src/shared/time/recordedAt';
 import { useAccountability } from '@/src/shared/hooks/useAccountability';
 import { useMemo, useState } from 'react';
 import { limit, orderBy, query, Timestamp, updateDoc, where } from 'firebase/firestore';
@@ -147,7 +148,7 @@ export function useLogic() {
         id: x.id,
         kind,
         name: x.description || categoryName.get(x.categoryId ?? '') || (kind === 'income' ? 'Income' : 'Expense'),
-        when: x.date.toDate(),
+        when: recordedAt(x).date,
         amount: kind === 'income' || (kind === 'expense' && x.direction === 'Inflow') ? amount : -amount,
         sub: [categoryName.get(x.categoryId ?? '') ?? (kind === 'income' ? 'Income' : kind === 'savings' ? 'Savings' : 'Expense'), accountName.get(x.accountId ?? '')].filter(Boolean).join(' · '),
         href: `/transactions/${x.id}`,
@@ -158,7 +159,7 @@ export function useLogic() {
         id: `transfer:${x.id}`,
         kind: 'transfer',
         name: `${accountName.get(x.fromAccountId) ?? 'Account'} to ${x.toAccountId ? (accountName.get(x.toAccountId) ?? 'account') : 'outside'}`,
-        when: x.date.toDate(),
+        when: recordedAt(x).date,
         amount: display(x.amount, x.fromAccountId),
         sub: `Transfer · ${accountName.get(x.fromAccountId) ?? 'Account'} to ${x.toAccountId ? (accountName.get(x.toAccountId) ?? 'account') : 'outside'}`,
         href: `/edit-transfer/${x.id}`,

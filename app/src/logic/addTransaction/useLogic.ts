@@ -1,5 +1,7 @@
 'use client';
 
+import { withTransactionTime } from '@/src/viewmodels/transactionTime';
+import { useTimeZone } from '@/src/shared/hooks/useAccountability';
 import { markTemplateUsed } from '@/src/shared/firestore/templateWrites';
 import { recentFirst } from '@/src/viewmodels/templates';
 import { useEffect, useMemo, useState } from 'react';
@@ -206,6 +208,10 @@ export function useLogic() {
   const [dateValue, setDateValue] = useState(() =>
     retroTarget ? `${retroTarget.year}-${pad2(retroTarget.month + 1)}-01` : todayIso()
   );
+  // The time (owner, 23 Nov 2026): minutes after midnight, or null for
+  // "Now", the moment Save is pressed (viewmodels/transactionTime.ts).
+  const [timeValue, setTimeValue] = useState<number | null>(null);
+  const timeZone = useTimeZone();
   const [fromAccountId, setFromAccountId] = useState('');
   const [toAccountId, setToAccountId] = useState('');
 
@@ -545,6 +551,7 @@ export function useLogic() {
     if (template.charges != null) setChargesString(String(template.charges));
     else resetCharges();
     setDateValue(todayIso());
+    setTimeValue(null);
     setExplainsUnjustifiedBalance(null);
     setShowUnplanned(false);
     setLinkedBucketItemIdState('');
@@ -871,7 +878,10 @@ export function useLogic() {
       setSubmitting(false);
       return;
     }
-    const date = new Date(`${dateValue}T00:00:00`);
+    // The one write helper: the date field as before, and the time it happened.
+    const when = withTransactionTime(dateValue, timeValue, new Date(), timeZone);
+    const date = when.date;
+    const timeFields = { occurredAt: when.occurredAt, timeSource: when.timeSource };
 
     try {
       if (type === 'income' && incomeSubtype === 'debt_financing') {
@@ -920,6 +930,7 @@ export function useLogic() {
             accountId: fromAccountId,
             categoryId: category || linkedBucketItem.categoryId,
             date,
+            ...timeFields,
             description,
             categoryType: linkedBucketItem.isTransfer
               ? 'Transfer'
@@ -939,6 +950,7 @@ export function useLogic() {
         await createTransferWithAggregation({
           id: clientId,
           date,
+          ...timeFields,
           description,
           fromAccountId,
           toAccountId,
@@ -951,6 +963,7 @@ export function useLogic() {
         await createTransferWithAggregation({
           id: clientId,
           date,
+          ...timeFields,
           description,
           fromAccountId,
           toAccountId,
@@ -964,6 +977,7 @@ export function useLogic() {
         await recordHistoricEntry(
           {
             date,
+            ...timeFields,
             type: CATEGORY_TYPE[type]!,
             description,
             accountId: fromAccountId,
@@ -1065,6 +1079,8 @@ export function useLogic() {
     applyTemplate,
     saveAsTemplate,
     appliedTemplateId,
+    timeValue,
+    setTimeValue,
     chargesString,
     setChargesString,
     feeFromSchedule: feeFromSchedule && scheduleFee > 0,

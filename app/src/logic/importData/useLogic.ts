@@ -5,6 +5,7 @@
 // commit every row, then a summary. See dataEntities.ts's header for the
 // overall design; this hook is the resolution/commit engine.
 
+import { dayOfDateField, withTransactionTime } from '@/src/viewmodels/transactionTime';
 import { useState } from 'react';
 import { getDocs, getDoc, setDoc, updateDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import {
@@ -676,6 +677,7 @@ export function useLogic() {
               amount: d.amount,
               direction: d.type === 'Income' ? 'Inflow' : 'Outflow',
               createdBy: uid!,
+              ...importedTime(d),
             },
             ctx
           );
@@ -693,6 +695,7 @@ export function useLogic() {
             charges: d.charges,
             kind: d.kind,
             createdBy: uid!,
+            ...importedTime(d),
           });
           return;
         }
@@ -769,4 +772,12 @@ export function useLogic() {
 
     goBack,
   };
+}
+
+/** A row's Time column on its date (a restore keeps the stored source); no time: the import time, as the aggregation does. */
+function importedTime(d: { date: Date; time: number | null; timeSource: 'user' | 'recorded' | null }): { occurredAt?: Date; timeSource?: 'user' | 'recorded' } {
+  if (d.time === null) return {};
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const t = withTransactionTime(dayOfDateField(d.date), d.time, new Date(), tz);
+  return { occurredAt: t.occurredAt, timeSource: d.timeSource ?? 'user' };
 }

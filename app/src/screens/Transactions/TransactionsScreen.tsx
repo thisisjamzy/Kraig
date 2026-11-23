@@ -87,12 +87,11 @@ function dateColumn(): ColumnDef<TxRow> {
     id: 'date',
     label: 'Date',
     type: 'date',
-    width: 120,
+    width: 150,
     value: (r) => r.date,
     render: (r) => (
       <span className={styles.date}>
-        {r.date.getDate()} {MONTH[r.date.getMonth()]}
-        {r.timeKnown && `, ${r.date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`}
+        {r.date.getDate()} {MONTH[r.date.getMonth()]} {r.date.getFullYear()}, {r.date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
       </span>
     ),
   };

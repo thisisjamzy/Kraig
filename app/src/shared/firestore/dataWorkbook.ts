@@ -6,6 +6,7 @@
 // dataEntities.ts; this module just turns that plus live Firestore docs
 // into worksheets, or a worksheet back into raw row objects.
 
+import { clockIn, hhmm, transactionInstant } from '@/src/viewmodels/transactionTime';
 import * as XLSX from 'xlsx';
 import { ENTITY_DEFS, isoDate, boolLabel, type EntityKey } from './dataEntities';
 import type {
@@ -56,6 +57,12 @@ export interface ExportData {
   repayments: FirestoreRepayment[];
   transactions: FirestoreTransaction[];
   transfers: FirestoreTransfer[];
+}
+
+/** Time (HH:mm, local) and Time source, through transactionInstant: older entries export their recorded time. */
+function timeCells(t: FirestoreTransaction | FirestoreTransfer): string[] {
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  return [hhmm(clockIn(transactionInstant(t, tz), tz)), t.timeSource ?? 'recorded'];
 }
 
 function timestampToDateStr(ts: { toDate: () => Date } | null | undefined): string {
@@ -154,6 +161,7 @@ function rowsFor(key: EntityKey, data: ExportData, lookups: ExportLookups): stri
         name(lookups.categoryName, t.categoryId),
         String(t.amount),
         t.description,
+        ...timeCells(t),
       ]);
     case 'transfers':
       return data.transfers.map((t) => [
@@ -164,6 +172,7 @@ function rowsFor(key: EntityKey, data: ExportData, lookups: ExportLookups): stri
         String(t.charges ?? 0),
         t.kind,
         t.notes,
+        ...timeCells(t),
       ]);
     default:
       return [];

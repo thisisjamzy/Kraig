@@ -1,26 +1,21 @@
-// When a transaction or transfer happened, to the minute where we can tell.
-// Most records store a date only (midnight). Their document ids are random
-// UUIDs (or Notion page ids for migrated ones), so the id carries no time,
-// but createdAt does: the moment it was recorded (for migrated records,
-// Notion's own created time). When it was recorded on the same day as its
-// date, that is the best time we have; when it was entered on a later day
-// (back-dated), the time of day isn't known, so none is shown rather than
-// a made-up midnight.
+// When a transaction or transfer happened, to the minute (owner, 23 Nov
+// 2026): through viewmodels/transactionTime.ts's transactionInstant, so a
+// picked time, a recorded one, and an older entry's logged time all read
+// the same way. Every entry has a time now; `timeKnown` stays for callers
+// that still ask, and is always true.
 
-type Stamp = { toDate: () => Date } | null | undefined;
+import { transactionInstant, type TimedLike } from '@/src/viewmodels/transactionTime';
 
 export interface RecordedAt {
-  /** The date, with the best-known time of day. */
+  /** The date, with its time of day. */
   date: Date;
-  /** False when only the day is known. */
+  /** Always true: every entry has a time. */
   timeKnown: boolean;
 }
 
-export function recordedAt(date: Stamp, createdAt: Stamp): RecordedAt {
-  const d = date?.toDate() ?? createdAt?.toDate() ?? new Date(0);
-  const atMidnight = d.getHours() === 0 && d.getMinutes() === 0 && d.getSeconds() === 0;
-  if (!atMidnight) return { date: d, timeKnown: true };
-  const created = createdAt?.toDate();
-  if (created && created.toDateString() === d.toDateString()) return { date: created, timeKnown: true };
-  return { date: d, timeKnown: false };
+/** In the device's time zone, which is how every screen formats dates. */
+const deviceZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+export function recordedAt(entry: TimedLike): RecordedAt {
+  return { date: transactionInstant(entry, deviceZone()), timeKnown: true };
 }

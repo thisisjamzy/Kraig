@@ -99,7 +99,7 @@ export function useFinanceData() {
       txs.push({
         id: t.id,
         // Best-known time of day (for the hourly view); the day is unchanged.
-        date: recordedAt(t.date, t.createdAt).date,
+        date: recordedAt(t).date,
         month: t.month,
         kind,
         amount,

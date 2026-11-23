@@ -73,7 +73,7 @@ export function useLogic() {
       if ((t.month ?? monthKeyOf(t.date.toDate())) !== month) continue;
       const currency = account.get(t.accountId)?.currency ?? ctx.base;
       const value = toDisplay(ctx, t.amount, currency);
-      const at = recordedAt(t.date, t.createdAt);
+      const at = recordedAt(t);
       const item = itemOf.get(t.id);
       const bucketId = item?.bucketId ?? t.bucketItem?.bucketId ?? null;
       const cat = (t.categoryId && category.get(t.categoryId)) || '';
@@ -109,7 +109,7 @@ export function useLogic() {
     for (const t of transfersById.values()) {
       if (monthKeyOf(t.date.toDate()) !== month) continue;
       const currency = account.get(t.fromAccountId)?.currency ?? ctx.base;
-      const at = recordedAt(t.date, t.createdAt);
+      const at = recordedAt(t);
       const item = itemOf.get(t.id);
       const bucketId = item?.bucketId ?? t.bucketItem?.bucketId ?? null;
       const savings = transferSavingsSign(t, accountType);

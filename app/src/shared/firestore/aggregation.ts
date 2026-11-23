@@ -21,6 +21,7 @@
 // reverse-(then-apply) paths (see their own doc comments) — everything else
 // here only ever applies a new contribution, never has to reverse an old one.
 
+import { clockIn, dayOfDateField, DEFAULT_TIME_ZONE, instantIn, transactionInstant, withTransactionTime, type TimeSource } from '@/src/viewmodels/transactionTime';
 import {
   runTransaction,
   getDoc,
@@ -112,6 +113,11 @@ function assertCounted(transaction: { excluded?: boolean }) {
 }
 
 export interface CreateTransactionInput {
+  // The time it happened (viewmodels/transactionTime.ts withTransactionTime).
+  // Left out on create: the save time on its date. Left out on update: the
+  // stored clock time, moved to the new date if the date changed.
+  occurredAt?: Date;
+  timeSource?: TimeSource;
   id: string;
   date: Date;
   type: string;
@@ -158,6 +164,25 @@ export interface CreateTransactionInput {
  * happened before this runs — Firestore transactions require all reads
  * before any writes, and this function only ever writes.
  */
+/** occurredAt and timeSource for a new entry: what the caller set, else its save time on its own date. */
+function timeFieldsForCreate(input: { date: Date; occurredAt?: Date; timeSource?: TimeSource }) {
+  const t = input.occurredAt
+    ? { occurredAt: input.occurredAt, timeSource: input.timeSource ?? ('user' as const) }
+    : withTransactionTime(dayOfDateField(input.date), null, new Date(), deviceTimeZone());
+  return { occurredAt: Timestamp.fromDate(t.occurredAt), timeSource: t.timeSource };
+}
+
+/** On an edit: what the caller set, else the stored clock time moved onto a changed date, else nothing. */
+function timeFieldsForUpdate(input: { date: Date; occurredAt?: Date; timeSource?: TimeSource }, before: { date: Timestamp; occurredAt?: Timestamp; timeSource?: TimeSource; loggedAt?: Timestamp; createdAt?: Timestamp }) {
+  if (input.occurredAt) return { occurredAt: Timestamp.fromDate(input.occurredAt), timeSource: input.timeSource ?? 'user' };
+  const newDay = dayOfDateField(input.date);
+  if (newDay === dayOfDateField(before.date.toDate())) return {};
+  const tz = deviceTimeZone();
+  return { occurredAt: Timestamp.fromDate(instantIn(newDay, clockIn(transactionInstant(before, tz), tz), tz)), timeSource: before.timeSource ?? 'recorded' };
+}
+
+const deviceTimeZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone || DEFAULT_TIME_ZONE;
+
 const UNACCOUNTED_NO_INCOME = 'Income can\'t be recorded into unaccounted money. Use "Explains money found in a reconciliation" with a real wallet instead.';
 
 export function writeTransactionContribution(
@@ -220,6 +245,7 @@ export function writeTransactionContribution(
     createdBy: input.createdBy,
     createdAt: dateTimestamp,
     loggedAt: serverTimestamp(),
+    ...timeFieldsForCreate(input),
   });
 
   if (input.isFrozenSavings) {
@@ -322,6 +348,11 @@ export async function createTransactionWithAggregationWrite(input: CreateTransac
 }
 
 export interface UpdateTransactionInput {
+  // The time it happened (viewmodels/transactionTime.ts withTransactionTime).
+  // Left out on create: the save time on its date. Left out on update: the
+  // stored clock time, moved to the new date if the date changed.
+  occurredAt?: Date;
+  timeSource?: TimeSource;
   id: string;
   date: Date;
   type: string;
@@ -397,6 +428,7 @@ export async function updateTransactionWithAggregation(
 
     tx.update(transactionRef(uid, input.id), {
       date: dateTimestamp,
+      ...timeFieldsForUpdate(input, before),
       type: input.type,
       description: input.description,
       accountId: input.accountId,
@@ -720,6 +752,7 @@ async function recordTransactionExplainingUnjustifiedBalanceWrite(
       createdBy: uid,
       createdAt: dateTimestamp,
       loggedAt: serverTimestamp(),
+      ...timeFieldsForCreate(input),
     });
     tx.update(unjustifiedWalletRef(uid), { currentBalance: increment(-input.amount) });
     tx.update(accountRef(uid, input.accountId), { currentBalance: increment(input.amount) });
@@ -772,6 +805,7 @@ async function recordIncomeExplainingUnjustifiedBalanceWrite(
       createdBy: uid,
       createdAt: dateTimestamp,
       loggedAt: serverTimestamp(),
+      ...timeFieldsForCreate(input),
     });
     tx.update(accountRef(uid, input.accountId), { currentBalance: increment(-input.amount) });
     tx.update(unjustifiedWalletRef(uid), { currentBalance: increment(input.amount) });
@@ -780,6 +814,11 @@ async function recordIncomeExplainingUnjustifiedBalanceWrite(
 }
 
 export interface CreateTransferInput {
+  // The time it happened (viewmodels/transactionTime.ts withTransactionTime).
+  // Left out on create: the save time on its date. Left out on update: the
+  // stored clock time, moved to the new date if the date changed.
+  occurredAt?: Date;
+  timeSource?: TimeSource;
   id: string;
   date: Date;
   description: string;
@@ -851,6 +890,7 @@ export function writeTransferContribution(
     createdBy: input.createdBy,
     createdAt: dateTimestamp,
     loggedAt: serverTimestamp(),
+    ...timeFieldsForCreate(input),
     ...(input.isHistoricBackfill ? { isHistoricBackfill: true, backfillBatchId: input.backfillBatchId ?? null } : {}),
     bucketItem: input.bucketItem ?? null,
   });
@@ -892,6 +932,11 @@ export async function createTransferWithAggregationWrite(input: CreateTransferIn
 }
 
 export interface UpdateTransferInput {
+  // The time it happened (viewmodels/transactionTime.ts withTransactionTime).
+  // Left out on create: the save time on its date. Left out on update: the
+  // stored clock time, moved to the new date if the date changed.
+  occurredAt?: Date;
+  timeSource?: TimeSource;
   id: string;
   date: Date;
   description: string;
@@ -950,6 +995,7 @@ export async function updateTransferWithAggregation(uid: string, input: UpdateTr
 
     tx.update(transferRef(uid, input.id), {
       date: dateTimestamp,
+      ...timeFieldsForUpdate(input, before),
       description: input.description,
       fromAccountId: input.fromAccountId,
       toAccountId: input.toAccountId,
@@ -1553,6 +1599,8 @@ export interface MarkBucketLineItemCompleteInput {
   // recordTransactionExplainingUnjustifiedBalance, in the same transaction
   // as the payment. Not for Transfer items.
   fromUnaccounted?: boolean;
+  occurredAt?: Date;
+  timeSource?: TimeSource;
 }
 
 /**
@@ -1639,6 +1687,7 @@ async function recordBucketLineItemPaymentWrite(
         createdBy: uid,
         createdAt: dateTimestamp,
         loggedAt: serverTimestamp(),
+        ...timeFieldsForCreate(input),
       });
       tx.update(accountRef(uid, input.accountId), { currentBalance: increment(-(paymentAmount + charges)) });
       tx.update(accountRef(uid, toAccountId), { currentBalance: increment(paymentAmount) });
@@ -1700,6 +1749,7 @@ async function recordBucketLineItemPaymentWrite(
         createdBy: uid,
         createdAt: at,
         loggedAt: serverTimestamp(),
+        ...timeFieldsForCreate(input),
       });
       tx.update(unjustifiedWalletRef(uid), { currentBalance: increment(-paymentAmount) });
       tx.update(accountRef(uid, input.accountId), { currentBalance: increment(paymentAmount) });
@@ -1721,6 +1771,8 @@ async function recordBucketLineItemPaymentWrite(
         bucketItem,
         incomeSubtype: categoryType === 'Income' ? (input.incomeSubtype ?? null) : null,
         ...(unaccounted ? { isUnjustifiedAdjustment: true, pairedTransferId } : {}),
+        occurredAt: input.occurredAt,
+        timeSource: input.timeSource,
       },
       accountData,
       ctx
@@ -1741,6 +1793,7 @@ async function recordBucketLineItemPaymentWrite(
         createdBy: uid,
         createdAt: at,
         loggedAt: serverTimestamp(),
+        ...timeFieldsForCreate(input),
       });
       tx.update(accountRef(uid, input.accountId), { currentBalance: increment(-paymentAmount) });
       tx.update(unjustifiedWalletRef(uid), { currentBalance: increment(paymentAmount) });

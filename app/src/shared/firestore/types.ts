@@ -176,6 +176,13 @@ export interface FirestoreTransaction {
   // When the entry was actually logged (server time). createdAt is the
   // entry's own date. Absent on entries logged before this existed.
   loggedAt?: Timestamp;
+  // The date and time it happened (owner, 23 Nov 2026), on the same local
+  // day as `date`, which stays the field every range and total reads.
+  // Absent on older entries: viewmodels/transactionTime.ts's
+  // transactionInstant falls back to the time they were logged.
+  occurredAt?: Timestamp;
+  // 'user' when a time was picked, 'recorded' when it came from the save time.
+  timeSource?: 'user' | 'recorded';
   updatedAt?: Timestamp;
 }
 
@@ -204,6 +211,13 @@ export interface FirestoreTransfer {
   // When the entry was actually logged (server time). createdAt is the
   // entry's own date. Absent on entries logged before this existed.
   loggedAt?: Timestamp;
+  // The date and time it happened (owner, 23 Nov 2026), on the same local
+  // day as `date`, which stays the field every range and total reads.
+  // Absent on older entries: viewmodels/transactionTime.ts's
+  // transactionInstant falls back to the time they were logged.
+  occurredAt?: Timestamp;
+  // 'user' when a time was picked, 'recorded' when it came from the save time.
+  timeSource?: 'user' | 'recorded';
   // Same convention as FirestoreTransaction's own isHistoricBackfill/
   // backfillBatchId — true for every occurrence a backfill spread
   // generated (a recurring Transfer, or a Savings entry backfilled as

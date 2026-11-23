@@ -10,12 +10,12 @@
 // Time and Fees are not on this form: an edited transaction keeps its date
 // only and has no charges of its own (useLogic edits neither).
 
-import { CalendarDays, FileText, Tag, Target, Wallet } from 'lucide-react';
+import { CalendarDays, Clock, FileText, Tag, Target, Wallet } from 'lucide-react';
 import { useLogic } from '@/src/logic/editTransaction/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { ConfirmDialog } from '@/src/widgets/ConfirmDialog/ConfirmDialog';
-import { AmountHero, DateRow, ImpactCallout, InputRow, RowGroup, SelectRow, TxPanel, TypeSelector, type TxKind } from '@/src/widgets/TransactionPanel/TransactionPanel';
+import { AmountHero, DateRow, DateTimeRows, TimeRow, ImpactCallout, InputRow, RowGroup, SelectRow, TxPanel, TypeSelector, type TxKind } from '@/src/widgets/TransactionPanel/TransactionPanel';
 
 const KIND_OF = { Expense: 'expense', Income: 'income', Savings: 'savings' } as const;
 const TYPE_OF = { expense: 'Expense', income: 'Income', savings: 'Savings' } as const;
@@ -107,7 +107,10 @@ export function EditTransactionScreen({ transactionId }: { transactionId: string
             )}
           </RowGroup>
           <RowGroup label="When">
-            <DateRow icon={<CalendarDays />} label={s.dateLabel} value={v.dateValue} onChange={v.setDateValue} />
+            <DateTimeRows>
+              <DateRow icon={<CalendarDays />} label={s.dateLabel} value={v.dateValue} onChange={v.setDateValue} />
+              <TimeRow icon={<Clock />} value={v.timeValue} onChange={v.setTimeValue} />
+            </DateTimeRows>
           </RowGroup>
           {impact && <ImpactCallout>{impact}</ImpactCallout>}
         </>
