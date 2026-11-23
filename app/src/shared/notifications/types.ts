@@ -31,6 +31,7 @@ export const NOTIFICATION_TYPES = [
   'want_to_buy_fits',
   'cushion_streak',
   'payments_updated',
+  'template_due',
   // Time
   'tasks_overdue',
   'tasks_due_today',
@@ -52,7 +53,7 @@ export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 export interface NotificationItem {
   /** Stable per entity and period ("payment_overdue:rent@2026-10"). */
   key: string;
-  entityType: 'line' | 'debt' | 'task' | 'project' | 'milestone' | 'day' | 'account' | 'transaction' | 'month' | 'plan' | 'queue' | 'series' | 'event';
+  entityType: 'line' | 'template' | 'debt' | 'task' | 'project' | 'milestone' | 'day' | 'account' | 'transaction' | 'month' | 'plan' | 'queue' | 'series' | 'event';
   entityId: string;
   label: string;
   amount: number | null;
@@ -178,6 +179,7 @@ export const TYPE_LABEL: Record<NotificationType, string> = {
   want_to_buy_fits: 'Want to buy items that fit',
   cushion_streak: 'Cushion streak milestones',
   payments_updated: 'Waiting payments updated',
+  template_due: 'Templates due today',
   tasks_overdue: 'Overdue tasks',
   tasks_due_today: 'Tasks due today',
   projects_at_risk: 'Projects at risk',

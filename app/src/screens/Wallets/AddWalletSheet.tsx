@@ -4,6 +4,7 @@
 // Add wallet (src/logic/wallets), in a dialog opened from "New wallet".
 
 import { Modal } from '@/src/widgets/Modal/Modal';
+import { WalletColorField } from '@/src/widgets/WalletFields/WalletFields';
 import type { useLogic } from '@/src/logic/wallets/useLogic';
 import styles from './WalletsScreen.module.css';
 
@@ -39,6 +40,7 @@ export function AddWalletSheet({ v }: { v: ReturnType<typeof useLogic> }) {
             ))}
           </select>
         </label>
+        <WalletColorField hues={v.hues} value={v.newColor} onChange={v.setNewColor} className={styles.colorField} labelClassName={styles.colorLabel} />
         <label>
           Starting balance
           <input inputMode="decimal" value={v.newStartingBalance} onChange={(e) => v.setNewStartingBalance(e.target.value.replace(/[^0-9.]/g, ''))} placeholder="0" />

@@ -1,11 +1,13 @@
 'use client';
 
+import { markTemplateUsed } from '@/src/shared/firestore/templateWrites';
+import { recentFirst } from '@/src/viewmodels/templates';
 import { useEffect, useMemo, useState } from 'react';
-import { query, where } from 'firebase/firestore';
+import { orderBy, query, serverTimestamp, setDoc, where } from 'firebase/firestore';
 import { getFirebaseAuth } from '@/src/shared/config/firebaseClient';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { useFirestoreCollection, useFirestoreDoc } from '@/src/shared/firestore/hooks';
-import { categoryRef, bucketsRef, transactionRef, transactionTemplateRef, transferRef, unjustifiedWalletRef } from '@/src/shared/firestore/refs';
+import { categoryRef, bucketsRef, transactionRef, transactionTemplateRef, transactionTemplatesRef, transferRef, unjustifiedWalletRef } from '@/src/shared/firestore/refs';
 import { useAccounts, useCategories, useCurrencyContext } from '@/src/shared/firestore/queries';
 import { itemCurrencyOf, toDisplay } from '@/src/shared/firestore/currency';
 import { useMonthUnaccounted } from '@/src/shared/hooks/useMonthUnaccounted';
@@ -19,7 +21,8 @@ import { basketItemFormFields, recordHint } from '@/src/shared/budget/itemKinds'
 import { addMonths, itemOccurrence, monthLabel } from '@/src/shared/budget/monthBudget';
 import { TRANSFER_CATEGORIES } from '@/src/viewmodels/categories';
 import { isSavingsAccount } from '@/src/viewmodels/wallets';
-import type { FirestoreCategory, FirestoreAccount, BudgetLineType, FirestoreBucket, FirestoreTransactionTemplate, FirestoreTransaction, FirestoreTransfer } from '@/src/shared/firestore/types';
+import { feeFor, hasFeesFor } from '@/src/viewmodels/walletFees';
+import type { FeeKind, FirestoreCategory, FirestoreAccount, BudgetLineType, FirestoreBucket, FirestoreTransactionTemplate, FirestoreTransaction, FirestoreTransfer } from '@/src/shared/firestore/types';
 import { useGoBack } from '@/src/shared/navigation/useGoBack';
 import { useFormFinish } from '@/src/shared/navigation/formPeekContext';
 import { peekAwareParams } from '@/src/shared/navigation/formPeek';
@@ -187,7 +190,19 @@ export function useLogic() {
   // deducted from the source wallet on top of the transferred amount (see
   // aggregation.ts's createTransferWithAggregation). Optional, defaults to
   // 0 for a free transfer.
-  const [chargesString, setChargesString] = useState('');
+  // Fees the user typed (or a template, duplicate or item carried). Until
+  // then a transfer's fee comes from the from wallet's fee schedule
+  // (owner, 23 Nov 2026), recomputed as the amount or wallets change.
+  const [chargesInput, setChargesInput] = useState('');
+  const [chargesTouched, setChargesTouched] = useState(false);
+  function setChargesString(value: string) {
+    setChargesTouched(true);
+    setChargesInput(value);
+  }
+  function resetCharges() {
+    setChargesTouched(false);
+    setChargesInput('');
+  }
   const [dateValue, setDateValue] = useState(() =>
     retroTarget ? `${retroTarget.year}-${pad2(retroTarget.month + 1)}-01` : todayIso()
   );
@@ -242,6 +257,9 @@ export function useLogic() {
   const { data: prefillTemplate, loading: prefillTemplateLoading } =
     useFirestoreDoc<FirestoreTransactionTemplate>(templateDocRef);
   const [templateApplied, setTemplateApplied] = useState(false);
+  // The template the form was filled from (its lastUsedAt moves on save).
+  const [appliedTemplateId, setAppliedTemplateId] = useState<string | null>(null);
+  const [pendingTemplateItem, setPendingTemplateItem] = useState<string | null>(null);
 
   // Applies every field a saved template carries, straight into this
   // screen's own state — deliberately NOT going through selectType/
@@ -259,6 +277,8 @@ export function useLogic() {
     if (prefillTemplate.accountId) setFromAccountId(prefillTemplate.accountId);
     if (prefillTemplate.toAccountId) setToAccountId(prefillTemplate.toAccountId);
     if (prefillTemplate.charges != null) setChargesString(String(prefillTemplate.charges));
+    setAppliedTemplateId(prefillTemplate.id);
+    if (prefillTemplate.basketItemId) setPendingTemplateItem(prefillTemplate.basketItemId);
     setTemplateApplied(true);
   }, [prefillTemplateId, templateApplied, prefillTemplate]);
 
@@ -313,6 +333,15 @@ export function useLogic() {
   const isSavingsMoved = type === 'savings' && savingsMode === 'moved';
   const isSavingsFrozen = type === 'savings' && savingsMode === 'frozen';
   const isTransferLike = isTransfer || isSavingsMoved;
+  // The fee schedule of the wallet the money leaves: a transfer to a Cash
+  // wallet is a withdrawal, any other transfer a transfer.
+  const feeFromWallet = transferFromAccounts.find((a) => a.id === fromAccountId) ?? null;
+  const feeToWallet = accounts.find((a) => a.id === toAccountId) ?? null;
+  const feeKind: FeeKind = feeToWallet?.type === 'Cash' ? 'withdrawal' : 'transfer';
+  const scheduleApplies = isTransfer && hasFeesFor(feeFromWallet, feeKind);
+  const scheduleFee = scheduleApplies ? feeFor(feeFromWallet, Number(amountString) || 0, feeKind) : 0;
+  const feeFromSchedule = scheduleApplies && !chargesTouched;
+  const chargesString = feeFromSchedule ? (scheduleFee > 0 ? String(scheduleFee) : '') : chargesInput;
   const { data: fetchedCategories, loading: categoriesLoading, error: categoriesError } = useCategories(
     isTransfer ? undefined : CATEGORY_TYPE[type]
   );
@@ -489,6 +518,70 @@ export function useLogic() {
     for (const item of linkableBucketItems) if (!seen.has(item.goalId)) seen.set(item.goalId, bucketNameById.get(item.goalId) ?? 'Basket');
     return [...seen.entries()].sort((a, b) => a[1].localeCompare(b[1])).map(([value, label]) => ({ value, label }));
   }, [linkableBucketItems, bucketNameById]);
+  // ---- Templates (owner, 23 Nov 2026) ----
+  // The picker opens in the form itself: choosing one fills the form and
+  // sets the date to today; the user changes anything, then records.
+  const { data: templates } = useFirestoreCollection<FirestoreTransactionTemplate>(
+    useMemo(() => (uid ? query(transactionTemplatesRef(uid), orderBy('name')) : null), [uid])
+  );
+  // A template's basket item, linked once this type's items are listed
+  // (adjusted during render, as the default wallet above).
+  if (pendingTemplateItem) {
+    const match = linkableBucketItems.find((entry) => entry.itemId === pendingTemplateItem && entry.occurrenceMonth === dateMonthKey);
+    if (match) {
+      setPendingTemplateItem(null);
+      selectLinkedBucketItem(match.id);
+    }
+  }
+  function applyTemplate(template: FirestoreTransactionTemplate) {
+    setType(template.type);
+    setSavingsModeState(template.savingsMode ?? 'moved');
+    setCategory(template.categoryId);
+    setDescription(template.description);
+    setAmountString(template.amount != null ? String(template.amount) : '');
+    if (template.accountId) setFromAccountId(template.accountId);
+    setToAccountId(template.toAccountId ?? '');
+    // A transfer template with no fee of its own uses the wallet's schedule.
+    if (template.charges != null) setChargesString(String(template.charges));
+    else resetCharges();
+    setDateValue(todayIso());
+    setExplainsUnjustifiedBalance(null);
+    setShowUnplanned(false);
+    setLinkedBucketItemIdState('');
+    setBasketChoice(template.basketId ?? '');
+    setPendingTemplateItem(template.basketItemId ?? null);
+    setAppliedTemplateId(template.id);
+    setStep('details');
+  }
+  /** "Save as template": what the form holds now, under a name. */
+  async function saveAsTemplate(name: string): Promise<string | null> {
+    if (!uid || !name.trim()) return null;
+    const id = crypto.randomUUID();
+    const linked = linkableBucketItems.find((entry) => entry.id === linkedBucketItemId);
+    await setDoc(transactionTemplateRef(uid, id), {
+      name: name.trim(),
+      type,
+      categoryId: category,
+      description: description.trim(),
+      amount: amountString ? Number(amountString) : null,
+      accountId: fromAccountId || null,
+      toAccountId: isTransferLike ? toAccountId || null : null,
+      // A fee from the wallet's schedule is left to the schedule.
+      charges: isTransfer && chargesTouched && chargesInput ? Number(chargesInput) : null,
+      savingsMode: type === 'savings' ? savingsMode : null,
+      basketId: linked?.goalId ?? (basketChoice && basketChoice !== 'unsure' ? basketChoice : null),
+      basketItemId: linked?.itemId ?? null,
+      repeat: 'none',
+      repeatDay: null,
+      remind: false,
+      lastUsedAt: null,
+      archived: false,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+    return id;
+  }
+
   function chooseBasket(id: string) {
     setBasketChoice(id);
     if (id !== 'unsure') setShowUnplanned(false);
@@ -648,7 +741,7 @@ export function useLogic() {
     setSavingsModeState('moved');
     setCategory(key === 'savings' ? 'Wallet to savings' : '');
     setShowUnplanned(false);
-    setChargesString('');
+    resetCharges();
     setExplainsUnjustifiedBalance(null);
     setLinkedBucketItemId('');
     setBasketChoice('');
@@ -885,6 +978,8 @@ export function useLogic() {
           ctx
         );
       }
+      // Recording from a template moves it to the top of the picker.
+      if (appliedTemplateId) await markTemplateUsed(uid, appliedTemplateId).catch(() => undefined);
       finish('/home');
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : 'Could not save this transaction.');
@@ -966,8 +1061,13 @@ export function useLogic() {
     description,
     setDescription,
     amountString,
+    templates: recentFirst(templates),
+    applyTemplate,
+    saveAsTemplate,
+    appliedTemplateId,
     chargesString,
     setChargesString,
+    feeFromSchedule: feeFromSchedule && scheduleFee > 0,
     fromAccount: accountName(fromAccountId),
     toAccount: accountName(toAccountId),
     date,

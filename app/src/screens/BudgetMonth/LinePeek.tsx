@@ -136,7 +136,7 @@ export function LinePeekContent({
   );
   if (line.type === 'Income' && line.borrowed) properties.push({ id: 'borrowed', label: 'Of which borrowed', display: money(line.borrowed) });
   if (line.type === 'Savings' && line.withdrawn) properties.push({ id: 'withdrawn', label: 'Withdrawn', display: money(line.withdrawn) });
-  if (line.type !== 'Income') properties.push({ id: 'left', icon: <Receipt />, label: 'Left', display: <span data-tone={line.left < 0 ? 'bad' : undefined} className={styles.toneText}>{money(line.left)}</span> });
+  if (line.type !== 'Income') properties.push({ id: 'left', icon: <Receipt />, label: 'Left on this item', display: <span data-tone={line.left < 0 ? 'bad' : undefined} className={styles.toneText}>{money(line.left)}</span> });
   properties.push({ id: 'status', icon: <CircleDot />, label: 'Status', display: <span className={styles.chip} data-tone={line.stateTone}>{line.state}</span> });
   if (line.type === 'Transfer') {
     properties.push(

@@ -11,7 +11,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, ListFilter, Plus } from 'lucide-react';
+import { ListFilter, Plus, Upload } from 'lucide-react';
 import { useLogic, TASK_TABS, type TaskGroup, type TaskListItem } from '@/src/logic/tasksList/useLogic';
 import { useTaskPanel } from '@/src/shared/navigation/taskPanel';
 import { labelHue } from '@/src/viewmodels/projects';
@@ -41,14 +41,15 @@ export function TasksListScreen() {
         title={logic.scoped ? logic.title : 'Tasks'}
         sub={sub}
         actions={
-          logic.scoped ? (
-            <HeaderButton label="Back" onClick={logic.goBack}>
-              <ChevronLeft size={20} strokeWidth={2} />
-            </HeaderButton>
-          ) : (
-            <HeaderButton label="New task" onClick={() => router.push('/tasks/new')}>
-              <Plus size={20} strokeWidth={2} />
-            </HeaderButton>
+          logic.scoped ? undefined : (
+            <>
+              <HeaderButton label="Import tasks" onClick={() => router.push('/settings/import')}>
+                <Upload size={18} strokeWidth={2} />
+              </HeaderButton>
+              <HeaderButton label="New task" onClick={() => router.push('/tasks/new')}>
+                <Plus size={20} strokeWidth={2} />
+              </HeaderButton>
+            </>
           )
         }
       />

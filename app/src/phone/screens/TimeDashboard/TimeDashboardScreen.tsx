@@ -7,6 +7,7 @@
 // the portfolio and the scheduling links.
 
 import Link from 'next/link';
+import { SeeAll } from '@/src/widgets/SeeAll/SeeAll';
 import { useLogic } from '@/src/logic/timeHome/useLogic';
 import { plural } from '@/src/viewmodels/organise';
 import { hueVars } from '@/src/viewmodels/projects';
@@ -79,9 +80,7 @@ export function TimeDashboardScreen() {
       <section className={styles.card} aria-label="Portfolio">
         <h2 className={styles.title}>
           Portfolio <span className={styles.muted}>{plural(v.projectCount, 'project')}</span>
-          <Link href="/projects/all" className={styles.link}>
-            All
-          </Link>
+          <SeeAll href="/projects/all" />
         </h2>
         {v.portfolio.slice(0, 4).map((p) => (
           <Link key={p.id} href={`/projects/${p.id}`} className={styles.project}>

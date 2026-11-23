@@ -3,6 +3,7 @@
 // Wallets on a phone (BASELINE): the total at the top, each wallet with
 // its color dot and balance, and "Add wallet" as the header's "+".
 
+import { WalletColorField } from '@/src/widgets/WalletFields/WalletFields';
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { WalletCard, type WalletTone } from '@/src/widgets/Money/WalletCard';
@@ -43,6 +44,9 @@ export function WalletsScreen() {
     creating,
     createError,
     handleCreateWallet,
+    hues,
+    newColor,
+    setNewColor,
     rows,
     totals,
     currency,
@@ -96,6 +100,7 @@ export function WalletsScreen() {
               <Link key={r.id} href={`/wallets/${r.id}`} className={styles.cardLink} aria-label={`${r.name}, ${formatAmount(r.balance)} ${currency}`}>
                 <WalletCard
                   tone={r.group === 'Savings' ? 'lime' : CYCLE[(plainIndex.get(r.id) ?? 0) % CYCLE.length]}
+                  hue={r.hue}
                   type={r.type}
                   name={r.name}
                   last4={r.id.slice(-4).toUpperCase()}
@@ -188,6 +193,8 @@ export function WalletsScreen() {
               ))}
             </select>
           </div>
+
+          <WalletColorField hues={hues} value={newColor} onChange={setNewColor} className={styles.formField} labelClassName={styles.formLabel} />
 
           <div className={styles.formField}>
             <label className={styles.formLabel} htmlFor="new-wallet-balance">

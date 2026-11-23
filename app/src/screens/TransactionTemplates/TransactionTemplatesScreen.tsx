@@ -1,6 +1,8 @@
 'use client';
 
-import { ChevronLeft, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Archive, ArchiveRestore, ChevronLeft, Pencil, Plus, Trash2 } from 'lucide-react';
+import { repeatText } from '@/src/viewmodels/templates';
+import type { FirestoreTransactionTemplate } from '@/src/shared/firestore/types';
 import { useLogic } from '@/src/logic/transactionTemplates/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
@@ -20,6 +22,9 @@ export function TransactionTemplatesScreen() {
   const strings = useStrings();
   const {
     templates,
+    groups,
+    archived,
+    setArchived,
     categoryLabel,
     accountLabel,
     applyTemplate,
@@ -37,28 +42,7 @@ export function TransactionTemplatesScreen() {
     deleteError,
   } = useLogic();
 
-  return (
-    <div className={styles.page}>
-      <ScreenHeader
-        left={
-          <button type="button" className={styles.backButton} onClick={goBack} aria-label="Back">
-            <ChevronLeft size={18} strokeWidth={2} />
-          </button>
-        }
-        title={strings.transactionTemplates.title}
-      />
-
-      <p className={styles.hintText}>{strings.transactionTemplates.hint}</p>
-
-      <ScreenState loading={loading} error={error} />
-
-      {!loading && !error && templates.length === 0 && (
-        <p className={styles.emptyText}>{strings.transactionTemplates.empty}</p>
-      )}
-
-      {!loading && !error && templates.length > 0 && (
-        <div className={styles.templateList}>
-          {templates.map((template) => {
+  function renderCard(template: FirestoreTransactionTemplate) {
             const account = accountLabel(template);
             return (
               // A plain div, not a button — the ActionMenu trigger below is
@@ -96,6 +80,9 @@ export function TransactionTemplatesScreen() {
                           icon: <Pencil size={14} strokeWidth={2} />,
                           onSelect: () => openEditTemplate(template.id),
                         },
+                        template.archived
+                          ? { key: 'restore', label: 'Bring back', icon: <ArchiveRestore size={14} strokeWidth={2} />, onSelect: () => void setArchived(template.id, false) }
+                          : { key: 'archive', label: 'Archive', icon: <Archive size={14} strokeWidth={2} />, onSelect: () => void setArchived(template.id, true) },
                         {
                           key: 'delete',
                           label: strings.transactionTemplates.deleteCta,
@@ -117,6 +104,7 @@ export function TransactionTemplatesScreen() {
                       <span className={styles.typeTag}>{TYPE_LABEL[template.type]}</span>
                       <span className={styles.categoryTag}>{categoryLabel(template)}</span>
                       {account && <span className={styles.accountTag}>{account}</span>}
+                      {repeatText(template) && <span className={styles.accountTag}>{repeatText(template)}</span>}
                     </div>
                   </div>
                   {template.amount != null && (
@@ -125,8 +113,43 @@ export function TransactionTemplatesScreen() {
                 </div>
               </div>
             );
-          })}
-        </div>
+  }
+
+  return (
+    <div className={styles.page}>
+      <ScreenHeader
+        left={
+          <button type="button" className={styles.backButton} onClick={goBack} aria-label="Back">
+            <ChevronLeft size={18} strokeWidth={2} />
+          </button>
+        }
+        title={strings.transactionTemplates.title}
+      />
+
+      <p className={styles.hintText}>{strings.transactionTemplates.hint}</p>
+
+      <ScreenState loading={loading} error={error} />
+
+      {!loading && !error && templates.length === 0 && (
+        <p className={styles.emptyText}>{strings.transactionTemplates.empty}</p>
+      )}
+
+      {!loading && !error && groups.map((g) => (
+        <section key={g.repeat} className={styles.group} aria-label={g.label}>
+          <h2 className={styles.groupTitle}>
+            {g.label} <span>{g.templates.length}</span>
+          </h2>
+          <div className={styles.templateList}>{g.templates.map((template) => renderCard(template))}</div>
+        </section>
+      ))}
+
+      {!loading && !error && archived.length > 0 && (
+        <details className={styles.group}>
+          <summary className={styles.groupTitle}>
+            Archived <span>{archived.length}</span>
+          </summary>
+          <div className={styles.templateList}>{archived.map((template) => renderCard(template))}</div>
+        </details>
       )}
 
       <div className={styles.fabRow}>

@@ -9,12 +9,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { useFirestoreDoc } from '@/src/shared/firestore/hooks';
-import { transactionTemplateRef } from '@/src/shared/firestore/refs';
+import { transactionRef, transactionTemplateRef, transferRef } from '@/src/shared/firestore/refs';
 import { useAccounts, useCategories } from '@/src/shared/firestore/queries';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { TRANSFER_CATEGORIES } from '@/src/viewmodels/categories';
 import { isSavingsAccount } from '@/src/viewmodels/wallets';
-import type { FirestoreTransactionTemplate, TransactionTemplateType } from '@/src/shared/firestore/types';
+import type { FirestoreTransaction, FirestoreTransactionTemplate, FirestoreTransfer, TemplateRepeat, TransactionTemplateType } from '@/src/shared/firestore/types';
 import { useGoBack } from '@/src/shared/navigation/useGoBack';
 import { useFormFinish } from '@/src/shared/navigation/formPeekContext';
 
@@ -39,6 +39,23 @@ export function useLogic(templateId?: string) {
   const { data: original, loading: docLoading, error: docError } =
     useFirestoreDoc<FirestoreTransactionTemplate>(docRef);
 
+  // "Save as template" on a transaction's detail: ?fromTransaction= or
+  // ?fromTransfer= fills a new template from that entry, basket included.
+  const [source] = useState(() => {
+    if (templateId || typeof window === 'undefined') return null;
+    const sp = new URLSearchParams(window.location.search);
+    const tx = sp.get('fromTransaction');
+    const tr = sp.get('fromTransfer');
+    return tx ? { kind: 'tx' as const, id: tx } : tr ? { kind: 'transfer' as const, id: tr } : null;
+  });
+  const { data: sourceTx } = useFirestoreDoc<FirestoreTransaction>(
+    useMemo(() => (uid && source?.kind === 'tx' ? transactionRef(uid, source.id) : null), [uid, source])
+  );
+  const { data: sourceTransfer } = useFirestoreDoc<FirestoreTransfer>(
+    useMemo(() => (uid && source?.kind === 'transfer' ? transferRef(uid, source.id) : null), [uid, source])
+  );
+  const [prefill, setPrefill] = useState<{ basketId: string | null; basketItemId: string | null } | null>(null);
+
   const [name, setName] = useState('');
   const [type, setType] = useState<TransactionTemplateType>('expense');
   const [savingsMode, setSavingsMode] = useState<TemplateSavingsMode>('moved');
@@ -48,6 +65,14 @@ export function useLogic(templateId?: string) {
   const [amountString, setAmountString] = useState('');
   const [chargesString, setChargesString] = useState('');
   const [description, setDescription] = useState('');
+  const [repeat, setRepeatState] = useState<TemplateRepeat>('none');
+  const [repeatDay, setRepeatDay] = useState<number | null>(null);
+  const [remind, setRemind] = useState(false);
+  function setRepeat(next: TemplateRepeat) {
+    setRepeatState(next);
+    const now = new Date();
+    setRepeatDay(next === 'weekly' ? ((now.getDay() + 6) % 7) + 1 : next === 'monthly' ? now.getDate() : null);
+  }
   const [seededFor, setSeededFor] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -99,6 +124,31 @@ export function useLogic(templateId?: string) {
   // re-seeds correctly if this screen instance is ever reused for a
   // different template, without clobbering fields the user is actively
   // editing on every re-render.
+  // Filled once from the entry, when it loads (adjusted during render).
+  if (!prefill && !seededFor && (sourceTx || sourceTransfer)) {
+    if (sourceTx) {
+      const t = sourceTx.type === 'Income' ? 'income' : sourceTx.type === 'Savings' ? 'savings' : 'expense';
+      setType(t);
+      if (t === 'savings') setSavingsMode('frozen');
+      setCategoryId(sourceTx.categoryId ?? '');
+      setDescription(sourceTx.description ?? '');
+      setName(sourceTx.description ?? '');
+      setAmountString(String(sourceTx.amount));
+      setAccountId(sourceTx.accountId ?? '');
+      setPrefill({ basketId: sourceTx.bucketItem?.bucketId ?? null, basketItemId: sourceTx.bucketItem?.itemId ?? null });
+    } else if (sourceTransfer) {
+      setType('transfer');
+      setCategoryId(sourceTransfer.kind ?? '');
+      setDescription(sourceTransfer.description ?? '');
+      setName(sourceTransfer.description ?? '');
+      setAmountString(String(sourceTransfer.amount));
+      setAccountId(sourceTransfer.fromAccountId);
+      setToAccountId(sourceTransfer.toAccountId ?? '');
+      setChargesString(sourceTransfer.charges ? String(sourceTransfer.charges) : '');
+      setPrefill({ basketId: sourceTransfer.bucketItem?.bucketId ?? null, basketItemId: sourceTransfer.bucketItem?.itemId ?? null });
+    }
+  }
+
   useEffect(() => {
     if (!original || seededFor === templateId) return;
     setName(original.name);
@@ -110,6 +160,9 @@ export function useLogic(templateId?: string) {
     setAccountId(original.accountId ?? '');
     setToAccountId(original.toAccountId ?? '');
     setChargesString(original.charges != null ? String(original.charges) : '');
+    setRepeatState(original.repeat ?? 'none');
+    setRepeatDay(original.repeatDay ?? null);
+    setRemind(Boolean(original.remind));
     setSeededFor(templateId ?? null);
   }, [original, seededFor, templateId]);
 
@@ -135,6 +188,14 @@ export function useLogic(templateId?: string) {
         toAccountId: isTransferLike ? toAccountId || null : null,
         charges: isTransfer && chargesString ? Number(chargesString) : null,
         savingsMode: type === 'savings' ? savingsMode : null,
+        basketId: original?.basketId ?? prefill?.basketId ?? null,
+        basketItemId: original?.basketItemId ?? prefill?.basketItemId ?? null,
+        repeat,
+        repeatDay: repeat === 'weekly' || repeat === 'monthly' ? (repeatDay ?? 1) : null,
+        remind: repeat !== 'none' && remind,
+        lastUsedAt: original?.lastUsedAt ?? null,
+        lastSkippedOn: original?.lastSkippedOn ?? null,
+        archived: original?.archived ?? false,
         createdAt: original?.createdAt ?? serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
@@ -192,6 +253,12 @@ export function useLogic(templateId?: string) {
     categoryOptions,
     description,
     setDescription,
+    repeat,
+    setRepeat,
+    repeatDay,
+    setRepeatDay,
+    remind,
+    setRemind,
     amountString,
     setAmountString,
     chargesString,

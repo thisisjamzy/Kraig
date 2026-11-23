@@ -1,3 +1,6 @@
+import { LABEL_HUES, hueVars } from '@/src/viewmodels/projects';
+import type { WalletHue } from '@/src/shared/firestore/types';
+
 // Accounts have no color of their own in the Sheet — accounts.list doesn't
 // return one — so Home's and Wallets' bar charts cycle through this fixed
 // palette by list position instead. Not placeholder data: this is real
@@ -91,4 +94,26 @@ export function walletCardNumber(id: string): string {
   const combined = (BigInt(a) * BigInt(4294967296) + BigInt(b)).toString().padStart(20, '0').slice(0, 15);
   const digits = `8${combined}`;
   return digits.match(/.{1,4}/g)!.join(' ');
+}
+
+/** The masked wallet number every wallet card shows: three groups, dots
+ *  then the last four ("•••• •••• 1234"). The full number is never shown,
+ *  so a fourth group would carry nothing. */
+export function formatMaskedNumber(last4: string): string {
+  return `•••• •••• ${last4.slice(-4)}`;
+}
+
+/** The nine label hues a wallet can wear, in swatch order. */
+export const WALLET_HUES: readonly WalletHue[] = LABEL_HUES;
+
+/** A wallet's colour: the one the user picked, else one derived from its id
+ *  so older wallets do not all look the same. */
+export function walletHue(account: { id: string; color?: WalletHue | null }): WalletHue {
+  if (account.color && (WALLET_HUES as readonly string[]).includes(account.color)) return account.color;
+  return WALLET_HUES[fnv1a(account.id, 2166136261) % WALLET_HUES.length];
+}
+
+/** The solid swatch of a wallet's colour, for dots and chart lines. */
+export function walletSolid(account: { id: string; color?: WalletHue | null }): string {
+  return hueVars(walletHue(account)).solid;
 }

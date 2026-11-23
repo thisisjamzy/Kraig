@@ -11,6 +11,7 @@
 //   - the action card (only when something needs doing);
 //   - item cards, latest transactions, and a sticky bar.
 
+import { SeeAll } from '@/src/widgets/SeeAll/SeeAll';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -371,9 +372,7 @@ export function PlanningBucketView({ bucketId, b }: { bucketId: string; b: Retur
 
       <div className={p.sectionHead}>
         <h2>Transactions</h2>
-        <Link href={`/transactions?month=${b.month}&bucket=${bucketId}`} className={p.textButton}>
-          See all
-        </Link>
+        <SeeAll href={`/transactions?month=${b.month}&bucket=${bucketId}`} />
       </div>
       {b.rows.length === 0 ? (
         <p className={p.empty}>No transactions in this basket yet this month.</p>

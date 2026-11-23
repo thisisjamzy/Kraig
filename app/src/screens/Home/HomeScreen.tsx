@@ -6,6 +6,7 @@
 // budget, recent activity and upcoming bills. The sections live in
 // widgets/MoneyHome (shared with the phone); data comes from src/logic/home.
 
+import { AccountabilityTile } from '@/src/widgets/Accountability/AccountabilityCard';
 import { CalendarDays } from 'lucide-react';
 import { useLogic } from '@/src/logic/home/useLogic';
 import { useBreadcrumb } from '@/src/widgets/AppShell/breadcrumb';
@@ -43,6 +44,7 @@ export function HomeScreen() {
             <Kpis v={v} />
           </section>
           <Wallets v={v} />
+          <AccountabilityTile rows={v.accountability} />
           <div className={styles.rowInsights}>
             <CashFlow v={v} />
             <Spending v={v} />

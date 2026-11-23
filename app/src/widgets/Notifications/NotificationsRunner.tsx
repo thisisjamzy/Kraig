@@ -10,6 +10,7 @@
 // and each minute for time-based rules (the morning summary, due today).
 // New notifications whose type is set to push also send a push.
 
+import { useDueTemplates } from '@/src/logic/templatesDue/useLogic';
 import { useEffect, useMemo, useRef } from 'react';
 import { query, where } from 'firebase/firestore';
 import { useFirestoreCollection, useFirestoreDoc } from '@/src/shared/firestore/hooks';
@@ -54,6 +55,7 @@ export function NotificationsRunner() {
   const { data: snapshotDoc } = useFirestoreDoc<Record<string, unknown>>(useMemo(() => (uid ? planSnapshotRef(uid) : null), [uid]));
 
   const kindReview = useBasketsMigrationReview();
+  const dueTemplates = useDueTemplates();
 
   // ---- Time and system ----
   const time = useInsightsSources();
@@ -110,6 +112,7 @@ export function NotificationsRunner() {
           return next ? [{ id: d.id, name: d.name, amount: display(Math.min(next.amount, d.currentBalance), d.currency), due: next.date }] : [];
         }),
       savingsBehind: b.savingsBehind,
+      templatesDue: dueTemplates.due.filter((d) => d.template.remind).map((d) => ({ id: d.template.id, name: d.template.name, amount: d.template.amount })),
       pace: pace ? { status: pace.status, message: pace.message ?? 'At this pace the month’s spending runs out early.' } : null,
       forecast: snapshot?.forecast ?? null,
     };
@@ -136,7 +139,7 @@ export function NotificationsRunner() {
       time: timeFacts({ tasks, projects: result.projects, settings: time.settings, now, summaryTime: prefs.summaryTime || null, conflicts }),
       system: { syncProblems },
     };
-  }, [uid, data, budgetMonth, queue, queueLoading, debts, debtsLoading, snapshotDoc, time, sync, prefs.summaryTime, prefs.snoozedLines, kindReview.pending, kindReview.data, month]);
+  }, [uid, data, budgetMonth, queue, queueLoading, debts, debtsLoading, snapshotDoc, time, sync, prefs.summaryTime, prefs.snoozedLines, kindReview.pending, kindReview.data, month, dueTemplates.due]);
 
   // Reconcile and write. One write at a time; the next run sees the result.
   const writing = useRef(false);

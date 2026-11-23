@@ -9,7 +9,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Archive, Plus } from 'lucide-react';
+import { Archive, Plus, Upload } from 'lucide-react';
 import { ConfirmDialog } from '@/src/widgets/ConfirmDialog/ConfirmDialog';
 import { useLogic, type Scope } from '@/src/logic/workScope/useLogic';
 import { useTaskPanel } from '@/src/shared/navigation/taskPanel';
@@ -52,6 +52,9 @@ export function ScopeScreen(props: Scope) {
         crumb={isArea ? { label: 'Areas', href: '/areas' } : { label: area.name, href: `/areas/${area.id}` }}
         actions={
           <>
+            <HeaderButton label="Import tasks" onClick={() => router.push(`/settings/import?area=${encodeURIComponent(area.id)}`)}>
+              <Upload size={18} strokeWidth={2} />
+            </HeaderButton>
             <HeaderButton label={isArea ? 'Archive area' : 'Archive folder'} onClick={() => setArchiving(true)}>
               <Archive size={18} strokeWidth={2} />
             </HeaderButton>

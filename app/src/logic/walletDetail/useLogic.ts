@@ -8,7 +8,7 @@ import { useAccounts, useCategories, useCurrencyContext } from '@/src/shared/fir
 import { toDisplay, round2 } from '@/src/shared/firestore/currency';
 import { computeUpcomingPayments } from '@/src/shared/firestore/upcomingPayments';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
-import { walletColor } from '@/src/viewmodels/wallets';
+import { walletColor, walletSolid } from '@/src/viewmodels/wallets';
 import type { FirestoreAccount, FirestoreTransaction, FirestoreTransfer, FirestorePlannedPayment, FirestoreReconciliation } from '@/src/shared/firestore/types';
 import { countsInFigures } from '@/src/shared/firestore/types';
 import { useMonthBudget } from '@/src/shared/hooks/useMonthBudget';
@@ -148,17 +148,21 @@ export function useLogic(walletId: string) {
   // by destination account.
   const transferDestinations = useMemo(() => {
     const accountName = new Map(accounts.map((a) => [a.id, a.name]));
+    const accountById = new Map(accounts.map((a) => [a.id, a]));
     const byDestination = new Map<string, number>();
     for (const t of transfersOut) {
       const amount = toDisplay(ctx, t.amount, nativeCurrency);
       byDestination.set(t.toAccountId, (byDestination.get(t.toAccountId) ?? 0) + amount);
     }
     return Array.from(byDestination.entries())
-      .map(([accountId, value], index) => ({
-        label: accountName.get(accountId) ?? 'Unknown wallet',
-        value: round2(value),
-        color: walletColor(index),
-      }))
+      .map(([accountId, value], index) => {
+        const to = accountById.get(accountId);
+        return {
+          label: accountName.get(accountId) ?? 'Unknown wallet',
+          value: round2(value),
+          color: to ? walletSolid(to) : walletColor(index),
+        };
+      })
       .sort((a, b) => b.value - a.value);
   }, [transfersOut, accounts, ctx, nativeCurrency]);
 

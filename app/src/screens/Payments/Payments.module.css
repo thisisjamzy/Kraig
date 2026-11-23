@@ -161,3 +161,15 @@
 .error {
   color: var(--color-status-danger-fg);
 }
+
+.secondary {
+  min-height: 44px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 9999px;
+  background: transparent;
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}

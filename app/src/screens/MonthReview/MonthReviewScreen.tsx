@@ -5,6 +5,7 @@
 // only), a footer total per section, and the resulting Left to plan.
 // Confirm saves and marks the month reviewed.
 
+import { ClosingMonth } from '@/src/widgets/Accountability/ClosingMonth';
 import { useRouter } from 'next/navigation';
 import { CalendarCheck } from 'lucide-react';
 import { useLogic } from '@/src/logic/monthReview/useLogic';
@@ -29,6 +30,7 @@ export function MonthReviewScreen() {
       back={`/budget?month=${v.month}`}
     >
       <ScreenState loading={v.loading} />
+      {!v.loading && <ClosingMonth closing={v.closing} money={money} currency={v.currency} />}
       {!v.loading &&
         FLOW_TYPES.map((type) => {
           const lines = v.rows[type];

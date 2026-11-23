@@ -52,6 +52,7 @@ export type LineStatus =
   | 'Late'
   | 'Partly received'
   | 'Unpaid'
+  | 'Partly paid'
   | 'Paid'
   | 'Overdue'
   | 'Over plan'
@@ -69,6 +70,7 @@ export const STATUS_TONE: Record<LineStatus, StatusTone> = {
   Late: 'bad',
   'Partly received': 'watch',
   Unpaid: 'neutral',
+  'Partly paid': 'watch',
   Paid: 'good',
   Overdue: 'bad',
   'Over plan': 'bad',
@@ -111,6 +113,9 @@ export function lineStatus(entry: ItemMonth, today: Date): LineStatus {
     default:
       if (entry.actual > entry.available + 0.5) return 'Over plan';
       if (settled(entry)) return 'Paid';
+      // Something paid this month: the rest is "Left on this item", never
+      // overdue (owner, 23 Nov 2026).
+      if (entry.actual > 0.5) return 'Partly paid';
       // Only payments fall due on a day: an allowance or set aside never
       // reads as overdue.
       return entry.itemKind === 'payment' && overduePayment(entry, today) ? 'Overdue' : 'Unpaid';

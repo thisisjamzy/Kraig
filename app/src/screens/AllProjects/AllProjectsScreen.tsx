@@ -145,7 +145,7 @@ export function ProjectsDatabase({ openView, views = PROJECT_VIEWS, filterRows }
       )}
       onOpen={open}
       onNew={() => router.push(formLink('project'))}
-      newTemplates={[{ id: 'import', label: 'Import from spreadsheet', onSelect: () => router.push(formLink('import')) }]}
+      newTemplates={[{ id: 'import', label: 'Import tasks', onSelect: () => router.push(formLink('import')) }]}
       newLabel="New"
       emptyText="No projects yet."
     />

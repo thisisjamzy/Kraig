@@ -33,7 +33,7 @@ import { SummaryCards } from './SummaryCards';
 import { AttentionCard, PlanCards, attentionItems } from './PlanCards';
 import { TopBarControls } from '@/src/widgets/AppShell/TopBarSlot';
 import { useReadyToPay } from '@/src/shared/hooks/useReadyToPay';
-import { useUnaccountedWallet } from '@/src/shared/hooks/useUnaccountedWallet';
+import { useMonthUnaccounted } from '@/src/shared/hooks/useMonthUnaccounted';
 import { LinePeekContent } from './LinePeek';
 import { useScopeChooser } from './ScopeChooser';
 import { groupsFor, lineColumns, viewsFor, type ColumnContext } from './columns';
@@ -79,8 +79,10 @@ export function BudgetMonthPage({ month, data, onMonth }: { month: string; data:
     onError: (message) => showToast(message),
   };
   const ready = useReadyToPay();
-  const unaccountedWallet = useUnaccountedWallet();
-  const unaccounted = unaccountedWallet ? toDisplay(data.ctx, unaccountedWallet.currentBalance, unaccountedWallet.currency) : 0;
+  // This month's own unaccounted figure (owner, 23 Nov 2026): the month in
+  // the switcher, opening at zero; the all-time balance stays on the
+  // Unaccounted money wallet's page.
+  const unaccounted = useMonthUnaccounted(month).unaccounted;
   const monthName = v.title.split(' ')[0];
   const readyCount = v.isCurrent ? ready.entries.length : 0;
   const readyTotal = v.isCurrent ? ready.entries.reduce((sum, e) => sum + e.amount, 0) : 0;

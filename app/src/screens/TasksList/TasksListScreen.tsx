@@ -11,12 +11,14 @@
 
 import { useLogic, TASK_TABS, type TaskGroup } from '@/src/logic/tasksList/useLogic';
 import { NotionPage } from '@/src/widgets/Database/NotionPage';
+import { useFormLink } from '@/src/shared/navigation/useFormLink';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { ListQueryBar, ListQueryEmpty } from '@/src/widgets/ListQuery/ListQueryBar';
 import { TaskTable } from '@/src/widgets/TaskDb/TaskTable';
 import styles from './TasksListScreen.module.css';
 
 export function TasksListScreen() {
+  const formLink = useFormLink();
   const logic = useLogic();
   const { list, fields, loading } = logic;
   const title = logic.scoped ? logic.title : 'Tasks';
@@ -37,7 +39,7 @@ export function TasksListScreen() {
   );
 
   return (
-    <NotionPage title={title} sub={sub} crumbs={[{ label: 'Tasks', href: '/tasks' }]}>
+    <NotionPage title={title} sub={sub} crumbs={[{ label: 'Tasks', href: '/tasks' }]} menu={[{ label: 'Import tasks', href: formLink('import') }]}>
       <ListQueryBar
         className={styles.viewBar}
         fields={fields}

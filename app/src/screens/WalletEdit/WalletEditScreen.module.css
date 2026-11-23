@@ -179,3 +179,10 @@
   color: var(--color-text-primary);
   cursor: pointer;
 }
+
+.inlineLink {
+  color: var(--color-primary);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}

@@ -7,7 +7,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus } from 'lucide-react';
+import { Plus, Upload } from 'lucide-react';
 import { useOrganise } from '@/src/logic/organise/useOrganise';
 import { plural, STAGE_ORDER, type ProjectStat } from '@/src/viewmodels/organise';
 import type { LabelHue } from '@/src/viewmodels/projects';
@@ -41,9 +41,14 @@ export function AllProjectsScreen() {
         title="Projects"
         sub={`${plural(live.length, 'project')} in ${plural(areas, 'area')}${atRisk ? ` · ${atRisk} at risk` : ''}`}
         actions={
-          <HeaderButton label="New project" onClick={() => router.push('/projects/new')}>
-            <Plus size={20} strokeWidth={2} />
-          </HeaderButton>
+          <>
+            <HeaderButton label="Import tasks" onClick={() => router.push('/settings/import')}>
+              <Upload size={18} strokeWidth={2} />
+            </HeaderButton>
+            <HeaderButton label="New project" onClick={() => router.push('/projects/new')}>
+              <Plus size={20} strokeWidth={2} />
+            </HeaderButton>
+          </>
         }
       />
       <ViewChips<View>
@@ -56,16 +61,29 @@ export function AllProjectsScreen() {
       />
       <ScreenState loading={o.loading} />
       {!o.loading && live.length === 0 && <p className={styles.empty}>No projects yet. Tap + to add one.</p>}
-      {groups
-        .filter((g) => g.projects.length > 0)
-        .map((g) => (
-          <section key={g.key} className={styles.group} aria-label={g.label}>
-            <GroupHead hue={g.hue} label={g.label} count={String(g.projects.length)} />
-            {g.projects.map((p) => (
-              <ProjectCard key={p.id} p={p} />
-            ))}
-          </section>
-        ))}
+      {view === 'cards' &&
+        groups
+          .filter((g) => g.projects.length > 0)
+          .map((g) => (
+            <section key={g.key} className={styles.group} aria-label={g.label}>
+              <GroupHead hue={g.hue} label={g.label} count={String(g.projects.length)} />
+              {g.projects.map((p) => (
+                <ProjectCard key={p.id} p={p} />
+              ))}
+            </section>
+          ))}
+      {view === 'board' && live.length + o.projects.filter((p) => p.stage === 'Done').length > 0 && (
+        <div className={styles.board}>
+          {groups.map((g) => (
+            <section key={g.key} className={styles.boardColumn} aria-label={g.label}>
+              <div className={styles.boardHead}>
+                <GroupHead hue={g.hue} label={g.label} count={String(g.projects.length)} />
+              </div>
+              {g.projects.length === 0 ? <p className={styles.empty}>Nothing here</p> : g.projects.map((p) => <ProjectCard key={p.id} p={p} />)}
+            </section>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

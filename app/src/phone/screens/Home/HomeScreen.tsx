@@ -7,6 +7,7 @@
 // The sections are widgets/MoneyHome, the same ones the web dashboard uses;
 // data comes from src/logic/home.
 
+import { AccountabilityTile } from '@/src/widgets/Accountability/AccountabilityCard';
 import { Eye, EyeOff } from 'lucide-react';
 import { useAmountsHidden } from '@/src/shared/hooks/usePrivacy';
 import { useLogic } from '@/src/logic/home/useLogic';
@@ -39,6 +40,7 @@ export function HomeScreen() {
           <QuickActions />
           <Wallets v={v} />
           <MoneyInOut v={v} />
+          <AccountabilityTile rows={v.accountability} />
           <Spending v={v} variant="bar" />
           <Budget v={v} />
           <Recent items={v.latest} />

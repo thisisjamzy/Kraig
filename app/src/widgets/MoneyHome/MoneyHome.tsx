@@ -105,7 +105,7 @@ export function BalanceCard({ v }: { v: HomeLogic }) {
       {Math.abs(v.unexplained) >= 0.5 && (
         <Link href={`/wallets/${UNJUSTIFIED_WALLET_ID}`} className={styles.unaccounted}>
           <span className={styles.warnDot} aria-hidden />
-          <span className={styles.unaccountedLabel}>Unaccounted for</span>
+          <span className={styles.unaccountedLabel}>Unaccounted for in {v.unexplainedMonth}</span>
           <span className={styles.unaccountedValue}>
             {formatMoney(v.unexplained)} {v.currency}
           </span>
@@ -232,6 +232,7 @@ export function Wallets({ v }: { v: HomeLogic }) {
             <Link key={a.id} href={`/wallets/${a.id}`} className={styles.walletLink} aria-label={`${a.name}, ${formatMoney(a.balance)} ${v.currency}`}>
               <WalletCard
                 tone={tone}
+                hue={a.hue}
                 type={a.type || (a.savings ? 'Savings' : 'Wallet')}
                 name={a.name}
                 last4={a.code}

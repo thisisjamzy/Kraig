@@ -821,3 +821,19 @@
   word-break: normal;
   white-space: nowrap;
 }
+
+/* The Health summary is a sentence, not a figure: it wraps to as many lines
+   as it needs (owner, 23 Nov 2026). Only a long unbroken string breaks
+   mid-word; everything else wraps between words. */
+.healthRow,
+.healthRow .specValue {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.healthRow .specValue {
+  font-family: var(--font-family-body);
+  white-space: normal;
+  word-break: normal;
+  overflow-wrap: break-word;
+}

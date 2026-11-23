@@ -10,8 +10,16 @@ import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { ConfirmDialog } from '@/src/widgets/ConfirmDialog/ConfirmDialog';
 import { cardFormStyles as cf } from '@/src/widgets/CardForm/CardForm';
-import { FieldCard, FieldRow, FormFrame, MoreOptions, SegmentedField, SelectField, formFrameStyles as ff } from '@/src/widgets/FormFrame/FormFrame';
-import type { TransactionTemplateType } from '@/src/shared/firestore/types';
+import { FieldCard, FieldRow, FormFrame, MoreOptions, SegmentedField, SelectField, SwitchField, formFrameStyles as ff } from '@/src/widgets/FormFrame/FormFrame';
+import type { TemplateRepeat, TransactionTemplateType } from '@/src/shared/firestore/types';
+import { WEEKDAYS } from '@/src/viewmodels/templates';
+
+const REPEAT_OPTIONS: { value: TemplateRepeat; label: string }[] = [
+  { value: 'none', label: 'No repeat' },
+  { value: 'daily', label: 'Daily' },
+  { value: 'weekly', label: 'Weekly' },
+  { value: 'monthly', label: 'Monthly' },
+];
 
 const TYPE_LABEL: Record<TransactionTemplateType, string> = {
   expense: 'Expense',
@@ -103,8 +111,28 @@ export function CreateTransactionTemplateScreen({ templateId }: { templateId?: s
           )}
           {v.isTransfer && (
             <FieldCard label={t.chargesLabel}>
-              <input className={ff.input} inputMode="decimal" value={v.chargesString} onChange={(event) => v.setChargesString(event.target.value.replace(/[^0-9.]/g, ''))} placeholder="0" />
+              <input className={ff.input} inputMode="decimal" value={v.chargesString} onChange={(event) => v.setChargesString(event.target.value.replace(/[^0-9.]/g, ''))} placeholder="From the wallet's fee schedule" />
             </FieldCard>
+          )}
+          <SelectField label="Repeat" value={v.repeat} onChange={(x) => v.setRepeat(x as TemplateRepeat)} options={REPEAT_OPTIONS} />
+          {v.repeat === 'weekly' && (
+            <SelectField label="On" value={String(v.repeatDay ?? 1)} onChange={(x) => v.setRepeatDay(Number(x))} options={WEEKDAYS.map((d, i) => ({ value: String(i + 1), label: d }))} />
+          )}
+          {v.repeat === 'monthly' && (
+            <SelectField
+              label="Day of the month"
+              value={String(v.repeatDay ?? 1)}
+              onChange={(x) => v.setRepeatDay(Number(x))}
+              options={Array.from({ length: 31 }, (_, i) => ({ value: String(i + 1), label: i >= 28 ? `${i + 1} (or the month's last day)` : String(i + 1) }))}
+            />
+          )}
+          {v.repeat !== 'none' && (
+            <SwitchField
+              label="Remind me when it is due"
+              description="A Due today notification. It never records on its own: you tap Record or Skip."
+              checked={v.remind}
+              onChange={v.setRemind}
+            />
           )}
           <MoreOptions defaultOpen={Boolean(v.description)}>
             <FieldCard label="Description">

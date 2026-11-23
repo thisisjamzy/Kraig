@@ -15,6 +15,7 @@
 // sticky bottom bar. Archive, Mark as paid off and Delete are in the top
 // bar's "..." menu.
 
+import { SettleDebtSheet, SettledNote, useSettleDebt } from '@/src/widgets/SettleDebt/SettleDebt';
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -52,6 +53,7 @@ export function DebtDetailScreen({ debtId }: { debtId: string }) {
   const axis = (n: number) => (hidden ? '' : n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 1000 ? `${Math.round(n / 1000)}k` : String(n));
   const debt = v.debt;
   const name = debt?.name ?? 'Debt';
+  const settle = useSettleDebt(debt ?? null);
   const isCash = debt?.debtType === 'cash';
   const open = v.openForm;
 
@@ -264,6 +266,8 @@ export function DebtDetailScreen({ debtId }: { debtId: string }) {
               ...(v.balance > 0 ? [{ label: 'Plan a repayment', href: v.formHref('schedule', debtId) }] : []),
               { label: 'Change wallet effect', href: v.formHref('wallet', debtId) },
               ...(v.balance > 0 ? [{ label: 'Mark as paid off', href: v.formHref('repay', debtId, { amount: String(v.balance) }) }] : []),
+              ...(settle.canSettle ? [{ label: settle.label, onSelect: settle.start }] : []),
+              ...(settle.settled ? [{ label: 'Reopen debt', onSelect: () => void settle.reopen() }] : []),
               { label: 'Archive', onSelect: () => setConfirm('archive') },
               ...(v.canDelete ? [{ label: 'Delete', onSelect: () => setConfirm('delete'), danger: true }] : []),
             ]
@@ -457,6 +461,8 @@ export function DebtDetailScreen({ debtId }: { debtId: string }) {
         </>
       )}
 
+      <SettleDebtSheet s={settle} remaining={v.balance} currency={debt?.currency ?? ''} />
+      {debt && <SettledNote debt={debt} s={settle} currency={debt.currency} />}
       {confirm === 'archive' && (
         <ConfirmDialog
           title={`Archive ${name}?`}

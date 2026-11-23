@@ -60,8 +60,35 @@ export interface FirestoreAccount {
   // every account picker) never sees it without each needing its own check.
   isSystemWallet?: boolean;
   systemType?: 'unjustified' | null;
+  // The wallet's colour (owner, 23 Nov 2026): one of the nine label hues.
+  // Absent on older wallets, which show a hue derived from their id
+  // (viewmodels/wallets.ts walletHue) until the user picks one.
+  color?: WalletHue;
+  // What this wallet charges to move money out, kept by the user (Dreda
+  // does not fetch operators' rates). Absent: no fees. See
+  // viewmodels/walletFees.ts feeFor.
+  feeSchedule?: FeeSchedule | null;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
+}
+
+export type WalletHue = 'purple' | 'blue' | 'teal' | 'green' | 'lime' | 'amber' | 'orange' | 'rose' | 'grey';
+
+export type FeeKind = 'transfer' | 'withdrawal' | 'payment';
+
+/** One amount range of a fee schedule: inclusive of `min`, exclusive of
+ *  `max`; `max: null` means "and above". */
+export interface FeeBand {
+  min: number;
+  max: number | null;
+  fee: number;
+  kind: 'fixed' | 'percent';
+}
+
+export interface FeeSchedule {
+  appliesTo: FeeKind[];
+  bands: FeeBand[];
+  updatedAt?: Timestamp | null;
 }
 
 export interface FirestoreCategory {
@@ -333,9 +360,27 @@ export interface FirestoreTransactionTemplate {
   toAccountId: string | null; // transfer and savings(moved) only
   charges: number | null; // transfer only — see FirestoreTransfer.charges
   savingsMode: 'moved' | 'frozen' | null; // type 'savings' only
+  // Added 23 Nov 2026, all optional so older templates keep working.
+  // The basket and item the entry pays (basket before item), or null.
+  basketId?: string | null;
+  basketItemId?: string | null;
+  // Repeats: shown as due in Payments on the days it falls on. It never
+  // records on its own; the user taps Record or Skip. Default 'none'.
+  repeat?: TemplateRepeat;
+  // Weekly: weekday 1 (Monday) to 7. Monthly: day of the month (1 to 31,
+  // the month's last day when shorter). Null otherwise.
+  repeatDay?: number | null;
+  // A "Due today" notification on its days. Default false.
+  remind?: boolean;
+  lastUsedAt?: Timestamp | null;
+  // The day ("yyyy-mm-dd") a due template was last skipped.
+  lastSkippedOn?: string | null;
+  archived?: boolean;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 }
+
+export type TemplateRepeat = 'none' | 'daily' | 'weekly' | 'monthly';
 
 export type Frequency = 'Once' | 'Daily' | 'Weekly' | 'Monthly' | 'Quarterly' | 'Yearly';
 // A basket's cadence (src/shared/budget/cadence.ts): when its items apply.
@@ -675,6 +720,13 @@ export interface FirestoreBucketLineItem {
   excludedMonths?: string[];
   // `dueDate` (optional): that month's line is due on a different day.
   monthOverrides?: Record<string, { amount: number; dueDate?: Timestamp | null }>;
+  // Closed for one month (owner, 23 Nov 2026): no more reminders that
+  // month, and its leftover goes back to the month's money left to plan.
+  // Reopening deletes the month's entry. Absent: never closed.
+  closedFor?: Record<string, { closedAt: Timestamp; leftover: number }>;
+  // A payment moved for one month only, from the Payments page ("Just this
+  // month"). The date only: the amount is untouched. Absent: none moved.
+  scheduleOverrides?: Record<string, Timestamp>;
   // "This and future months" edits to a recurring item: from the keyed
   // month (yyyy-MM) on, the amount and/or day of the month change. Earlier
   // months keep what they had. Read through monthBudget.ts's itemOccurrence.
@@ -838,6 +890,9 @@ export interface FirestoreDebtPaymentPlan {
  * repayment write (aggregation.ts's recordRepayment) — never trust a
  * stale client copy without re-deriving.
  */
+export type DebtDirection = 'owe' | 'owed';
+export type DebtStatus = 'active' | 'forgiven' | 'cancelled';
+
 export interface FirestoreDebt {
   id: string;
   name: string;
@@ -867,6 +922,14 @@ export interface FirestoreDebt {
   lastChangeId?: string | null;
   // Set when a repayment brings the balance owed to zero.
   paidOffAt?: Timestamp | null;
+  // Who owes whom (owner, 23 Nov 2026): 'owe', money you owe (every debt
+  // before this field), or 'owed', money someone owes you. Absent: 'owe'.
+  direction?: DebtDirection;
+  // Forgiven (money owed to you) or cancelled (money you owe, written off
+  // by the other party): the remaining amount went to 0 with no wallet
+  // move. Absent or 'active': still open. Reopen reverses it.
+  status?: DebtStatus;
+  settledEvent?: { kind: 'forgiven' | 'cancelled'; amount: number; date: Timestamp; note: string; at: Timestamp } | null;
   archivedAt: Timestamp | null;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;

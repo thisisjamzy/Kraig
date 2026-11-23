@@ -8,7 +8,7 @@ import { accountRef, categoryRef, bucketRef } from '@/src/shared/firestore/refs'
 import { createBucketLineItem } from '@/src/shared/firestore/aggregation';
 import { toDisplay } from '@/src/shared/firestore/currency';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
-import { walletColor, ACCOUNT_TYPES } from '@/src/viewmodels/wallets';
+import { walletSolid, ACCOUNT_TYPES } from '@/src/viewmodels/wallets';
 import { currencyName } from '@/src/viewmodels/currencies';
 import { CATEGORY_PRESETS } from '@/src/viewmodels/categories';
 
@@ -59,12 +59,12 @@ export function useLogic() {
   useEffect(() => {
     if (!walletCurrency && ctx.base) setWalletCurrency(ctx.base);
   }, [ctx.base, walletCurrency]);
-  const wallets = accounts.map((account, index) => ({
+  const wallets = accounts.map((account) => ({
     id: account.id,
     name: account.name,
     amount: toDisplay(ctx, account.currentBalance, account.currency),
     currency: account.currency,
-    color: walletColor(index),
+    color: walletSolid(account),
   }));
 
   async function createWallet() {

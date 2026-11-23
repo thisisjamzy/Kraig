@@ -43,6 +43,7 @@ export function WalletsScreen() {
     <Link key={r.id} href={`/wallets/${r.id}`} className={styles.cardLink} data-archived={r.status === 'Archived' || undefined} aria-label={`${r.name}, ${amount(r.balance)} ${v.currency}`}>
       <WalletCard
         tone={tones.get(r.id) ?? 'purple'}
+        hue={r.hue}
         type={r.type}
         name={r.name}
         last4={r.id.slice(-4).toUpperCase()}

@@ -171,6 +171,12 @@ export function featurePageOf(pathname: string): string | null {
  */
 export function backTargetFor(url: string, from: string | null): string | null {
   const path = pathOf(url);
+  // Budget filtered to one basket (opened from that basket) goes back to it.
+  const basket = path === '/budget' ? /[?&]bucket=([^&#]+)/.exec(url) : null;
+  if (basket) {
+    const month = /[?&]month=([^&#]+)/.exec(url);
+    return `/budget/basket/${basket[1]}${month ? `?month=${month[1]}` : ''}`;
+  }
   const feature = featurePageOf(path);
   if (feature && feature !== path) return feature;
   if (feature) {

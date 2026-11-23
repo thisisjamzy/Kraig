@@ -14,7 +14,7 @@
 import { useMemo, useState } from 'react';
 import { query, where } from 'firebase/firestore';
 import { createDebt } from '@/src/shared/firestore/aggregation';
-import { changeDebtWalletEffect, undoDebtChange, updateDebtDetails, updateDebtPlan } from '@/src/shared/firestore/debtWrites';
+import { changeDebtWalletEffect, undoDebtChange, updateDebtDetails, updateDebtPlan, setDebtDirection } from '@/src/shared/firestore/debtWrites';
 import { useFirestoreCollection } from '@/src/shared/firestore/hooks';
 import { debtsRef } from '@/src/shared/firestore/refs';
 import { planWalletChange, WalletChangeError, type DebtKind, type WalletChange } from '@/src/shared/debt/walletEffect';
@@ -22,7 +22,7 @@ import { useDebtLedger } from '@/src/shared/hooks/useDebtLedger';
 import { newDebtImpact } from '@/src/viewmodels/debt';
 import { formatMoney } from '@/src/widgets/Money/Money';
 import { showToast } from '@/src/widgets/Toast/Toast';
-import type { DebtPriority, FirestoreDebt } from '@/src/shared/firestore/types';
+import type { DebtDirection, DebtPriority, FirestoreDebt } from '@/src/shared/firestore/types';
 import { paidFromKey, usePlanFields } from './planFields';
 
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -40,6 +40,13 @@ export function useLogic(debtId: string | null, callbacks: { onSaved: (debtId: s
   const { uid, debt, accounts, ctx, walletState } = ledger;
 
   const [debtType, setDebtType] = useState<DebtKind>('cash');
+  // Who owes whom (owner, 23 Nov 2026). Money owed to you is recorded only:
+  // it never moves a wallet here.
+  const [direction, setDirectionState] = useState<DebtDirection>('owe');
+  function setDirection(next: DebtDirection) {
+    setDirectionState(next);
+    if (next === 'owed') setDebtType('existing');
+  }
   const [name, setName] = useState('');
   const [lender, setLender] = useState('');
   const [amount, setAmount] = useState('');
@@ -57,6 +64,7 @@ export function useLogic(debtId: string | null, callbacks: { onSaved: (debtId: s
   if (debt && debtId && !ledger.loading && seededFor !== debtId) {
     setSeededFor(debtId);
     setDebtType(debt.debtType);
+    setDirectionState(debt.direction ?? 'owe');
     setName(debt.name);
     setLender(debt.lender ?? '');
     setAmount(String(debt.principalAmount));
@@ -142,6 +150,7 @@ export function useLogic(debtId: string | null, callbacks: { onSaved: (debtId: s
           },
           ctx
         );
+        if (direction === 'owed') await setDebtDirection(uid, id, 'owed');
         showToast(`${name.trim()} added`);
         callbacks.onSaved(id);
         return;
@@ -182,6 +191,8 @@ export function useLogic(debtId: string | null, callbacks: { onSaved: (debtId: s
     debt,
     debtType,
     chooseType,
+    direction,
+    setDirection,
     name,
     setName,
     lender,

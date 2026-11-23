@@ -7,12 +7,15 @@
 import Image from 'next/image';
 import { Nfc } from 'lucide-react';
 import mark from '@/public/brand/dreda-mark.png';
+import { formatMaskedNumber } from '@/src/viewmodels/wallets';
+import type { WalletHue } from '@/src/shared/firestore/types';
 import styles from './WalletCard.module.css';
 
 export type WalletTone = 'purple' | 'lilac' | 'ink' | 'lime';
 
 export function WalletCard({
   tone,
+  hue,
   type,
   name,
   last4,
@@ -23,6 +26,9 @@ export function WalletCard({
   style,
 }: {
   tone: WalletTone;
+  /** The wallet's own colour (owner, 23 Nov 2026): a label hue tints the
+   *  card (its bg, text in its fg) and overrides the tone. */
+  hue?: WalletHue | null;
   /** "Bank", "Mobile money", "Cash", "Savings". */
   type: string;
   name: string;
@@ -37,7 +43,12 @@ export function WalletCard({
   style?: React.CSSProperties;
 }) {
   return (
-    <div className={className ? `${styles.card} ${className}` : styles.card} data-tone={tone} style={style}>
+    <div
+      className={className ? `${styles.card} ${className}` : styles.card}
+      data-tone={hue ? undefined : tone}
+      data-hue={hue || undefined}
+      style={hue ? ({ '--hue-bg': `var(--label-${hue}-bg)`, '--hue-fg': `var(--label-${hue}-fg)`, '--hue-solid': `var(--label-${hue}-solid)`, ...style } as React.CSSProperties) : style}
+    >
       <span className={styles.decor1} aria-hidden />
       <span className={styles.decor2} aria-hidden />
       <div className={styles.top}>
@@ -49,7 +60,11 @@ export function WalletCard({
       </div>
       <div className={styles.number}>
         <span className={styles.type}>Wallet number</span>
-        <span className={styles.numberValue}>••••  ••••  ••••  {last4}</span>
+        <span className={styles.masked} aria-label={`Wallet number ending ${last4}`}>
+          {formatMaskedNumber(last4).split(' ').map((group, i) => (
+            <span key={i} className={group.startsWith('•') ? styles.dots : undefined}>{group}</span>
+          ))}
+        </span>
       </div>
       <div className={styles.bottom}>
         <div className={styles.stats}>

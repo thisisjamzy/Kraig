@@ -2,16 +2,30 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { updateDoc, increment } from 'firebase/firestore';
+import { updateDoc } from 'firebase/firestore';
 import { useFirestoreDoc } from '@/src/shared/firestore/hooks';
 import { accountRef } from '@/src/shared/firestore/refs';
 import { useAccounts, useCurrencyContext } from '@/src/shared/firestore/queries';
 import { createTransferWithAggregation } from '@/src/shared/firestore/aggregation';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
-import { ACCOUNT_TYPES } from '@/src/viewmodels/wallets';
-import type { FirestoreAccount } from '@/src/shared/firestore/types';
+import { ACCOUNT_TYPES, WALLET_HUES, walletHue } from '@/src/viewmodels/wallets';
+import { DEFAULT_FEE_APPLIES_TO, parseBands, validateBands } from '@/src/viewmodels/walletFees';
+import { updateWallet } from '@/src/shared/firestore/walletWrites';
+import type { FeeKind, FirestoreAccount, WalletHue } from '@/src/shared/firestore/types';
 import { useGoBack } from '@/src/shared/navigation/useGoBack';
 import { useFormFinish } from '@/src/shared/navigation/formPeekContext';
+
+export interface FeeRow {
+  min: string;
+  /** Blank: "and above". */
+  max: string;
+  fee: string;
+  kind: 'fixed' | 'percent';
+}
+
+function emptyFeeRow(min: string): FeeRow {
+  return { min, max: '', fee: '', kind: 'fixed' };
+}
 
 export function useLogic(walletId: string) {
   const router = useRouter();
@@ -35,7 +49,12 @@ export function useLogic(walletId: string) {
   // field (src/viewmodels/wallets.ts's isSavingsAccount), so flipping it
   // here takes effect everywhere the moment this save lands.
   const [type, setType] = useState<string>(ACCOUNT_TYPES[0]);
-  const [startingBalance, setStartingBalance] = useState('');
+  // No starting balance here (owner, 23 Nov 2026): it is set once in Create
+  // wallet; a wrong balance is corrected by counting the wallet.
+  const [color, setColor] = useState<WalletHue>('purple');
+  const [feesOn, setFeesOn] = useState(false);
+  const [feeRows, setFeeRows] = useState<FeeRow[]>([emptyFeeRow('0')]);
+  const [feeAppliesTo, setFeeAppliesTo] = useState<FeeKind[]>(DEFAULT_FEE_APPLIES_TO);
   const [notSpendable, setNotSpendable] = useState(false);
   const [frozen, setFrozen] = useState(false);
   const [lockedAmount, setLockedAmount] = useState('');
@@ -52,11 +71,37 @@ export function useLogic(walletId: string) {
     setName(wallet.name);
     setShortName(wallet.shortName || wallet.name.slice(0, 5));
     setType(wallet.type);
-    setStartingBalance(String(wallet.startingBalance));
+    setColor(walletHue(wallet));
+    const schedule = wallet.feeSchedule;
+    setFeesOn(Boolean(schedule?.bands?.length));
+    setFeeRows(
+      schedule?.bands?.length
+        ? schedule.bands.map((b) => ({ min: String(b.min), max: b.max === null ? '' : String(b.max), fee: String(b.fee), kind: b.kind }))
+        : [emptyFeeRow('0')]
+    );
+    setFeeAppliesTo(schedule?.appliesTo?.length ? schedule.appliesTo : DEFAULT_FEE_APPLIES_TO);
     setNotSpendable(Boolean(wallet.notSpendable));
     setFrozen(Boolean(wallet.frozen));
     setLockedAmount(wallet.lockedAmount ? String(wallet.lockedAmount) : '');
   }, [wallet, seededFor, walletId]);
+
+  const feeProblem = feesOn ? validateBands(parseBands(feeRows)) : null;
+  const feesUpdatedAt = wallet?.feeSchedule?.updatedAt?.toDate?.() ?? null;
+  function addFeeRow() {
+    setFeeRows((rows) => {
+      const last = rows[rows.length - 1];
+      return [...rows, emptyFeeRow(last?.max ?? '')];
+    });
+  }
+  function updateFeeRow(index: number, patch: Partial<FeeRow>) {
+    setFeeRows((rows) => rows.map((r, i) => (i === index ? { ...r, ...patch } : r)));
+  }
+  function removeFeeRow(index: number) {
+    setFeeRows((rows) => (rows.length > 1 ? rows.filter((_, i) => i !== index) : rows));
+  }
+  function toggleAppliesTo(kind: FeeKind) {
+    setFeeAppliesTo((list) => (list.includes(kind) ? list.filter((k) => k !== kind) : [...list, kind]));
+  }
 
   async function handleSave() {
     if (!uid || !wallet || saving) return;
@@ -65,32 +110,27 @@ export function useLogic(walletId: string) {
       setSaveError('Give this wallet a name.');
       return;
     }
-    const newStartingBalance = Number(startingBalance.replace(/[^0-9.]/g, '')) || 0;
-    // currentBalance is a running total (startingBalance + every
-    // transaction/transfer delta since, see aggregation.ts) — never
-    // recomputed from scratch — so editing the seed amount has to shift
-    // currentBalance by the same delta to stay consistent with it, rather
-    // than overwriting currentBalance outright and losing every real
-    // transaction that happened since.
-    const startingBalanceDelta = newStartingBalance - wallet.startingBalance;
-    const newCurrentBalance = wallet.currentBalance + startingBalanceDelta;
     const lockedAmountValue = Number(lockedAmount.replace(/[^0-9.]/g, '')) || 0;
-    if (lockedAmountValue > newCurrentBalance) {
+    if (lockedAmountValue > wallet.currentBalance) {
       setSaveError("Locked amount can't be more than this wallet's balance.");
+      return;
+    }
+    if (feesOn && feeProblem) {
+      setSaveError(feeProblem);
       return;
     }
     setSaving(true);
     setSaveError(null);
     try {
-      await updateDoc(accountRef(uid, walletId), {
+      await updateWallet(uid, walletId, {
         name: trimmedName,
         shortName: shortName.trim().slice(0, 5) || trimmedName.slice(0, 5),
         type,
-        startingBalance: newStartingBalance,
-        currentBalance: increment(startingBalanceDelta),
         notSpendable,
         frozen,
         lockedAmount: lockedAmountValue,
+        color,
+        feeSchedule: feesOn ? { appliesTo: feeAppliesTo, bands: parseBands(feeRows) } : wallet.feeSchedule ? null : undefined,
       });
       finish(`/wallets/${walletId}`);
     } catch (error) {
@@ -175,8 +215,19 @@ export function useLogic(walletId: string) {
     type,
     setType,
     accountTypes: ACCOUNT_TYPES,
-    startingBalance,
-    setStartingBalance,
+    color,
+    setColor,
+    hues: WALLET_HUES,
+    feesOn,
+    setFeesOn,
+    feeRows,
+    addFeeRow,
+    updateFeeRow,
+    removeFeeRow,
+    feeAppliesTo,
+    toggleAppliesTo,
+    feeProblem,
+    feesUpdatedAt,
     notSpendable,
     setNotSpendable,
     frozen,

@@ -5,6 +5,7 @@
 // and a sticky bar. Changing just this month's amount or skipping the
 // month live in the "…" menu.
 
+import { ItemCloseBar, itemCloseMenu } from '@/src/widgets/ItemClose/ItemClose';
 import { DismissibleCta } from '@/src/phone/widgets/DismissibleCard/DismissibleCard';
 import { useState } from 'react';
 import Link from 'next/link';
@@ -91,6 +92,7 @@ function ItemBody({ it, entry }: { it: ReturnType<typeof useLogic>; entry: ItemM
                 ...(!m.hasPayments && !income
                   ? [{ key: 'skip', label: `Skip ${monthTitle(month)}`, icon: <Undo2 size={14} strokeWidth={2} />, onSelect: () => setConfirmSkip(true) }]
                   : []),
+                ...itemCloseMenu(it, entry),
               ]}
             />
           </>
@@ -148,7 +150,7 @@ function ItemBody({ it, entry }: { it: ReturnType<typeof useLogic>; entry: ItemM
         <SpecRow>
           <SpecCell label="Planned" value={money(entry.available)} />
           <SpecCell label={income ? 'Received' : 'Spent'} value={money(entry.actual)} />
-          <SpecCell label={left < 0 ? (over ? 'Over' : 'Above estimate') : 'Left'} value={money(Math.abs(left))} tone={over ? 'over' : undefined} />
+          <SpecCell label={left < 0 ? (over ? 'Over' : 'Above estimate') : 'Left on this item'} value={money(Math.abs(left))} tone={over ? 'over' : undefined} />
         </SpecRow>
         <SpecRow>
           <SpecCell label="Type" value={entry.kind === 'Fixed' ? 'Fixed' : 'Planned'} />
@@ -163,6 +165,7 @@ function ItemBody({ it, entry }: { it: ReturnType<typeof useLogic>; entry: ItemM
           <SpecCell label="Paid from" value={it.account ?? ''} />
           <SpecCell label="Moved" value={moved === 0 ? '' : `${moved > 0 ? '+' : '-'}${money(Math.abs(moved))}`} />
         </SpecRow>
+        <ItemCloseBar it={it} entry={entry} currency={currency} />
         <div className={p.healthRow}>
           <span className={p.specLabel}>Health</span>
           <span className={p.specValue} data-tone={over ? 'over' : 'good'}>
@@ -262,7 +265,7 @@ function ItemBody({ it, entry }: { it: ReturnType<typeof useLogic>; entry: ItemM
 
       <div className={p.sticky}>
         <span className={p.stickyAmount}>
-          <span className={p.stickyLabel}>{left < 0 ? 'Over' : income ? 'Still expected' : 'Left'}</span>
+          <span className={p.stickyLabel}>{left < 0 ? 'Over' : income ? 'Still expected' : 'Left on this item'}</span>
           <span className={p.stickyValue}>
             {money(Math.abs(left))}
             <small>{currency}</small>

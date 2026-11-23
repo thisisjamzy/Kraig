@@ -1,8 +1,7 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import { CalendarDays, Clock, Home, PieChart, Plus, SlidersHorizontal } from 'lucide-react';
-import { useFormLink } from '@/src/shared/navigation/useFormLink';
+import { CalendarDays, Clock, Home, PieChart, SlidersHorizontal } from 'lucide-react';
 import { navMode } from '@/src/shared/config/chromeVisibility';
 import { TabBar } from '@/src/phone/widgets/TabBar/TabBar';
 
@@ -24,12 +23,12 @@ export const NAV_ITEMS = [
 // equivalent, rendered instead of this one on that mode's own hub routes
 // (see chromeVisibility.ts's navMode).
 //
-// The same bar as Time's (TabBar, owner 18 Nov 2026): the tabs, Add
-// transaction as the pill's last circle, and the lime mode button beside
-// it, whose icon is the mode it jumps TO.
+// The same bar as Time's (TabBar, owner 18 Nov 2026): the tabs and the lime
+// mode button beside them, whose icon is the mode it jumps TO. No Add
+// circle (owner, 23 Nov 2026): Add transaction lives on Home and
+// Transactions.
 export function BottomNav() {
   const pathname = usePathname();
-  const formLink = useFormLink();
   if (navMode(pathname) !== 'money') return null;
   const active = NAV_ITEMS.find(({ href }) => pathname === href || pathname?.startsWith(`${href}/`))?.href ?? null;
   return (
@@ -37,7 +36,6 @@ export function BottomNav() {
       label="Money"
       tabs={NAV_ITEMS.map((n) => ({ id: n.href, href: n.href, label: n.label, icon: n.icon }))}
       active={active}
-      action={{ href: formLink('transaction'), label: 'Add transaction', icon: Plus }}
       fab={{ href: '/projects/insights', label: 'Switch to Time', icon: Clock }}
     />
   );

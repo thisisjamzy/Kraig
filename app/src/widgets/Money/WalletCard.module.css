@@ -19,6 +19,7 @@
   box-shadow: 0 1px 2px color-mix(in srgb, var(--sg-neutral-900) 6%, transparent), 0 1px 3px color-mix(in srgb, var(--sg-neutral-900) 4%, transparent);
   color: var(--wc-fg);
   font-family: var(--font-family-body);
+  container-type: inline-size;
 }
 
 .card[data-tone='lilac'] {
@@ -40,6 +41,13 @@
   --wc-decor: var(--color-card-lime-decor);
   --wc-fg: var(--color-card-lime-fg);
   --wc-muted: var(--color-card-lime-muted);
+}
+
+.card[data-hue] {
+  --wc-bg: var(--hue-bg);
+  --wc-decor: color-mix(in srgb, var(--hue-solid) 22%, var(--hue-bg));
+  --wc-fg: var(--hue-fg);
+  --wc-muted: color-mix(in srgb, var(--hue-fg) 72%, var(--hue-bg));
 }
 
 .decor1,
@@ -116,6 +124,22 @@
   font-weight: 500;
   line-height: 24px;
   white-space: pre;
+}
+
+.masked {
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--font-family-mono);
+  font-size: clamp(11px, 8.5cqi, 16px);
+  font-weight: 500;
+  line-height: 24px;
+  white-space: nowrap;
+}
+
+.dots {
+  letter-spacing: -0.12em;
 }
 
 .bottom {

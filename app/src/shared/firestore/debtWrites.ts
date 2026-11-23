@@ -203,3 +203,49 @@ export async function setDebtArchived(uid: string, debtId: string, archived: boo
     writeDebtActivity(tx, uid, debtId, { kind: 'archived', title: archived ? 'Archived' : 'Restored from the archive' });
   });
 }
+
+/**
+ * Forgive a debt owed to you, or record that one you owe was cancelled by
+ * the other party (owner, 23 Nov 2026). The remaining amount goes to 0 and
+ * the status to Forgiven or Cancelled. No wallet moves: it is not a
+ * payment, so nothing appears in Transactions. Reopen with reopenDebt.
+ */
+export async function settleDebt(uid: string, debtId: string, input: { kind: 'forgiven' | 'cancelled'; date: Date; note: string }): Promise<void> {
+  await runTransaction(getFirebaseFirestore(), async (tx) => {
+    const snap = await tx.get(debtRef(uid, debtId));
+    const debt = snap.data();
+    if (!debt) throw new Error('This debt no longer exists.');
+    if (debt.status === 'forgiven' || debt.status === 'cancelled') throw new Error('This debt is already settled.');
+    const amount = debt.currentBalance ?? 0;
+    tx.update(debtRef(uid, debtId), {
+      status: input.kind,
+      currentBalance: 0,
+      settledEvent: { kind: input.kind, amount, date: Timestamp.fromDate(input.date), note: input.note.trim(), at: Timestamp.now() },
+      updatedAt: serverTimestamp(),
+    });
+    writeDebtActivity(tx, uid, debtId, {
+      kind: input.kind,
+      title: input.kind === 'forgiven' ? 'Forgiven' : 'Cancelled',
+      lines: [`${Math.round(amount).toLocaleString('en-US')} ${debt.currency} written off on ${input.date.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}`, ...(input.note.trim() ? [input.note.trim()] : [])],
+    });
+  });
+}
+
+/** Reverses settleDebt: the remaining amount comes back, the status is open again. */
+export async function reopenDebt(uid: string, debtId: string): Promise<void> {
+  await runTransaction(getFirebaseFirestore(), async (tx) => {
+    const snap = await tx.get(debtRef(uid, debtId));
+    const debt = snap.data();
+    if (!debt) throw new Error('This debt no longer exists.');
+    const back = debt.settledEvent?.amount ?? Math.max(0, (debt.principalAmount ?? 0) - (debt.totalRepaid ?? 0));
+    tx.update(debtRef(uid, debtId), { status: 'active', currentBalance: back, settledEvent: null, updatedAt: serverTimestamp() });
+    writeDebtActivity(tx, uid, debtId, { kind: 'reopened', title: 'Reopened', lines: [`${Math.round(back).toLocaleString('en-US')} ${debt.currency} open again`] });
+  });
+}
+
+/** Who owes whom: set once, when the debt is created. */
+export async function setDebtDirection(uid: string, debtId: string, direction: 'owe' | 'owed'): Promise<void> {
+  await runTransaction(getFirebaseFirestore(), async (tx) => {
+    tx.update(debtRef(uid, debtId), { direction, updatedAt: serverTimestamp() });
+  });
+}

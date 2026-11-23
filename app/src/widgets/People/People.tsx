@@ -189,16 +189,16 @@ export function PersonFormFields({
         </span>
       </fieldset>
       <FieldCard label="Name" error={error}>
-        <input className={ff.input} value={draft.name} placeholder="Nadia Mbeki" onChange={(e) => update('name', e.target.value)} />
+        <input className={ff.input} name="person-label" autoComplete="off" autoCorrect="off" data-1p-ignore data-lpignore="true" value={draft.name} placeholder="Nadia Mbeki" onChange={(e) => update('name', e.target.value)} />
       </FieldCard>
       <SelectField label="Category" value={draft.category} options={categories.map((c) => ({ value: c, label: c }))} onChange={(v) => update('category', v)} />
       <SwitchField label="High priority" description="Anything they are waiting for is shown first, on Today and in the sidebar." checked={draft.highPriority} onChange={(on) => update('highPriority', on)} />
       <div className={s.pair}>
         <FieldCard label="Email">
-          <input className={ff.input} type="email" value={draft.email} placeholder="name@example.com" onChange={(e) => update('email', e.target.value)} />
+          <input className={ff.input} type="email" name="person-mail" autoComplete="off" value={draft.email} placeholder="name@example.com" onChange={(e) => update('email', e.target.value)} />
         </FieldCard>
         <FieldCard label="Phone">
-          <input className={ff.input} type="tel" value={draft.phone} placeholder="+237" onChange={(e) => update('phone', e.target.value)} />
+          <input className={ff.input} type="tel" name="person-tel" autoComplete="off" value={draft.phone} placeholder="+237" onChange={(e) => update('phone', e.target.value)} />
         </FieldCard>
       </div>
       <div className={s.pair}>

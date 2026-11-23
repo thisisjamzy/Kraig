@@ -1,5 +1,7 @@
 'use client';
 
+import { SettleDebtSheet, SettledNote, useSettleDebt } from '@/src/widgets/SettleDebt/SettleDebt';
+import sd from '@/src/widgets/SettleDebt/SettleDebt.module.css';
 import { useState } from 'react';
 import Link from 'next/link';
 import { ChevronLeft, Trash2, Pencil } from 'lucide-react';
@@ -33,6 +35,7 @@ export function DebtDetailScreen({ debtId }: { debtId: string }) {
   const [confirmArchive, setConfirmArchive] = useState(false);
   const { debt, currency, percent, nextPaymentDate, remaining, repayments, trend, archiveDebt, goBack, loading, error } =
     useLogic(debtId);
+  const settle = useSettleDebt(debt ?? null);
 
   const trendColor = TREND_COLOR[debt?.priority ?? 'medium'];
   const { data: accounts } = useAccounts();
@@ -84,6 +87,7 @@ export function DebtDetailScreen({ debtId }: { debtId: string }) {
             </span>
           </div>
 
+          <SettledNote debt={debt} s={settle} currency={currency} />
           <div className={styles.balanceCard}>
             <p className={styles.balanceHeadline}>
               {formatAmount(remaining)} {currency}
@@ -230,6 +234,12 @@ export function DebtDetailScreen({ debtId }: { debtId: string }) {
         </>
       )}
 
+      {debt && settle.canSettle && (
+        <button type="button" className={sd.action} onClick={settle.start}>
+          {settle.label}
+        </button>
+      )}
+      <SettleDebtSheet s={settle} remaining={remaining} currency={currency} />
       {confirmArchive && (
         <ConfirmDialog
           title={strings.buckets.archiveDebtConfirmTitle}

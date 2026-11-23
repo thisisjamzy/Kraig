@@ -110,6 +110,8 @@ export type BudgetItemLike = Pick<
       | 'targetAmount'
       | 'targetDate'
       | 'createdAt'
+      | 'closedFor'
+      | 'scheduleOverrides'
     >
   >;
 
@@ -167,6 +169,8 @@ export interface OccurrenceDetail {
   isOverride: boolean;
   /** The first occurrence's date this month. */
   due: Date | null;
+  /** The date it had before it was moved for this month only (scheduleOverrides), else null. */
+  movedFrom: Date | null;
   /** Every occurrence date this month (a weekly item has four or five). */
   dates: Date[];
   /** The amount of one occurrence. */
@@ -204,8 +208,19 @@ export function itemOccurrenceDetail(item: BudgetItemLike, month: string, bucket
     due = override.dueDate.toDate();
     if (dates.length === 1) dates = [due];
   }
-  if (override) return { planned: override.amount, isOverride: true, due, dates, unitAmount: override.amount / dates.length, frequency: spec.frequency, recurring };
-  return { planned: amount * dates.length, isOverride: false, due, dates, unitAmount: amount, frequency: spec.frequency, recurring };
+  // Moved for this month only (Payments, "Just this month"): the date
+  // changes, the amount does not.
+  let movedFrom: Date | null = null;
+  const moved = item.scheduleOverrides?.[month];
+  if (moved && typeof moved.toDate === 'function') {
+    const to = moved.toDate();
+    if (!due || to.getTime() !== due.getTime()) movedFrom = due;
+    due = to;
+    if (dates.length === 1) dates = [to];
+    else if (dates.length > 1) dates = [to, ...dates.slice(1)].sort((a, b) => a.getTime() - b.getTime());
+  }
+  if (override) return { planned: override.amount, isOverride: true, due, movedFrom, dates, unitAmount: override.amount / dates.length, frequency: spec.frequency, recurring };
+  return { planned: amount * dates.length, isOverride: false, due, movedFrom, dates, unitAmount: amount, frequency: spec.frequency, recurring };
 }
 
 function latestChange(changes: BudgetItemLike['changesFrom'], month: string) {
@@ -257,6 +272,8 @@ export interface ItemMonth {
   itemKind: ItemKind | null;
   /** Income only: lump sum or trickle. */
   incomeMode: IncomeMode | null;
+  /** Moved for this month only from this date (Payments, "Change date"). */
+  movedFrom: Date | null;
   /** Every occurrence this month (a weekly payment has four or five due dates). */
   dueDates: Date[];
   /** One occurrence's planned amount, display currency. */
@@ -312,6 +329,8 @@ export interface ItemMonth {
   // closed for this month (FirestoreBucket.closedMonths). Leftover on a
   // closed item is money that can be reallocated right now.
   closed: boolean;
+  /** Closed on its own for this month (the item's "Close for <month>"), with the leftover it gave back. */
+  closedItem: { at: Date | null; leftover: number } | null;
   transactionIds: string[];
   transferIds: string[];
   allocationIds: string[];
@@ -470,6 +489,7 @@ export function buildMonthBudget(input: MonthBudgetInput): MonthBudget {
         automation: automationOf(type, item, savingsMode),
         recurring,
         due: dated ? occurrence.due : null,
+        movedFrom: dated ? occurrence.movedFrom : null,
         itemKind: kindOfItem,
         incomeMode,
         dueDates: dated ? occurrence.dates : [],
@@ -506,7 +526,8 @@ export function buildMonthBudget(input: MonthBudgetInput): MonthBudget {
         settlement: null,
         archived: Boolean(bucket.archived),
         // A repeating item never closes for good (bucketProgress.ts's isItemClosed).
-        closed: (kind === 'Planned' && item.completed && !recurring) || Boolean(bucket.closedMonths?.[month]),
+        closed: (kind === 'Planned' && item.completed && !recurring) || Boolean(bucket.closedMonths?.[month]) || Boolean(item.closedFor?.[month]),
+        closedItem: item.closedFor?.[month] ? { at: item.closedFor[month].closedAt?.toDate?.() ?? null, leftover: item.closedFor[month].leftover } : null,
         transactionIds: [],
         transferIds: [],
         allocationIds: [],

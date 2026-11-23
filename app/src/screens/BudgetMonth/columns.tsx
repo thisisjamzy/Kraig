@@ -81,7 +81,7 @@ function money(n: number) {
 function StatusCell({ line, ctx }: { line: LineRow; ctx: ColumnContext }) {
   const over = line.state === 'Over plan' && line.unfunded > 0;
   const late = ctx.past || (ctx.daysLeft !== null && ctx.daysLeft < 5);
-  const payable = line.type !== 'Income' && line.left > 0 && !line.closed && line.expenseKind !== 'variable' && ['Unpaid', 'Overdue', 'Not saved', 'Partly saved', 'Not moved'].includes(line.state);
+  const payable = line.type !== 'Income' && line.left > 0 && !line.closed && line.expenseKind !== 'variable' && ['Unpaid', 'Partly paid', 'Overdue', 'Not saved', 'Partly saved', 'Not moved'].includes(line.state);
   const leftover = line.type === 'Expense' && line.expenseKind === 'variable' && line.left > 0 && (late || line.closed);
   return (
     <span className={styles.statusCell}>
@@ -294,7 +294,7 @@ export function lineColumns(type: FlowType, ctx: ColumnContext, options: { bucke
     amountColumn('planned', 'Planned', ctx, 'planned', true),
     amountColumn('spent', 'Spent', ctx, 'actual', false, (r) => (r.state === 'Over plan' ? 'bad' : undefined)),
     amountColumn('left', 'Left', ctx, 'left', false, (r) => (r.left < 0 ? 'bad' : undefined)),
-    statusColumn(ctx, ['Unpaid', 'Paid', 'Overdue', 'Over plan']),
+    statusColumn(ctx, ['Unpaid', 'Partly paid', 'Paid', 'Overdue', 'Over plan']),
     automationColumn(ctx),
     accountColumn(ctx),
   ];

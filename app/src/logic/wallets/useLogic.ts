@@ -11,7 +11,8 @@ import { useMonthBudget } from '@/src/shared/hooks/useMonthBudget';
 import { monthKeyOf } from '@/src/shared/budget/monthBudget';
 import { committedByAccount, freeTone, groupOf, lastReconciledByAccount, latestByAccount, type WalletGroup } from './model';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
-import { walletColor, ACCOUNT_TYPES, isSavingsAccount } from '@/src/viewmodels/wallets';
+import { ACCOUNT_TYPES, WALLET_HUES, isSavingsAccount, walletHue, walletSolid } from '@/src/viewmodels/wallets';
+import type { WalletHue } from '@/src/shared/firestore/types';
 import { currencyName } from '@/src/viewmodels/currencies';
 import type { FirestoreAccount, FirestoreReconciliation, FirestoreTransaction, FirestoreTransfer } from '@/src/shared/firestore/types';
 
@@ -19,7 +20,9 @@ import type { FirestoreAccount, FirestoreReconciliation, FirestoreTransaction, F
 export interface WalletRow {
   id: string;
   name: string;
+  /** The wallet's colour as a CSS swatch, for dots and chart lines. */
   color: string;
+  hue: WalletHue;
   type: string;
   group: WalletGroup;
   balance: number;
@@ -64,15 +67,17 @@ export function useLogic() {
   const [newType, setNewType] = useState<(typeof ACCOUNT_TYPES)[number]>(ACCOUNT_TYPES[0]);
   const [newCurrency, setNewCurrency] = useState('');
   const [newStartingBalance, setNewStartingBalance] = useState('');
+  const [newColor, setNewColor] = useState<WalletHue>('purple');
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
-  const wallets = accounts.map((account, index) => ({
+  const wallets = accounts.map((account) => ({
     id: account.id,
     name: account.name,
     amount: toDisplay(ctx, account.currentBalance, account.currency),
     currency: ctx.display,
-    color: walletColor(index),
+    color: walletSolid(account),
+    hue: walletHue(account),
   }));
   const total = wallets.reduce((sum, wallet) => sum + wallet.amount, 0);
 
@@ -102,14 +107,15 @@ export function useLogic() {
     () => lastReconciledByAccount(reconciliations.map((r) => ({ performedAt: r.performedAt.toDate(), reportedBalances: r.reportedBalances }))),
     [reconciliations]
   );
-  const rowOf = (account: FirestoreAccount, index: number, status: WalletRow['status']): WalletRow => {
+  const rowOf = (account: FirestoreAccount, status: WalletRow['status']): WalletRow => {
     const balance = toDisplay(ctx, account.currentBalance, account.currency);
     const used = status === 'Active' ? (committed.get(account.id) ?? 0) : 0;
     const free = balance - used;
     return {
       id: account.id,
       name: account.name,
-      color: walletColor(index),
+      color: walletSolid(account),
+      hue: walletHue(account),
       type: account.type,
       group: groupOf(account.type),
       balance,
@@ -122,7 +128,7 @@ export function useLogic() {
       status,
     };
   };
-  const rows: WalletRow[] = [...accounts.map((a, i) => rowOf(a, i, 'Active')), ...archivedAccounts.map((a, i) => rowOf(a, accounts.length + i, 'Archived'))];
+  const rows: WalletRow[] = [...accounts.map((a) => rowOf(a, 'Active')), ...archivedAccounts.map((a) => rowOf(a, 'Archived'))];
   const active = rows.filter((r) => r.status === 'Active');
   const totals = {
     total: active.reduce((s, r) => s + r.balance, 0),
@@ -148,6 +154,7 @@ export function useLogic() {
     setNewType(ACCOUNT_TYPES[0]);
     setNewCurrency(ctx.base || currencyOptions[0]?.code || '');
     setNewStartingBalance('');
+    setNewColor(WALLET_HUES[(accounts.length + archivedAccounts.length) % WALLET_HUES.length]);
     setCreateError(null);
     setAddOpen(true);
   }
@@ -169,6 +176,7 @@ export function useLogic() {
         archived: false,
         notSpendable: false,
         frozen: false,
+        color: newColor,
       });
       setAddOpen(false);
     } catch (err) {
@@ -203,6 +211,9 @@ export function useLogic() {
     setNewCurrency,
     newStartingBalance,
     setNewStartingBalance,
+    newColor,
+    setNewColor,
+    hues: WALLET_HUES,
     accountTypes: ACCOUNT_TYPES,
     currencyOptions,
     creating,

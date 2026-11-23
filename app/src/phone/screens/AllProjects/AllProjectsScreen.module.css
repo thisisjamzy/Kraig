@@ -104,3 +104,55 @@
   line-height: 1.5;
   resize: vertical;
 }
+
+/* Board view on a phone (owner, 23 Nov 2026): the columns sit in one row
+   and scroll sideways, each about 85% of the screen so the next one peeks
+   in, snapping to its start. A column scrolls up and down inside itself. */
+.board {
+  display: flex;
+  gap: 12px;
+  margin: 0 -16px;
+  padding: 0 16px 4px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-padding-inline: 16px;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+
+.board::-webkit-scrollbar {
+  display: none;
+}
+
+.boardColumn {
+  display: flex;
+  flex: 0 0 85vw;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  max-height: calc(100dvh - 280px);
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scroll-snap-align: start;
+}
+
+.boardColumn > .card,
+.boardColumn > * {
+  flex: none;
+}
+
+.boardHead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--color-background);
+}
+
+.boardColumn .cardHead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  margin-top: -14px;
+  padding-top: 16px;
+  background: var(--color-bg-surface);
+}

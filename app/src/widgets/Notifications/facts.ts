@@ -26,6 +26,8 @@ export function budgetFacts(rows: Record<FlowType, LineRow[]>, month: string, to
     due: r.due,
     necessity: r.necessity,
     closed: r.closed,
+    paid: r.type === 'Income' ? 0 : r.actual,
+    variable: r.type === 'Expense' && r.expenseKind === 'variable',
   }));
   const overspends = [...rows.Expense, ...rows.Savings]
     .filter((r) => !r.archived && unexplained(r) > 0)
@@ -37,7 +39,7 @@ export function budgetFacts(rows: Record<FlowType, LineRow[]>, month: string, to
     const p = promptFor(items, { month, today });
     if (p?.kind === 'leftover') leftovers.push({ bucketId, name: items[0].bucketName, amount: p.amount });
   }
-  const savingsBehind = rows.Savings.filter((r) => !r.archived && !r.closed && r.state === 'Overdue' && r.left > 0).map((r) => ({ key: r.key, bucketId: r.bucketId, name: r.name, short: r.left }));
+  const savingsBehind = rows.Savings.filter((r) => !r.archived && !r.closed && r.state === 'Overdue' && r.left > 0 && !(r.actual > 0)).map((r) => ({ key: r.key, bucketId: r.bucketId, name: r.name, short: r.left }));
   // Savings past their date are "behind", not an overdue payment.
   return { lines: lines.filter((l) => !(l.type === 'Savings' && l.state === 'Overdue')), overspends, leftovers, savingsBehind };
 }

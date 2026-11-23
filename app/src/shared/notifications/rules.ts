@@ -33,6 +33,18 @@ export interface FactLine {
   due: Date | null;
   necessity: 'MustHave' | 'NiceToHave' | null;
   closed: boolean;
+  /** Recorded against the line this month (spent, saved or moved). Once
+   *  anything is, it stops reminding for the month (owner, 23 Nov 2026):
+   *  a payment can come in under or over plan. Absent: 0. */
+  paid?: number;
+  /** Variable expenses remind only when nothing was spent and their date has passed. */
+  variable?: boolean;
+}
+
+/** Whether a line may still remind this month: nothing recorded against it
+ *  yet, not closed, something left. */
+export function stillReminds(l: FactLine): boolean {
+  return !l.closed && l.left > 0 && !((l.paid ?? 0) > 0);
 }
 
 export interface ForecastFacts {
@@ -67,6 +79,8 @@ export interface MoneyFacts {
   reconcile: { accountId: string; name: string; difference: number }[];
   debts: { id: string; name: string; amount: number; due: Date }[];
   savingsBehind: { key: string; bucketId: string; name: string; short: number }[];
+  /** Repeating templates due today with a reminder on (viewmodels/templates.ts isDueOn). */
+  templatesDue?: { id: string; name: string; amount: number | null }[];
   pace: { status: 'on_track' | 'watch' | 'off_track'; message: string } | null;
   forecast: ForecastFacts | null;
 }
@@ -149,9 +163,10 @@ function moneyRules(m: MoneyFacts, now: Date): NotificationDraft[] {
     return Boolean(until && new Date(until) > now);
   };
 
-  // Payments overdue (missed): past their date with something still to pay,
-  // part payments included.
-  const overdue = m.lines.filter((l) => (l.type === 'Expense' || l.type === 'Savings' || l.type === 'Transfer') && l.state === 'Overdue' && !l.closed && l.left > 0 && !snoozed(l));
+  // Payments overdue (missed): past their date with nothing paid yet.
+  // Nothing recorded against it yet: a part payment means it was paid, and
+  // what's left is "Left on this item", not overdue.
+  const overdue = m.lines.filter((l) => (l.type === 'Expense' || l.type === 'Savings' || l.type === 'Transfer') && l.state === 'Overdue' && stillReminds(l) && !snoozed(l));
   if (overdue.length) {
     const items: NotificationItem[] = overdue.map((l) => ({
       key: `payment_overdue:${l.key}`,
@@ -179,7 +194,7 @@ function moneyRules(m: MoneyFacts, now: Date): NotificationDraft[] {
 
   // Due today or in the next 3 days.
   const soon = m.lines.filter((l) => {
-    if (l.type === 'Income' || l.closed || l.left <= 0 || !l.due || l.state === 'Overdue' || snoozed(l)) return false;
+    if (l.type === 'Income' || !stillReminds(l) || l.variable || !l.due || l.state === 'Overdue' || snoozed(l)) return false;
     const d = daysBetween(today, l.due);
     return d >= 0 && d <= 3;
   });
@@ -458,6 +473,33 @@ function moneyRules(m: MoneyFacts, now: Date): NotificationDraft[] {
         'From your payment plan.',
         items,
         debtsDue.length === 1 ? items[0].action : { label: 'Open debts', route: '/debts' }
+      )
+    );
+  }
+
+  // Repeating templates due today (owner, 23 Nov 2026). Never recorded on
+  // their own: Record opens the filled-in form; Skip is on Payments.
+  const due = m.templatesDue ?? [];
+  if (due.length) {
+    const items: NotificationItem[] = due.map((t) => ({
+      key: `template_due:${t.id}@${dayKeyOf(today)}`,
+      entityType: 'template',
+      entityId: t.id,
+      label: t.name,
+      amount: t.amount,
+      date: today,
+      action: { label: 'Record', route: `/add-transaction?templateId=${encodeURIComponent(t.id)}` },
+    }));
+    out.push(
+      make(
+        'template_due',
+        'info',
+        `template_due:${dayKeyOf(today)}`,
+        due.length === 1 ? `${due[0].name} is due today` : `${due.length} templates are due today`,
+        'Record it from the template, or skip it on Payments. Nothing is recorded until you do.',
+        items,
+        due.length === 1 ? items[0].action : { label: 'Open payments', route: `/payments?month=${month}` },
+        [{ label: 'Open payments', route: `/payments?month=${month}` }]
       )
     );
   }

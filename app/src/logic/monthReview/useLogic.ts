@@ -10,6 +10,7 @@
 import { useMemo, useState } from 'react';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { useMonthBudget } from '@/src/shared/hooks/useMonthBudget';
+import { useMonthUnaccounted } from '@/src/shared/hooks/useMonthUnaccounted';
 import { editMonthLine, updateItemFields } from '@/src/shared/firestore/bucketBudget';
 import { markMonthReviewed } from '@/src/shared/firestore/budgetMonths';
 import { convert } from '@/src/shared/firestore/currency';
@@ -32,6 +33,9 @@ export function useLogic() {
   const [month] = useState(monthFromUrl);
   const data = useMonthBudget(month);
   const previous = useMonthBudget(shiftMonth(month, -1));
+  // The month being closed: its own unaccounted figure and rate, shown
+  // before it is closed (owner, 23 Nov 2026).
+  const closing = useMonthUnaccounted(shiftMonth(month, -1));
   const today = useMemo(() => new Date(), []);
   const names = useMemo(() => new Map(data.accounts.map((a) => [a.id, a.name])), [data.accounts]);
   const rows = useMemo(() => lineRows(data.budget, today, (id) => (id ? (names.get(id) ?? null) : null)), [data.budget, today, names]);
@@ -116,6 +120,7 @@ export function useLogic() {
     confirm,
     busy,
     error,
+    closing: closing.loading ? null : { name: closing.name, unaccounted: closing.unaccounted, rate: closing.rate, checks: closing.checks },
     loading: data.loading || previous.loading,
   };
 }

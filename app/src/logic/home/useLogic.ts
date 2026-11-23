@@ -9,10 +9,11 @@
 // transfers), never income. Spending categories are expense categories
 // only (a refund is money in, not a category to spend on).
 
+import { useAccountability } from '@/src/shared/hooks/useAccountability';
 import { useMemo, useState } from 'react';
 import { limit, orderBy, query, Timestamp, updateDoc, where } from 'firebase/firestore';
-import { useFirestoreCollection, useFirestoreDoc } from '@/src/shared/firestore/hooks';
-import { settingsRef, transactionsRef, transfersRef, unjustifiedWalletRef } from '@/src/shared/firestore/refs';
+import { useFirestoreCollection } from '@/src/shared/firestore/hooks';
+import { settingsRef, transactionsRef, transfersRef } from '@/src/shared/firestore/refs';
 import { useCategories, useExchangeRates } from '@/src/shared/firestore/queries';
 import { toDisplay, round2 } from '@/src/shared/firestore/currency';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
@@ -21,7 +22,7 @@ import { useReadyToPay, type ReadyEntry } from '@/src/shared/hooks/useReadyToPay
 import { addMonths, monthKeyOf } from '@/src/shared/budget/monthBudget';
 import { useDailyGuide } from '@/src/shared/hooks/useDailyGuide';
 import { useLogic as useDebts } from '@/src/logic/debtsList/useLogic';
-import { isSavingsAccount, walletColor } from '@/src/viewmodels/wallets';
+import { isSavingsAccount, walletHue, walletSolid } from '@/src/viewmodels/wallets';
 import { currencyName } from '@/src/viewmodels/currencies';
 import { categoryInsight, dueText, greetingFor, upcomingLines, weekBuckets, type FlowBar } from '@/src/viewmodels/home';
 import type { FirestoreAccount, FirestoreTransaction, FirestoreTransfer } from '@/src/shared/firestore/types';
@@ -73,8 +74,11 @@ export function useLogic() {
   const allSpendable = round2(
     accounts.filter((a) => !a.frozen && !a.notSpendable && !isSavingsAccount(a)).reduce((s, a) => s + toDisplay(ctx, a.currentBalance - (a.lockedAmount ?? 0), a.currency), 0)
   );
-  const { data: unjustified } = useFirestoreDoc<FirestoreAccount>(useMemo(() => (uid ? unjustifiedWalletRef(uid) : null), [uid]));
-  const unexplained = round2(toDisplay(ctx, unjustified?.currentBalance ?? 0, unjustified?.currency ?? ctx.base));
+  // This month's own unaccounted figure (owner, 23 Nov 2026), not the
+  // all-time wallet balance, which stays on the Unaccounted money page.
+  const thisMonth = useAccountability({ period: 'month', count: 6 });
+  const unexplained = round2(thisMonth.current?.unaccounted ?? 0);
+  const unexplainedMonth = thisMonth.current?.name ?? '';
 
   // ---- This month ----
   const t = cur.totals;
@@ -198,7 +202,8 @@ export function useLogic() {
       type: a.type,
       savings: isSavingsAccount(a),
       code: a.id.slice(-4).toUpperCase(),
-      color: walletColor(cur.accounts.indexOf(a)),
+      color: walletSolid(a),
+      hue: walletHue(a),
       balance: round2(balanceOf(a)),
       committed: round2(committed.get(a.id) ?? 0),
     }))
@@ -287,6 +292,8 @@ export function useLogic() {
     spendable,
     allSpendable,
     unexplained,
+    unexplainedMonth,
+    accountability: thisMonth.rows,
     received: t.income.received,
     expected: t.income.expected,
     stillExpected: t.income.notYetReceived,

@@ -104,6 +104,7 @@ export function WorkScopeScreen(props: Scope) {
   return (
     <NotionPage title={name} sub={sub || undefined} crumbs={crumbs} menu={[
         isArea ? { label: 'Edit area', href: formLink('area', { id: area.id }) } : { label: 'Edit folder', href: formLink('section', { id: scope.id }) },
+        { label: 'Import tasks', href: formLink('import', { area: area.id }) },
         { label: isArea ? 'Archive area' : 'Archive folder', onSelect: () => setArchiving(true) },
       ]}>
       {isArea ? (

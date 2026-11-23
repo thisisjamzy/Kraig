@@ -96,7 +96,7 @@ export function PlanCards({
         {Math.abs(unaccounted) >= 0.5 && (
           <Link href={`/wallets/${UNJUSTIFIED_WALLET_ID}`} className={styles.unaccounted}>
             <span>
-              Unaccounted for <strong>{money(unaccounted)}</strong>
+              Unaccounted for in {monthName} <strong>{money(unaccounted)}</strong>
             </span>
             <em>Reconcile</em>
           </Link>

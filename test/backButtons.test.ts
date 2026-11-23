@@ -64,3 +64,8 @@ test('a form outside any feature goes to the main page of where it was opened', 
   assert.equal(backTargetFor('/add-transaction', null), null);
   assert.equal(featurePageOf('/home'), null);
 });
+
+test('Budget opened from a basket goes back to that basket, in the same month', () => {
+  assert.equal(backTargetFor('/budget?tab=history&month=2026-11&bucket=b1', null), '/budget/basket/b1?month=2026-11');
+  assert.equal(backTargetFor('/budget?bucket=b1', '/home'), '/budget/basket/b1');
+});

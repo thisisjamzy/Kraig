@@ -7,8 +7,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, CalendarDays, CalendarPlus, ChevronRight, History, Plus, SlidersHorizontal, Wallet } from 'lucide-react';
-import { useGoBack } from '@/src/shared/navigation/useGoBack';
+import { CalendarDays, CalendarPlus, ChevronRight, History, Plus, SlidersHorizontal, Wallet } from 'lucide-react';
 import { useAppBarAction } from '@/src/shared/appBar/appBarAction';
 import { useLogic, type PlanningTab } from '@/src/logic/planning/useLogic';
 import { Modal } from '@/src/widgets/Modal/Modal';
@@ -33,11 +32,8 @@ export function PlanningScreen({ defaultTab = 'budget' }: { defaultTab?: Plannin
     useLogic(defaultTab);
   const [planPicker, setPlanPicker] = useState(false);
   const [year, monthNum] = month.split('-').map(Number);
-  // Opened from somewhere else (a basket's "See all", a category tap): a
-  // back button to it. A basket goes back to its own page for this month.
-  const navigateBack = useGoBack();
-  const openedFrom = bucketFilter || categoryFilter;
-  const goBack = () => (bucketFilter ? router.push(`/budget/basket/${bucketFilter}?month=${month}`) : navigateBack('/budget'));
+  // Opened from a basket's "See all": the toolbar's back arrow returns to
+  // that basket (pageTree.backTargetFor); no second back control here.
 
   useAppBarAction(
     tab === 'budget'
@@ -60,11 +56,6 @@ export function PlanningScreen({ defaultTab = 'budget' }: { defaultTab?: Plannin
           the tabs as icons on the right. */}
       <div className={`${m.headerRow} ${m.stickyHead}`}>
         <div className={m.headLeft}>
-          {openedFrom && (
-            <button type="button" className={styles.roundButton} onClick={goBack} aria-label="Back">
-              <ArrowLeft size={20} strokeWidth={2} />
-            </button>
-          )}
           <MonthPicker month={month} onMonth={setMonth} />
         </div>
 

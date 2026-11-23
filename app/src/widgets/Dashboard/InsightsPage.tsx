@@ -12,6 +12,7 @@ import { signedCompact } from '@/src/shared/dashboard/format';
 import { ChartCard, GuideProvider } from '@/src/widgets/Charts/ChartCard';
 import { DivergingColumnChart } from '@/src/widgets/Charts/Columns';
 import charts from '@/src/widgets/Charts/Charts.module.css';
+import { AccountabilityCard } from '@/src/widgets/Accountability/AccountabilityCard';
 import { ActionCard } from '@/src/widgets/Insights/ActionCard';
 import { VerdictCard } from '@/src/widgets/Insights/VerdictCard';
 import { PeriodFilter } from './DashboardPage';
@@ -67,6 +68,7 @@ export function InsightsPage({ v, stickyTop = '0px', web = false }: { v: ReturnT
               ariaLabel={`What you kept each period. ${verdict.chart.caption ?? ''}`}
             />
           </ChartCard>
+          <AccountabilityCard />
         </GuideProvider>
 
         <section className={ip.more}>

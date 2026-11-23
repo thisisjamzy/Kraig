@@ -106,9 +106,12 @@ export function ColumnChart({
   refs,
   histogram,
   valueLabels = true,
+  sub,
   ariaLabel,
 }: {
   data: ColumnDatum[];
+  /** A second line under each label (a rate, a change). */
+  sub?: { text: string; tone?: 'good' | 'bad' }[];
   mode: ScaleMode;
   format: (n: number) => string;
   tick: (n: number) => string;
@@ -121,7 +124,7 @@ export function ColumnChart({
   const dense = data.length > 8;
   const max = Math.max(0, ...data.map((d) => d.value ?? 0));
   return (
-    <Plot scale={scale} tick={tick} refs={refs} labels={data.map((d) => ({ text: d.label, future: d.value === null }))} dense={dense} ariaLabel={ariaLabel}>
+    <Plot scale={scale} tick={tick} refs={refs} labels={data.map((d) => ({ text: d.label, future: d.value === null }))} sub={sub} dense={dense} ariaLabel={ariaLabel}>
       <div className={s.cols} data-dense={dense || histogram || undefined} style={histogram ? { gap: 3 } : undefined}>
         {data.map((d, i) => (
           <div key={`${d.label}-${i}`} className={s.col} title={d.value === null ? `${d.label}: still to come` : `${d.label}: ${format(d.value)}`}>

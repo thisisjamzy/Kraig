@@ -198,6 +198,9 @@ export function TransactionPage({ t, inPeek = false }: { t: TxLogic; inPeek?: bo
             <Link href={formLink('transaction', t.isTransfer ? { duplicateTransfer: t.id } : { duplicate: t.id })} scroll={false} className={styles.outlineButton}>
               Duplicate
             </Link>
+            <Link href={`/transaction-templates/new?${t.isTransfer ? 'fromTransfer' : 'fromTransaction'}=${encodeURIComponent(t.id)}`} scroll={false} className={styles.outlineButton}>
+              Save as template
+            </Link>
           </div>
         )}
       </section>

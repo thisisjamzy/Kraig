@@ -86,6 +86,9 @@ export function TransactionDetailsScreen({ id, transfer = false, assign = false 
               <Link href={formLink('transaction', t.isTransfer ? { duplicateTransfer: t.id } : { duplicate: t.id })} className={styles.outlinePill}>
                 Duplicate
               </Link>
+              <Link href={`/transaction-templates/new?${t.isTransfer ? 'fromTransfer' : 'fromTransaction'}=${encodeURIComponent(t.id)}`} className={styles.outlinePill}>
+                Save as template
+              </Link>
             </div>
           )}
 

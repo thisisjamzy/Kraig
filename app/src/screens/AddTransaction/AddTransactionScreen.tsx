@@ -15,6 +15,11 @@
 // then the impact and "Save expense" (income, transfer, savings).
 // There is no Time row: a transaction is recorded on a date (useLogic).
 
+import { useState } from 'react';
+import { useLayout } from '@/src/shared/hooks/useLayout';
+import { Modal } from '@/src/widgets/Modal/Modal';
+import { TemplatePicker } from '@/src/widgets/TemplatePicker/TemplatePicker';
+import tp from '@/src/widgets/TemplatePicker/TemplateForm.module.css';
 import Link from 'next/link';
 import { CalendarDays, FileText, FolderPlus, PiggyBank, Receipt, ShoppingBasket, Tag, Target, Wallet } from 'lucide-react';
 import { useLogic, formatMoney, type TransactionType } from '@/src/logic/addTransaction/useLogic';
@@ -70,11 +75,54 @@ export function AddTransactionScreen() {
   const impactText = [impact, v.itemImpact].filter(Boolean).join(' ') || null;
   const showCategory = v.categoriesForType.length > 0 || !v.hasBudgetedCategories;
   const showBasket = v.basketOptions.length > 0 || Boolean(v.linkedBucketItem) || v.canCreateBasket;
+  const { isWide } = useLayout();
+  const [picking, setPicking] = useState(false);
+  const [naming, setNaming] = useState<string | null>(null);
+  const [savedTemplate, setSavedTemplate] = useState(false);
+  const walletName = (id: string | null) => (id ? (v.transferFromAccounts.find((a) => a.id === id)?.name ?? null) : null);
 
   return (
     <TxPanel
       title="New transaction"
       onClose={v.close}
+      onTemplates={() => setPicking(true)}
+      overlays={
+        <>
+          {picking && (
+            <TemplatePicker
+              templates={v.templates}
+              walletName={walletName}
+              onClose={() => setPicking(false)}
+              onPick={(tpl) => {
+                v.applyTemplate(tpl);
+                setPicking(false);
+              }}
+            />
+          )}
+          {naming !== null && (
+            <Modal title="Save as template" onClose={() => setNaming(null)}>
+              <form
+                className={tp.nameForm}
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  if (await v.saveAsTemplate(naming)) {
+                    setNaming(null);
+                    setSavedTemplate(true);
+                  }
+                }}
+              >
+                <label>
+                  Name
+                  <input value={naming} onChange={(e) => setNaming(e.target.value)} placeholder="Daily transport" autoFocus />
+                </label>
+                <button type="submit" disabled={!naming.trim()}>
+                  Save template
+                </button>
+              </form>
+            </Modal>
+          )}
+        </>
+      }
       primary={v.loading ? null : { label: `Save ${t.types[v.type].label.toLowerCase()}`, disabled: !v.canSave, busy: v.submitting, busyLabel: t.saving }}
       onSubmit={() => v.handleConfirm()}
       error={v.submitError}
@@ -82,6 +130,12 @@ export function AddTransactionScreen() {
       <ScreenState loading={v.loading} error={v.error} />
       {!v.loading && !v.error && (
         <>
+          {!isWide && (
+            <button type="button" className={tp.useTemplate} onClick={() => setPicking(true)}>
+              <FileText size={18} strokeWidth={2} aria-hidden />
+              Use a template
+            </button>
+          )}
           <TypeSelector value={v.type} onChange={(k) => v.selectType(k as TransactionType)} />
 
           <AmountHero
@@ -220,6 +274,7 @@ export function AddTransactionScreen() {
                 onChange={(x) => v.setChargesString(x.replace(/[^0-9.]/g, ''))}
                 placeholder="None"
                 inputMode="decimal"
+                note={v.feeFromSchedule ? 'From your fee schedule' : null}
               />
             )}
             {/* A past entry can come out of the money reconciliations found
@@ -240,6 +295,17 @@ export function AddTransactionScreen() {
           </RowGroup>
 
           {impactText && <ImpactCallout>{impactText}</ImpactCallout>}
+          <button
+            type="button"
+            className={tp.saveAs}
+            disabled={!v.category && !v.amountString}
+            onClick={() => {
+              setSavedTemplate(false);
+              setNaming(v.description || v.categoryName || '');
+            }}
+          >
+            {savedTemplate ? 'Saved as a template' : 'Save as template'}
+          </button>
         </>
       )}
     </TxPanel>

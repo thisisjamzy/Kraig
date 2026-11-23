@@ -190,3 +190,27 @@
   cursor: pointer;
   text-decoration: none;
 }
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.groupTitle {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: 15px;
+  font-weight: 700;
+  cursor: default;
+}
+
+.groupTitle span {
+  color: var(--color-text-secondary);
+  font-weight: 400;
+}
+
+details.group > summary {
+  cursor: pointer;
+}

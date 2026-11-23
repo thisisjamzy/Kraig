@@ -8,7 +8,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Archive, Pencil, Plus } from 'lucide-react';
+import { Archive, Pencil, Plus, Upload } from 'lucide-react';
 import { ConfirmDialog } from '@/src/widgets/ConfirmDialog/ConfirmDialog';
 import { useLogic } from '@/src/logic/projectDetail/useLogic';
 import { useTaskPanel } from '@/src/shared/navigation/taskPanel';
@@ -48,6 +48,9 @@ export function ProjectDetailScreen({ projectId }: { projectId: string }) {
         crumb={crumb}
         actions={
           <>
+            <HeaderButton label="Import tasks" onClick={() => router.push(`/settings/import?project=${encodeURIComponent(projectId)}`)}>
+              <Upload size={18} strokeWidth={2} />
+            </HeaderButton>
             <HeaderButton label="Archive project" onClick={() => setArchiving(true)}>
               <Archive size={18} strokeWidth={2} />
             </HeaderButton>
@@ -105,11 +108,29 @@ export function ProjectDetailScreen({ projectId }: { projectId: string }) {
         </>
       )}
 
-      {view === 'board' &&
-        BOARD.map((s) => {
-          const list = v.tasks.filter((t) => t.statusText === s);
-          return list.length ? <TaskCard key={s} title={s} tasks={list} count={list.length} setDone={v.setDone} /> : null;
-        })}
+      {view === 'board' && (
+        <div className={styles.board}>
+          {BOARD.map((s) => {
+            const list = v.tasks.filter((t) => t.statusText === s);
+            return (
+              <div key={s} className={styles.boardColumn}>
+                {list.length ? (
+                  <TaskCard title={s} tasks={list} count={list.length} setDone={v.setDone} />
+                ) : (
+                  <section className={styles.card} aria-label={s}>
+                    <h2 className={styles.cardHead}>
+                      <span className={styles.dot} aria-hidden />
+                      {s}
+                      <span className={styles.cardCount}>0</span>
+                    </h2>
+                    <p className={styles.empty}>Nothing here</p>
+                  </section>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {view === 'notes' && (
         <textarea

@@ -4,6 +4,7 @@
 // tab's card (laid out like Home's balance card) with its Details sheet, and the grouped basket list
 // shared by the Budget tab and the Baskets screen.
 
+import { periodLabel } from '@/src/viewmodels/accountability';
 import Link from 'next/link';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
@@ -350,7 +351,7 @@ export function BudgetCard({
             {unhealthy && (
               <>
                 <SheetRow label="Unplanned spending">{money(unhealthy.unplanned)}</SheetRow>
-                <SheetRow label={`Unaccounted for · ${unhealthy.checks} ${unhealthy.checks === 1 ? 'check' : 'checks'}`}>{money(unhealthy.unaccounted)}</SheetRow>
+                <SheetRow label={`Unaccounted for in ${periodLabel(month, 'month').name} · ${unhealthy.checks} ${unhealthy.checks === 1 ? 'check' : 'checks'}`}>{money(unhealthy.unaccounted)}</SheetRow>
                 <SheetRow
                   label={
                     <>

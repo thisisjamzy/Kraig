@@ -1,0 +1,117 @@
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 56px;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 14px;
+  background: transparent;
+  color: var(--color-text-primary);
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.row:hover,
+.row:focus-visible {
+  background: var(--color-bg-sunken);
+}
+
+.icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: var(--label-purple-bg);
+  color: var(--label-purple-fg);
+}
+
+.icon[data-type='income'] {
+  background: var(--label-green-bg);
+  color: var(--label-green-fg);
+}
+
+.icon[data-type='transfer'] {
+  background: var(--label-blue-bg);
+  color: var(--label-blue-fg);
+}
+
+.icon[data-type='savings'] {
+  background: var(--label-teal-bg);
+  color: var(--label-teal-fg);
+}
+
+.icon[data-type='new'] {
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+}
+
+.text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.name {
+  font-size: 15px;
+  font-weight: 600;
+  overflow-wrap: break-word;
+}
+
+.meta {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
+.amount {
+  flex: none;
+  font-family: var(--font-family-mono);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+  padding: 0 12px;
+  height: 44px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 12px;
+  background: var(--color-bg-sunken);
+  color: var(--color-text-secondary);
+}
+
+.search input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 16px;
+}
+
+.empty {
+  margin: 12px 4px;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+}

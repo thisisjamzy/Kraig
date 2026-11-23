@@ -11,6 +11,8 @@
 // stay (Paid, Still to pay, Overdue, Can pay now). Both halves follow
 // ?month=.
 
+import { DueTemplates } from '@/src/widgets/DueTemplates/DueTemplates';
+import { ChangeDateSheet, movedFromText } from '@/src/widgets/ChangeDate/ChangeDateSheet';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -46,7 +48,7 @@ function toItem(x: MonthPayment): CalItem {
   const day = isoDay(x.due);
   return {
     key: x.id,
-    title: `${x.name} · ${formatAmountValue(Math.round(x.status === 'paid' ? x.paid : x.remaining))}`,
+    title: `${x.name} · ${formatAmountValue(Math.round(x.status === 'paid' ? x.paid : x.remaining))}${x.movedFrom ? ` · ${movedFromText(x.movedFrom)}` : ''}`,
     kind: 'payment',
     start: null,
     end: null,
@@ -68,6 +70,8 @@ export function PaymentsScreen() {
   const [filter, setFilter] = useState<Filter>('all');
   const data = useMonthBudget(month);
   const p = usePaymentsTab(month, data, null);
+  // "Change date" (owner, 23 Nov 2026): from the payment's sheet.
+  const [moving, setMoving] = useState<MonthPayment | null>(null);
   const priorities = usePriorities();
   const formLink = useFormLink();
   const router = useRouter();
@@ -123,6 +127,7 @@ export function PaymentsScreen() {
         </Link>
       </TopBarActions>
 
+      <DueTemplates />
       <div className={styles.kindTabs} role="tablist" aria-label="Which payments">
         {FILTERS.map((f) => (
           <button key={f.key} type="button" role="tab" aria-selected={filter === f.key} onClick={() => setFilter(f.key)}>
@@ -181,8 +186,31 @@ export function PaymentsScreen() {
             <button type="button" className={styles.primary} disabled={!p.payAccountId || !(Number(p.payAmount) > 0) || p.busy} onClick={p.confirmPaid}>
               {p.busy ? 'Saving…' : 'Confirm payment'}
             </button>
+            <button
+              type="button"
+              className={styles.secondary}
+              onClick={() => {
+                setMoving(p.paying);
+                p.cancelPaying();
+              }}
+            >
+              Change date
+            </button>
           </div>
         </Modal>
+      )}
+      {moving && (
+        <ChangeDateSheet
+          name={moving.name}
+          due={moving.due}
+          recurring={moving.recurring}
+          busy={p.busy}
+          error={p.error}
+          onClose={() => setMoving(null)}
+          onSave={async (to, scope) => {
+            if (await p.changeDate(moving, to, scope)) setMoving(null);
+          }}
+        />
       )}
     </NotionPage>
   );

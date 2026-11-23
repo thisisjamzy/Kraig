@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { ChevronLeft } from 'lucide-react';
 import { useLogic } from '@/src/logic/downloadTemplate/useLogic';
 import { EntityPicker } from '@/src/widgets/EntityPicker/EntityPicker';
@@ -7,7 +8,7 @@ import { ScreenHeader } from '@/src/widgets/ScreenHeader/ScreenHeader';
 import styles from './DownloadTemplateScreen.module.css';
 
 export function DownloadTemplateScreen() {
-  const { selected, setSelected, done, handleDownload, goBack } = useLogic();
+  const { selected, setSelected, keys, done, handleDownload, goBack } = useLogic();
 
   return (
     <div className={styles.page}>
@@ -25,7 +26,11 @@ export function DownloadTemplateScreen() {
         couple of example rows to follow.
       </p>
 
-      <EntityPicker selected={selected} onChange={setSelected} />
+      <EntityPicker selected={selected} onChange={setSelected} keys={keys} />
+
+      <p className={styles.helperText}>
+        Areas, folders, projects and tasks have their own template: <Link href="/settings/import">Import tasks</Link> and download the task list template there.
+      </p>
 
       {done && <p className={styles.successText}>Your template downloaded.</p>}
 

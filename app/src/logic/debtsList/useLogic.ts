@@ -35,9 +35,18 @@ export function useLogic() {
           const principal = round2(toDisplay(ctx, debt.principalAmount, ctx.base));
           const balance = round2(toDisplay(ctx, debt.currentBalance, ctx.base));
           const repaid = round2(toDisplay(ctx, debt.totalRepaid, ctx.base));
+          const nextDue =
+            debt.paymentPlan.type === 'recurring' && debt.paymentPlan.recurring ? debt.paymentPlan.recurring.nextPaymentDate.toDate() : null;
+          const status = debt.status ?? 'active';
+          const settled = status === 'forgiven' || status === 'cancelled';
           return {
             id: debt.id,
             name: debt.name,
+            lender: debt.lender ?? '',
+            direction: debt.direction ?? 'owe',
+            status,
+            settled,
+            overdue: !settled && balance > 0 && nextDue !== null && nextDue < new Date(new Date().setHours(0, 0, 0, 0)),
             debtType: debt.debtType,
             priority: debt.priority,
             principal,
@@ -68,7 +77,21 @@ export function useLogic() {
     let totalFinanced = 0;
     let totalRefunded = 0;
     let nextPaymentDate: Date | null = null;
+    // You owe and Owed to you: open debts only; forgiven and cancelled
+    // ones leave both (owner, 23 Nov 2026).
+    let owe = 0;
+    let oweCount = 0;
+    let owed = 0;
+    let owedCount = 0;
     for (const debt of debts) {
+      if (debt.settled) continue;
+      if (debt.direction === 'owed') {
+        owed += debt.balance;
+        owedCount += 1;
+        continue;
+      }
+      owe += debt.balance;
+      oweCount += 1;
       totalDebt += debt.balance;
       totalFinanced += debt.principal;
       totalRefunded += debt.repaid;
@@ -86,6 +109,10 @@ export function useLogic() {
       byPriority,
       byType,
       debtCount: debts.length,
+      owe: round2(owe),
+      oweCount,
+      owed: round2(owed),
+      owedCount,
     };
   }, [debts]);
 

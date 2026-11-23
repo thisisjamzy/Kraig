@@ -1,0 +1,71 @@
+.useTemplate,
+.saveAs {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px dashed var(--color-border-default);
+  border-radius: 14px;
+  background: transparent;
+  color: var(--color-primary);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.useTemplate {
+  width: 100%;
+}
+
+.saveAs {
+  align-self: flex-start;
+  border-style: solid;
+}
+
+.saveAs:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.nameForm {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.nameForm label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
+.nameForm input {
+  height: 48px;
+  padding: 0 14px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 14px;
+  background: var(--color-bg-sunken);
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 16px;
+}
+
+.nameForm button {
+  min-height: 48px;
+  border: none;
+  border-radius: 9999px;
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.nameForm button:disabled {
+  opacity: 0.5;
+}

@@ -121,9 +121,13 @@ export interface CreateTaskInput {
   exceptions?: Record<string, TaskException>;
 }
 
-async function createTaskWrite(uid: string, input: CreateTaskInput): Promise<string> {
-  const id = crypto.randomUUID();
-  await setDoc(taskRef(uid, id), {
+/**
+ * A new task's document: every default in one place, so the task form and
+ * the import (logic/importData/useTaskImport.ts, which writes in batches)
+ * can never drift apart.
+ */
+export function newTaskDoc(input: CreateTaskInput) {
+  return {
     title: input.title,
     emoji: input.emoji,
     type: input.type,
@@ -133,7 +137,7 @@ async function createTaskWrite(uid: string, input: CreateTaskInput): Promise<str
     bucketId: input.bucketId,
     parentTaskId: null,
     done: false,
-    status: 'Pending',
+    status: 'Pending' as TaskStatus,
     startTime: Timestamp.fromDate(input.startTime),
     dueDate: Timestamp.fromDate(input.dueDate),
     allDay: input.allDay ?? false,
@@ -163,7 +167,12 @@ async function createTaskWrite(uid: string, input: CreateTaskInput): Promise<str
     createdBy: input.createdBy,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
-  });
+  };
+}
+
+async function createTaskWrite(uid: string, input: CreateTaskInput): Promise<string> {
+  const id = crypto.randomUUID();
+  await setDoc(taskRef(uid, id), newTaskDoc(input));
   return id;
 }
 

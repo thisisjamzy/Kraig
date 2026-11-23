@@ -32,6 +32,7 @@ export function TxPanel({
   title,
   onClose,
   templatesHref = '/transaction-templates',
+  onTemplates,
   primary,
   onSubmit,
   onDelete,
@@ -43,6 +44,8 @@ export function TxPanel({
   title: string;
   onClose: () => void;
   templatesHref?: string | null;
+  /** Opens the template picker in the form itself (Add transaction); wins over templatesHref. */
+  onTemplates?: () => void;
   primary: { label: string; disabled?: boolean; busy?: boolean; busyLabel?: string } | null;
   /** Return the save's promise: the button stays locked until it settles. */
   onSubmit: () => unknown;
@@ -78,7 +81,11 @@ export function TxPanel({
             <X size={20} strokeWidth={2} />
           </button>
           <h1 className={styles.title}>{title}</h1>
-          {templatesHref ? (
+          {onTemplates ? (
+            <button type="button" className={styles.round} onClick={onTemplates} aria-label="Templates" title="Templates">
+              <FileText size={20} strokeWidth={2} />
+            </button>
+          ) : templatesHref ? (
             <Link href={templatesHref} className={styles.round} aria-label="Templates" title="Templates">
               <FileText size={20} strokeWidth={2} />
             </Link>
@@ -323,6 +330,7 @@ export function InputRow({
   onChange,
   placeholder,
   inputMode,
+  note,
 }: {
   icon: ReactNode;
   label: string;
@@ -330,12 +338,15 @@ export function InputRow({
   onChange: (next: string) => void;
   placeholder?: string;
   inputMode?: 'decimal' | 'text';
+  /** A small line under the value ("From your fee schedule"). */
+  note?: string | null;
 }) {
   const ref = useRef<HTMLInputElement>(null);
   return (
     <label className={styles.rowLabel} onClick={() => ref.current?.focus()}>
       <RowShell icon={icon} label={label}>
         <input ref={ref} className={styles.valueInput} value={value} placeholder={placeholder} inputMode={inputMode} onChange={(e) => onChange(e.target.value)} />
+        {note && <span className={styles.rowNote}>{note}</span>}
       </RowShell>
     </label>
   );

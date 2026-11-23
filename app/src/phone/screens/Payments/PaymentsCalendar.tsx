@@ -8,6 +8,7 @@
 // with each payment as a card with a coloured edge. Tapping an open payment
 // marks it paid; a paid one opens its item.
 
+import { movedFromText } from '@/src/widgets/ChangeDate/ChangeDateSheet';
 import { useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { MonthPayment } from '@/src/logic/planning/usePaymentsTab';
@@ -99,6 +100,7 @@ export function PaymentsCalendar({
           <span className={styles.itemMeta}>
             {p.status === 'paid' ? `Paid · ${amount(p.paid)}` : `${p.status === 'overdue' ? 'Overdue · ' : ''}${amount(p.remaining)} to pay`} · {p.bucketName}
           </span>
+          {p.movedFrom && <span className={styles.itemMoved}>{movedFromText(p.movedFrom)}</span>}
         </button>
       ))}
     </section>

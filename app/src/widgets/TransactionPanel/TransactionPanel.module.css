@@ -574,3 +574,9 @@
     padding: 16px 16px 24px;
   }
 }
+
+.rowNote {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  line-height: 16px;
+}

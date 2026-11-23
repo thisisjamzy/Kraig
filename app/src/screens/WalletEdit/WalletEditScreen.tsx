@@ -1,15 +1,19 @@
 'use client';
 
 // Edit wallet, on the form standard (FormFrame): Name | Short name, Type,
-// Starting balance; More options: not spendable, frozen, locked amount.
-// Archiving (with where its money goes) sits under the button.
+// Colour, Fees; More options: not spendable, frozen, locked amount. No
+// starting balance (owner, 23 Nov 2026): it is set once when the wallet is
+// created; a wrong balance is corrected by counting the wallet. Archiving
+// (with where its money goes) sits under the button.
 
 import { useLogic } from '@/src/logic/walletEdit/useLogic';
 import { formatAmount } from '@/src/logic/walletDetail/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { FieldCard, FieldRow, FormFrame, MoreOptions, SelectField, SwitchField, formFrameStyles as ff } from '@/src/widgets/FormFrame/FormFrame';
+import Link from 'next/link';
 import { SAVINGS_ACCOUNT_TYPE } from '@/src/viewmodels/wallets';
+import { WalletColorField, WalletFeesField } from '@/src/widgets/WalletFields/WalletFields';
 import styles from './WalletEditScreen.module.css';
 
 export function WalletEditScreen({ walletId }: { walletId: string }) {
@@ -24,8 +28,20 @@ export function WalletEditScreen({ walletId }: { walletId: string }) {
     type,
     setType,
     accountTypes,
-    startingBalance,
-    setStartingBalance,
+    color,
+    setColor,
+    hues,
+    feesOn,
+    setFeesOn,
+    feeRows,
+    addFeeRow,
+    updateFeeRow,
+    removeFeeRow,
+    feeAppliesTo,
+    toggleAppliesTo,
+    feeProblem,
+    feesUpdatedAt,
+    currency,
     notSpendable,
     setNotSpendable,
     frozen,
@@ -170,16 +186,20 @@ export function WalletEditScreen({ walletId }: { walletId: string }) {
           </FieldRow>
           <SelectField label={strings.wallets.typeLabel} value={type} onChange={setType} options={accountTypes.map((t) => ({ value: t, label: t }))} />
           {type === SAVINGS_ACCOUNT_TYPE && <p className={styles.sectionCaption}>{strings.walletDetail.savingsAccountTypeHint}</p>}
-          <FieldCard label={strings.walletDetail.startingBalanceLabel}>
-            <input
-              className={ff.input}
-              inputMode="decimal"
-              value={startingBalance}
-              onChange={(event) => setStartingBalance(event.target.value.replace(/[^0-9.]/g, ''))}
-              placeholder="0"
-            />
-            <span className={ff.hint}>{strings.walletDetail.startingBalanceHint}</span>
-          </FieldCard>
+          <WalletColorField hues={hues} value={color} onChange={setColor} />
+          <WalletFeesField
+            on={feesOn}
+            onToggle={setFeesOn}
+            rows={feeRows}
+            onAdd={addFeeRow}
+            onChange={updateFeeRow}
+            onRemove={removeFeeRow}
+            appliesTo={feeAppliesTo}
+            onToggleKind={toggleAppliesTo}
+            problem={feeProblem}
+            updatedAt={feesUpdatedAt}
+            currency={wallet?.currency || currency}
+          />
           <MoreOptions defaultOpen={notSpendable || frozen || Boolean(Number(lockedAmount))}>
             <SwitchField label={strings.walletDetail.notSpendableLabel} description={strings.walletDetail.notSpendableHint} checked={notSpendable} onChange={setNotSpendable} />
             <SwitchField label={strings.walletDetail.frozenLabel} description={strings.walletDetail.frozenHint} checked={frozen} onChange={setFrozen} />
@@ -194,6 +214,13 @@ export function WalletEditScreen({ walletId }: { walletId: string }) {
               <span className={ff.hint}>{strings.walletDetail.lockedAmountHint}</span>
             </FieldCard>
           </MoreOptions>
+          <p className={ff.hint}>
+            To correct the balance,{' '}
+            <Link href={`/wallets/${encodeURIComponent(walletId)}/audit`} className={styles.inlineLink}>
+              count this wallet
+            </Link>
+            .
+          </p>
         </>
       )}
     </FormFrame>

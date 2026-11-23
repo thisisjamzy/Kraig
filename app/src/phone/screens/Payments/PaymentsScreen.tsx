@@ -8,11 +8,13 @@
 // priorities: what to pay next and where the money runs out. Tapping an
 // open payment opens Mark as paid. Both halves follow ?month=.
 
+import { DueTemplates } from '@/src/widgets/DueTemplates/DueTemplates';
+import { ChangeDateSheet } from '@/src/widgets/ChangeDate/ChangeDateSheet';
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, Info, Plus } from 'lucide-react';
-import { usePaymentsTab } from '@/src/logic/planning/usePaymentsTab';
+import { usePaymentsTab, type MonthPayment } from '@/src/logic/planning/usePaymentsTab';
 import { useMonthBudget } from '@/src/shared/hooks/useMonthBudget';
 import { useMonthParam } from '@/src/shared/navigation/useMonthParam';
 import { useFormLink } from '@/src/shared/navigation/useFormLink';
@@ -31,6 +33,8 @@ export function PaymentsScreen() {
   const [howOpen, setHowOpen] = useState(false);
   const data = useMonthBudget(month);
   const p = usePaymentsTab(month, data, null);
+  // "Change date" (owner, 23 Nov 2026): from the payment's sheet.
+  const [moving, setMoving] = useState<MonthPayment | null>(null);
   const formLink = useFormLink();
   const goBack = useGoBack();
   const router = useRouter();
@@ -52,6 +56,7 @@ export function PaymentsScreen() {
         </Link>
       </header>
       {howOpen && <HowOrdered onClose={() => setHowOpen(false)} />}
+      <DueTemplates />
 
       {data.loading ? (
         <ScreenState loading />
@@ -93,8 +98,31 @@ export function PaymentsScreen() {
             <button type="button" className={styles.primary} disabled={!p.payAccountId || !(Number(p.payAmount) > 0) || p.busy} onClick={p.confirmPaid}>
               {p.busy ? 'Saving…' : 'Confirm payment'}
             </button>
+            <button
+              type="button"
+              className={styles.secondary}
+              onClick={() => {
+                setMoving(p.paying);
+                p.cancelPaying();
+              }}
+            >
+              Change date
+            </button>
           </div>
         </Modal>
+      )}
+      {moving && (
+        <ChangeDateSheet
+          name={moving.name}
+          due={moving.due}
+          recurring={moving.recurring}
+          busy={p.busy}
+          error={p.error}
+          onClose={() => setMoving(null)}
+          onSave={async (to, scope) => {
+            if (await p.changeDate(moving, to, scope)) setMoving(null);
+          }}
+        />
       )}
     </div>
   );

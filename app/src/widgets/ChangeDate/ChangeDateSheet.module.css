@@ -1,0 +1,105 @@
+.sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.lead {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
+.field input {
+  height: 48px;
+  padding: 0 14px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 14px;
+  background: var(--color-bg-sunken);
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 16px;
+}
+
+.scope {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.scope legend {
+  margin-bottom: 6px;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
+.scope label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 14px;
+  cursor: pointer;
+}
+
+.scope label:has(input:checked) {
+  border-color: var(--color-primary);
+}
+
+.scope input {
+  margin-top: 3px;
+  accent-color: var(--color-primary);
+}
+
+.scope span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.scope strong {
+  color: var(--color-text-primary);
+  font-size: 14px;
+}
+
+.scope em {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-style: normal;
+}
+
+.error {
+  margin: 0;
+  color: var(--color-status-danger-fg);
+  font-size: 13px;
+}
+
+.primary {
+  min-height: 48px;
+  border: none;
+  border-radius: 9999px;
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.primary:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

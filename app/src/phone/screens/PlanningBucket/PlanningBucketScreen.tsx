@@ -16,6 +16,7 @@
 // The month under the name is a picker that also offers All time: every
 // item in the basket, whatever its months, with what was paid so far.
 
+import { SeeAll } from '@/src/widgets/SeeAll/SeeAll';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -220,9 +221,7 @@ export function PlanningBucketView({ bucketId, b }: { bucketId: string; b: Retur
             <section className={m.section} aria-label="Transactions">
               <div className={m.sectionHead}>
                 <span className={m.label}>Transactions</span>
-                <Link href={`/budget?tab=history&month=${b.month}&bucket=${bucketId}`} className={m.textLink}>
-                  See all
-                </Link>
+                <SeeAll href={`/budget?tab=history&month=${b.month}&bucket=${bucketId}`} />
               </div>
               <div className={m.list}>
                 {b.rows.length === 0 ? (

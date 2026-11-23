@@ -53,6 +53,11 @@ export const ENTITY_ORDER: EntityKey[] = [
   'transfers',
 ];
 
+/** What the entity template offers (owner, 23 Nov 2026): Money only. Areas,
+ *  folders, projects and tasks come in through Import tasks (the task list
+ *  template) so tasks have one way in; Full restore still reads them all. */
+export const TEMPLATE_ENTITIES: EntityKey[] = ENTITY_ORDER.filter((k) => !['areas', 'sections', 'projects', 'tasks'].includes(k));
+
 export interface RefNeed {
   // The draft field this reference will populate once resolved (e.g. 'accountId').
   field: string;

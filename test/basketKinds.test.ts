@@ -491,9 +491,10 @@ test('7. phone Budget tab: no paragraph, one summary card, one tab level, a grou
   assert.equal(/<p className=\{styles\.neutral\}/.test(tab), false, 'the summary paragraph is gone');
   assert.equal((tab.match(/BudgetCard/g) ?? []).length, 2, 'one card (import + use)');
   // The month and the icon tabs share one row; the month opens as a dropdown, not a sheet.
-  // ...fixed under the app header, with a back button when opened from elsewhere.
+  // ...fixed under the app header. No back button of its own (owner, 23 Nov
+  // 2026): the toolbar's back arrow is the only one, and returns to the basket.
   assert.match(screen, /className=\{`\$\{m\.headerRow\} \$\{m\.stickyHead\}`\}/);
-  assert.match(screen, /openedFrom && \(/);
+  assert.equal(/openedFrom && \(/.test(screen), false);
   assert.match(read('phone/screens/Planning/HistoryTab.tsx'), /calc\(var\(--header-height\) \+ var\(--planning-head\)\)/);
   assert.match(parts, /role="menu" aria-label="Choose month"/);
   assert.equal(/Modal title="Choose month"/.test(screen), false);

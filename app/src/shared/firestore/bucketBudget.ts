@@ -305,3 +305,54 @@ export async function updateBucketFields(uid: string, bucketId: string, patch: R
 
 // Guarded against double submits (writeGuard.ts).
 export const createAllocation = guardWrite('createAllocation', createAllocationWrite);
+
+/**
+ * Closes one item for a month (owner, 23 Nov 2026), as closeBucketMonth does
+ * for a whole basket: no more reminders for it that month, it reads Closed
+ * with what was spent against plan, and its leftover goes back to the
+ * month's money left to plan (a closed line's leftover is reallocatable,
+ * monthBudget.ts). An item over plan is covered or justified first, by the
+ * caller. Reopen in the same month with reopenItemMonth.
+ */
+export async function closeItemMonth(uid: string, bucketId: string, itemId: string, month: string, leftover: number) {
+  await updateDoc(bucketLineItemRef(uid, bucketId, itemId), {
+    [`closedFor.${month}`]: { closedAt: Timestamp.now(), leftover: round2(Math.max(0, leftover)) },
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function reopenItemMonth(uid: string, bucketId: string, itemId: string, month: string) {
+  await updateDoc(bucketLineItemRef(uid, bucketId, itemId), {
+    [`closedFor.${month}`]: deleteField(),
+    updatedAt: serverTimestamp(),
+  });
+}
+
+/**
+ * Moves a planned payment (Payments, "Change date"). "Just this month"
+ * stores the date for that month only (scheduleOverrides), leaving the
+ * amount alone; "This and future months" changes the item's planned day
+ * from that month on (editMonthLine's future scope) and drops the month's
+ * own move. An item that never repeats just takes the new date.
+ */
+export async function reschedulePayment(
+  uid: string,
+  bucketId: string,
+  itemId: string,
+  month: string,
+  to: Date,
+  scope: EditScope,
+  current: { amount: number; due: Date | null; recurring: boolean }
+) {
+  const ref = bucketLineItemRef(uid, bucketId, itemId);
+  if (!current.recurring) {
+    await updateDoc(ref, { dueDate: Timestamp.fromDate(to), [`scheduleOverrides.${month}`]: deleteField(), updatedAt: serverTimestamp() });
+    return;
+  }
+  if (scope === 'month') {
+    await updateDoc(ref, { [`scheduleOverrides.${month}`]: Timestamp.fromDate(to), updatedAt: serverTimestamp() });
+    return;
+  }
+  await editMonthLine(uid, bucketId, itemId, month, { dueDate: to }, 'future', current);
+  await updateDoc(ref, { [`scheduleOverrides.${month}`]: deleteField(), updatedAt: serverTimestamp() });
+}

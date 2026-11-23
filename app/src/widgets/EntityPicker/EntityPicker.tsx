@@ -10,7 +10,10 @@ import styles from './EntityPicker.module.css';
 export function EntityPicker({
   selected,
   onChange,
+  keys = ENTITY_ORDER,
 }: {
+  /** The entities offered; every one when left out. */
+  keys?: EntityKey[];
   selected: Set<EntityKey>;
   onChange: (next: Set<EntityKey>) => void;
 }) {
@@ -22,7 +25,7 @@ export function EntityPicker({
   }
 
   function selectAll() {
-    onChange(new Set(ENTITY_ORDER));
+    onChange(new Set(keys));
   }
 
   function selectNone() {
@@ -40,7 +43,7 @@ export function EntityPicker({
         </button>
       </div>
       <div className={styles.list}>
-        {ENTITY_ORDER.map((key) => (
+        {keys.map((key) => (
           <label key={key} className={styles.row}>
             <input
               type="checkbox"

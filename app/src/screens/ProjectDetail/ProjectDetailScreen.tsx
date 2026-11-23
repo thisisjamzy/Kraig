@@ -84,6 +84,7 @@ export function ProjectDetailScreen({ projectId }: { projectId: string }) {
       menu={[
         { label: 'Project settings', href: formLink('project', { id: projectId }) },
         { label: 'Open project insights', href: `/projects/insights/${projectId}` },
+        { label: 'Import tasks', href: formLink('import', { project: projectId }) },
         { label: 'Archive project', onSelect: () => setArchiving(true) },
       ]}
     >

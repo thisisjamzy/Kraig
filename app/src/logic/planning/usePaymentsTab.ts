@@ -12,7 +12,7 @@
 
 import { useMemo, useState } from 'react';
 import { recordBucketLineItemPayment } from '@/src/shared/firestore/aggregation';
-import { setItemMonthOverride } from '@/src/shared/firestore/bucketBudget';
+import { reschedulePayment, setItemMonthOverride, type EditScope } from '@/src/shared/firestore/bucketBudget';
 import { convert, itemCurrencyOf } from '@/src/shared/firestore/currency';
 import { useCategories } from '@/src/shared/firestore/queries';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
@@ -44,6 +44,10 @@ export interface MonthPayment {
   due: Date;
   dueKey: string;
   status: PaymentStatus;
+  /** Moved for this month only from this date ("Moved from 5 Dec"). */
+  movedFrom: Date | null;
+  /** Repeats: a new date can apply to this month or this and future months. */
+  recurring: boolean;
 }
 
 function dayKey(d: Date) {
@@ -117,6 +121,8 @@ export function monthPayments(
         due,
         dueKey: dayKey(due),
         status: paid ? 'paid' : due < todayStart ? 'overdue' : 'upcoming',
+        movedFrom: entry.movedFrom && entry.due && due.getTime() === entry.due.getTime() ? entry.movedFrom : null,
+        recurring: entry.recurring,
       });
     });
   }
@@ -240,9 +246,32 @@ export function usePaymentsTab(month: string, data: PlanningData, bucketFilter: 
     }
   }
 
+  /** Change a planned payment's date (owner, 23 Nov 2026): just this month,
+   *  or this and future months. The list, Ready to pay, Priorities and any
+   *  reminder follow from the budget, so they move with it. */
+  async function changeDate(payment: MonthPayment, to: Date, scope: EditScope): Promise<boolean> {
+    const line = budget.itemsByKey.get(`${payment.itemId}@${month}`);
+    if (!uid || !line || busy) return false;
+    const item = itemsByBucket[payment.bucketId]?.find((entry) => entry.id === payment.itemId);
+    const bucket = buckets.find((b) => b.id === payment.bucketId);
+    const native = Math.round(convert(line.unitAmount, ctx.display, itemCurrencyOf(item, bucket, ctx.base), ctx.rates) * 100) / 100;
+    setBusy(true);
+    setError(null);
+    try {
+      await reschedulePayment(uid, payment.bucketId, payment.itemId, month, to, scope, { amount: native, due: payment.due, recurring: line.recurring });
+      return true;
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not move this payment.');
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return {
     currency: ctx.display,
     payments,
+    changeDate,
     closeAtPaid,
     bucketName: bucketFilter ? (data.buckets.find((b) => b.id === bucketFilter)?.name ?? 'Basket') : null,
     dotsByDay,

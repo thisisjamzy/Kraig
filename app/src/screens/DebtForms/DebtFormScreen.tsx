@@ -21,6 +21,11 @@ export const TYPE_OPTIONS = [
   { value: 'existing' as const, label: 'Record only', hint: 'I owe this, but the money didn’t pass through my accounts.' },
 ];
 
+const DIRECTION_OPTIONS = [
+  { value: 'owe' as const, label: 'I owe', hint: 'Money I borrowed or still have to pay.' },
+  { value: 'owed' as const, label: 'Owed to me', hint: 'Money someone owes me. Recorded only: no wallet changes.' },
+];
+
 type Sheet = 'lender' | 'date' | 'account' | null;
 
 export function DebtFormScreen({ debtId, ...exits }: { debtId: string | null } & DebtFormExits) {
@@ -33,20 +38,21 @@ export function DebtFormScreen({ debtId, ...exits }: { debtId: string | null } &
     <DebtFormFrame title={v.isEditing ? 'edit debt' : 'new debt'} inPanel={nav.inPanel} onClose={nav.close}>
       <ScreenState loading={v.loading} error={v.error} />
       {!v.loading && !v.error && (
-        <form
+        <form autoComplete="off"
           className={cf.cards}
           onSubmit={(e) => {
             e.preventDefault();
             void v.handleSave();
           }}
         >
-          <SegmentedCard label="Type" value={v.debtType} options={TYPE_OPTIONS} onChange={v.chooseType} />
+          {!v.isEditing && <SegmentedCard label="Who owes whom" value={v.direction} options={DIRECTION_OPTIONS} onChange={v.setDirection} />}
+          {v.direction === 'owe' && <SegmentedCard label="Type" value={v.debtType} options={TYPE_OPTIONS} onChange={v.chooseType} />}
 
           <FieldCard label="Name">
-            <input className={cf.valueInput} placeholder="Momokash loan" value={v.name} onChange={(e) => v.setName(e.target.value)} autoFocus={!v.isEditing} />
+            <input className={cf.valueInput} id="debt-title" name="debt-title" autoComplete="off" autoCorrect="off" data-1p-ignore data-lpignore="true" placeholder="Momokash loan" value={v.name} onChange={(e) => v.setName(e.target.value)} autoFocus={!v.isEditing} />
           </FieldCard>
 
-          <PickerCard label="Lender" onClick={() => setSheet('lender')}>
+          <PickerCard label={v.direction === 'owed' ? 'Who owes you' : 'Lender'} onClick={() => setSheet('lender')}>
             {v.lender || <span className={cf.muted}>Person or organisation</span>}
           </PickerCard>
 
@@ -95,7 +101,7 @@ export function DebtFormScreen({ debtId, ...exits }: { debtId: string | null } &
                 {l}
               </button>
             ))}
-            <form
+            <form autoComplete="off"
               className={cf.searchField}
               onSubmit={(e) => {
                 e.preventDefault();
@@ -106,7 +112,7 @@ export function DebtFormScreen({ debtId, ...exits }: { debtId: string | null } &
               }}
             >
               <span aria-hidden>+</span>
-              <input placeholder="New lender" value={newLender} onChange={(e) => setNewLender(e.target.value)} aria-label="New lender" autoFocus={v.recentLenders.length === 0} />
+              <input id="debt-counterparty" name="debt-counterparty" autoComplete="off" autoCorrect="off" data-1p-ignore data-lpignore="true" placeholder="New lender" value={newLender} onChange={(e) => setNewLender(e.target.value)} aria-label="New lender" autoFocus={v.recentLenders.length === 0} />
             </form>
           </div>
         </Modal>

@@ -7,6 +7,7 @@
 // shows the resulting Left to plan and one button, Confirm month, which
 // saves and marks the month reviewed.
 
+import { ClosingMonth } from '@/src/widgets/Accountability/ClosingMonth';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { useLogic } from '@/src/logic/monthReview/useLogic';
@@ -43,6 +44,7 @@ export function MonthReviewScreen() {
       {!v.loading && (
         <>
           <p className={styles.intro}>Set up from your recurring items. Changes here apply to this month only.</p>
+          <ClosingMonth closing={v.closing} money={money} currency={v.currency} />
 
           {FLOW_TYPES.map((type) => {
             const lines = v.rows[type];

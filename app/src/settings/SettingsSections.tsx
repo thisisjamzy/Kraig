@@ -354,6 +354,11 @@ function Budget({ v }: { v: SettingsLogic }) {
   const days = Array.from({ length: 28 }, (_, i) => ({ value: String(i + 1), label: String(i + 1) }));
   return (
     <Group>
+      <Row label="Templates" description="Transactions you record often, ready to fill in from Add.">
+        <Link className={styles.link} href="/transaction-templates">
+          Open
+        </Link>
+      </Row>
       <Row label="Month starts on" description="The day a budget month begins, for example payday.">
         <Select label="Month starts on" value={String(v.prefs.monthStartDay)} onChange={(x) => v.setPref('monthStartDay', Number(x))} options={days} />
       </Row>
@@ -440,12 +445,12 @@ function Data() {
   return (
     <>
       <Group title="Import">
-        <Row label="Import projects and tasks" description="From an Excel or CSV file, with duplicates checked first.">
+        <Row label="Import tasks" description="One task list: each row says its area, folder and project, and anything new is created.">
           <Link className={styles.button} href="/settings/import">
             Import
           </Link>
         </Row>
-        <Row label="Templates" description="Spreadsheets with the right columns to fill in.">
+        <Row label="Money spreadsheet template" description="Wallets, categories, baskets, debts and transactions, with the right columns.">
           <Link className={styles.link} href="/settings/download-template">
             Download
           </Link>

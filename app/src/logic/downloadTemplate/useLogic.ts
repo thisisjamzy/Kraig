@@ -1,12 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { ENTITY_ORDER, type EntityKey } from '@/src/shared/firestore/dataEntities';
+import { TEMPLATE_ENTITIES, type EntityKey } from '@/src/shared/firestore/dataEntities';
 import { buildTemplateWorkbook, downloadWorkbook } from '@/src/shared/firestore/dataWorkbook';
 import { useGoBack } from '@/src/shared/navigation/useGoBack';
 
 export function useLogic() {
-  const [selected, setSelected] = useState<Set<EntityKey>>(new Set(ENTITY_ORDER));
+  const [selected, setSelected] = useState<Set<EntityKey>>(new Set(TEMPLATE_ENTITIES));
   const [done, setDone] = useState(false);
 
   function handleDownload() {
@@ -23,5 +23,5 @@ export function useLogic() {
     navigateBack('/settings');
   }
 
-  return { selected, setSelected, done, handleDownload, goBack };
+  return { selected, setSelected, keys: TEMPLATE_ENTITIES, done, handleDownload, goBack };
 }

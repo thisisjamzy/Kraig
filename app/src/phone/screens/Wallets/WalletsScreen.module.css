@@ -204,29 +204,42 @@
 }
 
 .totalStats {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
-
-.totalStats div {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 12px;
-  border-radius: 16px;
-  background: var(--color-card-purple-decor);
+}
+
+/* The figures sit on the card itself as rows (owner, 23 Nov 2026): label
+   left, figure right, a hairline between, so "Free after commitments"
+   keeps to one line. A label that still wraps at 320px wraps on its own;
+   the figure stays on the first line, right-aligned. */
+.totalStats div {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+}
+
+.totalStats div + div {
+  border-top: 1px solid color-mix(in srgb, var(--color-card-purple-muted) 35%, transparent);
 }
 
 .totalStats span {
+  min-width: 0;
   color: var(--color-card-purple-muted);
-  font-size: 12px;
+  font-size: 13px;
+  line-height: 20px;
 }
 
 .totalStats strong {
+  flex: none;
   font-family: var(--font-family-mono);
   font-size: 16px;
   font-weight: 500;
+  line-height: 20px;
+  text-align: right;
+  white-space: nowrap;
 }
 
 .sectionTitle {

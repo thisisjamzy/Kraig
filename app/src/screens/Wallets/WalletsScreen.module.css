@@ -229,3 +229,14 @@
   color: var(--color-text-secondary);
   font-size: 14px;
 }
+
+.colorField {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.colorLabel {
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+}

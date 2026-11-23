@@ -184,3 +184,8 @@
   font-size: 12px;
   line-height: 16px;
 }
+
+.itemMoved {
+  color: var(--color-text-secondary);
+  font-size: 11px;
+}

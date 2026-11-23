@@ -14,7 +14,7 @@ import { useMonthBudget } from '@/src/shared/hooks/useMonthBudget';
 import { isItemClosed } from '@/src/shared/budget/bucketProgress';
 import { useBucketLineItemsByBucket } from '@/src/shared/hooks/useBucketLineItemsByBucket';
 import { useIsWeb } from '@/src/shared/hooks/useViewportMode';
-import { walletCardColor, walletColor, walletCardNumber, isSavingsAccount } from '@/src/viewmodels/wallets';
+import { walletCardColor, walletSolid, walletCardNumber, isSavingsAccount } from '@/src/viewmodels/wallets';
 import { currencyName } from '@/src/viewmodels/currencies';
 import { categoryAccentColor } from '@/src/viewmodels/categories';
 import { dueLabel, formatDueDate } from '@/src/phone/viewmodels/dueDates';
@@ -328,7 +328,7 @@ export function useLogic() {
       // Solid variant of the same index-to-hue mapping `color` (the
       // gradient) uses — the web dashboard's own plan-row accent bar needs
       // a flat color, not a gradient, to render as a border.
-      accentColor: walletColor(index),
+      accentColor: walletSolid(account),
       // How much of what a bucket is targeting for this specific wallet is
       // still outstanding (unpaid/uncompleted line items) — 0 renders as
       // "*****" on the card rather than a real figure (Design/card

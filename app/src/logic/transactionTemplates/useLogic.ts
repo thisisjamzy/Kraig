@@ -16,6 +16,8 @@ import { useAccounts, useCategories } from '@/src/shared/firestore/queries';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import type { FirestoreTransactionTemplate } from '@/src/shared/firestore/types';
 import { useGoBack } from '@/src/shared/navigation/useGoBack';
+import { setTemplateArchived } from '@/src/shared/firestore/templateWrites';
+import { groupByRepeat } from '@/src/viewmodels/templates';
 
 export function useLogic() {
   const router = useRouter();
@@ -105,8 +107,20 @@ export function useLogic() {
     navigateBack('/settings');
   }
 
+  // Grouped by repeat (Daily, Weekly, Monthly, No repeat); archived ones
+  // are kept apart and can be brought back (owner, 23 Nov 2026).
+  const groups = useMemo(() => groupByRepeat(templates), [templates]);
+  const archived = useMemo(() => templates.filter((t) => t.archived), [templates]);
+  async function setArchived(id: string, on: boolean) {
+    if (!uid) return;
+    await setTemplateArchived(uid, id, on);
+  }
+
   return {
     templates,
+    groups,
+    archived,
+    setArchived,
     categoryLabel,
     accountLabel,
     applyTemplate,
