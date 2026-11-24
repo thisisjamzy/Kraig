@@ -1,43 +1,42 @@
 'use client';
 
-// The Money dashboard's sections (Dreda.figcraft `Dashboard / Web` and
-// `Dashboard / Phone`), shared by the web and phone Home screens: the
-// balance card, the four tiles, the wallet cards, cash flow, spending,
-// income, the budget, recent activity and upcoming bills. Data comes from
-// src/logic/home; the screens only arrange these.
+// The Money dashboard's sections (owner, 24 Nov 2026), shared by the web and
+// phone Home screens. In order:
+//   Headline   one card of five figures (balance, money in, money out,
+//              transfers, saved), each against last month;
+//   CashFlow   income above the line and expenses below it, 12 weeks or 12
+//              months;
+//   Budget     this month's lines as hatched bars, fullest first;
+//   Spending   the donut and its legend;
+//   AccountabilityMini  accounted for against unaccounted, per period;
+//   Commitments  planned, paid, still to pay and overdue, then the next
+//              payment and the debts;
+//   WalletsCard  the share bar and the largest wallets;
+//   Recent     the latest activity.
+// QuickActions sits on the phone only. Data comes from src/logic/home; the
+// screens only arrange these.
 
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
-import { Bar, BarChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis } from 'recharts';
-import {
-  ArrowDownLeft,
-  ArrowDownToLine,
-  ArrowLeftRight,
-  ArrowUpRight,
-  ChevronDown,
-  History,
-  ShoppingBasket,
-  HandCoins,
-  Clock,
-  PiggyBank,
-  Plus,
-  ReceiptText,
-  TrendingDown,
-  TrendingUp,
-} from 'lucide-react';
+import { Bar, BarChart, Cell, Pie, PieChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { ArrowDown, ArrowDownLeft, ArrowDownToLine, ArrowLeftRight, ArrowUp, ArrowUpRight, ChevronDown, HandCoins, History, Info, Plus, ShoppingBasket } from 'lucide-react';
 import type { HomeLogic, HomeTx } from '@/src/logic/home/useLogic';
+import { compact } from '@/src/shared/dashboard/format';
+import { useAccountability } from '@/src/shared/hooks/useAccountability';
+import { UNJUSTIFIED_WALLET_ID } from '@/src/shared/firestore/refs';
+import { useFormLink } from '@/src/shared/navigation/useFormLink';
+import { accountabilitySentence, rateText, type Period, type PeriodAccountability } from '@/src/viewmodels/accountability';
 import { Popover } from '@/src/widgets/ListQuery/Popover';
 import { formatMoney } from '@/src/widgets/Money/Money';
-import { WalletCard, type WalletTone } from '@/src/widgets/Money/WalletCard';
-import { useFormLink } from '@/src/shared/navigation/useFormLink';
-import { UNJUSTIFIED_WALLET_ID } from '@/src/shared/firestore/refs';
+import { SeeAll } from '@/src/widgets/SeeAll/SeeAll';
 import styles from './MoneyHome.module.css';
 
-const MONTH = new Intl.DateTimeFormat('en-GB', { month: 'long' });
 const DAY_MONTH = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short' });
 const TIME = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit' });
 const DONUT = [1, 2, 3, 4, 5].map((n) => `var(--color-data-categorical-${n})`);
 const OTHERS = 'var(--color-border-default)';
+const IN = 'var(--color-brand-default)';
+const OUT = 'var(--color-card-lilac-decor)';
 
 const pct = (n: number) => `${Math.round(Math.abs(n) * 100)}%`;
 const share = (part: number, whole: number) => (whole > 0 ? Math.min(1, Math.max(0, part / whole)) : 0);
@@ -61,65 +60,165 @@ export function CardHead({ title, sub, href, children }: { title: string; sub?: 
   );
 }
 
-export function Spark({ values, tone = 'brand' }: { values: number[]; tone?: 'brand' | 'out' }) {
-  const max = Math.max(...values, 0);
-  if (max <= 0) return null;
+function Segmented<T extends string>({ value, options, onChange, label }: { value: T; options: { value: T; label: string }[]; onChange: (v: T) => void; label: string }) {
   return (
-    <span className={styles.spark} data-tone={tone} aria-hidden>
-      {values.map((n, i) => (
-        <span key={i} data-now={i === values.length - 1 || undefined} style={{ height: `${Math.max(4, Math.round((n / max) * 26))}px` }} />
+    <div className={styles.segmented} role="group" aria-label={label}>
+      {options.map((o) => (
+        <button key={o.value} type="button" aria-pressed={value === o.value} onClick={() => onChange(o.value)}>
+          {o.label}
+        </button>
       ))}
+    </div>
+  );
+}
+
+/* ---------- Row 1: the headline strip ---------- */
+
+type Tone = 'good' | 'bad' | 'muted';
+
+function Cell5({
+  marker,
+  label,
+  tip,
+  href,
+  value,
+  change,
+  footer,
+  extra,
+  wide,
+  labelTools,
+}: {
+  marker: string;
+  label: string;
+  tip: string;
+  href: string;
+  value: number;
+  change?: { text: string; tone: Tone } | null;
+  footer: ReactNode;
+  extra?: ReactNode;
+  wide?: boolean;
+  labelTools?: ReactNode;
+}) {
+  return (
+    <div className={styles.hCell} data-wide={wide || undefined}>
+      <div className={styles.hTop}>
+        <span className={styles.hLabel}>
+          <i className={styles.hMarker} style={{ background: marker }} aria-hidden />
+          <Link href={href} className={styles.hLink}>
+            {label}
+          </Link>
+          <span className={styles.hInfo} title={tip} aria-label={tip} tabIndex={0}>
+            <Info size={13} strokeWidth={2} aria-hidden />
+          </span>
+          {labelTools}
+        </span>
+        <span className={styles.hFigure}>
+          <span className={styles.hValue}>{formatMoney(value)}</span>
+          {change && (
+            <span className={styles.hChange} data-tone={change.tone}>
+              {change.text}
+            </span>
+          )}
+        </span>
+      </div>
+      <div className={styles.hFoot}>
+        {footer}
+        {extra}
+      </div>
+    </div>
+  );
+}
+
+/** The footer: an arrow in a tinted circle, the change, "vs October". */
+function ChangeFoot({ amount, last, upIsGood }: { amount: number | null; last: string; upIsGood: boolean }) {
+  if (amount === null) return <span className={styles.hMuted}>Nothing to compare with {last} yet</span>;
+  const up = amount >= 0;
+  const good = upIsGood ? up : !up;
+  return (
+    <span className={styles.hDelta}>
+      <span className={styles.hArrow} data-tone={good ? 'good' : 'bad'} aria-hidden>
+        {up ? <ArrowUp size={12} strokeWidth={2.5} /> : <ArrowDown size={12} strokeWidth={2.5} />}
+      </span>
+      {formatMoney(Math.abs(amount))} <span className={styles.hMuted}>vs {last}</span>
     </span>
   );
 }
 
-/* ---------- 1. Overview ---------- */
+function changeOf(n: number | null | undefined, upIsGood: boolean): { text: string; tone: Tone } | null {
+  if (n === null || n === undefined) return null;
+  const good = upIsGood ? n >= 0 : n <= 0;
+  return { text: `${n >= 0 ? '+' : '-'}${pct(n)}`, tone: good ? 'good' : 'bad' };
+}
 
-export function BalanceCard({ v }: { v: HomeLogic }) {
+export function Headline({ v }: { v: HomeLogic }) {
   const [menu, setMenu] = useState<HTMLElement | null>(null);
   const safe = v.guide?.today.left ?? null;
+  const last = v.lastMonthName;
+  const notYet = Math.max(0, v.expected - v.received);
   return (
-    <div className={styles.balance}>
-      <span className={styles.balanceDecor} aria-hidden />
-      <div className={styles.balanceTop}>
-        <span className={styles.balanceLabel}>Total balance</span>
-        <button type="button" className={styles.currency} onClick={(e) => setMenu(e.currentTarget)} aria-haspopup="menu">
-          {v.currency}
-          <ChevronDown size={14} strokeWidth={2.5} aria-hidden />
-        </button>
-      </div>
-      <p className={styles.balanceAmount}>
-        <span>{formatMoney(v.cash)}</span>
-        <span className={styles.balanceUnit}>{v.currency}</span>
-      </p>
-      <div className={styles.balanceStats}>
-        <div className={styles.balanceStat}>
-          <span>Spendable</span>
-          <strong>{formatMoney(v.spendable)}</strong>
-        </div>
-        <div className={styles.balanceStat}>
-          <span>Savings</span>
-          <strong>{formatMoney(v.savings)}</strong>
-        </div>
-      </div>
-      {Math.abs(v.unexplained) >= 0.5 && (
-        <Link href={`/wallets/${UNJUSTIFIED_WALLET_ID}`} className={styles.unaccounted}>
-          <span className={styles.warnDot} aria-hidden />
-          <span className={styles.unaccountedLabel}>Unaccounted for in {v.unexplainedMonth}</span>
-          <span className={styles.unaccountedValue}>
-            {formatMoney(v.unexplained)} {v.currency}
+    <section className={styles.headline} aria-label="This month">
+      <Cell5
+        wide
+        marker={IN}
+        label="Total balance"
+        tip="Everything in your wallets now, in your display currency."
+        href="/wallets"
+        value={v.cash}
+        labelTools={
+          <button type="button" className={styles.currency} onClick={(e) => setMenu(e.currentTarget)} aria-haspopup="menu" aria-label={`Display currency ${v.currency}`}>
+            {v.currency}
+            <ChevronDown size={12} strokeWidth={2.5} aria-hidden />
+          </button>
+        }
+        footer={
+          <span className={styles.hMuted}>
+            Spendable {formatMoney(v.spendable)} · Savings {formatMoney(v.savings)}
           </span>
-          <span className={styles.review}>Review</span>
-        </Link>
-      )}
-      {safe !== null && (
-        <Link href="/budget" className={styles.safe}>
-          <span>Safe to spend today</span>
-          <strong>
-            {formatMoney(Math.max(0, safe))} {v.currency}
-          </strong>
-        </Link>
-      )}
+        }
+        extra={
+          safe !== null ? (
+            <Link href="/budget" className={styles.hSafe}>
+              Safe to spend today <strong>{formatMoney(Math.max(0, safe))}</strong>
+            </Link>
+          ) : null
+        }
+      />
+      <Cell5
+        marker="var(--color-data-positive)"
+        label="Money in"
+        tip="Income received this month."
+        href="/transactions?type=Income"
+        value={v.received}
+        change={changeOf(v.income.change, true)}
+        footer={<ChangeFoot amount={v.income.changeAmount} last={last} upIsGood />}
+        extra={notYet > 0.5 ? <span className={styles.hMuted}>of {formatMoney(v.expected)} expected</span> : null}
+      />
+      <Cell5
+        marker={OUT}
+        label="Money out"
+        tip="What you spent this month."
+        href="/transactions?type=Expense"
+        value={v.spending.spent}
+        change={changeOf(v.spending.change, false)}
+        footer={<ChangeFoot amount={v.spending.changeAmount} last={last} upIsGood={false} />}
+      />
+      <Cell5
+        marker="var(--color-data-categorical-3)"
+        label="Transfers"
+        tip="Money moved between your wallets this month."
+        href="/transactions?type=Transfer"
+        value={v.transfers.moved}
+        footer={<span className={styles.hMuted}>{v.transfers.planned > 0.5 ? `of ${formatMoney(v.transfers.planned)} planned` : 'Moves between wallets'}</span>}
+      />
+      <Cell5
+        marker="var(--color-data-categorical-4)"
+        label="Saved this month"
+        tip="Put into savings this month."
+        href="/baskets?type=Savings"
+        value={v.saved.amount}
+        change={changeOf(v.saved.change, true)}
+        footer={<span className={styles.hMuted}>{v.saved.shareOfIncome !== null ? `${pct(v.saved.shareOfIncome)} of income` : 'Nothing received yet'}</span>}
+      />
       {menu && (
         <Popover anchor={menu} label="Display currency" onClose={() => setMenu(null)}>
           <div className={styles.menu} role="menu">
@@ -141,330 +240,349 @@ export function BalanceCard({ v }: { v: HomeLogic }) {
           </div>
         </Popover>
       )}
-    </div>
-  );
-}
-
-function change(n: number | null, last: string, upIsGood: boolean) {
-  if (n === null) return { text: `Nothing to compare with ${last} yet`, tone: 'muted' as const };
-  const good = upIsGood ? n >= 0 : n <= 0;
-  return { text: `${n >= 0 ? '+' : '-'}${pct(n)} on ${last}`, tone: good ? ('good' as const) : ('bad' as const) };
-}
-
-export function Kpis({ v }: { v: HomeLogic }) {
-  const last = MONTH.format(new Date(v.now.getFullYear(), v.now.getMonth() - 1, 1));
-  const inChange = change(v.income.change, last, true);
-  const outChange = change(v.spending.change, last, false);
-  const savedShare = v.received > 0 ? `${pct(v.saved.amount / v.received)} of income` : 'Nothing received yet';
-  return (
-    <div className={styles.kpis}>
-      <Kpi icon={<ArrowDownLeft size={20} strokeWidth={2} />} tone="income" label="Money in" href="/transactions?type=Income" value={v.received} note={inChange.text} noteTone={inChange.tone} spark={<Spark values={v.sparks.income} />} />
-      <Kpi icon={<ArrowUpRight size={20} strokeWidth={2} />} tone="expense" label="Money out" href="/transactions?type=Expense" value={v.spending.spent} note={outChange.text} noteTone={outChange.tone} spark={<Spark values={v.sparks.expense} />} />
-      <Kpi
-        icon={<ArrowLeftRight size={20} strokeWidth={2} />}
-        tone="transfer"
-        label="Transfers"
-        href="/transactions?type=Transfer"
-        value={v.transfers.moved}
-        note={v.transfers.planned > 0 ? `of ${formatMoney(v.transfers.planned)} planned` : 'Moves between wallets'}
-        noteTone="muted"
-      />
-      <Kpi icon={<PiggyBank size={20} strokeWidth={2} />} tone="savings" label="Saved this month" href="/baskets?type=Savings" value={v.saved.amount} note={savedShare} noteTone="muted" spark={<Spark values={v.sparks.savings} />} />
-    </div>
-  );
-}
-
-export function Kpi({
-  icon,
-  tone,
-  label,
-  href,
-  value,
-  note,
-  noteTone,
-  spark,
-}: {
-  icon: ReactNode;
-  tone: 'income' | 'expense' | 'transfer' | 'savings';
-  label: string;
-  href: string;
-  value: number;
-  note: string;
-  noteTone: 'good' | 'bad' | 'muted';
-  spark?: ReactNode;
-}) {
-  return (
-    <div className={styles.kpi}>
-      <div className={styles.kpiTop}>
-        <span className={styles.kpiIcon} data-tone={tone} aria-hidden>
-          {icon}
-        </span>
-        <span className={styles.kpiLabel}>{label}</span>
-        <Link href={href} className={styles.linkButton} aria-label={`Open ${label}`}>
-          <ArrowUpRight size={16} strokeWidth={2} />
-        </Link>
-      </div>
-      <p className={styles.kpiValue}>{formatMoney(value)}</p>
-      <div className={styles.kpiBottom}>
-        <span className={styles.kpiNote} data-tone={noteTone}>
-          {note}
-        </span>
-        {spark}
-      </div>
-    </div>
-  );
-}
-
-/* ---------- 2. Wallets ---------- */
-
-const CYCLE: WalletTone[] = ['purple', 'ink', 'lilac'];
-
-export function Wallets({ v }: { v: HomeLogic }) {
-  const formLink = useFormLink();
-  let plain = 0;
-  return (
-    <section className={styles.card} aria-label="Wallets">
-      <CardHead title="Wallets" href="/wallets" />
-      <div className={styles.walletRow}>
-        {v.accountRows.map((a) => {
-          const tone: WalletTone = a.savings ? 'lime' : CYCLE[plain++ % CYCLE.length];
-          return (
-            <Link key={a.id} href={`/wallets/${a.id}`} className={styles.walletLink} aria-label={`${a.name}, ${formatMoney(a.balance)} ${v.currency}`}>
-              <WalletCard
-                tone={tone}
-                hue={a.hue}
-                type={a.type || (a.savings ? 'Savings' : 'Wallet')}
-                name={a.name}
-                last4={a.code}
-                currency={v.currency}
-                available={formatMoney(a.balance)}
-                required={a.committed > 0.5 ? formatMoney(a.committed) : '*****'}
-              />
-            </Link>
-          );
-        })}
-        <Link href={formLink('wallet')} scroll={false} className={styles.addWallet}>
-          <Plus size={20} strokeWidth={2} aria-hidden />
-          Add wallet
-        </Link>
-      </div>
     </section>
   );
 }
 
-/* ---------- 3. Cash flow and Spending ---------- */
+/* ---------- Row 2: cash flow, income up and expenses down ---------- */
 
-export function CashFlow({ v }: { v: HomeLogic }) {
-  const title = v.flowView === 'week' ? 'Cash flow, last 30 days' : 'Cash flow, last 6 months';
+function FlowTip({ active, payload, label }: { active?: boolean; payload?: { payload: { income: number; expense: number; net: number } }[]; label?: string }) {
+  if (!active || !payload?.length) return null;
+  const p = payload[0].payload;
   return (
-    <section className={styles.card} aria-label={title}>
-      <CardHead title={title} href="/statistics/breakdown">
-        <div className={styles.segmented} role="group" aria-label="Group by">
-          {(['week', 'month'] as const).map((k) => (
-            <button key={k} type="button" aria-pressed={v.flowView === k} onClick={() => v.setFlowView(k)}>
-              {k === 'week' ? 'Week' : 'Month'}
-            </button>
+    <div className={styles.flowTip}>
+      <strong>{label}</strong>
+      <span>
+        <i style={{ background: IN }} /> Income {formatMoney(p.income)}
+      </span>
+      <span>
+        <i style={{ background: OUT }} /> Expenses {formatMoney(p.expense)}
+      </span>
+      <span>Net {p.net >= 0 ? '+' : '-'}{formatMoney(Math.abs(p.net))}</span>
+    </div>
+  );
+}
+
+export function CashFlow({ v, phone = false }: { v: HomeLogic; phone?: boolean }) {
+  const [hover, setHover] = useState<number | null>(null);
+  const scroller = useRef<HTMLDivElement>(null);
+  const data = v.flow.map((b) => ({ ...b, out: -b.expense }));
+  const income = v.flow.reduce((s, b) => s + b.income, 0);
+  const expense = v.flow.reduce((s, b) => s + b.expense, 0);
+  const net = income - expense;
+  const lastIndex = data.length - 1;
+  // A phone shows six periods and scrolls sideways to the rest, opening on the newest.
+  useEffect(() => {
+    if (phone && scroller.current) scroller.current.scrollLeft = scroller.current.scrollWidth;
+  }, [phone, v.flowView, data.length]);
+  const chart = (
+    <ResponsiveContainer width="100%" height="100%">
+      <BarChart
+        data={data}
+        stackOffset="sign"
+        barCategoryGap="28%"
+        margin={{ top: 8, right: 0, bottom: 0, left: 0 }}
+        onMouseMove={(s) => setHover(typeof s?.activeTooltipIndex === 'number' ? s.activeTooltipIndex : null)}
+        onMouseLeave={() => setHover(null)}
+      >
+        <XAxis dataKey="label" axisLine={false} tickLine={false} interval={0} tick={{ fontSize: 11, fill: 'var(--color-text-tertiary)' }} />
+        <YAxis width={phone ? 0 : 44} hide={phone} axisLine={false} tickLine={false} tickFormatter={(n: number) => compact(Math.abs(n))} tick={{ fontSize: 11, fill: 'var(--color-text-tertiary)' }} />
+        <ReferenceLine y={0} stroke="var(--color-border-strong, var(--color-text-tertiary))" />
+        <Tooltip cursor={{ fill: 'var(--color-bg-sunken)' }} content={<FlowTip />} trigger={phone ? 'click' : 'hover'} />
+        <Bar dataKey="income" stackId="f" fill={IN} radius={[6, 6, 0, 0]} maxBarSize={28} isAnimationActive={false}>
+          {data.map((_, i) => (
+            <Cell key={i} fillOpacity={(hover === null ? i === lastIndex : hover === i) ? 1 : 0.6} />
           ))}
-        </div>
+        </Bar>
+        <Bar dataKey="out" stackId="f" fill={OUT} radius={[0, 0, 6, 6]} maxBarSize={28} isAnimationActive={false}>
+          {data.map((_, i) => (
+            <Cell key={i} fillOpacity={(hover === null ? i === lastIndex : hover === i) ? 1 : 0.6} />
+          ))}
+        </Bar>
+      </BarChart>
+    </ResponsiveContainer>
+  );
+  return (
+    <section className={`${styles.card} ${styles.flowCard}`} aria-label="Cash flow">
+      <CardHead title="Cash flow" sub={`Money in and money out, by ${v.flowView}`} href="/statistics#section-cash-flow">
+        {!phone && <Segmented label="Group by" value={v.flowView} onChange={v.setFlowView} options={[{ value: 'week', label: 'Week' }, { value: 'month', label: 'Month' }]} />}
       </CardHead>
-      <div className={styles.flowChart}>
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={v.flow} barGap={4} barCategoryGap="22%" margin={{ top: 8, right: 0, bottom: 0, left: 0 }}>
-            <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'var(--color-text-tertiary)' }} />
-            <Tooltip
-              cursor={{ fill: 'var(--color-bg-sunken)' }}
-              formatter={(value, name) => [formatMoney(Number(value)), name === 'income' ? 'Income' : 'Expenses']}
-              contentStyle={{ borderRadius: 12, border: '1px solid var(--color-border-default)', fontSize: 12 }}
-            />
-            <Bar dataKey="income" fill="var(--color-brand-default)" radius={[6, 6, 0, 0]} maxBarSize={36} />
-            <Bar dataKey="expense" fill="var(--color-card-lilac-decor)" radius={[6, 6, 0, 0]} maxBarSize={36} />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-      <div className={styles.legend}>
+      {phone && <Segmented label="Group by" value={v.flowView} onChange={v.setFlowView} options={[{ value: 'week', label: 'Week' }, { value: 'month', label: 'Month' }]} />}
+      <div className={styles.flowFigures}>
         <span>
-          <i style={{ background: 'var(--color-brand-default)' }} /> Income
+          <i style={{ background: IN }} aria-hidden /> Money in <strong>+{formatMoney(income)}</strong>
         </span>
         <span>
-          <i style={{ background: 'var(--color-card-lilac-decor)' }} /> Expenses
+          <i style={{ background: OUT }} aria-hidden /> Money out <strong>-{formatMoney(expense)}</strong>
         </span>
-        <span className={styles.legendHint}>Hover a pair to see the net for that {v.flowView}</span>
+        <span>
+          Net{' '}
+          <strong data-tone={net >= 0 ? 'good' : 'bad'}>
+            {net >= 0 ? '+' : '-'}
+            {formatMoney(Math.abs(net))}
+          </strong>
+        </span>
       </div>
-    </section>
-  );
-}
-
-export function Spending({ v, variant = 'donut' }: { v: HomeLogic; variant?: 'donut' | 'bar' }) {
-  const s = v.spending;
-  const rows = [...s.top.map((t, i) => ({ key: t.id, name: t.name, amount: t.amount, color: DONUT[i] })), ...(s.others > 0.5 ? [{ key: 'others', name: 'Everything else', amount: s.others, color: OTHERS }] : [])];
-  const month = MONTH.format(v.now);
-  const last = MONTH.format(new Date(v.now.getFullYear(), v.now.getMonth() - 1, 1));
-  const diff = s.last - s.spent;
-  const trend =
-    s.change === null
-      ? null
-      : `${s.change <= 0 ? 'Down' : 'Up'} ${pct(s.change)} on ${last}, about ${formatMoney(Math.abs(diff))} ${diff >= 0 ? 'less' : 'more'} so far.`;
-  return (
-    <section className={styles.card} aria-label="Spending">
-      <CardHead title={variant === 'bar' ? 'Where your money went' : 'Spending'} sub={variant === 'bar' ? `Top ${rows.length} categories this month` : `${month}, against your budget`} href="/statistics" />
-      {variant === 'bar' ? (
-        <>
-          <p className={styles.incomeLine}>
-            <strong>
-              {formatMoney(s.spent)} {v.currency}
-            </strong>
-            <span>spent so far</span>
-          </p>
-          <span className={styles.stackBar} aria-hidden>
-            {rows.map((r) => (
-              <span key={r.key} style={{ flexGrow: r.amount, background: r.color }} />
-            ))}
-          </span>
-        </>
-      ) : (
-      <div className={styles.donut}>
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
-            <Pie data={rows.length ? rows : [{ key: 'none', amount: 1, color: OTHERS }]} dataKey="amount" innerRadius="72%" outerRadius="100%" startAngle={90} endAngle={-270} stroke="var(--color-bg-surface)" strokeWidth={3} isAnimationActive={false}>
-              {(rows.length ? rows : [{ key: 'none', color: OTHERS }]).map((r) => (
-                <Cell key={r.key} fill={r.color} />
-              ))}
-            </Pie>
-          </PieChart>
-        </ResponsiveContainer>
-        <div className={styles.donutCenter}>
-          <strong>{formatMoney(s.spent)}</strong>
-          {s.planned > 0 && (
-            <>
-              <span>of {formatMoney(s.planned)}</span>
-              <em>{pct(share(s.spent, s.planned))} of budget</em>
-            </>
-          )}
+      {phone ? (
+        <div ref={scroller} className={styles.flowScroll}>
+          <div className={styles.flowChartPhone} style={{ width: `${Math.max(100, (data.length / 6) * 100)}%` }}>
+            {chart}
+          </div>
         </div>
-      </div>
-      )}
-      {variant === 'donut' && trend && <p className={styles.bodyText}>{trend}</p>}
-      {variant === 'donut' && s.insight && (
-        <p className={styles.insightChip}>
-          {s.change !== null && s.change > 0 ? <TrendingUp size={16} strokeWidth={2} aria-hidden /> : <TrendingDown size={16} strokeWidth={2} aria-hidden />}
-          {s.insight}
-        </p>
-      )}
-      {rows.length > 0 && (
-        <>
-          <p className={styles.overline}>Where it went</p>
-          <ul className={styles.whereList}>
-            {rows.map((r) => (
-              <li key={r.key}>
-                <i style={{ background: r.color }} aria-hidden />
-                <span className={styles.whereName}>{r.name}</span>
-                <span className={styles.wherePct}>{pct(share(r.amount, s.spent))}</span>
-                <span className={styles.whereAmount}>{formatMoney(r.amount)}</span>
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
-    </section>
-  );
-}
-
-/* ---------- 4. Income and Budget ---------- */
-
-export function Income({ v }: { v: HomeLogic }) {
-  const inc = v.income;
-  const month = MONTH.format(v.now);
-  const last = MONTH.format(new Date(v.now.getFullYear(), v.now.getMonth() - 1, 1));
-  const got = share(inc.received, inc.expected);
-  return (
-    <section className={styles.card} aria-label="Income">
-      <CardHead title="Income" sub={`${month}, received against expected`} href="/transactions?type=Income" />
-      <p className={styles.incomeLine}>
-        <strong>{formatMoney(inc.received)}</strong>
-        {inc.expected > 0 && (
-          <span>
-            received of {formatMoney(inc.expected)} expected · {pct(got)}
-          </span>
-        )}
-      </p>
-      {inc.expected > 0 && <Meter value={got} />}
-      {inc.change !== null && (
-        <p className={styles.bodyText}>
-          {inc.change >= 0 ? 'Up' : 'Down'} {pct(inc.change)} on {last} at this point in the month.
-        </p>
-      )}
-      {v.stillExpected > 0.5 && (
-        <p className={styles.expectChip}>
-          <Clock size={16} strokeWidth={2} aria-hidden />
-          {v.stillExpectedNames.length === 1 ? `${v.stillExpectedNames[0]} of ${formatMoney(v.stillExpected)} still expected` : `${formatMoney(v.stillExpected)} still expected from ${v.stillExpectedNames.length} sources`}
-        </p>
-      )}
-      <p className={styles.overline}>By source</p>
-      <ul className={styles.sourceList}>
-        {inc.sources
-          .filter((src) => src.expected > 0.5 || src.received > 0.5)
-          .map((src) => (
-            <li key={src.id}>
-              <div className={styles.sourceHead}>
-                <span className={styles.sourceName}>{src.label}</span>
-                <span className={styles.pctChip}>{pct(share(src.received, src.expected))}</span>
-                <span className={styles.sourceFigures}>
-                  {formatMoney(src.received)} / {formatMoney(src.expected)}
-                </span>
-              </div>
-              <Meter value={share(src.received, src.expected)} />
-            </li>
-          ))}
-      </ul>
-    </section>
-  );
-}
-
-export function Budget({ v }: { v: HomeLogic }) {
-  const month = MONTH.format(v.now);
-  const used = share(v.spending.spent, v.spending.planned);
-  return (
-    <section className={styles.card} aria-label={`${month} budget`}>
-      <CardHead title={`${month} budget`} sub={`${pct(used)} used · ${v.daysLeft} ${v.daysLeft === 1 ? 'day' : 'days'} left`} href="/budget" />
-      {v.budgetLines.length === 0 ? (
-        <p className={styles.bodyText}>No spending planned for {month} yet.</p>
       ) : (
-        <ul className={styles.budgetList}>
-          {v.budgetLines.map((l) => {
+        <div className={styles.flowChart}>{chart}</div>
+      )}
+    </section>
+  );
+}
+
+/* ---------- Row 3: Budget, Spending, Accountability, Commitments, Wallets ---------- */
+
+export function Budget({ v, max = 8 }: { v: HomeLogic; max?: number }) {
+  const month = v.monthName;
+  const lines = v.budgetLines.slice(0, max);
+  return (
+    <section className={`${styles.card} ${styles.tall}`} aria-label={`${month} budget`}>
+      <CardHead
+        title={`${month} budget`}
+        sub={v.budgetUsed !== null ? `${pct(v.budgetUsed)} used · ${v.daysLeft} ${v.daysLeft === 1 ? 'day' : 'days'} left` : `${v.daysLeft} ${v.daysLeft === 1 ? 'day' : 'days'} left`}
+        href="/budget"
+      />
+      {lines.length === 0 ? (
+        <p className={styles.bodyText}>
+          No spending planned for {month} yet. <Link href="/budget">Plan the month</Link>
+        </p>
+      ) : (
+        <ul className={styles.bList}>
+          {lines.map((l) => {
             const over = l.spent - l.planned;
             const ratio = share(l.spent, l.planned);
-            const tone = over > 0.5 ? 'danger' : ratio >= 0.7 ? 'warning' : 'success';
+            const tone = over > 0.5 ? 'danger' : ratio >= 0.7 ? 'warning' : 'brand';
             return (
               <li key={l.id}>
-                <div className={styles.budgetHead}>
-                  <span>{l.name}</span>
-                  {over > 0.5 ? (
-                    <span className={styles.over}>Over by {formatMoney(over)}</span>
-                  ) : (
-                    <span className={styles.sourceFigures}>
-                      {formatMoney(l.spent)} / {formatMoney(l.planned)}
-                    </span>
-                  )}
+                <div className={styles.bHead}>
+                  <span className={styles.bName}>{l.name}</span>
+                  <span className={styles.bSpent}>{formatMoney(l.spent)}</span>
+                  <span className={styles.bChip} data-tone={over > 0.5 ? 'danger' : undefined}>
+                    {over > 0.5 ? `Over by ${formatMoney(over)}` : `${formatMoney(l.planned - l.spent)} left`}
+                  </span>
                 </div>
-                <Meter value={over > 0.5 ? Math.min(1, l.planned / l.spent) : ratio} tone={tone} />
+                <span className={styles.bTrack} aria-hidden>
+                  <span className={styles.bFill} data-tone={tone} style={{ width: `${Math.max(2, Math.round(ratio * 100))}%` }} />
+                </span>
               </li>
             );
           })}
         </ul>
       )}
+      {v.budgetLines.length > 0 && (
+        <div className={styles.cardEnd}>
+          <SeeAll href="/budget" label="See full budget" />
+        </div>
+      )}
     </section>
   );
 }
 
-export function Meter({ value, tone = 'brand' }: { value: number; tone?: 'brand' | 'success' | 'warning' | 'danger' }) {
+export function Spending({ v }: { v: HomeLogic }) {
+  const s = v.spending;
+  const rows = [...s.top.map((t, i) => ({ key: t.id, name: t.name, amount: t.amount, color: DONUT[i] })), ...(s.others > 0.5 ? [{ key: 'others', name: 'Everything else', amount: s.others, color: OTHERS }] : [])];
+  const last = v.lastMonthName;
+  const diff = s.last - s.spent;
+  const trend = s.change === null ? null : `${s.change <= 0 ? 'Down' : 'Up'} ${pct(s.change)} on ${last}, about ${formatMoney(Math.abs(diff))} ${diff >= 0 ? 'less' : 'more'} so far.`;
   return (
-    <span className={styles.meter} aria-hidden>
-      <span data-tone={tone} style={{ width: `${Math.round(value * 100)}%` }} />
-    </span>
+    <section className={styles.card} aria-label="Spending">
+      <CardHead title="Spending" sub={`${v.monthName}, against your budget`} href="/statistics#section-unplanned-spending" />
+      <div className={styles.spendBody}>
+        <div className={styles.donut}>
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie data={rows.length ? rows : [{ key: 'none', amount: 1, color: OTHERS }]} dataKey="amount" innerRadius="72%" outerRadius="100%" startAngle={90} endAngle={-270} stroke="var(--color-bg-surface)" strokeWidth={3} isAnimationActive={false}>
+                {(rows.length ? rows : [{ key: 'none', color: OTHERS }]).map((r) => (
+                  <Cell key={r.key} fill={r.color} />
+                ))}
+              </Pie>
+            </PieChart>
+          </ResponsiveContainer>
+          <div className={styles.donutCenter}>
+            <strong>{formatMoney(s.spent)}</strong>
+            {s.planned > 0 && <span>of {formatMoney(s.planned)}</span>}
+          </div>
+        </div>
+        <ul className={styles.keyList}>
+          {rows.map((r) => (
+            <li key={r.key}>
+              <i style={{ background: r.color }} aria-hidden />
+              <span>{r.name}</span>
+              <strong>{formatMoney(r.amount)}</strong>
+            </li>
+          ))}
+          {rows.length === 0 && <li className={styles.bodyText}>Nothing spent yet this month.</li>}
+        </ul>
+      </div>
+      {trend && <p className={`${styles.bodyText} ${styles.cardEnd}`}>{trend}</p>}
+    </section>
   );
 }
 
-/* ---------- 5. Activity ---------- */
+/** Accountability, compact (the full card is on Insights). */
+export function AccountabilityMini({ v, phone = false }: { v: HomeLogic; phone?: boolean }) {
+  const [period, setPeriod] = useState<Period>('month');
+  const { rows } = useAccountability({ period, count: period === 'month' ? 6 : phone ? 6 : 7 });
+  const cur: PeriodAccountability | undefined = rows[rows.length - 1];
+  const max = Math.max(1, ...rows.map((r) => Math.max(r.outflow - r.unaccounted, r.unaccounted)));
+  const short = (r: PeriodAccountability) => (period === 'month' ? r.label.slice(0, 3) : r.label.split(' to ')[0]);
+  return (
+    <section className={styles.card} aria-label="Accountability">
+      <CardHead title="Accountability" href="/statistics#section-accountability">
+        <Segmented label="Period" value={period} onChange={setPeriod} options={[{ value: 'week', label: 'Week' }, { value: 'month', label: 'Month' }]} />
+      </CardHead>
+      <div className={styles.aFigures}>
+        <span>
+          <i style={{ background: 'var(--color-status-success-fg, var(--color-data-positive))' }} aria-hidden />
+          Accounted for <strong>{cur ? rateText(cur.rate) : 'No spending'}</strong>
+        </span>
+        <span>
+          <i style={{ background: 'var(--color-data-negative)' }} aria-hidden />
+          Unaccounted <strong>{formatMoney(cur?.unaccounted ?? 0)}</strong>
+        </span>
+      </div>
+      <div className={styles.aChart} role="img" aria-label={accountabilitySentence(rows)}>
+        {rows.map((r) => {
+          const accounted = Math.max(0, r.outflow - r.unaccounted);
+          const tone = r.rate === null ? undefined : r.rate >= 0.9 ? 'good' : r.rate < 0.75 ? 'bad' : undefined;
+          return (
+            <div key={r.key} className={styles.aCol}>
+              <div className={styles.aBars}>
+                <span style={{ height: `${Math.round((accounted / max) * 100)}%`, background: 'var(--color-status-success-fg, var(--color-data-positive))' }} />
+                <span style={{ height: `${Math.round((r.unaccounted / max) * 100)}%`, background: 'var(--color-data-negative)' }} />
+              </div>
+              <span className={styles.aRate} data-tone={tone}>
+                {rateText(r.rate).replace('No spending', '–')}
+              </span>
+              <span className={styles.aLabel}>{short(r)}</span>
+            </div>
+          );
+        })}
+      </div>
+      <p className={`${styles.bodyText} ${styles.cardEnd}`}>
+        {accountabilitySentence(rows)}{' '}
+        {Math.abs(v.unexplained) >= 0.5 && <Link href={`/wallets/${UNJUSTIFIED_WALLET_ID}`}>Review</Link>}
+      </p>
+    </section>
+  );
+}
+
+export function Commitments({ v, phone = false }: { v: HomeLogic; phone?: boolean }) {
+  const c = v.commitments;
+  const cols = [
+    { key: 'planned', label: 'Planned', value: c.planned, color: IN },
+    { key: 'paid', label: 'Paid', value: c.paid, color: 'var(--color-status-success-fg, var(--color-data-positive))' },
+    { key: 'left', label: 'Still to pay', value: c.left, color: 'var(--color-status-warning-fg, var(--color-data-categorical-4))' },
+    { key: 'overdue', label: 'Overdue', value: c.overdue, color: 'var(--color-status-danger-fg, var(--color-data-negative))' },
+  ];
+  const next = v.upcoming[0];
+  const debt = v.debt;
+  const fmt = phone ? compact : formatMoney;
+  return (
+    <section className={styles.card} aria-label="Commitments">
+      <CardHead title="Commitments" sub="What this month's plan still needs" href="/payments" />
+      <div className={styles.funnel} data-phone={phone || undefined}>
+        {cols.map((col) => {
+          const h = c.planned > 0.5 ? col.value / c.planned : 0;
+          return (
+            <div key={col.key} className={styles.fCol}>
+              {!phone && (
+                <span className={styles.fHead}>
+                  <span>{col.label}</span>
+                  <strong>{col.value > 0.5 ? fmt(col.value) : 'None'}</strong>
+                </span>
+              )}
+              <span className={styles.fArea}>
+                <span className={styles.fBars} style={{ height: col.value > 0.5 ? `${Math.max(4, Math.round(h * 100))}%` : '4px', color: col.color }} />
+              </span>
+              {phone && (
+                <span className={styles.fHead}>
+                  <strong>{col.value > 0.5 ? fmt(col.value) : 'None'}</strong>
+                  <span>{col.label}</span>
+                </span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <div className={styles.cardEnd}>
+        {next && (
+          <Link href={next.href} className={styles.cRow}>
+            <span>Next up</span>
+            <strong>
+              {next.name}, {formatMoney(next.amount)}, {next.due.toLowerCase()}
+            </strong>
+          </Link>
+        )}
+        {debt.count > 0 && debt.total > 0.5 && (
+          <Link href="/debts" className={styles.cRow}>
+            <span>Debts</span>
+            <strong>
+              {formatMoney(debt.total)} left across {debt.count}
+              {debt.next?.nextPaymentDate ? `, next payment ${DAY_MONTH.format(debt.next.nextPaymentDate)}` : ''}
+            </strong>
+          </Link>
+        )}
+      </div>
+    </section>
+  );
+}
+
+export function WalletsCard({ v, phone = false }: { v: HomeLogic; phone?: boolean }) {
+  const all = v.accountRows;
+  const total = all.reduce((s, a) => s + Math.max(0, a.balance), 0);
+  const shown = all.slice(0, 6);
+  const more = all.length - shown.length;
+  const button = (
+    <Link href="/wallets" className={styles.secondaryButton} data-full={phone || undefined}>
+      See all wallets
+    </Link>
+  );
+  return (
+    <section className={styles.card} aria-label="Wallets">
+      <CardHead title="Wallets" sub={`Total ${formatMoney(v.cash)} across ${all.length} ${all.length === 1 ? 'wallet' : 'wallets'}`}>
+        {!phone && button}
+      </CardHead>
+      <span className={styles.wBar} aria-hidden>
+        {all
+          .filter((a) => a.balance > 0.5)
+          .map((a) => (
+            <span key={a.id} style={{ flexGrow: total > 0 ? a.balance / total : 0, color: a.color }} />
+          ))}
+      </span>
+      <ul className={styles.wGrid}>
+        {shown.map((a) => (
+          <li key={a.id}>
+            <Link href={`/wallets/${a.id}`} className={styles.wItem}>
+              <span className={styles.wName}>
+                <i style={{ background: a.color }} aria-hidden />
+                {a.name}
+              </span>
+              <strong className={styles.wValue}>{formatMoney(a.balance)}</strong>
+              {a.committed > 0.5 && <span className={styles.hMuted}>{formatMoney(a.committed)} committed</span>}
+            </Link>
+          </li>
+        ))}
+        {more > 0 && (
+          <li>
+            <Link href="/wallets" className={`${styles.wItem} ${styles.wMore}`}>
+              +{more} more
+            </Link>
+          </li>
+        )}
+      </ul>
+      {phone && <div className={styles.cardEnd}>{button}</div>}
+    </section>
+  );
+}
+
+/* ---------- Row 4: Recent activity ---------- */
 
 const TX_ICON: Record<HomeTx['kind'], ReactNode> = {
   expense: <ArrowUpRight size={20} strokeWidth={2} />,
@@ -516,38 +634,7 @@ export function Recent({ items }: { items: HomeTx[] }) {
   );
 }
 
-export function Bills({ v }: { v: HomeLogic }) {
-  const bills = v.upcoming.slice(0, 3);
-  return (
-    <section className={`${styles.card} ${styles.bills}`} aria-label="Upcoming bills">
-      <CardHead title="Upcoming bills" href="/payments" />
-      {bills.length === 0 ? (
-        <p className={styles.bodyText}>Nothing left to pay this month.</p>
-      ) : (
-        <ul className={styles.billList}>
-          {bills.map((b) => (
-            <li key={b.key}>
-              <Link href={b.href} className={styles.billRow}>
-                <span className={styles.billIcon} aria-hidden>
-                  <ReceiptText size={20} strokeWidth={2} />
-                </span>
-                <span className={styles.txText}>
-                  <span className={styles.txName}>{b.name}</span>
-                  <span className={styles.txSub} data-late={b.late || undefined}>
-                    {b.due} · {b.bucket}
-                  </span>
-                </span>
-                <span className={styles.billAmount}>{formatMoney(b.amount)}</span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
-  );
-}
-
-/* ---------- Phone only (Dreda.figcraft `Dashboard / Phone`) ---------- */
+/* ---------- Phone only ---------- */
 
 export function QuickActions() {
   const formLink = useFormLink();
@@ -568,47 +655,5 @@ export function QuickActions() {
         </Link>
       ))}
     </nav>
-  );
-}
-
-/** Money in and out over the chosen range, two figures over the bars. */
-export function MoneyInOut({ v }: { v: HomeLogic }) {
-  const income = v.flow.reduce((sum, b) => sum + b.income, 0);
-  const expense = v.flow.reduce((sum, b) => sum + b.expense, 0);
-  return (
-    <section className={styles.card} aria-label="Money in and out">
-      <CardHead title="Money in and out" href="/statistics/breakdown">
-        <div className={styles.segmented} role="group" aria-label="Group by">
-          {(['week', 'month'] as const).map((k) => (
-            <button key={k} type="button" aria-pressed={v.flowView === k} onClick={() => v.setFlowView(k)}>
-              {k === 'week' ? 'Week' : 'Month'}
-            </button>
-          ))}
-        </div>
-      </CardHead>
-      <div className={styles.inOut}>
-        <div>
-          <span>
-            Money in <i style={{ background: 'var(--color-brand-default)' }} />
-          </span>
-          <strong>+{formatMoney(income)}</strong>
-        </div>
-        <div>
-          <span>
-            Money out <i style={{ background: 'var(--color-card-lilac-decor)' }} />
-          </span>
-          <strong>-{formatMoney(expense)}</strong>
-        </div>
-      </div>
-      <div className={styles.flowChartSmall}>
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={v.flow} barGap={3} barCategoryGap="28%" margin={{ top: 8, right: 0, bottom: 0, left: 0 }}>
-            <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'var(--color-text-tertiary)' }} />
-            <Bar dataKey="income" fill="var(--color-brand-default)" radius={[4, 4, 0, 0]} maxBarSize={14} />
-            <Bar dataKey="expense" fill="var(--color-card-lilac-decor)" radius={[4, 4, 0, 0]} maxBarSize={14} />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-    </section>
   );
 }

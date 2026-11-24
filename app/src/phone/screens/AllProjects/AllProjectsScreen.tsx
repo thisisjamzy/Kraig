@@ -12,7 +12,7 @@ import { useOrganise } from '@/src/logic/organise/useOrganise';
 import { plural, STAGE_ORDER, type ProjectStat } from '@/src/viewmodels/organise';
 import type { LabelHue } from '@/src/viewmodels/projects';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
-import { HeaderButton, TimeHeader } from '@/src/phone/widgets/TimeHeader/TimeHeader';
+import { HeaderButton, HeaderMenu, TimeHeader } from '@/src/phone/widgets/TimeHeader/TimeHeader';
 import { GroupHead, ProjectCard, ViewChips } from '@/src/phone/widgets/OrganiseCards/OrganiseCards';
 import styles from '@/src/phone/screens/AllProjects/AllProjectsScreen.module.css';
 
@@ -42,9 +42,7 @@ export function AllProjectsScreen() {
         sub={`${plural(live.length, 'project')} in ${plural(areas, 'area')}${atRisk ? ` · ${atRisk} at risk` : ''}`}
         actions={
           <>
-            <HeaderButton label="Import tasks" onClick={() => router.push('/settings/import')}>
-              <Upload size={18} strokeWidth={2} />
-            </HeaderButton>
+            <HeaderMenu label="Projects actions" items={[{ key: 'import', label: 'Import tasks', icon: <Upload size={16} strokeWidth={2} />, onSelect: () => router.push('/settings/import') }]} />
             <HeaderButton label="New project" onClick={() => router.push('/projects/new')}>
               <Plus size={20} strokeWidth={2} />
             </HeaderButton>

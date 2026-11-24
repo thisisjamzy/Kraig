@@ -25,12 +25,11 @@ import { useDailyGuide } from '@/src/shared/hooks/useDailyGuide';
 import { useLogic as useDebts } from '@/src/logic/debtsList/useLogic';
 import { isSavingsAccount, walletHue, walletSolid } from '@/src/viewmodels/wallets';
 import { currencyName } from '@/src/viewmodels/currencies';
-import { categoryInsight, dueText, greetingFor, upcomingLines, weekBuckets, type FlowBar } from '@/src/viewmodels/home';
+import { categoryInsight, commitmentsOf, dueText, greetingFor, monthChange, upcomingLines, weekBuckets, type FlowBar } from '@/src/viewmodels/home';
 import type { FirestoreAccount, FirestoreTransaction, FirestoreTransfer } from '@/src/shared/firestore/types';
 import { countsInFigures } from '@/src/shared/firestore/types';
 
-const LATEST = 4;
-const DAY = 86_400_000;
+const LATEST = 5;
 
 export type FlowView = 'week' | 'month';
 
@@ -103,7 +102,7 @@ export function useLogic() {
     spent: t.expenses.spent,
     planned: t.expenses.planned,
     last: prev.totals.expenses.spent,
-    change: prev.totals.expenses.spent > 0 ? (t.expenses.spent - prev.totals.expenses.spent) / prev.totals.expenses.spent : null,
+    ...monthChange(t.expenses.spent, prev.totals.expenses.spent),
     top: expenseCats.slice(0, 5).map((c) => ({ id: c.categoryId, name: c.name, amount: c.actual })),
     others: round2(expenseCats.slice(5).reduce((sum, c) => sum + c.actual, 0)),
     insight: categoryInsight(
@@ -125,7 +124,7 @@ export function useLogic() {
   const income = {
     received: t.income.received,
     expected: t.income.expected,
-    change: prev.totals.income.received > 0 ? (t.income.received - prev.totals.income.received) / prev.totals.income.received : null,
+    ...monthChange(t.income.received, prev.totals.income.received),
     sources,
   };
 
@@ -210,8 +209,11 @@ export function useLogic() {
     }))
     .sort((a, b) => b.balance - a.balance);
 
-  // ---- Cash flow: last 30 days by week, or the last 6 months ----
-  const flowFrom = flowView === 'week' ? new Date(today.getTime() - 29 * DAY) : new Date(now.getFullYear(), now.getMonth() - 5, 1);
+  // ---- Cash flow: the last 12 weeks (Monday to Sunday) or 12 months ----
+  const flowFrom =
+    flowView === 'week'
+      ? new Date(today.getFullYear(), today.getMonth(), today.getDate() - ((today.getDay() + 6) % 7) - 7 * 11)
+      : new Date(now.getFullYear(), now.getMonth() - 11, 1);
   const { data: flowTxAll } = useFirestoreCollection<FirestoreTransaction>(
     useMemo(() => (uid ? query(transactionsRef(uid), where('date', '>=', Timestamp.fromDate(flowFrom))) : null),
     // flowFrom changes only with the view.
@@ -238,27 +240,15 @@ export function useLogic() {
   );
 
   // ---- This month's budget by expense category (Dreda.figcraft budget card) ----
+  // Every line, highest share used first; the card shows the first eight.
   const budgetLines = cur.budget.categories
     .filter((c) => c.type === 'Expense' && c.available > 0.5)
-    .sort((a, b) => b.available - a.available)
-    .slice(0, 5)
-    .map((c) => ({ id: c.categoryId, name: c.name, spent: round2(c.actual), planned: round2(c.available) }));
+    .map((c) => ({ id: c.categoryId, name: c.name, spent: round2(c.actual), planned: round2(c.available) }))
+    .sort((a, b) => b.spent / b.planned - a.spent / a.planned || b.planned - a.planned);
+  const budgetUsed = t.expenses.planned > 0.5 ? t.expenses.spent / t.expenses.planned : null;
 
-  // ---- Sparklines: the loaded cash-flow range in eight equal slices ----
-  const sparks = (() => {
-    const from = flowFrom.getTime();
-    const span = Math.max(1, todayMs + DAY - from);
-    const empty = () => Array.from({ length: 8 }, () => 0);
-    const out = { income: empty(), expense: empty(), savings: empty() };
-    for (const x of flowTx) {
-      const at = Math.min(7, Math.max(0, Math.floor(((x.date.toDate().getTime() - from) / span) * 8)));
-      const amount = display(x.amount, x.accountId);
-      if (x.type === 'Income' && x.direction === 'Inflow') out.income[at] += amount;
-      else if (x.type === 'Expense' && x.direction === 'Outflow') out.expense[at] += amount;
-      else if (x.type === 'Savings') out.savings[at] += amount;
-    }
-    return out;
-  })();
+  // ---- Commitments: planned, paid, still to pay, overdue ----
+  const commitments = commitmentsOf(cur.budget.items, today);
 
   // ---- Plan ----
   const plan = [
@@ -313,9 +303,17 @@ export function useLogic() {
     setFlowView,
     plan,
     budgetLines,
-    sparks,
+    budgetUsed,
+    commitments,
+    lastMonthName: new Date(now.getFullYear(), now.getMonth() - 1, 1).toLocaleDateString('en-GB', { month: 'long' }),
+    monthName: now.toLocaleDateString('en-GB', { month: 'long' }),
     transfers: { moved: t.transfers.moved, planned: t.transfers.planned },
-    saved: { amount: t.savings.saved, planned: t.savings.planned },
+    saved: {
+      amount: t.savings.saved,
+      planned: t.savings.planned,
+      ...monthChange(t.savings.saved, prev.totals.savings.saved),
+      shareOfIncome: t.income.received > 0.5 ? t.savings.saved / t.income.received : null,
+    },
     debt: { total: debts.debtSummary.totalDebt, count: debts.debtSummary.debtCount, next: nextDebt },
     currencyOptions,
     switchCurrency,

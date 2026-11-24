@@ -1,18 +1,18 @@
 'use client';
 
-// Money Home on a phone, drawn from Dreda.figcraft `Dashboard / Phone`: the
-// greeting with the bell, the purple balance card, four quick actions, the
-// wallet cards scrolling sideways, Money in and out, where the money went,
-// this month's budget and recent activity. The bottom bar is the layout's.
+// Money Home on a phone (owner, 24 Nov 2026), one column, 16px apart: the
+// greeting header, the headline block (balance, then four figures two by
+// two), quick actions, cash flow (scrolls sideways through 12 periods),
+// spending, wallets, the budget, accountability, commitments and recent
+// activity. The bottom bar is the layout's.
 // The sections are widgets/MoneyHome, the same ones the web dashboard uses;
 // data comes from src/logic/home.
 
-import { AccountabilityTile } from '@/src/widgets/Accountability/AccountabilityCard';
 import { Eye, EyeOff } from 'lucide-react';
 import { useAmountsHidden } from '@/src/shared/hooks/usePrivacy';
 import { useLogic } from '@/src/logic/home/useLogic';
 import { useSwipeModeSwitch } from '@/src/shared/hooks/useSwipeModeSwitch';
-import { BalanceCard, Budget, MoneyInOut, QuickActions, Recent, Spending, Wallets } from '@/src/widgets/MoneyHome/MoneyHome';
+import { AccountabilityMini, Budget, CashFlow, Commitments, Headline, QuickActions, Recent, Spending, WalletsCard } from '@/src/widgets/MoneyHome/MoneyHome';
 import { GreetingButton, GreetingHeader } from '@/src/phone/widgets/GreetingHeader/GreetingHeader';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import styles from './PhoneHome.module.css';
@@ -36,13 +36,14 @@ export function HomeScreen() {
       <ScreenState loading={v.loading} error={v.error} />
       {!v.loading && (
         <>
-          <BalanceCard v={v} />
+          <Headline v={v} />
           <QuickActions />
-          <Wallets v={v} />
-          <MoneyInOut v={v} />
-          <AccountabilityTile rows={v.accountability} />
-          <Spending v={v} variant="bar" />
-          <Budget v={v} />
+          <CashFlow v={v} phone />
+          <Spending v={v} />
+          <WalletsCard v={v} phone />
+          <Budget v={v} max={5} />
+          <AccountabilityMini v={v} phone />
+          <Commitments v={v} phone />
           <Recent items={v.latest} />
         </>
       )}

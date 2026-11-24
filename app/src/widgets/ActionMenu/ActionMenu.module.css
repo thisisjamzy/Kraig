@@ -74,3 +74,10 @@
     border-radius: 6px;
   }
 }
+
+.divider {
+  height: 1px;
+  margin: 4px 0;
+  border: 0;
+  background: var(--color-border-default);
+}

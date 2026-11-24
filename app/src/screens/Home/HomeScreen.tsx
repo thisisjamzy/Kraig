@@ -1,17 +1,17 @@
 'use client';
 
-// Money Home on tablet and web (Dreda.figcraft `Dashboard / Web`). The header
-// carries the greeting and the month; then, 24px apart, the overview (balance
-// card and four tiles), the wallets, cash flow and spending, income and the
-// budget, recent activity and upcoming bills. The sections live in
-// widgets/MoneyHome (shared with the phone); data comes from src/logic/home.
+// Money Home on tablet and web (owner, 24 Nov 2026). The header carries the
+// greeting and the month; then, 24px apart: the headline strip (balance,
+// money in, money out, transfers, saved), cash flow full width, a grid of
+// Budget (tall, both rows), Spending, Accountability, Commitments and
+// Wallets, then recent activity. The sections live in widgets/MoneyHome
+// (shared with the phone); data comes from src/logic/home.
 
-import { AccountabilityTile } from '@/src/widgets/Accountability/AccountabilityCard';
 import { CalendarDays } from 'lucide-react';
 import { useLogic } from '@/src/logic/home/useLogic';
 import { useBreadcrumb } from '@/src/widgets/AppShell/breadcrumb';
 import { TopBarControls, TopBarTitle } from '@/src/widgets/AppShell/TopBarSlot';
-import { BalanceCard, Bills, Budget, CashFlow, Income, Kpis, Recent, Spending, Wallets } from '@/src/widgets/MoneyHome/MoneyHome';
+import { AccountabilityMini, Budget, CashFlow, Commitments, Headline, Recent, Spending, WalletsCard } from '@/src/widgets/MoneyHome/MoneyHome';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import styles from '@/src/widgets/MoneyHome/MoneyHome.module.css';
 
@@ -39,24 +39,26 @@ export function HomeScreen() {
       <ScreenState loading={v.loading} error={v.error} />
       {!v.loading && (
         <>
-          <section className={styles.overview} aria-label="Overview">
-            <BalanceCard v={v} />
-            <Kpis v={v} />
-          </section>
-          <Wallets v={v} />
-          <AccountabilityTile rows={v.accountability} />
-          <div className={styles.rowInsights}>
-            <CashFlow v={v} />
-            <Spending v={v} />
+          <Headline v={v} />
+          <CashFlow v={v} />
+          <div className={styles.grid3}>
+            <div className={styles.gBudget}>
+              <Budget v={v} />
+            </div>
+            <div className={styles.gSpending}>
+              <Spending v={v} />
+            </div>
+            <div className={styles.gAccount}>
+              <AccountabilityMini v={v} />
+            </div>
+            <div className={styles.gCommit}>
+              <Commitments v={v} />
+            </div>
+            <div className={styles.gWallets}>
+              <WalletsCard v={v} />
+            </div>
           </div>
-          <div className={styles.rowHalves}>
-            <Income v={v} />
-            <Budget v={v} />
-          </div>
-          <div className={styles.rowActivity}>
-            <Recent items={v.latest} />
-            <Bills v={v} />
-          </div>
+          <Recent items={v.latest} />
         </>
       )}
     </div>

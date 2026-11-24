@@ -51,23 +51,39 @@ export interface FlowBar {
  * Cash flow bars: the last 30 days in weeks (oldest first, the last one
  * ending today), or the last 6 months.
  */
-export function weekBuckets(rows: { date: Date; income: number; expense: number }[], view: 'week' | 'month', today: Date): FlowBar[] {
+/**
+ * Cash flow buckets (owner, 24 Nov 2026): the last `count` weeks, Monday to
+ * Sunday, or the last `count` months, oldest first, the current one last.
+ * Income and expenses are summed per bucket; a refund lowers expenses.
+ */
+export function weekBuckets(rows: { date: Date; income: number; expense: number }[], view: 'week' | 'month', today: Date, count = 12): FlowBar[] {
+  if (view === 'month') return monthBuckets(rows, today, count);
   const end = startOfDay(today);
-  const bars: (FlowBar & { from: number; to: number })[] = [];
-  if (view === 'week') {
-    const start = new Date(end.getTime() - 29 * DAY);
-    for (let from = start.getTime(); from <= end.getTime(); from += 7 * DAY) {
-      const to = Math.min(from + 7 * DAY, end.getTime() + DAY);
-      const d = new Date(from);
-      bars.push({ key: String(from), label: d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }), income: 0, expense: 0, net: 0, from, to });
-    }
-  } else {
-    for (let i = 5; i >= 0; i--) {
-      const m = new Date(end.getFullYear(), end.getMonth() - i, 1);
-      const next = new Date(m.getFullYear(), m.getMonth() + 1, 1);
-      bars.push({ key: String(m.getTime()), label: m.toLocaleDateString('en-GB', { month: 'short' }), income: 0, expense: 0, net: 0, from: m.getTime(), to: next.getTime() });
-    }
+  const monday = new Date(end.getFullYear(), end.getMonth(), end.getDate() - ((end.getDay() + 6) % 7));
+  const bars: Bucket[] = [];
+  for (let i = count - 1; i >= 0; i--) {
+    const from = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() - 7 * i);
+    const to = new Date(from.getFullYear(), from.getMonth(), from.getDate() + 7);
+    bars.push({ key: String(from.getTime()), label: from.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }), income: 0, expense: 0, net: 0, from: from.getTime(), to: to.getTime() });
   }
+  return fill(bars, rows);
+}
+
+/** The last `count` calendar months, oldest first. */
+export function monthBuckets(rows: { date: Date; income: number; expense: number }[], today: Date, count = 12): FlowBar[] {
+  const end = startOfDay(today);
+  const bars: Bucket[] = [];
+  for (let i = count - 1; i >= 0; i--) {
+    const m = new Date(end.getFullYear(), end.getMonth() - i, 1);
+    const next = new Date(m.getFullYear(), m.getMonth() + 1, 1);
+    bars.push({ key: String(m.getTime()), label: m.toLocaleDateString('en-GB', { month: 'short' }), income: 0, expense: 0, net: 0, from: m.getTime(), to: next.getTime() });
+  }
+  return fill(bars, rows);
+}
+
+type Bucket = FlowBar & { from: number; to: number };
+
+function fill(bars: Bucket[], rows: { date: Date; income: number; expense: number }[]): FlowBar[] {
   for (const r of rows) {
     const at = r.date.getTime();
     const bar = bars.find((b) => at >= b.from && at < b.to);
@@ -82,6 +98,37 @@ export function weekBuckets(rows: { date: Date; income: number; expense: number 
     expense: Math.round(Math.max(0, expense)),
     net: Math.round(income - Math.max(0, expense)),
   }));
+}
+
+/** This month against last: the share and the amount, or nulls when last month had nothing to compare with. */
+export function monthChange(now: number, before: number): { change: number | null; changeAmount: number | null } {
+  if (!(before > 0.5)) return { change: null, changeAmount: null };
+  return { change: (now - before) / before, changeAmount: Math.round((now - before) * 100) / 100 };
+}
+
+/**
+ * Commitments (owner, 24 Nov 2026): this month's planned outflow (expenses,
+ * savings and transfers), what has been paid against it, what is still to
+ * pay, and the part of that whose date has passed. A closed line has
+ * nothing left. Planned = paid + left.
+ */
+export function commitmentsOf(
+  items: { type: string; archived: boolean; closed: boolean; due: Date | null; available: number; actual: number }[],
+  today: Date
+): { planned: number; paid: number; left: number; overdue: number } {
+  const day = startOfDay(today).getTime();
+  let planned = 0;
+  let left = 0;
+  let overdue = 0;
+  for (const i of items) {
+    if (i.type === 'Income' || i.archived || !(i.available > 0)) continue;
+    planned += i.available;
+    const rest = i.closed ? 0 : Math.max(0, i.available - i.actual);
+    left += rest;
+    if (rest > 0.5 && i.due && i.due.getTime() < day) overdue += rest;
+  }
+  const r2 = (n: number) => Math.round(n * 100) / 100;
+  return { planned: r2(planned), paid: r2(planned - left), left: r2(left), overdue: r2(overdue) };
 }
 
 /** "Your account balances are 1,947,623 more than your recorded transactions explain." */

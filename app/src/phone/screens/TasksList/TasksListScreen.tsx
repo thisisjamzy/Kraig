@@ -20,7 +20,7 @@ import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { ListQueryBar, ListQueryEmpty } from '@/src/widgets/ListQuery/ListQueryBar';
 import { HueTag, TypePill } from '@/src/widgets/TaskChips/TypePill';
 import { TaskLine } from '@/src/phone/widgets/TaskCheckRow/TaskLine';
-import { HeaderButton, TimeHeader } from '@/src/phone/widgets/TimeHeader/TimeHeader';
+import { HeaderButton, HeaderMenu, TimeHeader } from '@/src/phone/widgets/TimeHeader/TimeHeader';
 import styles from '@/src/phone/screens/TasksList/TasksListScreen.module.css';
 
 const PHONE_TABS = TASK_TABS.filter((t) => t.id !== 'all');
@@ -43,9 +43,7 @@ export function TasksListScreen() {
         actions={
           logic.scoped ? undefined : (
             <>
-              <HeaderButton label="Import tasks" onClick={() => router.push('/settings/import')}>
-                <Upload size={18} strokeWidth={2} />
-              </HeaderButton>
+              <HeaderMenu label="Tasks actions" items={[{ key: 'import', label: 'Import tasks', icon: <Upload size={16} strokeWidth={2} />, onSelect: () => router.push('/settings/import') }]} />
               <HeaderButton label="New task" onClick={() => router.push('/tasks/new')}>
                 <Plus size={20} strokeWidth={2} />
               </HeaderButton>

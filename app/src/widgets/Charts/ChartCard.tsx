@@ -191,9 +191,14 @@ export function ChartCard({
       )}
       {state.status === 'ready' && (
         <>
-          {legend && <Legend items={legend} />}
-          {children}
-          {insight && <p className={s.insight}>{insight}</p>}
+          {/* The chart takes the room the row gives it; legend and insight sit at the bottom (owner, 24 Nov 2026). */}
+          <div className={s.cardBody}>{children}</div>
+          {(legend || insight) && (
+            <div className={s.cardFoot}>
+              {legend && <Legend items={legend} />}
+              {insight && <p className={s.insight}>{insight}</p>}
+            </div>
+          )}
         </>
       )}
     </section>

@@ -1,12 +1,12 @@
 import type { Metadata } from 'next';
-import { MoneyDashboardScreen } from '@/src/routes/MoneyDashboard/MoneyDashboardScreen';
+import { BreakdownRedirect } from './BreakdownRedirect';
 
 export const metadata: Metadata = {
-  title: 'Full breakdown · Insights · Dreda',
+  title: 'Insights · Dreda',
 };
 
-// Money Insights, level two: every chart the dashboard has, under a back link
-// and a section nav.
+// The full breakdown is part of Insights now (owner, 24 Nov 2026): this
+// address forwards to /statistics, keeping a #section if one was given.
 export default function MoneyBreakdownPage() {
-  return <MoneyDashboardScreen />;
+  return <BreakdownRedirect />;
 }

@@ -5,19 +5,19 @@
 // (src/viewmodels/dashboard/money.ts) for the period's layout. Live: every
 // source is a Firestore listener, so a new entry updates the figures.
 
-import { useMemo } from 'react';
-import { query, where } from 'firebase/firestore';
+import { useEffect, useMemo, useState } from 'react';
+import { onSnapshot, query, where } from 'firebase/firestore';
 import { useFinanceData } from '@/src/logic/financeInsights/useFinanceData';
 import { classifySpending } from '@/src/viewmodels/finance/classify';
 import { useFirestoreCollection } from '@/src/shared/firestore/hooks';
-import { debtsRef, reconciliationsRef } from '@/src/shared/firestore/refs';
+import { debtsRef, reconciliationsRef, repaymentsRef } from '@/src/shared/firestore/refs';
 import { toDisplay } from '@/src/shared/firestore/currency';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { usePeriod } from '@/src/shared/dashboard/usePeriod';
 import { cardsIn, MONEY_LAYOUT } from '@/src/shared/dashboard/layouts';
 import { moneyDashboard, type MoneyInput } from '@/src/viewmodels/dashboard/money';
 import { moneyVerdict } from '@/src/viewmodels/dashboard/verdict';
-import type { FirestoreDebt, FirestoreReconciliation } from '@/src/shared/firestore/types';
+import type { FirestoreDebt, FirestoreReconciliation, FirestoreRepayment } from '@/src/shared/firestore/types';
 
 const MONTHLY: Record<string, number> = { weekly: 52 / 12, biweekly: 26 / 12, monthly: 1, yearly: 1 / 12 };
 
@@ -26,6 +26,22 @@ export function useMoneyDashboard() {
   const { user } = useFirebaseUser();
   const uid = user?.uid;
   const debts = useFirestoreCollection<FirestoreDebt>(useMemo(() => (uid ? query(debtsRef(uid), where('archivedAt', '==', null)) : null), [uid]));
+  // Each open debt's repayments, for Debt over time: one listener per debt
+  // (the rules have no collection-group match for repayments).
+  const [repaymentsByDebt, setRepaymentsByDebt] = useState<Record<string, { date: Date; amount: number }[]>>({});
+  const debtIds = debts.data.map((d) => d.id).sort().join(',');
+  useEffect(() => {
+    if (!uid || !debtIds) return;
+    const stops = debtIds.split(',').map((id) =>
+      onSnapshot(repaymentsRef(uid, id), (snap) =>
+        setRepaymentsByDebt((cur) => ({
+          ...cur,
+          [id]: snap.docs.map((doc) => doc.data() as FirestoreRepayment).filter((r) => r.date).map((r) => ({ date: r.date.toDate(), amount: r.amount })),
+        }))
+      )
+    );
+    return () => stops.forEach((stop) => stop());
+  }, [uid, debtIds]);
   const checks = useFirestoreCollection<FirestoreReconciliation>(useMemo(() => (uid ? query(reconciliationsRef(uid)) : null), [uid]));
 
   const first = useMemo(() => {
@@ -52,6 +68,10 @@ export function useMoneyDashboard() {
         principal: toDisplay(ctx, d.principalAmount, d.currency),
         outstanding: toDisplay(ctx, Math.max(0, d.currentBalance), d.currency),
         monthly: d.paymentPlan?.type === 'recurring' && d.paymentPlan.recurring?.isActive ? toDisplay(ctx, d.paymentPlan.recurring.amount * (MONTHLY[d.paymentPlan.recurring.interval] ?? 1), d.currency) : null,
+        direction: d.direction ?? 'owe',
+        start: d.startDate?.toDate(),
+        repayments: (repaymentsByDebt[d.id] ?? []).map((r) => ({ date: r.date, amount: toDisplay(ctx, r.amount, d.currency) })),
+        settled: d.settledEvent ? { date: d.settledEvent.date.toDate(), amount: toDisplay(ctx, d.settledEvent.amount, d.currency) } : null,
       })),
       // A check counted every wallet at once: per wallet, what the records
       // said (ledger) and what was counted (reported).
@@ -73,7 +93,7 @@ export function useMoneyDashboard() {
       })(),
       untrackedTarget: 0.02,
     };
-  }, [fin, debts.data, checks.data]);
+  }, [fin, debts.data, checks.data, repaymentsByDebt]);
 
   const dash = useMemo(() => moneyDashboard(input, p.period, cardsIn(layout)), [input, p.period, layout]);
 

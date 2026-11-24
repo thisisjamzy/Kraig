@@ -13,7 +13,6 @@ const WIDE_ROUTES = [
   '/projects/plan',
   '/home',
   '/statistics',
-  '/statistics/breakdown',
   '/baskets',
   '/baskets/items',
   '/budget',

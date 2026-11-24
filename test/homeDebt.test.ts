@@ -3,7 +3,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { areaFigures, categoryInsight, dueText, greetingFor, unexplainedText, upcomingLines, weekBuckets } from '../app/src/viewmodels/home';
+import { areaFigures, categoryInsight, commitmentsOf, dueText, greetingFor, monthBuckets, monthChange, unexplainedText, upcomingLines, weekBuckets } from '../app/src/viewmodels/home';
 import { debtSentence } from '../app/src/viewmodels/debt';
 
 const LONG_DASH = /[–—]/;
@@ -57,21 +57,61 @@ test('the spending insight names the category that moved most', () => {
   assert.equal(categoryInsight([{ name: 'Food', now: 100_000, before: 0 }], 100_000, 0), 'Most of it went to Food (100%)');
 });
 
-test('cash flow: the last 30 days in weeks, net per week', () => {
+test('cash flow: the last 12 weeks, Monday to Sunday, net per week (owner, 24 Nov 2026)', () => {
+  const wed = new Date(2026, 9, 14); // Wednesday 14 Oct 2026
   const bars = weekBuckets(
     [
-      { date: new Date(2026, 9, 2), income: 500_000, expense: 200_000 },
-      { date: new Date(2026, 8, 5), income: 1_000, expense: 0 }, // 3 Sep is day 1 of the window, 5 Sep inside it
-      { date: new Date(2026, 7, 1), income: 999, expense: 0 }, // outside
+      { date: new Date(2026, 9, 12), income: 500_000, expense: 200_000 }, // Monday of this week
+      { date: new Date(2026, 9, 11), income: 1_000, expense: 0 }, // Sunday: last week
+      { date: new Date(2026, 6, 1), income: 999, expense: 0 }, // before the 12 weeks
     ],
     'week',
+    wed
+  );
+  assert.equal(bars.length, 12);
+  assert.equal(bars[11].label, '12 Oct');
+  assert.equal(bars[11].income, 500_000);
+  assert.equal(bars[11].net, 300_000);
+  assert.equal(bars[10].income, 1_000);
+  assert.equal(bars.reduce((s, b) => s + b.income, 0), 501_000);
+});
+
+test('cash flow: the last 12 months, a refund lowering expenses', () => {
+  const bars = monthBuckets(
+    [
+      { date: new Date(2026, 9, 3), income: 0, expense: 50_000 },
+      { date: new Date(2026, 9, 9), income: 0, expense: -10_000 },
+      { date: new Date(2025, 10, 30), income: 7, expense: 0 }, // November 2025: the first of the 12
+      { date: new Date(2025, 9, 30), income: 9, expense: 0 }, // too old
+    ],
+    new Date(2026, 9, 14)
+  );
+  assert.equal(bars.length, 12);
+  assert.equal(bars[0].label, 'Nov');
+  assert.equal(bars[0].income, 7);
+  assert.equal(bars[11].expense, 40_000);
+});
+
+test('month on month: share and amount, or nothing to compare with', () => {
+  assert.deepEqual(monthChange(120_000, 100_000), { change: 0.2, changeAmount: 20_000 });
+  assert.deepEqual(monthChange(80_000, 0), { change: null, changeAmount: null });
+});
+
+test('commitments: planned, paid, still to pay and overdue', () => {
+  const today = new Date(2026, 10, 20);
+  const line = (o: Partial<{ type: string; archived: boolean; closed: boolean; due: Date | null; available: number; actual: number }>) => ({ type: 'Expense', archived: false, closed: false, due: null, available: 0, actual: 0, ...o });
+  const c = commitmentsOf(
+    [
+      line({ available: 150_000, actual: 0, due: new Date(2026, 10, 5) }), // overdue
+      line({ available: 50_000, actual: 50_000, due: new Date(2026, 10, 2) }), // paid
+      line({ type: 'Savings', available: 40_000, actual: 10_000, due: new Date(2026, 10, 28) }), // still to pay, not late
+      line({ available: 30_000, actual: 5_000, closed: true }), // closed: nothing left
+      line({ type: 'Income', available: 400_000 }), // never counted
+      line({ available: 9_000, archived: true }), // archived
+    ],
     today
   );
-  assert.equal(bars.length, 5);
-  const last = bars[bars.length - 1];
-  assert.equal(last.income, 500_000);
-  assert.equal(last.net, 300_000);
-  assert.equal(bars.reduce((s, b) => s + b.income, 0), 501_000);
+  assert.deepEqual(c, { planned: 270_000, paid: 90_000, left: 180_000, overdue: 150_000 });
 });
 
 test('the unexplained balance reads as a sentence, not "Unaccounted for"', () => {

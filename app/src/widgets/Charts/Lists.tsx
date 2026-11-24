@@ -1,9 +1,8 @@
 'use client';
 
 // Row charts and tables: BulletList (planned against actual), RankedBars
-// (largest first, linear or log), StackedBarList (debts), HorizontalWaterfall
-// (balance change), and the TransactionList, ReconciliationList and
-// ReconciliationLog tables (each scrolls sideways in its own box).
+// (largest first, linear or log), HorizontalWaterfall (balance change), and
+// the TransactionList table (it scrolls sideways in its own box).
 
 import { makeScale, type ScaleMode } from '@/src/shared/dashboard/scale';
 import { waterfallSpans } from './math';
@@ -83,36 +82,6 @@ export function RankedBars({
 
 // ---- Debts: paid and left ----
 
-export function StackedBarList({
-  rows,
-  format,
-  ariaLabel,
-}: {
-  rows: { label: string; paid: number; left: number; sub: string }[];
-  format: (n: number) => string;
-  ariaLabel: string;
-}) {
-  return (
-    <div className={s.rows} role="img" aria-label={ariaLabel}>
-      {rows.map((r) => {
-        const total = r.paid + r.left || 1;
-        return (
-          <div key={r.label} className={s.row}>
-            <span className={s.rowLabel}>{r.label}</span>
-            <span className={s.track}>
-              <span className={s.fill} style={{ width: pct((r.paid / total) * 100) }} />
-            </span>
-            <span className={s.rowValue}>{r.left > 0.5 ? `${format(r.left)} left` : 'Cleared'}</span>
-            <span className={s.rowSub}>{r.sub}</span>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-// ---- Waterfall ----
-
 export interface WaterfallStep {
   label: string;
   /** Totals: the balance itself; changes: signed amounts. */
@@ -180,84 +149,6 @@ export function TransactionList({
                 {format(r.amount)}
               </td>
               <td>{r.income ? '' : <span className={s.tag} data-tone={r.unplanned ? 'accent' : 'good'}>{r.unplanned ? 'Unplanned' : 'Planned'}</span>}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-export interface WalletCheck {
-  name: string;
-  when: string;
-  due: boolean;
-  /** Counted minus recorded: negative is missing. */
-  difference: number;
-  recorded: number;
-  counted: number;
-}
-
-export function ReconciliationList({ rows, format, href }: { rows: WalletCheck[]; format: (n: number) => string; href: string }) {
-  return (
-    <div>
-      {rows.map((r) => {
-        const matches = Math.abs(r.difference) < 0.5;
-        return (
-          <div key={r.name} className={s.recRow}>
-            <span className={s.recName}>{r.name}</span>
-            <span className={s.tag} data-tone={matches ? 'good' : r.difference < 0 ? 'bad' : 'good'}>
-              {matches ? 'Matches' : r.difference < 0 ? `${format(-r.difference)} missing` : `${format(r.difference)} found`}
-            </span>
-            <span className={s.recWhen}>
-              Checked {r.when}
-              {r.due ? ' · due for a check' : ''}
-            </span>
-            <span className={s.recFigures}>
-              Recorded {format(r.recorded)} · Counted {format(r.counted)}
-            </span>
-          </div>
-        );
-      })}
-      <a className={s.button} href={href} style={{ marginTop: 12 }}>
-        Reconcile wallets
-      </a>
-    </div>
-  );
-}
-
-export function ReconciliationLog({
-  rows,
-  format,
-}: {
-  rows: { date: string; wallet: string; recorded: number; counted: number; difference: number; days: number | null }[];
-  format: (n: number) => string;
-}) {
-  return (
-    <div className={s.tableWrap}>
-      <table className={s.table}>
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>Wallet</th>
-            <th className={s.right}>Recorded</th>
-            <th className={s.right}>Counted</th>
-            <th className={s.right}>Difference</th>
-            <th className={s.right}>Days since last</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r, i) => (
-            <tr key={i}>
-              <td>{r.date}</td>
-              <td>{r.wallet}</td>
-              <td className={s.right}>{format(r.recorded)}</td>
-              <td className={s.right}>{format(r.counted)}</td>
-              <td className={s.right} style={{ color: r.difference < -0.5 ? 'var(--c-bad)' : r.difference > 0.5 ? 'var(--c-primary-dark)' : undefined, fontWeight: 600 }}>
-                {r.difference > 0 ? '+' : ''}
-                {format(r.difference)}
-              </td>
-              <td className={s.right}>{r.days ?? 'First'}</td>
             </tr>
           ))}
         </tbody>

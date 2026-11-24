@@ -11,7 +11,7 @@ import { linearScale, logScale, makeScale } from '../app/src/shared/dashboard/sc
 import { compact, money, hours, duration, signedCompact } from '../app/src/shared/dashboard/format';
 import { MONEY_LAYOUT, TIME_LAYOUT, cardsIn } from '../app/src/shared/dashboard/layouts';
 import { GUIDE } from '../app/src/shared/dashboard/guides';
-import { balanceAt, flowsIn, moneyDashboard, walletKind } from '../app/src/viewmodels/dashboard/money';
+import { balanceAt, debtHistory, flowsIn, moneyDashboard, walletKind } from '../app/src/viewmodels/dashboard/money';
 import { categoryOf, timeDashboard, timeEntries, trackedIn, workdaysIn } from '../app/src/viewmodels/dashboard/time';
 import { FIXTURE_NOW, moneyFixture, timeFixture } from '../app/src/viewmodels/dashboard/fixtures';
 import { spreadLabels, boxStats, waterfallSpans } from '../app/src/widgets/Charts/math';
@@ -85,13 +85,18 @@ test('one formatting module: currency, compact, hours, real minus signs', () => 
 // ---- Layouts ----
 
 test('each period shows the brief’s cards in order', () => {
-  assert.deepEqual(cardsIn(MONEY_LAYOUT.day), ['dayHours', 'plan', 'dayTx', 'recLatest']);
-  assert.deepEqual(cardsIn(MONEY_LAYOUT.week), ['flow', 'plan', 'wf', 'tree', 'when', 'recEach', 'recLatest', 'recLog']);
-  const month = cardsIn(MONEY_LAYOUT.month);
-  assert.equal(month.indexOf('recLog'), month.indexOf('recRate') + 1, 'Month adds the log after the untracked cards');
-  assert.ok(!cardsIn(MONEY_LAYOUT.year).includes('recLog'));
-  // Untracked money (reconciliation) is the last section in every period.
+  // Owner, 24 Nov 2026: the reconciliation lists left Insights; Day has no
+  // Untracked money section; debts are a chart over time.
+  assert.deepEqual(cardsIn(MONEY_LAYOUT.day), ['dayHours', 'plan', 'dayTx']);
+  assert.deepEqual(cardsIn(MONEY_LAYOUT.week), ['flow', 'plan', 'wf', 'tree', 'when', 'recEach']);
   for (const kind of DASH_KINDS) {
+    const ids = cardsIn(MONEY_LAYOUT[kind]);
+    for (const gone of ['recLatest', 'recLog', 'debts']) assert.ok(!ids.includes(gone), `${kind} ${gone}`);
+  }
+  assert.ok(cardsIn(MONEY_LAYOUT.month).includes('debtTrend'));
+  assert.ok(cardsIn(MONEY_LAYOUT.all).includes('debtTrend'));
+  // Untracked money (reconciliation) is the last section in every period but Day.
+  for (const kind of DASH_KINDS.filter((k) => k !== 'day')) {
     const sections = MONEY_LAYOUT[kind].filter((e) => 'section' in e).map((e) => ('section' in e ? e.section : ''));
     assert.equal(sections[sections.length - 1], 'Untracked money', kind);
   }
@@ -154,13 +159,11 @@ test('untracked money: missing and found per check, by wallet, as a share of spe
   const diffs = checks.flatMap((c) => c.wallets.map((w) => w.counted - w.recorded));
   assert.equal(f.missing, Math.round(diffs.filter((d) => d < 0).reduce((a, d) => a - d, 0) * 100) / 100);
   assert.equal(f.netUntracked, Math.round((f.missing - f.found) * 100) / 100);
-  const dash = moneyDashboard(input, sept, ['recWallet', 'recRate', 'recEach', 'recLatest']);
+  const dash = moneyDashboard(input, sept, ['recWallet', 'recRate', 'recEach']);
   const wallets = dash.cards.recWallet;
   assert.ok(wallets && wallets.id === 'recWallet' && wallets.rows[0].label === 'Leaderbag');
   const rate = dash.cards.recRate;
   assert.ok(rate && rate.id === 'recRate' && rate.target === 2);
-  const latest = dash.cards.recLatest;
-  assert.ok(latest && latest.id === 'recLatest' && latest.rows.find((r) => r.name === 'Savings')?.due, 'a wallet never checked is due');
 });
 
 test('future slots are empty, never zero; wallet types from their labels', () => {
@@ -239,7 +242,11 @@ test('the page: Insights title and period filter on one fixed header row, every 
   assert.match(css, /\.head \{[^}]*justify-content: space-between;/, 'title left, filter right');
   const page = readFileSync(join(__dirname, '../app/src/widgets/Dashboard/DashboardPage.tsx'), 'utf8');
   assert.match(page, /<h1 className=\{s\.pageTitle\}>Insights<\/h1>/);
-  for (const which of ['Money', 'Time']) assert.match(readFileSync(join(__dirname, `../app/src/screens/${which}Dashboard/${which}DashboardScreen.tsx`), 'utf8'), /^\s+web$/m, 'one title on web, beside the filters');
+  // Money Insights is one page now (owner, 24 Nov 2026): the web screen asks for the web header.
+  assert.match(readFileSync(join(__dirname, '../app/src/screens/MoneyInsights/MoneyInsightsScreen.tsx'), 'utf8'), /<MoneyInsightsPage [^>]*\bweb \/>/, 'one title on web, beside the filters');
+  const insights = readFileSync(join(__dirname, '../app/src/widgets/Dashboard/MoneyInsightsPage.tsx'), 'utf8');
+  assert.match(insights, /id="section-accountability"/);
+  assert.doesNotMatch(insights, /statistics\/breakdown/);
   assert.doesNotMatch(page, /aria-label="Dashboards"/, 'no Money / Time switch');
   const card = readFileSync(join(__dirname, '../app/src/widgets/Charts/ChartCard.tsx'), 'utf8');
   assert.match(card, /<ScaleSwitch mode=\{scale\} onChange=\{onScale\} \/>/);
@@ -257,4 +264,40 @@ test('specific periods: newest first, back to the first record, older days and w
   assert.equal(weeks[0].value, '2026-10-05');
   assert.match(weeks[weeks.length - 1].label, / 2024$/);
   assert.deepEqual(periodChoices('all', now, null), []);
+});
+
+test('every Money layout row adds up to 12 columns, so no card sits beside a gap', () => {
+  for (const kind of DASH_KINDS) {
+    let row = 0;
+    for (const e of MONEY_LAYOUT[kind]) {
+      if ('section' in e) {
+        assert.equal(row % 12, 0, `${kind}: a section starts mid-row`);
+        row = 0;
+        continue;
+      }
+      row += e.span;
+      assert.ok(row <= 12 || row % 12 === 0 || (row - e.span) % 12 === 0, `${kind}: ${e.card} overflows a row`);
+    }
+    assert.equal(row % 12, 0, `${kind}: the last row is short`);
+  }
+});
+
+test('debt over time: started mid-range, a repayment on a boundary, forgiven, owed to you, another currency', () => {
+  const b = (iso: string) => ({ end: new Date(`${iso}T00:00:00`) });
+  const buckets = [b('2026-09-01'), b('2026-10-01'), b('2026-11-01'), b('2026-12-01')];
+  const d = (iso: string) => new Date(`${iso}T00:00:00`);
+  const h = debtHistory(
+    [
+      // Starts in September: nothing at the end of August.
+      { id: 'a', name: 'Loan', principal: 100_000, outstanding: 70_000, monthly: 10_000, start: d('2026-09-10'), repayments: [{ date: d('2026-10-01'), amount: 20_000 }, { date: d('2026-10-15'), amount: 10_000 }] },
+      // Forgiven on 20 October: gone from November on.
+      { id: 'b', name: 'Friend', principal: 30_000, outstanding: 0, monthly: null, start: d('2026-01-01'), settled: { date: d('2026-10-20'), amount: 30_000 } },
+      // Owed to you; amounts arrive already converted (a USD debt at 600).
+      { id: 'c', name: 'Lent', principal: 50 * 600, outstanding: 50 * 600, monthly: null, direction: 'owed', start: d('2026-08-01') },
+    ],
+    buckets
+  );
+  // A repayment dated exactly on a bucket end belongs to the next bucket.
+  assert.deepEqual(h.owe, [30_000, 130_000, 70_000, 70_000]);
+  assert.deepEqual(h.owed, [30_000, 30_000, 30_000, 30_000]);
 });

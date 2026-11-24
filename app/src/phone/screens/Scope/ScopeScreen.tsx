@@ -18,7 +18,7 @@ import { labelHue } from '@/src/viewmodels/projects';
 import { durationText } from '@/src/viewmodels/todayPlan';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { HueTag, TypePill } from '@/src/widgets/TaskChips/TypePill';
-import { HeaderButton, TimeHeader } from '@/src/phone/widgets/TimeHeader/TimeHeader';
+import { HeaderButton, HeaderMenu, TimeHeader } from '@/src/phone/widgets/TimeHeader/TimeHeader';
 import { TaskLine } from '@/src/phone/widgets/TaskCheckRow/TaskLine';
 import { FolderCard, GroupHead, NextUpList, ProjectCard, ViewChips } from '@/src/phone/widgets/OrganiseCards/OrganiseCards';
 import styles from '@/src/phone/screens/AllProjects/AllProjectsScreen.module.css';
@@ -52,12 +52,13 @@ export function ScopeScreen(props: Scope) {
         crumb={isArea ? { label: 'Areas', href: '/areas' } : { label: area.name, href: `/areas/${area.id}` }}
         actions={
           <>
-            <HeaderButton label="Import tasks" onClick={() => router.push(`/settings/import?area=${encodeURIComponent(area.id)}`)}>
-              <Upload size={18} strokeWidth={2} />
-            </HeaderButton>
-            <HeaderButton label={isArea ? 'Archive area' : 'Archive folder'} onClick={() => setArchiving(true)}>
-              <Archive size={18} strokeWidth={2} />
-            </HeaderButton>
+            <HeaderMenu
+              label={isArea ? 'Area actions' : 'Folder actions'}
+              items={[
+                { key: 'import', label: 'Import tasks', icon: <Upload size={16} strokeWidth={2} />, onSelect: () => router.push(`/settings/import?area=${encodeURIComponent(area.id)}`) },
+                { key: 'archive', label: isArea ? 'Archive area' : 'Archive folder', icon: <Archive size={16} strokeWidth={2} />, onSelect: () => setArchiving(true), danger: true, divider: true },
+              ]}
+            />
             <HeaderButton
               label={isArea ? 'New folder' : 'New project'}
               onClick={() => router.push(isArea ? `/sections/new?areaId=${area.id}` : `/projects/new?areaId=${area.id}&bucketId=${scope.id}`)}

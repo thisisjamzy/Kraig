@@ -7,8 +7,9 @@
 // (written in place).
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Archive, Pencil, Plus, Upload } from 'lucide-react';
+import { Archive, ChartColumn, Pencil, Plus, Upload } from 'lucide-react';
 import { ConfirmDialog } from '@/src/widgets/ConfirmDialog/ConfirmDialog';
 import { useLogic } from '@/src/logic/projectDetail/useLogic';
 import { useTaskPanel } from '@/src/shared/navigation/taskPanel';
@@ -16,7 +17,7 @@ import { durationText } from '@/src/viewmodels/todayPlan';
 import type { TaskListItem } from '@/src/viewmodels/taskListItem';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { TypePill } from '@/src/widgets/TaskChips/TypePill';
-import { HeaderButton, TimeHeader } from '@/src/phone/widgets/TimeHeader/TimeHeader';
+import { HeaderMenu, TimeHeader } from '@/src/phone/widgets/TimeHeader/TimeHeader';
 import { TaskLine } from '@/src/phone/widgets/TaskCheckRow/TaskLine';
 import { ViewChips } from '@/src/phone/widgets/OrganiseCards/OrganiseCards';
 import styles from '@/src/phone/screens/AllProjects/AllProjectsScreen.module.css';
@@ -39,6 +40,7 @@ export function ProjectDetailScreen({ projectId }: { projectId: string }) {
   const open = v.tasks.filter((t) => t.status === 'pending');
   const done = v.tasks.filter((t) => t.status === 'done');
   const notes = draft ?? v.notes;
+  const newTaskHref = `/tasks/new?projectId=${encodeURIComponent(projectId)}`;
 
   return (
     <div className={styles.page}>
@@ -47,20 +49,16 @@ export function ProjectDetailScreen({ projectId }: { projectId: string }) {
         sub={[stat.folderName ?? stat.areaName, `${stat.open} open`, `${Math.round(stat.progress * 100)}% done`].filter(Boolean).join(' · ')}
         crumb={crumb}
         actions={
-          <>
-            <HeaderButton label="Import tasks" onClick={() => router.push(`/settings/import?project=${encodeURIComponent(projectId)}`)}>
-              <Upload size={18} strokeWidth={2} />
-            </HeaderButton>
-            <HeaderButton label="Archive project" onClick={() => setArchiving(true)}>
-              <Archive size={18} strokeWidth={2} />
-            </HeaderButton>
-            <HeaderButton label="Edit project" onClick={() => router.push(`/projects/${projectId}/edit`)}>
-              <Pencil size={18} strokeWidth={2} />
-            </HeaderButton>
-            <HeaderButton label="New task" onClick={() => router.push(`/tasks/new?projectId=${encodeURIComponent(projectId)}`)}>
-              <Plus size={20} strokeWidth={2} />
-            </HeaderButton>
-          </>
+          <HeaderMenu
+            label="Project actions"
+            items={[
+              { key: 'new', label: 'New task', icon: <Plus size={16} strokeWidth={2} />, onSelect: () => router.push(newTaskHref) },
+              { key: 'edit', label: 'Edit project', icon: <Pencil size={16} strokeWidth={2} />, onSelect: () => router.push(`/projects/${projectId}/edit`) },
+              { key: 'import', label: 'Import tasks', icon: <Upload size={16} strokeWidth={2} />, onSelect: () => router.push(`/settings/import?project=${encodeURIComponent(projectId)}`) },
+              { key: 'insights', label: 'Project insights', icon: <ChartColumn size={16} strokeWidth={2} />, onSelect: () => router.push(`/projects/insights/${projectId}`) },
+              { key: 'archive', label: 'Archive project', icon: <Archive size={16} strokeWidth={2} />, onSelect: () => setArchiving(true), danger: true, divider: true },
+            ]}
+          />
         }
       />
       {archiving && (
@@ -104,7 +102,7 @@ export function ProjectDetailScreen({ projectId }: { projectId: string }) {
               <strong>{durationText(stat.weekMinutes)}</strong>
             </div>
           </div>
-          <TaskCard title="Open tasks" tasks={[...open, ...done]} count={open.length} setDone={v.setDone} />
+          <TaskCard title="Open tasks" tasks={[...open, ...done]} count={open.length} setDone={v.setDone} newHref={newTaskHref} />
         </>
       )}
 
@@ -149,15 +147,31 @@ export function ProjectDetailScreen({ projectId }: { projectId: string }) {
   );
 }
 
-function TaskCard({ title, tasks, count, setDone }: { title: string; tasks: TaskListItem[]; count: number; setDone: (t: TaskListItem, done: boolean) => Promise<unknown> }) {
+function TaskCard({ title, tasks, count, setDone, newHref }: { title: string; tasks: TaskListItem[]; count: number; setDone: (t: TaskListItem, done: boolean) => Promise<unknown>; newHref?: string }) {
   const taskPanel = useTaskPanel();
-  if (!tasks.length) return <p className={styles.empty}>No tasks yet. Tap + to add one.</p>;
+  if (!tasks.length)
+    return (
+      <p className={styles.empty}>
+        No tasks yet.{' '}
+        {newHref && (
+          <Link href={newHref} className={styles.textAction}>
+            Add the first one
+          </Link>
+        )}
+      </p>
+    );
   return (
     <section className={styles.card} aria-label={title}>
       <h2 className={styles.cardHead}>
         <span className={styles.dot} aria-hidden />
         {title}
         <span className={styles.cardCount}>{count}</span>
+        {newHref && (
+          <Link href={newHref} className={styles.textAction}>
+            <Plus size={16} strokeWidth={2.25} aria-hidden />
+            New task
+          </Link>
+        )}
       </h2>
       {tasks.map((t) => {
         const isDone = t.status === 'done';

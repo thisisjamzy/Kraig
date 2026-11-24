@@ -4,7 +4,7 @@
 .page {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
   padding: calc(16px + var(--safe-top, 0px)) 16px calc(120px + var(--safe-bottom, 0px));
   background: var(--color-bg-page);
   font-family: var(--font-family-body);

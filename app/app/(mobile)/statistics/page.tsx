@@ -5,8 +5,8 @@ export const metadata: Metadata = {
   title: 'Insights · Dreda',
 };
 
-// Money Insights, level one: the verdict, what is worth doing now and one
-// chart. The full breakdown (the dashboard) is at /statistics/breakdown.
+// Money Insights: one page, the overview (verdict, what is worth doing now,
+// the period figures) and every breakdown section.
 export default function MoneyInsightsPage() {
   return <MoneyInsightsScreen />;
 }

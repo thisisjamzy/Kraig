@@ -156,3 +156,18 @@
   padding-top: 16px;
   background: var(--color-bg-surface);
 }
+
+/* "New task" on the Tasks heading (owner, 24 Nov 2026): one tap away now
+   the header holds only the More menu. */
+.textAction {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px;
+  margin: -12px 0 -12px auto;
+  padding: 0 4px;
+  color: var(--color-primary);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}

@@ -132,7 +132,8 @@
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
   gap: 20px;
-  align-items: start;
+  /* Cards on the same row are the same height (owner, 24 Nov 2026). */
+  align-items: stretch;
 }
 
 .grid > * {
@@ -194,29 +195,29 @@
   }
 }
 
-/* Insights level two: back link and title, then the section nav. */
-.breakdownTitles {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.backLink {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--color-link);
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  text-decoration: none;
-}
-
+/* The section nav, sticky under the header row; it scrolls sideways when
+   it doesn't fit, and lights up the section in view. */
 .sectionNav {
+  position: sticky;
+  top: calc(var(--dash-top, 0px) + var(--head-h, 61px));
+  z-index: 17;
   display: flex;
   gap: 8px;
   overflow-x: auto;
-  padding: 12px max(32px, calc((100% - 1280px) / 2 + 32px)) 0;
+  padding: 10px max(32px, calc((100% - 1280px) / 2 + 32px));
+  background: var(--color-page);
+  border-bottom: 1px solid var(--color-border);
+  scrollbar-width: none;
+}
+
+.sectionNav::-webkit-scrollbar {
+  display: none;
+}
+
+.sectionNav a[aria-current] {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
 }
 
 .sectionNav a {
@@ -238,11 +239,85 @@
 }
 
 .section {
-  scroll-margin-top: calc(var(--dash-top, 0px) + 80px);
+  scroll-margin-top: calc(var(--dash-top, 0px) + 130px);
+}
+
+#section-accountability {
+  scroll-margin-top: calc(var(--dash-top, 0px) + 130px);
+}
+
+/* Each grid child fills its row; a card inside stretches to it. */
+.grid > * > :only-child {
+  height: 100%;
+}
+
+/* The period on a phone: one button that opens a sheet with both choices. */
+.periodButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  max-width: 60%;
+  padding: 0 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: var(--color-background);
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.periodButton span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.periodSheet {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.periodSheet label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
+.periodSheet select {
+  height: 48px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: var(--color-background);
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 16px;
+}
+
+.periodDone {
+  min-height: 48px;
+  border: none;
+  border-radius: 9999px;
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
 }
 
 @container dash (max-width: 760px) {
   .sectionNav {
-    padding: 12px 16px 0;
+    top: calc(var(--dash-top, 0px) + var(--head-h, 61px));
+    padding: 8px 12px;
+  }
+  /* Equal heights don't apply on a phone: one card per row. */
+  .grid > * > :only-child {
+    height: auto;
   }
 }

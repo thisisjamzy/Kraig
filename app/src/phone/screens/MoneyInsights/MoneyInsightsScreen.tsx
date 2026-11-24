@@ -1,12 +1,12 @@
 'use client';
 
-// Money Insights, level one (phone): the same answer page stacked, under the
-// app's own header.
+// Money Insights (phone): the same one page, stacked, under the app's own
+// header (src/widgets/Dashboard/MoneyInsightsPage).
 
 import { useMoneyDashboard } from '@/src/logic/dashboard/useMoneyDashboard';
-import { InsightsPage } from '@/src/widgets/Dashboard/InsightsPage';
+import { MoneyInsightsPage } from '@/src/widgets/Dashboard/MoneyInsightsPage';
 
 export function MoneyInsightsScreen() {
   const v = useMoneyDashboard();
-  return <InsightsPage v={v} stickyTop="var(--header-height)" />;
+  return <MoneyInsightsPage v={v} stickyTop="var(--header-height)" />;
 }

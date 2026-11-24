@@ -5,6 +5,8 @@
 // and a muted line under it (Dreda v1.0 `Today / Phone`, `Tasks / Phone`).
 
 import type { ReactNode } from 'react';
+import { MoreVertical } from 'lucide-react';
+import { ActionMenu, type ActionMenuItem } from '@/src/widgets/ActionMenu/ActionMenu';
 import { GreetingHeader } from '@/src/phone/widgets/GreetingHeader/GreetingHeader';
 import styles from '@/src/phone/widgets/TimeHeader/TimeHeader.module.css';
 
@@ -32,4 +34,13 @@ export function HeaderButton({ label, onClick, children }: { label: string; onCl
       {children}
     </button>
   );
+}
+
+/**
+ * The header's More menu (owner, 24 Nov 2026): every page action that isn't
+ * the page's one main job goes here, so the toolbar holds at most one
+ * primary button and this.
+ */
+export function HeaderMenu({ label, items }: { label: string; items: ActionMenuItem[] }) {
+  return <ActionMenu ariaLabel={label} items={items} triggerClassName={styles.round} triggerIcon={<MoreVertical size={20} strokeWidth={2} />} />;
 }

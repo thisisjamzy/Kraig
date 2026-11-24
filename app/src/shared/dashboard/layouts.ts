@@ -11,8 +11,9 @@ export type LayoutEntry = { section: string } | { card: string; span: number };
 const sec = (section: string): LayoutEntry => ({ section });
 const card = (id: string, span: number): LayoutEntry => ({ card: id, span });
 
-// Untracked money (the reconciliation cards) always comes last.
-const MONEY_REC = [sec('Untracked money'), card('recEach', 8), card('recWallet', 4), card('recLatest', 6), card('recRate', 6)];
+// Untracked money (the reconciliation charts) always comes last. The lists
+// (latest check, the log) live on the Reconciliation pages (owner, 24 Nov 2026).
+const MONEY_REC = [sec('Untracked money'), card('recEach', 8), card('recWallet', 4), card('recRate', 12)];
 const MONEY_FULL = [
   sec('Income'),
   card('incEach', 6),
@@ -25,7 +26,7 @@ const MONEY_FULL = [
   card('sk', 6),
   sec('Plan and debts'),
   card('plan', 7),
-  card('debts', 5),
+  card('debtTrend', 5),
   sec('Unplanned spending'),
   card('tree', 6),
   card('when', 6),
@@ -34,7 +35,7 @@ const MONEY_FULL = [
 ];
 
 export const MONEY_LAYOUT: Record<DashKind, LayoutEntry[]> = {
-  day: [sec('Today'), card('dayHours', 7), card('plan', 5), sec('Transactions'), card('dayTx', 12), sec('Untracked money'), card('recLatest', 12)],
+  day: [sec('Today'), card('dayHours', 7), card('plan', 5), sec('Transactions'), card('dayTx', 12)],
   week: [
     sec('This week'),
     card('flow', 12),
@@ -45,12 +46,9 @@ export const MONEY_LAYOUT: Record<DashKind, LayoutEntry[]> = {
     card('tree', 6),
     card('when', 6),
     sec('Untracked money'),
-    card('recEach', 6),
-    card('recLatest', 6),
-    card('recLog', 12),
+    card('recEach', 12),
   ],
-  // Month adds the reconciliation log after the untracked money cards.
-  month: [...MONEY_FULL, ...MONEY_REC, card('recLog', 12)],
+  month: [...MONEY_FULL, ...MONEY_REC],
   quarter: [...MONEY_FULL, ...MONEY_REC],
   year: [...MONEY_FULL, ...MONEY_REC],
   all: [
@@ -65,7 +63,7 @@ export const MONEY_LAYOUT: Record<DashKind, LayoutEntry[]> = {
     card('sk', 6),
     sec('Spending and debts'),
     card('box', 7),
-    card('debts', 5),
+    card('debtTrend', 5),
     sec('Unplanned spending'),
     card('tree', 6),
     card('when', 6),

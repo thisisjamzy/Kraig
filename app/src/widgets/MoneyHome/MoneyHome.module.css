@@ -88,382 +88,27 @@
   line-height: 20px;
 }
 
-.overline {
-  margin: 4px 0 0;
-  color: var(--color-text-tertiary);
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 16px;
-  letter-spacing: 0.6px;
-  text-transform: uppercase;
-}
-
-.meter {
-  display: block;
-  height: 8px;
-  overflow: hidden;
-  border-radius: 9999px;
-  background: var(--color-bg-sunken);
-}
-
-.meter > span {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: var(--color-brand-default);
-}
-
-.meter > span[data-tone='success'] {
-  background: var(--color-status-success-solid);
-}
-
-.meter > span[data-tone='warning'] {
-  background: var(--color-status-warning-solid);
-}
-
-.meter > span[data-tone='danger'] {
-  background: var(--color-status-danger-solid);
-}
-
 /* ---- 1. Overview ---- */
-
-.overview {
-  display: grid;
-  grid-template-columns: minmax(340px, 420px) 1fr;
-  gap: 16px;
-}
-
-.balance {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  overflow: hidden;
-  padding: 20px;
-  border-radius: 28px;
-  background: var(--color-card-purple-bg);
-  color: var(--color-card-purple-fg);
-}
-
-.balanceDecor {
-  position: absolute;
-  right: -60px;
-  top: -100px;
-  width: 260px;
-  height: 260px;
-  border-radius: 50%;
-  background: var(--color-card-purple-decor);
-  opacity: 0.5;
-  pointer-events: none;
-}
-
-.balance > *:not(.balanceDecor) {
-  position: relative;
-}
-
-.balanceTop {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.balanceLabel {
-  color: var(--color-card-purple-muted);
-  font-size: 14px;
-  line-height: 20px;
-}
 
 .currency {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  height: 28px;
-  padding: 0 10px 0 12px;
+  gap: 2px;
+  height: 24px;
+  padding: 0 6px 0 8px;
   border: 0;
   border-radius: 9999px;
-  background: var(--color-card-purple-decor);
-  color: var(--color-card-purple-fg);
+  background: var(--color-bg-sunken);
+  color: var(--color-text-secondary);
   font: inherit;
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
 }
 
-.balanceAmount {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  margin: 0;
-}
-
-.balanceAmount > span:first-child {
-  font-family: var(--font-family-mono);
-  font-size: 36px;
-  font-weight: 600;
-  line-height: 44px;
-  letter-spacing: -0.5px;
-}
-
-.balanceUnit {
-  color: var(--color-card-purple-muted);
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.balanceStats {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-
-.balanceStat {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 12px;
-  border-radius: 16px;
-  background: var(--color-card-purple-decor);
-}
-
-.balanceStat span {
-  color: var(--color-card-purple-muted);
-  font-size: 12px;
-  line-height: 16px;
-}
-
-.balanceStat strong {
-  font-family: var(--font-family-mono);
-  font-size: 16px;
-  font-weight: 500;
-  line-height: 24px;
-}
-
-.unaccounted {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
-  border: 1px solid var(--color-card-purple-decor);
-  border-radius: 14px;
-  color: inherit;
-  text-decoration: none;
-}
-
-.unaccounted:hover {
-  background: color-mix(in srgb, var(--color-card-purple-decor) 40%, transparent);
-}
-
-.warnDot {
-  flex: none;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--color-status-warning-solid);
-}
-
-.unaccountedLabel {
-  flex: 1;
-  color: var(--color-card-purple-muted);
-  font-size: 14px;
-  line-height: 20px;
-}
-
-.unaccountedValue {
-  font-family: var(--font-family-mono);
-  font-size: 13px;
-  line-height: 18px;
-}
-
-.review {
-  color: var(--color-accent-default);
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.safe {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px 16px;
-  border-radius: 16px;
-  background: var(--color-card-lime-bg);
-  color: var(--color-card-lime-fg);
-  text-decoration: none;
-}
-
-.safe span {
-  font-size: 14px;
-  font-weight: 600;
-  line-height: 20px;
-}
-
-.safe strong {
-  font-family: var(--font-family-mono);
-  font-size: 16px;
-  font-weight: 500;
-  line-height: 24px;
-}
-
-.kpis {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-auto-rows: 1fr;
-  gap: 16px;
-}
-
-.kpi {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: 10px;
-  min-width: 0;
-  padding: 18px 20px;
-  border-radius: 24px;
-  background: var(--color-bg-surface);
-}
-
-.kpiTop {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.kpiIcon {
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
-  color: var(--color-text-primary);
-}
-
-.kpiIcon[data-tone='income'] {
-  background: var(--color-money-income-bg);
-  color: var(--color-money-income-fg);
-}
-
-.kpiIcon[data-tone='expense'] {
-  background: var(--color-money-expense-bg);
-  color: var(--color-money-expense-fg);
-}
-
-.kpiIcon[data-tone='transfer'] {
-  background: var(--color-bg-sunken);
-}
-
-.kpiIcon[data-tone='savings'] {
-  background: var(--color-money-savings-bg, var(--color-bg-sunken));
-  color: var(--color-money-savings-fg, var(--color-text-primary));
-}
-
-.kpiLabel {
-  flex: 1;
-  color: var(--color-text-secondary);
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 20px;
-}
-
-.kpiValue {
-  margin: 0;
-  font-family: var(--font-family-mono);
-  font-size: 24px;
-  font-weight: 600;
-  line-height: 32px;
-  letter-spacing: -0.5px;
-}
-
-.kpiBottom {
-  display: flex;
-  align-items: flex-end;
-  gap: 12px;
-}
-
-.kpiNote {
-  flex: 1;
-  color: var(--color-text-tertiary);
-  font-size: 12px;
-  line-height: 16px;
-}
-
-.kpiNote[data-tone='good'] {
-  color: var(--color-status-success-fg);
-}
-
-.kpiNote[data-tone='bad'] {
-  color: var(--color-status-danger-fg);
-}
-
-.spark {
-  display: flex;
-  align-items: flex-end;
-  gap: 3px;
-  height: 28px;
-}
-
-.spark span {
-  width: 6px;
-  border-radius: 3px;
-  background: var(--color-card-lilac-decor);
-}
-
-.spark span[data-now] {
-  background: var(--color-brand-default);
-}
-
 /* ---- 2. Wallets ---- */
 
-.walletRow {
-  display: flex;
-  gap: 16px;
-  overflow-x: auto;
-  padding-bottom: 4px;
-  scrollbar-width: thin;
-}
-
-.walletLink {
-  flex: none;
-  border-radius: 22px;
-  text-decoration: none;
-}
-
-.walletLink:focus-visible {
-  outline: 2px solid var(--color-brand-default);
-  outline-offset: 3px;
-}
-
-.addWallet {
-  display: flex;
-  flex: none;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  width: 64px;
-  height: 360px;
-  border: 1.5px dashed var(--color-border-default);
-  border-radius: 22px;
-  color: var(--color-text-secondary);
-  font-size: 13px;
-  font-weight: 500;
-  text-align: center;
-  text-decoration: none;
-}
-
-.addWallet:hover {
-  border-color: var(--color-brand-default);
-  color: var(--color-brand-default);
-}
-
 /* ---- 3. Cash flow and Spending ---- */
-
-.rowInsights {
-  display: grid;
-  grid-template-columns: minmax(0, 642fr) minmax(0, 440fr);
-  gap: 16px;
-}
 
 .segmented {
   display: inline-flex;
@@ -493,33 +138,7 @@
 }
 
 .flowChart {
-  flex: 1;
-  min-height: 360px;
-}
-
-.legend {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 16px;
-  color: var(--color-text-secondary);
-  font-size: 12px;
-}
-
-.legend span {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.legend i {
-  width: 8px;
-  height: 8px;
-  border-radius: 2px;
-}
-
-.legendHint {
-  color: var(--color-text-tertiary);
+  height: 280px;
 }
 
 .donut {
@@ -558,32 +177,7 @@
   font-weight: 600;
 }
 
-.insightChip,
-.expectChip {
-  display: inline-flex;
-  align-items: center;
-  align-self: flex-start;
-  gap: 8px;
-  margin: 0;
-  padding: 6px 12px;
-  border-radius: 9999px;
-  background: var(--color-brand-subtle);
-  color: var(--color-brand-subtle-fg);
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 18px;
-}
-
-.expectChip {
-  background: color-mix(in srgb, var(--color-accent-default) 45%, var(--color-bg-surface));
-  color: var(--color-card-lime-fg);
-}
-
-.whereList,
-.sourceList,
-.budgetList,
-.txList,
-.billList {
+.txList {
   display: flex;
   flex-direction: column;
   margin: 0;
@@ -591,136 +185,7 @@
   list-style: none;
 }
 
-.whereList {
-  gap: 4px;
-}
-
-.whereList li {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-height: 28px;
-  font-size: 14px;
-}
-
-.whereList i {
-  flex: none;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-}
-
-.whereName {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.wherePct {
-  width: 44px;
-  color: var(--color-text-tertiary);
-  font-size: 12px;
-  text-align: right;
-}
-
-.whereAmount {
-  width: 84px;
-  font-family: var(--font-family-mono);
-  font-size: 14px;
-  text-align: right;
-}
-
-/* ---- 4. Income and Budget ---- */
-
-.rowHalves {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  align-items: start;
-}
-
-.incomeLine {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 8px;
-  margin: 0;
-}
-
-.incomeLine strong {
-  font-family: var(--font-family-mono);
-  font-size: 24px;
-  font-weight: 600;
-  line-height: 32px;
-  letter-spacing: -0.5px;
-}
-
-.incomeLine span {
-  color: var(--color-text-secondary);
-  font-size: 14px;
-}
-
-.sourceList,
-.budgetList {
-  gap: 16px;
-}
-
-.sourceList li,
-.budgetList li {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.sourceHead,
-.budgetHead {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.budgetHead {
-  justify-content: space-between;
-}
-
-.sourceName {
-  font-weight: 500;
-}
-
-.pctChip {
-  padding: 2px 8px;
-  border-radius: 9999px;
-  background: var(--color-brand-subtle);
-  color: var(--color-brand-subtle-fg);
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.sourceFigures {
-  margin-left: auto;
-  color: var(--color-text-tertiary);
-  font-family: var(--font-family-mono);
-  font-size: 12px;
-}
-
-.over {
-  color: var(--color-status-danger-fg);
-  font-size: 12px;
-  font-weight: 600;
-}
-
 /* ---- 5. Activity ---- */
-
-.rowActivity {
-  display: grid;
-  grid-template-columns: minmax(0, 682fr) minmax(0, 400fr);
-  gap: 16px;
-  align-items: start;
-}
 
 .recent {
   gap: 4px;
@@ -731,8 +196,7 @@
   margin-bottom: 8px;
 }
 
-.txRow,
-.billRow {
+.txRow {
   display: flex;
   align-items: center;
   gap: 16px;
@@ -823,41 +287,6 @@
   line-height: 16px;
 }
 
-.bills {
-  padding-bottom: 16px;
-}
-
-.billList {
-  gap: 12px;
-}
-
-.billRow {
-  min-height: 64px;
-  padding: 0 16px 0 12px;
-  background: var(--color-bg-sunken);
-}
-
-.billRow:hover {
-  background: var(--color-border-subtle);
-  box-shadow: inset 0 0 0 1px var(--color-border-default);
-}
-
-.billIcon {
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  background: var(--color-bg-surface);
-}
-
-.billAmount {
-  font-family: var(--font-family-mono);
-  font-size: 16px;
-  font-weight: 500;
-}
-
 /* ---- Menus ---- */
 
 .menu {
@@ -892,34 +321,7 @@
 
 /* ---- Narrower screens ---- */
 
-@media (max-width: 1180px) {
-  .overview,
-  .rowInsights,
-  .rowActivity {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 960px) {
-  .rowHalves {
-    grid-template-columns: 1fr;
-  }
-}
-
 /* ---- Phone pieces (Dreda.figcraft `Dashboard / Phone`) ---- */
-
-.stackBar {
-  display: flex;
-  gap: 3px;
-  height: 10px;
-  overflow: hidden;
-  border-radius: 9999px;
-}
-
-.stackBar span {
-  flex-basis: 0;
-  min-width: 4px;
-}
 
 .quick {
   display: grid;
@@ -949,42 +351,751 @@
   color: var(--color-text-primary);
 }
 
-.inOut {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
+
+
+/* ==== The dashboard, 24 Nov 2026 ==== */
+
+/* Shared: a card fills its grid cell; its last block sits at the bottom. */
+.card {
+  box-sizing: border-box;
+  height: 100%;
 }
 
-.inOut > div {
+.cardEnd {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.cardTitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.linkButton {
+  flex: none;
+}
+
+/* ---- Row 1: the headline strip, one card of five cells ---- */
+
+.headline {
+  display: grid;
+  grid-template-columns: 1.4fr repeat(4, minmax(0, 1fr));
+  overflow: hidden;
+  border-radius: 20px;
+  background: var(--color-bg-surface);
+}
+
+.hCell {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.hCell + .hCell {
+  border-left: 1px solid var(--color-border-default);
+}
+
+.hTop {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px 16px 14px;
+}
+
+.hLabel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.hMarker {
+  flex: none;
+  width: 4px;
+  height: 14px;
+  border-radius: 2px;
+}
+
+.hLink {
+  min-width: 0;
+  overflow: hidden;
+  color: inherit;
+  text-decoration: none;
+  text-overflow: ellipsis;
+}
+
+.hLink:hover {
+  color: var(--color-text-primary);
+  text-decoration: underline;
+}
+
+.hInfo {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  color: var(--color-text-tertiary);
+  cursor: help;
+}
+
+.hFigure {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+}
+
+.hValue {
+  font-family: var(--font-family-mono);
+  font-size: clamp(18px, 2.1vw, 26px);
+  font-weight: 600;
+  letter-spacing: -0.5px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.hChange {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.hChange[data-tone='good'] {
+  color: var(--color-status-success-fg);
+}
+
+.hChange[data-tone='bad'] {
+  color: var(--color-status-danger-fg);
+}
+
+.hFoot {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 12px;
-  border-radius: 14px;
-  background: var(--color-bg-sunken);
+  margin-top: auto;
+  padding: 10px 16px 14px;
+  border-top: 1px solid var(--color-border-default);
+  font-size: 12px;
 }
 
-.inOut span {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+.hMuted {
   color: var(--color-text-secondary);
   font-size: 12px;
 }
 
-.inOut i {
+.hDelta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-family-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.hDelta .hMuted {
+  font-family: var(--font-family-body);
+}
+
+.hArrow {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+}
+
+.hArrow[data-tone='good'] {
+  background: color-mix(in srgb, var(--color-status-success-fg) 15%, transparent);
+  color: var(--color-status-success-fg);
+}
+
+.hArrow[data-tone='bad'] {
+  background: color-mix(in srgb, var(--color-status-danger-fg) 15%, transparent);
+  color: var(--color-status-danger-fg);
+}
+
+.hSafe {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  text-decoration: none;
+}
+
+.hSafe strong {
+  color: var(--color-text-primary);
+  font-family: var(--font-family-mono);
+}
+
+/* ---- Row 2: cash flow ---- */
+
+.flowFigures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
+.flowFigures span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.flowFigures i {
   width: 8px;
   height: 8px;
   border-radius: 50%;
 }
 
-.inOut strong {
+.flowFigures strong {
+  color: var(--color-text-primary);
   font-family: var(--font-family-mono);
-  font-size: 20px;
-  font-weight: 600;
-  letter-spacing: -0.5px;
+  font-size: 15px;
 }
 
-.flowChartSmall {
+.flowFigures strong[data-tone='good'] {
+  color: var(--color-status-success-fg);
+}
+
+.flowFigures strong[data-tone='bad'] {
+  color: var(--color-status-danger-fg);
+}
+
+.flowTip {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--color-bg-inverse);
+  color: var(--color-text-inverse);
+  font-size: 12px;
+  box-shadow: var(--shadow-raised, none);
+}
+
+.flowTip span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.flowTip i {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+
+.flowScroll {
+  margin: 0 -16px;
+  padding: 0 16px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.flowScroll::-webkit-scrollbar {
+  display: none;
+}
+
+.flowChartPhone {
+  height: 220px;
+}
+
+/* ---- Row 3: the grid ---- */
+
+.grid3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-areas:
+    'budget spending account'
+    'budget commit wallets';
+  align-items: stretch;
+  gap: 24px;
+}
+
+.gBudget {
+  grid-area: budget;
+}
+
+.gSpending {
+  grid-area: spending;
+}
+
+.gAccount {
+  grid-area: account;
+}
+
+.gCommit {
+  grid-area: commit;
+}
+
+.gWallets {
+  grid-area: wallets;
+}
+
+.grid3 > * {
+  min-width: 0;
+}
+
+/* Budget: hatched bars, a solid cap where spending is now. */
+.bList {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.bName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bSpent {
+  font-family: var(--font-family-mono);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.bChip {
+  flex: none;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  background: var(--color-bg-sunken);
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.bChip[data-tone='danger'] {
+  background: color-mix(in srgb, var(--color-status-danger-fg) 12%, transparent);
+  color: var(--color-status-danger-fg);
+}
+
+.bTrack {
+  display: block;
+  height: 10px;
+  overflow: hidden;
+  border-radius: 9999px;
+  background: var(--color-bg-sunken);
+}
+
+.bFill {
+  --tone: var(--color-brand-default);
+  display: block;
+  height: 100%;
+  border-radius: 9999px;
+  background:
+    linear-gradient(to left, var(--tone) 0 6px, transparent 6px),
+    repeating-linear-gradient(-45deg, color-mix(in srgb, var(--tone) 85%, transparent) 0 4px, color-mix(in srgb, var(--tone) 45%, transparent) 4px 8px);
+}
+
+.bFill[data-tone='warning'] {
+  --tone: var(--color-status-warning-fg);
+}
+
+.bFill[data-tone='danger'] {
+  --tone: var(--color-status-danger-fg);
+}
+
+/* Spending: donut left, legend right. */
+.spendBody {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.spendBody .donut {
+  flex: none;
+  width: 160px;
   height: 160px;
+}
+
+.keyList {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+}
+
+.keyList li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.keyList i {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+.keyList span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.keyList strong {
+  font-family: var(--font-family-mono);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Accountability: two figures, paired columns per period. */
+.aFigures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
+.aFigures span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.aFigures i {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+.aFigures strong {
+  color: var(--color-text-primary);
+  font-family: var(--font-family-mono);
+  font-size: 15px;
+}
+
+.aChart {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  height: 140px;
+}
+
+.aCol {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.aBars {
+  display: flex;
+  flex: 1;
+  align-items: flex-end;
+  gap: 3px;
+  width: 100%;
+  max-width: 34px;
+}
+
+.aBars span {
+  flex: 1;
+  min-height: 2px;
+  border-radius: 4px 4px 0 0;
+}
+
+.aRate {
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.aRate[data-tone='good'] {
+  color: var(--color-status-success-fg);
+}
+
+.aRate[data-tone='bad'] {
+  color: var(--color-status-danger-fg);
+}
+
+.aLabel {
+  color: var(--color-text-tertiary);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+/* Commitments: four columns stepping down, each a block of thin bars. */
+.funnel {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  height: 160px;
+}
+
+.fCol {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.fHead {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.fHead strong {
+  overflow: hidden;
+  color: var(--color-text-primary);
+  font-family: var(--font-family-mono);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fArea {
+  display: flex;
+  flex: 1;
+  align-items: flex-end;
+  min-height: 0;
+}
+
+.fBars {
+  display: block;
+  width: 100%;
+  border-radius: 6px;
+  background: repeating-linear-gradient(90deg, currentColor 0 3px, transparent 3px 6px);
+}
+
+.funnel[data-phone] {
+  height: 150px;
+}
+
+.cRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-border-default);
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.cRow strong {
+  color: var(--color-text-primary);
+  font-weight: 500;
+}
+
+/* Wallets: one share bar, then a grid of the largest wallets. */
+.secondaryButton {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 9999px;
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.secondaryButton[data-full] {
+  width: 100%;
+  min-height: 44px;
+}
+
+.wBar {
+  display: flex;
+  gap: 4px;
+  height: 20px;
+}
+
+.wBar span {
+  flex-basis: 0;
+  min-width: 6px;
+  border-radius: 6px;
+  background:
+    repeating-linear-gradient(-45deg, currentColor 0 4px, color-mix(in srgb, currentColor 55%, transparent) 4px 8px);
+}
+
+.wGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wItem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.wName {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wName i {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+.wValue {
+  font-family: var(--font-family-mono);
+  font-size: 16px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.wMore {
+  justify-content: center;
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+/* ---- Widths ---- */
+
+@media (min-width: 1280px) {
+  .gWallets .wGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  /* Recent activity as two columns, so it isn't one long strip. */
+  .page .recent .txList {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 24px;
+  }
+}
+
+@media (max-width: 1180px) {
+  .spendBody {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .spendBody .donut {
+    align-self: center;
+  }
+}
+
+@media (max-width: 1023px) {
+  .grid3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas:
+      'budget spending'
+      'account commit'
+      'wallets wallets';
+  }
+  .headline {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+  .headline > .hCell {
+    grid-column: span 2;
+    border-left: 0;
+    border-top: 1px solid var(--color-border-default);
+  }
+  .headline > .hCell:nth-child(-n + 2) {
+    grid-column: span 3;
+    border-top: 0;
+  }
+  .headline > .hCell:nth-child(2),
+  .headline > .hCell:nth-child(n + 4) {
+    border-left: 1px solid var(--color-border-default);
+  }
+}
+
+/* Phone (owner, 24 Nov 2026): Total balance full width, then the other four
+   figures two by two; a figure never wraps, it shrinks to fit at 320px. */
+@media (max-width: 767px) {
+  .headline {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .headline > .hCell,
+  .headline > .hCell:nth-child(-n + 2) {
+    grid-column: span 1;
+    border-top: 1px solid var(--color-border-default);
+    border-left: 0;
+  }
+  .headline > .hCell:first-child {
+    grid-column: 1 / -1;
+    border-top: 0;
+  }
+  .headline > .hCell:nth-child(odd):not(:first-child) {
+    border-left: 1px solid var(--color-border-default);
+  }
+  .headline > .hCell:first-child .hValue {
+    font-size: clamp(24px, 8vw, 32px);
+  }
+  .hValue {
+    font-size: clamp(15px, 4.6vw, 20px);
+  }
+  .hTop {
+    padding: 14px 14px 10px;
+  }
+  .hFoot {
+    padding: 8px 14px 12px;
+  }
+  .hLabel {
+    align-items: flex-start;
+  }
+  .hLink {
+    white-space: normal;
+  }
+  .grid3 {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .spendBody {
+    flex-direction: column;
+  }
+  .spendBody .donut {
+    width: 180px;
+    height: 180px;
+  }
+  .page .recent .txList {
+    display: flex;
+  }
 }

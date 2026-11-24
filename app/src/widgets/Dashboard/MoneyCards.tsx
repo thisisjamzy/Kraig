@@ -11,7 +11,7 @@ import type { MoneyCard } from '@/src/viewmodels/dashboard/money';
 import { ChartCard, HeroCard } from '@/src/widgets/Charts/ChartCard';
 import { ColumnChart, DivergingColumnChart, PairedColumnChart } from '@/src/widgets/Charts/Columns';
 import { LineChart } from '@/src/widgets/Charts/Lines';
-import { BulletList, HorizontalWaterfall, RankedBars, ReconciliationList, ReconciliationLog, StackedBarList, TransactionList } from '@/src/widgets/Charts/Lists';
+import { BulletList, HorizontalWaterfall, RankedBars, TransactionList } from '@/src/widgets/Charts/Lists';
 import { BoxPlot, Sankey, Treemap } from '@/src/widgets/Charts/Shapes';
 import { CalendarHeatmap, MatrixHeatmap } from '@/src/widgets/Charts/Calendars';
 import type { MoneyHero } from '@/src/viewmodels/dashboard/money';
@@ -123,10 +123,30 @@ export function MoneyCardView({ card, loading }: { card: MoneyCard | undefined; 
           <BoxPlot groups={card.groups} mode={scale} format={compact} tick={compact} ariaLabel={`${card.title}. ${card.insight ?? ''}`} />
         </ChartCard>
       );
-    case 'debts':
+    case 'debtTrend':
       return (
-        <ChartCard {...base} chartType="debts" legend={[{ label: 'Paid', color: P }, { label: 'Left', color: 'var(--c-grid)' }]}>
-          <StackedBarList rows={card.rows} format={compact} ariaLabel={`${card.title}. ${card.insight ?? ''}`} />
+        <ChartCard
+          {...base}
+          {...scaled}
+          chartType="line"
+          legend={[
+            { label: card.owed ? 'You owe' : 'Left to repay', color: P },
+            ...(card.owed ? [{ label: 'Owed to you', color: 'var(--color-data-positive)' }] : []),
+            ...(card.forecastFrom !== null ? [{ label: 'At your planned payments', line: true }] : []),
+          ]}
+        >
+          <LineChart
+            labels={card.labels}
+            series={[
+              { name: card.owed ? 'You owe' : 'Left to repay', color: P, values: card.owe, area: true, endDot: true },
+              ...(card.owed ? [{ name: 'Owed to you', color: 'var(--color-data-positive)', values: card.owed, endDot: true }] : []),
+            ]}
+            forecastFrom={card.forecastFrom}
+            mode={scale}
+            tick={compact}
+            format={compact}
+            ariaLabel={`${card.title}. ${card.insight ?? ''}`}
+          />
         </ChartCard>
       );
     case 'tree':
@@ -185,18 +205,6 @@ export function MoneyCardView({ card, loading }: { card: MoneyCard | undefined; 
       return (
         <ChartCard {...base} {...scaled} chartType="walletBars">
           <RankedBars rows={card.rows} mode={scale} format={compact} color={A} ariaLabel={`${card.title}. ${card.insight ?? ''}`} />
-        </ChartCard>
-      );
-    case 'recLatest':
-      return (
-        <ChartCard {...base} chartType="reconciliation">
-          <ReconciliationList rows={card.rows} format={amount} href="/settings/reconciliation" />
-        </ChartCard>
-      );
-    case 'recLog':
-      return (
-        <ChartCard {...base} chartType="reconciliationLog">
-          <ReconciliationLog rows={card.rows} format={amount} />
         </ChartCard>
       );
   }

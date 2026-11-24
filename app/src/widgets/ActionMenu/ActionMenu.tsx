@@ -13,7 +13,7 @@
 // fixed positioning, so a card or row after the trigger can never cover it;
 // it closes on scroll and resize rather than drifting from its button.
 
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { Fragment, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { MoreVertical } from 'lucide-react';
 import styles from './ActionMenu.module.css';
@@ -24,6 +24,8 @@ export interface ActionMenuItem {
   icon: ReactNode;
   onSelect: () => void;
   danger?: boolean;
+  /** A hairline above this item (a destructive action set apart at the end). */
+  divider?: boolean;
 }
 
 export function ActionMenu({
@@ -99,8 +101,9 @@ export function ActionMenu({
         createPortal(
           <div ref={popoverRef} className={styles.popover} style={place} onClick={(event) => event.stopPropagation()}>
             {items.map((item) => (
+              <Fragment key={item.key}>
+              {item.divider && <hr className={styles.divider} aria-hidden />}
               <button
-                key={item.key}
                 type="button"
                 className={`${styles.item} ${item.danger ? styles.itemDanger : ''}`}
                 onClick={() => {
@@ -111,6 +114,7 @@ export function ActionMenu({
                 <span className={styles.itemIcon}>{item.icon}</span>
                 {item.label}
               </button>
+              </Fragment>
             ))}
           </div>,
           document.body,

@@ -53,6 +53,14 @@ export interface MoneyDebt {
   outstanding: number;
   /** Monthly payment, if there's a plan. */
   monthly: number | null;
+  /** Who owes whom ('owe' unless the debt says 'owed'). Optional for older callers. */
+  direction?: 'owe' | 'owed';
+  /** When the debt began. Optional: without it, the debt counts from the start. */
+  start?: Date;
+  /** Each repayment, display currency. */
+  repayments?: { date: Date; amount: number }[];
+  /** Forgiven or cancelled: what was written off and when. */
+  settled?: { date: Date; amount: number } | null;
 }
 
 /** One reconciliation check: per wallet, recorded and counted (display currency). */
@@ -161,16 +169,14 @@ export type MoneyCard =
   | (CardBase & { id: 'sk'; sources: { label: string; value: number; color: string }[]; uses: { label: string; value: number; color: string }[] })
   | (CardBase & { id: 'plan'; rows: { label: string; actual: number; plan: number }[] })
   | (CardBase & { id: 'box'; groups: { label: string; values: number[] }[] })
-  | (CardBase & { id: 'debts'; rows: { label: string; paid: number; left: number; sub: string }[] })
+  | (CardBase & { id: 'debtTrend'; labels: { text: string; future?: boolean }[]; owe: (number | null)[]; owed: (number | null)[] | null; forecastFrom: number | null })
   | (CardBase & { id: 'tree'; parts: { label: string; value: number; color: string }[] })
   | (CardBase & { id: 'when'; view: 'calendar'; days: { date: Date; value: number | null }[] })
   | (CardBase & { id: 'when'; view: 'matrix'; columns: string[]; rows: { label: string; cells: (number | null)[] }[] })
   | (CardBase & { id: 'fc'; labels: { text: string; future?: boolean }[]; balance: (number | null)[]; forecastFrom: number | null; table: { label: string; income: number; spending: number; balance: number }[] })
   | (CardBase & { id: 'recEach'; data: { label: string; value: number | null }[] })
   | (CardBase & { id: 'recRate'; labels: { text: string; future?: boolean }[]; values: (number | null)[]; dots: (string | null)[]; target: number })
-  | (CardBase & { id: 'recWallet'; rows: { label: string; value: number; note: string }[] })
-  | (CardBase & { id: 'recLatest'; rows: { name: string; when: string; due: boolean; difference: number; recorded: number; counted: number }[] })
-  | (CardBase & { id: 'recLog'; rows: { date: string; wallet: string; recorded: number; counted: number; difference: number; days: number | null }[] });
+  | (CardBase & { id: 'recWallet'; rows: { label: string; value: number; note: string }[] });
 
 export interface MoneyHero {
   label: string;
@@ -521,27 +527,40 @@ export function moneyDashboard(input: MoneyInput, p: DashPeriod, cardIds: string
     };
   }
 
-  if (want.has('debts')) {
-    const rows = input.debts
-      .filter((d) => d.outstanding > 0.5 || p.kind === 'all')
-      .map((d) => {
-        const paid = Math.max(0, d.principal - d.outstanding);
-        const months = d.monthly && d.monthly > 0 ? Math.ceil(d.outstanding / d.monthly) : null;
-        const clear = months !== null ? addUnit('month', data.today, months) : null;
-        return {
-          label: d.name,
-          paid: r2(paid),
-          left: r2(d.outstanding),
-          sub: d.outstanding <= 0.5 ? 'Cleared' : d.monthly ? `${amount(d.monthly)} a month${clear ? `, clear by ${MON[clear.getMonth()]} ${clear.getFullYear()}` : ''}` : 'No payment plan',
-        };
-      });
-    cards.debts = {
-      id: 'debts',
-      title: 'Debts',
-      subtitle: 'Paid and left on each debt',
-      rows,
-      insight: rows.length ? `${compact(sum(rows, (r) => r.left))} left to repay across ${rows.length} ${rows.length === 1 ? 'debt' : 'debts'}.` : null,
-      empty: rows.length ? null : 'No debts. Nicely done.',
+  if (want.has('debtTrend')) {
+    const { buckets, forecastFrom } = trendBuckets(p);
+    const history = debtHistory(input.debts, buckets.filter((b) => !b.future));
+    const actualN = history.owe.length;
+    // Ahead: what's owed now, less the planned monthly payments (dashed).
+    const months = (b: DashBucket) => Math.max(0, (b.end.getFullYear() - data.today.getFullYear()) * 12 + (b.end.getMonth() - data.today.getMonth()));
+    const nowOwe = sum(input.debts.filter((d) => (d.direction ?? 'owe') === 'owe'), (d) => d.outstanding);
+    const monthlyOwe = sum(input.debts.filter((d) => (d.direction ?? 'owe') === 'owe' && d.outstanding > 0.5), (d) => d.monthly ?? 0);
+    const plans = monthlyOwe > 0.5;
+    const owe = buckets.map((b, i) => (i < actualN ? history.owe[i] : plans ? r2(Math.max(0, nowOwe - monthlyOwe * months(b))) : null));
+    const anyOwed = input.debts.some((d) => d.direction === 'owed');
+    const owed = anyOwed ? buckets.map((b, i) => (i < actualN ? history.owed[i] : null)) : null;
+    const hasForecast = forecastFrom !== null && plans;
+    const labels = buckets.map((b) => ({ text: b.label, future: b.future }));
+    const first = owe.find((v): v is number => v !== null && v > 0.5);
+    const firstLabel = buckets[owe.findIndex((v) => v === first)]?.label;
+    const now = actualN ? (history.owe[actualN - 1] ?? 0) : 0;
+    const clearMonths = plans && nowOwe > 0.5 ? Math.ceil(nowOwe / monthlyOwe) : null;
+    const clear = clearMonths !== null ? addUnit('month', data.today, clearMonths) : null;
+    const change = first !== undefined && first > now + 0.5 ? `, down ${compact(first - now)} since ${firstLabel}` : first !== undefined && now > first + 0.5 ? `, up ${compact(now - first)} since ${firstLabel}` : '';
+    cards.debtTrend = {
+      id: 'debtTrend',
+      title: 'Debt over time',
+      subtitle: 'What is left to repay at the end of each period',
+      labels: hasForecast ? labels : labels.slice(0, actualN),
+      owe: hasForecast ? owe : owe.slice(0, actualN),
+      owed: owed ? (hasForecast ? owed : owed.slice(0, actualN)) : null,
+      forecastFrom: hasForecast ? actualN : null,
+      insight: input.debts.length
+        ? now > 0.5
+          ? `You owe ${compact(now)}${change}.${clear ? ` At your planned payments the last one is cleared in ${MON[clear.getMonth()]}${clear.getFullYear() !== data.today.getFullYear() ? ` ${clear.getFullYear()}` : ''}.` : ''}`
+          : 'Nothing left to repay.'
+        : null,
+      empty: input.debts.length ? null : 'No debts recorded.',
     };
   }
 
@@ -691,60 +710,35 @@ export function moneyDashboard(input: MoneyInput, p: DashPeriod, cardIds: string
     };
   }
 
-  if (want.has('recLatest')) {
-    const sorted = [...input.checks].filter((c) => c.at <= data.today).sort((a, b) => b.at.getTime() - a.at.getTime());
-    const rows = input.wallets.map((w) => {
-      const check = sorted.find((c) => c.wallets.some((x) => x.id === w.id));
-      const entry = check?.wallets.find((x) => x.id === w.id);
-      const days = check ? Math.floor((data.today.getTime() - check.at.getTime()) / 86_400_000) : null;
-      const dueAfter = walletKind(w.type) === 'bank' || walletKind(w.type) === 'savings' ? 31 : 7;
-      return {
-        name: w.name,
-        when: days === null ? 'never' : days === 0 ? 'today' : days === 1 ? 'yesterday' : `${days} days ago`,
-        due: days === null || days >= dueAfter,
-        difference: entry ? r2(entry.counted - entry.recorded) : 0,
-        recorded: entry?.recorded ?? w.balance,
-        counted: entry?.counted ?? w.balance,
-      };
-    });
-    rows.sort((a, b) => Number(b.due) - Number(a.due));
-    const due = rows.filter((r) => r.due).length;
-    cards.recLatest = {
-      id: 'recLatest',
-      title: 'Latest reconciliation',
-      subtitle: 'What your records say against what you counted, per wallet',
-      rows,
-      insight: due ? `${due} ${due === 1 ? 'wallet is' : 'wallets are'} due for a check.` : 'Every wallet was checked recently.',
-    };
-  }
-
-  if (want.has('recLog')) {
-    const all = [...input.checks].sort((a, b) => a.at.getTime() - b.at.getTime());
-    const rows: { date: string; wallet: string; recorded: number; counted: number; difference: number; days: number | null }[] = [];
-    all.forEach((c, i) => {
-      if (!inRange(c.at, range)) return;
-      for (const w of c.wallets) {
-        const before = [...all.slice(0, i)].reverse().find((x) => x.wallets.some((y) => y.id === w.id));
-        rows.push({
-          date: dayLabel(c.at),
-          wallet: walletName(w.id),
-          recorded: w.recorded,
-          counted: w.counted,
-          difference: r2(w.counted - w.recorded),
-          days: before ? Math.round((c.at.getTime() - before.at.getTime()) / 86_400_000) : null,
-        });
-      }
-    });
-    cards.recLog = {
-      id: 'recLog',
-      title: 'Reconciliation log',
-      subtitle: 'Every check in this period, oldest first',
-      rows,
-      empty: rows.length ? null : 'No checks in this period.',
-    };
-  }
-
   return { hero, kpis, cards };
+}
+
+/**
+ * What was still owed at the end of each bucket, per direction: each debt's
+ * principal once it has started, less its repayments dated on or before the
+ * bucket's end, less a write-off (forgiven or cancelled) dated on or before
+ * it, never below zero. Amounts are already in the display currency.
+ */
+export function debtHistory(debts: MoneyDebt[], buckets: { end: Date }[]): { owe: number[]; owed: number[] } {
+  const owe: number[] = [];
+  const owed: number[] = [];
+  for (const b of buckets) {
+    // A bucket's end is exclusive: count what happened before it.
+    const at = b.end.getTime();
+    let o = 0;
+    let w = 0;
+    for (const d of debts) {
+      if (d.start && d.start.getTime() >= at) continue;
+      const repaid = (d.repayments ?? []).filter((r) => r.date.getTime() < at).reduce((s, r) => s + r.amount, 0);
+      const written = d.settled && d.settled.date.getTime() < at ? d.settled.amount : 0;
+      const left = Math.max(0, d.principal - repaid - written);
+      if (d.direction === 'owed') w += left;
+      else o += left;
+    }
+    owe.push(r2(o));
+    owed.push(r2(w));
+  }
+  return { owe, owed };
 }
 
 /** Trend buckets: history then planned forecast (Month 12 + 3, Quarter 8 + 2, Year Jan to Dec, All time quarters). */
