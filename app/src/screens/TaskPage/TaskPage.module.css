@@ -84,13 +84,7 @@
 }
 
 .full {
-  max-width: 900px;
-  margin: 0 auto;
   padding: 24px 0 64px;
-}
-
-.full .body {
-  padding: 8px 0 48px;
 }
 
 @media (max-width: 767px) {

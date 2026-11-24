@@ -27,9 +27,7 @@ import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
 import { TopBarActionsContext, TopBarPrimaryContext, TopBarSlotContext, TopBarTitleContext } from './TopBarSlot';
 import { SearchPalette } from './SearchPalette';
-import { usePageWidth } from './breadcrumb';
 import { useSidebarCollapsed, useSidebarWidth } from './sidebarState';
-import { isAlwaysFullRoute, isWideLayoutRoute } from './wideRoutes';
 import styles from './AppShell.module.css';
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -48,9 +46,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const medium = deviceClass === 'medium';
   const touch = !finePointer;
 
-  const wide = isWideLayoutRoute(pathname);
-  const savedWidth = usePageWidth(pathname, wide ? 'full' : 'standard');
-  const pageWidth = isAlwaysFullRoute(pathname) ? 'full' : savedWidth;
+  // Every page uses the whole content area (owner, 24 Nov 2026): no
+  // centred reading column, whatever the page.
 
   // Close the overlay and the hover peek on navigation — "adjust state
   // during render".
@@ -156,7 +153,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <TopBarPrimaryContext.Provider value={primarySlot}>
             <main id="main-content" className={styles.content} tabIndex={-1}>
               {/* Hiding amounts redraws the page, so every figure follows the switch. */}
-              <div key={amountsHidden ? 'hidden' : 'shown'} className={pageWidth === 'full' ? styles.page : styles.column}>
+              <div key={amountsHidden ? 'hidden' : 'shown'} className={styles.page}>
                 {children}
               </div>
             </main>

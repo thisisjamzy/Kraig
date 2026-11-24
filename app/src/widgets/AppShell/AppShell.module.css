@@ -59,17 +59,10 @@
   outline: none;
 }
 
-/* Full width: the whole content area, however wide the screen. */
+/* Every page: the whole content area, however wide the screen (owner,
+   24 Nov 2026: no narrow centred column on any page). */
 .page {
   width: 100%;
-  margin: 0 auto;
-}
-
-/* Standard width: text-heavy pages, and pages without a wide layout. */
-.column {
-  width: 100%;
-  max-width: 900px;
-  margin: 0 auto;
 }
 
 .fallbackTitle {

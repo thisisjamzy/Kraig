@@ -75,45 +75,6 @@ export function useCurrentBreadcrumb(): Crumb[] | null {
   return usePageMeta().crumbs;
 }
 
-// ---- Page width (Notion's "Full width"), remembered per page ----
-
-export type PageWidth = 'full' | 'standard';
-const widthListeners = new Set<() => void>();
-const WIDTH_KEY = 'dreda.pageWidth';
-let widths: Record<string, PageWidth> | null = null;
-
-function readWidths(): Record<string, PageWidth> {
-  if (widths) return widths;
-  try {
-    widths = JSON.parse(localStorage.getItem(WIDTH_KEY) ?? '{}');
-  } catch {
-    widths = {};
-  }
-  return widths!;
-}
-
-export function setPageWidth(path: string, width: PageWidth) {
-  widths = { ...readWidths(), [path]: width };
-  try {
-    localStorage.setItem(WIDTH_KEY, JSON.stringify(widths));
-  } catch {
-    // Not remembered.
-  }
-  widthListeners.forEach((l) => l());
-}
-
-/** Full width unless the household chose Standard for this page. */
-export function usePageWidth(path: string | null, fallback: PageWidth = 'full'): PageWidth {
-  return useSyncExternalStore(
-    (l) => {
-      widthListeners.add(l);
-      return () => widthListeners.delete(l);
-    },
-    () => (path ? (readWidths()[path] ?? fallback) : fallback),
-    () => fallback
-  );
-}
-
 // ---- The page's own actions, in the top bar's "..." menu ----
 // ("Open insights", "Record a payment", "Edit"): pages keep no buttons
 // beside their title. The latest mounted page's list wins.

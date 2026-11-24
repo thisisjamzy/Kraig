@@ -18,12 +18,6 @@
   background: none;
 }
 
-.root > * {
-  max-width: 1280px;
-  margin-left: auto;
-  margin-right: auto;
-}
-
 .root [data-bad] {
   color: var(--c-bad);
 }
