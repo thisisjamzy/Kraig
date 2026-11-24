@@ -1,8 +1,9 @@
 'use client';
 
-// Money Home on a phone (owner, 24 Nov 2026), one column, 16px apart: the
-// greeting header, the headline block (balance, then four figures two by
-// two), quick actions, cash flow (scrolls sideways through 12 periods),
+// Money Home on a phone (owner, 24 Nov 2026, corrected the same afternoon),
+// one column, 16px apart: the greeting header, the purple balance card, the
+// four figures as cards two by two (Money in, Money out, Unaccounted for,
+// Saved this month), quick actions, cash flow (scrolls sideways through 12 periods),
 // spending, wallets, the budget, accountability, commitments and recent
 // activity. The bottom bar is the layout's.
 // The sections are widgets/MoneyHome, the same ones the web dashboard uses;
@@ -12,7 +13,7 @@ import { Eye, EyeOff } from 'lucide-react';
 import { useAmountsHidden } from '@/src/shared/hooks/usePrivacy';
 import { useLogic } from '@/src/logic/home/useLogic';
 import { useSwipeModeSwitch } from '@/src/shared/hooks/useSwipeModeSwitch';
-import { AccountabilityMini, Budget, CashFlow, Commitments, Headline, QuickActions, Recent, Spending, WalletsCard } from '@/src/widgets/MoneyHome/MoneyHome';
+import { AccountabilityMini, BalanceCard, Budget, CashFlow, Commitments, Figures, QuickActions, Recent, Spending, WalletsCard } from '@/src/widgets/MoneyHome/MoneyHome';
 import { GreetingButton, GreetingHeader } from '@/src/phone/widgets/GreetingHeader/GreetingHeader';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import styles from './PhoneHome.module.css';
@@ -36,7 +37,8 @@ export function HomeScreen() {
       <ScreenState loading={v.loading} error={v.error} />
       {!v.loading && (
         <>
-          <Headline v={v} />
+          <BalanceCard v={v} />
+          <Figures v={v} />
           <QuickActions />
           <CashFlow v={v} phone />
           <Spending v={v} />

@@ -25,7 +25,7 @@ import { useDailyGuide } from '@/src/shared/hooks/useDailyGuide';
 import { useLogic as useDebts } from '@/src/logic/debtsList/useLogic';
 import { isSavingsAccount, walletHue, walletSolid } from '@/src/viewmodels/wallets';
 import { currencyName } from '@/src/viewmodels/currencies';
-import { categoryInsight, commitmentsOf, dueText, greetingFor, monthChange, upcomingLines, weekBuckets, type FlowBar } from '@/src/viewmodels/home';
+import { categoryInsight, commitmentsOf, dueText, flowScale, greetingFor, monthChange, unaccountedChange, upcomingLines, weekBuckets, type FlowBar } from '@/src/viewmodels/home';
 import type { FirestoreAccount, FirestoreTransaction, FirestoreTransfer } from '@/src/shared/firestore/types';
 import { countsInFigures } from '@/src/shared/firestore/types';
 
@@ -79,6 +79,8 @@ export function useLogic() {
   const thisMonth = useAccountability({ period: 'month', count: 6 });
   const unexplained = round2(thisMonth.current?.unaccounted ?? 0);
   const unexplainedMonth = thisMonth.current?.name ?? '';
+  // Against last month, for the Unaccounted for figure (owner, 24 Nov 2026).
+  const unexplainedChange = unaccountedChange(unexplained, thisMonth.current?.change.unaccounted ?? null);
 
   // ---- This month ----
   const t = cur.totals;
@@ -238,6 +240,11 @@ export function useLogic() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [flowTx, flowView, todayMs, ctx, accountCurrency]
   );
+  // Totals over the periods shown, and one fixed scale for every period.
+  const flowIn = round2(flow.reduce((sum, b) => sum + b.income, 0));
+  const flowOut = round2(flow.reduce((sum, b) => sum + b.expense, 0));
+  const flowTotals = { income: flowIn, expense: flowOut, net: round2(flowIn - flowOut) };
+  const flowAxis = flowScale(flow);
 
   // ---- This month's budget by expense category (Dreda.figcraft budget card) ----
   // Every line, highest share used first; the card shows the first eight.
@@ -284,6 +291,7 @@ export function useLogic() {
     allSpendable,
     unexplained,
     unexplainedMonth,
+    unexplainedChange,
     accountability: thisMonth.rows,
     received: t.income.received,
     expected: t.income.expected,
@@ -299,6 +307,8 @@ export function useLogic() {
     upcoming,
     accountRows,
     flow,
+    flowTotals,
+    flowAxis,
     flowView,
     setFlowView,
     plan,
@@ -307,7 +317,6 @@ export function useLogic() {
     commitments,
     lastMonthName: new Date(now.getFullYear(), now.getMonth() - 1, 1).toLocaleDateString('en-GB', { month: 'long' }),
     monthName: now.toLocaleDateString('en-GB', { month: 'long' }),
-    transfers: { moved: t.transfers.moved, planned: t.transfers.planned },
     saved: {
       amount: t.savings.saved,
       planned: t.savings.planned,

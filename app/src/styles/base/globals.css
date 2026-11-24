@@ -283,6 +283,8 @@
   --color-data-forecast: var(--sg-data-forecast);
   --color-data-positive: var(--sg-data-positive);
   --color-data-negative: var(--sg-data-5);
+  /* Cash flow money out (owner, 24 Nov 2026): the rose label solid. */
+  --color-flow-out: var(--sg-label-rose-solid);
   --color-data-grid: var(--sg-neutral-100);
   --color-data-axis: var(--sg-neutral-500);
   --color-data-reference: var(--sg-neutral-900);

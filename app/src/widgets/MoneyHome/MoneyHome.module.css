@@ -378,23 +378,34 @@
   flex: none;
 }
 
-/* ---- Row 1: the headline strip, one card of five cells ---- */
+/* ---- Row 1: the figures ----
+   Web: one card of five cells. The card is a size container, so the layout
+   follows the room the strip has (drawer open or closed), not the window.
+   Every cell is a subgrid of two rows (top part, footer): the top parts in a
+   row share one height, so every footer, and the hairline on top of it,
+   starts on the same line. */
 
 .headline {
-  display: grid;
-  grid-template-columns: 1.4fr repeat(4, minmax(0, 1fr));
+  container: headline / inline-size;
   overflow: hidden;
   border-radius: 20px;
   background: var(--color-bg-surface);
 }
 
+.hGrid {
+  display: grid;
+  grid-template-columns: 1.4fr repeat(4, minmax(0, 1fr));
+  grid-template-rows: auto auto;
+}
+
 .hCell {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-row: span 2;
+  grid-template-rows: subgrid;
   min-width: 0;
 }
 
-.hCell + .hCell {
+.hGrid > .hCell + .hCell {
   border-left: 1px solid var(--color-border-default);
 }
 
@@ -402,6 +413,7 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  min-width: 0;
   padding: 16px 16px 14px;
 }
 
@@ -428,6 +440,7 @@
   color: inherit;
   text-decoration: none;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .hLink:hover {
@@ -445,14 +458,15 @@
 
 .hFigure {
   display: flex;
-  flex-wrap: wrap;
   align-items: baseline;
   gap: 4px 8px;
+  min-width: 0;
 }
 
 .hValue {
+  min-width: 0;
   font-family: var(--font-family-mono);
-  font-size: clamp(18px, 2.1vw, 26px);
+  font-size: clamp(16px, 2.3cqi, 26px);
   font-weight: 600;
   letter-spacing: -0.5px;
   font-variant-numeric: tabular-nums;
@@ -460,8 +474,10 @@
 }
 
 .hChange {
+  flex: none;
   font-size: 12px;
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .hChange[data-tone='good'] {
@@ -475,8 +491,9 @@
 .hFoot {
   display: flex;
   flex-direction: column;
+  align-content: start;
   gap: 4px;
-  margin-top: auto;
+  min-width: 0;
   padding: 10px 16px 14px;
   border-top: 1px solid var(--color-border-default);
   font-size: 12px;
@@ -487,20 +504,28 @@
   font-size: 12px;
 }
 
+.hClear {
+  color: var(--color-status-success-fg);
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .hDelta {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   font-family: var(--font-family-mono);
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
-.hDelta .hMuted {
+.hWord {
   font-family: var(--font-family-body);
 }
 
 .hArrow {
   display: inline-grid;
+  flex: none;
   place-items: center;
   width: 18px;
   height: 18px;
@@ -517,15 +542,202 @@
   color: var(--color-status-danger-fg);
 }
 
-.hSafe {
-  color: var(--color-text-secondary);
-  font-size: 12px;
-  text-decoration: none;
+/* A narrower strip (tablet, or the drawer open): the figure on one line and
+   its percentage under it. */
+@container headline (max-width: 960px) {
+  .hFigure {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .hValue {
+    font-size: clamp(16px, 3cqi, 24px);
+  }
 }
 
-.hSafe strong {
-  color: var(--color-text-primary);
+/* Narrower still: Total balance and Money in on the first row, the other
+   three on the second. Each row keeps its own level hairline. */
+@container headline (max-width: 720px) {
+  .hGrid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+  .hGrid > .hCell {
+    grid-column: span 2;
+    border-top: 1px solid var(--color-border-default);
+  }
+  .hGrid > .hCell:nth-child(-n + 2) {
+    grid-column: span 3;
+    border-top: 0;
+  }
+  .hGrid > .hCell:nth-child(3) {
+    border-left: 0;
+  }
+  .hValue {
+    font-size: clamp(16px, 4.2cqi, 24px);
+  }
+}
+
+/* Phone: the purple balance card (the phone's Total balance). */
+.balance {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow: hidden;
+  padding: 20px;
+  border-radius: 28px;
+  background: var(--color-card-purple-bg);
+  color: var(--color-card-purple-fg);
+}
+
+.balanceDecor {
+  position: absolute;
+  right: -60px;
+  top: -100px;
+  width: 260px;
+  height: 260px;
+  border-radius: 50%;
+  background: var(--color-card-purple-decor);
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.balance > *:not(.balanceDecor) {
+  position: relative;
+}
+
+.balanceTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.balanceLabel {
+  color: var(--color-card-purple-muted);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.balanceCurrency {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 10px 0 12px;
+  border: 0;
+  border-radius: 9999px;
+  background: var(--color-card-purple-decor);
+  color: var(--color-card-purple-fg);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.balanceAmount {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+}
+
+.balanceAmount > span:first-child {
+  min-width: 0;
   font-family: var(--font-family-mono);
+  font-size: clamp(28px, 10vw, 36px);
+  font-weight: 600;
+  line-height: 44px;
+  letter-spacing: -0.5px;
+  white-space: nowrap;
+}
+
+.balanceUnit {
+  color: var(--color-card-purple-muted);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.balanceStats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.balanceStat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 12px;
+  border-radius: 16px;
+  background: var(--color-card-purple-decor);
+}
+
+.balanceStat span {
+  color: var(--color-card-purple-muted);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.balanceStat strong {
+  overflow: hidden;
+  font-family: var(--font-family-mono);
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 24px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Phone: the four figures as four cards, two by two, 12px apart. Two row
+   tracks per row of cards, so the hairlines in a row sit level. */
+.figures {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: auto;
+  gap: 0 12px;
+}
+
+.figures > .hCell {
+  overflow: hidden;
+  margin-bottom: 12px;
+  border-radius: 20px;
+  background: var(--color-bg-surface);
+}
+
+.figures > .hCell:nth-last-child(-n + 2) {
+  margin-bottom: 0;
+}
+
+.figures .hTop {
+  padding: 14px 14px 10px;
+}
+
+.figures .hFoot {
+  padding: 8px 14px 12px;
+}
+
+.figures .hFigure {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.figures .hValue {
+  font-size: clamp(15px, 4.6vw, 20px);
+}
+
+.figures .hLabel {
+  align-items: flex-start;
+}
+
+.figures .hLink {
+  white-space: normal;
+}
+
+.figures .hDelta {
+  gap: 4px;
+  font-size: 11px;
 }
 
 /* ---- Row 2: cash flow ---- */
@@ -589,9 +801,38 @@
   border-radius: 2px;
 }
 
+/* Phone: the scale pinned on the left, the 12 periods scrolling beside it. */
+.flowPhone {
+  display: flex;
+  margin-right: -16px;
+}
+
+.flowAxis {
+  display: flex;
+  flex: none;
+  box-sizing: border-box;
+  width: 36px;
+}
+
+.flowAxisPlot {
+  position: relative;
+  flex: 1;
+}
+
+.flowAxisPlot span {
+  position: absolute;
+  right: 6px;
+  transform: translateY(-50%);
+  color: var(--color-text-tertiary);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 .flowScroll {
-  margin: 0 -16px;
-  padding: 0 16px;
+  flex: 1;
+  min-width: 0;
+  padding-right: 16px;
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -601,7 +842,7 @@
 }
 
 .flowChartPhone {
-  height: 220px;
+  min-width: 100%;
 }
 
 /* ---- Row 3: the grid ---- */
@@ -797,6 +1038,32 @@
   align-items: stretch;
   gap: 6px;
   height: 140px;
+}
+
+.aScale {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  width: 30px;
+}
+
+.aScalePlot {
+  position: relative;
+  flex: 1;
+  width: 100%;
+}
+
+.aScalePlot span {
+  position: absolute;
+  right: 0;
+  transform: translateY(50%);
+  color: var(--color-text-tertiary);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  line-height: 12px;
+  white-space: nowrap;
 }
 
 .aCol {
@@ -1028,61 +1295,10 @@
       'account commit'
       'wallets wallets';
   }
-  .headline {
-    grid-template-columns: repeat(6, minmax(0, 1fr));
-  }
-  .headline > .hCell {
-    grid-column: span 2;
-    border-left: 0;
-    border-top: 1px solid var(--color-border-default);
-  }
-  .headline > .hCell:nth-child(-n + 2) {
-    grid-column: span 3;
-    border-top: 0;
-  }
-  .headline > .hCell:nth-child(2),
-  .headline > .hCell:nth-child(n + 4) {
-    border-left: 1px solid var(--color-border-default);
-  }
 }
 
-/* Phone (owner, 24 Nov 2026): Total balance full width, then the other four
-   figures two by two; a figure never wraps, it shrinks to fit at 320px. */
+/* Narrow web window: the grid in one column. */
 @media (max-width: 767px) {
-  .headline {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .headline > .hCell,
-  .headline > .hCell:nth-child(-n + 2) {
-    grid-column: span 1;
-    border-top: 1px solid var(--color-border-default);
-    border-left: 0;
-  }
-  .headline > .hCell:first-child {
-    grid-column: 1 / -1;
-    border-top: 0;
-  }
-  .headline > .hCell:nth-child(odd):not(:first-child) {
-    border-left: 1px solid var(--color-border-default);
-  }
-  .headline > .hCell:first-child .hValue {
-    font-size: clamp(24px, 8vw, 32px);
-  }
-  .hValue {
-    font-size: clamp(15px, 4.6vw, 20px);
-  }
-  .hTop {
-    padding: 14px 14px 10px;
-  }
-  .hFoot {
-    padding: 8px 14px 12px;
-  }
-  .hLabel {
-    align-items: flex-start;
-  }
-  .hLink {
-    white-space: normal;
-  }
   .grid3 {
     display: flex;
     flex-direction: column;

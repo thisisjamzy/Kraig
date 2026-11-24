@@ -3,7 +3,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { areaFigures, categoryInsight, commitmentsOf, dueText, greetingFor, monthBuckets, monthChange, unexplainedText, upcomingLines, weekBuckets } from '../app/src/viewmodels/home';
+import { areaFigures, categoryInsight, commitmentsOf, dueText, flowScale, greetingFor, monthBuckets, monthChange, niceScale, unaccountedChange, unexplainedText, upcomingLines, weekBuckets } from '../app/src/viewmodels/home';
 import { debtSentence } from '../app/src/viewmodels/debt';
 
 const LONG_DASH = /[–—]/;
@@ -131,4 +131,27 @@ test("the Debt page's sentence", () => {
 test('area figures are in sentence case', () => {
   assert.equal(areaFigures({ projects: 15, openTasks: 42, atRisk: 3 }), '15 projects · 42 open tasks · 3 at risk');
   assert.equal(areaFigures({ projects: 1, openTasks: 1, atRisk: 0 }), '1 project · 1 open task');
+});
+
+test('niceScale: a round top in a few steps, 0 first', () => {
+  assert.deepEqual(niceScale(180_000, 2), { max: 200_000, ticks: [0, 100_000, 200_000] });
+  assert.deepEqual(niceScale(45, 2), { max: 50, ticks: [0, 25, 50] });
+  assert.deepEqual(niceScale(0, 2).ticks[0], 0);
+});
+
+test('flowScale: one step both sides, fixed from every period, three to five ticks', () => {
+  const s = flowScale([
+    { income: 380_000, expense: 120_000 },
+    { income: 0, expense: 150_000 },
+  ]);
+  assert.deepEqual(s, { domain: [-200_000, 400_000], ticks: [-200_000, 0, 200_000, 400_000] });
+  assert.deepEqual(flowScale([{ income: 0, expense: 90_000 }]), { domain: [-100_000, 0], ticks: [-100_000, -50_000, 0] });
+  const n = flowScale([{ income: 1_000_000, expense: 1_000_000 }]).ticks.length;
+  assert.ok(n >= 3 && n <= 5);
+});
+
+test('unaccountedChange: amount from the rows, share only when last month had some', () => {
+  assert.deepEqual(unaccountedChange(15_000, -5_000), { change: -0.25, changeAmount: -5_000 });
+  assert.deepEqual(unaccountedChange(4_000, 4_000), { change: null, changeAmount: 4_000 });
+  assert.deepEqual(unaccountedChange(4_000, null), { change: null, changeAmount: null });
 });

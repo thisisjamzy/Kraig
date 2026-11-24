@@ -1,11 +1,14 @@
 'use client';
 
-// The Money dashboard's sections (owner, 24 Nov 2026), shared by the web and
-// phone Home screens. In order:
-//   Headline   one card of five figures (balance, money in, money out,
-//              transfers, saved), each against last month;
+// The Money dashboard's sections (owner, 24 Nov 2026, corrected the same
+// afternoon), shared by the web and phone Home screens. In order:
+//   Headline   web: one card of five cells, Total balance then the four
+//              figures (Money in, Money out, Unaccounted for, Saved this
+//              month), each against last month;
+//   BalanceCard and Figures  phone: the purple balance card, then the same
+//              four figures as four cards two by two;
 //   CashFlow   income above the line and expenses below it, 12 weeks or 12
-//              months;
+//              months, on one fixed scale (pinned beside the chart on phone);
 //   Budget     this month's lines as hatched bars, fullest first;
 //   Spending   the donut and its legend;
 //   AccountabilityMini  accounted for against unaccounted, per period;
@@ -18,7 +21,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
-import { Bar, BarChart, Cell, Pie, PieChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { ArrowDown, ArrowDownLeft, ArrowDownToLine, ArrowLeftRight, ArrowUp, ArrowUpRight, ChevronDown, HandCoins, History, Info, Plus, ShoppingBasket } from 'lucide-react';
 import type { HomeLogic, HomeTx } from '@/src/logic/home/useLogic';
 import { compact } from '@/src/shared/dashboard/format';
@@ -26,6 +29,7 @@ import { useAccountability } from '@/src/shared/hooks/useAccountability';
 import { UNJUSTIFIED_WALLET_ID } from '@/src/shared/firestore/refs';
 import { useFormLink } from '@/src/shared/navigation/useFormLink';
 import { accountabilitySentence, rateText, type Period, type PeriodAccountability } from '@/src/viewmodels/accountability';
+import { niceScale } from '@/src/viewmodels/home';
 import { Popover } from '@/src/widgets/ListQuery/Popover';
 import { formatMoney } from '@/src/widgets/Money/Money';
 import { SeeAll } from '@/src/widgets/SeeAll/SeeAll';
@@ -35,8 +39,13 @@ const DAY_MONTH = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'sho
 const TIME = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit' });
 const DONUT = [1, 2, 3, 4, 5].map((n) => `var(--color-data-categorical-${n})`);
 const OTHERS = 'var(--color-border-default)';
+/** Cash flow: income in brand purple, expenses in rose, both at full strength. */
 const IN = 'var(--color-brand-default)';
-const OUT = 'var(--color-card-lilac-decor)';
+const OUT = 'var(--color-flow-out)';
+const NEGATIVE = 'var(--color-data-negative)';
+/** The cash flow's plot area: the top margin and the label row's height, shared by the pinned scale. */
+const FLOW_TOP = 8;
+const FLOW_AXIS = 28;
 
 const pct = (n: number) => `${Math.round(Math.abs(n) * 100)}%`;
 const share = (part: number, whole: number) => (whole > 0 ? Math.min(1, Math.max(0, part / whole)) : 0);
@@ -72,10 +81,49 @@ function Segmented<T extends string>({ value, options, onChange, label }: { valu
   );
 }
 
-/* ---------- Row 1: the headline strip ---------- */
+/** The display currency switch: a chip and its menu. */
+function CurrencySwitch({ v, className }: { v: HomeLogic; className: string }) {
+  const [menu, setMenu] = useState<HTMLElement | null>(null);
+  return (
+    <>
+      <button type="button" className={className} onClick={(e) => setMenu(e.currentTarget)} aria-haspopup="menu" aria-label={`Display currency ${v.currency}`}>
+        {v.currency}
+        <ChevronDown size={12} strokeWidth={2.5} aria-hidden />
+      </button>
+      {menu && (
+        <Popover anchor={menu} label="Display currency" onClose={() => setMenu(null)}>
+          <div className={styles.menu} role="menu">
+            {v.currencyOptions.map((o) => (
+              <button
+                key={o.code}
+                type="button"
+                role="menuitemradio"
+                aria-checked={o.code === v.currency}
+                className={styles.menuRow}
+                onClick={() => {
+                  void v.switchCurrency(o.code);
+                  setMenu(null);
+                }}
+              >
+                <strong>{o.code}</strong> {o.name}
+              </button>
+            ))}
+          </div>
+        </Popover>
+      )}
+    </>
+  );
+}
+
+/* ---------- Row 1: the figures ---------- */
 
 type Tone = 'good' | 'bad' | 'muted';
 
+/**
+ * One figure: the top part (marker, label, figure, change) and the footer.
+ * The cell is a subgrid of two rows, so every footer in a row starts on the
+ * same line and the hairline above it runs straight across.
+ */
 function Cell5({
   marker,
   label,
@@ -86,6 +134,7 @@ function Cell5({
   footer,
   extra,
   wide,
+  card,
   labelTools,
 }: {
   marker: string;
@@ -97,10 +146,12 @@ function Cell5({
   footer: ReactNode;
   extra?: ReactNode;
   wide?: boolean;
+  /** Its own surface (the phone's cards two by two). */
+  card?: boolean;
   labelTools?: ReactNode;
 }) {
   return (
-    <div className={styles.hCell} data-wide={wide || undefined}>
+    <div className={styles.hCell} data-wide={wide || undefined} data-card={card || undefined}>
       <div className={styles.hTop}>
         <span className={styles.hLabel}>
           <i className={styles.hMarker} style={{ background: marker }} aria-hidden />
@@ -129,17 +180,20 @@ function Cell5({
   );
 }
 
-/** The footer: an arrow in a tinted circle, the change, "vs October". */
-function ChangeFoot({ amount, last, upIsGood }: { amount: number | null; last: string; upIsGood: boolean }) {
-  if (amount === null) return <span className={styles.hMuted}>Nothing to compare with {last} yet</span>;
-  const up = amount >= 0;
+/** The footer: an arrow in a tinted circle, then "Up 1,240,000" or "Down 1,240,000". */
+function ChangeFoot({ amount, upIsGood }: { amount: number | null; upIsGood: boolean }) {
+  if (amount === null) return <span className={styles.hMuted}>Nothing to compare yet</span>;
+  if (Math.abs(amount) < 0.5) return <span className={styles.hMuted}>Same as last month</span>;
+  const up = amount > 0;
   const good = upIsGood ? up : !up;
   return (
     <span className={styles.hDelta}>
       <span className={styles.hArrow} data-tone={good ? 'good' : 'bad'} aria-hidden>
         {up ? <ArrowUp size={12} strokeWidth={2.5} /> : <ArrowDown size={12} strokeWidth={2.5} />}
       </span>
-      {formatMoney(Math.abs(amount))} <span className={styles.hMuted}>vs {last}</span>
+      <span>
+        <span className={styles.hWord}>{up ? 'Up' : 'Down'}</span> {formatMoney(Math.abs(amount))}
+      </span>
     </span>
   );
 }
@@ -150,67 +204,45 @@ function changeOf(n: number | null | undefined, upIsGood: boolean): { text: stri
   return { text: `${n >= 0 ? '+' : '-'}${pct(n)}`, tone: good ? 'good' : 'bad' };
 }
 
-export function Headline({ v }: { v: HomeLogic }) {
-  const [menu, setMenu] = useState<HTMLElement | null>(null);
-  const safe = v.guide?.today.left ?? null;
-  const last = v.lastMonthName;
+/** The four figures: Money in, Money out, Unaccounted for, Saved this month. */
+function FigureCells({ v, card = false }: { v: HomeLogic; card?: boolean }) {
   const notYet = Math.max(0, v.expected - v.received);
+  const clear = Math.abs(v.unexplained) < 0.5;
   return (
-    <section className={styles.headline} aria-label="This month">
+    <>
       <Cell5
-        wide
-        marker={IN}
-        label="Total balance"
-        tip="Everything in your wallets now, in your display currency."
-        href="/wallets"
-        value={v.cash}
-        labelTools={
-          <button type="button" className={styles.currency} onClick={(e) => setMenu(e.currentTarget)} aria-haspopup="menu" aria-label={`Display currency ${v.currency}`}>
-            {v.currency}
-            <ChevronDown size={12} strokeWidth={2.5} aria-hidden />
-          </button>
-        }
-        footer={
-          <span className={styles.hMuted}>
-            Spendable {formatMoney(v.spendable)} · Savings {formatMoney(v.savings)}
-          </span>
-        }
-        extra={
-          safe !== null ? (
-            <Link href="/budget" className={styles.hSafe}>
-              Safe to spend today <strong>{formatMoney(Math.max(0, safe))}</strong>
-            </Link>
-          ) : null
-        }
-      />
-      <Cell5
+        card={card}
         marker="var(--color-data-positive)"
         label="Money in"
         tip="Income received this month."
         href="/transactions?type=Income"
         value={v.received}
         change={changeOf(v.income.change, true)}
-        footer={<ChangeFoot amount={v.income.changeAmount} last={last} upIsGood />}
+        footer={<ChangeFoot amount={v.income.changeAmount} upIsGood />}
         extra={notYet > 0.5 ? <span className={styles.hMuted}>of {formatMoney(v.expected)} expected</span> : null}
       />
       <Cell5
+        card={card}
         marker={OUT}
         label="Money out"
         tip="What you spent this month."
         href="/transactions?type=Expense"
         value={v.spending.spent}
         change={changeOf(v.spending.change, false)}
-        footer={<ChangeFoot amount={v.spending.changeAmount} last={last} upIsGood={false} />}
+        footer={<ChangeFoot amount={v.spending.changeAmount} upIsGood={false} />}
       />
       <Cell5
-        marker="var(--color-data-categorical-3)"
-        label="Transfers"
-        tip="Money moved between your wallets this month."
-        href="/transactions?type=Transfer"
-        value={v.transfers.moved}
-        footer={<span className={styles.hMuted}>{v.transfers.planned > 0.5 ? `of ${formatMoney(v.transfers.planned)} planned` : 'Moves between wallets'}</span>}
+        card={card}
+        marker={NEGATIVE}
+        label="Unaccounted for"
+        tip="Money that left your wallets this month without an explanation."
+        href={`/wallets/${UNJUSTIFIED_WALLET_ID}`}
+        value={clear ? 0 : v.unexplained}
+        change={clear ? null : changeOf(v.unexplainedChange.change, false)}
+        footer={clear ? <span className={styles.hClear}>All accounted for</span> : <ChangeFoot amount={v.unexplainedChange.changeAmount} upIsGood={false} />}
       />
       <Cell5
+        card={card}
         marker="var(--color-data-categorical-4)"
         label="Saved this month"
         tip="Put into savings this month."
@@ -219,27 +251,67 @@ export function Headline({ v }: { v: HomeLogic }) {
         change={changeOf(v.saved.change, true)}
         footer={<span className={styles.hMuted}>{v.saved.shareOfIncome !== null ? `${pct(v.saved.shareOfIncome)} of income` : 'Nothing received yet'}</span>}
       />
-      {menu && (
-        <Popover anchor={menu} label="Display currency" onClose={() => setMenu(null)}>
-          <div className={styles.menu} role="menu">
-            {v.currencyOptions.map((o) => (
-              <button
-                key={o.code}
-                type="button"
-                role="menuitemradio"
-                aria-checked={o.code === v.currency}
-                className={styles.menuRow}
-                onClick={() => {
-                  void v.switchCurrency(o.code);
-                  setMenu(null);
-                }}
-              >
-                <strong>{o.code}</strong> {o.name}
-              </button>
-            ))}
-          </div>
-        </Popover>
-      )}
+    </>
+  );
+}
+
+/** Web and tablet: one card of five cells. */
+export function Headline({ v }: { v: HomeLogic }) {
+  return (
+    <section className={styles.headline} aria-label="This month">
+      <div className={styles.hGrid}>
+        <Cell5
+          wide
+          marker={IN}
+          label="Total balance"
+          tip="Everything in your wallets now, in your display currency."
+          href="/wallets"
+          value={v.cash}
+          labelTools={<CurrencySwitch v={v} className={styles.currency} />}
+          footer={
+            <span className={styles.hMuted}>
+              Spendable {formatMoney(v.spendable)} · Savings {formatMoney(v.savings)}
+            </span>
+          }
+        />
+        <FigureCells v={v} />
+      </div>
+    </section>
+  );
+}
+
+/** Phone: the purple balance card (the phone's Total balance). */
+export function BalanceCard({ v }: { v: HomeLogic }) {
+  return (
+    <section className={styles.balance} aria-label="Total balance">
+      <span className={styles.balanceDecor} aria-hidden />
+      <div className={styles.balanceTop}>
+        <span className={styles.balanceLabel}>Total balance</span>
+        <CurrencySwitch v={v} className={styles.balanceCurrency} />
+      </div>
+      <p className={styles.balanceAmount}>
+        <span>{formatMoney(v.cash)}</span>
+        <span className={styles.balanceUnit}>{v.currency}</span>
+      </p>
+      <div className={styles.balanceStats}>
+        <div className={styles.balanceStat}>
+          <span>Spendable</span>
+          <strong>{formatMoney(v.spendable)}</strong>
+        </div>
+        <div className={styles.balanceStat}>
+          <span>Savings</span>
+          <strong>{formatMoney(v.savings)}</strong>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/** Phone: the four figures as four cards, two by two. */
+export function Figures({ v }: { v: HomeLogic }) {
+  return (
+    <section className={styles.figures} aria-label="This month">
+      <FigureCells v={v} card />
     </section>
   );
 }
@@ -263,40 +335,105 @@ function FlowTip({ active, payload, label }: { active?: boolean; payload?: { pay
   );
 }
 
+interface BarShape {
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+  fill?: string;
+  fillOpacity?: number | string;
+}
+
+/**
+ * A bar with its flat edge on the zero line and its rounded corners at the
+ * tip, whatever sign Recharts gives the height: up for income, down for
+ * expenses.
+ */
+function flowBar(down: boolean) {
+  return function FlowBarShape({ x = 0, y = 0, width = 0, height = 0, fill, fillOpacity }: BarShape) {
+    const top = Math.min(y, y + height);
+    const h = Math.abs(height);
+    if (h < 0.5 || width <= 0) return null;
+    const r = Math.min(6, width / 2, h);
+    const bottom = top + h;
+    const right = x + width;
+    const d = down
+      ? `M${x},${top} H${right} V${bottom - r} Q${right},${bottom} ${right - r},${bottom} H${x + r} Q${x},${bottom} ${x},${bottom - r} Z`
+      : `M${x},${bottom} V${top + r} Q${x},${top} ${x + r},${top} H${right - r} Q${right},${top} ${right},${top + r} V${bottom} Z`;
+    return <path d={d} fill={fill} fillOpacity={fillOpacity} />;
+  };
+}
+const IncomeBar = flowBar(false);
+const ExpenseBar = flowBar(true);
+
+/** The scale's labels as HTML, placed from the same ticks and domain as the chart. */
+function PinnedScale({ domain, ticks, height }: { domain: [number, number]; ticks: number[]; height: number }) {
+  const span = domain[1] - domain[0] || 1;
+  return (
+    <div className={styles.flowAxis} style={{ height, paddingTop: FLOW_TOP, paddingBottom: FLOW_AXIS }} aria-hidden>
+      <div className={styles.flowAxisPlot}>
+        {ticks.map((t) => (
+          <span key={t} style={{ top: `${((domain[1] - t) / span) * 100}%` }}>
+            {compact(Math.abs(t))}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const PHONE_FLOW_HEIGHT = 220;
+
 export function CashFlow({ v, phone = false }: { v: HomeLogic; phone?: boolean }) {
   const [hover, setHover] = useState<number | null>(null);
   const scroller = useRef<HTMLDivElement>(null);
   const data = v.flow.map((b) => ({ ...b, out: -b.expense }));
-  const income = v.flow.reduce((s, b) => s + b.income, 0);
-  const expense = v.flow.reduce((s, b) => s + b.expense, 0);
-  const net = income - expense;
-  const lastIndex = data.length - 1;
+  const { income, expense, net } = v.flowTotals;
+  const { domain, ticks } = v.flowAxis;
+  // Every bar at full strength; while one period is hovered or tapped, the others dim.
+  const opacity = (i: number) => (hover === null || hover === i ? 1 : 0.7);
   // A phone shows six periods and scrolls sideways to the rest, opening on the newest.
   useEffect(() => {
     if (phone && scroller.current) scroller.current.scrollLeft = scroller.current.scrollWidth;
   }, [phone, v.flowView, data.length]);
+  const active = (s: { activeTooltipIndex?: number | string | null } | null | undefined) => {
+    const i = Number(s?.activeTooltipIndex);
+    setHover(s && s.activeTooltipIndex !== null && s.activeTooltipIndex !== undefined && Number.isFinite(i) ? i : null);
+  };
   const chart = (
     <ResponsiveContainer width="100%" height="100%">
       <BarChart
         data={data}
         stackOffset="sign"
         barCategoryGap="28%"
-        margin={{ top: 8, right: 0, bottom: 0, left: 0 }}
-        onMouseMove={(s) => setHover(typeof s?.activeTooltipIndex === 'number' ? s.activeTooltipIndex : null)}
+        margin={{ top: FLOW_TOP, right: 0, bottom: 0, left: 0 }}
+        onMouseMove={active}
+        onClick={phone ? active : undefined}
         onMouseLeave={() => setHover(null)}
       >
-        <XAxis dataKey="label" axisLine={false} tickLine={false} interval={0} tick={{ fontSize: 11, fill: 'var(--color-text-tertiary)' }} />
-        <YAxis width={phone ? 0 : 44} hide={phone} axisLine={false} tickLine={false} tickFormatter={(n: number) => compact(Math.abs(n))} tick={{ fontSize: 11, fill: 'var(--color-text-tertiary)' }} />
+        <CartesianGrid vertical={false} stroke="var(--color-data-grid)" />
+        <XAxis dataKey="label" height={FLOW_AXIS} axisLine={false} tickLine={false} interval={0} tick={{ fontSize: 11, fill: 'var(--color-text-tertiary)' }} />
+        <YAxis
+          width={phone ? 0 : 44}
+          hide={phone}
+          domain={domain}
+          ticks={ticks}
+          allowDataOverflow
+          axisLine={false}
+          tickLine={false}
+          tickFormatter={(n: number) => compact(Math.abs(n))}
+          tick={{ fontSize: 11, fill: 'var(--color-text-tertiary)' }}
+        />
         <ReferenceLine y={0} stroke="var(--color-border-strong, var(--color-text-tertiary))" />
         <Tooltip cursor={{ fill: 'var(--color-bg-sunken)' }} content={<FlowTip />} trigger={phone ? 'click' : 'hover'} />
-        <Bar dataKey="income" stackId="f" fill={IN} radius={[6, 6, 0, 0]} maxBarSize={28} isAnimationActive={false}>
+        <Bar dataKey="income" stackId="f" fill={IN} shape={IncomeBar} maxBarSize={28} isAnimationActive={false}>
           {data.map((_, i) => (
-            <Cell key={i} fillOpacity={(hover === null ? i === lastIndex : hover === i) ? 1 : 0.6} />
+            <Cell key={i} fillOpacity={opacity(i)} />
           ))}
         </Bar>
-        <Bar dataKey="out" stackId="f" fill={OUT} radius={[0, 0, 6, 6]} maxBarSize={28} isAnimationActive={false}>
+        <Bar dataKey="out" stackId="f" fill={OUT} shape={ExpenseBar} maxBarSize={28} isAnimationActive={false}>
           {data.map((_, i) => (
-            <Cell key={i} fillOpacity={(hover === null ? i === lastIndex : hover === i) ? 1 : 0.6} />
+            <Cell key={i} fillOpacity={opacity(i)} />
           ))}
         </Bar>
       </BarChart>
@@ -324,9 +461,12 @@ export function CashFlow({ v, phone = false }: { v: HomeLogic; phone?: boolean }
         </span>
       </div>
       {phone ? (
-        <div ref={scroller} className={styles.flowScroll}>
-          <div className={styles.flowChartPhone} style={{ width: `${Math.max(100, (data.length / 6) * 100)}%` }}>
-            {chart}
+        <div className={styles.flowPhone}>
+          <PinnedScale domain={domain} ticks={ticks} height={PHONE_FLOW_HEIGHT} />
+          <div ref={scroller} className={styles.flowScroll}>
+            <div className={styles.flowChartPhone} style={{ width: `${Math.max(100, (data.length / 6) * 100)}%`, height: PHONE_FLOW_HEIGHT }}>
+              {chart}
+            </div>
           </div>
         </div>
       ) : (
@@ -430,7 +570,9 @@ export function AccountabilityMini({ v, phone = false }: { v: HomeLogic; phone?:
   const [period, setPeriod] = useState<Period>('month');
   const { rows } = useAccountability({ period, count: period === 'month' ? 6 : phone ? 6 : 7 });
   const cur: PeriodAccountability | undefined = rows[rows.length - 1];
-  const max = Math.max(1, ...rows.map((r) => Math.max(r.outflow - r.unaccounted, r.unaccounted)));
+  // A round scale beside the bars, so a bar always has a reference.
+  const scale = niceScale(Math.max(1, ...rows.map((r) => Math.max(r.outflow - r.unaccounted, r.unaccounted))), 2);
+  const max = scale.max;
   const short = (r: PeriodAccountability) => (period === 'month' ? r.label.slice(0, 3) : r.label.split(' to ')[0]);
   return (
     <section className={styles.card} aria-label="Accountability">
@@ -448,6 +590,17 @@ export function AccountabilityMini({ v, phone = false }: { v: HomeLogic; phone?:
         </span>
       </div>
       <div className={styles.aChart} role="img" aria-label={accountabilitySentence(rows)}>
+        <div className={styles.aScale} aria-hidden>
+          <span className={styles.aScalePlot}>
+            {scale.ticks.map((t) => (
+              <span key={t} style={{ bottom: `${(t / max) * 100}%` }}>
+                {compact(t)}
+              </span>
+            ))}
+          </span>
+          <span className={styles.aRate}>&nbsp;</span>
+          <span className={styles.aLabel}>&nbsp;</span>
+        </div>
         {rows.map((r) => {
           const accounted = Math.max(0, r.outflow - r.unaccounted);
           const tone = r.rate === null ? undefined : r.rate >= 0.9 ? 'good' : r.rate < 0.75 ? 'bad' : undefined;

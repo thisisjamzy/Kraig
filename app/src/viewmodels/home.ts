@@ -100,6 +100,50 @@ function fill(bars: Bucket[], rows: { date: Date; income: number; expense: numbe
   }));
 }
 
+/** A round step for about `parts` steps up to `max`: 1, 2, 2.5 or 5 times a power of ten. */
+export function niceStep(max: number, parts = 2): number {
+  if (!(max > 0)) return 1;
+  const raw = max / parts;
+  const power = 10 ** Math.floor(Math.log10(raw));
+  const unit = raw / power;
+  return (unit <= 1 ? 1 : unit <= 2 ? 2 : unit <= 2.5 ? 2.5 : unit <= 5 ? 5 : 10) * power;
+}
+
+/** A scale from 0 to a round top over a few steps: the top and its ticks, 0 first. */
+export function niceScale(max: number, parts = 2): { max: number; ticks: number[] } {
+  const step = niceStep(max, parts);
+  const n = Math.max(1, Math.ceil(max / step - 1e-9));
+  return { max: n * step, ticks: Array.from({ length: n + 1 }, (_, i) => i * step) };
+}
+
+/**
+ * The cash flow scale (owner, 24 Nov 2026): fixed from every period shown,
+ * income above zero and expenses below, so it stays put while the chart
+ * scrolls. One round step for both sides, two or so steps each way, so three
+ * to five ticks. Ticks are signed; labels show them without the sign.
+ */
+export function flowScale(bars: { income: number; expense: number }[]): { domain: [number, number]; ticks: number[] } {
+  const up = Math.max(0, ...bars.map((b) => b.income));
+  const down = Math.max(0, ...bars.map((b) => b.expense));
+  const step = niceStep(Math.max(up, down, 1), 2);
+  const above = Math.ceil(up / step - 1e-9);
+  const below = Math.ceil(down / step - 1e-9);
+  const ticks: number[] = [];
+  for (let i = -below; i <= above; i++) ticks.push(i * step || 0);
+  return { domain: [-below * step || 0, above * step || 0], ticks };
+}
+
+/**
+ * Unaccounted for, against last month: the change in amount (from the
+ * accountability rows, which compare with the month before) and its share
+ * of last month's amount when last month had any.
+ */
+export function unaccountedChange(now: number, changeAmount: number | null): { change: number | null; changeAmount: number | null } {
+  if (changeAmount === null) return { change: null, changeAmount: null };
+  const before = now - changeAmount;
+  return { change: before > 0.5 ? changeAmount / before : null, changeAmount };
+}
+
 /** This month against last: the share and the amount, or nulls when last month had nothing to compare with. */
 export function monthChange(now: number, before: number): { change: number | null; changeAmount: number | null } {
   if (!(before > 0.5)) return { change: null, changeAmount: null };

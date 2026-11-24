@@ -1,8 +1,9 @@
 'use client';
 
-// Money Home on tablet and web (owner, 24 Nov 2026). The header carries the
-// greeting and the month; then, 24px apart: the headline strip (balance,
-// money in, money out, transfers, saved), cash flow full width, a grid of
+// Money Home on tablet and web (owner, 24 Nov 2026, corrected the same
+// afternoon). The header carries the greeting and the month; then, 24px
+// apart: the headline strip (Total balance, Money in, Money out, Unaccounted
+// for, Saved this month), cash flow full width, a grid of
 // Budget (tall, both rows), Spending, Accountability, Commitments and
 // Wallets, then recent activity. The sections live in widgets/MoneyHome
 // (shared with the phone); data comes from src/logic/home.
