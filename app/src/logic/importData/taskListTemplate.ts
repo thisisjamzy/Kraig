@@ -1,8 +1,9 @@
 // "Task list template" (owner, 23 Nov 2026): the one file to fill in for
 // the task import, as .xlsx (or .csv). Three sheets:
 //   - Tasks: the twelve columns, dropdowns on Priority and Status, the date
-//     column as text dd/mm/yyyy, and three example rows (a new area, an
-//     existing folder, an Inbox task);
+//     column as text dd/mm/yyyy, and three example rows (a new area, folder
+//     and project; an area you have; a new area's General folder). Area,
+//     Folder and Project are required on every row (owner, 24 Nov 2026);
 //   - How to fill this in: each column and what it accepts;
 //   - Your lists: your areas, folders and projects, to copy names exactly.
 
@@ -22,7 +23,7 @@ const LAST_ROW = 2001;
 const pad = (n: number) => String(n).padStart(2, '0');
 const ddmmyyyy = (d: Date) => `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
 
-/** Three example rows: a new area, a folder you already have (or one like it), and an Inbox task. */
+/** Three example rows: a new area, a folder you already have (or one like it), and a new area's General folder. */
 function examples(lists: YourLists): string[][] {
   const soon = new Date();
   soon.setDate(soon.getDate() + 7);
@@ -35,8 +36,8 @@ function examples(lists: YourLists): string[][] {
     row({ Area: 'Home', Folder: 'Admin', Project: 'Papers', Task: 'Renew passport', 'Due date': ddmmyyyy(soon), Priority: 'High', Status: 'To do', Notes: 'A new area, folder and project: all created for you.', Subtasks: 'Photos; Form; Appointment', Tags: 'errand' }),
     row({
       Area: area?.name ?? 'Work',
-      Folder: folder?.name ?? '',
-      Project: '',
+      Folder: folder?.name ?? 'Admin',
+      Project: 'Planning',
       Task: 'Weekly review',
       'Due date': ddmmyyyy(later),
       'Start time': '09:00',
@@ -44,9 +45,9 @@ function examples(lists: YourLists): string[][] {
       Priority: 'Schedule',
       Status: 'To do',
       Repeats: 'weekly on Friday',
-      Notes: area ? 'An area you already have. No project: it goes in a project named after the folder.' : 'No project: it goes in a project named after the folder.',
+      Notes: area ? 'An area you already have. A project that is new is created in this folder.' : 'Area, Folder and Project are needed on every row.',
     }),
-    row({ Task: 'Call the plumber', Notes: 'No area, folder or project: it goes to your Inbox.' }),
+    row({ Area: 'Home', Folder: 'General', Project: 'Repairs', Task: 'Call the plumber', Notes: 'A new area comes with a folder called General.' }),
   ];
 }
 
@@ -70,7 +71,7 @@ function howSheet(): XLSX.WorkSheet {
     ['Column', 'What it accepts'],
     ...TASK_LIST_FIELDS.map((f) => [f.label, f.accepts]),
     [],
-    ['One task per row.', 'Area, Folder and Project say where it goes; anything new is created. Names are matched without caring about capitals, accents or punctuation.'],
+    ['One task per row.', 'Area, Folder, Project and Task are needed on every row; a row missing one is shown to fix before it can be imported. Anything new is created with the first task that names it. Names are matched without caring about capitals, accents or punctuation.'],
     ['Dates', 'Day first unless the column shows otherwise (a date like 25/12 can only be day first). A date with no year is the next time that day comes round.'],
   ]);
   ws['!cols'] = [{ wch: 14 }, { wch: 100 }];

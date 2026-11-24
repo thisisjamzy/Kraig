@@ -1,8 +1,11 @@
 // The task import (owner, 23 Nov 2026): one task list, one template.
 //
 // The file is a list of tasks, one per row, on one sheet. Every row says
-// where it belongs (Area, Folder, Project) and the import creates whatever
-// is missing above it. Everything here is pure, so it is tested without
+// where it belongs (Area, Folder and Project, all three required, owner
+// 24 Nov 2026) and the import creates whatever is missing above it. Only
+// tasks are rows: areas, folders and projects are never rows of their own,
+// and there is no Inbox route and no default folder or project to fall
+// back on. Everything here is pure, so it is tested without
 // Firestore (test/importTaskList.test.ts):
 //   - the twelve columns, matched by exact header (English or French) only;
 //   - dates, done once: Excel serials and text read straight to yyyy-mm-dd,
@@ -13,7 +16,7 @@
 //   - names compared after normalizeName, only within their parent, with
 //     "Did you mean" for near matches;
 //   - the plan: areas, folders, projects and tasks to create, problems,
-//     duplicates and the summary sentence.
+//     duplicates, what is ticked and the summary sentence.
 // src/logic/importData/useTaskImport.ts reads the file and what exists,
 // checks time conflicts and writes.
 
@@ -31,9 +34,9 @@ export const NEAR = 0.85;
 export type TaskListField = 'area' | 'folder' | 'project' | 'task' | 'due' | 'start' | 'end' | 'priority' | 'status' | 'repeats' | 'notes' | 'subtasks' | 'tags';
 
 export const TASK_LIST_FIELDS: { key: TaskListField; label: string; accepts: string }[] = [
-  { key: 'area', label: 'Area', accepts: 'Any name. Created if new. Needed when Folder or Project is filled.' },
-  { key: 'folder', label: 'Folder', accepts: 'Any name, created inside the Area if new. Blank: the area’s General folder.' },
-  { key: 'project', label: 'Project', accepts: 'Any name, created inside the Folder if new. Blank: a project named after the folder (General tasks in the General folder).' },
+  { key: 'area', label: 'Area', accepts: 'Required. Any name; created if new.' },
+  { key: 'folder', label: 'Folder', accepts: 'Required. Any name; created inside the Area if new. A new area comes with a folder called General.' },
+  { key: 'project', label: 'Project', accepts: 'Required. Any name; created inside the Folder if new.' },
   { key: 'task', label: 'Task', accepts: 'The task’s title. Required.' },
   { key: 'due', label: 'Due date', accepts: '05/12/2026, 2026-12-05, 5 Dec 2026, 5 décembre 2026, December 5, 2026. A time after the date fills Start time.' },
   { key: 'start', label: 'Start time', accepts: '14:30, 2:30 pm, 9am, 9h30' },
@@ -483,8 +486,8 @@ export function isNear(a: string, b: string): boolean {
 // ---------------------------------------------------------------------------
 // The plan
 
+/** The folder every new area comes with (ensureDefaultSection). */
 export const DEFAULT_FOLDER = 'General';
-export const DEFAULT_PROJECT = 'General tasks';
 
 export interface ExistingLists {
   areas: { id: string; name: string }[];
@@ -509,8 +512,10 @@ export interface PlanOptions {
   today: { y: number; m: number; d: number };
   /** "Did you mean": choice key to 'existing' or 'new'. Unanswered: still to decide. */
   nameChoices: Record<string, 'existing' | 'new'>;
-  /** Duplicate rows switched back on, by row index. */
-  includeDuplicates: Set<number>;
+  /** Ticks the person changed, by row index. Untouched rows: Ready rows ticked, the rest not. */
+  ticked?: Record<number, boolean>;
+  /** Rows that start unticked although Ready (time clashes, decided by the hook). */
+  untickedByDefault?: Set<number>;
   /** Cells fixed in place in the check step: row index to field to text. */
   edits: Record<number, Partial<Record<TaskListField, string>>>;
   context?: ImportContext;
@@ -545,10 +550,15 @@ export interface PlannedTask {
   tags: string[];
   problems: string[];
   duplicate: 'existing' | 'file' | null;
-  /** Written, unless it has a problem or is a duplicate left off. */
+  /** Ticked and with no problem: it will be imported. */
   include: boolean;
+  /** Ticked (a row that needs a look can be ticked for "Put in…", but isn't imported until fixed). */
+  ticked: boolean;
   /** Fields filled from where the import was opened. */
   fromContext: boolean;
+  filled: ('area' | 'folder' | 'project')[];
+  /** Which of Area, Folder, Project and Task are missing. */
+  missing: ('area' | 'folder' | 'project' | 'task')[];
 }
 
 export interface NameQuestion {
@@ -567,7 +577,9 @@ export interface TaskListPlan {
   projects: Node[];
   tasks: PlannedTask[];
   questions: NameQuestion[];
-  counts: { newAreas: number; newFolders: number; newProjects: number; tasks: number; problems: number; duplicates: number; inbox: number };
+  /** Every place any row names, ticked or not, by key (the review table's names and "New" tags). */
+  known: Record<string, Node>;
+  counts: { newAreas: number; newFolders: number; newProjects: number; tasks: number; problems: number; duplicates: number; rows: number; unticked: number };
   /** The import can run: nothing left to decide and something to write. */
   ready: boolean;
 }
@@ -575,7 +587,9 @@ export interface TaskListPlan {
 const k = (s: string) => normalizeName(s);
 
 export function planTaskList(rows: Record<string, unknown>[], existing: ExistingLists, options: PlanOptions): TaskListPlan {
-  const { mapping, orders, today, nameChoices, includeDuplicates, edits, context } = options;
+  const { mapping, orders, today, nameChoices, edits, context } = options;
+  const ticks = options.ticked ?? {};
+  const offByDefault = options.untickedByDefault ?? new Set<number>();
   const col = (field: TaskListField) => Object.keys(mapping).find((h) => mapping[h] === field) ?? null;
   const cols = Object.fromEntries((TASK_LIST_FIELDS.map((f) => f.key) as TaskListField[]).map((f) => [f, col(f)])) as Record<TaskListField, string | null>;
   const value = (i: number, field: TaskListField): unknown => {
@@ -623,42 +637,59 @@ export function planTaskList(rows: Record<string, unknown>[], existing: Existing
     const title = text(i, 'task');
     // A wholly empty row is not a task.
     if (!title && !areaName && !folderName && !projectName && !text(i, 'due') && !text(i, 'notes')) continue;
-    let fromContext = false;
+    // Where the import was opened fills the matching blanks: the area on
+    // any row; the folder only in that area; the project only in that folder.
+    const filled: PlannedTask['filled'] = [];
     if (context?.area && !areaName) {
       areaName = context.area.name;
-      fromContext = true;
-      if (context.folder && !folderName) folderName = context.folder.isDefault ? '' : context.folder.name;
-      if (context.project && !projectName && !text(i, 'folder')) projectName = context.project.name;
+      filled.push('area');
     }
+    if (context?.folder && !folderName && context.area && k(areaName) === k(context.area.name)) {
+      folderName = context.folder.name;
+      filled.push('folder');
+    }
+    if (context?.project && !projectName && context.folder && k(folderName) === k(context.folder.name)) {
+      projectName = context.project.name;
+      filled.push('project');
+    }
+    const fromContext = filled.length > 0;
+    const missing: PlannedTask['missing'] = [];
+    if (!areaName) missing.push('area');
+    if (!folderName) missing.push('folder');
+    if (!projectName) missing.push('project');
+    if (!title) missing.push('task');
     if (!title) problems.push('The task has no title.');
+    if (!areaName) problems.push('Which area is this in?');
+    if (!folderName) problems.push('Which folder is this in?');
+    if (!projectName) problems.push('Which project is this in?');
 
     let areaKey: string | null = null;
     let folderKey: string | null = null;
     let projectKey: string | null = null;
-    if (!areaName && (folderName || projectName)) {
-      problems.push('Which area is this in?');
-    } else if (areaName) {
+    if (areaName) {
       const a = resolve('area', areaName, null, null, existing.areas);
       areaKey = a.key;
       if (!areas.has(a.key)) areas.set(a.key, { key: a.key, name: a.name, existingId: a.existingId, parentKey: null });
-      // Folder: the named one inside this area, or the area's default ("General").
       const inArea = a.existingId ? existing.folders.filter((f) => f.areaId === a.existingId) : [];
       if (folderName) {
-        const f = resolve('folder', folderName, a.key, a.name, inArea);
-        folderKey = f.key;
-        if (!folders.has(f.key)) folders.set(f.key, { key: f.key, name: f.name, existingId: f.existingId, parentKey: a.key });
-      } else {
-        const def = inArea.find((f) => f.isDefault);
-        folderKey = def ? `${a.key}/folder:${def.id}` : `${a.key}/folder:default`;
-        if (!folders.has(folderKey)) folders.set(folderKey, { key: folderKey, name: def?.name ?? DEFAULT_FOLDER, existingId: def?.id ?? null, parentKey: a.key, isDefault: true });
+        if (!a.existingId && k(folderName) === k(DEFAULT_FOLDER)) {
+          // A new area's General folder is the one that comes with it.
+          folderKey = `${a.key}/folder:default`;
+          if (!folders.has(folderKey)) folders.set(folderKey, { key: folderKey, name: DEFAULT_FOLDER, existingId: null, parentKey: a.key, isDefault: true });
+        } else {
+          const f = resolve('folder', folderName, a.key, a.name, inArea);
+          folderKey = f.key;
+          const isDefault = Boolean(f.existingId && inArea.find((x) => x.id === f.existingId)?.isDefault);
+          if (!folders.has(f.key)) folders.set(f.key, { key: f.key, name: f.name, existingId: f.existingId, parentKey: a.key, isDefault });
+        }
+        if (projectName) {
+          const folder = folders.get(folderKey)!;
+          const inFolder = folder.existingId ? existing.projects.filter((p) => p.bucketId === folder.existingId || (folder.isDefault && p.bucketId === null && p.areaId === a.existingId)) : [];
+          const p = resolve('project', projectName, folderKey, folder.name, inFolder);
+          projectKey = p.key;
+          if (!projects.has(p.key)) projects.set(p.key, { key: p.key, name: p.name, existingId: p.existingId, parentKey: folderKey });
+        }
       }
-      // Project: the named one in this folder; blank, one named after the folder (General tasks in the default folder).
-      const folder = folders.get(folderKey)!;
-      const pName = projectName || (folder.isDefault ? DEFAULT_PROJECT : folder.name);
-      const inFolder = folder.existingId ? existing.projects.filter((p) => p.bucketId === folder.existingId || (folder.isDefault && p.bucketId === null && p.areaId === a.existingId)) : [];
-      const p = resolve('project', pName, folderKey, folder.name, inFolder);
-      projectKey = p.key;
-      if (!projects.has(p.key)) projects.set(p.key, { key: p.key, name: p.name, existingId: p.existingId, parentKey: folderKey });
     }
 
     // Dates and times.
@@ -689,7 +720,6 @@ export function planTaskList(rows: Record<string, unknown>[], existing: Existing
     let duplicate: PlannedTask['duplicate'] = null;
     if (title) {
       if (project?.existingId && existingTasks.has(`${project.existingId}|${k(title)}|${dueCell.date ?? ''}`)) duplicate = 'existing';
-      else if (!projectKey && existingTasks.has(`|${k(title)}|${dueCell.date ?? ''}`)) duplicate = 'existing';
       else if (seen.has(dupKey)) duplicate = 'file';
       seen.add(dupKey);
     }
@@ -713,9 +743,14 @@ export function planTaskList(rows: Record<string, unknown>[], existing: Existing
       tags: parseTags(value(i, 'tags')),
       problems,
       duplicate,
-      include: problems.length === 0 && (!duplicate || includeDuplicates.has(i)),
+      ticked: ticks[i] ?? (problems.length === 0 && !duplicate && !offByDefault.has(i)),
+      include: false,
       fromContext,
+      filled,
+      missing,
     });
+    const last = tasks[tasks.length - 1];
+    last.include = last.ticked && problems.length === 0;
   }
 
   // Only what an included task needs is created.
@@ -740,7 +775,8 @@ export function planTaskList(rows: Record<string, unknown>[], existing: Existing
     tasks: included.length,
     problems: tasks.filter((t) => t.problems.length).length,
     duplicates: tasks.filter((t) => t.duplicate && !t.include && !t.problems.length).length,
-    inbox: included.filter((t) => !t.projectKey).length,
+    rows: tasks.length,
+    unticked: tasks.filter((t) => !t.include && !t.problems.length && !t.duplicate).length,
   };
   return {
     areas: areaList,
@@ -748,6 +784,7 @@ export function planTaskList(rows: Record<string, unknown>[], existing: Existing
     projects: projectList,
     tasks,
     questions: questionList,
+    known: Object.fromEntries([...areas, ...folders, ...projects]),
     counts,
     ready: included.length > 0 && questionList.every((q) => q.answer !== null),
   };
@@ -769,6 +806,7 @@ export function planSentence(plan: TaskListPlan): string {
   const tail = [
     look ? `${plural(look, 'row needs', 'rows need')} a look.` : null,
     c.duplicates ? `${plural(c.duplicates, 'duplicate')} left out.` : null,
+    c.unticked ? `${plural(c.unticked, 'row')} not ticked.` : null,
   ].filter(Boolean);
   return [`This will add ${list}.`, ...tail].join(' ');
 }

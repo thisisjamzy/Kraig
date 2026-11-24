@@ -1,24 +1,37 @@
 'use client';
 
-// Importing a task list (owner, 23 Nov 2026): one sheet, one task per row,
-// each row saying where it belongs. The decisions are pure
-// (src/shared/import/taskList.ts); this hook reads the file and what
-// already exists, holds the person's choices, checks blocked tasks' time
-// against the calendar, writes in batches of up to 450 tagged with an
-// import id (areas, then folders, then projects, then tasks), keeps a log
-// for Undo and the report, syncs Google Calendar once and leaves one
-// notification.
+// Importing a task list (owner, 23 Nov 2026; the flow from file to finished,
+// 24 Nov 2026). One sheet, one task per row, each row saying its Area,
+// Folder and Project. The decisions are pure (src/shared/import/taskList.ts
+// for reading the file, importRunner.ts and importLog.ts for writing it);
+// this hook reads the file and what already exists, holds the person's
+// choices and ticks, checks blocked tasks' time against the calendar, and
+// drives the runner with Firestore.
 //
 // Steps: upload > columns (skipped when the headers are the template's) >
-// check > importing > done.
+// review (the table, ticks) > ready (every count) > importing (the live
+// table, then stopped, finished or rolled back).
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import * as XLSX from 'xlsx';
-import { doc, getDoc, serverTimestamp, setDoc, Timestamp, writeBatch } from 'firebase/firestore';
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  limit,
+  query,
+  serverTimestamp,
+  Timestamp,
+  updateDoc,
+  where,
+  writeBatch,
+} from 'firebase/firestore';
 import { getFirebaseFirestore } from '@/src/shared/config/firebaseClient';
 import { useFirestoreCollection } from '@/src/shared/firestore/hooks';
-import { areaRef, areasRef, projectRef, projectsRef, sectionRef, sectionsRef, taskRef, tasksRef } from '@/src/shared/firestore/refs';
-import { defaultSectionId, ensureDefaultSection } from '@/src/shared/firestore/sections';
+import { areaRef, areasRef, projectsRef, sectionRef, sectionsRef, taskRef, tasksRef } from '@/src/shared/firestore/refs';
+import { defaultSectionId } from '@/src/shared/firestore/sections';
 import { newTaskDoc } from '@/src/shared/firestore/taskWrites';
 import { applyNotificationWrites } from '@/src/shared/firestore/notificationWrites';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
@@ -50,27 +63,42 @@ import {
   type PlannedTask,
   type TaskListField,
 } from '@/src/shared/import/taskList';
+import { buildImportPlan, CHUNK, rollbackImport, runImport, settleWriting, tally, type RollbackIO } from '@/src/shared/import/importRunner';
+import { planFromLog, statusOp, type ImportPlan, type LogStatus, type PlanItem, type StoredLog, type StoredPage, type WriteOp } from '@/src/shared/import/importLog';
 import type { FirestoreArea, FirestoreProject, FirestoreSection, FirestoreTask } from '@/src/shared/firestore/types';
 
-export type ImportStep = 'upload' | 'columns' | 'check' | 'importing' | 'done';
+export type ImportStep = 'upload' | 'columns' | 'review' | 'ready' | 'importing';
 
-/** For a blocked task whose time clashes: import it as free, without a time, or not at all. */
-export type ConflictChoice = 'free' | 'unscheduled' | 'skip';
+/** For a ticked blocked task whose time clashes: import it as free, or without a time. */
+export type ConflictChoice = 'free' | 'unscheduled';
 
-export interface ImportLog {
-  id: string;
-  at: Timestamp | null;
-  created: { areas: string[]; folders?: string[]; projects: string[]; tasks: string[] };
-  /** The projects tasks went into, for the links on the Done step. */
-  projects?: { id: string; name: string; count: number }[];
-  undoneAt: Timestamp | null;
-  summary: string;
+/** What a row of the review table is. */
+export type RowCheck = 'ready' | 'look' | 'duplicate' | 'clash';
+
+export type RunStatus = LogStatus | 'idle';
+
+export interface RunView {
+  status: RunStatus;
+  items: PlanItem[];
+  /** The items of the chunk being written or removed. */
+  current: string[];
+  /** Per committed chunk, how long it took (ms). */
+  chunkMs: number[];
+  startedAt: number | null;
+  /** While removing: how many of how many. */
+  removing: { done: number; total: number } | null;
+  /** Places a roll back left because something else is in them. */
+  kept: { kind: string; name: string }[];
+  /** The new places' names, for "Created Admin folder". */
+  places: Record<string, { kind: string; name: string }>;
 }
 
-const BATCH = 450;
 const UNDO_HOURS = 24;
 const MAPPING_KEY = 'dreda.import.taskList.mapping';
 const BLOCKED_TYPES = new Set(['Meeting', 'Event']);
+const OPEN_STATUSES: LogStatus[] = ['running', 'stopping', 'rolling_back'];
+const IDLE: RunView = { status: 'idle', items: [], current: [], chunkMs: [], startedAt: null, removing: null, kept: [], places: {} };
+const placeNames = (p: ImportPlan) => Object.fromEntries(Object.values(p.places).map((x) => [x.id, { kind: x.kind, name: x.name }]));
 
 function readRemembered(): Record<string, string> {
   try {
@@ -95,16 +123,17 @@ export function useTaskImport({ areaId = null, projectId = null }: { areaId?: st
   const { data: projectDocs } = useFirestoreCollection<FirestoreProject>(useMemo(() => (uid ? projectsRef(uid) : null), [uid]));
   const { data: taskDocs } = useFirestoreCollection<FirestoreTask>(useMemo(() => (uid ? tasksRef(uid) : null), [uid]));
 
-  // Where the import was opened: an area's page or a project's.
+  // Where the import was opened: an area's page or a project's. A project
+  // with no folder of its own sits in its area's default folder.
   const context: ImportContext | undefined = useMemo(() => {
     const project = projectId ? projectDocs.find((p) => p.id === projectId) : null;
     const area = areaDocs.find((a) => a.id === (project?.areaId ?? areaId));
     if (!area) return undefined;
-    const folder = project?.bucketId ? folderDocs.find((f) => f.id === project.bucketId) : null;
+    const folder = project ? folderDocs.find((f) => f.id === (project.bucketId ?? defaultSectionId(area.id))) : null;
     return {
       area: { id: area.id, name: area.name },
       folder: folder ? { id: folder.id, name: folder.name, isDefault: Boolean(folder.isDefault) } : null,
-      project: project ? { id: project.id, name: project.name } : null,
+      project: project && folder ? { id: project.id, name: project.name } : null,
     };
   }, [areaId, projectId, areaDocs, folderDocs, projectDocs]);
 
@@ -115,13 +144,10 @@ export function useTaskImport({ areaId = null, projectId = null }: { areaId?: st
   const [mapping, setMapping] = useState<ColumnMapping>({});
   const [orderOverride, setOrderOverride] = useState<Record<string, DateOrder>>({});
   const [nameChoices, setNameChoices] = useState<Record<string, 'existing' | 'new'>>({});
-  const [includeDuplicates, setIncludeDuplicates] = useState<Set<number>>(new Set());
+  const [ticked, setTicked] = useState<Record<number, boolean>>({});
   const [edits, setEdits] = useState<Record<number, Partial<Record<TaskListField, string>>>>({});
   const [conflictChoice, setConflictChoice] = useState<Record<number, ConflictChoice>>({});
   const [error, setError] = useState<string | null>(null);
-  const [progress, setProgress] = useState({ done: 0, total: 0 });
-  const [log, setLog] = useState<ImportLog | null>(null);
-  const [undoing, setUndoing] = useState(false);
 
   /** Steps replace one another in the address, so Back leaves the import. */
   function setStep(next: ImportStep) {
@@ -147,10 +173,10 @@ export function useTaskImport({ areaId = null, projectId = null }: { areaId?: st
     setMapping(mapColumns(sheetHeaders, readRemembered()));
     setOrderOverride({});
     setNameChoices({});
-    setIncludeDuplicates(new Set());
+    setTicked({});
     setEdits({});
     setConflictChoice({});
-    setStep(matchesTemplate(sheetHeaders) ? 'check' : 'columns');
+    setStep(matchesTemplate(sheetHeaders) ? 'review' : 'columns');
   }
 
   async function handleFile(file: File) {
@@ -192,48 +218,43 @@ export function useTaskImport({ areaId = null, projectId = null }: { areaId?: st
       // Not remembered this time.
     }
     setError(null);
-    setStep('check');
+    setStep('review');
   }
 
-  // ---- Check ----
+  // ---- Review and select ----
 
   const dueColumn = Object.keys(mapping).find((h) => mapping[h] === 'due') ?? null;
   const fallback: DateOrder = prefs.dateFormat === 'mm/dd/yyyy' ? 'mdy' : 'dmy';
-  const dueOrder: ColumnOrder | null = useMemo(
-    () => (dueColumn ? detectOrder(rows.map((r) => r[dueColumn]), fallback) : null),
-    [dueColumn, rows, fallback]
+  const dueOrder: ColumnOrder | null = useMemo(() => (dueColumn ? detectOrder(rows.map((r) => r[dueColumn]), fallback) : null), [dueColumn, rows, fallback]);
+  const orders: Record<string, DateOrder> = useMemo(
+    () => (dueColumn && dueOrder ? { [dueColumn]: orderOverride[dueColumn] ?? dueOrder.order } : {}),
+    [dueColumn, dueOrder, orderOverride]
   );
-  const orders: Record<string, DateOrder> = dueColumn && dueOrder ? { [dueColumn]: orderOverride[dueColumn] ?? dueOrder.order } : {};
 
   const existing: ExistingLists = useMemo(
     () => ({
       areas: areaDocs.filter((a) => !a.archived).map((a) => ({ id: a.id, name: a.name })),
       folders: folderDocs.filter((f) => !f.archived).map((f) => ({ id: f.id, name: f.name, areaId: f.areaId, isDefault: Boolean(f.isDefault) })),
       projects: projectDocs.filter((p) => p.status !== 'Archived').map((p) => ({ id: p.id, name: p.name, areaId: p.areaId ?? null, bucketId: p.bucketId ?? null })),
-      tasks: taskDocs
-        .filter((t) => !t.archived)
-        .map((t) => ({ projectId: t.projectId ?? null, title: t.title, due: t.dueDate ? zonedDay(t.dueDate.toDate(), timeZone) : null })),
+      tasks: taskDocs.filter((t) => !t.archived).map((t) => ({ projectId: t.projectId ?? null, title: t.title, due: t.dueDate ? zonedDay(t.dueDate.toDate(), timeZone) : null })),
     }),
     [areaDocs, folderDocs, projectDocs, taskDocs, timeZone]
   );
 
-  const plan = useMemo(
-    () =>
-      step === 'upload' || step === 'columns'
-        ? null
-        : planTaskList(rows, existing, { mapping, orders, today: todayParts(timeZone), nameChoices, includeDuplicates, edits, context }),
-    // orders is derived from orderOverride and dueOrder.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [step, rows, existing, mapping, orderOverride, dueOrder, nameChoices, includeDuplicates, edits, context, timeZone]
-  );
-
   const typeFor = () => 'ToDo';
-  // Blocked tasks with a time that clashes with the calendar.
   const scheduled = useMemo(() => buildScheduledTasks(taskDocs, ''), [taskDocs]);
+  const planning = step === 'review' || step === 'ready';
+
+  // First pass: what every row is. Then the clashes (they start unticked),
+  // then the plan with them.
+  const firstPass = useMemo(
+    () => (planning ? planTaskList(rows, existing, { mapping, orders, today: todayParts(timeZone), nameChoices, ticked, edits, context }) : null),
+    [planning, rows, existing, mapping, orders, nameChoices, ticked, edits, context, timeZone]
+  );
   const conflicts = useMemo(() => {
     const out = new Set<number>();
-    for (const t of plan?.tasks ?? []) {
-      if (!t.include || !t.due || t.start === null) continue;
+    for (const t of firstPass?.tasks ?? []) {
+      if (t.problems.length || !t.due || t.start === null) continue;
       const mode = prefs.timeModeByType[typeFor()] ?? defaultTimeMode(typeFor());
       if (mode !== 'blocked' && !BLOCKED_TYPES.has(typeFor())) continue;
       const start = zonedInstant(t.due, t.start, timeZone);
@@ -241,205 +262,412 @@ export function useTaskImport({ areaId = null, projectId = null }: { areaId?: st
       if (checkAvailability(start, end, 'blocked', null, scheduled).status === 'conflict') out.add(t.index);
     }
     return out;
-  }, [plan, scheduled, prefs.timeModeByType, prefs.defaultTaskMinutes, timeZone]);
+  }, [firstPass, scheduled, prefs.timeModeByType, prefs.defaultTaskMinutes, timeZone]);
+  const plan = useMemo(
+    () => (planning && firstPass ? (conflicts.size ? planTaskList(rows, existing, { mapping, orders, today: todayParts(timeZone), nameChoices, ticked, edits, context, untickedByDefault: conflicts }) : firstPass) : null),
+    [planning, firstPass, conflicts, rows, existing, mapping, orders, nameChoices, ticked, edits, context, timeZone]
+  );
 
-  /** Fix a cell in place: the row is read again. */
+  const checkOf = (t: PlannedTask): RowCheck => (t.problems.length ? 'look' : conflicts.has(t.index) ? 'clash' : t.duplicate ? 'duplicate' : 'ready');
+  /** Ticked clashes still waiting for "free" or "without a time". */
+  const clashesOpen = (plan?.tasks ?? []).filter((t) => t.include && conflicts.has(t.index) && !conflictChoice[t.index]).length;
+
+  /** A cell's text as it stands: the fix typed in, else the file's. */
+  function textOf(index: number, field: TaskListField): string {
+    const edited = edits[index]?.[field];
+    if (edited !== undefined) return edited;
+    const col = Object.keys(mapping).find((h) => mapping[h] === field);
+    return col ? cellText(rows[index]?.[col]) : '';
+  }
+
   function fix(index: number, field: TaskListField, text: string) {
     setEdits((e) => ({ ...e, [index]: { ...(e[index] ?? {}), [field]: text } }));
+  }
+  /** "Put in…": Area, Folder and Project for several rows at once. */
+  function putIn(indices: number[], where: { area: string; folder: string; project: string }) {
+    setEdits((e) => {
+      const next = { ...e };
+      for (const i of indices) next[i] = { ...(next[i] ?? {}), area: where.area, folder: where.folder, project: where.project };
+      return next;
+    });
   }
   function answer(key: string, choice: 'existing' | 'new') {
     setNameChoices((c) => ({ ...c, [key]: choice }));
   }
-  function toggleDuplicate(index: number, on: boolean) {
-    setIncludeDuplicates((s) => {
-      const next = new Set(s);
-      if (on) next.add(index);
-      else next.delete(index);
+  function tick(indices: number[], on: boolean) {
+    setTicked((t) => {
+      const next = { ...t };
+      for (const i of indices) next[i] = on;
       return next;
     });
   }
-  function chooseConflict(index: number, choice: ConflictChoice) {
+  function chooseConflict(index: number, choice: ConflictChoice | 'skip') {
+    if (choice === 'skip') return tick([index], false);
     setConflictChoice((c) => ({ ...c, [index]: choice }));
   }
-  const conflictsOpen = [...conflicts].filter((i) => !conflictChoice[i]).length;
 
-  // ---- Import ----
+  // ---- Ready to import: the runner's plan, every count known ----
 
-  async function runImport() {
-    if (!uid || !plan || !plan.ready || conflictsOpen > 0) return;
-    setStep('importing');
-    setError(null);
-    const db = getFirebaseFirestore();
-    const importId = crypto.randomUUID();
-    const created: ImportLog['created'] = { areas: [], folders: [], projects: [], tasks: [] };
-    const stamp = { importId, createdAt: serverTimestamp(), updatedAt: serverTimestamp() };
+  const nextId = () => doc(collection(getFirebaseFirestore(), 'users', uid ?? 'x', 'tasks')).id;
+  const runPlanDraft: ImportPlan | null = useMemo(() => {
+    if (step !== 'ready' || !uid || !plan) return null;
+    const newAreaColor = new Map<string, string>();
+    const areaColor = (id: string) => newAreaColor.get(id) ?? areaDocs.find((a) => a.id === id)?.color ?? PROJECT_COLORS[0];
     const source = `Created by an import (${fileName ?? 'spreadsheet'})`;
-
-    // Ids first, so every level can point at the one above it.
-    const areaId = new Map<string, string>();
-    const areaColor = new Map<string, string>();
-    for (const a of plan.areas) {
-      const id = a.existingId ?? crypto.randomUUID();
-      areaId.set(a.key, id);
-      areaColor.set(a.key, areaDocs.find((x) => x.id === id)?.color ?? PROJECT_COLORS[(created.areas.length + 1) % PROJECT_COLORS.length]);
-      if (!a.existingId) created.areas.push(id);
-    }
-    const folderId = new Map<string, string>();
-    for (const f of plan.folders) {
-      const parent = areaId.get(f.parentKey!)!;
-      const id = f.existingId ?? (f.isDefault ? defaultSectionId(parent) : crypto.randomUUID());
-      folderId.set(f.key, id);
-      if (!f.existingId && !f.isDefault) created.folders!.push(id);
-    }
-    const projectId = new Map<string, { id: string; areaId: string; bucketId: string }>();
-    for (const p of plan.projects) {
-      const folderKey = p.parentKey!;
-      const bucketId = folderId.get(folderKey)!;
-      const aId = areaId.get(plan.folders.find((f) => f.key === folderKey)!.parentKey!)!;
-      const existingProject = p.existingId ? projectDocs.find((x) => x.id === p.existingId) : null;
-      const id = p.existingId ?? crypto.randomUUID();
-      // A task mirrors its project's own area and folder (FirestoreTask).
-      projectId.set(p.key, { id, areaId: existingProject?.areaId ?? aId, bucketId: existingProject?.bucketId ?? bucketId });
-      if (!p.existingId) created.projects.push(id);
-    }
-
-    try {
-      // 1. Areas, then each one's General folder (ensureDefaultSection).
-      const areaOps = plan.areas.filter((a) => !a.existingId).map((a) => (b: ReturnType<typeof writeBatch>) =>
-        b.set(areaRef(uid, areaId.get(a.key)!), { name: a.name, emoji: null, color: areaColor.get(a.key)!, description: source, archived: false, ...stamp } as never)
-      );
-      await commit(areaOps);
-      for (const a of plan.areas) await ensureDefaultSection(uid, areaId.get(a.key)!, areaColor.get(a.key)!);
-
-      // 2. Folders, inside their area.
-      await commit(
-        plan.folders
-          .filter((f) => !f.existingId && !f.isDefault)
-          .map((f) => (b: ReturnType<typeof writeBatch>) =>
-            b.set(sectionRef(uid, folderId.get(f.key)!), {
-              name: f.name,
-              emoji: null,
-              color: areaColor.get(f.parentKey!)!,
-              description: source,
-              areaId: areaId.get(f.parentKey!)!,
-              archived: false,
-              isDefault: false,
-              ...stamp,
-            } as never)
-          )
-      );
-
-      // 3. Projects, with their area and folder.
-      await commit(
-        plan.projects
-          .filter((p) => !p.existingId)
-          .map((p, i) => (b: ReturnType<typeof writeBatch>) => {
-            const at = projectId.get(p.key)!;
-            return b.set(projectRef(uid, at.id), {
-              name: p.name,
-              emoji: null,
-              areaId: at.areaId,
-              bucketId: at.bucketId,
-              color: PROJECT_COLORS[i % PROJECT_COLORS.length],
-              priority: 'Medium',
-              startDate: null,
-              endDate: null,
-              originalEndDate: null,
-              rescheduleCount: 0,
-              status: 'Active',
-              description: source,
-              ...stamp,
-            } as never);
-          })
-      );
-
-      // 4. Tasks, through the task form's own document (newTaskDoc), with
-      //    the area and folder mirrored from the project.
-      const taskOps: ((b: ReturnType<typeof writeBatch>) => void)[] = [];
-      const perProject = new Map<string, number>();
-      for (const t of plan.tasks) {
-        if (!t.include) continue;
-        const choice = conflictChoice[t.index];
-        if (conflicts.has(t.index) && choice === 'skip') continue;
-        const id = crypto.randomUUID();
-        created.tasks.push(id);
-        const where = t.projectKey ? projectId.get(t.projectKey)! : null;
-        if (where) perProject.set(where.id, (perProject.get(where.id) ?? 0) + 1);
-        taskOps.push((b) => b.set(taskRef(uid, id), taskDoc(t, where, choice, uid, importId) as never));
-      }
-      await commit(taskOps);
-
-      const text = planSentence(plan).replace(/^This will add/, 'Added').replace(/ \d+ rows? needs? a look\.| \d+ duplicates? left out\./g, '');
-      const projectsUsed = [...perProject].map(([id, count]) => ({
-        id,
-        count,
-        name: projectDocs.find((p) => p.id === id)?.name ?? plan.projects.find((p) => projectId.get(p.key)?.id === id)?.name ?? 'Project',
-      }));
-      const entry: Omit<ImportLog, 'id'> = { at: Timestamp.now(), created, projects: projectsUsed, undoneAt: null, summary: text };
-      await setDoc(doc(db, 'users', uid, 'settings', `import-${importId}`), { ...entry, fileName, report: reportRows(plan.tasks) } as never);
-      setLog({ id: importId, ...entry });
-      void runCalendarSync({ reason: 'manual' }).catch(() => undefined);
-      const now = new Date();
-      await applyNotificationWrites(uid, [
-        {
-          op: 'create',
-          id: `import_finished:${importId}`,
-          data: {
-            id: `import_finished:${importId}`,
-            type: 'import_finished',
-            module: 'system',
-            severity: 'info',
-            dedupeKey: `import_finished:${importId}`,
-            groupKey: 'import_finished',
-            title: `Import finished: ${created.tasks.length} ${created.tasks.length === 1 ? 'task' : 'tasks'} added`,
-            body: text,
-            items: [],
-            primaryAction: { label: 'Open the report', route: `/settings/import?report=${importId}` },
-            secondaryActions: [],
-            expiresAt: new Date(now.getTime() + 7 * 86_400_000),
-            createdAt: now,
-            updatedAt: now,
-            readAt: null,
-            resolvedAt: null,
-            snoozedUntil: null,
-            archivedAt: null,
-          } as never,
+    const importId = nextId();
+    return buildImportPlan({
+      uid,
+      importId,
+      fileName: fileName ?? 'spreadsheet',
+      tasks: plan.tasks.filter((t) => t.include),
+      nodes: { areas: plan.areas, folders: plan.folders, projects: plan.projects },
+      existingProjects: Object.fromEntries(projectDocs.map((p) => [p.id, { areaId: p.areaId ?? null, bucketId: p.bucketId ?? null }])),
+      newId: nextId,
+      defaultFolderId: defaultSectionId,
+      docs: {
+        area: ({ id, name, colorIndex }) => {
+          const color = PROJECT_COLORS[colorIndex % PROJECT_COLORS.length];
+          newAreaColor.set(id, color);
+          return { name, emoji: null, color, description: source, archived: false, importId };
         },
-      ]).catch(() => undefined);
-      setStep('done');
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'The import stopped part way. What was written so far can be undone.');
-      setLog({ id: importId, at: Timestamp.now(), created, undoneAt: null, summary: 'Stopped part way' });
-      setStep('done');
-    }
+        // As ensureDefaultSection writes it, with the import's id.
+        defaultFolder: ({ areaId: a }) => ({ name: 'General', emoji: null, color: areaColor(a), description: 'Projects not sorted into a specific folder.', areaId: a, archived: false, isDefault: true, importId }),
+        folder: ({ name, areaId: a }) => ({ name, emoji: null, color: areaColor(a), description: source, areaId: a, archived: false, isDefault: false, importId }),
+        project: ({ name, areaId: a, folderId, colorIndex }) => ({
+          name,
+          emoji: null,
+          areaId: a,
+          bucketId: folderId,
+          color: PROJECT_COLORS[colorIndex % PROJECT_COLORS.length],
+          priority: 'Medium',
+          startDate: null,
+          endDate: null,
+          originalEndDate: null,
+          rescheduleCount: 0,
+          status: 'Active',
+          description: source,
+          importId,
+        }),
+        task: (t, where) => taskDoc(t, where, conflictChoice[t.index], uid, importId),
+      },
+    });
+    // nextId and taskDoc read uid, prefs and timeZone.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, uid, plan, fileName, areaDocs, projectDocs, conflictChoice, prefs, timeZone]);
 
-    async function commit(ops: ((b: ReturnType<typeof writeBatch>) => void)[]) {
-      setProgress((p) => ({ done: p.done, total: p.total + ops.length }));
-      for (let i = 0; i < ops.length; i += BATCH) {
+  /** Rows left out, and why. */
+  const leftOutLive = useMemo(() => {
+    const t = plan?.tasks ?? [];
+    return {
+      total: t.filter((x) => !x.include).length,
+      unticked: t.filter((x) => !x.include && !x.problems.length && !x.duplicate && !conflicts.has(x.index)).length,
+      duplicates: t.filter((x) => !x.include && !x.problems.length && x.duplicate).length,
+      clashes: t.filter((x) => !x.include && !x.problems.length && !x.duplicate && conflicts.has(x.index)).length,
+      look: t.filter((x) => x.problems.length).length,
+    };
+  }, [plan, conflicts]);
+
+  // ---- Importing ----
+
+  const [run, setRun] = useState<RunView>(IDLE);
+  const runPlan = useRef<ImportPlan | null>(null);
+  const stopRef = useRef(false);
+  const [recovered, setRecovered] = useState<{ plan: ImportPlan; status: LogStatus } | null>(null);
+
+  const busy = run.status === 'running' || run.status === 'stopping' || run.status === 'rolling_back';
+
+  function io(p: ImportPlan): RollbackIO {
+    const db = getFirebaseFirestore();
+    const ref = (path: string) => doc(db, path);
+    const isLog = (path: string) => path.includes('/settings/');
+    const tasks = tasksRef(p.uid);
+    return {
+      now: () => serverTimestamp(),
+      async commit(ops: WriteOp[]) {
         const batch = writeBatch(db);
-        ops.slice(i, i + BATCH).forEach((op) => op(batch));
+        for (const op of ops) {
+          if (op.type === 'delete') batch.delete(ref(op.path));
+          // Documents get the server's time when written; the log keeps plain data.
+          else if (op.type === 'set') batch.set(ref(op.path), isLog(op.path) ? op.data : { ...op.data, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+          else batch.update(ref(op.path), op.data);
+        }
         await batch.commit();
-        setProgress((p) => ({ ...p, done: p.done + Math.min(BATCH, ops.length - i) }));
-      }
+      },
+      async tasksWithImportId() {
+        const snap = await getDocs(query(tasks, where('importId', '==', p.importId)));
+        return new Set(snap.docs.map((d) => d.id));
+      },
+      async isEmpty(place) {
+        const none = async (field: string, coll: 'tasks' | 'projects' | 'buckets', except?: string | null) => {
+          const snap = await getDocs(query(collection(db, 'users', p.uid, coll), where(field, '==', place.id), limit(2)));
+          return snap.docs.every((d) => d.id === except);
+        };
+        if (place.kind === 'project') return none('projectId', 'tasks');
+        if (place.kind === 'folder') return (await none('bucketId', 'projects')) && (await none('bucketId', 'tasks'));
+        return (await none('areaId', 'projects')) && (await none('areaId', 'buckets', place.defaultFolderId)) && (await none('areaId', 'tasks'));
+      },
+      async removePlace(place) {
+        const targets = place.kind === 'area' ? [sectionRef(p.uid, place.defaultFolderId ?? defaultSectionId(place.id)), areaRef(p.uid, place.id)] : [ref(`users/${p.uid}/${place.kind === 'folder' ? 'buckets' : 'projects'}/${place.id}`)];
+        for (const target of targets) {
+          try {
+            await deleteDoc(target);
+          } catch {
+            // Areas and folders are archived in place where deleting isn't allowed.
+            await updateDoc(target, place.kind === 'project' ? { status: 'Archived', updatedAt: serverTimestamp() } : { archived: true, updatedAt: serverTimestamp() }).catch(() => undefined);
+          }
+        }
+      },
+    };
+  }
+
+  const view = (p: ImportPlan, status: RunStatus, extra: Partial<RunView> = {}) =>
+    setRun((r) => ({ ...r, status, items: p.items.map((i) => ({ ...i })), ...extra }));
+
+  async function drive(p: ImportPlan, options: { fresh?: boolean; only?: string[] }) {
+    stopRef.current = false;
+    runPlan.current = p;
+    setRun((r) => ({ ...IDLE, status: 'running', items: p.items.map((i) => ({ ...i })), startedAt: r.startedAt ?? Date.now(), places: placeNames(p) }));
+    setStep('importing');
+    try {
+      const end = await runImport(p, io(p), {
+        shouldStop: () => stopRef.current,
+        onChunkStart: (s) => setRun((r) => ({ ...r, items: s.items, current: s.current })),
+        onChunk: (s, ms) => setRun((r) => ({ ...r, items: s.items, current: [], chunkMs: [...r.chunkMs, ms] })),
+      }, options);
+      view(p, end, { current: [] });
+      if (end === 'completed') void finished(p);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'The import could not start.');
+      view(p, 'failed', { current: [] });
     }
   }
 
-  /** One task's document: the task form's defaults, then what the row says. */
-  function taskDoc(t: PlannedTask, where: { id: string; areaId: string; bucketId: string } | null, choice: ConflictChoice | undefined, uid: string, importId: string) {
+  // What was left out, as it stood at Start: once tasks land they would
+  // read as duplicates of themselves.
+  const [atStart, setAtStart] = useState<{ leftOut: typeof leftOutLive; report: string[][] } | null>(null);
+  const leftOut = step === 'importing' && atStart ? atStart.leftOut : leftOutLive;
+
+  function leftOutRows(): string[][] {
+    const out: string[][] = [];
+    for (const t of plan?.tasks ?? []) {
+      if (t.include) continue;
+      out.push([String(t.rowNumber), t.title, t.problems.length ? 'Needs a look' : 'Not ticked', t.problems.length ? t.problems.join(' ') : t.duplicate === 'existing' ? 'Already in Dreda' : t.duplicate === 'file' ? 'Repeated in the file' : conflicts.has(t.index) ? 'Time clash' : '']);
+    }
+    return out;
+  }
+
+  async function start() {
+    if (!runPlanDraft || clashesOpen > 0 || !plan?.ready) return;
+    setAtStart({ leftOut: leftOutLive, report: leftOutRows() });
+    await drive(runPlanDraft, { fresh: true });
+  }
+
+  async function stop() {
+    const p = runPlan.current;
+    if (!p || run.status !== 'running') return;
+    stopRef.current = true;
+    setRun((r) => ({ ...r, status: 'stopping' }));
+    await io(p).commit([statusOp(p, 'stopping')]).catch(() => undefined);
+  }
+
+  async function retryFailed() {
+    const p = runPlan.current;
+    if (!p) return;
+    await drive(p, { only: p.items.filter((i) => i.status === 'failed').map((i) => i.id) });
+  }
+
+  async function rollback() {
+    const p = runPlan.current;
+    if (!p || busy) return;
+    setRun((r) => ({ ...r, status: 'rolling_back', removing: { done: 0, total: tally(p.items).imported } }));
+    try {
+      const out = await rollbackImport(p, io(p), {
+        onChunkStart: (s) => setRun((r) => ({ ...r, items: s.items, current: s.current, removing: { done: s.removed, total: s.total } })),
+        onChunk: (s) => setRun((r) => ({ ...r, items: s.items, current: [], removing: { done: s.removed, total: s.total } })),
+      });
+      view(p, out.status, { current: [], kept: out.kept, removing: null });
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not remove the import.');
+      view(p, 'stopped', { current: [], removing: null });
+    }
+  }
+
+  /** Undo, from Finished (within 24 hours). */
+  async function undo() {
+    const startedAt = run.startedAt;
+    if (startedAt && Date.now() - startedAt > UNDO_HOURS * 3_600_000) return setError('Undo is only possible for 24 hours after an import.');
+    await rollback();
+  }
+
+  /** Stopped: keep what is in. The log stays "stopped"; the finished view shows. */
+  function keep() {
+    setRun((r) => ({ ...r, status: 'completed' }));
+  }
+
+  async function finished(p: ImportPlan) {
+    void runCalendarSync({ reason: 'manual' }).catch(() => undefined);
+    const n = tally(p.items).imported;
+    const now = new Date();
+    await applyNotificationWrites(p.uid, [
+      {
+        op: 'create',
+        id: `import_finished:${p.importId}`,
+        data: {
+          id: `import_finished:${p.importId}`,
+          type: 'import_finished',
+          module: 'system',
+          severity: 'info',
+          dedupeKey: `import_finished:${p.importId}`,
+          groupKey: 'import_finished',
+          title: `Import finished: ${n} ${n === 1 ? 'task' : 'tasks'} added`,
+          body: `From ${p.fileName}.`,
+          items: [],
+          primaryAction: { label: 'Open the report', route: `/settings/import?report=${p.importId}` },
+          secondaryActions: [],
+          expiresAt: new Date(now.getTime() + 7 * 86_400_000),
+          createdAt: now,
+          updatedAt: now,
+          readAt: null,
+          resolvedAt: null,
+          snoozedUntil: null,
+          archivedAt: null,
+        } as never,
+      },
+    ]).catch(() => undefined);
+  }
+
+  // Closing the tab mid-run warns first (the runner stops between chunks
+  // only; what is in stays, and the log says so for next time).
+  useEffect(() => {
+    if (!busy) return;
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    // A link clicked mid-run stops the import instead of leaving it.
+    const guard = (e: MouseEvent) => {
+      const a = (e.target as HTMLElement | null)?.closest?.('a[href]');
+      if (!a || run.status !== 'running') return;
+      e.preventDefault();
+      e.stopPropagation();
+      void stop();
+    };
+    window.addEventListener('beforeunload', warn);
+    document.addEventListener('click', guard, true);
+    return () => {
+      window.removeEventListener('beforeunload', warn);
+      document.removeEventListener('click', guard, true);
+    };
+    // stop reads the current run.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [busy, run.status]);
+
+  // ---- Reading a log back: after a crash, or the notification's report ----
+
+  async function loadLog(importId: string): Promise<{ plan: ImportPlan; status: LogStatus } | null> {
+    if (!uid) return null;
+    const db = getFirebaseFirestore();
+    const snap = await getDoc(doc(db, 'users', uid, 'settings', `import-${importId}`));
+    if (!snap.exists()) return null;
+    const log = snap.data() as StoredLog;
+    const pages: StoredPage[] = [];
+    for (let n = 0; n < (log.pages ?? 0); n++) {
+      const page = await getDoc(doc(db, 'users', uid, 'settings', `import-${importId}-items-${n}`));
+      if (page.exists()) pages.push(page.data() as StoredPage);
+    }
+    const p = planFromLog(uid, importId, log, pages);
+    const status: LogStatus = log.status ?? (log.undoneAt ? 'rolled_back' : 'completed');
+    return { plan: p, status };
+  }
+
+  // An import left part way (closed tab, crash): offered when the import opens.
+  const looked = useRef<string | null>(null);
+  useEffect(() => {
+    if (!uid || looked.current === uid) return;
+    looked.current = uid;
+    void (async () => {
+      try {
+        const db = getFirebaseFirestore();
+        const snap = await getDocs(query(collection(db, 'users', uid, 'settings'), where('kind', '==', 'taskImport'), where('status', 'in', OPEN_STATUSES)));
+        const latest = snap.docs.sort((a, b) => String(b.data().importId).localeCompare(String(a.data().importId)))[0];
+        if (!latest) return;
+        const found = await loadLog(String(latest.data().importId));
+        if (!found) return;
+        await settleWriting(found.plan, async (id) => (await getDoc(taskRef(uid, id))).exists());
+        setRecovered(found);
+      } catch {
+        // Nothing to offer.
+      }
+    })();
+    // loadLog reads uid.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uid]);
+
+  function takeRecovered() {
+    if (!recovered) return null;
+    runPlan.current = recovered.plan;
+    setFileName(recovered.plan.fileName);
+    setRecovered(null);
+    return recovered.plan;
+  }
+  async function resume() {
+    const p = takeRecovered();
+    if (p) await drive(p, {});
+  }
+  async function removeRecovered() {
+    const p = takeRecovered();
+    if (!p) return;
+    setRun({ ...IDLE, status: 'stopped', items: p.items.map((i) => ({ ...i })), places: placeNames(p) });
+    setStep('importing');
+    await rollback();
+  }
+  async function keepRecovered() {
+    const p = takeRecovered();
+    if (!p) return;
+    await io(p).commit([statusOp(p, 'stopped')]).catch(() => undefined);
+  }
+
+  /** Opens a past import (from the notification's "Open the report"). */
+  async function openLog(importId: string) {
+    const found = await loadLog(importId);
+    if (!found) return;
+    runPlan.current = found.plan;
+    setFileName(found.plan.fileName);
+    setRun({ ...IDLE, status: found.status === 'stopped' ? 'completed' : found.status, items: found.plan.items, places: placeNames(found.plan) });
+    setStep('importing');
+  }
+
+  // ---- The report ----
+
+  /** Rows that did not go in, as a CSV file. */
+  function downloadReport() {
+    const out: string[][] = [['Row', 'Task', 'Result', 'Why'], ...(atStart?.report ?? leftOutRows())];
+    for (const i of run.items) if (i.status === 'failed') out.push([String(i.sourceRow), i.label, 'Failed', i.error ?? '']);
+    const csv = out.map((cols) => cols.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `dreda-import-report-${zonedDay(new Date(), timeZone)}.csv`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  /** One task's document: the task form's defaults (newTaskDoc), then what the row says. */
+  function taskDoc(t: PlannedTask, where: { projectId: string; areaId: string; bucketId: string }, choice: ConflictChoice | undefined, uid: string, importId: string) {
     const timed = t.due !== null && t.start !== null && choice !== 'unscheduled';
     const mode = choice === 'free' ? 'free' : (prefs.timeModeByType[typeFor()] ?? defaultTimeMode(typeFor()));
     // Built from the date's parts in the household's time zone. Due only:
     // the all-day convention (the day's start to its last minute).
     const startAt = t.due ? zonedInstant(t.due, timed ? t.start! : 0, timeZone) : null;
     const endAt = t.due ? zonedInstant(t.due, timed ? (t.end ?? t.start! + prefs.defaultTaskMinutes) : 23 * 60 + 59, timeZone) : null;
-    const base = newTaskDoc({
+    const base: Record<string, unknown> = newTaskDoc({
       title: t.title,
       emoji: null,
       type: typeFor(),
       priority: t.priority ?? 'Medium',
-      projectId: where?.id ?? null,
-      areaId: where?.areaId ?? null,
-      bucketId: where?.bucketId ?? null,
+      projectId: where.projectId,
+      areaId: where.areaId,
+      bucketId: where.bucketId,
       startTime: startAt ?? new Date(),
       dueDate: endAt ?? new Date(),
       allDay: !timed,
@@ -449,6 +677,9 @@ export function useTaskImport({ areaId = null, projectId = null }: { areaId?: st
       createdBy: uid,
       rrule: t.rrule && startAt ? t.rrule : null,
     });
+    // The write stamps createdAt and updatedAt; the log keeps plain data.
+    delete base.createdAt;
+    delete base.updatedAt;
     const done = t.status === 'Done';
     const out: Record<string, unknown> = {
       ...base,
@@ -459,8 +690,7 @@ export function useTaskImport({ areaId = null, projectId = null }: { areaId?: st
       subtasks: t.subtasks.map((title) => ({ id: crypto.randomUUID(), title, done: false })),
       importId,
     };
-    // An undated task (the Inbox, or no due date) has no time at all, and
-    // nothing goes to the calendar.
+    // An undated task has no time at all, and nothing goes to the calendar.
     if (!startAt) {
       Object.assign(out, { startTime: null, dueDate: null, originalDueDate: null, originalStartTime: null });
       delete out.googleSync;
@@ -468,67 +698,28 @@ export function useTaskImport({ areaId = null, projectId = null }: { areaId?: st
     return out;
   }
 
-  /** Undo (within 24 hours): deletes what the import created; areas and folders are archived. */
-  async function undo() {
-    if (!uid || !log || undoing) return;
-    if (log.at && Date.now() - log.at.toMillis() > UNDO_HOURS * 3_600_000) return setError('Undo is only possible for 24 hours after an import.');
-    setUndoing(true);
-    const db = getFirebaseFirestore();
-    const ops: ((b: ReturnType<typeof writeBatch>) => void)[] = [
-      ...log.created.tasks.map((id) => (b: ReturnType<typeof writeBatch>) => b.delete(taskRef(uid, id))),
-      ...log.created.projects.map((id) => (b: ReturnType<typeof writeBatch>) => b.delete(projectRef(uid, id))),
-      // Areas and folders are never deleted (archive in place).
-      ...(log.created.folders ?? []).map((id) => (b: ReturnType<typeof writeBatch>) => b.update(sectionRef(uid, id), { archived: true, updatedAt: serverTimestamp() })),
-      ...log.created.areas.map((id) => (b: ReturnType<typeof writeBatch>) => b.update(areaRef(uid, id), { archived: true, updatedAt: serverTimestamp() })),
-    ];
-    try {
-      for (let i = 0; i < ops.length; i += BATCH) {
-        const batch = writeBatch(db);
-        ops.slice(i, i + BATCH).forEach((op) => op(batch));
-        await batch.commit();
-      }
-      await setDoc(doc(db, 'users', uid, 'settings', `import-${log.id}`), { undoneAt: serverTimestamp() }, { merge: true });
-      setLog({ ...log, undoneAt: Timestamp.now() });
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Could not undo the import.');
-    } finally {
-      setUndoing(false);
-    }
-  }
-
-  /** The skipped and problem rows as a CSV file. */
-  function downloadReport() {
-    const all = plan ? reportRows(plan.tasks) : [];
-    const rowsOut = all.filter((r) => r.result !== 'Imported');
-    const csv = [['Row', 'Task', 'Result', 'Why'], ...rowsOut.map((r) => [String(r.row), r.task, r.result, r.why])]
-      .map((cols) => cols.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(','))
-      .join('\n');
-    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `dreda-import-report-${zonedDay(new Date(), timeZone)}.csv`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  }
-
-  /** Opens a past import's log (from the notification's "Open the report"). */
-  async function openLog(importId: string) {
-    if (!uid) return;
-    const snap = await getDoc(doc(getFirebaseFirestore(), 'users', uid, 'settings', `import-${importId}`));
-    if (!snap.exists()) return;
-    setLog({ id: importId, ...(snap.data() as Omit<ImportLog, 'id'>) });
-    setStep('done');
-  }
-
   function reset() {
     setRows([]);
     setHeaders([]);
     setFileName(null);
-    setLog(null);
     setError(null);
-    setProgress({ done: 0, total: 0 });
+    setRun(IDLE);
+    setAtStart(null);
+    runPlan.current = null;
     setStep('upload');
   }
+
+  /** The projects the imported tasks went into, for the links on Finished. */
+  const projectsUsed = useMemo(() => {
+    const by = new Map<string, { id: string; name: string; count: number }>();
+    for (const i of run.items) {
+      if (i.status !== 'imported' || !i.projectId) continue;
+      const cur = by.get(i.projectId) ?? { id: i.projectId, name: i.where.split(' / ').pop() || 'Project', count: 0 };
+      cur.count++;
+      by.set(i.projectId, cur);
+    }
+    return [...by.values()];
+  }, [run.items]);
 
   return {
     step,
@@ -546,41 +737,49 @@ export function useTaskImport({ areaId = null, projectId = null }: { areaId?: st
     mapping,
     setColumn,
     confirmColumns,
-    // check
+    // review
     plan,
+    existing,
     sentence: plan ? planSentence(plan) : '',
     dueOrder,
     dueColumn,
     order: dueColumn ? orders[dueColumn] : null,
     setOrder: (o: DateOrder) => dueColumn && setOrderOverride({ [dueColumn]: o }),
     orderNote: dueOrder?.ambiguous && dueOrder.example && dueColumn ? readAs(dueOrder.example, orders[dueColumn]) : null,
+    checkOf,
+    textOf,
     fix,
+    putIn,
     answer,
-    toggleDuplicate,
+    tick,
     conflicts,
     conflictChoice,
     chooseConflict,
-    conflictsOpen,
-    // import
-    runImport,
-    progress,
-    log,
+    clashesOpen,
+    // ready
+    runPlan: runPlanDraft,
+    leftOut,
+    chunkSize: CHUNK,
+    // importing
+    run,
+    busy,
+    start,
+    stop,
+    keep,
+    rollback,
+    retryFailed,
     undo,
-    undoing,
-    canUndo: Boolean(log && !log.undoneAt && log.created.tasks.length + log.created.projects.length + log.created.areas.length > 0),
+    canUndo: run.status === 'completed' && tally(run.items).imported > 0,
+    projectsUsed,
     downloadReport,
+    // a run left part way
+    recovered: recovered ? { fileName: recovered.plan.fileName, ...tally(recovered.plan.items), total: recovered.plan.items.length, status: recovered.status } : null,
+    resume,
+    removeRecovered,
+    keepRecovered,
     openLog,
     reset,
   };
-}
-
-function reportRows(tasks: PlannedTask[]) {
-  return tasks.map((t) => ({
-    row: t.rowNumber,
-    task: t.title,
-    result: t.include ? 'Imported' : t.problems.length ? 'Not imported' : 'Skipped',
-    why: t.problems.length ? t.problems.join(' ') : t.duplicate === 'existing' ? 'Already in Dreda' : t.duplicate === 'file' ? 'Repeated in the file' : '',
-  }));
 }
 
 export type TaskImport = ReturnType<typeof useTaskImport>;

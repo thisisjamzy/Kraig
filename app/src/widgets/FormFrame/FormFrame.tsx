@@ -215,17 +215,24 @@ export function FormChrome({
   context,
   onClose,
   phoneHeader = 'watermark',
+  beforeClose,
   children,
 }: {
   title: string;
   context?: ReactNode;
   onClose: () => void;
   phoneHeader?: 'watermark' | 'bar';
+  /** Asked before the close button closes; false keeps the form open (an import running stops first). */
+  beforeClose?: () => boolean;
   children: ReactNode;
 }) {
   const { isWide } = useLayout();
   const peek = useFormPeek();
-  const close = peek ? peek.close : onClose;
+  const shut = peek ? peek.close : onClose;
+  const close = () => {
+    if (beforeClose && !beforeClose()) return;
+    shut();
+  };
   const shown = title.charAt(0).toUpperCase() + title.slice(1);
 
   if (!isWide) {

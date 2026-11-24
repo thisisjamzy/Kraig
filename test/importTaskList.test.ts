@@ -167,7 +167,6 @@ describe('the plan', () => {
     orders: { 'Due date': 'dmy' },
     today,
     nameChoices: {},
-    includeDuplicates: new Set(),
     edits: {},
     ...over,
   });
@@ -176,34 +175,52 @@ describe('the plan', () => {
     const rows = [
       { Area: 'Home', Folder: 'Admin', Project: 'Papers', Task: 'Renew ID', 'Due date': '05/12/2026' },
       { Area: 'Work', Folder: 'Admin', Project: 'Budget 2026', Task: 'Draft', 'Due date': '' },
-      { Area: '', Folder: '', Project: '', Task: 'Call mum', 'Due date': '' },
     ];
     const plan = planTaskList(rows, existing, base());
     assert.equal(plan.counts.newAreas, 1);
     // Home's Admin is new; Work's Admin exists.
     assert.equal(plan.counts.newFolders, 1);
     assert.equal(plan.counts.newProjects, 1);
-    assert.equal(plan.counts.inbox, 1);
     const draft = plan.tasks.find((t) => t.title === 'Draft')!;
     assert.equal(plan.projects.find((p) => p.key === draft.projectKey)!.existingId, 'budget');
   });
 
-  test('a folder with no project goes to a project named after the folder; area only to General tasks', () => {
+  test('area, folder and project are required: a row missing any needs a look, cannot be imported, and has no Inbox or default to fall back on', () => {
     const plan = planTaskList(
       [
         { Area: 'Home', Folder: 'Garden', Project: '', Task: 'Mow', 'Due date': '' },
         { Area: 'Home', Folder: '', Project: '', Task: 'Tidy', 'Due date': '' },
+        { Area: '', Folder: 'Admin', Project: 'Budget 2026', Task: 'X', 'Due date': '' },
+        { Area: '', Folder: '', Project: '', Task: 'Call mum', 'Due date': '' },
       ],
       existing,
-      base()
+      base({ ticked: { 0: true, 1: true, 2: true, 3: true } })
     );
-    assert.deepEqual(plan.projects.map((p) => p.name).sort(), ['Garden', 'General tasks']);
+    assert.deepEqual(plan.tasks[0].problems, ['Which project is this in?']);
+    assert.deepEqual(plan.tasks[1].missing, ['folder', 'project']);
+    assert.deepEqual(plan.tasks[2].problems, ['Which area is this in?']);
+    assert.deepEqual(plan.tasks[3].missing, ['area', 'folder', 'project']);
+    // Ticked for "Put in…", but nothing is imported and nothing is created.
+    assert.ok(plan.tasks.every((t) => t.ticked && !t.include));
+    assert.equal(plan.projects.length, 0);
+    assert.equal(plan.counts.tasks, 0);
   });
 
-  test('a folder or project with no area is a problem on that row', () => {
-    const plan = planTaskList([{ Area: '', Folder: 'Admin', Project: '', Task: 'X', 'Due date': '' }], existing, base());
-    assert.deepEqual(plan.tasks[0].problems, ['Which area is this in?']);
-    assert.equal(plan.tasks[0].include, false);
+  test('a new area’s General folder is the one that comes with it', () => {
+    const plan = planTaskList([{ Area: 'Home', Folder: 'general', Project: 'Chores', Task: 'Tidy', 'Due date': '' }], existing, base());
+    assert.equal(plan.folders[0].isDefault, true);
+    assert.equal(plan.counts.newFolders, 0);
+  });
+
+  test('every Ready row starts ticked; a row the hook marks (a time clash) starts unticked but can be ticked', () => {
+    const rows = [
+      { Area: 'Work', Folder: 'Admin', Project: 'Budget 2026', Task: 'A', 'Due date': '' },
+      { Area: 'Work', Folder: 'Admin', Project: 'Budget 2026', Task: 'B', 'Due date': '' },
+    ];
+    assert.equal(planTaskList(rows, existing, base({ untickedByDefault: new Set([1]) })).counts.tasks, 1);
+    assert.equal(planTaskList(rows, existing, base({ untickedByDefault: new Set([1]), ticked: { 1: true } })).counts.tasks, 2);
+    const off = planTaskList(rows, existing, base({ ticked: { 0: false } }));
+    assert.equal(off.counts.unticked, 1);
   });
 
   test('a near name asks "Did you mean"; the answer applies to every row with that name', () => {
@@ -230,21 +247,44 @@ describe('the plan', () => {
     const plan = planTaskList(rows, existing, base());
     assert.deepEqual(plan.tasks.map((t) => t.duplicate), ['existing', null, 'file']);
     assert.equal(plan.counts.tasks, 1);
-    const back = planTaskList(rows, existing, base({ includeDuplicates: new Set([0]) }));
+    const back = planTaskList(rows, existing, base({ ticked: { 0: true } }));
     assert.equal(back.counts.tasks, 2);
   });
 
   test('a cell fixed in the check step is read again', () => {
-    const rows = [{ Area: 'Home', Folder: '', Project: '', Task: 'X', 'Due date': 'someday' }];
+    const rows = [{ Area: 'Home', Folder: 'Admin', Project: 'Papers', Task: 'X', 'Due date': 'someday' }];
     assert.equal(planTaskList(rows, existing, base()).counts.problems, 1);
-    assert.equal(planTaskList(rows, existing, base({ edits: { 0: { due: '6/12/2026' } } })).tasks[0].due, '2026-12-06');
+    const fixed = planTaskList(rows, existing, base({ edits: { 0: { due: '6/12/2026' } } }));
+    assert.equal(fixed.tasks[0].due, '2026-12-06');
+    // Fixed, it turns Ready and is ticked.
+    assert.equal(fixed.tasks[0].include, true);
+    // A missing folder and project, put in.
+    const blank = [{ Area: 'Home', Folder: '', Project: '', Task: 'Y', 'Due date': '' }];
+    assert.equal(planTaskList(blank, existing, base({ edits: { 0: { folder: 'Admin', project: 'Papers' } } })).counts.tasks, 1);
   });
 
-  test('opened from an area, blank rows go there', () => {
+  test('opened from an area, blank areas are filled; the folder and project still have to be said', () => {
     const plan = planTaskList([{ Area: '', Folder: '', Project: '', Task: 'X', 'Due date': '' }], existing, base({ context: { area: { id: 'work', name: 'Work' } } }));
     assert.equal(plan.tasks[0].fromContext, true);
-    assert.equal(plan.counts.inbox, 0);
+    assert.deepEqual(plan.tasks[0].filled, ['area']);
+    assert.deepEqual(plan.tasks[0].missing, ['folder', 'project']);
     assert.equal(plan.counts.newAreas, 0);
+  });
+
+  test('opened from a project, blanks are filled, but never a folder from another area', () => {
+    const context = { area: { id: 'work', name: 'Work' }, folder: { id: 'admin', name: 'Admin', isDefault: false }, project: { id: 'budget', name: 'Budget 2026' } };
+    const plan = planTaskList(
+      [
+        { Area: '', Folder: '', Project: '', Task: 'X', 'Due date': '' },
+        { Area: 'Home', Folder: '', Project: '', Task: 'Y', 'Due date': '' },
+      ],
+      existing,
+      base({ context })
+    );
+    assert.equal(plan.tasks[0].include, true);
+    assert.equal(plan.projects.find((p) => p.key === plan.tasks[0].projectKey)!.existingId, 'budget');
+    assert.deepEqual(plan.tasks[1].filled, []);
+    assert.deepEqual(plan.tasks[1].missing, ['folder', 'project']);
   });
 
   test('the summary sentence', () => {
@@ -297,7 +337,7 @@ describe('the 30-task file (brief, order of work 7)', () => {
       ['Home', 'Garden', 'Spring beds'],
       ['Home', 'Repairs', 'Roof'],
       ['Health', 'Fitness', 'Run 10k'],
-      ['Health', '', ''],
+      ['Health', 'General', 'Habits'],
       ['Work', 'Admin', 'Quarterly reports'], // near "Quarterly report"
       ['Work', 'Admin', 'Quarterly report'],
     ];
@@ -310,7 +350,6 @@ describe('the 30-task file (brief, order of work 7)', () => {
       orders: { 'Due date': 'dmy' as const },
       today,
       nameChoices: {} as Record<string, 'existing' | 'new'>,
-      includeDuplicates: new Set<number>(),
       edits: {},
     };
     const asked = planTaskList(rows, existing, { ...opts, mapping: { ...opts.mapping } });
@@ -318,9 +357,10 @@ describe('the 30-task file (brief, order of work 7)', () => {
     assert.equal(asked.questions[0].existing.name, 'Quarterly report');
     const plan = planTaskList(rows, existing, { ...opts, mapping: { ...opts.mapping }, nameChoices: { [asked.questions[0].key]: 'existing' } });
     assert.equal(plan.counts.newAreas, 2);
+    // Garden, Repairs and Fitness; Health's General comes with the area.
     assert.equal(plan.counts.newFolders, 3);
     assert.equal(plan.counts.tasks, 30);
-    // Spring beds, Roof, Run 10k, and General tasks for Health.
+    // Spring beds, Roof, Run 10k and Habits.
     assert.equal(plan.counts.newProjects, 4);
     // Every task's project hangs under its folder, and that folder under the task's area.
     for (const t of plan.tasks) {

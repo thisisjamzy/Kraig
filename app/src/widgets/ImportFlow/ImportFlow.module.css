@@ -1,0 +1,854 @@
+/* The task import flow (owner, 24 Nov 2026): the step indicator, the review
+   table with ticks, the plan summary and the live table. One markup for
+   every width: from 600px a table (sticky header, sticky tick and Task
+   columns, sideways scroll), below it a list of two-line rows. */
+
+.flow {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+/* ---- Step indicator ---- */
+
+.steps {
+  display: flex;
+  gap: 4px;
+  margin: 0 0 4px;
+  padding: 0;
+  list-style: none;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.steps li {
+  display: flex;
+  flex: 1 0 auto;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 64px;
+  color: var(--color-text-tertiary);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.steps li::before {
+  content: '';
+  height: 4px;
+  border-radius: 2px;
+  background: var(--color-border-default);
+}
+
+.steps li[data-state='done'] {
+  color: var(--color-text-secondary);
+}
+
+.steps li[data-state='done']::before,
+.steps li[data-state='current']::before {
+  background: var(--color-brand-default);
+}
+
+.steps li[data-state='current'] {
+  color: var(--color-text-primary);
+}
+
+.steps li[data-state='skipped'] {
+  text-decoration: line-through;
+}
+
+/* ---- Cards, buttons, tags ---- */
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: var(--color-bg-surface);
+  box-shadow: inset 0 0 0 1px var(--color-border-subtle);
+}
+
+.card[data-attention] {
+  box-shadow: inset 0 0 0 1px var(--color-status-danger-border);
+}
+
+.cardTitle {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.muted {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+.error {
+  color: var(--color-status-danger-fg);
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.button,
+.primary,
+.danger,
+.ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 10px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.primary {
+  border-color: var(--color-brand-default);
+  background: var(--color-brand-default);
+  color: var(--color-brand-on);
+}
+
+.danger {
+  border-color: var(--color-status-danger-solid);
+  background: var(--color-status-danger-solid);
+  color: var(--color-status-danger-on);
+}
+
+.ghost {
+  border-color: transparent;
+  background: transparent;
+  color: var(--color-brand-default);
+}
+
+.button:disabled,
+.primary:disabled,
+.danger:disabled,
+.ghost:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.small {
+  min-height: 32px;
+  padding: 0 10px;
+  font-size: 0.8125rem;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 999px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.chip[aria-pressed='true'] {
+  border-color: var(--color-brand-default);
+  background: var(--color-brand-subtle);
+  color: var(--color-brand-subtle-fg);
+}
+
+.chips {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tag {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  padding: 1px 7px;
+  border-radius: 6px;
+  background: var(--color-bg-sunken);
+  color: var(--color-text-secondary);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.tag[data-tone='new'] {
+  background: var(--color-brand-subtle);
+  color: var(--color-brand-subtle-fg);
+}
+
+.tag[data-tone='ready'] {
+  background: var(--color-status-success-bg);
+  color: var(--color-status-success-fg);
+}
+
+.tag[data-tone='look'] {
+  background: var(--color-status-danger-bg);
+  color: var(--color-status-danger-fg);
+}
+
+.tag[data-tone='duplicate'],
+.tag[data-tone='clash'] {
+  background: var(--color-status-warning-bg);
+  color: var(--color-status-warning-fg);
+}
+
+button.tag {
+  border: 0;
+  font: inherit;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* ---- The summary bar ---- */
+
+.bar {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--color-bg-sunken);
+  font-size: 0.875rem;
+}
+
+.bar strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.linkButton {
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-brand-default);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.select,
+.input {
+  min-width: 0;
+  min-height: 36px;
+  padding: 4px 8px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 8px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  font: inherit;
+  /* 16px keeps iOS from zooming into the field. */
+  font-size: 1rem;
+}
+
+@media (min-width: 768px) {
+  .select,
+  .input {
+    font-size: 0.875rem;
+  }
+}
+
+/* ---- The table ---- */
+
+.scroll {
+  position: relative;
+  max-height: min(68vh, 760px);
+  overflow: auto;
+  border-radius: 10px;
+  background: var(--color-bg-surface);
+  box-shadow: inset 0 0 0 1px var(--color-border-subtle);
+  overscroll-behavior: contain;
+}
+
+.table {
+  --cols: 44px minmax(200px, 2fr) repeat(3, minmax(120px, 1fr)) 104px 72px 84px 92px 56px 112px;
+  min-width: 1120px;
+  font-size: 0.8125rem;
+}
+
+.table[data-kind='progress'] {
+  --cols: 112px minmax(220px, 2fr) minmax(200px, 1.6fr) 104px 56px minmax(160px, 1.4fr);
+  min-width: 860px;
+}
+
+.tr {
+  display: grid;
+  grid-template-columns: var(--cols);
+  align-items: center;
+  height: var(--row-h, 44px);
+  box-sizing: border-box;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.tr > * {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  height: 100%;
+  padding: 0 8px;
+  overflow: hidden;
+  background: var(--color-bg-surface);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.th > * {
+  background: var(--color-bg-sunken);
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+/* The tick and Task columns stay put while the rest scrolls sideways. */
+.stick1,
+.stick2 {
+  position: sticky;
+  z-index: 1;
+}
+
+.stick1 {
+  left: 0;
+  justify-content: center;
+}
+
+.stick2 {
+  left: 44px;
+  box-shadow: 1px 0 0 var(--color-border-subtle);
+}
+
+.table[data-kind='progress'] .stick2 {
+  left: 112px;
+}
+
+.th .stick1,
+.th .stick2 {
+  z-index: 3;
+}
+
+.group > * {
+  background: var(--color-bg-sunken);
+  font-weight: 700;
+}
+
+.group .groupName {
+  grid-column: 2 / -1;
+}
+
+.cellText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cellMissing {
+  box-shadow: inset 0 0 0 1px var(--color-status-danger-fg);
+}
+
+.cellMissing .input {
+  width: 100%;
+  min-height: 30px;
+  border-color: transparent;
+  background: transparent;
+}
+
+.taskButton {
+  min-width: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  background: none;
+  color: var(--color-text-primary);
+  font: inherit;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.taskButton:hover {
+  text-decoration: underline;
+}
+
+.check {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--color-brand-default);
+}
+
+/* A 44px tap target around the box. */
+.checkHit {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  cursor: pointer;
+}
+
+.empty {
+  padding: 24px 16px;
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+/* ---- Phone: a list ---- */
+
+.second {
+  display: none;
+}
+
+@media (max-width: 599px) {
+  .scroll {
+    max-height: none;
+    overflow: visible;
+    background: transparent;
+    box-shadow: none;
+  }
+  .table,
+  .table[data-kind='progress'] {
+    min-width: 0;
+  }
+  .th {
+    display: none;
+  }
+  .tr {
+    grid-template-columns: 44px minmax(0, 1fr) auto;
+    grid-template-areas:
+      'tick title tag'
+      'tick where tag';
+    align-content: center;
+    height: var(--row-h, 64px);
+    row-gap: 2px;
+    padding-right: 12px;
+    background: var(--color-bg-surface);
+  }
+  .tr > * {
+    display: none;
+    height: auto;
+    padding: 0;
+  }
+  .tr > .stick1 {
+    display: flex;
+    grid-area: tick;
+    position: static;
+  }
+  .tr > .stick2 {
+    display: flex;
+    grid-area: title;
+    position: static;
+    box-shadow: none;
+    font-size: 0.9375rem;
+  }
+  .tr > .second {
+    display: block;
+    grid-area: where;
+    color: var(--color-text-secondary);
+    font-size: 0.8125rem;
+  }
+  .tr > .phoneTag {
+    display: flex;
+    grid-area: tag;
+  }
+  .group {
+    grid-template-areas: 'tick title title';
+  }
+  .group > .groupName {
+    display: flex;
+    grid-area: title;
+  }
+  .bar {
+    top: 0;
+  }
+}
+
+/* ---- Ready to import ---- */
+
+.counts {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 12px 20px;
+  margin: 0;
+}
+
+.counts dt {
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+}
+
+.counts dd {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.counts ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  color: var(--color-text-secondary);
+  font-size: 0.8125rem;
+}
+
+@media (max-width: 599px) {
+  .counts {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+  .counts dd + dt {
+    margin-top: 12px;
+  }
+}
+
+/* The footer: buttons kept in view at the bottom. */
+.footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 4;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 0 calc(12px + var(--safe-bottom, 0px));
+  background: var(--color-bg-page);
+}
+
+.footerEnd {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-left: auto;
+}
+
+@media (max-width: 599px) {
+  .footer > .primary,
+  .footerEnd > .primary,
+  .footerEnd > .danger {
+    flex: 1;
+  }
+  .footerEnd {
+    width: 100%;
+  }
+}
+
+/* ---- Importing ---- */
+
+.progressHead {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 0;
+  background: var(--color-bg-page);
+}
+
+.progressLine {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.track {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: var(--color-bg-sunken);
+}
+
+.fill {
+  height: 100%;
+  border-radius: 4px;
+  background: var(--color-brand-default);
+  transition: width 400ms ease-out;
+}
+
+.track[data-back] .fill {
+  margin-left: auto;
+  background: var(--color-status-danger-solid);
+}
+
+.counters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  color: var(--color-text-secondary);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.counters strong {
+  color: var(--color-text-primary);
+}
+
+/* A row's status, and the tick that draws in. */
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-text-secondary);
+}
+
+.icon {
+  flex: none;
+  width: 18px;
+  height: 18px;
+}
+
+.ring {
+  fill: none;
+  stroke: var(--color-text-tertiary);
+  stroke-width: 2;
+}
+
+.spin {
+  animation: spin 800ms linear infinite;
+  transform-origin: 50% 50%;
+}
+
+.spin .arc {
+  fill: none;
+  stroke: var(--color-brand-default);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+
+.tick {
+  fill: none;
+  stroke: var(--color-status-success-fg);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 24;
+  stroke-dashoffset: 0;
+}
+
+.cross {
+  fill: none;
+  stroke: var(--color-status-danger-fg);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+
+.item[data-fresh] .tick {
+  animation: draw 200ms ease-out both;
+  animation-delay: var(--d, 0ms);
+}
+
+/* Imported rows fade to 55% and stay, ticked; failed rows stay at full strength. */
+.item > * {
+  transition: opacity 240ms ease-out;
+  transition-delay: var(--d, 0ms);
+}
+
+.item[data-status='imported'] > * {
+  opacity: 0.55;
+}
+
+.item[data-status='imported'] > .stick1 {
+  opacity: 1;
+}
+
+.item[data-fresh] > * {
+  animation: flash 520ms ease-out both;
+  animation-delay: var(--d, 0ms);
+}
+
+.item[data-status='removed'] > * {
+  opacity: 0.55;
+}
+
+.item[data-status='removed'] .stick2 {
+  color: var(--color-text-tertiary);
+  text-decoration: line-through;
+}
+
+.note {
+  color: var(--color-text-secondary);
+}
+
+.item[data-status='failed'] .note {
+  color: var(--color-status-danger-fg);
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes draw {
+  from {
+    stroke-dashoffset: 24;
+  }
+}
+
+@keyframes flash {
+  0% {
+    background: var(--color-status-success-bg);
+  }
+  100% {
+    background: var(--color-bg-surface);
+  }
+}
+
+.jump {
+  position: sticky;
+  bottom: 12px;
+  z-index: 3;
+  display: flex;
+  justify-content: center;
+  height: 0;
+  overflow: visible;
+}
+
+.jump button {
+  transform: translateY(-48px);
+  min-height: 36px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--color-bg-inverse);
+  color: var(--color-text-inverse);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  box-shadow: var(--shadow-popover);
+  cursor: pointer;
+}
+
+.banner {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: var(--color-status-warning-bg);
+  color: var(--color-status-warning-fg);
+  font-size: 0.875rem;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation: none;
+  }
+  .item > *,
+  .item[data-fresh] > *,
+  .item[data-fresh] .tick,
+  .fill {
+    transition: none;
+    animation: none;
+  }
+}
+
+/* The detail sheet. */
+.detail {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 10px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.field[data-missing] .input {
+  border-color: var(--color-status-danger-fg);
+}
+
+.field[data-wide] {
+  grid-column: 1 / -1;
+}
+
+.problems {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--color-status-danger-fg);
+  font-size: 0.8125rem;
+}
+
+@media (max-width: 599px) {
+  /* A long list keeps its own scroll, so only the rows in view are drawn. */
+  .scroll[data-virtual] {
+    max-height: 70vh;
+    overflow: auto;
+  }
+}
