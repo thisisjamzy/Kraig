@@ -723,6 +723,16 @@ export function useLogic() {
   const recordingUnplanned = !isSavingsMoved && !linkedBucketItemId && (showUnplanned || basketChoice === 'unsure' || !hasBudgetedCategories);
   // Shown list: this month's budgeted categories, or every one when unplanned.
   const categoryOptions = isSavingsMoved ? [] : recordingUnplanned ? categoriesForType : budgetedCategoriesForType;
+  /** The picker (widgets/CategoryPicker): every category of the type, this
+   * month's planned ones first. One with no budget this month, or one just
+   * added there, records the transaction as unplanned (owner, 25 Nov 2026). */
+  function pickCategory(id: string) {
+    chooseCategory(id);
+    if (!isTransfer && !budgetedCategoryIds.has(id)) {
+      setShowUnplanned(true);
+      setBasketChoice('unsure');
+    }
+  }
   function setUnplanned(on: boolean) {
     setShowUnplanned(on);
     if (on) {
@@ -1090,6 +1100,12 @@ export function useLogic() {
     dateValue,
     isExpense,
     categoriesForType: categoryOptions,
+    /** Every category of the type, for the picker (planned ones marked). */
+    allCategories: categoriesForType,
+    plannedCategoryIds: budgetedCategoryIds,
+    /** The money type a category added from the picker gets (none for transfers). */
+    categoryKind: isTransfer ? null : (CATEGORY_TYPE[type] ?? null),
+    pickCategory,
     hasBudgetedCategories,
     showUnplanned,
     setShowUnplanned: setUnplanned,

@@ -230,7 +230,7 @@ export function RowGroup({ label, children }: { label: string; children: ReactNo
   );
 }
 
-function RowShell({ icon, label, children, chevron = true, className }: { icon: ReactNode; label: string; children: ReactNode; chevron?: boolean; className?: string }) {
+export function RowShell({ icon, label, children, chevron = true, className }: { icon: ReactNode; label: string; children: ReactNode; chevron?: boolean; className?: string }) {
   return (
     <div className={`${styles.row} ${className ?? ''}`}>
       <span className={styles.tile} aria-hidden>

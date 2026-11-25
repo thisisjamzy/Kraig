@@ -17,6 +17,7 @@ import { plural, type FolderStat, type ProjectStat } from '@/src/viewmodels/orga
 import { durationText } from '@/src/viewmodels/todayPlan';
 import { NotionPage } from '@/src/widgets/Database/NotionPage';
 import { ConfirmDialog } from '@/src/widgets/ConfirmDialog/ConfirmDialog';
+import { DeletePlaceDialog } from '@/src/widgets/DeletePlaceDialog/DeletePlaceDialog';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { StatCards, type Stat } from '@/src/widgets/Dashboard/StatCard';
 import { TaskTable } from '@/src/widgets/TaskDb/TaskTable';
@@ -37,6 +38,7 @@ export function WorkScopeScreen(props: Scope) {
   const v = useLogic(props);
   const [view, setView] = useState<View>('overview');
   const [archiving, setArchiving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const isArea = props.kind === 'area';
   const scope = isArea ? v.area : v.folder;
 
@@ -106,6 +108,7 @@ export function WorkScopeScreen(props: Scope) {
         isArea ? { label: 'Edit area', href: formLink('area', { id: area.id }) } : { label: 'Edit folder', href: formLink('section', { id: scope.id }) },
         { label: 'Import tasks', href: formLink('import', { area: area.id }) },
         { label: isArea ? 'Archive area' : 'Archive folder', onSelect: () => setArchiving(true) },
+        ...(v.deletable ? [{ label: isArea ? 'Delete area' : 'Delete folder', onSelect: () => setDeleting(true) }] : []),
       ]}>
       {isArea ? (
         <HeaderActions secondary={{ label: 'New project', href: formLink('project', { areaId: area.id }) }} primary={{ label: 'New folder', href: formLink('section', { areaId: area.id }) }} />
@@ -147,6 +150,7 @@ export function WorkScopeScreen(props: Scope) {
           onConfirm={() => void v.archive()}
         />
       )}
+      {deleting && v.deletable && <DeletePlaceDialog place={v.deletable} onCancel={() => setDeleting(false)} onDeleted={v.leave} />}
     </NotionPage>
   );
 }

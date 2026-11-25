@@ -284,20 +284,19 @@ service cloud.firestore {
       // there for the bug that shape causes when combined with a check).
       match /areas/{areaId} {
         allow read, create, update: if activeUser() && request.auth.uid == uid;
-        // Archive in place; the one exception is an area a task import
-        // created (it carries importId), removed when that import is rolled
-        // back and nothing else is in it (src/shared/import/importRunner.ts).
-        allow delete: if activeUser() && request.auth.uid == uid
-          && resource.data.importId is string;
+        // Archived in place, or deleted for good by its owner, as a project
+        // is (owner, 25 Nov 2026): from Library, its page or its form, with
+        // what's inside kept or deleted too (projectWrites.ts). A task
+        // import's rollback deletes the areas it created the same way.
+        allow delete: if activeUser() && request.auth.uid == uid;
       }
       // The Projects hub's sections (renamed from buckets in the app; the
       // storage path kept its old name — unrelated to money buckets, which
       // live under /goals).
       match /buckets/{bucketId} {
         allow read, create, update: if activeUser() && request.auth.uid == uid;
-        // Archive in place, except a folder a task import created (as for areas above).
-        allow delete: if activeUser() && request.auth.uid == uid
-          && resource.data.importId is string;
+        // Deleted for good by its owner, as for areas above.
+        allow delete: if activeUser() && request.auth.uid == uid;
       }
       match /projects/{projectId} {
         allow read, create, update: if activeUser() && request.auth.uid == uid;

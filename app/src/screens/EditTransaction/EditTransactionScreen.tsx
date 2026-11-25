@@ -13,6 +13,7 @@
 import { CalendarDays, Clock, FileText, Tag, Target, Wallet } from 'lucide-react';
 import { useLogic } from '@/src/logic/editTransaction/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
+import { CategoryRow } from '@/src/widgets/CategoryPicker/CategoryPicker';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
 import { ConfirmDialog } from '@/src/widgets/ConfirmDialog/ConfirmDialog';
 import { AmountHero, DateRow, DateTimeRows, TimeRow, ImpactCallout, InputRow, RowGroup, SelectRow, TxPanel, TypeSelector, type TxKind } from '@/src/widgets/TransactionPanel/TransactionPanel';
@@ -86,12 +87,13 @@ export function EditTransactionScreen({ transactionId }: { transactionId: string
               options={shownAccounts.map((a) => ({ value: a.id, label: a.name }))}
               placeholder="Choose a wallet"
             />
-            <SelectRow
+            <CategoryRow
               icon={<Tag />}
               label={s.categoryLabel}
               value={v.categoryId}
               onChange={v.setCategoryId}
-              options={v.categories.map((c) => ({ value: c.id, label: c.name }))}
+              categories={v.categories.map((c) => ({ id: c.id, name: c.name }))}
+              kind={v.type}
               placeholder={s.categoryPlaceholder}
             />
             {(v.bucketItemOptions.length > 0 || v.bucketItemKey) && (

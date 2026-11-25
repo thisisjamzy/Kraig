@@ -98,6 +98,9 @@ export function useLogic(areaId?: string) {
     handleSave,
     archiveArea: () => setArchived(true),
     unarchiveArea: () => setArchived(false),
+    /** Delete for good (DeletePlaceDialog), then back to the areas. */
+    deletable: areaId && area ? { kind: 'area' as const, id: areaId, name: area.name } : null,
+    afterDelete: () => router.replace('/areas'),
     goBack,
     loading: isEditing && (areaLoading || (Boolean(area) && !seeded)),
     notFound: isEditing && !areaLoading && !area,

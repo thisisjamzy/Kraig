@@ -9,8 +9,9 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Archive, Plus, Upload } from 'lucide-react';
+import { Archive, Plus, Trash2, Upload } from 'lucide-react';
 import { ConfirmDialog } from '@/src/widgets/ConfirmDialog/ConfirmDialog';
+import { DeletePlaceDialog } from '@/src/widgets/DeletePlaceDialog/DeletePlaceDialog';
 import { useLogic, type Scope } from '@/src/logic/workScope/useLogic';
 import { useTaskPanel } from '@/src/shared/navigation/taskPanel';
 import { plural } from '@/src/viewmodels/organise';
@@ -31,6 +32,7 @@ export function ScopeScreen(props: Scope) {
   const v = useLogic(props);
   const [view, setView] = useState<View>('main');
   const [archiving, setArchiving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const isArea = props.kind === 'area';
   const scope = isArea ? v.area : v.folder;
 
@@ -57,6 +59,7 @@ export function ScopeScreen(props: Scope) {
               items={[
                 { key: 'import', label: 'Import tasks', icon: <Upload size={16} strokeWidth={2} />, onSelect: () => router.push(`/settings/import?area=${encodeURIComponent(area.id)}`) },
                 { key: 'archive', label: isArea ? 'Archive area' : 'Archive folder', icon: <Archive size={16} strokeWidth={2} />, onSelect: () => setArchiving(true), danger: true, divider: true },
+                ...(v.deletable ? [{ key: 'delete', label: isArea ? 'Delete area' : 'Delete folder', icon: <Trash2 size={16} strokeWidth={2} />, onSelect: () => setDeleting(true), danger: true }] : []),
               ]}
             />
             <HeaderButton
@@ -79,6 +82,7 @@ export function ScopeScreen(props: Scope) {
           onConfirm={() => void v.archive()}
         />
       )}
+      {deleting && v.deletable && <DeletePlaceDialog place={v.deletable} onCancel={() => setDeleting(false)} onDeleted={v.leave} />}
       {isArea && scope.description && <p className={styles.lead}>{scope.description}</p>}
       <ViewChips<View>
         tabs={[

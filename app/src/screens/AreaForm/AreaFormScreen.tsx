@@ -1,20 +1,21 @@
-'use client';
+"use client";
 
 // New / edit area — one card-style form for both (src/widgets/CardForm),
 // same look as New task. Editing adds archiving (or restoring) the area.
 
-import { useState } from 'react';
-import { useLogic } from '@/src/logic/areaForm/useLogic';
-import { ConfirmDialog } from '@/src/widgets/ConfirmDialog/ConfirmDialog';
-import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
-import { EmojiPicker } from '@/src/widgets/EmojiPicker/EmojiPicker';
+import { useState } from "react";
+import { useLogic } from "@/src/logic/areaForm/useLogic";
+import { ConfirmDialog } from "@/src/widgets/ConfirmDialog/ConfirmDialog";
+import { DeletePlaceDialog } from "@/src/widgets/DeletePlaceDialog/DeletePlaceDialog";
+import { ScreenState } from "@/src/widgets/ScreenState/ScreenState";
+import { EmojiPicker } from "@/src/widgets/EmojiPicker/EmojiPicker";
 import {
   ColorSheet,
   FieldCard,
   PickerCard,
   cardFormStyles as styles,
-} from '@/src/widgets/CardForm/CardForm';
-import { FormFrame } from '@/src/widgets/FormFrame/FormFrame';
+} from "@/src/widgets/CardForm/CardForm";
+import { FormFrame } from "@/src/widgets/FormFrame/FormFrame";
 
 export function AreaFormScreen({ areaId }: { areaId?: string }) {
   const {
@@ -36,25 +37,51 @@ export function AreaFormScreen({ areaId }: { areaId?: string }) {
     handleSave,
     archiveArea,
     unarchiveArea,
+    deletable,
+    afterDelete,
     goBack,
     loading,
     notFound,
   } = useLogic(areaId);
   const [colorOpen, setColorOpen] = useState(false);
   const [confirmArchive, setConfirmArchive] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const content = (
     <FormFrame
-      title={isEditing ? 'Edit area' : 'New area'}
+      title={isEditing ? "Edit area" : "New area"}
       onClose={goBack}
-      primary={{ label: isEditing ? 'Save area' : 'Add area', disabled: !isValid, busy: saving }}
+      primary={{
+        label: isEditing ? "Save area" : "Add area",
+        disabled: !isValid,
+        busy: saving,
+      }}
       onSubmit={handleSave}
       error={saveError}
-      after={isEditing ? (
-        <button type="button" className={styles.deleteLink} onClick={() => (archived ? unarchiveArea() : setConfirmArchive(true))}>
-              {archived ? 'Unarchive area' : 'Archive area'}
+      after={
+        isEditing ? (
+          <>
+            <button
+              type="button"
+              className={styles.deleteLink}
+              onClick={() =>
+                archived ? unarchiveArea() : setConfirmArchive(true)
+              }
+            >
+              {archived ? "Unarchive area" : "Archive area"}
             </button>
-      ) : null}
+            {deletable && (
+              <button
+                type="button"
+                className={styles.deleteLink}
+                onClick={() => setConfirmDelete(true)}
+              >
+                Delete area
+              </button>
+            )}
+          </>
+        ) : null
+      }
       overlays={
         <>
           {confirmArchive && (
@@ -72,11 +99,27 @@ export function AreaFormScreen({ areaId }: { areaId?: string }) {
             />
           )}
 
-          {colorOpen && <ColorSheet value={color} onChange={setColor} onClose={() => setColorOpen(false)} />}
+          {confirmDelete && deletable && (
+            <DeletePlaceDialog
+              place={deletable}
+              onCancel={() => setConfirmDelete(false)}
+              onDeleted={afterDelete}
+            />
+          )}
+          {colorOpen && (
+            <ColorSheet
+              value={color}
+              onChange={setColor}
+              onClose={() => setColorOpen(false)}
+            />
+          )}
         </>
       }
     >
-      <ScreenState loading={loading} error={notFound ? 'This area could not be found.' : null} />
+      <ScreenState
+        loading={loading}
+        error={notFound ? "This area could not be found." : null}
+      />
 
       {!loading && !notFound && (
         <>
@@ -101,16 +144,31 @@ export function AreaFormScreen({ areaId }: { areaId?: string }) {
           </FieldCard>
 
           <FieldCard label="Weekly hour target">
-            <input className={styles.notesInput} inputMode="decimal" value={weeklyTarget} onChange={(event) => setWeeklyTarget(event.target.value)} placeholder="None" />
+            <input
+              className={styles.notesInput}
+              inputMode="decimal"
+              value={weeklyTarget}
+              onChange={(event) => setWeeklyTarget(event.target.value)}
+              placeholder="None"
+            />
           </FieldCard>
 
           <div className={styles.row}>
             <PickerCard label="Color" onClick={() => setColorOpen(true)}>
-              <span className={styles.swatchValue} style={{ background: color }} aria-hidden />
+              <span
+                className={styles.swatchValue}
+                style={{ background: color }}
+                aria-hidden
+              />
             </PickerCard>
             <div className={`${styles.card} ${styles.emojiCard}`}>
               <span className={styles.label}>Emoji</span>
-              <EmojiPicker value={emoji} onChange={setEmoji} label="Area emoji" noneLabel="No emoji" />
+              <EmojiPicker
+                value={emoji}
+                onChange={setEmoji}
+                label="Area emoji"
+                noneLabel="No emoji"
+              />
             </div>
           </div>
         </>

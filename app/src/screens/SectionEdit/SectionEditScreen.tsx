@@ -1,18 +1,29 @@
-'use client';
+"use client";
 
 // Edit section, on the form standard (FormFrame): Area (fixed), Name and
 // emoji, Color, Description; archiving under the button.
 
-import { useState } from 'react';
-import { useLogic } from '@/src/logic/sectionEdit/useLogic';
-import { EmojiPicker } from '@/src/widgets/EmojiPicker/EmojiPicker';
-import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
-import { ConfirmDialog } from '@/src/widgets/ConfirmDialog/ConfirmDialog';
-import { ColorSheet, cardFormStyles as cf } from '@/src/widgets/CardForm/CardForm';
-import { FieldCard, FieldRow, FormFrame, PickerField, formFrameStyles as ff } from '@/src/widgets/FormFrame/FormFrame';
+import { useState } from "react";
+import { useLogic } from "@/src/logic/sectionEdit/useLogic";
+import { EmojiPicker } from "@/src/widgets/EmojiPicker/EmojiPicker";
+import { ScreenState } from "@/src/widgets/ScreenState/ScreenState";
+import { DeletePlaceDialog } from "@/src/widgets/DeletePlaceDialog/DeletePlaceDialog";
+import { ConfirmDialog } from "@/src/widgets/ConfirmDialog/ConfirmDialog";
+import {
+  ColorSheet,
+  cardFormStyles as cf,
+} from "@/src/widgets/CardForm/CardForm";
+import {
+  FieldCard,
+  FieldRow,
+  FormFrame,
+  PickerField,
+  formFrameStyles as ff,
+} from "@/src/widgets/FormFrame/FormFrame";
 
 export function SectionEditScreen({ bucketId }: { bucketId: string }) {
   const [confirmArchive, setConfirmArchive] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [colorOpen, setColorOpen] = useState(false);
   const v = useLogic(bucketId);
   const ready = !v.loading && !v.error && v.section;
@@ -23,21 +34,51 @@ export function SectionEditScreen({ bucketId }: { bucketId: string }) {
       context={v.area ? `In ${v.area.name}` : undefined}
       onClose={v.goBack}
       phoneHeader="bar"
-      primary={ready ? { label: 'Save folder', disabled: !v.name.trim() || !v.description.trim(), busy: v.saving } : null}
+      primary={
+        ready
+          ? {
+              label: "Save folder",
+              disabled: !v.name.trim() || !v.description.trim(),
+              busy: v.saving,
+            }
+          : null
+      }
       onSubmit={v.handleSave}
       error={v.saveError}
       after={
         ready && v.section ? (
           v.section.isDefault ? (
-            <p className={cf.muted}>This is the area&apos;s default folder: projects without one of their own live in it, so it can&apos;t be archived.</p>
-          ) : v.section.archived ? (
-            <button type="button" className={cf.deleteLink} onClick={v.unarchiveBucket}>
-              Unarchive folder
-            </button>
+            <p className={cf.muted}>
+              This is the area&apos;s default folder: projects without one of
+              their own live in it, so it can&apos;t be archived or deleted.
+            </p>
           ) : (
-            <button type="button" className={cf.deleteLink} onClick={() => setConfirmArchive(true)}>
-              Archive folder
-            </button>
+            <>
+              {v.section.archived ? (
+                <button
+                  type="button"
+                  className={cf.deleteLink}
+                  onClick={v.unarchiveBucket}
+                >
+                  Unarchive folder
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className={cf.deleteLink}
+                  onClick={() => setConfirmArchive(true)}
+                >
+                  Archive folder
+                </button>
+              )}
+              <button
+                type="button"
+                className={cf.deleteLink}
+                onClick={() => setConfirmDelete(true)}
+              >
+                Delete folder
+              </button>
+            </>
           )
         ) : null
       }
@@ -57,7 +98,20 @@ export function SectionEditScreen({ bucketId }: { bucketId: string }) {
               }}
             />
           )}
-          {colorOpen && <ColorSheet value={v.color} onChange={v.setColor} onClose={() => setColorOpen(false)} />}
+          {confirmDelete && v.deletable && (
+            <DeletePlaceDialog
+              place={v.deletable}
+              onCancel={() => setConfirmDelete(false)}
+              onDeleted={v.afterDelete}
+            />
+          )}
+          {colorOpen && (
+            <ColorSheet
+              value={v.color}
+              onChange={v.setColor}
+              onClose={() => setColorOpen(false)}
+            />
+          )}
         </>
       }
     >
@@ -70,19 +124,39 @@ export function SectionEditScreen({ bucketId }: { bucketId: string }) {
             </FieldCard>
           )}
           <FieldCard label="Name">
-            <input className={ff.input} value={v.name} onChange={(event) => v.setName(event.target.value)} placeholder="Folder name" />
+            <input
+              className={ff.input}
+              value={v.name}
+              onChange={(event) => v.setName(event.target.value)}
+              placeholder="Folder name"
+            />
           </FieldCard>
           <FieldRow>
             <PickerField label="Color" onClick={() => setColorOpen(true)}>
-              <span className={cf.swatchValue} style={{ background: v.color }} aria-hidden />
+              <span
+                className={cf.swatchValue}
+                style={{ background: v.color }}
+                aria-hidden
+              />
             </PickerField>
             <div className={`${cf.card} ${cf.emojiCard}`}>
               <span className={cf.label}>Emoji</span>
-              <EmojiPicker value={v.emoji} onChange={v.setEmoji} label="Folder emoji" noneLabel="No emoji" />
+              <EmojiPicker
+                value={v.emoji}
+                onChange={v.setEmoji}
+                label="Folder emoji"
+                noneLabel="No emoji"
+              />
             </div>
           </FieldRow>
           <FieldCard label="Description">
-            <textarea className={ff.input} rows={3} value={v.description} onChange={(event) => v.setDescription(event.target.value)} placeholder="What this folder holds" />
+            <textarea
+              className={ff.input}
+              rows={3}
+              value={v.description}
+              onChange={(event) => v.setDescription(event.target.value)}
+              placeholder="What this folder holds"
+            />
           </FieldCard>
         </>
       )}

@@ -34,8 +34,24 @@ export function useLogic(scope: Scope) {
     router.replace(scope.kind === 'area' ? '/areas' : '/sections');
   }
 
+  /** After it's deleted: an area's list, or a folder's area. */
+  function leave() {
+    router.replace(scope.kind === 'area' ? '/areas' : areaId ? `/areas/${areaId}` : '/sections');
+  }
+  /** What the delete dialog acts on; a default folder is never deleted alone. */
+  const deletable =
+    scope.kind === 'area'
+      ? area
+        ? { kind: 'area' as const, id: area.id, name: area.name }
+        : null
+      : folder && !folder.isDefault
+        ? { kind: 'folder' as const, id: folder.id, name: folder.name, areaId }
+        : null;
+
   return {
     archive,
+    leave,
+    deletable,
     area,
     folder,
     areaDoc,

@@ -97,6 +97,9 @@ export function useLogic(bucketId: string) {
     handleSave,
     archiveBucket,
     unarchiveBucket,
+    /** Delete for good (DeletePlaceDialog); never the area's default folder. */
+    deletable: section && !section.isDefault ? { kind: 'folder' as const, id: bucketId, name: section.name, areaId: bucketAreaId } : null,
+    afterDelete: () => router.replace(bucketAreaId ? `/areas/${bucketAreaId}` : '/sections'),
     goBack,
     loading: bucketLoading,
     error: bucketError,

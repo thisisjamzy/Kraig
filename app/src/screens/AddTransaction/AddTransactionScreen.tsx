@@ -7,8 +7,9 @@
 //   the amount hero ("How much?", the wallet's available money);
 //   Details: the wallet (From and To for a transfer), the savings mode or
 //     income type when it applies, Basket then Budget item (a Payment
-//     offers its full due amount as a chip), Category (this month's
-//     budgeted ones, or every one when recording unplanned);
+//     offers its full due amount as a chip), Category (a picker with a
+//     search, this month's planned ones first, then the rest, and Add
+//     category; picking an unplanned one records it as unplanned);
 //   When: Date;
 //   More: Note, Fees (transfers), "This explains part of my unaccounted
 //     balance" for a past date;
@@ -25,6 +26,7 @@ import { CalendarDays, Clock, FileText, FolderPlus, PiggyBank, Receipt, Shopping
 import { useLogic, formatMoney, type TransactionType } from '@/src/logic/addTransaction/useLogic';
 import { useStrings } from '@/src/strings/useStrings';
 import { ScreenState } from '@/src/widgets/ScreenState/ScreenState';
+import { CategoryRow } from '@/src/widgets/CategoryPicker/CategoryPicker';
 import {
   AmountHero,
   DateRow,
@@ -208,7 +210,18 @@ export function AddTransactionScreen() {
                 placeholder="Choose an item"
               />
             )}
-            {showCategory && !v.linkedBucketItem && v.categoriesForType.length > 0 && (
+            {showCategory && !v.linkedBucketItem && !v.isTransferLike && (
+              <CategoryRow
+                icon={<Tag />}
+                label="Category"
+                value={v.category}
+                onChange={v.pickCategory}
+                categories={v.allCategories}
+                planned={v.plannedCategoryIds}
+                kind={v.categoryKind}
+              />
+            )}
+            {showCategory && !v.linkedBucketItem && v.isTransferLike && v.categoriesForType.length > 0 && (
               <SelectRow
                 icon={<Tag />}
                 label={v.isTransferLike ? 'Transfer type' : 'Category'}
@@ -239,15 +252,19 @@ export function AddTransactionScreen() {
             <>
               <RowGroup label="New basket">
                 <InputRow icon={<FolderPlus />} label="New basket name" value={v.newBasketName} onChange={v.setNewBasketName} placeholder="Car repairs" />
-                {v.newBasketCategories.length > 0 && (
-                  <SelectRow
-                    icon={<Tag />}
-                    label={v.isTransferLike ? 'Transfer type' : 'Category'}
-                    value={v.newBasketCategory}
-                    onChange={v.setNewBasketCategory}
-                    options={v.newBasketCategories.map((c) => ({ value: c.id, label: c.name }))}
-                    placeholder="Choose one"
-                  />
+                {v.isTransferLike ? (
+                  v.newBasketCategories.length > 0 && (
+                    <SelectRow
+                      icon={<Tag />}
+                      label="Transfer type"
+                      value={v.newBasketCategory}
+                      onChange={v.setNewBasketCategory}
+                      options={v.newBasketCategories.map((c) => ({ value: c.id, label: c.name }))}
+                      placeholder="Choose one"
+                    />
+                  )
+                ) : (
+                  <CategoryRow icon={<Tag />} label="Category" value={v.newBasketCategory} onChange={v.setNewBasketCategory} categories={v.newBasketCategories} kind={v.categoryKind} />
                 )}
               </RowGroup>
               <RowNote>

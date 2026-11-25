@@ -280,6 +280,15 @@ async function deleteAreaWrite(
   await last.commit();
 }
 
+/** What an area or folder holds: its projects, and the tasks in it or in
+ *  those projects (counted once each). */
+export async function countPlaceContents(uid: string, kind: 'area' | 'folder', id: string): Promise<{ projects: number; tasks: number }> {
+  const field = kind === 'area' ? 'areaId' : 'bucketId';
+  const [projects, tasks] = await Promise.all([getDocs(query(projectsRef(uid), where(field, '==', id))), getDocs(query(tasksRef(uid), where(field, '==', id)))]);
+  const all = await withProjectTasks(uid, projects.docs.map((d) => d.id), tasks.docs);
+  return { projects: projects.size, tasks: all.length };
+}
+
 export const deleteSectionForGood = guardWrite(
   "deleteSectionForGood",
   deleteSectionWrite,

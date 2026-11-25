@@ -1,0 +1,233 @@
+/* Category picker: full screen on a phone (as FormFrame's ListSheet), a
+   dialog from tablet up. */
+
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+}
+
+.scrim[data-wide] {
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  background: color-mix(in srgb, var(--sg-neutral-900) 40%, transparent);
+}
+
+.sheet {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 0;
+  /* Clear of the notch and the home indicator. */
+  padding: calc(var(--safe-top) + 12px) 0 calc(var(--safe-bottom) + 12px);
+  background: var(--tf-bg, var(--color-background));
+  color: var(--color-text-primary);
+}
+
+.scrim[data-wide] .sheet {
+  width: min(100%, 460px);
+  max-height: min(640px, 80vh);
+  padding: 16px 0 12px;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-popover);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 8px 8px 20px;
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-family-heading);
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.close {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+.search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 16px 8px;
+  padding: 0 12px;
+  min-height: 44px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-background);
+  color: var(--color-text-secondary);
+}
+
+.search:focus-within {
+  border-color: var(--color-border-focus);
+}
+
+.search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: none;
+  color: var(--color-text-primary);
+  font: inherit;
+  /* 16px keeps iOS from zooming in on focus. */
+  font-size: 1rem;
+}
+
+.body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.group + .group {
+  margin-top: 16px;
+}
+
+.groupLabel {
+  margin: 0;
+  padding: 8px 20px 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 52px;
+  padding: 14px 20px;
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 1rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.option[aria-pressed="true"] {
+  color: var(--color-brand);
+  font-weight: 600;
+}
+
+.empty {
+  margin: 0;
+  padding: 16px 20px;
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+}
+
+.foot {
+  padding: 12px 16px 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.addButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 48px;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--color-brand);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.addForm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.addInput {
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-background);
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 1rem;
+  outline: none;
+}
+
+.addInput:focus {
+  border-color: var(--color-border-focus);
+}
+
+.addActions {
+  display: flex;
+  gap: 8px;
+}
+
+.primary,
+.secondary {
+  flex: 1;
+  min-height: 44px;
+  border-radius: var(--radius-full);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.primary {
+  border: 0;
+  background: var(--color-brand);
+  color: var(--color-brand-on);
+}
+
+.primary:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.secondary {
+  border: 1px solid var(--color-border);
+  background: var(--color-background);
+  color: var(--color-text-primary);
+}
+
+.error {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--color-status-danger-fg);
+}
+
+.close:focus-visible,
+.option:focus-visible,
+.addButton:focus-visible,
+.primary:focus-visible,
+.secondary:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: -2px;
+}
