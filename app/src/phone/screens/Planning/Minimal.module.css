@@ -466,6 +466,10 @@
   background: var(--p-red);
 }
 
+.dots > span[data-status='missed'] {
+  background: var(--p-muted);
+}
+
 .monthGrid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);

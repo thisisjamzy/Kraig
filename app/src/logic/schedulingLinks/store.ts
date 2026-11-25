@@ -52,6 +52,15 @@ export const schedulingStore = {
     state = { ...state, links: state.links.map((l) => (l.id === id ? { ...l, ...patch } : l)) };
     emit();
   },
+  /** Deletes a link; its bookings go too, or stay with no link. */
+  removeLink(id: string, withBookings: boolean) {
+    state = { links: state.links.filter((l) => l.id !== id), bookings: withBookings ? state.bookings.filter((b) => b.linkId !== id) : state.bookings };
+    emit();
+  },
+  removeBooking(id: string) {
+    state = { ...state, bookings: state.bookings.filter((b) => b.id !== id) };
+    emit();
+  },
   addBooking(booking: Booking) {
     state = { ...state, bookings: [...state.bookings, booking] };
     emit();

@@ -65,11 +65,12 @@ export function isOpen(o: Occurrence) {
   return !o.dropped && !o.closed && remaining(o) > 0;
 }
 
-/** Still worth acting on: a repeating item's missed date counts for one
- * month back at most (older ones are history, not a pile of "overdue"); a
- * one-off stays until it's paid, postponed or dropped. */
+/** Still worth acting on: a repeating item only for this month on (one
+ * not made in a month now over was missed, never overdue the month after:
+ * owner, 24 Nov 2026); a one-off stays until it's paid, postponed or
+ * dropped. */
 export function relevant(o: Pick<Occurrence, 'recurring' | 'month'>, today: Date) {
-  return !o.recurring || o.month >= shiftMonth(monthKey(today), -1);
+  return !o.recurring || o.month >= monthKey(today);
 }
 
 export function startOfDay(d: Date) {

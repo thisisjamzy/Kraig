@@ -9,6 +9,10 @@
 // documents wait on the owner (BUILD-KIT section 7.6 and 7.7). When they
 // exist, this hook is where they are read and saved; the screens do not
 // change. Confirming does not email the booker yet (section 7.8).
+//
+// A link can be edited (the same form, filled in) or deleted, with its
+// bookings kept or deleted too; a booking can be deleted on its own
+// (owner, 24 Nov 2026).
 
 import { useMemo, useState } from 'react';
 import { showToast } from '@/src/widgets/Toast/Toast';
@@ -68,12 +72,23 @@ async function copyText(text: string) {
   }
 }
 
-export function useLogic() {
+/** The form filled in from a saved link. */
+function draftOf(l: SchedLink): LinkDraft {
+  return { name: l.name, minutes: l.minutes, cadence: l.cadence, hours: l.hours.map((r) => r.map((x) => ({ ...x }))), gapMinutes: l.gapMinutes, perDay: l.perDay, place: l.place, note: l.note };
+}
+
+/** `editId`: open the form on that link (the phone's /links/new?edit=). */
+export function useLogic({ editId }: { editId?: string | null } = {}) {
   const { links, bookings } = useScheduling();
   // Links point at this app's own booking page (/book/[slug]).
   const handle = typeof window !== 'undefined' ? window.location.host : 'dreda.app';
   const [tab, setTab] = useState<LinkTab>('all');
-  const [draft, setDraft] = useState<LinkDraft>(EMPTY);
+  const [editingId, setEditingId] = useState<string | null>(() => (editId && links.some((l) => l.id === editId) ? editId : null));
+  const [draft, setDraft] = useState<LinkDraft>(() => {
+    const l = editId ? links.find((x) => x.id === editId) : undefined;
+    return l ? draftOf(l) : EMPTY;
+  });
+  const editing = editingId ? (links.find((l) => l.id === editingId) ?? null) : null;
   const [now] = useState(() => new Date());
 
   const shown = links.filter((l) => (tab === 'all' ? true : tab === 'paused' ? !l.active : l.cadence === tab));
@@ -103,15 +118,35 @@ export function useLogic() {
         ? 'Each range has to end after it starts.'
         : draft.hours.some(rangesClash)
           ? 'Two ranges on one day overlap.'
-          : links.some((l) => l.slug === slug)
+          : links.some((l) => l.slug === slug && l.id !== editingId)
             ? 'A link with this name already exists.'
             : null;
 
-  /** Saves the draft as a link; returns it, or null when it is not ready. */
+  /** Saves the draft: a new link, or the changes to the one being edited.
+   *  Returns the link, or null when it is not ready. */
   function create(): SchedLink | null {
     if (problem) {
       showToast(problem);
       return null;
+    }
+    if (editing) {
+      const patch: Partial<SchedLink> = {
+        name: draft.name.trim(),
+        slug,
+        minutes: draft.minutes,
+        place: draft.place,
+        cadence: draft.cadence,
+        hours: draft.hours,
+        gapMinutes: draft.gapMinutes,
+        perDay: draft.perDay,
+        note: draft.note.trim(),
+        until: draft.cadence === 'one-off' ? (editing.until ?? new Date(now.getFullYear(), now.getMonth(), now.getDate() + 14, 23, 59)) : null,
+      };
+      schedulingStore.updateLink(editing.id, patch);
+      setEditingId(null);
+      setDraft(EMPTY);
+      showToast(slug !== editing.slug ? 'Link saved. Its address changed, so send the new one.' : 'Link saved');
+      return { ...editing, ...patch };
     }
     const link: SchedLink = {
       id: `local-${Date.now().toString(36)}`,
@@ -158,6 +193,29 @@ export function useLogic() {
       showToast(`Confirmed ${b.name}`);
     },
     decline: (b: Booking) => schedulingStore.setBooking(b.id, 'declined'),
+    /** Bookings made through a link (any status, past included). */
+    bookingsOf: (linkId: string) => bookings.filter((b) => b.linkId === linkId).length,
+    removeLink: (l: SchedLink, withBookings: boolean) => {
+      schedulingStore.removeLink(l.id, withBookings);
+      if (editingId === l.id) {
+        setEditingId(null);
+        setDraft(EMPTY);
+      }
+      showToast(withBookings ? `${l.name} and its bookings deleted` : `${l.name} deleted`);
+    },
+    removeBooking: (b: Booking) => {
+      schedulingStore.removeBooking(b.id);
+      showToast(`Booking with ${b.name} deleted`);
+    },
+    editing,
+    startEdit: (l: SchedLink) => {
+      setEditingId(l.id);
+      setDraft(draftOf(l));
+    },
+    cancelEdit: () => {
+      setEditingId(null);
+      setDraft(EMPTY);
+    },
     draft,
     update,
     addRange,

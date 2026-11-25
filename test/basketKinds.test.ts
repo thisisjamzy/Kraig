@@ -32,6 +32,9 @@ import { planClaudeUsdFix } from '../app/src/shared/budget/claudeUsdFix';
 import { convert, itemCurrencyOf } from '../app/src/shared/firestore/currency';
 import { monthPayments } from '../app/src/logic/planning/usePaymentsTab';
 import { basketList, monthSummary } from '../app/src/logic/planning/basketList';
+import { relevant } from '../app/src/viewmodels/plans/model';
+import { lineRows } from '../app/src/logic/budgetMonth/lines';
+import { upcomingPayments } from '../app/src/logic/planningBucket/basketPage';
 
 const ts = (iso: string) => ({ toDate: () => new Date(`${iso}T00:00:00`) }) as never;
 const day = (iso: string) => new Date(`${iso}T09:00:00`);
@@ -348,7 +351,32 @@ test('the month summary', () => {
   const groups = basketList(budget, [{ id: 'house', name: 'House', type: 'Expense', archived: false }, { id: 'income', name: 'Running Limbe', type: 'Income', archived: false }], day('2026-10-10'));
   assert.deepEqual(groups.map((g) => g.label), ['Income', 'Expenses']);
   const payments = monthPayments('2026-10', { budget, buckets: [], itemsByBucket: {}, accounts: [], ctx: {} as never }, []);
-  assert.equal(payments.filter((p) => p.status === 'overdue').length, 1);
+  // October has ended: the unpaid rent is overdue while it's October, and
+  // missed (not overdue) once it's over, since rent repeats every month.
+  const now = new Date();
+  const octoberOver = now >= new Date(2026, 10, 1);
+  assert.equal(payments.filter((p) => p.status === (octoberOver ? 'missed' : 'overdue')).length, 1);
+});
+
+test('a repeating payment not made in a month that has ended is missed, never overdue the month after', () => {
+  const budget = budgetOf({
+    itemsByBucket: { house: [item('rent', { goalId: 'house', amount: 160_000, categoryId: 'rent', dueDate: ts('2026-10-01'), itemKind: 'payment' })] },
+  });
+  const rent = budget.items.find((i) => i.itemId === 'rent')!;
+  assert.equal(rent.recurring, true);
+  // While October runs, it is overdue after its date; from November, missed.
+  assert.equal(lineStatus(rent, day('2026-10-10')), 'Overdue');
+  assert.equal(lineStatus(rent, day('2026-11-05')), 'Missed');
+  // A one-off left unpaid stays overdue until it's paid.
+  const once = budgetOf({
+    itemsByBucket: { house: [item('deposit', { goalId: 'house', amount: 50_000, categoryId: 'rent', dueDate: ts('2026-10-01'), itemKind: 'payment', recurrence: { frequency: 'Once', interval: 1 } })] },
+  }).items.find((i) => i.itemId === 'deposit')!;
+  assert.equal(once.recurring, false);
+  assert.equal(lineStatus(once, day('2026-11-05')), 'Overdue');
+  // Priorities and the overview drop a repeating item's earlier months.
+  assert.equal(relevant({ recurring: true, month: '2026-10' }, day('2026-11-05')), false);
+  assert.equal(relevant({ recurring: true, month: '2026-11' }, day('2026-11-05')), true);
+  assert.equal(relevant({ recurring: false, month: '2026-09' }, day('2026-11-05')), true);
 });
 
 test('alerts live in Notifications only: no "Needs you" rows or notice cards on phone pages', () => {
@@ -662,4 +690,16 @@ test('UI copy uses no long dashes', () => {
     const strings = read(file).match(/(['"`])(?:(?!\1).)*\1|>[^<{}]+</g) ?? [];
     for (const s of strings) assert.equal(/[—–]/.test(s), false, `${file}: ${s}`);
   }
+});
+
+test("a basket item closed for the month leaves the basket's upcoming payments", () => {
+  const closed = { closedFor: { '2026-10': { closedAt: null, leftover: 30_000 } } };
+  const budget = budgetOf({
+    itemsByBucket: {
+      leisure: [item('gym', { dueDate: ts('2026-10-20'), itemKind: 'payment', ...closed }), item('phone', { dueDate: ts('2026-10-20'), itemKind: 'payment' })],
+    },
+  });
+  const rows = Object.values(lineRows(budget, day('2026-10-10'), () => null)).flat();
+  const names = upcomingPayments(rows, [], day('2026-10-10')).map((p) => p.name);
+  assert.deepEqual(names, ['phone']);
 });

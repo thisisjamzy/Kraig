@@ -194,7 +194,8 @@ export function useFinanceData() {
           amount: p.amount,
           due: p.due,
           kind: p.categoryType === 'Income' ? 'income' : p.categoryType === 'Savings' ? 'savings' : 'expense',
-          status: p.status,
+          // Only this month and next are read, so nothing here is ever missed.
+          status: p.status === 'missed' ? 'paid' : p.status,
         });
       }
     }

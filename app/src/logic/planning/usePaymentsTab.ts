@@ -20,7 +20,8 @@ import { isSavingsAccount } from '@/src/viewmodels/wallets';
 import type { FirestoreCategory, Frequency } from '@/src/shared/firestore/types';
 import type { PlanningData } from './useLogic';
 
-export type PaymentStatus = 'upcoming' | 'paid' | 'overdue';
+/** Missed: a repeating payment not made in a month that has ended. */
+export type PaymentStatus = 'upcoming' | 'paid' | 'overdue' | 'missed';
 
 export interface MonthPayment {
   id: string;
@@ -86,6 +87,7 @@ export function monthPayments(
 ): MonthPayment[] {
   const { budget, accounts } = data;
   const todayStart = new Date(new Date().setHours(0, 0, 0, 0));
+  const thisMonth = `${todayStart.getFullYear()}-${String(todayStart.getMonth() + 1).padStart(2, '0')}`;
   const accountName = new Map(accounts.map((a) => [a.id, a.name]));
   const category = new Map(categories.map((c) => [c.id, c]));
   const out: MonthPayment[] = [];
@@ -93,7 +95,7 @@ export function monthPayments(
     if (entry.type === 'Income' || entry.itemKind !== 'payment' || !entry.dueDates.length) continue;
     const dates = entry.dueDates;
     const unit = entry.available / dates.length;
-    let paidLeft = entry.closed ? entry.available : entry.actual;
+    let paidLeft = entry.actual;
     const cat = entry.categoryId ? category.get(entry.categoryId) : undefined;
     dates.forEach((due) => {
       const paidHere = Math.max(0, Math.min(unit, paidLeft));
@@ -101,6 +103,8 @@ export function monthPayments(
       const paid = entry.closed || paidHere >= unit - 0.5;
       // An archived bucket keeps its payment history, but nothing more is due from it.
       if (entry.archived && !paid) return;
+      // A closed item is done with: only the dates money actually went to stay, as paid.
+      if (entry.closed && paidHere < 0.5) return;
       out.push({
         id: `${entry.itemId}@${dayKey(due)}`,
         bucketId: entry.bucketId,
@@ -120,7 +124,7 @@ export function monthPayments(
         remaining: paid ? 0 : Math.round((unit - paidHere) * 100) / 100,
         due,
         dueKey: dayKey(due),
-        status: paid ? 'paid' : due < todayStart ? 'overdue' : 'upcoming',
+        status: paid ? 'paid' : due < todayStart ? (entry.recurring && month < thisMonth ? 'missed' : 'overdue') : 'upcoming',
         movedFrom: entry.movedFrom && entry.due && due.getTime() === entry.due.getTime() ? entry.movedFrom : null,
         recurring: entry.recurring,
       });

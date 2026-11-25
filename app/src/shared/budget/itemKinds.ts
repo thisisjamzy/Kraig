@@ -82,7 +82,21 @@ export function monthPosition(month: string, today: Date): { daysInMonth: number
 
 // ---- Payments ----
 
-export type PaymentState = 'Paid' | 'Due' | 'Overdue';
+export type PaymentState = 'Paid' | 'Due' | 'Overdue' | 'Missed';
+
+/** "YYYY-MM" of a day. */
+function monthOfDay(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+/**
+ * A repeating payment not made in a month that has ended was missed, not
+ * overdue (owner, 24 Nov 2026): the next month has its own occurrence, so
+ * the old one never follows it as a debt.
+ */
+export function isMissedMonth(entry: Pick<ItemMonth, 'recurring' | 'month'>, today: Date): boolean {
+  return entry.recurring && entry.month < monthOfDay(today);
+}
 
 export interface PaymentProgress {
   paid: number;
@@ -113,7 +127,8 @@ export function paymentProgress(entry: ItemMonth, today: Date): PaymentProgress 
   const passed = dates.filter((d) => dayOnly(d) < day).length;
   const dueByToday = r2(unit * passed);
   const settled = entry.closed || (planned > 0 && paid >= planned - 0.5);
-  const state: PaymentState = settled ? 'Paid' : passed > 0 && paid < dueByToday - 0.5 ? 'Overdue' : 'Due';
+  const behind = passed > 0 && paid < dueByToday - 0.5;
+  const state: PaymentState = settled ? 'Paid' : behind ? (isMissedMonth(entry, today) ? 'Missed' : 'Overdue') : 'Due';
   // The first occurrence the money paid so far doesn't cover.
   const coveredCount = unit > 0 ? Math.floor((paid + 0.5) / unit) : dates.length;
   const nextDue = settled ? null : (dates[Math.min(coveredCount, dates.length - 1)] ?? null);

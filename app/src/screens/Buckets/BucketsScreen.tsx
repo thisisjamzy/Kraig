@@ -33,7 +33,7 @@ import { useFormLink } from '@/src/shared/navigation/useFormLink';
 // Kept here for the screens that already import it from this file.
 export { formatAmount } from '@/src/viewmodels/format';
 
-const STATUSES = ['On track', 'Expected', 'Paid', 'Received', 'Saved', 'Moved', 'Overdue', 'Late', 'Over plan', 'Leftover', 'Nothing this month'];
+const STATUSES = ['On track', 'Expected', 'Paid', 'Received', 'Saved', 'Moved', 'Overdue', 'Missed', 'Late', 'Over plan', 'Leftover', 'Nothing this month'];
 
 function bucketColumns(type: FlowType, month: string): ColumnDef<BucketRow>[] {
   const actual = type === 'Income' ? 'Received' : type === 'Savings' ? 'Saved' : type === 'Transfer' ? 'Moved' : 'Spent';

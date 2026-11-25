@@ -516,6 +516,11 @@
   background: var(--sg-destructive);
 }
 
+.calDots span[data-status='missed'],
+.calLegend span[data-status='missed'] {
+  background: var(--sg-label-grey-solid);
+}
+
 .calLegend {
   justify-content: center;
   gap: 14px;

@@ -243,3 +243,34 @@
   outline: 2px solid var(--p-blue);
   outline-offset: 2px;
 }
+
+.search {
+  width: 100%;
+  margin: 0 0 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--p-divider);
+  border-radius: 10px;
+  background: var(--p-card);
+  color: inherit;
+  font: inherit;
+  font-size: 1rem;
+}
+
+.pickList {
+  max-height: 440px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.pickGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pickGroupLabel,
+.pickEmpty {
+  margin: 8px 2px 0;
+  font-size: 0.75rem;
+  color: var(--p-muted);
+}

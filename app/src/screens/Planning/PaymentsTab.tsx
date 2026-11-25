@@ -46,6 +46,11 @@ function PaymentCard({ payment, currency, onPay, onClose }: { payment: MonthPaym
               Overdue
             </span>
           )}
+          {payment.status === 'missed' && (
+            <span className={styles.chip} data-tone="neutral">
+              Missed
+            </span>
+          )}
           {payment.status === 'paid' && (
             <span className={styles.chip} data-tone="neutral">
               <CircleCheck size={11} strokeWidth={2.5} aria-hidden /> Paid
@@ -161,6 +166,11 @@ export function PaymentsTab({
           <li>
             <span data-status="overdue" /> Overdue
           </li>
+          {p.payments.some((x) => x.status === 'missed') && (
+            <li>
+              <span data-status="missed" /> Missed
+            </li>
+          )}
         </ul>
       </section>
       </Column>

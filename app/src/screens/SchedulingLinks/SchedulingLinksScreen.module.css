@@ -446,3 +446,30 @@ textarea.input {
 .panelActions button {
   height: 44px;
 }
+
+.menu button[data-tone='danger'] {
+  color: var(--sg-danger-fg);
+}
+
+.iconButton {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.iconButton:hover {
+  background: var(--color-bg-sunken);
+  color: var(--sg-danger-fg);
+}
+
+.iconButton:focus-visible {
+  outline: 2px solid var(--sg-focus);
+  outline-offset: 2px;
+}

@@ -26,13 +26,14 @@ export interface OccurrenceState {
  */
 export function itemStatus(line: LineRow, coverage?: { coverage: Coverage; waitsFor: string | null }, occurrence?: OccurrenceState): string {
   if (line.type !== 'Expense') return line.state;
-  if (line.state === 'Over plan' || line.state === 'Paid' || line.state === 'Overdue') return line.state;
+  if (line.state === 'Over plan' || line.state === 'Paid' || line.state === 'Overdue' || line.state === 'Missed') return line.state;
   if (occurrence?.state === 'waiting' || coverage?.coverage === 'waiting') return 'Waiting for income';
   return 'Unpaid';
 }
 
 export const STATUS_TONE: Record<string, 'good' | 'bad' | 'watch' | 'neutral'> = {
   Paid: 'good',
+  Missed: 'neutral',
   Received: 'good',
   Saved: 'good',
   Moved: 'good',
@@ -62,11 +63,13 @@ export function upcomingPayments(lines: LineRow[], occurrences: OccurrenceState[
   const occ = new Map(occurrences.map((o) => [o.itemId, o]));
   const rows = lines
     .filter((l) => l.type !== 'Income' && !l.archived && (l.available > 0 || l.actual > 0))
+    // A closed item is done with: shown as paid if money went to it, else gone.
+    .filter((l) => !l.closed || l.actual > 0.5)
     .map((l): UpcomingPayment => {
-      const paid = l.left <= 0.5;
+      const paid = l.left <= 0.5 || l.closed;
       const o = occ.get(l.itemId);
-      const late = !paid && l.due !== null && dayOf(l.due) < dayOf(today);
-      const state = paid ? 'Paid' : o?.state === 'ready' ? 'Ready' : o?.state === 'waiting' ? `Waiting for ${o.waitingFor ?? 'income'}` : late ? 'Overdue' : 'Upcoming';
+      const late = !paid && l.due !== null && dayOf(l.due) < dayOf(today) && l.state !== 'Missed';
+      const state = paid ? 'Paid' : o?.state === 'ready' ? 'Ready' : o?.state === 'waiting' ? `Waiting for ${o.waitingFor ?? 'income'}` : l.state === 'Missed' ? 'Missed' : late ? 'Overdue' : 'Upcoming';
       return {
         key: l.key,
         itemId: l.itemId,

@@ -292,3 +292,7 @@ textarea.input {
   color: var(--color-text-secondary);
   font-size: 12px;
 }
+
+.link[data-tone='danger'] {
+  color: var(--sg-danger-fg);
+}

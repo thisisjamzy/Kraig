@@ -12,7 +12,7 @@
 //   Available by month end = available now + expected income not received yet (an estimate)
 
 import type { ItemMonth, MonthBudget } from './monthBudget';
-import { paymentProgress } from './itemKinds';
+import { isMissedMonth, paymentProgress } from './itemKinds';
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 const sum = (list: ItemMonth[], pick: (entry: ItemMonth) => number) => r2(list.reduce((total, entry) => total + pick(entry), 0));
@@ -55,6 +55,7 @@ export type LineStatus =
   | 'Partly paid'
   | 'Paid'
   | 'Overdue'
+  | 'Missed'
   | 'Over plan'
   | 'Not saved'
   | 'Partly saved'
@@ -73,6 +74,7 @@ export const STATUS_TONE: Record<LineStatus, StatusTone> = {
   'Partly paid': 'watch',
   Paid: 'good',
   Overdue: 'bad',
+  Missed: 'neutral',
   'Over plan': 'bad',
   'Not saved': 'neutral',
   'Partly saved': 'watch',
@@ -87,7 +89,13 @@ function isPastDue(entry: ItemMonth, today: Date) {
 
 /** A payment behind on the occurrences already due (itemKinds.ts). */
 function overduePayment(entry: ItemMonth, today: Date) {
+  if (isMissedMonth(entry, today)) return false;
   return entry.dueDates.length ? paymentProgress(entry, today).state === 'Overdue' : isPastDue(entry, today);
+}
+
+/** A repeating payment that wasn't made in a month now over (itemKinds.ts). */
+function missedPayment(entry: ItemMonth, today: Date) {
+  return entry.itemKind === 'payment' && isMissedMonth(entry, today) && (entry.dueDates.length ? paymentProgress(entry, today).state === 'Missed' : isPastDue(entry, today));
 }
 
 /** Done with: fully paid/received, or closed for the month. */
@@ -106,6 +114,7 @@ export function lineStatus(entry: ItemMonth, today: Date): LineStatus {
       if (settled(entry)) return 'Saved';
       if (entry.actual > 0) return 'Partly saved';
       // A set aside builds up over time: it's never overdue.
+      if (missedPayment(entry, today)) return 'Missed';
       return entry.itemKind === 'payment' && overduePayment(entry, today) ? 'Overdue' : 'Not saved';
     case 'Transfer':
       // A move between your own wallets is never overdue.
@@ -118,6 +127,7 @@ export function lineStatus(entry: ItemMonth, today: Date): LineStatus {
       if (entry.actual > 0.5) return 'Partly paid';
       // Only payments fall due on a day: an allowance or set aside never
       // reads as overdue.
+      if (missedPayment(entry, today)) return 'Missed';
       return entry.itemKind === 'payment' && overduePayment(entry, today) ? 'Overdue' : 'Unpaid';
   }
 }

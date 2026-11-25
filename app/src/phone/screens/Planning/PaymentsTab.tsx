@@ -147,10 +147,12 @@ export function PaymentsTab({
   // Groups: Overdue, This week, Later this month, Paid.
   const weekEnd = addDays(startOfWeek(today), 7);
   const overdue = p.open.filter((x) => x.status === 'overdue');
-  const thisWeek = p.open.filter((x) => x.status !== 'overdue' && inThisMonth && x.due < weekEnd);
-  const later = p.open.filter((x) => x.status !== 'overdue' && !thisWeek.includes(x));
+  const missed = p.open.filter((x) => x.status === 'missed');
+  const thisWeek = p.open.filter((x) => x.status !== 'overdue' && x.status !== 'missed' && inThisMonth && x.due < weekEnd);
+  const later = p.open.filter((x) => x.status !== 'overdue' && x.status !== 'missed' && !thisWeek.includes(x));
   const groups: { label: string; rows: MonthPayment[] }[] = [
     { label: 'Overdue', rows: overdue },
+    { label: 'Missed', rows: missed },
     { label: 'This week', rows: thisWeek },
     { label: inThisMonth ? 'Later this month' : monthTitle(month), rows: later },
     { label: 'Paid', rows: p.paid },

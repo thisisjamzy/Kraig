@@ -6,7 +6,7 @@
 // month's same items. Each move is an allocation from the item(s) it
 // leaves.
 
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useFirebaseUser } from '@/src/shared/hooks/useFirebaseUser';
 import { useMonthBudget } from '@/src/shared/hooks/useMonthBudget';
 import { useGoBack } from '@/src/shared/navigation/useGoBack';
@@ -60,15 +60,24 @@ export function useLogic() {
   });
   const nextTotal = Math.round(nextPots.reduce((s, p) => s + p.amount, 0) * 100) / 100;
 
-  // Bucket targets: other items this month, overspent ones first.
-  const targets = useMemo(
-    () =>
-      budget.items
-        .filter((i) => i.type !== 'Income' && !(i.bucketId === bucketId && (!itemId || i.itemId === itemId)))
-        .map((i) => ({ key: i.key, name: i.name, bucketName: i.bucketName, needs: unexplained(i), remaining: i.remaining }))
-        .sort((a, b) => b.needs - a.needs || a.bucketName.localeCompare(b.bucketName) || a.name.localeCompare(b.name)),
-    [budget.items, bucketId, itemId]
-  );
+  // Targets: any other item in this month's budget (owner, 24 Nov 2026),
+  // in any basket, this one included; only the items the money leaves, and
+  // ones closed or archived, are left out. Overspent ones first.
+  const sourceKeys = new Set(sourceItems.map((i) => i.key));
+  const targets = budget.items
+    .filter((i) => i.type !== 'Income' && !i.archived && !i.closed && !sourceKeys.has(i.key) && !(itemId && i.bucketId === bucketId && i.itemId === itemId))
+    .map((i) => ({ key: i.key, name: i.name, bucketName: i.bucketName, needs: unexplained(i), remaining: i.remaining }))
+    .sort((a, b) => b.needs - a.needs || a.bucketName.localeCompare(b.bucketName) || a.name.localeCompare(b.name));
+  // A search over every target, then grouped: over plan first, then by basket.
+  const [targetQuery, setTargetQuery] = useState('');
+  const query = targetQuery.trim().toLowerCase();
+  const shownTargets = query ? targets.filter((t) => `${t.name} ${t.bucketName}`.toLowerCase().includes(query)) : targets;
+  const targetGroups: { label: string; items: typeof targets }[] = [];
+  const overTargets = shownTargets.filter((t) => t.needs > 0);
+  if (overTargets.length) targetGroups.push({ label: 'Over plan', items: overTargets });
+  const byBasket = new Map<string, typeof targets>();
+  for (const t of shownTargets) if (!(t.needs > 0)) byBasket.set(t.bucketName, [...(byBasket.get(t.bucketName) ?? []), t]);
+  for (const [label, items] of [...byBasket.entries()].sort((a, b) => a[0].localeCompare(b[0]))) targetGroups.push({ label, items });
   const savingsAccounts = accounts.filter(isSavingsAccount);
   const wallets = accounts.filter((a) => !isSavingsAccount(a));
 
@@ -192,6 +201,9 @@ export function useLogic() {
     note,
     setNote,
     targets,
+    targetGroups,
+    targetQuery,
+    setTargetQuery,
     target,
     setTargetKey,
     savingsAccounts,
